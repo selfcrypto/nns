@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src=".github/assets/nns-lockup-2048.png" alt="NNS — Nimiq Name Service" width="460">
+<img src="/assets/nns-lockup-2048.png" alt="NNS — Nimiq Name Service" width="460">
 
 ### Human-readable names on Nimiq. No smart contracts.
 
