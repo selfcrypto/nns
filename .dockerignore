@@ -1,0 +1,15 @@
+# The build context is the repository root. Everything the image needs is a
+# manifest, a `src/`, or the migrations; everything below is either rebuilt
+# inside the image, secret, or large.
+
+.git
+node_modules
+**/node_modules
+**/dist
+.env
+**/.env
+*.log
+.claude
+assets
+docs
+tasks

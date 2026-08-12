@@ -40,6 +40,8 @@ export {
 
 export { OrderingError, compare, resolvePositions, type Positioned } from './ordering.js'
 
+export { Progress, type ProgressOptions } from './progress.js'
+
 export {
   INVALID_PARAMS,
   METHOD_NOT_FOUND,

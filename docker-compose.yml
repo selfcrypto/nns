@@ -1,0 +1,115 @@
+# NNS indexer — Postgres and the indexer, one command:
+#
+#   cp .env.example .env      # fill in NNS_RPC_URL and the OPEN §3 values
+#   docker compose up         # migrates, backfills from LAUNCH_HEIGHT, tails
+#
+# Compose reads `.env` from this directory for the `${...}` substitutions below.
+# Nothing is baked into the image: the same image runs against any node and any
+# deployment's §3 constants.
+#
+# ## What you must set, and why it is more than the RPC URL
+#
+# Everything with a working default is defaulted here — the database URL, the
+# network id, every tuning knob. Two groups are not:
+#
+#   - `NNS_RPC_URL`, which is the one piece of *deployment* configuration. It
+#     has a default (a node on the host's port 6488), so a local node needs no
+#     configuration at all.
+#   - `NNS_LAUNCH_HEIGHT` and the four addresses, which are the §3 values still
+#     **OPEN** in the spec. These are `${VAR:?...}`, so compose refuses to start
+#     and names the missing variable.
+#
+# That second group deliberately has no default. A placeholder address in this
+# file is a placeholder that reaches mainnet: it would parse, the reducer would
+# run, and every message aimed at the real protocol address would be ignored —
+# producing an empty registry and a clean log. `core`'s `defineConfig` exists to
+# make these injected rather than baked in, and defaulting them here would undo
+# that from the outside.
+
+name: nns
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: nns
+      POSTGRES_PASSWORD: ${NNS_POSTGRES_PASSWORD:-nns}
+      POSTGRES_DB: nns
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # Loopback only, and 5433 by default: 5432 is usually taken by a local
+    # server, and a silent bind clash is a session spent querying the wrong
+    # database.
+    ports:
+      - '127.0.0.1:${NNS_POSTGRES_PORT:-5433}:5432'
+    healthcheck:
+      # The indexer's first act is to migrate, so it must not start before the
+      # server accepts connections — `depends_on` alone only waits for the
+      # container, which is ready long before Postgres is.
+      test: ['CMD-SHELL', 'pg_isready -U nns -d nns']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  indexer:
+    build:
+      context: .
+      dockerfile: packages/indexer/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # A tail is a long-running process against a node that will be restarted,
+    # go out of consensus, and drop connections. Note that a *configuration*
+    # error also exits (code 2) and will therefore restart-loop — with the same
+    # one-line `configuration: …` message each time, which is the intended
+    # diagnosis.
+    restart: unless-stopped
+    # SIGTERM aborts the scan between batches; the in-flight batch's commit is
+    # a single transaction, so it either lands or rolls back.
+    stop_grace_period: 30s
+    init: true
+    environment:
+      # Inside the compose network, not the host's port mapping.
+      NNS_DATABASE_URL: postgres://nns:${NNS_POSTGRES_PASSWORD:-nns}@postgres:5432/nns
+
+      # A node on the host, over the gateway address below. Point this at any
+      # reachable node instead — that is the one thing most deployments change.
+      NNS_RPC_URL: ${NNS_RPC_URL:-http://host.docker.internal:6488}
+      NNS_RPC_USER: ${NNS_RPC_USER:-}
+      NNS_RPC_PASSWORD: ${NNS_RPC_PASSWORD:-}
+
+      # 24 is main-albatross. §7.5 checks it on every transaction.
+      NNS_NETWORK_ID: ${NNS_NETWORK_ID:-24}
+
+      # The OPEN §3 values. No defaults — see the header.
+      NNS_LAUNCH_HEIGHT: ${NNS_LAUNCH_HEIGHT:?set NNS_LAUNCH_HEIGHT in .env (spec §3, still OPEN) — see .env.example}
+      NNS_TREASURY_ADDRESS: ${NNS_TREASURY_ADDRESS:?set NNS_TREASURY_ADDRESS in .env (spec §3, still OPEN) — see .env.example}
+      NNS_PROTOCOL_ADDRESS: ${NNS_PROTOCOL_ADDRESS:?set NNS_PROTOCOL_ADDRESS in .env (spec §3, still OPEN) — see .env.example}
+      NNS_ADMIN_ADDRESS: ${NNS_ADMIN_ADDRESS:?set NNS_ADMIN_ADDRESS in .env (spec §3, still OPEN) — see .env.example}
+      NNS_MARKETPLACE_ADDRESS: ${NNS_MARKETPLACE_ADDRESS:?set NNS_MARKETPLACE_ADDRESS in .env (spec §3, still OPEN) — see .env.example}
+      NNS_LISTING_FEE: ${NNS_LISTING_FEE:-0}
+      NNS_RESERVED_NAMES: ${NNS_RESERVED_NAMES:-}
+
+      NNS_LOG_LEVEL: ${NNS_LOG_LEVEL:-info}
+      NNS_POLL_INTERVAL_MS: ${NNS_POLL_INTERVAL_MS:-15000}
+      NNS_PROGRESS_INTERVAL_MS: ${NNS_PROGRESS_INTERVAL_MS:-60000}
+      NNS_RPC_TIMEOUT_MS: ${NNS_RPC_TIMEOUT_MS:-30000}
+      NNS_RPC_ATTEMPTS: ${NNS_RPC_ATTEMPTS:-4}
+    # Linux does not resolve `host.docker.internal` on its own. Harmless where
+    # it is already defined.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+volumes:
+  # Named, so `docker compose down` keeps the database and a restart resumes
+  # from the stored cursor instead of replaying from LAUNCH_HEIGHT. `down -v`
+  # is the deliberate way to start over — and the way to reproduce the
+  # "byte-identical roots from an empty database" check.
+  postgres-data:

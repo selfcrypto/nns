@@ -140,6 +140,12 @@ export class Scanner {
    */
   private cursor: number | undefined
 
+  /**
+   * Last finalised batch, as of the current tick. Undefined until the first
+   * one. Reported, never acted on — the scan loop uses its own local `target`.
+   */
+  private target: number | undefined
+
   constructor(options: ScannerOptions) {
     this.rpc = options.rpc
     this.logger = options.logger
@@ -157,6 +163,14 @@ export class Scanner {
     return this.cursor
   }
 
+  /**
+   * The last finalised batch seen from the node, for progress reporting.
+   * Undefined until the first tick.
+   */
+  get finalisedBatch(): number | undefined {
+    return this.target
+  }
+
   /** One pass: scan every batch that is finalised and not yet seen. */
   async tick(signal?: AbortSignal): Promise<number> {
     if (!(await this.rpc.isConsensusEstablished())) {
@@ -171,6 +185,7 @@ export class Scanner {
     // is wrong by tens of thousands of batches and wrong silently.
     const currentBatch = await this.rpc.getBatchNumber()
     const target = lastFinalisedBatch(currentBatch)
+    this.target = target
 
     let cursor = this.cursor ?? this.startBatch(geometry)
     this.cursor = cursor

@@ -36,6 +36,8 @@ export interface IndexerSettings {
   readonly launchHeight: number
   /** Idle wait once the scan has caught up to the last finalised macro block. */
   readonly pollIntervalMs: number
+  /** How often the `indexer.progress` heartbeat may repeat. */
+  readonly progressIntervalMs: number
   readonly logLevel: LogLevel
 }
 
@@ -114,6 +116,7 @@ export function loadSettings(env: EnvSource = process.env): IndexerSettings {
     networkId,
     launchHeight,
     pollIntervalMs: integer(env, 'NNS_POLL_INTERVAL_MS', 15_000, 100),
+    progressIntervalMs: integer(env, 'NNS_PROGRESS_INTERVAL_MS', 60_000, 1_000),
     logLevel: level,
     databaseUrl: required(env, 'NNS_DATABASE_URL'),
     config: nnsConfig(env, networkId, launchHeight),

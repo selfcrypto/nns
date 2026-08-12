@@ -8,14 +8,16 @@
  * reducing each batch's messages through `@nns/core` and committing state, log
  * lines, §8.1 checkpoints and the cursor in one transaction per batch.
  *
- * Not here yet: `docker-compose.yml`.
+ * In a container this is `node dist/main.js` with the environment supplied by
+ * `docker-compose.yml`; `--env-file` is the local-development path only.
  */
 
 import { CheckpointBuilder } from './checkpoint.js'
 import { createLogger, type Logger } from './logger.js'
 import { EnvError, loadSettings, type IndexerSettings } from './env.js'
 import { createPool, migrate } from './db.js'
-import { Pipeline, type BatchResult } from './pipeline.js'
+import { Pipeline } from './pipeline.js'
+import { Progress } from './progress.js'
 import { RpcClient } from './rpc.js'
 import { Scanner } from './scan.js'
 import { Store } from './store.js'
@@ -74,8 +76,17 @@ async function main(): Promise<void> {
       logger,
     })
     const pipeline = new Pipeline(settings.config, logger)
+    // Declared before the scanner so its `target` can read the scanner's view
+    // of the chain head; assigned after, since the two refer to each other.
+    let scanner: Scanner
+    const progress = new Progress({
+      logger,
+      intervalMs: settings.progressIntervalMs,
+      target: () => scanner.finalisedBatch,
+      startHeight: state.height,
+    })
 
-    const scanner = new Scanner({
+    scanner = new Scanner({
       rpc,
       logger,
       networkId: settings.networkId,
@@ -99,31 +110,18 @@ async function main(): Promise<void> {
           scannedThrough: macroBlock,
         })
         state = result.state
-        report(logger, batch, macroBlock, result)
+        progress.batchCommitted(batch, macroBlock, result, due)
       },
     })
 
     installSignalHandlers(logger, controller)
     await scanner.run(controller.signal)
+    // The run's totals, whatever the heartbeat's cadence had reached.
+    progress.flush('stop')
     logger.info('indexer.stop', { nextBatch: scanner.nextBatch, height: state.height })
   } finally {
     await pool.end()
   }
-}
-
-function report(logger: Logger, batch: number, macroBlock: number, result: BatchResult): void {
-  const interesting = result.logRows.length > 0 || result.boundariesCrossed.length > 0
-  const line = {
-    batch,
-    height: macroBlock,
-    stateHeight: result.state.height,
-    names: result.state.names.size,
-    logged: result.logRows.length,
-    ...result.counts,
-    boundaries: result.boundariesCrossed.length,
-  }
-  if (interesting) logger.info('reduce.batch', line)
-  else logger.debug('reduce.batch', line)
 }
 
 function installSignalHandlers(logger: Logger, controller: AbortController): void {
