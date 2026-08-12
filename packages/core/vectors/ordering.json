@@ -1,0 +1,150 @@
+{
+  "vectors": "nns/ordering",
+  "version": 1,
+  "spec": "nns-spec-v1 draft r14, §5.2 and §8.2",
+  "description": "Canonical order is (block_number ascending, position in the block body array ascending). The RPC transaction object carries no index, position or ordering field — verified 2026-08-06 against the full object — so every implementation must derive it the same way or roots diverge. Blocks routinely carry several transactions, so this is not a corner case.",
+  "addresses": {
+    "TREASURY": "NQ82 24C1 X9HD 6GVL 4JAG AVF6 AT3K FA0Q H3UN",
+    "PROTOCOL": "NQ07 48LK 0DRX 8M65 6NK1 D1PP CYC4 HE99 K857",
+    "ADMIN": "NQ67 6CV4 2J2F AREN 8STJ F608 F3LM KJHS MCDQ",
+    "MARKETPLACE": "NQ28 8H5M 4NB0 CVP7 AY43 HA8R H7V6 MNSB PGN9",
+    "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
+    "BOB": "NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK"
+  },
+  "config": {
+    "networkId": 24,
+    "launchHeight": 58000000,
+    "treasury": "TREASURY",
+    "protocol": "PROTOCOL",
+    "admin": "ADMIN",
+    "marketplace": "MARKETPLACE",
+    "listingFee": "0",
+    "reservedNames": []
+  },
+  "cases": [
+    {
+      "id": "two_registrations_in_one_block",
+      "note": "Alice is at index 0 and wins. Bob loses the race and is refunded by the treasury — a concurrency loss, not a client error (§7.4).",
+      "block": 58000010,
+      "transactions": [
+        {
+          "txIndex": 0,
+          "hash": "aa00000000000000000000000000000000000000000000000000000000000000",
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "400000000",
+          "text": "NNS1Gkikename",
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "txIndex": 1,
+          "hash": "aa10000000000000000000000000000000000000000000000000000000000000",
+          "sender": "BOB",
+          "recipient": "TREASURY",
+          "value": "400000000",
+          "text": "NNS1Gkikename",
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "LOST_REGISTRATION_RACE"
+          }
+        }
+      ],
+      "expect": {
+        "owner": {
+          "kikename": "ALICE"
+        },
+        "logLines": [
+          "58000010 0 aa00000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ8224C1X9HD6GVL4JAGAVF6AT3KFA0QH3UN 400000000 4e4e5331476b696b656e616d65 OK",
+          "58000010 1 aa10000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ8224C1X9HD6GVL4JAGAVF6AT3KFA0QH3UN 400000000 4e4e5331476b696b656e616d65 LOST_REGISTRATION_RACE"
+        ],
+        "logHash": "aa908ebe9dcd138579ad47d698e8d7c7303636b1774bcf835fbfb4501e8c56bc",
+        "root": "6963b3dd1276639362f85c1fbbc60d5540b00b3ec3a059ec2b9dfc5814afbd2d"
+      }
+    },
+    {
+      "id": "the_same_block_with_the_positions_swapped",
+      "note": "Identical transactions, opposite array positions, opposite outcome. This is the case that proves ordering is load-bearing rather than incidental.",
+      "block": 58000010,
+      "transactions": [
+        {
+          "txIndex": 0,
+          "hash": "aa10000000000000000000000000000000000000000000000000000000000000",
+          "sender": "BOB",
+          "recipient": "TREASURY",
+          "value": "400000000",
+          "text": "NNS1Gkikename",
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "txIndex": 1,
+          "hash": "aa00000000000000000000000000000000000000000000000000000000000000",
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "400000000",
+          "text": "NNS1Gkikename",
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "LOST_REGISTRATION_RACE"
+          }
+        }
+      ],
+      "expect": {
+        "owner": {
+          "kikename": "BOB"
+        },
+        "logLines": [
+          "58000010 0 aa10000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ8224C1X9HD6GVL4JAGAVF6AT3KFA0QH3UN 400000000 4e4e5331476b696b656e616d65 OK",
+          "58000010 1 aa00000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ8224C1X9HD6GVL4JAGAVF6AT3KFA0QH3UN 400000000 4e4e5331476b696b656e616d65 LOST_REGISTRATION_RACE"
+        ],
+        "logHash": "dedf611d77354818aff6a5fb4c57d92897aaa562322c7c948e24d14d1e10cb28",
+        "root": "db6eec900e86805e33da448e4582561fd900f15aa22259fb8da91c7fd6f08178",
+        "differsFrom": "two_registrations_in_one_block"
+      }
+    },
+    {
+      "id": "a_failed_transaction_still_occupies_its_position",
+      "note": "§7.5 discards the failed G before any rule, so it takes no name and earns no log line — but it is still at index 0 of the block body, and index 1 is still index 1.",
+      "block": 58000020,
+      "transactions": [
+        {
+          "txIndex": 0,
+          "hash": "bb00000000000000000000000000000000000000000000000000000000000000",
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "400000000",
+          "text": "NNS1Gkikename",
+          "executionResult": false,
+          "verdict": {
+            "kind": "IGNORED",
+            "reason": "FAILED_EXECUTION"
+          }
+        },
+        {
+          "txIndex": 1,
+          "hash": "bb10000000000000000000000000000000000000000000000000000000000000",
+          "sender": "BOB",
+          "recipient": "TREASURY",
+          "value": "400000000",
+          "text": "NNS1Gkikename",
+          "verdict": {
+            "kind": "OK"
+          }
+        }
+      ],
+      "expect": {
+        "owner": {
+          "kikename": "BOB"
+        },
+        "logLines": [
+          "58000020 1 bb10000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ8224C1X9HD6GVL4JAGAVF6AT3KFA0QH3UN 400000000 4e4e5331476b696b656e616d65 OK"
+        ],
+        "logHash": "08c0e57d46bafcb9adc398dd09ad2f2b3847c911829b3c14d56441d1804753ff",
+        "root": "c1f09b52dc64407ad28d2ea89c75fafa607171bcdf57a22a4fe531bc99931a98"
+      }
+    }
+  ]
+}

@@ -1,0 +1,575 @@
+{
+  "vectors": "nns/reduce",
+  "version": 1,
+  "spec": "nns-spec-v1 draft r14, §7.3, §7.4 and §7.5",
+  "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`) or a bare height advance (`advanceTo`), which is how expiry, timelock maturity and governance activation are driven — none of them is triggered by a message.",
+  "addresses": {
+    "TREASURY": "NQ82 24C1 X9HD 6GVL 4JAG AVF6 AT3K FA0Q H3UN",
+    "PROTOCOL": "NQ07 48LK 0DRX 8M65 6NK1 D1PP CYC4 HE99 K857",
+    "ADMIN": "NQ67 6CV4 2J2F AREN 8STJ F608 F3LM KJHS MCDQ",
+    "MARKETPLACE": "NQ28 8H5M 4NB0 CVP7 AY43 HA8R H7V6 MNSB PGN9",
+    "BURN": "NQ07 0000 0000 0000 0000 0000 0000 0000 0000",
+    "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
+    "BOB": "NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK",
+    "CAROL": "NQ19 KSMT HHEJ TYNF J1GK 40NK LHSL C5P7 P24M"
+  },
+  "config": {
+    "networkId": 24,
+    "launchHeight": 58000000,
+    "treasury": "TREASURY",
+    "protocol": "PROTOCOL",
+    "admin": "ADMIN",
+    "marketplace": "MARKETPLACE",
+    "listingFee": "0",
+    "reservedNames": []
+  },
+  "constants": {
+    "FEE_STANDARD": "400000000",
+    "FEE_LONG": "40000000",
+    "TERM_LENGTH": 157680000,
+    "GRACE_PERIOD": 7776000,
+    "XFER_TIMELOCK": 43200,
+    "RECOVERY_TIMELOCK": 259200,
+    "GOVERNANCE_DELAY": 43200,
+    "OFFER_IRREVOCABLE": 8640,
+    "OFFER_MAX_LIFETIME": 1296000
+  },
+  "scenarios": [
+    {
+      "id": "failed_G_does_not_register_name",
+      "note": "The named conformance case from §14. Albatross includes failed transactions in blocks; without §7.5's first rule a failed G takes a name, and two implementations disagreeing produce different roots.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58000000,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "400000000",
+            "text": "NNS1Gkikename",
+            "executionResult": false
+          },
+          "verdict": { "kind": "IGNORED", "reason": "FAILED_EXECUTION" }
+        }
+      ],
+      "expect": { "names": {}, "resolves": { "kikename": null } }
+    },
+    {
+      "id": "reward_transaction_is_ignored",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58000000,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "400000000",
+            "text": "NNS1Gkikename",
+            "isReward": true
+          },
+          "verdict": { "kind": "IGNORED", "reason": "REWARD_TRANSACTION" }
+        }
+      ],
+      "expect": { "names": {} }
+    },
+    {
+      "id": "wrong_network_is_ignored",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58000000,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "400000000",
+            "text": "NNS1Gkikename",
+            "networkId": 25
+          },
+          "verdict": { "kind": "IGNORED", "reason": "WRONG_NETWORK" }
+        }
+      ],
+      "expect": { "names": {} }
+    },
+    {
+      "id": "non_nns1_traffic_is_ignored",
+      "note": "The ordinary case: most chain traffic is not NNS. It earns no log line at all (§7.6).",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58000000,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "BOB",
+            "value": "1",
+            "data": "68690a"
+          },
+          "verdict": { "kind": "IGNORED", "reason": "NOT_NNS1" }
+        }
+      ],
+      "expect": { "names": {} }
+    },
+    {
+      "id": "G_registers_with_target_and_term",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58000005,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "400000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": { "kind": "OK" }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "ALICE",
+            "target": "ALICE",
+            "expiry": 215680005,
+            "status": "REGISTERED",
+            "recovery": null,
+            "host": ""
+          }
+        },
+        "resolves": { "kikename": "ALICE" }
+      }
+    },
+    {
+      "id": "G_underpaid_forfeits",
+      "note": "The long band is cheaper, but a standard-band name priced at the long-band fee is still underpaid.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58000000,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "40000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": { "kind": "FORFEIT", "reason": "INSUFFICIENT_VALUE" }
+        }
+      ],
+      "expect": { "names": {} }
+    },
+    {
+      "id": "G_long_band_is_priced_by_length_alone",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58000000,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "40000000",
+            "text": "NNS1Gaaaaaaaaaaaa"
+          },
+          "verdict": { "kind": "OK" }
+        }
+      ],
+      "expect": { "names": { "aaaaaaaaaaaa": { "owner": "ALICE" } } }
+    },
+    {
+      "id": "G_invalid_name_forfeits",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58000000,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "400000000",
+            "text": "NNS1Gn1m1q"
+          },
+          "verdict": { "kind": "FORFEIT", "reason": "INVALID_NAME" }
+        }
+      ],
+      "expect": { "names": {} }
+    },
+    {
+      "id": "G_wrong_recipient_forfeits",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58000000,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "400000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": { "kind": "FORFEIT", "reason": "WRONG_RECIPIENT" }
+        }
+      ],
+      "expect": { "names": {} }
+    },
+    {
+      "id": "G_in_grace_forfeits",
+      "note": "§7.4: the status and its end height are provable from the checkpoint tree, so a correct client prevents this.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58000000,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "400000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": {
+            "blockNumber": 215680001,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "TREASURY",
+            "value": "400000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": { "kind": "FORFEIT", "reason": "NAME_IN_GRACE" }
+        }
+      ],
+      "expect": { "names": { "kikename": { "owner": "ALICE", "status": "GRACE" } } }
+    },
+    {
+      "id": "S_moves_resolution_not_ownership",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "BOB", "value": "1", "text": "NNS1Skikename" },
+          "verdict": { "kind": "OK" }
+        }
+      ],
+      "expect": {
+        "names": { "kikename": { "owner": "ALICE", "target": "BOB" } },
+        "resolves": { "kikename": "BOB" }
+      }
+    },
+    {
+      "id": "S_sentinel_resets_target_to_owner",
+      "note": "§5.3: the owner cannot name themselves as recipient, so PROTOCOL_ADDRESS carries the operation.",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "BOB", "value": "1", "text": "NNS1Skikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000002, "txIndex": 0, "sender": "ALICE", "recipient": "PROTOCOL", "value": "1", "text": "NNS1Skikename" },
+          "verdict": { "kind": "OK" }
+        }
+      ],
+      "expect": { "resolves": { "kikename": "ALICE" } }
+    },
+    {
+      "id": "S_from_a_stranger_forfeits",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "BOB", "recipient": "BOB", "value": "1", "text": "NNS1Skikename" },
+          "verdict": { "kind": "FORFEIT", "reason": "NOT_OWNER" }
+        }
+      ],
+      "expect": { "resolves": { "kikename": "ALICE" } }
+    },
+    {
+      "id": "X_waits_the_timelock_then_resets_dependent_state",
+      "note": "§7.3: owner and target both become the new owner, host and recovery are cleared, offers cancelled, pending X/R void.",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 1, "sender": "ALICE", "recipient": "PROTOCOL", "value": "1", "text": "NNS1Dkikename|a.com" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "BOB", "value": "1", "text": "NNS1Xkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        { "advanceTo": 58043200, "note": "one block short of maturity" },
+        { "check": { "names": { "kikename": { "owner": "ALICE", "host": "a.com" } } } },
+        { "advanceTo": 58043201 }
+      ],
+      "expect": {
+        "names": { "kikename": { "owner": "BOB", "target": "BOB", "recovery": null, "host": "" } }
+      }
+    },
+    {
+      "id": "K_vetoes_a_pending_transfer",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 1, "sender": "ALICE", "recipient": "BOB", "value": "1", "text": "NNS1Xkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "PROTOCOL", "value": "1", "text": "NNS1Kkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        { "advanceTo": 58100000 }
+      ],
+      "expect": { "names": { "kikename": { "owner": "ALICE" } } }
+    },
+    {
+      "id": "K_with_nothing_pending_forfeits",
+      "note": "§7.4 lists no such reason. The value at stake is DUST_VALUE; the code records why the message had no effect. See docs/decisions.md.",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "PROTOCOL", "value": "1", "text": "NNS1Kkikename" },
+          "verdict": { "kind": "FORFEIT", "reason": "NOTHING_TO_CANCEL" }
+        }
+      ],
+      "expect": { "names": { "kikename": { "owner": "ALICE" } } }
+    },
+    {
+      "id": "recovery_transfer_uses_the_longer_timelock",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 1, "sender": "ALICE", "recipient": "CAROL", "value": "1", "text": "NNS1Rkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        { "advanceTo": 58043200 },
+        { "check": { "names": { "kikename": { "recovery": "CAROL" } } } },
+        {
+          "tx": { "blockNumber": 58043200, "txIndex": 0, "sender": "CAROL", "recipient": "CAROL", "value": "1", "text": "NNS1Xkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        { "advanceTo": 58086400, "note": "XFER_TIMELOCK would have matured here" },
+        { "check": { "names": { "kikename": { "owner": "ALICE" } } } },
+        { "advanceTo": 58302400 }
+      ],
+      "expect": { "names": { "kikename": { "owner": "CAROL", "recovery": null } } }
+    },
+    {
+      "id": "expiry_then_grace_then_available",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        { "advanceTo": 215680000 },
+        { "check": { "names": { "kikename": { "status": "GRACE" } }, "resolves": { "kikename": null } } },
+        { "advanceTo": 223456000 }
+      ],
+      "expect": { "names": {}, "resolves": { "kikename": null } }
+    },
+    {
+      "id": "renewal_extends_from_the_current_expiry",
+      "note": "§6 N: not from the renewal height, so early renewal is never penalised. Sender: anyone.",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "BOB", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Nkikename" },
+          "verdict": { "kind": "OK" }
+        }
+      ],
+      "expect": { "names": { "kikename": { "owner": "ALICE", "expiry": 373360000 } } }
+    },
+    {
+      "id": "a_winning_B_moves_the_name_and_owes_two_settlements",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|1000000" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000002, "txIndex": 0, "sender": "BOB", "recipient": "MARKETPLACE", "value": "1000000", "text": "NNS1Bkikename" },
+          "verdict": {
+            "kind": "OK",
+            "obligations": [
+              { "kind": "SALE_PROCEEDS", "owedBy": "MARKETPLACE", "owedTo": "ALICE", "amount": "975000" },
+              { "kind": "COMMISSION", "owedBy": "MARKETPLACE", "owedTo": "TREASURY", "amount": "25000" }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "names": { "kikename": { "owner": "BOB", "target": "BOB", "expiry": 215680000 } },
+        "note": "The buyer inherits the name's current expiry, and the two legs sum to the price exactly."
+      }
+    },
+    {
+      "id": "the_losing_B_is_refunded_not_forfeited",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|1000000" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000002, "txIndex": 0, "sender": "BOB", "recipient": "MARKETPLACE", "value": "1000000", "text": "NNS1Bkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000002, "txIndex": 1, "sender": "CAROL", "recipient": "MARKETPLACE", "value": "1000000", "text": "NNS1Bkikename" },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "OFFER_NOT_OPEN",
+            "obligations": [{ "kind": "REFUND", "owedBy": "MARKETPLACE", "owedTo": "CAROL", "amount": "1000000" }]
+          }
+        }
+      ],
+      "expect": { "names": { "kikename": { "owner": "BOB" } } }
+    },
+    {
+      "id": "a_refund_is_never_reduced_by_commission",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|1000000" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000002, "txIndex": 0, "sender": "BOB", "recipient": "MARKETPLACE", "value": "1000001", "text": "NNS1Bkikename" },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "WRONG_PRICE",
+            "obligations": [{ "kind": "REFUND", "owedBy": "MARKETPLACE", "owedTo": "BOB", "amount": "1000001" }]
+          }
+        }
+      ],
+      "expect": { "names": { "kikename": { "owner": "ALICE" } } }
+    },
+    {
+      "id": "governance_binds_at_effective_height",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ADMIN", "recipient": "PROTOCOL", "value": "1", "text": "NNS1P800000000|40000000|250|58043200" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58043199, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58043200, "txIndex": 0, "sender": "BOB", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gothername" },
+          "verdict": { "kind": "FORFEIT", "reason": "INSUFFICIENT_VALUE" }
+        }
+      ],
+      "expect": { "names": { "kikename": { "owner": "ALICE" } }, "prices": { "feeStandard": "800000000" } }
+    },
+    {
+      "id": "governance_bound_more_than_double",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ADMIN", "recipient": "PROTOCOL", "value": "1", "text": "NNS1P1200000000|40000000|250|58043200" },
+          "verdict": { "kind": "FORFEIT", "reason": "GOVERNANCE_BOUND_VIOLATED" }
+        }
+      ],
+      "expect": { "prices": { "feeStandard": "400000000" } }
+    },
+    {
+      "id": "governance_from_a_non_admin_forfeits",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "PROTOCOL", "value": "1", "text": "NNS1P400000000|40000000|250|58043200" },
+          "verdict": { "kind": "FORFEIT", "reason": "NOT_ADMIN" }
+        }
+      ],
+      "expect": { "prices": { "feeStandard": "400000000" } }
+    },
+    {
+      "id": "auction_is_not_in_v1",
+      "note": "By protocol version, not by omission: an implementation that honoured A would derive a different root, so v1 conformance requires this same forfeit.",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "PROTOCOL", "value": "1", "text": "NNS1Akikename|1000|58200000" },
+          "verdict": { "kind": "FORFEIT", "reason": "AUCTION_NOT_IN_V1" }
+        }
+      ],
+      "expect": { "names": {} }
+    },
+    {
+      "id": "burn_attestation_has_no_protocol_effect",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "TREASURY", "recipient": "BURN", "value": "1000", "text": "NNS1F" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "BURN", "value": "1000", "text": "NNS1F" },
+          "verdict": { "kind": "FORFEIT", "reason": "WRONG_SENDER" }
+        }
+      ],
+      "expect": { "names": {} }
+    },
+    {
+      "id": "unreserve_releases_a_name_at_its_effective_height",
+      "config": { "reservedNames": ["binance"] },
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gbinance" },
+          "verdict": { "kind": "FORFEIT", "reason": "RESERVED_NAME" }
+        },
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 1, "sender": "ADMIN", "recipient": "PROTOCOL", "value": "1", "text": "NNS1Ubinance|58043200" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58043199, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gbinance" },
+          "verdict": { "kind": "FORFEIT", "reason": "RESERVED_NAME" }
+        },
+        {
+          "tx": { "blockNumber": 58043200, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gbinance" },
+          "verdict": { "kind": "OK" }
+        }
+      ],
+      "expect": { "names": { "binance": { "owner": "ALICE" } } }
+    },
+    {
+      "id": "a_maturing_transfer_runs_before_the_expiry_it_collides_with",
+      "note": "§7.3 fixes no order for effects due at the same height, and the two readings disagree: expire-first would cancel the pending X as part of the grace reset. See docs/decisions.md.",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 215636800, "txIndex": 0, "sender": "ALICE", "recipient": "BOB", "value": "1", "text": "NNS1Xkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        { "advanceTo": 215680000 }
+      ],
+      "expect": { "names": { "kikename": { "owner": "BOB", "status": "GRACE" } } }
+    }
+  ]
+}

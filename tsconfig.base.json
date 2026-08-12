@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  // Shared by every package. Packages extend this and add rootDir/outDir/include.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+
+    // NodeNext means relative imports MUST carry a .js extension.
+    // packages/app overrides moduleResolution to "Bundler" in its own tsconfig.
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    // noUncheckedIndexedAccess is load-bearing: core is byte-array code, and
+    // this is the flag that turns an off-by-one into a compile error.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "useUnknownInCatchVariables": true,
+
+    // No enums, namespaces or parameter properties. Keeps every source file
+    // runnable under node's own type stripping.
+    "erasableSyntaxOnly": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}

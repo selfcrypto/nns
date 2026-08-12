@@ -1,0 +1,719 @@
+{
+  "vectors": "nns/codec",
+  "version": 1,
+  "spec": "nns-spec-v1 draft r14, §5 and §6",
+  "description": "Wire format. `text` is the message as ASCII; `data` is the same bytes as lowercase hex, which is what the RPC carries in both directions (§5.1). Recipients are role names resolved through `addresses`; `value` is luna as a decimal string.",
+  "addresses": {
+    "TREASURY": "NQ82 24C1 X9HD 6GVL 4JAG AVF6 AT3K FA0Q H3UN",
+    "PROTOCOL": "NQ07 48LK 0DRX 8M65 6NK1 D1PP CYC4 HE99 K857",
+    "ADMIN": "NQ67 6CV4 2J2F AREN 8STJ F608 F3LM KJHS MCDQ",
+    "MARKETPLACE": "NQ28 8H5M 4NB0 CVP7 AY43 HA8R H7V6 MNSB PGN9",
+    "BURN": "NQ07 0000 0000 0000 0000 0000 0000 0000 0000",
+    "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
+    "BOB": "NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK"
+  },
+  "config": {
+    "networkId": 24,
+    "launchHeight": 58000000,
+    "treasury": "TREASURY",
+    "protocol": "PROTOCOL",
+    "admin": "ADMIN",
+    "marketplace": "MARKETPLACE",
+    "listingFee": "0",
+    "reservedNames": []
+  },
+  "roundTrip": {
+    "description": "Each case encodes to `data` and parses back to `message`. Every one of the fourteen §6 types appears at least once.",
+    "cases": [
+      {
+        "id": "G_mainnet_known_answer",
+        "text": "NNS1Gtestname",
+        "data": "4e4e533147746573746e616d65",
+        "message": {
+          "type": "G",
+          "name": "testname",
+          "ref": null
+        },
+        "build": {
+          "builder": "register",
+          "fee": "400000000"
+        },
+        "recipient": "TREASURY",
+        "value": "400000000",
+        "note": "The value verified on mainnet 2026-08-06 and quoted in CLAUDE.md: 4e4e533147746573746e616d65."
+      },
+      {
+        "id": "G_with_ref",
+        "text": "NNS1Gkikename|coinbase",
+        "data": "4e4e5331476b696b656e616d657c636f696e62617365",
+        "message": {
+          "type": "G",
+          "name": "kikename",
+          "ref": "coinbase"
+        },
+        "build": {
+          "builder": "register",
+          "ref": "coinbase",
+          "fee": "400000000"
+        },
+        "recipient": "TREASURY",
+        "value": "400000000"
+      },
+      {
+        "id": "G_maximal_42_bytes",
+        "text": "NNS1Gaaaaaaaaaaaaaaaaaaaaaaaa|bbbbbbbbbbbb",
+        "data": "4e4e5331476161616161616161616161616161616161616161616161617c626262626262626262626262",
+        "message": {
+          "type": "G",
+          "name": "aaaaaaaaaaaaaaaaaaaaaaaa",
+          "ref": "bbbbbbbbbbbb"
+        },
+        "build": {
+          "builder": "register",
+          "ref": "bbbbbbbbbbbb",
+          "fee": "40000000"
+        },
+        "recipient": "TREASURY",
+        "value": "40000000",
+        "byteLength": 42,
+        "note": "§6 G states 42 bytes as the maximum."
+      },
+      {
+        "id": "S_to_counterparty",
+        "text": "NNS1Skikename",
+        "data": "4e4e5331536b696b656e616d65",
+        "message": {
+          "type": "S",
+          "name": "kikename"
+        },
+        "build": {
+          "builder": "setTarget",
+          "target": "BOB"
+        },
+        "recipient": "BOB",
+        "value": "1"
+      },
+      {
+        "id": "S_reset_via_sentinel",
+        "text": "NNS1Skikename",
+        "data": "4e4e5331536b696b656e616d65",
+        "message": {
+          "type": "S",
+          "name": "kikename"
+        },
+        "build": {
+          "builder": "setTarget",
+          "target": null
+        },
+        "recipient": "PROTOCOL",
+        "value": "1",
+        "note": "§5.3 sentinel. The owner cannot name themselves as recipient, so PROTOCOL_ADDRESS means reset to the owner's own address."
+      },
+      {
+        "id": "X_transfer",
+        "text": "NNS1Xkikename",
+        "data": "4e4e5331586b696b656e616d65",
+        "message": {
+          "type": "X",
+          "name": "kikename"
+        },
+        "build": {
+          "builder": "transfer",
+          "newOwner": "BOB"
+        },
+        "recipient": "BOB",
+        "value": "1"
+      },
+      {
+        "id": "R_set_recovery",
+        "text": "NNS1Rkikename",
+        "data": "4e4e5331526b696b656e616d65",
+        "message": {
+          "type": "R",
+          "name": "kikename"
+        },
+        "build": {
+          "builder": "recovery",
+          "recovery": "BOB"
+        },
+        "recipient": "BOB",
+        "value": "1"
+      },
+      {
+        "id": "R_clear_via_sentinel",
+        "text": "NNS1Rkikename",
+        "data": "4e4e5331526b696b656e616d65",
+        "message": {
+          "type": "R",
+          "name": "kikename"
+        },
+        "build": {
+          "builder": "recovery",
+          "recovery": null
+        },
+        "recipient": "PROTOCOL",
+        "value": "1"
+      },
+      {
+        "id": "D_spec_example_28_bytes",
+        "text": "NNS1Dbinance|nns.binance.com",
+        "data": "4e4e53314462696e616e63657c6e6e732e62696e616e63652e636f6d",
+        "message": {
+          "type": "D",
+          "name": "binance",
+          "host": "nns.binance.com"
+        },
+        "build": {
+          "builder": "delegate",
+          "host": "nns.binance.com"
+        },
+        "recipient": "PROTOCOL",
+        "value": "1",
+        "byteLength": 28,
+        "note": "§6 D gives this exact example at 28 bytes."
+      },
+      {
+        "id": "D_clear_delegation",
+        "text": "NNS1Dbinance|",
+        "data": "4e4e53314462696e616e63657c",
+        "message": {
+          "type": "D",
+          "name": "binance",
+          "host": ""
+        },
+        "build": {
+          "builder": "delegate",
+          "host": ""
+        },
+        "recipient": "PROTOCOL",
+        "value": "1"
+      },
+      {
+        "id": "D_maximal_58_bytes",
+        "text": "NNS1Daaaaaaaaaaaaaaaaaaaaaaaa|bbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "data": "4e4e5331446161616161616161616161616161616161616161616161617c62626262626262626262626262626262626262626262626262626262",
+        "message": {
+          "type": "D",
+          "name": "aaaaaaaaaaaaaaaaaaaaaaaa",
+          "host": "bbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "build": {
+          "builder": "delegate",
+          "host": "bbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "recipient": "PROTOCOL",
+        "value": "1",
+        "byteLength": 58,
+        "note": "§6 caps D at 58 bytes, tighter than the global 64, so it keeps the same margin as everything else."
+      },
+      {
+        "id": "K_cancel",
+        "text": "NNS1Kkikename",
+        "data": "4e4e53314b6b696b656e616d65",
+        "message": {
+          "type": "K",
+          "name": "kikename"
+        },
+        "build": {
+          "builder": "cancel"
+        },
+        "recipient": "PROTOCOL",
+        "value": "1"
+      },
+      {
+        "id": "N_renew",
+        "text": "NNS1Nkikename",
+        "data": "4e4e53314e6b696b656e616d65",
+        "message": {
+          "type": "N",
+          "name": "kikename"
+        },
+        "build": {
+          "builder": "renew",
+          "fee": "400000000"
+        },
+        "recipient": "TREASURY",
+        "value": "400000000"
+      },
+      {
+        "id": "O_offer",
+        "text": "NNS1Okikename|123456789",
+        "data": "4e4e53314f6b696b656e616d657c313233343536373839",
+        "message": {
+          "type": "O",
+          "name": "kikename",
+          "price": "123456789"
+        },
+        "build": {
+          "builder": "offer",
+          "price": "123456789"
+        },
+        "recipient": "TREASURY",
+        "value": "1",
+        "note": "The listing fee is OPEN in §6/§10.6. With it at zero the message carries DUST_VALUE, because the network rejects a value of 0 (§5.4)."
+      },
+      {
+        "id": "O_price_beyond_a_double",
+        "text": "NNS1Okikename|9007199254740993",
+        "data": "4e4e53314f6b696b656e616d657c39303037313939323534373430393933",
+        "message": {
+          "type": "O",
+          "name": "kikename",
+          "price": "9007199254740993"
+        },
+        "build": {
+          "builder": "offer",
+          "price": "9007199254740993"
+        },
+        "recipient": "TREASURY",
+        "value": "1",
+        "note": "2^53 + 1. Amounts are arbitrary-precision integers, never floats."
+      },
+      {
+        "id": "B_buy",
+        "text": "NNS1Bkikename",
+        "data": "4e4e5331426b696b656e616d65",
+        "message": {
+          "type": "B",
+          "name": "kikename"
+        },
+        "build": {
+          "builder": "buy",
+          "price": "123456789"
+        },
+        "recipient": "MARKETPLACE",
+        "value": "123456789"
+      },
+      {
+        "id": "M_settlement_zero_based_index",
+        "text": "NNS1M58060800|0",
+        "data": "4e4e53314d35383036303830307c30",
+        "message": {
+          "type": "M",
+          "height": 58060800,
+          "txIndex": 0
+        },
+        "build": {
+          "builder": "settlement",
+          "payee": "BOB",
+          "amount": "7"
+        },
+        "recipient": "BOB",
+        "value": "7"
+      },
+      {
+        "id": "A_auction",
+        "text": "NNS1Akikename|1000|58200000",
+        "data": "4e4e5331416b696b656e616d657c313030307c3538323030303030",
+        "message": {
+          "type": "A",
+          "name": "kikename",
+          "reserve": "1000",
+          "endHeight": 58200000
+        },
+        "build": {
+          "builder": "auction",
+          "reserve": "1000",
+          "endHeight": 58200000
+        },
+        "recipient": "PROTOCOL",
+        "value": "1"
+      },
+      {
+        "id": "P_governance",
+        "text": "NNS1P400000000|40000000|250|58100000",
+        "data": "4e4e5331503430303030303030307c34303030303030307c3235307c3538313030303030",
+        "message": {
+          "type": "P",
+          "feeStandard": "400000000",
+          "feeLong": "40000000",
+          "commissionBp": "250",
+          "effectiveHeight": 58100000
+        },
+        "build": {
+          "builder": "governance",
+          "feeStandard": "400000000",
+          "feeLong": "40000000",
+          "commissionBp": "250",
+          "effectiveHeight": 58100000
+        },
+        "recipient": "PROTOCOL",
+        "value": "1"
+      },
+      {
+        "id": "U_unreserve",
+        "text": "NNS1Ubinance|58100000",
+        "data": "4e4e53315562696e616e63657c3538313030303030",
+        "message": {
+          "type": "U",
+          "name": "binance",
+          "effectiveHeight": 58100000
+        },
+        "build": {
+          "builder": "unreserve",
+          "effectiveHeight": 58100000
+        },
+        "recipient": "PROTOCOL",
+        "value": "1"
+      },
+      {
+        "id": "F_burn_attestation_5_bytes",
+        "text": "NNS1F",
+        "data": "4e4e533146",
+        "message": {
+          "type": "F"
+        },
+        "build": {
+          "builder": "burn",
+          "amount": "1000"
+        },
+        "recipient": "BURN",
+        "value": "1000",
+        "byteLength": 5
+      }
+    ]
+  },
+  "parseOnly": {
+    "description": "Read-side cases, including messages no builder will produce. `NOT_NNS1` is the one outcome that earns no log line: §7.5 discards it before a message is parsed.",
+    "cases": [
+      {
+        "id": "not_nns1",
+        "text": "hello world",
+        "data": "68656c6c6f20776f726c64",
+        "result": {
+          "ok": false,
+          "reason": "NOT_NNS1"
+        }
+      },
+      {
+        "id": "empty",
+        "data": "",
+        "text": "",
+        "result": {
+          "ok": false,
+          "reason": "NOT_NNS1"
+        }
+      },
+      {
+        "id": "unknown_type",
+        "text": "NNS1Zkikename",
+        "data": "4e4e53315a6b696b656e616d65",
+        "result": {
+          "ok": false,
+          "reason": "UNKNOWN_TYPE"
+        }
+      },
+      {
+        "id": "lowercase_type_is_unknown",
+        "text": "NNS1gkikename",
+        "data": "4e4e5331676b696b656e616d65",
+        "result": {
+          "ok": false,
+          "reason": "UNKNOWN_TYPE"
+        }
+      },
+      {
+        "id": "over_length",
+        "text": "NNS1Gaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "data": "4e4e5331476161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161",
+        "result": {
+          "ok": false,
+          "reason": "OVER_LENGTH"
+        },
+        "note": "65 bytes. The RPC accepts these and returns a hash; the network then silently drops them (§5.1)."
+      },
+      {
+        "id": "odd_length_hex",
+        "data": "4e4e5331470",
+        "result": {
+          "ok": false,
+          "reason": "NOT_HEX"
+        }
+      },
+      {
+        "id": "not_hex_at_all",
+        "data": "zz",
+        "result": {
+          "ok": false,
+          "reason": "NOT_HEX"
+        }
+      },
+      {
+        "id": "invalid_name_still_parses",
+        "text": "NNS1Gn1m1q",
+        "data": "4e4e5331476e316d3171",
+        "result": {
+          "ok": true,
+          "message": {
+            "type": "G",
+            "name": "n1m1q",
+            "ref": null
+          }
+        },
+        "note": "The codec does not judge names. A rejected message still earns a log line (§7.6), so it must parse first."
+      },
+      {
+        "id": "uppercase_name_still_parses",
+        "text": "NNS1GNIMIQ",
+        "data": "4e4e5331474e494d4951",
+        "result": {
+          "ok": true,
+          "message": {
+            "type": "G",
+            "name": "NIMIQ",
+            "ref": null
+          }
+        }
+      },
+      {
+        "id": "bad_ref_recorded_as_absent",
+        "text": "NNS1Gkikename|Coinbase",
+        "data": "4e4e5331476b696b656e616d657c436f696e62617365",
+        "result": {
+          "ok": true,
+          "message": {
+            "type": "G",
+            "name": "kikename",
+            "ref": null
+          }
+        },
+        "note": "§6 G: an unknown, malformed or absent ref is recorded as absent and the registration proceeds. Accounting must never be able to reject a paid registration."
+      },
+      {
+        "id": "empty_ref_recorded_as_absent",
+        "text": "NNS1Gkikename|",
+        "data": "4e4e5331476b696b656e616d657c",
+        "result": {
+          "ok": true,
+          "message": {
+            "type": "G",
+            "name": "kikename",
+            "ref": null
+          }
+        }
+      },
+      {
+        "id": "over_length_ref_recorded_as_absent",
+        "text": "NNS1Gkikename|aaaaaaaaaaaaa",
+        "data": "4e4e5331476b696b656e616d657c61616161616161616161616161",
+        "result": {
+          "ok": true,
+          "message": {
+            "type": "G",
+            "name": "kikename",
+            "ref": null
+          }
+        }
+      },
+      {
+        "id": "extra_pipes_in_ref_recorded_as_absent",
+        "text": "NNS1Gkikename|a|b",
+        "data": "4e4e5331476b696b656e616d657c617c62",
+        "result": {
+          "ok": true,
+          "message": {
+            "type": "G",
+            "name": "kikename",
+            "ref": null
+          }
+        },
+        "note": "G splits on the first pipe only, so nothing after it can reject the registration."
+      },
+      {
+        "id": "empty_name_G",
+        "text": "NNS1G",
+        "data": "4e4e533147",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "empty_name_S",
+        "text": "NNS1S",
+        "data": "4e4e533153",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "empty_name_D",
+        "text": "NNS1D|host.com",
+        "data": "4e4e5331447c686f73742e636f6d",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "D_without_pipe",
+        "text": "NNS1Dbinance",
+        "data": "4e4e53314462696e616e6365",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "O_without_price",
+        "text": "NNS1Okikename",
+        "data": "4e4e53314f6b696b656e616d65",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "M_without_index",
+        "text": "NNS1M58060800",
+        "data": "4e4e53314d3538303630383030",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "P_missing_a_field",
+        "text": "NNS1P1|2|3",
+        "data": "4e4e533150317c327c33",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "U_without_height",
+        "text": "NNS1Ubinance",
+        "data": "4e4e53315562696e616e6365",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "F_with_a_payload",
+        "text": "NNS1Fx",
+        "data": "4e4e53314678",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "leading_zeros_rejected",
+        "text": "NNS1Okikename|0123",
+        "data": "4e4e53314f6b696b656e616d657c30313233",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "Numeric fields are canonical decimal: exactly one representation per value. §5.2 does not settle this — see docs/decisions.md."
+      },
+      {
+        "id": "negative_rejected",
+        "text": "NNS1Okikename|-5",
+        "data": "4e4e53314f6b696b656e616d657c2d35",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "space_rejected",
+        "text": "NNS1Okikename| 5",
+        "data": "4e4e53314f6b696b656e616d657c2035",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "padded_height_rejected",
+        "text": "NNS1M0058060800|0",
+        "data": "4e4e53314d303035383036303830307c30",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "bare_zero_is_canonical",
+        "text": "NNS1Okikename|0",
+        "data": "4e4e53314f6b696b656e616d657c30",
+        "result": {
+          "ok": true,
+          "message": {
+            "type": "O",
+            "name": "kikename",
+            "price": "0"
+          }
+        }
+      }
+    ]
+  },
+  "builderErrors": {
+    "description": "Builders fail loudly where the chain would fail silently. Each case must throw.",
+    "cases": [
+      {
+        "id": "over_length_D",
+        "builder": "delegate",
+        "name": "aaaaaaaaaaaaaaaaaaaaaaaa",
+        "host": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      {
+        "id": "invalid_name",
+        "builder": "register",
+        "name": "n1m1q",
+        "fee": "400000000"
+      },
+      {
+        "id": "too_short_name",
+        "builder": "register",
+        "name": "abcd",
+        "fee": "400000000"
+      },
+      {
+        "id": "reserved_name",
+        "builder": "register",
+        "name": "binance",
+        "fee": "400000000",
+        "reservedNames": [
+          "binance"
+        ]
+      },
+      {
+        "id": "zero_value",
+        "builder": "register",
+        "name": "kikename",
+        "fee": "0"
+      },
+      {
+        "id": "self_transaction",
+        "builder": "transfer",
+        "name": "kikename",
+        "newOwner": "ALICE",
+        "sender": "ALICE"
+      },
+      {
+        "id": "host_with_scheme",
+        "builder": "delegate",
+        "name": "binance",
+        "host": "https://nns.binance.com"
+      },
+      {
+        "id": "uppercase_ref",
+        "builder": "register",
+        "name": "kikename",
+        "ref": "Coinbase",
+        "fee": "400000000"
+      },
+      {
+        "id": "negative_price",
+        "builder": "offer",
+        "name": "kikename",
+        "price": "-1"
+      }
+    ]
+  }
+}

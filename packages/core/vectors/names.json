@@ -1,0 +1,129 @@
+{
+  "vectors": "nns/names",
+  "version": 1,
+  "spec": "nns-spec-v1 draft r14, §4.1 and §4.2",
+  "description": "Name validity, including the positional-digit rule and the r6 boundary clause. `reserved` defaults to the empty set when a case does not name one.",
+  "cases": [
+    { "id": "spec_table_layer", "name": "layer", "valid": true, "note": "§4.2 valid column" },
+    { "id": "spec_table_bitcoin7", "name": "bitcoin7", "valid": true, "note": "§4.2 valid column" },
+    { "id": "spec_table_21kike", "name": "21kike", "valid": true, "note": "§4.2 valid column" },
+
+    {
+      "id": "spec_table_web3_is_too_short",
+      "name": "web3",
+      "valid": false,
+      "reason": "TOO_SHORT",
+      "note": "§4.2 lists web3 as valid, but that table is about the digit rule alone. MIN_NAME_LEN rejects it first: 1-4 character names are withheld for auction (§4.1)."
+    },
+    { "id": "spec_table_2fa_is_too_short", "name": "2fa", "valid": false, "reason": "TOO_SHORT" },
+    { "id": "boundary_prose_x2_is_too_short", "name": "x2", "valid": false, "reason": "TOO_SHORT" },
+
+    { "id": "spec_table_n1m1q", "name": "n1m1q", "valid": false, "reason": "INTERIOR_DIGIT" },
+    { "id": "spec_table_nimiq0pay", "name": "nimiq0pay", "valid": false, "reason": "INTERIOR_DIGIT" },
+    { "id": "spec_table_g00gle", "name": "g00gle", "valid": false, "reason": "INTERIOR_DIGIT" },
+    { "id": "spec_table_b1tc0in", "name": "b1tc0in", "valid": false, "reason": "INTERIOR_DIGIT" },
+    { "id": "spec_table_1ayer", "name": "1ayer", "valid": false, "reason": "BOUNDARY_DIGIT" },
+    { "id": "spec_table_sud0", "name": "sud0", "valid": false, "reason": "TOO_SHORT", "note": "4 characters, so length claims it before the boundary clause" },
+
+    { "id": "length_min_minus_one", "name": "abcd", "valid": false, "reason": "TOO_SHORT" },
+    { "id": "length_min", "name": "abcde", "valid": true },
+    { "id": "length_max", "name": "aaaaaaaaaaaaaaaaaaaaaaaa", "valid": true, "note": "24 characters" },
+    { "id": "length_max_plus_one", "name": "aaaaaaaaaaaaaaaaaaaaaaaaa", "valid": false, "reason": "TOO_LONG" },
+
+    { "id": "uppercase_is_rejected_not_lowercased", "name": "Nimiq", "valid": false, "reason": "BAD_CHARACTER" },
+    { "id": "uppercase_all", "name": "NIMIQ", "valid": false, "reason": "BAD_CHARACTER" },
+    { "id": "underscore", "name": "my_name", "valid": false, "reason": "BAD_CHARACTER" },
+    { "id": "dot_is_resolution_syntax_not_a_character", "name": "my.name", "valid": false, "reason": "BAD_CHARACTER" },
+    { "id": "non_ascii", "name": "café-au", "valid": false, "reason": "BAD_CHARACTER" },
+    { "id": "space", "name": "my name", "valid": false, "reason": "BAD_CHARACTER" },
+
+    { "id": "all_digits", "name": "12345", "valid": false, "reason": "NO_LETTER" },
+    { "id": "digits_and_hyphen_only", "name": "123-45", "valid": false, "reason": "NO_LETTER" },
+
+    { "id": "leading_hyphen", "name": "-abcde", "valid": false, "reason": "LEADING_HYPHEN" },
+    { "id": "trailing_hyphen", "name": "abcde-", "valid": false, "reason": "TRAILING_HYPHEN" },
+    { "id": "double_hyphen", "name": "ab--cde", "valid": false, "reason": "DOUBLE_HYPHEN" },
+    { "id": "single_hyphen_is_fine", "name": "self-crypto", "valid": true },
+
+    { "id": "digit_run_leading", "name": "23kike", "valid": true },
+    { "id": "digit_run_trailing", "name": "kike23", "valid": true },
+    { "id": "digit_run_both_ends", "name": "23kike99", "valid": true },
+    { "id": "interior_single_digit", "name": "nim1q", "valid": false, "reason": "INTERIOR_DIGIT" },
+    { "id": "interior_digit_with_runs_at_both_ends", "name": "2nim1q9", "valid": false, "reason": "INTERIOR_DIGIT" },
+
+    { "id": "boundary_zero_last", "name": "nimiq0", "valid": false, "reason": "BOUNDARY_DIGIT" },
+    { "id": "boundary_one_last", "name": "nimiq1", "valid": false, "reason": "BOUNDARY_DIGIT" },
+    { "id": "boundary_zero_first", "name": "0nimiq", "valid": false, "reason": "BOUNDARY_DIGIT" },
+    { "id": "boundary_one_first", "name": "1kike", "valid": false, "reason": "BOUNDARY_DIGIT" },
+    { "id": "boundary_other_digits_are_fine", "name": "99nimiq", "valid": true },
+    {
+      "id": "interior_wins_over_boundary",
+      "name": "1n1m1",
+      "valid": false,
+      "reason": "INTERIOR_DIGIT",
+      "note": "Fails both clauses. §4.2 states the main rule first and introduces the boundary clause with 'Additionally', so the interior reason is the one reported."
+    },
+
+    { "id": "reserved_exact_match", "name": "binance", "reserved": ["binance"], "valid": false, "reason": "RESERVED" },
+    { "id": "reserved_is_not_a_prefix_match", "name": "binanced", "reserved": ["binance"], "valid": true },
+    { "id": "not_reserved_when_list_is_empty", "name": "binance", "valid": true }
+  ],
+  "labels": {
+    "description": "§4.4 subdomain labels. The positional digit rule deliberately does not apply, and no letter is required.",
+    "cases": [
+      { "id": "single_character", "label": "a", "valid": true },
+      { "id": "max_length", "label": "aaaaaaaaaaaaaaaaaaaaaaaa", "valid": true },
+      { "id": "over_max_length", "label": "aaaaaaaaaaaaaaaaaaaaaaaaa", "valid": false, "reason": "TOO_LONG" },
+      { "id": "empty", "label": "", "valid": false, "reason": "TOO_SHORT" },
+      { "id": "interior_digit_is_allowed", "label": "n1m1q", "valid": true },
+      { "id": "leading_zero_is_allowed", "label": "0alice", "valid": true },
+      { "id": "all_digits_is_allowed", "label": "12345", "valid": true },
+      { "id": "uppercase", "label": "Alice", "valid": false, "reason": "BAD_CHARACTER" },
+      { "id": "leading_hyphen", "label": "-alice", "valid": false, "reason": "LEADING_HYPHEN" },
+      { "id": "trailing_hyphen", "label": "alice-", "valid": false, "reason": "TRAILING_HYPHEN" },
+      { "id": "double_hyphen", "label": "al--ice", "valid": false, "reason": "DOUBLE_HYPHEN" }
+    ]
+  },
+  "hosts": {
+    "description": "§6 D delegate resolver host. The empty host is valid and clears the delegation.",
+    "cases": [
+      { "id": "empty_clears_delegation", "host": "", "valid": true },
+      { "id": "plain_host", "host": "nns.binance.com", "valid": true },
+      { "id": "host_with_path", "host": "binance.com/nns", "valid": true },
+      { "id": "max_length", "host": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "valid": true },
+      { "id": "over_max_length", "host": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "valid": false, "reason": "TOO_LONG" },
+      { "id": "scheme_is_rejected_by_the_character_set", "host": "https://x.com", "valid": false, "reason": "BAD_CHARACTER" },
+      { "id": "uppercase", "host": "X.com", "valid": false, "reason": "BAD_CHARACTER" },
+      { "id": "leading_dot", "host": ".x.com", "valid": false, "reason": "LEADING_DOT" },
+      { "id": "trailing_dot", "host": "x.com.", "valid": false, "reason": "TRAILING_DOT" },
+      { "id": "leading_hyphen", "host": "-x.com", "valid": false, "reason": "LEADING_HYPHEN" },
+      { "id": "trailing_hyphen", "host": "x.com-", "valid": false, "reason": "TRAILING_HYPHEN" },
+      { "id": "leading_slash", "host": "/x.com", "valid": false, "reason": "LEADING_SLASH" },
+      { "id": "double_dot", "host": "x..com", "valid": false, "reason": "DOUBLE_DOT" },
+      { "id": "double_slash", "host": "x.com//nns", "valid": false, "reason": "DOUBLE_SLASH" },
+      { "id": "trailing_slash_is_allowed", "host": "x.com/", "valid": true }
+    ]
+  },
+  "refs": {
+    "description": "§6 G integrator referrer. A ref never rejects a registration; an invalid one is recorded as absent.",
+    "cases": [
+      { "id": "typical", "ref": "coinbase", "valid": true },
+      { "id": "single_character", "ref": "a", "valid": true },
+      { "id": "max_length", "ref": "aaaaaaaaaaaa", "valid": true },
+      { "id": "over_max_length", "ref": "aaaaaaaaaaaaa", "valid": false },
+      { "id": "empty", "ref": "", "valid": false },
+      { "id": "uppercase", "ref": "Coinbase", "valid": false },
+      { "id": "pipe", "ref": "a|b", "valid": false }
+    ]
+  },
+  "queries": {
+    "description": "§4.4 dotted queries. A dot is resolution syntax; more than one is invalid in v1.",
+    "cases": [
+      { "id": "bare_name", "query": "binance", "kind": "name", "name": "binance" },
+      { "id": "dotted", "query": "alice.binance", "kind": "dotted", "label": "alice", "parent": "binance" },
+      { "id": "two_dots", "query": "a.b.binance", "kind": "invalid", "reason": "TOO_MANY_DOTS" },
+      { "id": "empty_label", "query": ".binance", "kind": "invalid", "reason": "BAD_LABEL" },
+      { "id": "invalid_parent", "query": "alice.b1nance", "kind": "invalid", "reason": "BAD_NAME" }
+    ]
+  }
+}

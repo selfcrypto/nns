@@ -1,0 +1,248 @@
+{
+  "vectors": "nns/merkle",
+  "version": 1,
+  "spec": "nns-spec-v1 draft r14, §8.1 and §8.3",
+  "description": "Checkpoint tree byte layout. `enc` is the §8.1 leaf preimage, `leaf` is keccak256(0x00 ‖ enc), internal nodes are keccak256(0x01 ‖ left ‖ right), odd nodes are promoted unchanged, and an empty tree is 32 zero bytes. All hex is lowercase and unprefixed.",
+  "addresses": {
+    "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
+    "BOB": "NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK",
+    "CAROL": "NQ19 KSMT HHEJ TYNF J1GK 40NK LHSL C5P7 P24M"
+  },
+  "leaves": {
+    "description": "enc = len(name):u8 ‖ name ‖ owner:20B ‖ target:20B ‖ expiry:u64-BE ‖ status:u8 ‖ recovery:20B ‖ len(host):u8 ‖ host",
+    "cases": [
+      {
+        "id": "minimal_registered",
+        "record": {
+          "name": "kikename",
+          "owner": "ALICE",
+          "target": "ALICE",
+          "expiry": 215680000,
+          "status": "REGISTERED",
+          "recovery": null,
+          "host": ""
+        },
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000cdb040000000000000000000000000000000000000000000000",
+        "leaf": "448387cbe1dfe2cc91c33cab8636f0cde4f346eb4a4642d7f52de128e10752f4",
+        "note": "Unset recovery is 20 zero bytes; unset host is a zero length prefix and nothing more."
+      },
+      {
+        "id": "full_grace",
+        "record": {
+          "name": "kike-one",
+          "owner": "ALICE",
+          "target": "BOB",
+          "expiry": 215680000,
+          "status": "GRACE",
+          "recovery": "CAROL",
+          "host": "nns.x.com"
+        },
+        "enc": "086b696b652d6f6e655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c596673000000000cdb0400019eabb8c5d2dfecf90613202d3a4754616e7b8895096e6e732e782e636f6d",
+        "leaf": "47ecc827ca2fe75524e5cb0e99969d433cda647370863942d011f0f71492424d",
+        "note": "status is 0x01 for GRACE, 0x00 for REGISTERED."
+      },
+      {
+        "id": "expiry_of_one_is_big_endian",
+        "record": {
+          "name": "kikename",
+          "owner": "ALICE",
+          "target": "ALICE",
+          "expiry": 1,
+          "status": "REGISTERED",
+          "recovery": null,
+          "host": ""
+        },
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000100000000000000000000000000000000000000000000",
+        "leaf": "ba6c05ef403f34ce107becd98a12d68e56cd118779076728665971bbd81f9fc4"
+      },
+      {
+        "id": "length_prefixes_prevent_collision_a",
+        "record": {
+          "name": "kikenam",
+          "owner": "ALICE",
+          "target": "ALICE",
+          "expiry": 215680000,
+          "status": "REGISTERED",
+          "recovery": null,
+          "host": "e"
+        },
+        "enc": "076b696b656e616d5a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000cdb04000000000000000000000000000000000000000000000165",
+        "leaf": "89bf1d3fbce6dafd7e0c3f3a069a327a08f83f60fc6e8b2d457101c4b7978d2e",
+        "note": "Paired with the next case. Without length prefixes these two distinct states would share an encoding."
+      },
+      {
+        "id": "length_prefixes_prevent_collision_b",
+        "record": {
+          "name": "kikename",
+          "owner": "ALICE",
+          "target": "ALICE",
+          "expiry": 215680000,
+          "status": "REGISTERED",
+          "recovery": null,
+          "host": ""
+        },
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000cdb040000000000000000000000000000000000000000000000",
+        "leaf": "448387cbe1dfe2cc91c33cab8636f0cde4f346eb4a4642d7f52de128e10752f4"
+      }
+    ]
+  },
+  "roots": {
+    "description": "Records are given in arbitrary order; the tree sorts them bytewise-lexicographically by name before building.",
+    "defaults": {
+      "owner": "ALICE",
+      "target": "ALICE",
+      "expiry": 215680000,
+      "status": "REGISTERED",
+      "recovery": null,
+      "host": ""
+    },
+    "cases": [
+      {
+        "id": "empty_tree",
+        "names": [],
+        "root": "0000000000000000000000000000000000000000000000000000000000000000"
+      },
+      {
+        "id": "one_leaf_root_is_the_leaf",
+        "names": [
+          "kikename"
+        ],
+        "root": "448387cbe1dfe2cc91c33cab8636f0cde4f346eb4a4642d7f52de128e10752f4"
+      },
+      {
+        "id": "two_leaves",
+        "names": [
+          "aaaaaname",
+          "bbbbbname"
+        ],
+        "root": "662775934ade1462fc4299c45ed35946d2dbcd2401dec306d26724c5ffdf6ef8"
+      },
+      {
+        "id": "three_leaves_odd_promotion",
+        "names": [
+          "aaaaaname",
+          "bbbbbname",
+          "cccccname"
+        ],
+        "root": "ed305e2a36fc29816ada6d61ca7e7a8becef243e9e693172febe5149450ddde3"
+      },
+      {
+        "id": "five_leaves",
+        "names": [
+          "aaaaaname",
+          "bbbbbname",
+          "cccccname",
+          "dddddname",
+          "eeeeename"
+        ],
+        "root": "5a8e8306e3d119fffc46eeb21b6452f5c0542577ede235894d9b3a529e6a1e67"
+      },
+      {
+        "id": "insertion_order_does_not_matter",
+        "names": [
+          "cccccname",
+          "aaaaaname",
+          "bbbbbname"
+        ],
+        "root": "ed305e2a36fc29816ada6d61ca7e7a8becef243e9e693172febe5149450ddde3",
+        "sameRootAs": "three_leaves_odd_promotion"
+      },
+      {
+        "id": "grace_names_are_in_the_tree",
+        "names": [
+          "kikename"
+        ],
+        "overrides": {
+          "kikename": {
+            "status": "GRACE"
+          }
+        },
+        "root": "fbbed09e18b26f447832b44fad550ce36eedf2cc9685f5decaade4fe5c98ed29",
+        "note": "This is what makes non-inclusion mean AVAILABLE rather than merely not-REGISTERED (§8.1)."
+      }
+    ]
+  },
+  "sorting": {
+    "description": "Bytewise-lexicographic ordering of names, as §8.1 words it.",
+    "cases": [
+      {
+        "id": "hyphen_digit_letter",
+        "input": [
+          "kikename",
+          "kike0one",
+          "kike-one",
+          "zebraname"
+        ],
+        "sorted": [
+          "kike-one",
+          "kike0one",
+          "kikename",
+          "zebraname"
+        ]
+      },
+      {
+        "id": "prefix_sorts_first",
+        "input": [
+          "kikenames",
+          "kikename"
+        ],
+        "sorted": [
+          "kikename",
+          "kikenames"
+        ]
+      }
+    ]
+  },
+  "proofs": {
+    "description": "Inclusion proofs. `side` is the side the SIBLING sits on. §8.3 prints a bare array of hashes, which is not verifiable: with odd-node promotion neither the side nor the promotion points can be recovered from the hashes alone. See docs/decisions.md.",
+    "tree": [
+      "aaaaaname",
+      "bbbbbname",
+      "cccccname",
+      "dddddname",
+      "eeeeename"
+    ],
+    "cases": [
+      {
+        "id": "first_leaf",
+        "name": "aaaaaname",
+        "index": 0,
+        "steps": 3
+      },
+      {
+        "id": "middle_leaf",
+        "name": "cccccname",
+        "index": 2,
+        "steps": 3
+      },
+      {
+        "id": "promoted_leaf",
+        "name": "eeeeename",
+        "index": 4,
+        "steps": 1,
+        "note": "Promoted unchanged at levels 0 and 1, so it meets a sibling only at level 2."
+      }
+    ],
+    "nonInclusion": [
+      {
+        "id": "before_first",
+        "name": "0aaaaname",
+        "kind": "BEFORE_FIRST",
+        "next": "aaaaaname"
+      },
+      {
+        "id": "between",
+        "name": "ccdddname",
+        "kind": "BETWEEN",
+        "previous": "cccccname",
+        "next": "dddddname"
+      },
+      {
+        "id": "after_last",
+        "name": "zzzzzname",
+        "kind": "AFTER_LAST",
+        "previous": "eeeeename"
+      }
+    ]
+  }
+}
