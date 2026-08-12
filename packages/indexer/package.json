@@ -12,20 +12,24 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "migrations"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.check.json",
     "test": "vitest run",
     "start": "node --env-file=.env dist/main.js",
-    "dev": "node --env-file=.env src/main.ts"
+    "dev": "node --env-file=.env src/main.ts",
+    "migrate": "node --env-file=.env dist/migrate.js"
   },
   "dependencies": {
-    "@nns/core": "workspace:*"
+    "@nns/core": "workspace:*",
+    "pg": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/pg": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

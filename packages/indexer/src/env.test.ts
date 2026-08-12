@@ -6,6 +6,13 @@ const MINIMAL = {
   NNS_RPC_URL: 'http://127.0.0.1:6488',
   NNS_NETWORK_ID: '24',
   NNS_LAUNCH_HEIGHT: '58200000',
+  NNS_DATABASE_URL: 'postgres://nns@localhost:5432/nns',
+  // The four §3 addresses, still OPEN in the spec and therefore injected.
+  // `defineConfig` requires them to parse and to be distinct.
+  NNS_TREASURY_ADDRESS: 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H',
+  NNS_PROTOCOL_ADDRESS: 'NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2',
+  NNS_ADMIN_ADDRESS: 'NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK',
+  NNS_MARKETPLACE_ADDRESS: 'NQ14 8H24 8H24 8H24 8H24 8H24 8H24 8H24 8H24',
 }
 
 describe('loadSettings', () => {
@@ -36,9 +43,28 @@ describe('loadSettings', () => {
   })
 
   it('demands the values that have no safe default', () => {
-    expect(() => loadSettings({ NNS_NETWORK_ID: '24', NNS_LAUNCH_HEIGHT: '1' })).toThrow(/NNS_RPC_URL/)
-    expect(() => loadSettings({ NNS_RPC_URL: 'http://x', NNS_LAUNCH_HEIGHT: '1' })).toThrow(/NNS_NETWORK_ID/)
-    expect(() => loadSettings({ NNS_RPC_URL: 'http://x', NNS_NETWORK_ID: '24' })).toThrow(/NNS_LAUNCH_HEIGHT/)
+    const without = (key: string) => () => loadSettings({ ...MINIMAL, [key]: undefined })
+    expect(without('NNS_RPC_URL')).toThrow(/NNS_RPC_URL/)
+    expect(without('NNS_NETWORK_ID')).toThrow(/NNS_NETWORK_ID/)
+    expect(without('NNS_LAUNCH_HEIGHT')).toThrow(/NNS_LAUNCH_HEIGHT/)
+    expect(without('NNS_DATABASE_URL')).toThrow(/NNS_DATABASE_URL/)
+    expect(without('NNS_TREASURY_ADDRESS')).toThrow(/NNS_TREASURY_ADDRESS/)
+  })
+
+  it('hands core the §3 values and lets it validate them', () => {
+    const settings = loadSettings({ ...MINIMAL, NNS_LISTING_FEE: '100000', NNS_RESERVED_NAMES: 'nimiq, wallet' })
+    expect(settings.config.listingFee).toBe(100_000n)
+    expect([...settings.config.reservedNames].sort()).toEqual(['nimiq', 'wallet'])
+    expect(settings.config.launchHeight).toBe(58_200_000)
+  })
+
+  it('surfaces core’s own config errors', () => {
+    // All four addresses must be distinct (§3, §10.6). core decides that;
+    // this only checks the message reaches the operator.
+    expect(() => loadSettings({ ...MINIMAL, NNS_ADMIN_ADDRESS: MINIMAL.NNS_TREASURY_ADDRESS })).toThrow(
+      /must be distinct/,
+    )
+    expect(() => loadSettings({ ...MINIMAL, NNS_LISTING_FEE: '1.5' })).toThrow(/whole number of luna/)
   })
 
   it('rejects a non-integer height instead of scanning from NaN', () => {

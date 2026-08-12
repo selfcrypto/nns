@@ -6,6 +6,8 @@ packages:
 catalog:
   '@noble/hashes': ^2.3.0
   '@types/node': ^26.2.0
+  '@types/pg': ^8.21.0
   '@vitest/coverage-v8': ^4.1.10
+  pg: ^8.23.0
   typescript: ^7.0.2
   vitest: ^4.1.10

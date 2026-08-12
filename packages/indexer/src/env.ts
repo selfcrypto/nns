@@ -1,15 +1,19 @@
 /**
  * Environment → indexer settings.
  *
- * Only what the chain-facing half needs. The deployment constants that feed
- * `core`'s `defineConfig` (treasury, protocol, admin and marketplace
- * addresses, the `O` listing fee, `RESERVED_NAMES`) are still **OPEN** in §3
- * and are not read here — an unused required variable is a variable someone
- * fills in with a placeholder.
+ * The five §3 values that are still **OPEN** (`LAUNCH_HEIGHT` and the four
+ * addresses) plus the `O` listing fee and `RESERVED_NAMES` are read here and
+ * handed to `core`'s `defineConfig`, which validates them. That is the whole
+ * reason they are injected: a placeholder cannot survive quietly into a
+ * mainnet build if it has to come from the environment of the machine running
+ * it.
  *
- * No secrets in the repo: `NNS_RPC_PASSWORD` comes from the environment, and
- * `.env` is gitignored. `.env.example` is the committed shape.
+ * No secrets in the repo: `NNS_RPC_PASSWORD` and `NNS_DATABASE_URL` come from
+ * the environment, and `.env` is gitignored. `.env.example` is the committed
+ * shape.
  */
+
+import { defineConfig, type NnsConfig } from '@nns/core'
 
 import { isLogLevel, type LogLevel } from './logger.js'
 
@@ -18,6 +22,9 @@ export class EnvError extends Error {
 }
 
 export interface IndexerSettings {
+  readonly databaseUrl: string
+  /** The §3 values `core` needs, already validated and frozen. */
+  readonly config: NnsConfig
   readonly rpcUrl: string
   readonly rpcUser: string | undefined
   readonly rpcPassword: string | undefined
@@ -85,6 +92,8 @@ function rpcUrl(env: EnvSource): string {
 
 export function loadSettings(env: EnvSource = process.env): IndexerSettings {
   const url = rpcUrl(env)
+  const networkId = requiredInteger(env, 'NNS_NETWORK_ID', 0)
+  const launchHeight = requiredInteger(env, 'NNS_LAUNCH_HEIGHT', 0)
   try {
     void new URL(url)
   } catch {
@@ -102,9 +111,55 @@ export function loadSettings(env: EnvSource = process.env): IndexerSettings {
     rpcPassword: read(env, 'NNS_RPC_PASSWORD'),
     rpcTimeoutMs: integer(env, 'NNS_RPC_TIMEOUT_MS', 30_000, 1),
     rpcAttempts: integer(env, 'NNS_RPC_ATTEMPTS', 4, 1),
-    networkId: requiredInteger(env, 'NNS_NETWORK_ID', 0),
-    launchHeight: requiredInteger(env, 'NNS_LAUNCH_HEIGHT', 0),
+    networkId,
+    launchHeight,
     pollIntervalMs: integer(env, 'NNS_POLL_INTERVAL_MS', 15_000, 100),
     logLevel: level,
+    databaseUrl: required(env, 'NNS_DATABASE_URL'),
+    config: nnsConfig(env, networkId, launchHeight),
   })
+}
+
+/**
+ * The §3 values, validated by `core`.
+ *
+ * `defineConfig` checks the addresses parse and that all four are distinct —
+ * at startup, rather than at the first Merkle root, which is where a silent
+ * divergence would otherwise begin.
+ */
+function nnsConfig(env: EnvSource, networkId: number, launchHeight: number): NnsConfig {
+  try {
+    return defineConfig({
+      networkId,
+      launchHeight,
+      treasury: required(env, 'NNS_TREASURY_ADDRESS'),
+      protocol: required(env, 'NNS_PROTOCOL_ADDRESS'),
+      admin: required(env, 'NNS_ADMIN_ADDRESS'),
+      marketplace: required(env, 'NNS_MARKETPLACE_ADDRESS'),
+      listingFee: luna(env, 'NNS_LISTING_FEE'),
+      reservedNames: nameList(env, 'NNS_RESERVED_NAMES'),
+    })
+  } catch (cause) {
+    throw new EnvError(cause instanceof Error ? cause.message : String(cause))
+  }
+}
+
+/** Luna is integer and `bigint`. A decimal point here is a NIM/luna mix-up. */
+function luna(env: EnvSource, key: string): bigint {
+  const raw = read(env, key)
+  if (raw === undefined) return 0n
+  if (!/^\d+$/.test(raw)) {
+    throw new EnvError(`${key} must be a whole number of luna (1 NIM = 100,000 luna), got ${JSON.stringify(raw)}`)
+  }
+  return BigInt(raw)
+}
+
+/** Comma-separated. §4.1 matches reserved names exactly and never normalises. */
+function nameList(env: EnvSource, key: string): string[] {
+  const raw = read(env, key)
+  if (raw === undefined) return []
+  return raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== '')
 }

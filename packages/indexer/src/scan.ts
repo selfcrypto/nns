@@ -85,6 +85,16 @@ export type ScanRpc = Pick<
   | 'getBlockByNumber'
 >
 
+/** Everything one scanned batch produced. */
+export interface CompletedBatch {
+  readonly batch: number
+  readonly firstBlock: number
+  readonly macroBlock: number
+  /** Survivors of §7.5, in canonical order (§5.2). */
+  readonly candidates: readonly NnsCandidate[]
+  readonly summary: BatchSummary
+}
+
 export interface ScannerOptions {
   rpc: ScanRpc
   logger: Logger
@@ -92,7 +102,15 @@ export interface ScannerOptions {
   launchHeight: number
   pollIntervalMs: number
   onCandidate?: (candidate: NnsCandidate) => void | Promise<void>
-  onBatch?: (summary: BatchSummary) => void | Promise<void>
+  /**
+   * Called once per batch, after its candidates are in canonical order and
+   * **before the cursor advances** — so a throw here leaves the batch
+   * unconsumed and the next tick retries it. That is what lets persistence
+   * commit state and cursor together.
+   */
+  onBatchComplete?: (batch: CompletedBatch) => void | Promise<void>
+  /** Resume point, from a stored cursor. Overrides the `LAUNCH_HEIGHT` start. */
+  startBatch?: number
   /** Injectable for tests. Must resolve early when the signal aborts. */
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>
 }
@@ -104,7 +122,8 @@ export class Scanner {
   private readonly launchHeight: number
   private readonly pollIntervalMs: number
   private readonly onCandidate: ((candidate: NnsCandidate) => void | Promise<void>) | undefined
-  private readonly onBatch: ((summary: BatchSummary) => void | Promise<void>) | undefined
+  private readonly onBatchComplete: ((batch: CompletedBatch) => void | Promise<void>) | undefined
+  private readonly startBatchOverride: number | undefined
   private readonly sleep: (ms: number, signal?: AbortSignal) => Promise<void>
 
   /**
@@ -128,7 +147,8 @@ export class Scanner {
     this.launchHeight = options.launchHeight
     this.pollIntervalMs = options.pollIntervalMs
     this.onCandidate = options.onCandidate
-    this.onBatch = options.onBatch
+    this.onBatchComplete = options.onBatchComplete
+    this.startBatchOverride = options.startBatch
     this.sleep = options.sleep ?? delay
   }
 
@@ -191,10 +211,14 @@ export class Scanner {
    * whole and the per-transaction height filter drops what precedes launch.
    */
   private startBatch(geometry: ChainGeometry): number {
-    const batch = Math.max(1, geometry.batchAt(this.launchHeight))
+    const fromLaunch = Math.max(1, geometry.batchAt(this.launchHeight))
+    // A stored cursor wins: it is where the last committed transaction left
+    // off, and rescanning from LAUNCH_HEIGHT would replay applied messages.
+    const batch = this.startBatchOverride ?? fromLaunch
     this.logger.info('scan.start', {
       launchHeight: this.launchHeight,
       startBatch: batch,
+      resumed: this.startBatchOverride !== undefined,
       firstBlock: geometry.firstBlockOf(batch),
     })
     return batch
@@ -297,7 +321,13 @@ export class Scanner {
       })
       await this.onCandidate?.(candidate)
     }
-    await this.onBatch?.(summary)
+    await this.onBatchComplete?.({
+      batch,
+      firstBlock: summary.firstBlock,
+      macroBlock: summary.macroBlock,
+      candidates,
+      summary,
+    })
 
     return candidates
   }

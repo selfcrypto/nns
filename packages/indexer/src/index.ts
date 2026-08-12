@@ -42,12 +42,53 @@ export {
 } from './rpc.js'
 
 export {
+  PipelineError,
+  Pipeline,
+  advanceThroughBoundaries,
+  nextBoundaryAbove,
+  toChainTransaction,
+  type BatchResult,
+  type VerdictCounts,
+} from './pipeline.js'
+
+export {
+  RowError,
+  paramsRow,
+  nameRows,
+  pendingRows,
+  rowsOf,
+  settlementRows,
+  stateFromRows,
+  toHeight,
+  toLuna,
+  type LogRow,
+  type NameRow,
+  type ParamsRow,
+  type PendingRow,
+  type SettlementRow,
+  type StateRows,
+} from './rows.js'
+
+export { diffState, type StateDiff } from './diff.js'
+
+export {
+  DatabaseError,
+  MIGRATIONS_DIR,
+  createPool,
+  migrate,
+  withTransaction,
+} from './db.js'
+
+export { Store, StoreError, configFingerprint, type CommitInput, type Cursor } from './store.js'
+
+export {
   PROTOCOL_PREFIX_HEX,
   ScanError,
   Scanner,
   delay,
   hasProtocolPrefix,
   type BatchSummary,
+  type CompletedBatch,
   type NnsCandidate,
   type ScannerOptions,
   type ScanRpc,
