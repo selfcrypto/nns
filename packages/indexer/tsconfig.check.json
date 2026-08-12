@@ -1,0 +1,10 @@
+{
+  // Typecheck everything, including tests and fixtures.
+  // tsconfig.json is the narrower build config: it emits src/ only.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "vitest.config.ts"]
+}

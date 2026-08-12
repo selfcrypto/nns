@@ -2,5 +2,7 @@ node_modules/
 dist/
 .env
 .env.*
+# The committed shape of a .env. Carries no values, only names and comments.
+!.env.example
 *.log
 .DS_Store

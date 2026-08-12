@@ -1,0 +1,32 @@
+{
+  "name": "@nns/indexer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tails Nimiq RPC and replays NNS messages through @nns/core. Chain-facing half: RPC client and scan loop.",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run",
+    "start": "node --env-file=.env dist/main.js",
+    "dev": "node --env-file=.env src/main.ts"
+  },
+  "dependencies": {
+    "@nns/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
