@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 14**
+**Protocol specification, v1 draft — revision 15**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -14,6 +14,45 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > **Review status.** Everything marked **OPEN** is undecided or unverified.
 > Everything else reflects decisions already taken.
 
+> **Changes in revision 15 — ratifying what the reference implementation
+> found.** `packages/core` (441 tests) surfaced nine spec gaps, four of which
+> change bytes: two conforming implementations reading them differently
+> would derive different roots. All are now pinned:
+> - **§8.2:** the log line's `<data>` field is **lowercase hex**, never raw
+>   text — a raw payload containing a newline would forge an entire log
+>   line and silently change the checkpoint. Addresses in log lines use the
+>   compact 36-character `NQ` form for the same reason.
+> - **§7.3:** height-driven effects due at one height fire in a fixed order
+>   (governance, unreserve, maturing `X`, maturing `R`, expiry, grace
+>   release, offer expiry; ties bytewise by name), and **before that
+>   block's transactions**. State also advances on height alone —
+>   implementations must apply due effects at least every
+>   `CHECKPOINT_INTERVAL`, not only when a message arrives.
+> - **§5.2:** numeric wire fields are canonical decimal — no sign, no
+>   leading zeros, or the message is malformed.
+> - **§8.1:** the checkpoint commitment enumeration gains pending `P` and
+>   pending `U`; the byte-exact layout is fixed by the reference
+>   implementation's conformance vectors.
+> - **§8.3:** proof steps carry `{hash, side}` plus the leaf index — a bare
+>   hash array is unverifiable under odd-node promotion.
+> - **§7.4:** `G` checks value before availability, so an underfunded `G`
+>   for a taken name forfeits (client-preventable) rather than refunds.
+> - **§6 `O`:** price MUST be ≥ `MIN_PRICE` (= `FEE_LONG`), and the same
+>   floor applies to `A`'s reserve. A price of 0 was unsatisfiable; a floor
+>   of 1 luna, considered first, was worse than useless — it sits below
+>   `REFUND_FLOOR`, so losing bidders would have been *forfeited* rather
+>   than refunded, and `floor(1 × 5%) = 0` erases the auction increment
+>   rule entirely, admitting unlimited dust bids each carrying a refund
+>   obligation.
+> - **§6 `A` v1 status:** parsed, logged, forfeited `AUCTION_NOT_IN_V1`.
+>   An implementation honouring auctions would derive a different root, so
+>   deferral must be a protocol version, not an omission.
+> - Smaller readings pinned: `K` cancels everything currently cancellable
+>   and forfeits `NOTHING_TO_CANCEL` when idle; an `M` matching no
+>   outstanding leg is accepted and changes nothing (the debt stays
+>   visible). `R`/`U` payload typo (`<n>` → `<name>`); §4.2's short
+>   examples annotated as digit-rule illustrations below `MIN_NAME_LEN`.
+>
 > **Changes in revision 14 — `PROTOCOL_ADDRESS`.**
 > - **Signals are separated from money.** A new `PROTOCOL_ADDRESS` receives
 >   every `DUST_VALUE`-only message (`K`, `D`, `P`, `U`, and the `S`-reset
@@ -462,6 +501,7 @@ NIM figures assume ~$0.0005/NIM.
 | `ANCHOR_STALENESS_LIMIT` | 2 h | Client warns beyond this (§8.5) |
 | `SEGMENT_LENGTH` | 3,153,600 blocks (~1 y) | Log segment boundary (§8.8) |
 | `AUCTION_MIN_INCREMENT` | 5% | Minimum raise over the standing bid (§6 `A`) |
+| `MIN_PRICE` | `FEE_LONG` | Floor on an `O` price and an `A` reserve (§6) |
 | `AUCTION_MIN_DURATION` | 86,400 blocks (~24 h) | Shortest permitted auction (§6 `A`) |
 | `AUCTION_EXTENSION` | 600 blocks (~10 min) | Anti-sniping extension (§6 `A`) |
 | `ADMIN_ADDRESS` | **OPEN** | Governance only; cold key, distinct from treasury |
@@ -554,6 +594,10 @@ digits; the remainder MUST contain no digits.
 |---|---|
 | `layer`, `web3`, `2fa`, `bitcoin7`, `21kike` | `n1m1q`, `nimiq0pay`, `g00gle`, `b1tc0in`, `1ayer`, `sud0` |
 
+*(`web3` and `2fa` illustrate the digit rule only — below `MIN_NAME_LEN`
+they sit in the withheld 1–4 character set and are not registrable in v1.
+Do not turn them into acceptance tests.)*
+
 Lowercase-only already removes `I`/`l` and `O`/`0` at the capital end. This
 rule removes the rest of the realistic surface, because impersonating a name
 requires substituting a character *inside* it. One clause, no lookup table.
@@ -641,6 +685,13 @@ exceeding 64 bytes is ignored.
 
 All fields use text-safe encoding (ASCII plus base64url); raw binary is never
 used, so a message is human-readable in a block explorer.
+
+**Numeric fields are canonical decimal:** a plain integer with no sign, no
+leading zeros, no whitespace, never empty. `0123` as a height or price makes
+the message `MALFORMED_PAYLOAD`. Exactly one representation per value is the
+only reading under which two encodings of the same message are impossible —
+anything looser lets implementations accept different message sets and
+diverge.
 
 **Canonical order** is `(block_number ascending, position in the block body
 array ascending)`. The RPC transaction object carries **no index, position,
@@ -820,7 +871,7 @@ name's dependent state (§7.3).
 ### `R` — Set recovery address
 
 ```
-NNS1R<n>
+NNS1R<name>
 ```
 
 - **To:** the recovery address, value `DUST_VALUE`
@@ -870,7 +921,10 @@ NNS1K<name>
 - Sender must be the current owner or the registered recovery address
 
 Vetoes a pending `X` or `R`, or withdraws an `O` past `OFFER_IRREVOCABLE` —
-all effective on inclusion. The r6 `CANCEL_DELAY` is gone: with escrowed
+all effective on inclusion, and **a single `K` cancels everything currently
+cancellable** on the name. A `K` with nothing to cancel forfeits with
+`NOTHING_TO_CANCEL`: the value at stake is `DUST_VALUE`, and the log then
+records why the message had no effect instead of a misleading `OK`. The r6 `CANCEL_DELAY` is gone: with escrowed
 settlement (§6 `B`), a cancellation racing an incoming `B` costs the buyer a
 refund wait rather than their money, so the delay no longer bought anything.
 
@@ -896,6 +950,21 @@ NNS1O<name>|<price_in_luna>
 - **Size:** 5 + `MAX_NAME_LEN` + 1 + 15 = **45 bytes** max
 - **To:** `TREASURY_ADDRESS`
 - **Value:** listing fee (**OPEN**)
+- **`price` MUST be ≥ `MIN_PRICE`.** Below it the message forfeits:
+  client-preventable. `MIN_PRICE` is `FEE_LONG` — the cheapest a name can be
+  registered from scratch — so an offer can never be priced below what a
+  buyer would pay to simply register a fresh long name instead. Being
+  defined *as* a governed constant rather than a fixed luna amount, it
+  tracks the NIM price through §10.6 instead of going stale like any
+  hardcoded figure would (§10.6's own argument, applied here).
+
+  Three things make a token floor unworkable, and they are worth recording
+  so nobody lowers it later: a price of 0 is unsatisfiable, since `B` must
+  carry the price exactly and the network rejects `value: 0` (§5.4); any
+  floor below `REFUND_FLOOR` means a losing bidder is **forfeited rather
+  than refunded**, contradicting §7.4; and a floor small enough that
+  `floor(price × AUCTION_MIN_INCREMENT)` rounds to 0 erases the auction
+  increment rule, admitting unlimited dust bids that each oblige an `M`
 - Sender must be the current owner
 
 Irrevocable for `OFFER_IRREVOCABLE` blocks, then cancellable via `K`,
@@ -947,6 +1016,11 @@ like the burn commitment (§10.2). One `M` per settled transaction. The
 operator SHOULD settle only past finalised macro blocks, mirroring
 `FINALITY_RULE`.
 
+**An `M` matching no outstanding leg is accepted and changes nothing** — the
+debt it failed to discharge stays standing, which is how "the log makes any
+shortfall permanently visible" actually works. Only an `M` from the wrong
+sender forfeits.
+
 **Amount owed:**
 
 | Referenced `B` | Owed to | Amount |
@@ -982,9 +1056,19 @@ NNS1A<name>|<reserve>|<end_height>
   `RESERVED_NAMES`
 - `end_height` must be at least `AUCTION_MIN_DURATION` ahead
 
-Opens a bidding window instead of settling by ordering. Bids reuse `B`,
-naming the auction rather than an offer, and sit at `MARKETPLACE_ADDRESS`
-exactly as marketplace payments do.
+**v1 status: parsed, logged, and forfeited with `AUCTION_NOT_IN_V1`.** This
+is a protocol-version statement, not an implementation gap: a v1-conformant
+implementation MUST take that forfeit, because one that honoured auctions
+would derive a different root from one that did not. Activating `A` is a
+spec-version event from a stated height. A `B` naming a non-existent auction
+refunds under `OFFER_NOT_OPEN`. The `reserve` carries the same ≥ 1 luna
+floor as an `O` price — `MIN_PRICE` — for the same reasons, and the
+increment rule depends on it: at a token reserve the 5% raise rounds to
+zero and the auction becomes a dust-spam surface.
+
+When active, `A` opens a bidding window instead of settling by ordering.
+Bids reuse `B`, naming the auction rather than an offer, and sit at
+`MARKETPLACE_ADDRESS` exactly as marketplace payments do.
 
 Rules, all deterministic from the log:
 
@@ -1033,7 +1117,7 @@ enforces them independently.
 ### `U` — Unreserve
 
 ```
-NNS1U<n>|<effective_height>
+NNS1U<name>|<effective_height>
 ```
 
 - **To:** `PROTOCOL_ADDRESS`, value `DUST_VALUE`
@@ -1113,6 +1197,25 @@ it can still be renewed by the former owner. Grace names remain in the
 checkpoint tree with `status = GRACE` (§8.1), so a client can prove both the
 state and the height at which it ends.
 
+**Height-driven effects, and their order.** State advances on height as
+well as on messages: expiry, grace release, timelock maturity, and
+governance activation all fire at a height whether or not any transaction
+arrives. An implementation MUST apply due effects at least at every
+`CHECKPOINT_INTERVAL` boundary — one that advances only on messages passes
+almost every test and then commits a root containing an expired name still
+`REGISTERED` at any checkpoint taken during a quiet stretch.
+
+Effects due at one height fire **before that block's transactions**, in a
+fixed order: governance activation, unreserve activation, maturing `X`,
+maturing `R`, expiry to `GRACE`, grace release to `AVAILABLE`, offer
+expiry — ties within a category bytewise by name. The order is
+consensus-relevant: a maturing `X` colliding with an expiry genuinely
+diverges (transfer-first hands the name over and then places it in `GRACE`;
+expire-first voids the transfer). Transfer fires first because it was
+scheduled before the expiry came due, and because the grace reset exists to
+stop a lapsed name answering for subdomains, not to void a transfer already
+in flight.
+
 **Dependent-state resets.** When a transfer takes effect (`X` after its
 timelock, or `B`): `owner` and `target` both become the new owner, the
 delegate host and recovery address are cleared, open offers are cancelled,
@@ -1127,6 +1230,12 @@ and open offers and pending `X`/`R` are cancelled. On falling to
 
 **Refund for losses caused by concurrency, forfeit for losses the client could
 have prevented or the user chose.**
+
+Where one message could fall in both columns, the check order decides — and
+for `G` it is fixed: recipient, name syntax, reservation, **value, then
+availability**. An underfunded `G` for an already-taken name therefore
+forfeits: underpaying is the client's own preventable error, and it claims
+the message before the race does.
 
 **Forfeit** — value not recoverable through the protocol:
 
@@ -1246,9 +1355,19 @@ resolver a parent designated, even though they cannot verify what that
 resolver answers.
 
 The **active prices and commission rate** (§10.6) and the
-**pending set** — in-flight `X`/`R` and open offers, each with its effective
-or expiry height — are consensus-relevant state and MUST be committed to in
-the checkpoint alongside the name tree, or independent replays diverge.
+**pending set** — in-flight `X`/`R`, open offers, **and any pending `P` or
+`U`**, each with its effective or expiry height — are consensus-relevant
+state and MUST be committed to in the checkpoint alongside the name tree, or
+independent replays diverge. A pending `P` decides what a later registration
+costs and a pending `U` whether a name is registrable at all; they are as
+consensus-relevant as a pending transfer.
+
+**The commitment layout:** each component (name root, active prices, pending
+set, log hash, height) is domain-separated by a distinct tag byte and the
+whole is hashed into one checkpoint value. The byte-exact layout is fixed by
+the reference implementation's **conformance vectors**, which are normative
+for this clause — an implementation whose checkpoints match the vectors
+conforms.
 
 keccak256 here so proofs stay cheap to verify on-chain if a future version
 wants that.
@@ -1258,7 +1377,13 @@ wants that.
 Every `NNS1`-prefixed transaction, in canonical order, one line each.
 `tx_index` is the **zero-based** position of the transaction in its block's
 body array (§5.2) — stated explicitly because a one-based reading would
-produce a different log hash and therefore a different checkpoint, silently:
+produce a different log hash and therefore a different checkpoint, silently.
+The `<data>` field carries the message as **lowercase hex, never raw text**:
+a malformed but `NNS1`-prefixed payload still earns a line, and nothing
+stops such a payload containing a space or a newline — written raw, it
+would forge an entire log line and silently change the committed log hash.
+Addresses in a log line use the compact 36-character `NQ` form, unspaced,
+for the same reason:
 
 ```
 <block_height> <tx_index> <tx_hash> <sender> <recipient> <value> <data> <verdict>
@@ -1321,10 +1446,20 @@ of overclaim §2.1 exists to avoid.
   "delegate": "nns.binance.com",
   "root": "0x...",
   "nimiq_height": 58060800,
-  "proof": ["0x...", "0x..."],
+  "leaf_index": 1042,
+  "proof": [
+    { "hash": "0x...", "side": "left" },
+    { "hash": "0x...", "side": "right" }
+  ],
   "anchor": { "chain": "ethereum", "tx": "0x...", "block": 23100000 }
 }
 ```
+
+Each proof step carries its **side**, and the leaf index travels with the
+proof. A bare array of hashes — the obvious format — is not verifiable
+here: §8.1's odd-node promotion makes the tree shape depend on the leaf
+count, so neither a sibling's side nor the promotion points can be recovered
+from the hashes alone.
 
 **Non-inclusion** — needed before a user pays to register — is proven by
 returning the two adjacent leaves that lexicographically bracket the queried
