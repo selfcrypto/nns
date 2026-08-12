@@ -3,7 +3,7 @@
  * the scan loop uses. Not a test file itself — imported by the tests.
  */
 
-import { firstBlockOf, macroBlockOf } from './chain.js'
+import { BLOCKS_PER_BATCH } from './chain.js'
 import { createLogger, type Logger } from './logger.js'
 import type { RpcBlock, RpcTransaction } from './rpc.js'
 import type { ScanRpc } from './scan.js'
@@ -35,6 +35,13 @@ export function tx(overrides: Partial<RpcTransaction> & { blockNumber: number })
 
 export interface FakeNodeOptions {
   head: number
+  /**
+   * PoS genesis. Batch numbering starts here, not at block 0 — the fake
+   * numbers its batches the way mainnet does so a test can exercise the real
+   * offset. Defaults to 0, which keeps the arithmetic in the other tests
+   * readable.
+   */
+  genesis?: number
   /** Block bodies, by height. Order within an array is the canonical order. */
   blocks?: Record<number, readonly RpcTransaction[]>
   /** Extra entries the batch call returns that are NOT in any body (rewards). */
@@ -44,24 +51,30 @@ export interface FakeNodeOptions {
 
 export interface FakeNode {
   rpc: ScanRpc
-  calls: { batches: number[]; blocks: number[] }
+  /** `blocks` counts body reads only; calibration probes are counted apart. */
+  calls: { batches: number[]; blocks: number[]; probes: number[] }
   setHead(head: number): void
 }
 
 export function fakeNode(options: FakeNodeOptions): FakeNode {
   const blocks = options.blocks ?? {}
   const inherents = options.inherents ?? []
+  const genesis = options.genesis ?? 0
   let head = options.head
-  const calls = { batches: [] as number[], blocks: [] as number[] }
+  const calls = { batches: [] as number[], blocks: [] as number[], probes: [] as number[] }
+
+  // How Albatross numbers batches: genesis-relative, one-based, closed by the
+  // macro block at `genesis + batch * 60`.
+  const batchOf = (height: number): number => Math.ceil((height - genesis) / BLOCKS_PER_BATCH)
 
   const rpc: ScanRpc = {
     isConsensusEstablished: async () => options.consensus ?? true,
     getBlockNumber: async () => head,
-    getBatchNumber: async () => Math.ceil(head / 60),
+    getBatchNumber: async () => batchOf(head),
     getTransactionsByBatchNumber: async (batch: number): Promise<readonly RpcTransaction[]> => {
       calls.batches.push(batch)
-      const from = firstBlockOf(batch)
-      const to = macroBlockOf(batch)
+      const from = genesis + (batch - 1) * BLOCKS_PER_BATCH + 1
+      const to = genesis + batch * BLOCKS_PER_BATCH
       const inRange: RpcTransaction[] = []
       for (let height = from; height <= to; height += 1) {
         inRange.push(...(blocks[height] ?? []))
@@ -70,11 +83,15 @@ export function fakeNode(options: FakeNodeOptions): FakeNode {
       return inRange
     },
     getBlockByNumber: async (height: number, includeBody: boolean): Promise<RpcBlock> => {
-      calls.blocks.push(height)
-      const body = blocks[height] ?? []
-      return includeBody
-        ? { number: height, hash: `block${height}`, transactions: body }
-        : { number: height, hash: `block${height}` }
+      ;(includeBody ? calls.blocks : calls.probes).push(height)
+      // Every block carries its own batch and type, as the node's do.
+      const header = {
+        number: height,
+        hash: `block${height}`,
+        batch: batchOf(height),
+        type: height > genesis && (height - genesis) % BLOCKS_PER_BATCH === 0 ? 'macro' : 'micro',
+      }
+      return includeBody ? { ...header, transactions: blocks[height] ?? [] } : header
     },
   }
 

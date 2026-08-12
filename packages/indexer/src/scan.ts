@@ -18,7 +18,7 @@
 
 import { CONSTANTS } from '@nns/core'
 
-import { batchAt, heightInBatch, lastFinalisedBatch, lastFinalisedHeight } from './chain.js'
+import { type ChainGeometry, calibrate, lastFinalisedBatch } from './chain.js'
 import type { Logger } from './logger.js'
 import { resolvePositions } from './ordering.js'
 import type { RpcClient, RpcTransaction } from './rpc.js'
@@ -106,10 +106,20 @@ export class Scanner {
   private readonly onCandidate: ((candidate: NnsCandidate) => void | Promise<void>) | undefined
   private readonly onBatch: ((summary: BatchSummary) => void | Promise<void>) | undefined
   private readonly sleep: (ms: number, signal?: AbortSignal) => Promise<void>
-  private geometryChecked = false
 
-  /** Next batch to scan. In-memory only — no checkpoints in this half. */
-  private cursor: number
+  /**
+   * Genesis anchor, measured from the node on the first tick. Undefined until
+   * then: batch numbering starts at the PoS genesis, so this cannot be
+   * computed, only measured.
+   */
+  private geometry: ChainGeometry | undefined
+
+  /**
+   * Next batch to scan. In-memory only — no checkpoints in this half.
+   * Undefined until calibration, since `LAUNCH_HEIGHT` is a height and
+   * turning it into a batch needs the anchor.
+   */
+  private cursor: number | undefined
 
   constructor(options: ScannerOptions) {
     this.rpc = options.rpc
@@ -120,12 +130,10 @@ export class Scanner {
     this.onCandidate = options.onCandidate
     this.onBatch = options.onBatch
     this.sleep = options.sleep ?? delay
-    // LAUNCH_HEIGHT can sit mid-batch; start at the batch containing it and
-    // let the per-transaction height filter drop what precedes it.
-    this.cursor = Math.max(1, batchAt(options.launchHeight))
   }
 
-  get nextBatch(): number {
+  /** Undefined until the first tick has calibrated against the node. */
+  get nextBatch(): number | undefined {
     return this.cursor
   }
 
@@ -136,35 +144,60 @@ export class Scanner {
       return 0
     }
 
-    const head = await this.rpc.getBlockNumber()
-    if (!this.geometryChecked) await this.checkGeometry(head)
+    const geometry = await this.calibrated()
 
-    const target = lastFinalisedBatch(head)
-    if (this.cursor > target) {
-      this.logger.debug('scan.caught-up', {
-        head,
-        finalisedHeight: lastFinalisedHeight(head),
-        nextBatch: this.cursor,
-      })
+    // The current batch comes from the node. It is never derived from a
+    // height: batch numbers are relative to the PoS genesis, so `head / 60`
+    // is wrong by tens of thousands of batches and wrong silently.
+    const currentBatch = await this.rpc.getBatchNumber()
+    const target = lastFinalisedBatch(currentBatch)
+
+    let cursor = this.cursor ?? this.startBatch(geometry)
+    this.cursor = cursor
+
+    if (cursor > target) {
+      this.logger.debug('scan.caught-up', { currentBatch, finalisedBatch: target, nextBatch: cursor })
       return 0
     }
 
     this.logger.info('scan.range', {
-      head,
-      finalisedHeight: lastFinalisedHeight(head),
-      fromBatch: this.cursor,
+      currentBatch,
+      finalisedBatch: target,
+      fromBatch: cursor,
       toBatch: target,
-      batches: target - this.cursor + 1,
+      batches: target - cursor + 1,
     })
 
     let scanned = 0
-    while (this.cursor <= target) {
+    while (cursor <= target) {
       if (signal?.aborted === true) break
-      await this.scanBatch(this.cursor)
-      this.cursor += 1
+      await this.scanBatch(cursor)
+      cursor += 1
+      this.cursor = cursor
       scanned += 1
     }
     return scanned
+  }
+
+  private async calibrated(): Promise<ChainGeometry> {
+    this.geometry ??= await calibrate(this.rpc, this.logger)
+    return this.geometry
+  }
+
+  /**
+   * The batch to start from, given `LAUNCH_HEIGHT`.
+   *
+   * `LAUNCH_HEIGHT` can sit mid-batch; the batch containing it is scanned
+   * whole and the per-transaction height filter drops what precedes launch.
+   */
+  private startBatch(geometry: ChainGeometry): number {
+    const batch = Math.max(1, geometry.batchAt(this.launchHeight))
+    this.logger.info('scan.start', {
+      launchHeight: this.launchHeight,
+      startBatch: batch,
+      firstBlock: geometry.firstBlockOf(batch),
+    })
+    return batch
   }
 
   /** Run until the signal aborts. */
@@ -185,34 +218,9 @@ export class Scanner {
     this.logger.info('scan.stopped', { nextBatch: this.cursor })
   }
 
-  /**
-   * `docs/rpc-reference.md` §6 open item 1: the docs describe
-   * `getTransactionsByBatchNumber`'s parameter as a *block* number while
-   * naming it a batch method. If our 60-blocks-per-batch geometry were wrong,
-   * every subsequent range assertion would fire — this just names the cause
-   * once, at startup, instead of leaving it to be inferred.
-   */
-  private async checkGeometry(head: number): Promise<void> {
-    this.geometryChecked = true
-    const nodeBatch = await this.rpc.getBatchNumber()
-    const derived = batchAt(head)
-    // head and the batch number are read a moment apart, so ±1 across a
-    // boundary is expected.
-    if (Math.abs(nodeBatch - derived) > 1) {
-      this.logger.warn('scan.geometry-mismatch', {
-        head,
-        nodeBatch,
-        derivedBatch: derived,
-        blocksPerBatch: 60,
-        note: 'batch geometry assumption may be wrong — batch ranges below will not line up',
-      })
-    } else {
-      this.logger.info('scan.geometry', { head, nodeBatch, derivedBatch: derived })
-    }
-  }
-
   /** Fetch one batch, apply §7.5's discovery filters, order, emit. */
   async scanBatch(batch: number): Promise<readonly NnsCandidate[]> {
+    const geometry = await this.calibrated()
     const returned = await this.rpc.getTransactionsByBatchNumber(batch)
 
     let droppedFailedExecution = 0
@@ -224,11 +232,11 @@ export class Scanner {
     for (const tx of returned) {
       // If the method took a block number rather than a batch number we would
       // be scanning a different 60 blocks and never know. Assert instead.
-      if (!heightInBatch(tx.blockNumber, batch)) {
+      if (!geometry.heightInBatch(tx.blockNumber, batch)) {
         throw new ScanError(
           `getTransactionsByBatchNumber(${batch}) returned a transaction at height ${tx.blockNumber}, ` +
-            `outside that batch — confirm the parameter is a batch number, not a block number ` +
-            `(docs/rpc-reference.md §6)`,
+            `outside [${geometry.firstBlockOf(batch)}, ${geometry.macroBlockOf(batch)}] ` +
+            `(PoS genesis ${geometry.genesisBlock})`,
         )
       }
       // §7.5, in order. Reward transactions need no rule of their own: they
@@ -257,8 +265,8 @@ export class Scanner {
 
     const summary: BatchSummary = {
       batch,
-      firstBlock: (batch - 1) * 60 + 1,
-      macroBlock: batch * 60,
+      firstBlock: geometry.firstBlockOf(batch),
+      macroBlock: geometry.macroBlockOf(batch),
       returned: returned.length,
       candidates: candidates.length,
       droppedFailedExecution,

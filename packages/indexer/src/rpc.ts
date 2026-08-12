@@ -100,7 +100,16 @@ export interface RpcTransaction {
 export interface RpcBlock {
   readonly number: number
   readonly hash: string
+  /** `"micro"` or `"macro"` **[probe]**. A macro block closes a batch. */
   readonly type?: string
+  /**
+   * The block's batch number **[probe]**, present even with
+   * `includeBody: false`. This is the authoritative block → batch mapping;
+   * batch numbers are genesis-relative and must never be derived from a
+   * height. See `chain.ts`.
+   */
+  readonly batch?: number
+  readonly epoch?: number
   readonly timestamp?: number
   /** Present only when the block was requested with the body included. */
   readonly transactions?: readonly RpcTransaction[]
@@ -307,30 +316,13 @@ export class RpcClient {
   }
 
   /**
-   * `docs/rpc-reference.md` §6 leaves the second parameter's form open: bare
-   * bool or `{ includeBody: true }`. Rather than guess, try the bare form and
-   * fall back once on `-32602`, then remember which one the node took.
+   * The second parameter is a **bare boolean** **[probe]**. The object form
+   * `{ includeBody: true }` is rejected with `-32602`
+   * (`invalid type: map, expected a boolean`), so there is nothing to detect.
    */
-  async getBlockByNumber(blockNumber: number, includeBody: boolean): Promise<RpcBlock> {
-    if (this.blockParamForm === 'object') {
-      return this.call<RpcBlock>('getBlockByNumber', [blockNumber, { includeBody }])
-    }
-    try {
-      const block = await this.call<RpcBlock>('getBlockByNumber', [blockNumber, includeBody])
-      this.blockParamForm = 'bare'
-      return block
-    } catch (error) {
-      if (!(error instanceof RpcError) || error.code !== INVALID_PARAMS || this.blockParamForm === 'bare') {
-        throw error
-      }
-      const block = await this.call<RpcBlock>('getBlockByNumber', [blockNumber, { includeBody }])
-      this.blockParamForm = 'object'
-      this.logger?.info('rpc.getBlockByNumber.paramForm', { form: 'object' })
-      return block
-    }
+  getBlockByNumber(blockNumber: number, includeBody: boolean): Promise<RpcBlock> {
+    return this.call<RpcBlock>('getBlockByNumber', [blockNumber, includeBody])
   }
-
-  private blockParamForm: 'unknown' | 'bare' | 'object' = 'unknown'
 
   getAccountByAddress(address: string): Promise<RpcResponse<unknown>> {
     return this.callWithMetadata<unknown>('getAccountByAddress', [address])

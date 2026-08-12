@@ -148,26 +148,20 @@ describe('getBlockByNumber parameter form', () => {
     expect(stub.calls[0]?.body.params).toEqual([5, true])
   })
 
-  it('falls back to the object form on -32602 and remembers it', async () => {
-    const seen: Call['body'][] = []
-    let call = 0
-    const fetchImpl = (async (_url: string, init?: RequestInit) => {
-      call += 1
-      const body = JSON.parse(String(init?.body)) as Call['body']
-      seen.push(body)
-      if (typeof body.params[1] === 'boolean') {
-        return new Response(JSON.stringify({ jsonrpc: '2.0', id: call, error: { code: -32602, message: 'Invalid params' } }))
-      }
-      return new Response(JSON.stringify(ok({ number: 5, hash: 'aa', transactions: [] })))
-    }) as unknown as typeof fetch
+  it('rejects the object form, as the node does', async () => {
+    // Measured: `{ includeBody: true }` answers -32602 "invalid type: map,
+    // expected a boolean". There is nothing to detect and no fallback to keep.
+    const { rpc } = client([{ jsonrpc: '2.0', id: 1, error: { code: -32602, message: 'Invalid params' } }])
+    await expect(rpc.getBlockByNumber(5, true)).rejects.toMatchObject({ code: INVALID_PARAMS })
+  })
 
-    const rpc = new RpcClient({ url: 'http://x', fetchImpl, sleep: async () => {} })
-    await rpc.getBlockByNumber(5, true)
-    await rpc.getBlockByNumber(6, true)
-    expect(seen.map((body) => body.params)).toEqual([
-      [5, true],
-      [5, { includeBody: true }],
-      [6, { includeBody: true }],
-    ])
+  it('surfaces the batch and type a block carries', async () => {
+    // The authoritative block -> batch mapping. Measured on mainnet:
+    // block 58,707,600 is batch 920,860 and closes it.
+    const { rpc } = client([ok({ number: 58_707_600, hash: 'd6a9', batch: 920_860, type: 'macro' })])
+    await expect(rpc.getBlockByNumber(58_707_600, false)).resolves.toMatchObject({
+      batch: 920_860,
+      type: 'macro',
+    })
   })
 })

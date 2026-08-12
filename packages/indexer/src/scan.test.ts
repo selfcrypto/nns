@@ -159,6 +159,8 @@ describe('canonical order (§5.2)', () => {
     const { scanner: s } = scanner(node)
     await s.scanBatch(2)
     expect(node.calls.blocks).toEqual([75])
+    // Calibration probes are header reads, counted apart from body reads.
+    expect(node.calls.probes.length).toBeGreaterThan(0)
   })
 
   it('emits ascending (blockNumber, txIndex)', async () => {
@@ -197,7 +199,26 @@ describe('batch parameter assertion', () => {
       launchHeight: 1,
       pollIntervalMs: 1,
     })
-    await expect(s.scanBatch(2)).rejects.toThrow(/outside that batch/)
+    await expect(s.scanBatch(2)).rejects.toThrow(/outside \[61, 120\]/)
+  })
+
+  it('accepts a genesis-relative height in its true batch', async () => {
+    // The regression this guards: with the anchor 47 blocks low, real
+    // transactions near a batch's start fall outside the computed range and
+    // the scan throws on ordinary traffic at startup.
+    const straddler = tx({ blockNumber: 3_456_108, recipientData: NNS('Gx') })
+    const node = fakeNode({ head: 3_456_600, genesis: 3_456_000, blocks: { 3_456_108: [straddler] } })
+    const { logger } = collectingLogger()
+    const s = new Scanner({
+      rpc: { ...node.rpc, getTransactionsByBatchNumber: async () => [straddler] },
+      logger,
+      networkId: 24,
+      launchHeight: 1,
+      pollIntervalMs: 1,
+    })
+    // Batch 2 on this chain is 3,456,061–3,456,120, so this is in range —
+    // and only an exact genesis makes that answer right.
+    await expect(s.scanBatch(2)).resolves.toHaveLength(1)
   })
 })
 
@@ -212,11 +233,25 @@ describe('FINALITY_RULE in the loop', () => {
     expect(s.nextBatch).toBe(4)
   })
 
-  it('treats a head that is exactly a macro block as final', async () => {
+  it('lags one batch rather than converting the head to a batch number', async () => {
+    // Head 120 IS batch 2's macro block, so batch 2 is already final — but
+    // knowing that means deriving a batch from a height, which is the thing
+    // that was wrong. getBatchNumber says 2, so we scan through 1. One batch
+    // (~1 min) of lag is the price, and it is worth paying.
     const node = fakeNode({ head: 120, blocks: {} })
     const { scanner: s } = scanner(node)
     await s.tick()
-    expect(node.calls.batches).toEqual([1, 2])
+    expect(node.calls.batches).toEqual([1])
+  })
+
+  it('never derives the finality target from the head', async () => {
+    // A genesis-relative chain: the node is at height 3,456,300, which is
+    // batch 5 — height/60 would say 57,605 and scan tens of thousands of
+    // batches that do not exist.
+    const node = fakeNode({ head: 3_456_300, genesis: 3_456_000, blocks: {} })
+    const { scanner: s } = scanner(node, { launchHeight: 3_456_001 })
+    await s.tick()
+    expect(node.calls.batches).toEqual([1, 2, 3, 4])
   })
 
   it('does nothing while the current batch is still open', async () => {
@@ -241,6 +276,15 @@ describe('FINALITY_RULE in the loop', () => {
   it('starts at the batch containing LAUNCH_HEIGHT', async () => {
     const node = fakeNode({ head: 600, blocks: {} })
     const { scanner: s } = scanner(node, { launchHeight: 190 })
+    await s.tick()
+    expect(node.calls.batches[0]).toBe(4)
+  })
+
+  it('resolves the start batch against a genesis-relative chain', async () => {
+    // 3,456,190 is 190 blocks past genesis, so batch 4 — not batch 57,603,
+    // which is what dividing the raw height by 60 would have said.
+    const node = fakeNode({ head: 3_456_600, genesis: 3_456_000, blocks: {} })
+    const { scanner: s } = scanner(node, { launchHeight: 3_456_190 })
     await s.tick()
     expect(node.calls.batches[0]).toBe(4)
   })
@@ -330,6 +374,6 @@ describe('run', () => {
     })
     await s.run(controller.signal)
     expect(lines.some((line) => line['msg'] === 'scan.error')).toBe(true)
-    expect(s.nextBatch).toBe(3)
+    expect(s.nextBatch).toBe(2)
   })
 })

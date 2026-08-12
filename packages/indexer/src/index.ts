@@ -8,12 +8,11 @@
 
 export {
   BLOCKS_PER_BATCH,
-  batchAt,
-  firstBlockOf,
-  heightInBatch,
+  CalibrationError,
+  calibrate,
+  geometryFor,
   lastFinalisedBatch,
-  lastFinalisedHeight,
-  macroBlockOf,
+  type ChainGeometry,
 } from './chain.js'
 
 export { EnvError, loadSettings, type EnvSource, type IndexerSettings } from './env.js'
