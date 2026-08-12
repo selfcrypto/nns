@@ -178,3 +178,47 @@ export function logFile(lines: readonly string[]): Uint8Array {
  * through the last message at or below the checkpoint height (§8.2).
  */
 export const logHash = (lines: readonly string[]): Uint8Array => keccak_256(logFile(lines))
+
+/**
+ * The same value {@link logHash} produces, accumulated line by line.
+ *
+ * A checkpoint commits the log hash "from the first line through the last
+ * message at or below the checkpoint height" (§8.2) — so an indexer needs that
+ * hash once per `CHECKPOINT_INTERVAL`, over a file that only ever grows.
+ * Re-hashing the whole file at every checkpoint is quadratic in the length of
+ * the chain, which is fine at a hundred lines and hours of work over a
+ * backfill.
+ *
+ * It lives here rather than in the indexer because the value is consensus
+ * material: an implementation that streamed keccak over its own idea of the
+ * file bytes would be reimplementing §8.2, and the failure mode of getting it
+ * subtly wrong is a checkpoint nobody can reproduce. Every line still goes
+ * through {@link logFile}, so the bytes are the same bytes by construction and
+ * `log.test.ts` asserts the two agree.
+ *
+ * {@link digest} is non-destructive: it clones the sponge, so hashing at a
+ * checkpoint does not end the stream.
+ */
+export interface LogHasher {
+  /** One canonical line, **without** its terminator — as {@link canonicalLogLine} returns it. */
+  append(line: string): void
+  /** Lines appended so far. */
+  readonly lines: number
+  /** The log hash through the last appended line. Safe to call repeatedly. */
+  digest(): Uint8Array
+}
+
+export function createLogHasher(): LogHasher {
+  const sponge = keccak_256.create()
+  let count = 0
+  return {
+    append(line: string): void {
+      sponge.update(logFile([line]))
+      count += 1
+    },
+    get lines(): number {
+      return count
+    },
+    digest: (): Uint8Array => sponge.clone().digest(),
+  }
+}

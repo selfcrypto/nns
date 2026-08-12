@@ -9,9 +9,10 @@
 
 import { createHash } from 'node:crypto'
 
-import { initialState, type NnsConfig, type NnsState } from '@nns/core'
+import { initialState, type Checkpoint, type NnsConfig, type NnsState } from '@nns/core'
 import type { Pool, PoolClient } from 'pg'
 
+import { checkpointRow, hex, type CheckpointRow } from './checkpoint.js'
 import { excluded, insertRows, withTransaction } from './db.js'
 import { diffState, type StateDiff } from './diff.js'
 import type { Logger } from './logger.js'
@@ -69,6 +70,15 @@ const LOG_COLUMNS = [
   'data',
   'verdict',
 ] as const
+const CHECKPOINT_COLUMNS = [
+  'height',
+  'layout',
+  'name_root',
+  'prices_root',
+  'pending_root',
+  'log_hash',
+  'commitment',
+] as const
 
 /**
  * Identity of the deployment config, so a restart against a database built
@@ -95,9 +105,46 @@ export interface CommitInput {
   before: NnsState | null
   after: NnsState
   logRows: readonly LogRow[]
+  /**
+   * §8.1 checkpoints due inside this batch. They go in the same transaction as
+   * the log rows they commit to: a checkpoint that survived a crash the rows
+   * behind it did not would be a root nothing can reproduce.
+   */
+  checkpoints?: readonly Checkpoint[]
   nextBatch: number
   scannedThrough: number
 }
+
+/** A checkpoint as stored, hex-encoded. `BYTEA` comes back as a `Buffer`. */
+export interface StoredCheckpoint {
+  height: number
+  layout: number
+  nameRoot: string
+  pricesRoot: string
+  pendingRoot: string
+  logHash: string
+  commitment: string
+}
+
+type CheckpointDbRow = {
+  height: number
+  layout: number
+  name_root: Buffer
+  prices_root: Buffer
+  pending_root: Buffer
+  log_hash: Buffer
+  commitment: Buffer
+}
+
+const readCheckpoint = (row: CheckpointDbRow): StoredCheckpoint => ({
+  height: row.height,
+  layout: row.layout,
+  nameRoot: row.name_root.toString('hex'),
+  pricesRoot: row.prices_root.toString('hex'),
+  pendingRoot: row.pending_root.toString('hex'),
+  logHash: row.log_hash.toString('hex'),
+  commitment: row.commitment.toString('hex'),
+})
 
 export class Store {
   private readonly pool: Pool
@@ -175,13 +222,65 @@ export class Store {
     return state
   }
 
-  /** Apply one batch's state change, log lines and cursor, atomically. */
+  /**
+   * Every committed log row, in canonical order, fed to `onRow`.
+   *
+   * The restart path for the §8.2 log hash: state is reloaded from the tables
+   * rather than replayed, but the log hash is a fold over every line ever
+   * written, so it has to be rebuilt from the table.
+   *
+   * Read in keyset-paginated chunks. The log is small by design (§8.2 — under
+   * 15 MB at 100k messages), but "small" is a property of the protocol's
+   * incentives, not of this query, and a single unbounded `SELECT` would put
+   * the whole of it in one array.
+   *
+   * @returns the number of rows streamed.
+   */
+  async streamLogRows(onRow: (row: LogRow) => void, chunkSize = 10_000): Promise<number> {
+    let after: readonly [number, number] = [-1, -1]
+    let total = 0
+    for (;;) {
+      const page = await this.pool.query<LogRow>(
+        `SELECT ${LOG_COLUMNS.join(', ')} FROM log
+         WHERE (block_height, tx_index) > ($1::bigint, $2::int)
+         ORDER BY block_height, tx_index
+         LIMIT $3`,
+        [after[0], after[1], chunkSize],
+      )
+      for (const row of page.rows) onRow(row)
+      total += page.rows.length
+      const last = page.rows[page.rows.length - 1]
+      if (last === undefined || page.rows.length < chunkSize) return total
+      after = [last.block_height, last.tx_index]
+    }
+  }
+
+  /** The highest checkpoint written, or `null` for a database with none. */
+  async latestCheckpoint(): Promise<StoredCheckpoint | null> {
+    const result = await this.pool.query<CheckpointDbRow>(
+      `SELECT ${CHECKPOINT_COLUMNS.join(', ')} FROM checkpoints ORDER BY height DESC LIMIT 1`,
+    )
+    const row = result.rows[0]
+    return row === undefined ? null : readCheckpoint(row)
+  }
+
+  async checkpointAt(height: number): Promise<StoredCheckpoint | null> {
+    const result = await this.pool.query<CheckpointDbRow>(
+      `SELECT ${CHECKPOINT_COLUMNS.join(', ')} FROM checkpoints WHERE height = $1`,
+      [height],
+    )
+    const row = result.rows[0]
+    return row === undefined ? null : readCheckpoint(row)
+  }
+
+  /** Apply one batch's state change, log lines, checkpoints and cursor, atomically. */
   async commitBatch(input: CommitInput): Promise<void> {
     const diff = diffState(input.before, input.after)
     await withTransaction(this.pool, async (client) => {
       if (diff.hasRowChanges) await this.writeDiff(client, diff)
       await this.writeParams(client, diff.params)
       await insertRows(client, 'log', LOG_COLUMNS, input.logRows, 'DO NOTHING')
+      await this.writeCheckpoints(client, input.checkpoints ?? [])
       await client.query(
         `INSERT INTO "cursor" (id, next_batch, scanned_through, config_fingerprint, updated_at)
          VALUES (TRUE, $1, $2, $3, now())
@@ -192,6 +291,48 @@ export class Store {
         [input.nextBatch, input.scannedThrough, this.fingerprint],
       )
     })
+  }
+
+  /**
+   * Insert this batch's checkpoints, and **refuse to overwrite one that
+   * disagrees**.
+   *
+   * A height already present should be one of two things: the same batch
+   * replayed after a crash — the cursor moves in this transaction, so a crash
+   * before it commits replays the batch and recomputes an identical row — or a
+   * divergence, which is the single failure mode this whole design exists to
+   * catch. A plain `DO NOTHING` cannot tell those apart, and would keep the
+   * first value while the indexer carried on producing the second. So a
+   * conflict is read back and compared, and a mismatch stops the process.
+   */
+  private async writeCheckpoints(client: PoolClient, records: readonly Checkpoint[]): Promise<void> {
+    for (const record of records) {
+      const row = checkpointRow(record)
+      const inserted = await client.query(
+        `INSERT INTO checkpoints (${CHECKPOINT_COLUMNS.join(', ')})
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT (height) DO NOTHING`,
+        CHECKPOINT_COLUMNS.map((column) => row[column]),
+      )
+      if (inserted.rowCount !== 0) continue
+
+      const existing = await client.query<CheckpointDbRow>(
+        `SELECT ${CHECKPOINT_COLUMNS.join(', ')} FROM checkpoints WHERE height = $1`,
+        [record.height],
+      )
+      const stored = existing.rows[0]
+      if (stored !== undefined && stored.commitment.equals(row.commitment) && stored.layout === row.layout) {
+        this.logger.debug('checkpoint.replayed', { height: record.height, commitment: hex(record.commitment) })
+        continue
+      }
+      throw new StoreError(
+        `checkpoint divergence at height ${record.height}: this run computed ` +
+          `${hex(record.commitment)} (layout ${row.layout}), the database holds ` +
+          `${stored?.commitment.toString('hex') ?? 'nothing'} (layout ${stored?.layout ?? '?'}). ` +
+          'Two derivations of the same height cannot both be right — do not overwrite either; ' +
+          'find which rule they disagree on.',
+      )
+    }
   }
 
   private async writeDiff(client: PoolClient, diff: StateDiff): Promise<void> {

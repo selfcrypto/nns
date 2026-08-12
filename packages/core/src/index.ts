@@ -108,10 +108,12 @@ export {
 export {
   LogError,
   canonicalLogLine,
+  createLogHasher,
   logFile,
   logHash,
   parseLogLine,
   verdictToken,
+  type LogHasher,
 } from './log.js'
 
 export {

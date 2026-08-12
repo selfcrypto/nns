@@ -57,13 +57,39 @@ export type VerdictCounts = {
   ignored: number
 }
 
+/**
+ * A checkpoint boundary crossed inside a batch, with everything the checkpoint
+ * builder needs to commit at it.
+ *
+ * The state is carried because a boundary generally falls *between* two
+ * transactions of a batch, and §8.1 commits the state as of the boundary
+ * height — not as of the batch's macro block. Reporting only the height, as
+ * this field did before the checkpoint builder existed, left the caller no way
+ * to recover the state that was current there.
+ */
+export interface BoundaryCrossing {
+  /** An absolute multiple of `CHECKPOINT_INTERVAL`. Equals `state.height`. */
+  readonly height: number
+  readonly state: NnsState
+  /**
+   * How many of this batch's {@link BatchResult.logRows} are at or below
+   * `height` — i.e. the prefix the §8.2 log hash covers at this checkpoint.
+   *
+   * It is a plain count rather than a filter because the rows are already in
+   * canonical order and boundaries fire before the transactions that cross
+   * them: every row emitted so far is at a height below this boundary, and
+   * every later row is at or above it.
+   */
+  readonly logRowsBefore: number
+}
+
 export interface BatchResult {
   readonly state: NnsState
   /** §8.2 rows, in canonical order. Only messages surviving §7.5 (§7.6). */
   readonly logRows: readonly LogRow[]
   readonly counts: VerdictCounts
-  /** Checkpoint boundaries crossed while applying this batch. */
-  readonly boundariesCrossed: readonly number[]
+  /** Checkpoint boundaries crossed while applying this batch, in ascending order. */
+  readonly boundariesCrossed: readonly BoundaryCrossing[]
 }
 
 /**
@@ -87,7 +113,7 @@ export function nextBoundaryAbove(height: number): number {
 export function advanceThroughBoundaries(
   state: NnsState,
   target: number,
-  onBoundary?: (height: number) => void,
+  onBoundary?: (height: number, state: NnsState) => void,
 ): NnsState {
   if (target <= state.height) return state
   let current = state
@@ -97,7 +123,9 @@ export function advanceThroughBoundaries(
     boundary = nextBoundaryAbove(current.height)
   ) {
     current = advanceTo(current, boundary)
-    onBoundary?.(boundary)
+    // After the advance, so the state handed out is the state *at* the
+    // boundary — which is what §8.1 commits.
+    onBoundary?.(boundary, current)
   }
   return advanceTo(current, target)
 }
@@ -182,9 +210,9 @@ export class Pipeline {
   applyBatch(state: NnsState, candidates: readonly NnsCandidate[], throughHeight: number): BatchResult {
     const counts: VerdictCounts = { ok: 0, forfeit: 0, refund: 0, ignored: 0 }
     const logRows: LogRow[] = []
-    const boundariesCrossed: number[] = []
-    const onBoundary = (height: number): void => {
-      boundariesCrossed.push(height)
+    const boundariesCrossed: BoundaryCrossing[] = []
+    const onBoundary = (height: number, atBoundary: NnsState): void => {
+      boundariesCrossed.push({ height, state: atBoundary, logRowsBefore: logRows.length })
     }
 
     let current = state

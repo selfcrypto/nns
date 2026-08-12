@@ -83,7 +83,10 @@ describe('applyBatch', () => {
     const macroBlock = LAUNCH + 1_440
     const result = p.applyBatch(initialState(CONFIG), [], macroBlock)
     expect(result.state.height).toBe(macroBlock)
-    expect(result.boundariesCrossed).toEqual([LAUNCH + 720, LAUNCH + 1_440])
+    expect(result.boundariesCrossed.map((crossing) => crossing.height)).toEqual([LAUNCH + 720, LAUNCH + 1_440])
+    // Each carries the state as of its own height — a checkpoint at LAUNCH+720
+    // must not commit the state as of the macro block above it.
+    expect(result.boundariesCrossed.map((crossing) => crossing.state.height)).toEqual([LAUNCH + 720, LAUNCH + 1_440])
     expect(result.logRows).toEqual([])
   })
 

@@ -6,11 +6,12 @@
  * Reads `.env` (see `.env.example`), migrates the database, reloads state and
  * the cursor, then tails batches up to the last finalised macro block —
  * reducing each batch's messages through `@nns/core` and committing state, log
- * lines and the cursor in one transaction per batch.
+ * lines, §8.1 checkpoints and the cursor in one transaction per batch.
  *
- * Not here yet: the checkpoint builder and `docker-compose.yml`.
+ * Not here yet: `docker-compose.yml`.
  */
 
+import { CheckpointBuilder } from './checkpoint.js'
 import { createLogger, type Logger } from './logger.js'
 import { EnvError, loadSettings, type IndexerSettings } from './env.js'
 import { createPool, migrate } from './db.js'
@@ -57,6 +58,13 @@ async function main(): Promise<void> {
     const cursor = await store.loadCursor()
     let state = await store.loadState()
 
+    // The §8.2 log hash is a fold over every line ever written, and state is
+    // reloaded rather than replayed — so the fold is rebuilt from the `log`
+    // table before the first new batch can produce a checkpoint.
+    const checkpoints = new CheckpointBuilder({ logger })
+    await store.streamLogRows((row) => checkpoints.seed(row))
+    checkpoints.seeded()
+
     const rpc = new RpcClient({
       url: settings.rpcUrl,
       username: settings.rpcUser,
@@ -77,10 +85,16 @@ async function main(): Promise<void> {
       onBatchComplete: async ({ batch, macroBlock, candidates }) => {
         const before = state
         const result = pipeline.applyBatch(before, candidates, macroBlock)
+        // Built before the commit and written inside it: a checkpoint and the
+        // log rows it commits to land together or not at all. A throw from
+        // here is fatal by design — the running log hash would be ahead of the
+        // table, and a restart reseeds it from the table.
+        const due = checkpoints.buildForBatch(result)
         await store.commitBatch({
           before,
           after: result.state,
           logRows: result.logRows,
+          checkpoints: due,
           nextBatch: batch + 1,
           scannedThrough: macroBlock,
         })

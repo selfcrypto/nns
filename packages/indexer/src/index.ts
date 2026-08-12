@@ -1,9 +1,9 @@
 /**
- * `@nns/indexer` — chain-facing half.
+ * `@nns/indexer` — RPC tail → `@nns/core` reducer → Postgres → §8.1 checkpoints.
  *
- * RPC client (envelope unwrapping, basic auth) and the scan loop
- * (`FINALITY_RULE`, §7.1 prefix discovery, §5.2 canonical order).
- * No database, no checkpoints, no reducer wiring yet.
+ * The RPC client (envelope unwrapping, basic auth), the scan loop
+ * (`FINALITY_RULE`, §7.1 prefix discovery, §5.2 canonical order), the reducer
+ * wiring, the Postgres projection and the checkpoint builder.
  */
 
 export {
@@ -14,6 +14,18 @@ export {
   lastFinalisedBatch,
   type ChainGeometry,
 } from './chain.js'
+
+export {
+  COMMITMENT_LAYOUT,
+  CheckpointBuilder,
+  CheckpointError,
+  checkpointRow,
+  commitmentFor,
+  hex,
+  logLineFromRow,
+  type CheckpointBuilderOptions,
+  type CheckpointRow,
+} from './checkpoint.js'
 
 export { EnvError, loadSettings, type EnvSource, type IndexerSettings } from './env.js'
 
@@ -48,6 +60,7 @@ export {
   nextBoundaryAbove,
   toChainTransaction,
   type BatchResult,
+  type BoundaryCrossing,
   type VerdictCounts,
 } from './pipeline.js'
 
@@ -79,7 +92,14 @@ export {
   withTransaction,
 } from './db.js'
 
-export { Store, StoreError, configFingerprint, type CommitInput, type Cursor } from './store.js'
+export {
+  Store,
+  StoreError,
+  configFingerprint,
+  type CommitInput,
+  type Cursor,
+  type StoredCheckpoint,
+} from './store.js'
 
 export {
   PROTOCOL_PREFIX_HEX,

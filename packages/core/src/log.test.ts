@@ -1,6 +1,6 @@
 import { keccak_256 } from '@noble/hashes/sha3.js'
 import { describe, expect, it } from 'vitest'
-import { LogError, canonicalLogLine, logFile, logHash, parseLogLine, verdictToken } from './log.js'
+import { LogError, canonicalLogLine, createLogHasher, logFile, logHash, parseLogLine, verdictToken } from './log.js'
 import type { ChainTransaction, ForfeitReason, RefundReason, Verdict } from './reduce.js'
 import { ALICE, MAINNET_ID, TREASURY } from './test-fixtures.js'
 
@@ -165,5 +165,39 @@ describe('logFile and logHash — §8.2 canonical form', () => {
 
   it('rejects a non-ASCII line rather than encoding it silently', () => {
     expect(() => logFile(['café'])).toThrow(LogError)
+  })
+})
+
+describe('createLogHasher — the incremental form of the same value', () => {
+  const lines = [
+    canonicalLogLine(tx({ txIndex: 0 }), OK),
+    canonicalLogLine(tx({ txIndex: 1 }), OK),
+    canonicalLogLine(tx({ blockNumber: 58_177_020, txIndex: 0 }), OK),
+  ]
+
+  it('agrees with logHash at every prefix', () => {
+    // The property an indexer depends on: a checkpoint taken after line n must
+    // equal the hash of the file that ends at line n. Anything less and a
+    // streamed root is unverifiable by a replayer that hashes the file.
+    const hasher = createLogHasher()
+    expect(hasher.digest()).toEqual(logHash([]))
+    lines.forEach((line, index) => {
+      hasher.append(line)
+      expect(hasher.digest()).toEqual(logHash(lines.slice(0, index + 1)))
+      expect(hasher.lines).toBe(index + 1)
+    })
+  })
+
+  it('does not end the stream when it digests', () => {
+    const hasher = createLogHasher()
+    hasher.append(lines[0] as string)
+    const first = hasher.digest()
+    expect(hasher.digest()).toEqual(first)
+    hasher.append(lines[1] as string)
+    expect(hasher.digest()).toEqual(logHash(lines.slice(0, 2)))
+  })
+
+  it('rejects a non-ASCII line, exactly as logFile does', () => {
+    expect(() => createLogHasher().append('café')).toThrow(LogError)
   })
 })

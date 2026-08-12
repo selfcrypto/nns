@@ -10,8 +10,10 @@
  */
 
 import {
+  checkpoint,
   defineConfig,
   initialState,
+  logHash,
   parseAddress,
   type NameRecord,
   type NnsState,
@@ -20,9 +22,10 @@ import {
 } from '@nns/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { CheckpointBuilder, COMMITMENT_LAYOUT, hex, logLineFromRow } from './checkpoint.js'
 import { createPool, migrate } from './db.js'
 import { Store } from './store.js'
-import { rowsOf } from './rows.js'
+import { rowsOf, type LogRow } from './rows.js'
 import { collectingLogger } from './test-fixtures.js'
 
 const URL = process.env['NNS_TEST_DATABASE_URL']
@@ -158,5 +161,105 @@ describe.skipIf(URL === undefined)('Store', () => {
   it('refuses a database built under a different config', async () => {
     const other = new Store(pool, { ...CONFIG, launchHeight: CONFIG.launchHeight + 1 }, logger)
     await expect(other.loadCursor()).rejects.toThrow(/different deployment config/)
+  })
+
+  // ── Checkpoints (§8.1) ────────────────────────────────────────────────────
+
+  const at = (height: number, state: NnsState) =>
+    checkpoint(Object.freeze({ ...state, height }), logHash([]))
+
+  it('writes a checkpoint in the batch transaction and reads it back', async () => {
+    const state = initialState(CONFIG)
+    const record = at(58_177_440, state)
+    await store.commitBatch({
+      before: state,
+      after: Object.freeze({ ...state, height: 58_177_440 }),
+      logRows: [],
+      checkpoints: [record],
+      nextBatch: 912_020,
+      scannedThrough: 58_177_440,
+    })
+
+    const stored = await store.checkpointAt(58_177_440)
+    expect(stored).toEqual({
+      height: 58_177_440,
+      layout: COMMITMENT_LAYOUT,
+      nameRoot: hex(record.nameRoot),
+      pricesRoot: hex(record.pricesRoot),
+      pendingRoot: hex(record.pendingRoot),
+      logHash: hex(record.logHash),
+      commitment: hex(record.commitment),
+    })
+    expect(await store.latestCheckpoint()).toMatchObject({ height: 58_177_440 })
+  })
+
+  it('accepts the identical checkpoint again — a replayed batch is not a divergence', async () => {
+    const state = initialState(CONFIG)
+    await store.commitBatch({
+      before: state,
+      after: Object.freeze({ ...state, height: 58_177_440 }),
+      logRows: [],
+      checkpoints: [at(58_177_440, state)],
+      nextBatch: 912_020,
+      scannedThrough: 58_177_440,
+    })
+    const count = await pool.query<{ count: string }>('SELECT count(*)::text AS count FROM checkpoints')
+    expect(count.rows[0]?.count).toBe('1')
+  })
+
+  it('refuses to overwrite a checkpoint that disagrees', async () => {
+    // The one failure mode the whole design exists to catch. A silent
+    // DO NOTHING here would keep the first root while the indexer carried on
+    // producing the second.
+    const different = Object.freeze({
+      ...initialState(CONFIG),
+      names: new Map<string, NameRecord>([
+        [
+          'divergent',
+          {
+            name: 'divergent',
+            owner: compact(A),
+            target: compact(A),
+            expiry: 215_880_000,
+            status: 'REGISTERED',
+            recovery: null,
+            host: '',
+          },
+        ],
+      ]),
+    })
+    await expect(
+      store.commitBatch({
+        before: different,
+        after: Object.freeze({ ...different, height: 58_177_440 }),
+        logRows: [],
+        checkpoints: [at(58_177_440, different)],
+        nextBatch: 912_020,
+        scannedThrough: 58_177_440,
+      }),
+    ).rejects.toThrow(/checkpoint divergence at height 58177440/)
+
+    // …and the transaction rolled back, so the stored root is untouched.
+    expect(await store.checkpointAt(58_177_440)).toMatchObject({
+      commitment: hex(at(58_177_440, initialState(CONFIG)).commitment),
+    })
+  })
+
+  it('streams the log back in canonical order, and reproduces the log hash', async () => {
+    // The restart path: the running §8.2 hash is rebuilt from this table.
+    // chunkSize 1 forces the keyset pagination to page.
+    const rows: LogRow[] = []
+    const streamed = await store.streamLogRows((row) => rows.push(row), 1)
+    expect(streamed).toBe(rows.length)
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.map((row) => [row.block_height, row.tx_index])).toEqual(
+      [...rows].sort((a, b) => a.block_height - b.block_height || a.tx_index - b.tx_index)
+        .map((row) => [row.block_height, row.tx_index]),
+    )
+
+    const builder = new CheckpointBuilder({ logger })
+    for (const row of rows) builder.seed(row)
+    expect(builder.lines).toBe(rows.length)
+    expect(hex(builder.logHash)).toBe(hex(logHash(rows.map(logLineFromRow))))
   })
 })
