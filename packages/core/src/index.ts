@@ -54,6 +54,7 @@ export {
   initialState,
   isReserved,
   lookup,
+  minPrice,
   refKey,
   resolve,
   type NameRecord,

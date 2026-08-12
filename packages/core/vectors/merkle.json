@@ -1,7 +1,7 @@
 {
   "vectors": "nns/merkle",
   "version": 1,
-  "spec": "nns-spec-v1 draft r14, §8.1 and §8.3",
+  "spec": "nns-spec-v1 draft r15, §8.1 and §8.3",
   "description": "Checkpoint tree byte layout. `enc` is the §8.1 leaf preimage, `leaf` is keccak256(0x00 ‖ enc), internal nodes are keccak256(0x01 ‖ left ‖ right), odd nodes are promoted unchanged, and an empty tree is 32 zero bytes. All hex is lowercase and unprefixed.",
   "addresses": {
     "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
@@ -242,6 +242,217 @@
         "name": "zzzzzname",
         "kind": "AFTER_LAST",
         "previous": "eeeeename"
+      }
+    ]
+  },
+  "checkpoints": {
+    "description": "The §8.1 checkpoint commitment, byte for byte. `state` is the part of the registry §8.1 requires committed — the name tree, the active prices and the pending set — and `logHash` is an input, the §8.2 log hash at this height. `nameRoot`, `pricesRoot`, `pendingRoot` and `commitment` are derived. Two implementations that agree on every other file here and disagree on this one publish checkpoints that never match.",
+    "tags": {
+      "leaf": "0x00",
+      "node": "0x01",
+      "checkpoint": "0x02",
+      "prices": "0x03",
+      "pending": "0x04",
+      "pendingTransfer": "0x05",
+      "pendingRecovery": "0x06",
+      "pendingOffer": "0x07",
+      "pendingGovernance": "0x08",
+      "pendingUnreserve": "0x09"
+    },
+    "cases": [
+      {
+        "id": "empty_state_at_launch",
+        "note": "Nothing registered and nothing pending. Pins the two empty forms: the name root is 32 zero bytes, while the pending commitment is keccak256 of the lone 0x04 tag — not zeros, and not the same thing.",
+        "state": {
+          "height": 58000000,
+          "prices": {
+            "feeStandard": "400000000",
+            "feeLong": "40000000",
+            "commissionBp": "250"
+          }
+        },
+        "logHash": "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+        "nameRoot": "0000000000000000000000000000000000000000000000000000000000000000",
+        "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
+        "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
+        "commitment": "9a2c6ec3a73eb60b0ab373b15455ff04458a82efc096b5c345ae9c2c511f3484"
+      },
+      {
+        "id": "one_name_nothing_pending",
+        "state": {
+          "height": 58060800,
+          "prices": {
+            "feeStandard": "400000000",
+            "feeLong": "40000000",
+            "commissionBp": "250"
+          },
+          "names": [
+            {
+              "name": "kikename",
+              "owner": "ALICE",
+              "target": "ALICE",
+              "expiry": 215680000,
+              "status": "REGISTERED",
+              "recovery": null,
+              "host": ""
+            }
+          ]
+        },
+        "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
+        "nameRoot": "448387cbe1dfe2cc91c33cab8636f0cde4f346eb4a4642d7f52de128e10752f4",
+        "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
+        "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
+        "commitment": "e0151a6b43774463ab27146a9672f5e31a2c68deb449e47266f6555664a58564"
+      },
+      {
+        "id": "every_pending_category",
+        "note": "One of each: a pending X, a pending R that clears (recovery null → 20 zero bytes), an open O, a pending P and a pending U. Entries are concatenated by category in §8.1's order and bytewise by name inside a category, then hashed once under 0x04.",
+        "state": {
+          "height": 58060800,
+          "prices": {
+            "feeStandard": "400000000",
+            "feeLong": "40000000",
+            "commissionBp": "250"
+          },
+          "names": [
+            {
+              "name": "kikename",
+              "owner": "ALICE",
+              "target": "ALICE",
+              "expiry": 215680000,
+              "status": "REGISTERED",
+              "recovery": null,
+              "host": ""
+            },
+            {
+              "name": "othername",
+              "owner": "BOB",
+              "target": "BOB",
+              "expiry": 215680000,
+              "status": "GRACE",
+              "recovery": null,
+              "host": "nns.binance.com"
+            }
+          ],
+          "transfers": [
+            {
+              "name": "othername",
+              "newOwner": "CAROL",
+              "effectiveHeight": 58104000,
+              "viaRecovery": false
+            },
+            {
+              "name": "kikename",
+              "newOwner": "BOB",
+              "effectiveHeight": 58104000,
+              "viaRecovery": true
+            }
+          ],
+          "recoveries": [
+            {
+              "name": "kikename",
+              "recovery": null,
+              "effectiveHeight": 58104000
+            }
+          ],
+          "offers": [
+            {
+              "name": "kikename",
+              "seller": "ALICE",
+              "price": "100000000",
+              "openedHeight": 58060000,
+              "expiryHeight": 59356000
+            }
+          ],
+          "pendingGovernance": {
+            "prices": {
+              "feeStandard": "800000000",
+              "feeLong": "40000000",
+              "commissionBp": "250"
+            },
+            "effectiveHeight": 58104000
+          },
+          "pendingUnreserve": [
+            {
+              "name": "binance",
+              "effectiveHeight": 58104000
+            }
+          ]
+        },
+        "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
+        "nameRoot": "8d3a11999e76ef35bd1c5659e0a8ac81f6b2a2f995ef472d3148af2de65bcc50",
+        "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
+        "pendingRoot": "1c29c8923dd29de363f441dfb991d22ec0e1a33cf1d32150a309fa8f46352b08",
+        "commitment": "927c3e8d420a5d422f343785bd81f1bc9447a1db1c101aec84d9fd0643c2881c"
+      },
+      {
+        "id": "same_names_no_pending_set",
+        "note": "The names of every_pending_category with the pending set dropped. Same name root, different commitment — which is the whole reason §8.1 requires the pending set committed.",
+        "state": {
+          "height": 58060800,
+          "prices": {
+            "feeStandard": "400000000",
+            "feeLong": "40000000",
+            "commissionBp": "250"
+          },
+          "names": [
+            {
+              "name": "kikename",
+              "owner": "ALICE",
+              "target": "ALICE",
+              "expiry": 215680000,
+              "status": "REGISTERED",
+              "recovery": null,
+              "host": ""
+            },
+            {
+              "name": "othername",
+              "owner": "BOB",
+              "target": "BOB",
+              "expiry": 215680000,
+              "status": "GRACE",
+              "recovery": null,
+              "host": "nns.binance.com"
+            }
+          ]
+        },
+        "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
+        "sameNameRootAs": "every_pending_category",
+        "differsFrom": "every_pending_category",
+        "nameRoot": "8d3a11999e76ef35bd1c5659e0a8ac81f6b2a2f995ef472d3148af2de65bcc50",
+        "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
+        "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
+        "commitment": "04328dcbe1453af78976280fe01cf8dbde2298c7364157b14e016324e04ee7da"
+      },
+      {
+        "id": "prices_moved_by_a_P",
+        "note": "Identical to one_name_nothing_pending but for FEE_STANDARD. The active prices are inside the commitment, so the checkpoint moves.",
+        "state": {
+          "height": 58060800,
+          "prices": {
+            "feeStandard": "800000000",
+            "feeLong": "40000000",
+            "commissionBp": "250"
+          },
+          "names": [
+            {
+              "name": "kikename",
+              "owner": "ALICE",
+              "target": "ALICE",
+              "expiry": 215680000,
+              "status": "REGISTERED",
+              "recovery": null,
+              "host": ""
+            }
+          ]
+        },
+        "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
+        "sameNameRootAs": "one_name_nothing_pending",
+        "differsFrom": "one_name_nothing_pending",
+        "nameRoot": "448387cbe1dfe2cc91c33cab8636f0cde4f346eb4a4642d7f52de128e10752f4",
+        "pricesRoot": "f4976fbebd568fcc96ef7b8f3621873f03a9cab0dd40d2733461ceecc1f52b46",
+        "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
+        "commitment": "978d84f1383c4c60d0894b55561d2933ad68ebdd9f1a332ed8e5549d279ea146"
       }
     ]
   }

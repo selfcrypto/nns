@@ -324,6 +324,17 @@ function build(
   return Object.freeze({ recipient, value, data: asciiToHex(text) })
 }
 
+/**
+ * §3 `MIN_PRICE`, enforced on the write side. Below the floor the reducer
+ * forfeits the message (§6 `O`), which §7.4 classes as client-preventable —
+ * this is the client preventing it.
+ */
+function requireAtLeastMinPrice(what: string, amount: bigint, floor: bigint): void {
+  if (amount < floor) {
+    fail(`${what} ${amount} is below MIN_PRICE (${floor} luna) — the message would forfeit (§6 O, §6 A)`)
+  }
+}
+
 /** Names carried in a payload must be syntactically valid and pipe-free. */
 function requireName(name: string, reserved?: ReadonlySet<string>): string {
   const check = validateName(name, reserved)
@@ -420,12 +431,22 @@ export function encodeRenew(
   return build('N', requireName(params.name), config.treasury, params.fee, params.sender)
 }
 
-/** `O` — Offer (§6). Carries the listing fee; the price travels in the payload. */
+/**
+ * `O` — Offer (§6). Carries the listing fee; the price travels in the payload.
+ *
+ * `minPrice` is §3's `MIN_PRICE` — `FEE_LONG` as in effect at the height this
+ * message will land at (§6 `O`). It is a parameter rather than a constant
+ * because it is governed: `constants.ts` holds the launch value, which stops
+ * being the floor the moment a `P` moves `FEE_LONG`. Callers read it from the
+ * active params (`minPrice(state.prices)`), which they hold already — a client
+ * cannot show the seller a listing fee without them.
+ */
 export function encodeOffer(
   config: NnsConfig,
-  params: { name: string; price: bigint } & SenderOption,
+  params: { name: string; price: bigint; minPrice: bigint } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
+  requireAtLeastMinPrice('O price', params.price, params.minPrice)
   // The listing fee is still OPEN in §6/§10.6, so a deployment may set it to
   // zero — but the network rejects a `value` of 0 outright (§5.4), so the only
   // sendable encoding of "no listing fee" is DUST_VALUE.
@@ -464,12 +485,19 @@ export function encodeSettlement(
   )
 }
 
-/** `A` — Auction (§6). Opens a bidding window; bids reuse `B`. */
+/**
+ * `A` — Auction (§6). Opens a bidding window; bids reuse `B`.
+ *
+ * The reserve carries the same `MIN_PRICE` floor as an `O` price, and for one
+ * reason beyond parity: at a token reserve `floor(reserve ×
+ * AUCTION_MIN_INCREMENT)` is 0 and the increment rule stops existing.
+ */
 export function encodeAuction(
   config: NnsConfig,
-  params: { name: string; reserve: bigint; endHeight: number } & SenderOption,
+  params: { name: string; reserve: bigint; endHeight: number; minPrice: bigint } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
+  requireAtLeastMinPrice('A reserve', params.reserve, params.minPrice)
   const payload = `${name}|${formatLuna(params.reserve)}|${formatHeight(params.endHeight)}`
   return build('A', payload, config.protocol, CONSTANTS.DUST_VALUE, params.sender)
 }

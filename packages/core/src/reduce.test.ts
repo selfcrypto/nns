@@ -24,12 +24,14 @@ import {
   commissionOn,
   reduce,
 } from './reduce.js'
-import { type NnsState, initialState, lookup, resolve } from './state.js'
+import { type NnsState, LAUNCH_PRICES, initialState, lookup, minPrice, resolve } from './state.js'
 import { ADMIN, ALICE, BOB, CAROL, MAINNET_ID, MARKETPLACE, PROTOCOL, TREASURY, testConfig } from './test-fixtures.js'
 
 const config = testConfig()
 const LAUNCH = config.launchHeight
 const FEE = CONSTANTS.FEE_STANDARD
+/** §3 `MIN_PRICE` at launch prices — the floor on an `O` price (§6 `O`). */
+const FLOOR = minPrice(LAUNCH_PRICES)
 
 let state: NnsState
 beforeEach(() => {
@@ -340,7 +342,8 @@ describe('X — transfer ownership (§6, §7.3)', () => {
     state = advanceTo(state, LAUNCH + CONSTANTS.XFER_TIMELOCK)
     expect(lookup(state, 'kikename')?.recovery).toBe(CAROL)
 
-    step(encodeOffer(config, { name: 'kikename', price: 100n }), { sender: ALICE, at: LAUNCH + 100_000 })
+    const listed = encodeOffer(config, { name: 'kikename', price: FLOOR, minPrice: FLOOR })
+    step(listed, { sender: ALICE, at: LAUNCH + 100_000 })
     step(encodeTransfer(config, { name: 'kikename', newOwner: BOB }), { sender: ALICE, at: LAUNCH + 100_000 })
     state = advanceTo(state, LAUNCH + 100_000 + CONSTANTS.XFER_TIMELOCK)
 
@@ -407,7 +410,7 @@ describe('K — cancel (§6)', () => {
   })
 
   it('cannot withdraw an offer inside OFFER_IRREVOCABLE, and can after', () => {
-    step(encodeOffer(config, { name: 'kikename', price: 100n }), { sender: ALICE, at: LAUNCH })
+    step(encodeOffer(config, { name: 'kikename', price: FLOOR, minPrice: FLOOR }), { sender: ALICE, at: LAUNCH })
     expect(step(encodeCancel(config, { name: 'kikename' }), { sender: ALICE, at: LAUNCH + 1 }).verdict).toEqual({
       kind: 'FORFEIT',
       reason: 'NOTHING_TO_CANCEL',
@@ -472,9 +475,9 @@ describe('§7.3 expiry — the height-driven path', () => {
 
 describe('ordering of effects that come due at the same height', () => {
   it('runs a maturing transfer before the expiry it collides with', () => {
-    // §7.3 does not fix this order and the two readings do not agree: expire
-    // first would cancel the pending X as part of the grace reset and leave
-    // the name with Alice. See docs/decisions.md.
+    // The two readings do not agree: expire first would cancel the pending X
+    // as part of the grace reset and leave the name with Alice. Ratified into
+    // §7.3 by r15.
     registerToAlice()
     const expiry = LAUNCH + CONSTANTS.TERM_LENGTH
     step(encodeTransfer(config, { name: 'kikename', newOwner: BOB }), {
@@ -494,6 +497,70 @@ describe('ordering of effects that come due at the same height', () => {
     state = advanceTo(state, LAUNCH + CONSTANTS.XFER_TIMELOCK)
     expect(lookup(state, 'kikename')).toMatchObject({ owner: BOB, recovery: null })
     expect(state.recoveries.has('kikename')).toBe(false)
+  })
+
+  it('fires every §7.3 category due at one height, in §7.3 order, before that block’s transactions', () => {
+    // One height with all seven categories due at once. §7.3 fixes the order —
+    // governance, unreserve, maturing X, maturing R, expiry, grace release,
+    // offer expiry — and fixes that the whole batch runs *before* the block's
+    // own transactions, which is what the final `G` here checks.
+    const reserving = testConfig({ reservedNames: ['binance'] })
+    const at = (height: number): SendOptions => ({ sender: ALICE, at: height })
+    /** `step`, but against the reserving config this one test needs. */
+    const send1 = (built: BuiltTransaction, options: SendOptions): ReduceResult => {
+      const result = reduce(state, send(built, options), reserving)
+      state = result.state
+      return result
+    }
+    // No builder will encode a reserved name, so the final `G` is hand-made.
+    const registerBinance = (fee: bigint): BuiltTransaction => ({
+      ...encodeRegister(reserving, { name: 'gracename', fee }),
+      data: hexOf('NNS1Gbinance'),
+    })
+    state = initialState(reserving)
+
+    const H = LAUNCH + CONSTANTS.TERM_LENGTH + CONSTANTS.GRACE_PERIOD
+
+    // Replay is forward-only, so the setup is written in height order.
+    // Releases to AVAILABLE at H: registered at LAUNCH, so expiry + GRACE = H.
+    send1(encodeRegister(reserving, { name: 'gracename', fee: FEE }), at(LAUNCH))
+    // Both expire at H; `expirename` also carries a transfer maturing there.
+    send1(encodeRegister(reserving, { name: 'expirename', fee: FEE }), at(H - CONSTANTS.TERM_LENGTH))
+    send1(encodeRegister(reserving, { name: 'offername', fee: FEE }), at(H - CONSTANTS.TERM_LENGTH))
+    // An offer expiring at H.
+    send1(encodeOffer(reserving, { name: 'offername', price: FLOOR, minPrice: FLOOR }), {
+      sender: ALICE,
+      at: H - CONSTANTS.OFFER_MAX_LIFETIME,
+    })
+    // A U and a P effective at H, and an X and an R maturing there — all four
+    // sent at the same height, since GOVERNANCE_DELAY and XFER_TIMELOCK are equal.
+    const notice = H - CONSTANTS.GOVERNANCE_DELAY
+    send1(encodeUnreserve(reserving, { name: 'binance', effectiveHeight: H }), { sender: ADMIN, at: notice })
+    send1(
+      encodeGovernance(reserving, {
+        feeStandard: FEE * 2n,
+        feeLong: CONSTANTS.FEE_LONG,
+        commissionBp: CONSTANTS.COMMISSION_RATE,
+        effectiveHeight: H,
+      }),
+      { sender: ADMIN, at: notice },
+    )
+    send1(encodeTransfer(reserving, { name: 'expirename', newOwner: BOB }), at(H - CONSTANTS.XFER_TIMELOCK))
+    send1(encodeRecovery(reserving, { name: 'offername', recovery: CAROL }), at(H - CONSTANTS.XFER_TIMELOCK))
+
+    state = advanceTo(state, H)
+
+    expect(state.prices.feeStandard).toBe(FEE * 2n) // governance activated
+    expect(state.unreserved.has('binance')).toBe(true) // unreserve activated
+    expect(lookup(state, 'expirename')).toMatchObject({ owner: BOB, status: 'GRACE' }) // X before expiry
+    expect(lookup(state, 'offername')?.recovery).toBe(CAROL) // R matured
+    expect(lookup(state, 'gracename')).toBeNull() // grace released
+    expect(state.offers.has('offername')).toBe(false) // offer expired
+
+    // …and all of it before H's own transactions: this `G` is only registrable
+    // because the `U` fired first, and only sufficient at the raised fee.
+    expect(send1(registerBinance(FEE), at(H)).verdict).toEqual({ kind: 'FORFEIT', reason: 'INSUFFICIENT_VALUE' })
+    expect(send1(registerBinance(FEE * 2n), at(H)).verdict.kind).toBe('OK')
   })
 })
 
@@ -529,10 +596,10 @@ describe('nextDueHeight is only ever a lower bound', () => {
 // ── Marketplace ─────────────────────────────────────────────────────────────
 
 describe('O, B and M — the marketplace (§6)', () => {
-  const PRICE = 1_000_000n
+  const PRICE = 100_000_000n
   beforeEach(() => {
     registerToAlice()
-    step(encodeOffer(config, { name: 'kikename', price: PRICE }), { sender: ALICE })
+    step(encodeOffer(config, { name: 'kikename', price: PRICE, minPrice: FLOOR }), { sender: ALICE })
   })
 
   it('moves ownership immediately on a winning B, settlement never gating it', () => {
@@ -656,6 +723,78 @@ describe('O, B and M — the marketplace (§6)', () => {
   })
 })
 
+// ── MIN_PRICE ───────────────────────────────────────────────────────────────
+
+describe('MIN_PRICE — the floor on an O price (§3, §6 O)', () => {
+  /** No builder will encode below the floor, so these are assembled by hand. */
+  const offerAt = (price: bigint): BuiltTransaction => ({
+    ...encodeOffer(config, { name: 'kikename', price: FLOOR, minPrice: FLOOR }),
+    data: hexOf(`NNS1Okikename|${price}`),
+  })
+
+  beforeEach(() => registerToAlice())
+
+  it('accepts a price exactly at the floor — the boundary is inclusive', () => {
+    expect(step(offerAt(FLOOR), { sender: ALICE }).verdict.kind).toBe('OK')
+    expect(state.offers.get('kikename')?.price).toBe(FLOOR)
+  })
+
+  it('forfeits one luna below the floor', () => {
+    expect(step(offerAt(FLOOR - 1n), { sender: ALICE }).verdict).toEqual({
+      kind: 'FORFEIT',
+      reason: 'BELOW_MIN_PRICE',
+    })
+    expect(state.offers.has('kikename')).toBe(false)
+  })
+
+  it.each([
+    // The three readings §6 `O` records for rejecting a token floor. Each is a
+    // price a floor of "1 luna" would have admitted, and each breaks a rule
+    // somewhere else in the protocol.
+    ['0, which no B can satisfy — the network rejects value: 0 (§5.4)', 0n],
+    ['1 luna, the token floor considered and rejected', 1n],
+    ['below REFUND_FLOOR, where a losing bidder is forfeited, not refunded (§7.4)', CONSTANTS.REFUND_FLOOR - 1n],
+    ['small enough that floor(price × AUCTION_MIN_INCREMENT) is 0, erasing the increment rule', 19n],
+  ])('forfeits a price %s', (_label, price) => {
+    expect(step(offerAt(price), { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'BELOW_MIN_PRICE' })
+  })
+
+  it('pins why 19 luna erases the auction increment rule', () => {
+    // floor(19 × 5%) = 0: a bid could match the standing one and still "raise".
+    expect(commissionOn(19n, CONSTANTS.AUCTION_MIN_INCREMENT_BP)).toBe(0n)
+    expect(commissionOn(20n, CONSTANTS.AUCTION_MIN_INCREMENT_BP)).toBe(1n)
+  })
+
+  it('moves the floor with FEE_LONG, reading it from state and not from constants', () => {
+    // A P that doubles FEE_LONG doubles MIN_PRICE with it. An implementation
+    // reading CONSTANTS.FEE_LONG is right until this block and wrong after.
+    const effective = LAUNCH + CONSTANTS.GOVERNANCE_DELAY
+    step(
+      encodeGovernance(config, {
+        feeStandard: CONSTANTS.FEE_STANDARD,
+        feeLong: FLOOR * 2n,
+        commissionBp: CONSTANTS.COMMISSION_RATE,
+        effectiveHeight: effective,
+      }),
+      { sender: ADMIN },
+    )
+
+    expect(step(offerAt(FLOOR), { sender: ALICE, at: effective - 1 }).verdict.kind).toBe('OK')
+    expect(step(offerAt(FLOOR), { sender: ALICE, at: effective }).verdict).toEqual({
+      kind: 'FORFEIT',
+      reason: 'BELOW_MIN_PRICE',
+    })
+    expect(step(offerAt(FLOOR * 2n), { sender: ALICE, at: effective }).verdict.kind).toBe('OK')
+  })
+
+  it('checks the floor before the listing fee, so the payload’s own defect claims it', () => {
+    const paid = testConfig({ listingFee: 500n })
+    const built = { ...offerAt(1n), recipient: TREASURY, value: 1n }
+    const result = reduce(state, send(built, { sender: ALICE }), paid)
+    expect(result.verdict).toEqual({ kind: 'FORFEIT', reason: 'BELOW_MIN_PRICE' })
+  })
+})
+
 // ── Governance ──────────────────────────────────────────────────────────────
 
 describe('P — governance (§6, §10.6)', () => {
@@ -761,6 +900,20 @@ describe('A — auction (§6), not in v1', () => {
   it('parses, logs, and forfeits by protocol version rather than by omission', () => {
     const built = { ...encodeCancel(config, { name: 'kikename' }), data: hexOf('NNS1Akikename|1000|58200000') }
     expect(step(built, { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_NOT_IN_V1' })
+  })
+
+  it('forfeits AUCTION_NOT_IN_V1 even below MIN_PRICE, because §6 requires that reason', () => {
+    // §6 `A` gives the reserve the same MIN_PRICE floor, but every `A` in v1
+    // takes this forfeit — a below-floor one answering `BELOW_MIN_PRICE`
+    // instead would write a different reason code into the log than a
+    // conforming implementation, and the log is committed to (§8.2).
+    for (const reserve of [1n, FLOOR - 1n, FLOOR]) {
+      const built = {
+        ...encodeCancel(config, { name: 'kikename' }),
+        data: hexOf(`NNS1Akikename|${reserve}|58200000`),
+      }
+      expect(step(built, { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_NOT_IN_V1' })
+    }
   })
 })
 

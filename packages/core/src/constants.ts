@@ -62,7 +62,13 @@ export const CONSTANTS = Object.freeze({
   // ── Pricing and governance bounds (§10.1, §10.6) ──────────────────────────
   /** Names of 5–11 characters. Governable within the bounds below. */
   FEE_STANDARD: nim(4_000n),
-  /** Names of 12+ characters. Governable within the bounds below. */
+  /**
+   * Names of 12+ characters. Governable within the bounds below.
+   *
+   * §3 also defines `MIN_PRICE` as `FEE_LONG` — but as the value *in effect at
+   * a message's height*, not this launch figure, so there is deliberately no
+   * `MIN_PRICE` entry here. Use `minPrice(state.prices)` from `state.ts`.
+   */
   FEE_LONG: nim(400n),
   /** Governance hard lower bound, either band. */
   PRICE_FLOOR: nim(1n),

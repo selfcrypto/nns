@@ -72,6 +72,18 @@ export interface PendingGovernance {
   readonly effectiveHeight: number
 }
 
+/**
+ * §3 `MIN_PRICE` — the floor on an `O` price and an `A` reserve (§6 `O`, §6 `A`).
+ *
+ * Defined **as `FEE_LONG`**, not as a luna amount, so it tracks the NIM price
+ * through §10.6 instead of going stale. That makes it a *governed* value: it is
+ * whatever `FEE_LONG` is in effect at the message's own block height, which is
+ * exactly what `state.prices` holds once `advanceTo` has run for that height.
+ * Reading it from `constants.ts` instead would be right until the first `P`
+ * moves `FEE_LONG` and wrong, silently, forever after.
+ */
+export const minPrice = (prices: Prices): bigint => prices.feeLong
+
 /** Canonical identity of a transaction: `(block height, zero-based index)`. */
 export interface TxRef {
   readonly height: number

@@ -4,8 +4,8 @@
  * Everything a human should review — inputs, expected verdicts, expected
  * owners, expected reason codes — is hand-authored in the JSON. Only values
  * that are mechanically derived from those inputs are written here: `data`
- * (hex of `text`), Merkle `enc`/`leaf`/`root`, and the log lines and hashes in
- * `ordering.json`.
+ * (hex of `text`), Merkle `enc`/`leaf`/`root`, the §8.1 checkpoint hashes, and
+ * the log lines and hashes in `ordering.json`.
  *
  *     npx tsx vectors/fill.ts
  *
@@ -16,12 +16,22 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { bytesToHex } from '@noble/hashes/utils.js'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { canonicalLogLine, logHash } from '../src/log.js'
-import { encodeLeaf, leafHash, merkleRoot } from '../src/merkle.js'
+import { checkpoint, encodeLeaf, leafHash, merkleRoot } from '../src/merkle.js'
 import { reduce } from '../src/reduce.js'
 import { type NameRecord, type NnsState, initialState } from '../src/state.js'
-import { type VectorRecord, build, hexOf, readAddresses, readConfig, readTx, readRecord } from './support.js'
+import {
+  type VectorCheckpointState,
+  type VectorRecord,
+  build,
+  hexOf,
+  readAddresses,
+  readCheckpointState,
+  readConfig,
+  readRecord,
+  readTx,
+} from './support.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const load = (name: string): any => JSON.parse(readFileSync(join(here, name), 'utf8'))
@@ -73,8 +83,20 @@ const stateWith = (config: ReturnType<typeof readConfig>, records: NameRecord[])
     )
     testCase.root = bytesToHex(merkleRoot(stateWith(config, records)))
   }
+
+  for (const testCase of file.checkpoints.cases) {
+    const state = readCheckpointState(testCase.state as VectorCheckpointState, book, config)
+    const result = checkpoint(state, hexToBytes(testCase.logHash))
+    testCase.nameRoot = bytesToHex(result.nameRoot)
+    testCase.pricesRoot = bytesToHex(result.pricesRoot)
+    testCase.pendingRoot = bytesToHex(result.pendingRoot)
+    testCase.commitment = bytesToHex(result.commitment)
+  }
   save('merkle.json', file)
-  console.log(`merkle.json    ${file.leaves.cases.length} leaves, ${file.roots.cases.length} roots`)
+  console.log(
+    `merkle.json    ${file.leaves.cases.length} leaves, ${file.roots.cases.length} roots, ` +
+      `${file.checkpoints.cases.length} checkpoints`,
+  )
 }
 
 // ── ordering.json ───────────────────────────────────────────────────────────

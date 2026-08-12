@@ -31,8 +31,10 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > - **§5.2:** numeric wire fields are canonical decimal — no sign, no
 >   leading zeros, or the message is malformed.
 > - **§8.1:** the checkpoint commitment enumeration gains pending `P` and
->   pending `U`; the byte-exact layout is fixed by the reference
->   implementation's conformance vectors.
+>   pending `U`, and the byte-exact layout — tag bytes, field encodings,
+>   ordering, and how the components combine — is written out in the clause
+>   itself, so an independent implementation never has to read ours. The
+>   conformance vectors now pin that layout rather than defining it.
 > - **§8.3:** proof steps carry `{hash, side}` plus the leaf index — a bare
 >   hash array is unverifiable under odd-node promotion.
 > - **§7.4:** `G` checks value before availability, so an underfunded `G`
@@ -958,6 +960,13 @@ NNS1O<name>|<price_in_luna>
   tracks the NIM price through §10.6 instead of going stale like any
   hardcoded figure would (§10.6's own argument, applied here).
 
+  It is therefore `FEE_LONG` **as in effect at this message's own block
+  height**, the same rule §6 `M` states for the commission rate: an
+  implementation comparing against the launch constant agrees with everyone
+  else until the first `P` moves `FEE_LONG` and disagrees, silently, from
+  that block on. The active value is committed to in every checkpoint
+  (§8.1), so a client can prove the floor it is about to be held to.
+
   Three things make a token floor unworkable, and they are worth recording
   so nobody lowers it later: a price of 0 is unsatisfiable, since `B` must
   carry the price exactly and the network rejects `value: 0` (§5.4); any
@@ -965,6 +974,9 @@ NNS1O<name>|<price_in_luna>
   than refunded**, contradicting §7.4; and a floor small enough that
   `floor(price × AUCTION_MIN_INCREMENT)` rounds to 0 erases the auction
   increment rule, admitting unlimited dust bids that each oblige an `M`
+  refund. At `FEE_LONG` all three are far below the floor, which is the
+  point: the floor is set by what a name costs, not by what arithmetic
+  tolerates
 - Sender must be the current owner
 
 Irrevocable for `OFFER_IRREVOCABLE` blocks, then cancellable via `K`,
@@ -1061,10 +1073,13 @@ is a protocol-version statement, not an implementation gap: a v1-conformant
 implementation MUST take that forfeit, because one that honoured auctions
 would derive a different root from one that did not. Activating `A` is a
 spec-version event from a stated height. A `B` naming a non-existent auction
-refunds under `OFFER_NOT_OPEN`. The `reserve` carries the same ≥ 1 luna
-floor as an `O` price — `MIN_PRICE` — for the same reasons, and the
-increment rule depends on it: at a token reserve the 5% raise rounds to
-zero and the auction becomes a dust-spam surface.
+refunds under `OFFER_NOT_OPEN`. The `reserve` carries the same `MIN_PRICE`
+floor as an `O` price, for the same reasons, and the increment rule depends
+on it: at a token reserve the 5% raise rounds to zero and the auction
+becomes a dust-spam surface. In v1 no `A` reaches that check — a
+below-floor reserve still forfeits `AUCTION_NOT_IN_V1`, because the reason
+code goes into the log and the log is committed to (§8.2). The floor check
+precedes this one on the version that activates auctions.
 
 When active, `A` opens a bidding window instead of settling by ordering.
 Bids reuse `B`, naming the auction rather than an offer, and sit at
@@ -1247,6 +1262,12 @@ the message before the race does.
   from the checkpoint tree (§8.1), so a correct client prevents it
 - `S`, `O`, `D`, `R` from anyone other than the current owner; `X` from
   anyone other than the current owner or the recovery address
+- `O` whose price is below `MIN_PRICE` (§6 `O`). The floor is `FEE_LONG` as
+  in effect at that height, and the active prices are committed to in every
+  checkpoint (§8.1), so a correct client can prove it before sending. The
+  payload is checked before the value carried, exactly as a `G`'s name
+  syntax is: a message whose own payload is unusable is rejected on that
+  ground whatever it paid
 - `X`, `S`, `D`, `R` on an expired or grace-period name
 - `D` whose host exceeds `MAX_HOST_LEN` or includes a scheme
 - `P` from any sender other than `ADMIN_ADDRESS`, or violating a §10.6 bound
@@ -1362,12 +1383,73 @@ independent replays diverge. A pending `P` decides what a later registration
 costs and a pending `U` whether a name is registrable at all; they are as
 consensus-relevant as a pending transfer.
 
-**The commitment layout:** each component (name root, active prices, pending
-set, log hash, height) is domain-separated by a distinct tag byte and the
-whole is hashed into one checkpoint value. The byte-exact layout is fixed by
-the reference implementation's **conformance vectors**, which are normative
-for this clause — an implementation whose checkpoints match the vectors
-conforms.
+**The commitment layout.** Each component is domain-separated by a distinct
+tag byte and hashed on its own; the three digests are then bound together with
+the log hash and the height into the single value an anchor publishes (§9).
+
+| Tag | Domain |
+|---|---|
+| `0x00` | name leaf |
+| `0x01` | internal node |
+| `0x02` | the checkpoint commitment |
+| `0x03` | the active prices |
+| `0x04` | the pending set |
+| `0x05` | a pending `X` |
+| `0x06` | a pending `R` |
+| `0x07` | an open `O` |
+| `0x08` | a pending `P` |
+| `0x09` | a pending `U` |
+
+Field conventions, throughout: heights and luna amounts are **`u64-BE`**;
+addresses are the raw **20 bytes**, never the `NQ` string, and an unset address
+is 20 zero bytes; a `name` is raw ASCII behind a `u8` length prefix; and `‖` is
+plain concatenation — no separators, no padding, no alignment.
+
+```
+prices     = keccak256(0x03 ‖ fee_standard:u64-BE ‖ fee_long:u64-BE
+                            ‖ commission_bp:u64-BE)
+```
+
+The pending set is one entry per pending item, concatenated **in category
+order** — transfers, recoveries, offers, governance, unreserves — and, inside a
+category, bytewise-lexicographically by name. There is at most one pending `P`,
+and it is the one entry carrying no name.
+
+```
+transfer   = 0x05 ‖ len(name):u8 ‖ name ‖ new_owner:20B
+                  ‖ effective_height:u64-BE ‖ via_recovery:u8
+recovery   = 0x06 ‖ len(name):u8 ‖ name ‖ recovery:20B ‖ effective_height:u64-BE
+offer      = 0x07 ‖ len(name):u8 ‖ name ‖ seller:20B ‖ price:u64-BE
+                  ‖ opened_height:u64-BE ‖ expiry_height:u64-BE
+governance = 0x08 ‖ prices(proposed):32B ‖ effective_height:u64-BE
+unreserve  = 0x09 ‖ len(name):u8 ‖ name ‖ effective_height:u64-BE
+
+pending    = keccak256(0x04 ‖ entry₁ ‖ entry₂ ‖ … ‖ entryₙ)
+```
+
+`via_recovery` is `0x01` when the `X` came from the recovery address — and so
+waits `RECOVERY_TIMELOCK` rather than `XFER_TIMELOCK` — and `0x00` otherwise. A
+pending `R` that *clears* the recovery address commits 20 zero bytes, exactly as
+an unset one does inside a leaf. The pending `P` entry embeds the 32-byte
+`prices` digest of the **proposed** prices rather than their fields.
+
+With nothing pending the concatenation is empty and `pending` is
+`keccak256(0x04)`, the hash of the lone tag byte. Note the asymmetry with the
+name tree, whose empty form is 32 zero bytes: the two empty cases are different
+values on purpose, so an implementation cannot substitute one for the other.
+
+```
+commitment = keccak256(0x02 ‖ name_root:32B ‖ prices:32B ‖ pending:32B
+                            ‖ log_hash:32B ‖ height:u64-BE)
+```
+
+`height` is the checkpoint height and `log_hash` the §8.2 log hash through it.
+Settlement obligations (§6 `M`) are deliberately **not** committed: §6 `M` makes
+settled-versus-owed computable from the log, which makes them derived state
+rather than consensus state.
+
+The reference implementation's `merkle.json` conformance vectors pin every value
+above, both empty forms included.
 
 keccak256 here so proofs stay cheap to verify on-chain if a future version
 wants that.

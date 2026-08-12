@@ -1,7 +1,7 @@
 {
   "vectors": "nns/reduce",
   "version": 1,
-  "spec": "nns-spec-v1 draft r14, §7.3, §7.4 and §7.5",
+  "spec": "nns-spec-v1 draft r15, §7.3, §7.4 and §7.5",
   "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`) or a bare height advance (`advanceTo`), which is how expiry, timelock maturity and governance activation are driven — none of them is triggered by a message.",
   "addresses": {
     "TREASURY": "NQ82 24C1 X9HD 6GVL 4JAG AVF6 AT3K FA0Q H3UN",
@@ -26,6 +26,8 @@
   "constants": {
     "FEE_STANDARD": "400000000",
     "FEE_LONG": "40000000",
+    "MIN_PRICE": "FEE_LONG at the message's height, so 40000000 until a P moves it",
+    "REFUND_FLOOR": "10000",
     "TERM_LENGTH": 157680000,
     "GRACE_PERIOD": 7776000,
     "XFER_TIMELOCK": 43200,
@@ -402,16 +404,16 @@
           "verdict": { "kind": "OK" }
         },
         {
-          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|1000000" },
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|100000000" },
           "verdict": { "kind": "OK" }
         },
         {
-          "tx": { "blockNumber": 58000002, "txIndex": 0, "sender": "BOB", "recipient": "MARKETPLACE", "value": "1000000", "text": "NNS1Bkikename" },
+          "tx": { "blockNumber": 58000002, "txIndex": 0, "sender": "BOB", "recipient": "MARKETPLACE", "value": "100000000", "text": "NNS1Bkikename" },
           "verdict": {
             "kind": "OK",
             "obligations": [
-              { "kind": "SALE_PROCEEDS", "owedBy": "MARKETPLACE", "owedTo": "ALICE", "amount": "975000" },
-              { "kind": "COMMISSION", "owedBy": "MARKETPLACE", "owedTo": "TREASURY", "amount": "25000" }
+              { "kind": "SALE_PROCEEDS", "owedBy": "MARKETPLACE", "owedTo": "ALICE", "amount": "97500000" },
+              { "kind": "COMMISSION", "owedBy": "MARKETPLACE", "owedTo": "TREASURY", "amount": "2500000" }
             ]
           }
         }
@@ -429,19 +431,19 @@
           "verdict": { "kind": "OK" }
         },
         {
-          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|1000000" },
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|100000000" },
           "verdict": { "kind": "OK" }
         },
         {
-          "tx": { "blockNumber": 58000002, "txIndex": 0, "sender": "BOB", "recipient": "MARKETPLACE", "value": "1000000", "text": "NNS1Bkikename" },
+          "tx": { "blockNumber": 58000002, "txIndex": 0, "sender": "BOB", "recipient": "MARKETPLACE", "value": "100000000", "text": "NNS1Bkikename" },
           "verdict": { "kind": "OK" }
         },
         {
-          "tx": { "blockNumber": 58000002, "txIndex": 1, "sender": "CAROL", "recipient": "MARKETPLACE", "value": "1000000", "text": "NNS1Bkikename" },
+          "tx": { "blockNumber": 58000002, "txIndex": 1, "sender": "CAROL", "recipient": "MARKETPLACE", "value": "100000000", "text": "NNS1Bkikename" },
           "verdict": {
             "kind": "REFUND",
             "reason": "OFFER_NOT_OPEN",
-            "obligations": [{ "kind": "REFUND", "owedBy": "MARKETPLACE", "owedTo": "CAROL", "amount": "1000000" }]
+            "obligations": [{ "kind": "REFUND", "owedBy": "MARKETPLACE", "owedTo": "CAROL", "amount": "100000000" }]
           }
         }
       ],
@@ -455,19 +457,81 @@
           "verdict": { "kind": "OK" }
         },
         {
-          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|1000000" },
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|100000000" },
           "verdict": { "kind": "OK" }
         },
         {
-          "tx": { "blockNumber": 58000002, "txIndex": 0, "sender": "BOB", "recipient": "MARKETPLACE", "value": "1000001", "text": "NNS1Bkikename" },
+          "tx": { "blockNumber": 58000002, "txIndex": 0, "sender": "BOB", "recipient": "MARKETPLACE", "value": "100000001", "text": "NNS1Bkikename" },
           "verdict": {
             "kind": "REFUND",
             "reason": "WRONG_PRICE",
-            "obligations": [{ "kind": "REFUND", "owedBy": "MARKETPLACE", "owedTo": "BOB", "amount": "1000001" }]
+            "obligations": [{ "kind": "REFUND", "owedBy": "MARKETPLACE", "owedTo": "BOB", "amount": "100000001" }]
           }
         }
       ],
       "expect": { "names": { "kikename": { "owner": "ALICE" } } }
+    },
+    {
+      "id": "an_O_below_MIN_PRICE_forfeits",
+      "note": "§6 O: the price MUST be ≥ MIN_PRICE, which is FEE_LONG at the message's height — 40000000 luna here. The four rejected prices are the ones a token floor would have admitted: 0 (no B can satisfy it, §5.4 rejects value: 0), 1 (the token floor considered and rejected), REFUND_FLOOR - 1 (a losing bidder would be forfeited, not refunded, contradicting §7.4), and 19 (floor(19 × 5%) = 0, erasing the AUCTION_MIN_INCREMENT rule). The floor itself is accepted: the boundary is inclusive.",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|0" },
+          "verdict": { "kind": "FORFEIT", "reason": "BELOW_MIN_PRICE" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 1, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|1" },
+          "verdict": { "kind": "FORFEIT", "reason": "BELOW_MIN_PRICE" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 2, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|19" },
+          "verdict": { "kind": "FORFEIT", "reason": "BELOW_MIN_PRICE" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 3, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|9999" },
+          "verdict": { "kind": "FORFEIT", "reason": "BELOW_MIN_PRICE" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 4, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|39999999" },
+          "verdict": { "kind": "FORFEIT", "reason": "BELOW_MIN_PRICE" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 5, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|40000000" },
+          "verdict": { "kind": "OK" }
+        }
+      ],
+      "expect": { "names": { "kikename": { "owner": "ALICE" } } }
+    },
+    {
+      "id": "MIN_PRICE_moves_with_a_P_that_changes_FEE_LONG",
+      "note": "MIN_PRICE is defined as FEE_LONG, not as a luna amount, so a P that moves FEE_LONG moves the floor with it at its effective height. An implementation reading the launch constant instead of the active params passes every other vector here and diverges from this one.",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ADMIN", "recipient": "PROTOCOL", "value": "1", "text": "NNS1P400000000|80000000|250|58043200" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58000001, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58043199, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|40000000" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58043200, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|40000000" },
+          "verdict": { "kind": "FORFEIT", "reason": "BELOW_MIN_PRICE" }
+        },
+        {
+          "tx": { "blockNumber": 58043200, "txIndex": 1, "sender": "ALICE", "recipient": "TREASURY", "value": "1", "text": "NNS1Okikename|80000000" },
+          "verdict": { "kind": "OK" }
+        }
+      ],
+      "expect": { "prices": { "feeLong": "80000000" } }
     },
     {
       "id": "governance_binds_at_effective_height",
@@ -486,6 +550,25 @@
         }
       ],
       "expect": { "names": { "kikename": { "owner": "ALICE" } }, "prices": { "feeStandard": "800000000" } }
+    },
+    {
+      "id": "governance_activates_before_the_transactions_in_its_block",
+      "note": "§7.3: effects due at height H fire before block H's transactions. Both G messages sit in block 58043200, the P's own effective height — so both are priced at the new FEE_STANDARD, and the one paying the old fee forfeits. An implementation that applied the activation after the block would accept the first and reject the second.",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ADMIN", "recipient": "PROTOCOL", "value": "1", "text": "NNS1P800000000|40000000|250|58043200" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58043200, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "FORFEIT", "reason": "INSUFFICIENT_VALUE" }
+        },
+        {
+          "tx": { "blockNumber": 58043200, "txIndex": 1, "sender": "BOB", "recipient": "TREASURY", "value": "800000000", "text": "NNS1Gkikename" },
+          "verdict": { "kind": "OK" }
+        }
+      ],
+      "expect": { "names": { "kikename": { "owner": "BOB" } }, "prices": { "feeStandard": "800000000" } }
     },
     {
       "id": "governance_bound_more_than_double",
@@ -509,10 +592,14 @@
     },
     {
       "id": "auction_is_not_in_v1",
-      "note": "By protocol version, not by omission: an implementation that honoured A would derive a different root, so v1 conformance requires this same forfeit.",
+      "note": "By protocol version, not by omission: an implementation that honoured A would derive a different root, so v1 conformance requires this same forfeit. §6 A gives the reserve the same MIN_PRICE floor as an O price, but no A reaches that check in v1 — a below-floor reserve still answers AUCTION_NOT_IN_V1, because a different reason code here would change the log and therefore the checkpoint (§8.2).",
       "steps": [
         {
           "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "PROTOCOL", "value": "1", "text": "NNS1Akikename|1000|58200000" },
+          "verdict": { "kind": "FORFEIT", "reason": "AUCTION_NOT_IN_V1" }
+        },
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 1, "sender": "ALICE", "recipient": "PROTOCOL", "value": "1", "text": "NNS1Akikename|40000000|58200000" },
           "verdict": { "kind": "FORFEIT", "reason": "AUCTION_NOT_IN_V1" }
         }
       ],

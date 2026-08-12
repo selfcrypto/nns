@@ -40,6 +40,7 @@ import {
   type Prices,
   type TxRef,
   isReserved,
+  minPrice,
   refKey,
 } from './state.js'
 
@@ -105,6 +106,7 @@ export type ForfeitReason =
   | 'TOO_SOON'
   | 'NOTHING_TO_CANCEL'
   | 'BELOW_REFUND_FLOOR'
+  | 'BELOW_MIN_PRICE'
   | 'AUCTION_NOT_IN_V1'
 
 /** §7.4 refundable column — losses caused by concurrency, not by the client. */
@@ -228,10 +230,17 @@ function release(draft: Draft, name: string): void {
 
 /**
  * Categories of scheduled effect, in the order they fire when several come due
- * at the same height.
+ * at the same height. **This list is §7.3's, in §7.3's order** — governance
+ * activation, unreserve activation, maturing `X`, maturing `R`, expiry to
+ * `GRACE`, grace release to `AVAILABLE`, offer expiry — with ties inside a
+ * category broken bytewise by name.
  *
- * **§7.3 does not fix this order, and it is consensus-relevant.** The case
- * that actually diverges is `TRANSFER` against `EXPIRE` at the same height: a
+ * The whole batch fires **before that block's transactions**: {@link reduce}
+ * calls {@link advanceTo} for `tx.blockNumber` before it parses anything, so a
+ * `P` effective at height H has already moved the prices when H's own
+ * registrations are priced.
+ *
+ * The case that actually diverges is `TRANSFER` against `EXPIRE` at the same height: a
  * name whose expiry falls exactly on a maturing `X`. Transfer first hands the
  * name to the new owner and *then* moves it to `GRACE`, so the new owner holds
  * a renewable name. Expire first cancels the pending transfer as part of the
@@ -246,7 +255,7 @@ function release(draft: Draft, name: string): void {
  * whichever runs first, the recovery address ends up `null`, because a
  * transfer both clears it and deletes the pending `R`.)
  *
- * The order is recorded in `docs/decisions.md` and needs spec ratification.
+ * Proposed here first, then ratified into §7.3 by spec r15.
  */
 const ORDER = {
   GOVERNANCE: 0,
@@ -681,6 +690,15 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       const record = state.names.get(message.name)
       if (record === undefined || record.status !== 'REGISTERED') return keep(forfeit('NAME_NOT_REGISTERED'))
       if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
+
+      // §6 `O`: the price MUST be ≥ MIN_PRICE, which is FEE_LONG **at this
+      // message's height** — a governed value, so it is read from the active
+      // params and never from `constants.ts`. Below the floor the message
+      // forfeits: like an invalid name, it is preventable by the client from
+      // state it can already prove. Checked before the value carried, for the
+      // same reason `G` checks name syntax before value: a message whose own
+      // payload is unusable is rejected on that ground whatever it paid.
+      if (message.price < minPrice(state.prices)) return keep(forfeit('BELOW_MIN_PRICE'))
       if (tx.value < config.listingFee) return keep(forfeit('INSUFFICIENT_VALUE'))
 
       const expiryHeight = tx.blockNumber + CONSTANTS.OFFER_MAX_LIFETIME
@@ -764,6 +782,13 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       if (!addressEquals(tx.recipient, config.protocol)) return keep(forfeit('WRONG_RECIPIENT'))
       // Not implemented in v1, by protocol version rather than by omission.
       // See the module docblock.
+      //
+      // §6 `A` gives the reserve the same MIN_PRICE floor as an `O` price, but
+      // no `A` reaches that check in v1: §6 requires *every* `A` to take this
+      // forfeit, so a below-floor one taking `BELOW_MIN_PRICE` instead would
+      // put a different reason code in the log than a conforming
+      // implementation. The floor is enforced in `encodeAuction`, and belongs
+      // here — ahead of this line — on the version that activates auctions.
       return keep(forfeit('AUCTION_NOT_IN_V1'))
     }
 

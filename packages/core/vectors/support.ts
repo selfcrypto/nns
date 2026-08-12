@@ -25,7 +25,14 @@ import {
 } from '../src/codec.js'
 import { type NnsConfig, defineConfig } from '../src/config.js'
 import type { ChainTransaction } from '../src/reduce.js'
-import type { NameRecord } from '../src/state.js'
+import {
+  LAUNCH_PRICES,
+  type NameRecord,
+  type NnsState,
+  type Prices,
+  initialState,
+  minPrice,
+} from '../src/state.js'
 
 export type AddressBook = Readonly<Record<string, Address>>
 
@@ -106,6 +113,8 @@ export interface BuildSpec {
   recovery?: string | null
   host?: string
   price?: string
+  /** §3 MIN_PRICE for the case. Defaults to FEE_LONG at launch prices. */
+  minPrice?: string
   payee?: string
   amount?: string
   reserve?: string
@@ -117,6 +126,14 @@ export interface BuildSpec {
   name?: string
   sender?: string
 }
+
+/**
+ * §3 `MIN_PRICE` for a build spec. It is `FEE_LONG` *in effect at the message's
+ * height* (§6 `O`), so a case that has moved `FEE_LONG` with a `P` states its
+ * own; everything else gets the launch value.
+ */
+const floorFor = (spec: BuildSpec): bigint =>
+  spec.minPrice === undefined ? minPrice(LAUNCH_PRICES) : BigInt(spec.minPrice)
 
 const optionalAddress = (book: AddressBook, alias: string | null | undefined): Address | null =>
   alias === null || alias === undefined ? null : address(book, alias)
@@ -145,7 +162,12 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
     case 'renew':
       return encodeRenew(config, { name, fee: BigInt(spec.fee as string), ...sender })
     case 'offer':
-      return encodeOffer(config, { name, price: BigInt(spec.price as string), ...sender })
+      return encodeOffer(config, {
+        name,
+        price: BigInt(spec.price as string),
+        minPrice: floorFor(spec),
+        ...sender,
+      })
     case 'buy':
       return encodeBuy(config, { name, price: BigInt(spec.price as string), ...sender })
     case 'settlement':
@@ -161,6 +183,7 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
         name,
         reserve: BigInt(spec.reserve as string),
         endHeight: spec.endHeight as number,
+        minPrice: floorFor(spec),
         ...sender,
       })
     case 'governance':
@@ -199,3 +222,64 @@ export const readRecord = (raw: VectorRecord, book: AddressBook): NameRecord => 
   recovery: optionalAddress(book, raw.recovery),
   host: raw.host,
 })
+
+// ── Whole-state vectors, for the §8.1 checkpoint commitment ─────────────────
+
+interface VectorPrices {
+  feeStandard: string
+  feeLong: string
+  commissionBp: string
+}
+
+/**
+ * Everything §8.1 requires a checkpoint to commit to. Deliberately not the
+ * whole of `NnsState`: `outstanding`, `unreserved`, `lastGovernanceHeight` and
+ * `nextDueHeight` are outside the commitment, so a vector that named them
+ * would suggest they are inside it.
+ */
+export interface VectorCheckpointState {
+  height: number
+  prices: VectorPrices
+  names?: VectorRecord[]
+  transfers?: Array<{ name: string; newOwner: string; effectiveHeight: number; viaRecovery: boolean }>
+  recoveries?: Array<{ name: string; recovery: string | null; effectiveHeight: number }>
+  offers?: Array<{ name: string; seller: string; price: string; openedHeight: number; expiryHeight: number }>
+  pendingGovernance?: { prices: VectorPrices; effectiveHeight: number } | null
+  pendingUnreserve?: Array<{ name: string; effectiveHeight: number }>
+}
+
+const readPrices = (raw: VectorPrices): Prices => ({
+  feeStandard: BigInt(raw.feeStandard),
+  feeLong: BigInt(raw.feeLong),
+  commissionBp: BigInt(raw.commissionBp),
+})
+
+const byName = <T extends { name: string }>(items: readonly T[]): Map<string, T> =>
+  new Map(items.map((item) => [item.name, item]))
+
+export function readCheckpointState(
+  raw: VectorCheckpointState,
+  book: AddressBook,
+  config: NnsConfig,
+): NnsState {
+  return Object.freeze({
+    ...initialState(config),
+    height: raw.height,
+    prices: readPrices(raw.prices),
+    names: byName((raw.names ?? []).map((record) => readRecord(record, book))),
+    transfers: byName(
+      (raw.transfers ?? []).map((item) => ({ ...item, newOwner: address(book, item.newOwner) })),
+    ),
+    recoveries: byName(
+      (raw.recoveries ?? []).map((item) => ({ ...item, recovery: optionalAddress(book, item.recovery) })),
+    ),
+    offers: byName(
+      (raw.offers ?? []).map((item) => ({ ...item, seller: address(book, item.seller), price: BigInt(item.price) })),
+    ),
+    pendingGovernance:
+      raw.pendingGovernance == null
+        ? null
+        : { prices: readPrices(raw.pendingGovernance.prices), effectiveHeight: raw.pendingGovernance.effectiveHeight },
+    pendingUnreserve: byName(raw.pendingUnreserve ?? []),
+  })
+}

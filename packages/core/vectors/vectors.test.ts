@@ -9,11 +9,13 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { bytesToHex } from '@noble/hashes/utils.js'
+import { keccak_256 } from '@noble/hashes/sha3.js'
+import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { describe, expect, it } from 'vitest'
 import { parse } from '../src/codec.js'
 import { canonicalLogLine, logHash } from '../src/log.js'
 import {
+  checkpoint,
   compareNames,
   encodeLeaf,
   leafHash,
@@ -30,6 +32,7 @@ import {
   build,
   hexOf,
   readAddresses,
+  readCheckpointState,
   readConfig,
   readRecord,
   readTx,
@@ -186,6 +189,41 @@ describe('vectors/merkle.json', () => {
 
   it.each(entries(file.sorting.cases))('sorting %s', (_id, testCase: any) => {
     expect([...testCase.input].sort(compareNames)).toEqual(testCase.sorted)
+  })
+
+  describe('checkpoints — the §8.1 commitment', () => {
+    const cases = file.checkpoints.cases as any[]
+    const derive = (testCase: any) =>
+      checkpoint(readCheckpointState(testCase.state, book, config), hexToBytes(testCase.logHash))
+
+    it.each(entries(cases))('%s', (_id, testCase: any) => {
+      const result = derive(testCase)
+      expect(bytesToHex(result.nameRoot)).toBe(testCase.nameRoot)
+      expect(bytesToHex(result.pricesRoot)).toBe(testCase.pricesRoot)
+      expect(bytesToHex(result.pendingRoot)).toBe(testCase.pendingRoot)
+      expect(bytesToHex(result.commitment)).toBe(testCase.commitment)
+      expect(result.height).toBe(testCase.state.height)
+
+      // `sameNameRootAs` and `differsFrom` are the point of the pair: the same
+      // names committed under different prices or a different pending set must
+      // keep the name root and move the checkpoint.
+      for (const [field, other] of [
+        ['sameNameRootAs', testCase.sameNameRootAs],
+        ['differsFrom', testCase.differsFrom],
+      ] as const) {
+        if (other === undefined) continue
+        const reference = cases.find((c) => c.id === other)
+        if (field === 'sameNameRootAs') expect(testCase.nameRoot).toBe(reference.nameRoot)
+        else expect(testCase.commitment).not.toBe(reference.commitment)
+      }
+    })
+
+    it('commits an empty pending set as keccak256 of its tag byte alone, not as zeros', () => {
+      const empty = cases.find((c) => c.id === 'empty_state_at_launch')
+      expect(empty.nameRoot).toMatch(/^0{64}$/)
+      expect(empty.pendingRoot).not.toMatch(/^0{64}$/)
+      expect(empty.pendingRoot).toBe(bytesToHex(keccak_256(Uint8Array.of(0x04))))
+    })
   })
 
   describe('proofs', () => {

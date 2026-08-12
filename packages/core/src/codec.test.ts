@@ -21,9 +21,12 @@ import {
   type Message,
 } from './codec.js'
 import { CONSTANTS } from './constants.js'
+import { LAUNCH_PRICES, minPrice } from './state.js'
 import { ALICE, BOB, MARKETPLACE, PROTOCOL, TREASURY, testConfig } from './test-fixtures.js'
 
 const config = testConfig()
+/** §3 `MIN_PRICE` at launch prices — the floor on an `O` price and an `A` reserve. */
+const FLOOR = minPrice(LAUNCH_PRICES)
 
 /** ASCII → lowercase hex, written independently of the implementation. */
 const hex = (text: string): string =>
@@ -71,7 +74,7 @@ describe('every message type round-trips encode → parse', () => {
     ['N', encodeRenew(config, { name: 'kikename', fee: 1n }), { type: 'N', name: 'kikename' }],
     [
       'O',
-      encodeOffer(config, { name: 'kikename', price: 123_456_789n }),
+      encodeOffer(config, { name: 'kikename', price: 123_456_789n, minPrice: FLOOR }),
       { type: 'O', name: 'kikename', price: 123_456_789n },
     ],
     ['B', encodeBuy(config, { name: 'kikename', price: 5n }), { type: 'B', name: 'kikename' }],
@@ -82,8 +85,8 @@ describe('every message type round-trips encode → parse', () => {
     ],
     [
       'A',
-      encodeAuction(config, { name: 'kikename', reserve: 1_000n, endHeight: 58_200_000 }),
-      { type: 'A', name: 'kikename', reserve: 1_000n, endHeight: 58_200_000 },
+      encodeAuction(config, { name: 'kikename', reserve: 40_000_000n, endHeight: 58_200_000, minPrice: FLOOR }),
+      { type: 'A', name: 'kikename', reserve: 40_000_000n, endHeight: 58_200_000 },
     ],
     [
       'P',
@@ -127,14 +130,14 @@ describe('routing and value — §5.3, §5.4', () => {
   it('sends fee-bearing messages to the treasury', () => {
     expect(encodeRegister(config, { name: 'kikename', fee: 400n }).recipient).toBe(TREASURY)
     expect(encodeRenew(config, { name: 'kikename', fee: 400n }).recipient).toBe(TREASURY)
-    expect(encodeOffer(config, { name: 'kikename', price: 1n }).recipient).toBe(TREASURY)
+    expect(encodeOffer(config, { name: 'kikename', price: FLOOR, minPrice: FLOOR }).recipient).toBe(TREASURY)
   })
 
   it('sends dust-only signalling to the protocol address', () => {
     for (const tx of [
       encodeCancel(config, { name: 'kikename' }),
       encodeDelegate(config, { name: 'kikename', host: 'x.com' }),
-      encodeAuction(config, { name: 'kikename', reserve: 1n, endHeight: 1 }),
+      encodeAuction(config, { name: 'kikename', reserve: FLOOR, endHeight: 1, minPrice: FLOOR }),
       encodeGovernance(config, { feeStandard: 1n, feeLong: 1n, commissionBp: 0n, effectiveHeight: 1 }),
       encodeUnreserve(config, { name: 'kikename', effectiveHeight: 1 }),
     ]) {
@@ -171,8 +174,10 @@ describe('routing and value — §5.3, §5.4', () => {
 
   it('falls back to DUST_VALUE when the OPEN listing fee is zero', () => {
     expect(config.listingFee).toBe(0n)
-    expect(encodeOffer(config, { name: 'kikename', price: 1n }).value).toBe(CONSTANTS.DUST_VALUE)
-    expect(encodeOffer(testConfig({ listingFee: 500n }), { name: 'kikename', price: 1n }).value).toBe(500n)
+    expect(encodeOffer(config, { name: 'kikename', price: FLOOR, minPrice: FLOOR }).value).toBe(CONSTANTS.DUST_VALUE)
+    expect(
+      encodeOffer(testConfig({ listingFee: 500n }), { name: 'kikename', price: FLOOR, minPrice: FLOOR }).value,
+    ).toBe(500n)
   })
 })
 
@@ -234,8 +239,31 @@ describe('builders fail loudly where the chain would fail silently', () => {
     expect(() => encodeRegister(config, { name: 'kikename', ref: 'a'.repeat(13), fee: 1n })).toThrow(/invalid ref/)
   })
 
+  it('rejects an O price or an A reserve below MIN_PRICE (§6 O, §6 A)', () => {
+    expect(() => encodeOffer(config, { name: 'kikename', price: FLOOR - 1n, minPrice: FLOOR })).toThrow(
+      /below MIN_PRICE/,
+    )
+    expect(() => encodeOffer(config, { name: 'kikename', price: 0n, minPrice: FLOOR })).toThrow(/below MIN_PRICE/)
+    expect(() =>
+      encodeAuction(config, { name: 'kikename', reserve: FLOOR - 1n, endHeight: 58_200_000, minPrice: FLOOR }),
+    ).toThrow(/below MIN_PRICE/)
+    // Exactly at the floor is fine — the boundary is inclusive.
+    expect(encodeOffer(config, { name: 'kikename', price: FLOOR, minPrice: FLOOR }).data).toBe(
+      hex(`NNS1Okikename|${FLOOR}`),
+    )
+  })
+
+  it('takes the floor as a parameter, so a governed MIN_PRICE cannot go stale', () => {
+    // FEE_LONG doubled by a `P`: what the builder accepted yesterday it must
+    // refuse today. A builder reading CONSTANTS.FEE_LONG could not do this.
+    const moved = FLOOR * 2n
+    expect(encodeOffer(config, { name: 'kikename', price: FLOOR, minPrice: FLOOR }).data).toBeTruthy()
+    expect(() => encodeOffer(config, { name: 'kikename', price: FLOOR, minPrice: moved })).toThrow(/below MIN_PRICE/)
+  })
+
   it('rejects a negative amount or an unsafe height', () => {
-    expect(() => encodeOffer(config, { name: 'kikename', price: -1n })).toThrow(CodecError)
+    const negative = { feeStandard: -1n, feeLong: 1n, commissionBp: 0n, effectiveHeight: 1 }
+    expect(() => encodeGovernance(config, negative)).toThrow(/must not be negative/)
     expect(() => encodeUnreserve(config, { name: 'kikename', effectiveHeight: 1.5 })).toThrow(CodecError)
   })
 })

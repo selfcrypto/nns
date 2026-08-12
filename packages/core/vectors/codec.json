@@ -303,19 +303,20 @@
       },
       {
         "id": "A_auction",
-        "text": "NNS1Akikename|1000|58200000",
-        "data": "4e4e5331416b696b656e616d657c313030307c3538323030303030",
+        "text": "NNS1Akikename|40000000|58200000",
+        "data": "4e4e5331416b696b656e616d657c34303030303030307c3538323030303030",
         "message": {
           "type": "A",
           "name": "kikename",
-          "reserve": "1000",
+          "reserve": "40000000",
           "endHeight": 58200000
         },
         "build": {
           "builder": "auction",
-          "reserve": "1000",
+          "reserve": "40000000",
           "endHeight": 58200000
         },
+        "note": "The reserve carries the same MIN_PRICE floor as an O price (§6 A), so the builder will not encode less than FEE_LONG.",
         "recipient": "PROTOCOL",
         "value": "1"
       },
@@ -648,7 +649,8 @@
             "name": "kikename",
             "price": "0"
           }
-        }
+        },
+        "note": "Parse is tolerant and the reducer judges: 0 is a canonical decimal, so this parses, and then forfeits BELOW_MIN_PRICE (§6 O). See reduce.json / an_O_below_MIN_PRICE_forfeits."
       }
     ]
   },
@@ -713,6 +715,28 @@
         "builder": "offer",
         "name": "kikename",
         "price": "-1"
+      },
+      {
+        "id": "O_price_below_MIN_PRICE",
+        "builder": "offer",
+        "name": "kikename",
+        "price": "39999999",
+        "note": "One luna under FEE_LONG. Below the floor the message would forfeit (§6 O), which §7.4 classes as client-preventable — so the builder prevents it."
+      },
+      {
+        "id": "A_reserve_below_MIN_PRICE",
+        "builder": "auction",
+        "name": "kikename",
+        "reserve": "39999999",
+        "endHeight": 58200000
+      },
+      {
+        "id": "O_price_below_a_MIN_PRICE_a_P_has_raised",
+        "builder": "offer",
+        "name": "kikename",
+        "price": "40000000",
+        "minPrice": "80000000",
+        "note": "The launch floor, refused because a P has doubled FEE_LONG. MIN_PRICE is the value in effect at the message's height, never the constant."
       }
     ]
   }

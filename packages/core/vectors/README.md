@@ -10,6 +10,7 @@ than loudly:
 | Area | File | Spec |
 |---|---|---|
 | Merkle leaf byte layout | `merkle.json` | §8.1 |
+| The checkpoint commitment, byte for byte | `merkle.json` | §8.1 |
 | Canonical ordering across a multi-transaction block | `ordering.json` | §5.2 |
 | Name validation, positional-digit and boundary rules | `names.json` | §4.1, §4.2 |
 
@@ -76,6 +77,12 @@ only; it defaults to empty.
   `overrides`) and the resulting `root`.
 - `sorting.cases` — bytewise-lexicographic ordering.
 - `proofs` — inclusion proofs over a fixed five-leaf tree, and non-inclusion.
+- `checkpoints` — the §8.1 commitment. `state` is the part of the registry the
+  clause requires committed and `logHash` is an input; `nameRoot`,
+  `pricesRoot`, `pendingRoot` and `commitment` are derived. `tags` lists the
+  domain-separation byte for each component. The two empty forms are pinned
+  deliberately: an empty name tree is 32 zero bytes, while an empty pending set
+  is `keccak256(0x04)` — the tag byte alone.
 
 ### `ordering.json` and `reduce.json`
 
@@ -90,21 +97,29 @@ that only advances state when a transaction arrives will pass most of these
 scenarios and produce a wrong root at any checkpoint taken during a quiet
 stretch.
 
-## Where these vectors assume a reading the spec does not fix
+## The readings these vectors pin
 
-Each is argued in `docs/decisions.md`. A conforming implementation must match
-them, but the spec should settle them before launch:
+Each was found while implementing `core`, argued in `docs/decisions.md`, and
+ratified into the spec by r15. They are listed here because each is a place two
+implementations fork *silently* if they read the clause differently:
 
 1. **Numeric fields are canonical decimal** — no sign, leading zeros or
-   whitespace. `NNS1Okikename|0123` is `MALFORMED_PAYLOAD`.
+   whitespace. `NNS1Okikename|0123` is `MALFORMED_PAYLOAD` (§5.2).
 2. **`data` in a log line is hex.** Raw text would let a payload containing a
-   newline forge an entire log line.
-3. **Effects due at the same height fire in a fixed order**, and a maturing
-   transfer runs before an expiry it collides with.
+   newline forge an entire log line (§8.2).
+3. **Effects due at the same height fire in a fixed order** and before that
+   block's transactions; a maturing transfer runs before an expiry it collides
+   with (§7.3).
 4. **A `G` is checked for sufficient value before availability**, so an
-   underfunded registration for a taken name forfeits rather than refunds.
+   underfunded registration for a taken name forfeits rather than refunds
+   (§7.4).
 5. **`A` (auction) forfeits with `AUCTION_NOT_IN_V1`** — by protocol version,
    not by omission. An implementation that honoured auctions would derive a
-   different root.
-6. **Proof steps carry a side.** §8.3's bare hash array is not verifiable under
-   odd-node promotion.
+   different root. A below-floor reserve takes the same forfeit (§6 `A`).
+6. **Proof steps carry a side.** §8.3's pre-r15 bare hash array is not
+   verifiable under odd-node promotion.
+7. **An `O` price below `MIN_PRICE` forfeits**, and `MIN_PRICE` is `FEE_LONG`
+   *at that message's height* — so a `P` that moves `FEE_LONG` moves the floor
+   (§3, §6 `O`).
+8. **The checkpoint commitment layout** (§8.1), down to the tag bytes and the
+   two empty forms.

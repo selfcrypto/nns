@@ -31,7 +31,7 @@ import type { NameRecord, NnsState, Prices } from './state.js'
 
 export const HASH_BYTES = 32
 
-/** §8.1 domain separation, plus the extensions this file adds for §8.1's checkpoint clause. */
+/** §8.1's tag bytes. Every domain in the checkpoint has its own, and they are all distinct. */
 const TAG = {
   LEAF: 0x00,
   NODE: 0x01,
@@ -207,13 +207,11 @@ export interface MerkleProof {
 /**
  * An inclusion proof, or `null` when the name is not in the tree.
  *
- * §8.3 prints the proof as a bare array of hashes with no index and no
- * direction. **That is not verifiable as printed**: odd-node promotion makes
- * the tree shape depend on the leaf count, so neither the sibling's side nor
- * the promotion points can be recovered from the hashes alone. Each step
- * therefore carries its side, and `index` is exposed as well. Flagged in
- * `docs/decisions.md` for the spec to settle before the API package freezes
- * its wire format.
+ * Each step carries its side and the leaf `index` travels with the proof, per
+ * §8.3. A bare array of hashes — which §8.3 printed before r15 — is not
+ * verifiable: odd-node promotion makes the tree shape depend on the leaf
+ * count, so neither the sibling's side nor the promotion points can be
+ * recovered from the hashes alone.
  */
 export function merkleProof(state: NnsState, name: string): MerkleProof | null {
   const records = sortedRecords(state)
@@ -305,14 +303,12 @@ export function merkleNonInclusion(state: NnsState, name: string): NonInclusionP
  * > consensus-relevant state and MUST be committed to in the checkpoint
  * > alongside the name tree, or independent replays diverge.
  *
- * **It does not say how**, and two implementations committing them differently
- * produce checkpoints that never match. The layout below is a proposal, not a
- * reading — see `docs/decisions.md`.
- *
- * It also **extends §8.1's enumeration**: a pending `P` and a pending `U` are
- * every bit as consensus-relevant as a pending `X` (they decide what a later
- * registration costs, and whether a name is registrable at all), yet the
- * sentence lists neither. They are included here and the omission is flagged.
+ * When that was the whole clause it did not say *how*, and two
+ * implementations committing them differently produce checkpoints that never
+ * match — so the layout below was proposed here, together with a pending `P`
+ * and a pending `U`, which the enumeration then omitted. **r15 ratified both**
+ * and writes the bytes out in §8.1 itself; this file implements that clause,
+ * and `vectors/merkle.json` pins every value it produces.
  */
 export function pricesCommitment(prices: Prices): Uint8Array {
   return keccak_256(
