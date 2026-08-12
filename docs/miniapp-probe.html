@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>NNS SDK probe</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 15px/1.45 -apple-system, system-ui, sans-serif; margin: 0; padding: 16px 14px 48px; }
+  h1 { font-size: 17px; margin: 0 0 4px; }
+  p.sub { margin: 0 0 16px; opacity: .65; font-size: 13px; }
+  button { display: block; width: 100%; padding: 13px; margin: 8px 0; font-size: 15px;
+           border: 0; border-radius: 10px; background: #1f2348; color: #fff; }
+  button.alt { background: #41a38e; }
+  button:disabled { opacity: .4; }
+  pre { background: rgba(127,127,127,.12); padding: 10px; border-radius: 8px;
+        white-space: pre-wrap; word-break: break-all; font-size: 12px; margin: 8px 0; }
+  label { font-size: 13px; opacity: .8; }
+  input { width: 100%; padding: 9px; margin: 4px 0 10px; font-size: 14px;
+          border: 1px solid rgba(127,127,127,.4); border-radius: 8px; background: transparent;
+          color: inherit; box-sizing: border-box; }
+  .q { font-weight: 600; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<h1>NNS · Nimiq Pay SDK probe</h1>
+<p class="sub">Answers: can a mini app set <b>value</b>, <b>fee</b> and <b>data</b>?</p>
+
+<button id="btn-init">1 · Init &amp; enumerate SDK</button>
+<pre id="out-init">not run</pre>
+
+<button id="btn-info" class="alt" disabled>2 · Accounts / consensus / height</button>
+<pre id="out-info">not run</pre>
+
+<div class="q">3 · Send test</div>
+<label>Recipient (an address you control)</label>
+<input id="to" placeholder="NQ… " autocapitalize="off" autocorrect="off" spellcheck="false">
+<label>Value (luna) — 1 luna = 0.00001 NIM</label>
+<input id="value" value="1" inputmode="numeric">
+<label>Fee (luna) — the question: is this honoured?</label>
+<input id="fee" value="2000000" inputmode="numeric">
+<label>Data (plain text; the probe also tries hex)</label>
+<input id="data" value="NNS1Stestname" autocapitalize="off" autocorrect="off" spellcheck="false">
+<button id="btn-send" disabled>Request transaction</button>
+<pre id="out-send">not run</pre>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const show = (el, v) => { $(el).textContent = typeof v === 'string' ? v : JSON.stringify(v, null, 2); };
+
+/** Every callable name on an object and its prototype chain. */
+function surface(obj) {
+  const names = new Set();
+  for (let o = obj; o && o !== Object.prototype; o = Object.getPrototypeOf(o)) {
+    for (const k of Object.getOwnPropertyNames(o)) {
+      if (k === 'constructor') continue;
+      let t = 'unknown';
+      try { t = typeof obj[k]; } catch {}
+      names.add(`${k}${t === 'function' ? '()' : ` : ${t}`}`);
+    }
+  }
+  return [...names].sort();
+}
+
+let nimiq = null;
+
+$('btn-init').onclick = async () => {
+  const lines = [];
+  try {
+    // documented entry point
+    const mod = await import('https://esm.sh/@nimiq/mini-app-sdk');
+    lines.push('SDK module loaded. exports: ' + Object.keys(mod).join(', '));
+    nimiq = await mod.init();
+    lines.push('\ninit() resolved.\n\nSDK SURFACE:\n  ' + surface(nimiq).join('\n  '));
+  } catch (e) {
+    lines.push('SDK import/init failed: ' + e.message);
+    // fall back to whatever Nimiq Pay injected directly
+    const keys = Object.keys(window).filter(k => /nimiq|pay|provider|ethereum/i.test(k));
+    lines.push('\ninjected globals matching nimiq/pay/provider: ' + (keys.join(', ') || 'none'));
+    for (const k of keys) {
+      try { lines.push(`\nwindow.${k}:\n  ` + surface(window[k]).join('\n  ')); } catch {}
+    }
+    if (window.nimiq) nimiq = window.nimiq;
+  }
+  show('out-init', lines.join('\n'));
+  if (nimiq) { $('btn-info').disabled = false; $('btn-send').disabled = false; }
+};
+
+$('btn-info').onclick = async () => {
+  const out = {};
+  for (const m of ['listAccounts', 'isConsensusEstablished', 'getBlockNumber']) {
+    try { out[m] = await nimiq[m](); } catch (e) { out[m] = 'ERR ' + e.message; }
+  }
+  show('out-info', out);
+};
+
+$('btn-send').onclick = async () => {
+  const recipient = $('to').value.replace(/\s+/g, '');
+  const value = Number($('value').value);
+  const fee = Number($('fee').value);
+  const text = $('data').value;
+  const hex = [...new TextEncoder().encode(text)]
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // Candidate method names, in order of likelihood. The first that exists wins.
+  const candidates = ['sendTransaction', 'requestTransaction', 'sendBasicTransactionWithData',
+                      'sendBasicTransaction', 'checkout', 'requestPayment', 'pay', 'signTransaction'];
+  const method = candidates.find(m => typeof nimiq?.[m] === 'function');
+
+  if (!method) {
+    show('out-send', 'No send-like method found. Surface was:\n  ' + surface(nimiq).join('\n  '));
+    return;
+  }
+
+  const log = [`using nimiq.${method}()`];
+
+  // Try an options object first (most likely), then positional.
+  const attempts = [
+    ['object / plain data', [{ recipient, value, fee, data: text }]],
+    ['object / hex data',   [{ recipient, value, fee, data: hex }]],
+    ['object / extraData',  [{ recipient, value, fee, extraData: text }]],
+    ['positional',          [recipient, value, fee, text]],
+  ];
+
+  for (const [label, args] of attempts) {
+    try {
+      const res = await nimiq[method](...args);
+      log.push(`\n${label} → ACCEPTED\n` + JSON.stringify(res, null, 2));
+      log.push('\nCheck the confirmation dialog: did it show YOUR fee, or its own tiers?');
+      break;
+    } catch (e) {
+      log.push(`\n${label} → ${e.message}`);
+    }
+  }
+  show('out-send', log.join('\n'));
+};
+</script>
+</body>
+</html>
