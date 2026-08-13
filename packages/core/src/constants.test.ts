@@ -57,4 +57,53 @@ describe('CONSTANTS — §3', () => {
   it('lets an offer be cancelled well before it auto-expires (§6 O)', () => {
     expect(CONSTANTS.OFFER_IRREVOCABLE).toBeLessThan(CONSTANTS.OFFER_MAX_LIFETIME)
   })
+
+  it('equals the mainnet values, field for field', () => {
+    // Every value restated as an inline literal — never derived from
+    // constants.ts, or an edit there would move both sides. Compressed-tempo
+    // testing edits CONSTANTS on a throwaway branch that is never merged
+    // ("Constants profiles" in docs/decisions.md); this is the test that
+    // fails CI if such an edit ever reaches master. It also covers
+    // CHECKPOINT_INTERVAL, which no conformance vector exercises.
+    expect(CONSTANTS).toStrictEqual({
+      PROTOCOL_ID: 'NNS1',
+      MAX_DATA_BYTES: 64,
+      MAX_DELEGATE_MESSAGE_BYTES: 58,
+      MIN_NAME_LEN: 5,
+      LONG_NAME_LEN: 12,
+      MAX_NAME_LEN: 24,
+      MAX_LABEL_LEN: 24,
+      MAX_HOST_LEN: 30,
+      MAX_REF_LEN: 12,
+      DUST_VALUE: 1n,
+      REFUND_FLOOR: 10_000n,
+      FEE_STANDARD: 400_000_000n, //         4,000 NIM
+      FEE_LONG: 40_000_000n, //                400 NIM
+      PRICE_FLOOR: 100_000n, //                  1 NIM
+      PRICE_CEILING: 10_000_000_000n, //   100,000 NIM
+      PRICE_MAX_FACTOR: 2n,
+      PRICE_MIN_INTERVAL: 604_800,
+      COMMISSION_RATE: 250n,
+      COMMISSION_CEILING: 1_000n,
+      COMMISSION_MAX_STEP: 250n,
+      BURN_SHARE_BP: 2_000n,
+      BASIS_POINTS: 10_000n,
+      GOVERNANCE_DELAY: 43_200,
+      XFER_TIMELOCK: 43_200,
+      RECOVERY_TIMELOCK: 259_200,
+      TERM_LENGTH: 157_680_000,
+      GRACE_PERIOD: 7_776_000,
+      OFFER_IRREVOCABLE: 8_640,
+      OFFER_MAX_LIFETIME: 1_296_000,
+      AUCTION_MIN_INCREMENT_BP: 500n,
+      AUCTION_MIN_DURATION: 86_400,
+      AUCTION_EXTENSION: 600,
+      CHECKPOINT_INTERVAL: 720,
+      SEGMENT_LENGTH: 3_153_600,
+      RESOLVER_QUORUM: 2,
+      ANCHOR_QUORUM: 2,
+      ANCHOR_STALENESS_LIMIT_SEC: 7_200,
+      BURN_ADDRESS: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
+    })
+  })
 })
