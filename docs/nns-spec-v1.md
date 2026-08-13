@@ -420,7 +420,7 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 | Marketplace operator defaults or is compromised | Ownership never depends on the operator; owed vs. settled is computable from the log and publicly visible (§6 `M`) | In-flight settlement funds (bounded by open offers) can be lost; sellers of just-consumed offers are the most exposed |
 | Bulk land-grab at launch | Thorough `RESERVED_NAMES`; the fee | Squatting of unreserved names remains possible |
 | **Malicious or compromised delegate resolver** | Not covered by proofs — clients MUST label delegated results differently (§8.5) | A parent can misdirect its own subdomains; scope limited to that parent |
-| Confusable names (digit/letter) | Digits barred between letters (§4.2) | Boundary collisions unless the OPEN clause in §4.2 is adopted |
+| Confusable names (digit/letter) | Digits barred between letters, and `0`/`1` barred at either end — the boundary clause adopted in r6 (§4.2) | Accepted residual: confusions needing neither an interior digit nor a leading/trailing `0`/`1` |
 | Confusable names (multigraph) | Rendering (§4.3), identicons, first-use pinning (§8.5) | Accepted residual |
 | Admin key compromise | Governance bounds enforced by every indexer (§10.6) | Slow, visible, bounded nuisance |
 | Owner key compromise | `XFER` timelock with owner veto; recovery address (§6 `R`), itself timelocked against thief installation | Unrecoverable if unnoticed past the timelock and no recovery address is set |
@@ -1564,10 +1564,12 @@ settled-versus-owed computable from the log, which makes them derived state
 rather than consensus state.
 
 The reference implementation's `merkle.json` conformance vectors pin every value
-above, all three empty forms included. **They are r15 vectors as of this
-revision** — the `0x0A` component is spec text ahead of the implementation, so
-`merkle.json` must be regenerated before an r16 root is published, and any
-checkpoint already computed must record which layout produced it.
+above, all three empty forms included. **They are r16 vectors** — regenerated
+2026-08-13, when `0x0A` landed in `core`, with six cases added that pin the
+unreserved component itself. Every commitment in that file changed value; the
+four pre-existing component digests did not. Any checkpoint already computed
+must record which layout produced it, which is what `COMMITMENT_LAYOUT` and the
+indexer's `unreserved_root` column are for.
 
 keccak256 here so proofs stay cheap to verify on-chain if a future version
 wants that.
