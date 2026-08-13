@@ -8,9 +8,13 @@
  * §7.4). This module only parses argv, hands the operand to the builder, and
  * broadcasts what it built. If a rule seems to be missing here, it lives in
  * `core` — do not add it here.
+ *
+ * **Dry-run by default.** A governance message cannot be retracted once it is
+ * in a block, so the command always builds and describes the plan, and
+ * broadcasts nothing without an explicit `--send`.
  */
 
-import { encodeUnreserve, parseAddress, type Address, type NnsConfig } from '@nns/core'
+import { CONSTANTS, encodeUnreserve, formatAddress, parseAddress, type Address, type NnsConfig } from '@nns/core'
 
 /**
  * The slice of the RPC surface this command touches. `@nns/indexer`'s
@@ -32,17 +36,38 @@ export interface UnreserveParams {
   readonly recipient: Address | null
 }
 
+export interface UnreserveCommand {
+  readonly params: UnreserveParams
+  /** Dry-run unless the caller passed `--send`. */
+  readonly send: boolean
+}
+
+/** What one `U` would do, priced against the current head. */
+export interface UnreservePlan {
+  readonly params: UnreserveParams
+  readonly kind: 'release' | 'award'
+  /** Where the transaction goes: `PROTOCOL_ADDRESS` or the awardee. */
+  readonly recipient: Address
+  readonly data: string
+  readonly value: bigint
+  /** Chain head at planning time; doubles as the broadcast's `validityStartHeight`. */
+  readonly head: number
+}
+
 export interface UnreserveOutcome {
   readonly kind: 'release' | 'award'
-  /** Where the transaction went: `PROTOCOL_ADDRESS` or the awardee. */
   readonly recipient: Address
   readonly validityStartHeight: number
   readonly hash: string
 }
 
-/** `u <name> <effective-height> [recipient]` — omit the recipient to release. */
-export function parseUnreserveArgs(argv: readonly string[]): UnreserveParams {
-  const [name, height, recipient, ...rest] = argv
+/** `u <name> <effective-height> [recipient] [--send]` — omit the recipient to release. */
+export function parseUnreserveArgs(argv: readonly string[]): UnreserveCommand {
+  const flags = argv.filter((arg) => arg.startsWith('-'))
+  for (const flag of flags) {
+    if (flag !== '--send') throw new UsageError(`unknown flag ${JSON.stringify(flag)} — the only flag is --send`)
+  }
+  const [name, height, recipient, ...rest] = argv.filter((arg) => !arg.startsWith('-'))
   if (name === undefined || height === undefined || rest.length > 0) {
     throw new UsageError('u takes a name, an effective height, and optionally an awardee address')
   }
@@ -50,43 +75,84 @@ export function parseUnreserveArgs(argv: readonly string[]): UnreserveParams {
     throw new UsageError(`effective-height must be a non-negative integer, got ${JSON.stringify(height)}`)
   }
   return {
-    name,
-    effectiveHeight: Number(height),
-    recipient: recipient === undefined ? null : parseAddress(recipient),
+    params: {
+      name,
+      effectiveHeight: Number(height),
+      recipient: recipient === undefined ? null : parseAddress(recipient),
+    },
+    send: flags.length > 0,
   }
 }
 
 /**
- * Build and broadcast one `U`. Sequence per `docs/rpc-reference.md` §5.2:
- * unlock the admin account, read the head for `validityStartHeight`, send.
- *
- * The builder runs first, with `sender` supplied, so everything
- * client-preventable — bad name, `BURN_ADDRESS`, and an award to the admin
- * address itself, which the network would drop as a silent self-transaction —
- * fails before the node hears anything.
+ * Build the transaction and read the head. Read-only: the single RPC call is
+ * `getBlockNumber`. The builder runs first, with `sender` supplied, so
+ * everything client-preventable — bad name, `BURN_ADDRESS`, and an award to
+ * the admin address itself, which the network would drop as a silent
+ * self-transaction — fails before the node hears anything.
  */
-export async function sendUnreserve(
+export async function planUnreserve(
   rpc: AdminRpc,
   config: NnsConfig,
   params: UnreserveParams,
-): Promise<UnreserveOutcome> {
+): Promise<UnreservePlan> {
   const tx = encodeUnreserve(config, { ...params, sender: config.admin })
-  await rpc.call('unlockAccount', [config.admin, null, null])
-  const validityStartHeight = await rpc.call<number>('getBlockNumber')
-  const hash = await rpc.call<string>('sendBasicTransactionWithData', [
-    config.admin,
-    tx.recipient,
-    tx.data,
-    // JSON has no bigint; the value is DUST_VALUE by construction, so the
-    // conversion cannot lose precision. fee 0 is accepted (§5.4).
-    Number(tx.value),
-    0,
-    validityStartHeight,
-  ])
+  const head = await rpc.call<number>('getBlockNumber')
   return {
+    params,
     kind: params.recipient === null ? 'release' : 'award',
     recipient: tx.recipient,
-    validityStartHeight,
-    hash,
+    data: tx.data,
+    value: tx.value,
+    head,
   }
+}
+
+/** Albatross targets one block per second — `GOVERNANCE_DELAY`'s 43,200 blocks read as ~12 h. */
+const BLOCKS_PER_HOUR = 3_600
+
+/** The plan as lines for a human to read *before* deciding to `--send`. */
+export function describePlan(plan: UnreservePlan): string[] {
+  const { params, kind, recipient, head } = plan
+  const notice = params.effectiveHeight - head
+  const hours = Math.abs(notice) / BLOCKS_PER_HOUR
+  const when = notice >= 0 ? `~${hours.toFixed(1)} h from now` : `~${hours.toFixed(1)} h in the PAST`
+  const lines = [
+    `U ${kind}: ${params.name}`,
+    kind === 'release'
+      ? `  to        ${formatAddress(recipient)} (PROTOCOL_ADDRESS — the name becomes AVAILABLE)`
+      : `  to        ${formatAddress(recipient)} (awarded the name, full term, no fee)`,
+    `  effective at height ${params.effectiveHeight} — head is ${head}, so ${when}`,
+  ]
+  if (notice < CONSTANTS.GOVERNANCE_DELAY) {
+    lines.push(
+      `  WARNING: notice is under GOVERNANCE_DELAY (${CONSTANTS.GOVERNANCE_DELAY} blocks, ~12 h) — ` +
+        'the reducer will forfeit INSUFFICIENT_NOTICE (§6 U)',
+    )
+  }
+  return lines
+}
+
+/**
+ * Broadcast a plan. Sequence per `docs/rpc-reference.md` §5.2: unlock the
+ * admin account by address — the key stays in the node's wallet — then send,
+ * reusing the plan's head as `validityStartHeight`.
+ */
+export async function broadcastUnreserve(
+  rpc: AdminRpc,
+  config: NnsConfig,
+  plan: UnreservePlan,
+): Promise<UnreserveOutcome> {
+  await rpc.call('unlockAccount', [config.admin, null, null])
+  const hash = await rpc.call<string>('sendBasicTransactionWithData', [
+    config.admin,
+    plan.recipient,
+    plan.data,
+    // JSON has no bigint; the value is DUST_VALUE by construction, so the
+    // conversion cannot lose precision. fee 0 is accepted (§5.4).
+    Number(plan.value),
+    0,
+    plan.head,
+  ])
+  return { kind: plan.kind, recipient: plan.recipient, validityStartHeight: plan.head, hash }
 }

@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { AddressError, BURN_ADDRESS, CodecError, defineConfig, encodeUnreserve, parseAddress } from '@nns/core'
+import { AddressError, BURN_ADDRESS, CodecError, CONSTANTS, defineConfig, encodeUnreserve, parseAddress } from '@nns/core'
 
-import { UsageError, parseUnreserveArgs, sendUnreserve, type AdminRpc } from './unreserve.js'
+import {
+  UsageError,
+  broadcastUnreserve,
+  describePlan,
+  parseUnreserveArgs,
+  planUnreserve,
+  type AdminRpc,
+  type UnreservePlan,
+} from './unreserve.js'
 
 // Arbitrary valid addresses, same seeds as core's test fixtures (which are
 // deliberately not shipped in its build).
@@ -23,6 +31,8 @@ const config = defineConfig({
 })
 
 const HEAD = 58_099_950
+/** A comfortable day of notice — twice GOVERNANCE_DELAY. */
+const EFFECTIVE = HEAD + 2 * CONSTANTS.GOVERNANCE_DELAY
 const HASH = 'c0ffee'.repeat(10) + 'c0ff'
 
 interface RecordedCall {
@@ -50,87 +60,133 @@ function fakeRpc(): { rpc: AdminRpc; calls: RecordedCall[] } {
   return { rpc, calls }
 }
 
-describe('sendUnreserve', () => {
-  it('defaults to release: the transaction goes to PROTOCOL_ADDRESS', async () => {
+const release = { name: 'binance', effectiveHeight: EFFECTIVE, recipient: null }
+const award = { ...release, recipient: BOB }
+
+describe('planUnreserve', () => {
+  it('defaults to release — the transaction goes to PROTOCOL_ADDRESS — and only reads the head', async () => {
     const { rpc, calls } = fakeRpc()
-    const outcome = await sendUnreserve(rpc, config, {
-      name: 'binance',
-      effectiveHeight: 58_100_000,
-      recipient: null,
+    const plan = await planUnreserve(rpc, config, release)
+
+    const expected = encodeUnreserve(config, { name: 'binance', effectiveHeight: EFFECTIVE })
+    expect(plan).toEqual({
+      params: release,
+      kind: 'release',
+      recipient: PROTOCOL,
+      data: expected.data,
+      value: 1n,
+      head: HEAD,
     })
-
-    expect(outcome).toEqual({ kind: 'release', recipient: PROTOCOL, validityStartHeight: HEAD, hash: HASH })
-    expect(calls.map((c) => c.method)).toEqual(['unlockAccount', 'getBlockNumber', 'sendBasicTransactionWithData'])
-    expect(calls[0]?.params).toEqual([ADMIN, null, null])
-
-    const expected = encodeUnreserve(config, { name: 'binance', effectiveHeight: 58_100_000 })
-    // [wallet, recipient, dataHex, value, fee, validityStartHeight] — the
-    // probed parameter order, value as a number, fee 0.
-    expect(calls[2]?.params).toEqual([ADMIN, PROTOCOL, expected.data, 1, 0, HEAD])
+    // Planning is read-only: nothing is unlocked, nothing is sent.
+    expect(calls.map((c) => c.method)).toEqual(['getBlockNumber'])
   })
 
   it('awards to the given recipient with a byte-identical payload', async () => {
-    const { rpc, calls } = fakeRpc()
-    const outcome = await sendUnreserve(rpc, config, {
-      name: 'binance',
-      effectiveHeight: 58_100_000,
-      recipient: BOB,
-    })
-
-    expect(outcome.kind).toBe('award')
-    expect(outcome.recipient).toBe(BOB)
-    const release = encodeUnreserve(config, { name: 'binance', effectiveHeight: 58_100_000 })
-    expect(calls[2]?.params).toEqual([ADMIN, BOB, release.data, 1, 0, HEAD])
+    const { rpc } = fakeRpc()
+    const plan = await planUnreserve(rpc, config, award)
+    expect(plan.kind).toBe('award')
+    expect(plan.recipient).toBe(BOB)
+    expect(plan.data).toBe(encodeUnreserve(config, release).data)
   })
 
   it('refuses BURN_ADDRESS before the node hears anything (encodeUnreserve contract)', async () => {
     const { rpc, calls } = fakeRpc()
-    await expect(
-      sendUnreserve(rpc, config, { name: 'binance', effectiveHeight: 58_100_000, recipient: BURN_ADDRESS }),
-    ).rejects.toThrow(CodecError)
+    await expect(planUnreserve(rpc, config, { ...release, recipient: BURN_ADDRESS })).rejects.toThrow(CodecError)
     expect(calls).toEqual([])
   })
 
   it('refuses an award to the admin address — a silent self-transaction (§5.3)', async () => {
     const { rpc, calls } = fakeRpc()
-    await expect(
-      sendUnreserve(rpc, config, { name: 'binance', effectiveHeight: 58_100_000, recipient: ADMIN }),
-    ).rejects.toThrow(/self-transactions/)
+    await expect(planUnreserve(rpc, config, { ...release, recipient: ADMIN })).rejects.toThrow(/self-transactions/)
     expect(calls).toEqual([])
   })
 
   it('rejects an invalid name offline, like every builder (§7.4)', async () => {
     const { rpc, calls } = fakeRpc()
-    await expect(
-      sendUnreserve(rpc, config, { name: 'ab', effectiveHeight: 58_100_000, recipient: null }),
-    ).rejects.toThrow(CodecError)
+    await expect(planUnreserve(rpc, config, { ...release, name: 'ab' })).rejects.toThrow(CodecError)
     expect(calls).toEqual([])
   })
 })
 
-describe('parseUnreserveArgs', () => {
-  it('omitting the recipient means release', () => {
-    expect(parseUnreserveArgs(['binance', '58100000'])).toEqual({
-      name: 'binance',
-      effectiveHeight: 58_100_000,
-      recipient: null,
-    })
+describe('describePlan', () => {
+  const planFor = (effectiveHeight: number, recipient: typeof BOB | null = null): UnreservePlan => ({
+    params: { name: 'binance', effectiveHeight, recipient },
+    kind: recipient === null ? 'release' : 'award',
+    recipient: recipient ?? PROTOCOL,
+    data: 'irrelevant',
+    value: 1n,
+    head: HEAD,
   })
 
-  it('a third argument is the awardee, parsed and checksummed', () => {
+  it('says what a release does, where it goes, and when — absolutely and in hours', () => {
+    const lines = describePlan(planFor(HEAD + 2 * CONSTANTS.GOVERNANCE_DELAY)).join('\n')
+    expect(lines).toContain('U release: binance')
+    expect(lines).toContain('NQ07 48LK 0DRX 8M65 6NK1 D1PP CYC4 HE99 K857')
+    expect(lines).toContain('PROTOCOL_ADDRESS')
+    expect(lines).toContain(`effective at height ${HEAD + 2 * CONSTANTS.GOVERNANCE_DELAY}`)
+    // 86,400 blocks at ~1 block/s is ~24 h.
+    expect(lines).toContain('~24.0 h from now')
+    expect(lines).not.toContain('WARNING')
+  })
+
+  it('names the awardee on an award', () => {
+    const lines = describePlan(planFor(HEAD + 2 * CONSTANTS.GOVERNANCE_DELAY, BOB)).join('\n')
+    expect(lines).toContain('U award: binance')
+    expect(lines).toContain('NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK')
+  })
+
+  it('warns when the notice is under GOVERNANCE_DELAY — the reducer would forfeit', () => {
+    const lines = describePlan(planFor(HEAD + CONSTANTS.GOVERNANCE_DELAY - 1)).join('\n')
+    expect(lines).toContain('INSUFFICIENT_NOTICE')
+  })
+
+  it('is blunt about an effective height already in the past', () => {
+    const lines = describePlan(planFor(HEAD - 3_600)).join('\n')
+    expect(lines).toContain('~1.0 h in the PAST')
+    expect(lines).toContain('INSUFFICIENT_NOTICE')
+  })
+})
+
+describe('broadcastUnreserve', () => {
+  it('unlocks by address, then sends with the probed parameter order and the plan head', async () => {
+    const { rpc, calls } = fakeRpc()
+    const plan = await planUnreserve(rpc, config, release)
+    const outcome = await broadcastUnreserve(rpc, config, plan)
+
+    expect(outcome).toEqual({ kind: 'release', recipient: PROTOCOL, validityStartHeight: HEAD, hash: HASH })
+    expect(calls.map((c) => c.method)).toEqual(['getBlockNumber', 'unlockAccount', 'sendBasicTransactionWithData'])
+    expect(calls[1]?.params).toEqual([ADMIN, null, null])
+    // [wallet, recipient, dataHex, value, fee, validityStartHeight] — value
+    // as a number, fee 0.
+    expect(calls[2]?.params).toEqual([ADMIN, PROTOCOL, plan.data, 1, 0, HEAD])
+  })
+})
+
+describe('parseUnreserveArgs', () => {
+  it('is a dry run unless --send is passed, and omitting the recipient means release', () => {
+    expect(parseUnreserveArgs(['binance', '58100000'])).toEqual({
+      params: { name: 'binance', effectiveHeight: 58_100_000, recipient: null },
+      send: false,
+    })
+    expect(parseUnreserveArgs(['binance', '58100000', '--send']).send).toBe(true)
+    // Flag position does not matter.
+    expect(parseUnreserveArgs(['--send', 'binance', '58100000']).send).toBe(true)
+  })
+
+  it('a third positional argument is the awardee, parsed and checksummed', () => {
     expect(parseUnreserveArgs(['binance', '58100000', 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK'])).toEqual({
-      name: 'binance',
-      effectiveHeight: 58_100_000,
-      recipient: BOB,
+      params: { name: 'binance', effectiveHeight: 58_100_000, recipient: BOB },
+      send: false,
     })
     expect(() => parseUnreserveArgs(['binance', '58100000', 'not-an-address'])).toThrow(AddressError)
   })
 
-  it('rejects a missing, fractional or extra argument', () => {
+  it('rejects a missing, fractional or extra argument, and any flag that is not --send', () => {
     expect(() => parseUnreserveArgs(['binance'])).toThrow(UsageError)
     expect(() => parseUnreserveArgs(['binance', '1.5'])).toThrow(UsageError)
     expect(() => parseUnreserveArgs(['binance', '58100000', 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK', 'extra'])).toThrow(
       UsageError,
     )
+    expect(() => parseUnreserveArgs(['binance', '58100000', '--sned'])).toThrow(UsageError)
   })
 })
