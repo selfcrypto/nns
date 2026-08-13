@@ -15,9 +15,9 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > Everything else reflects decisions already taken.
 
 > **Changes in revision 16 — what building the indexer and sending on
-> mainnet found.** Four changes. One moves bytes, one closes a hole that
-> made a divergence invisible, and two are lessons that cost real
-> transactions to learn:
+> mainnet found.** Five changes. One moves bytes, two close holes that made
+> a divergence invisible, and two are lessons that cost real transactions to
+> learn:
 > - **§8.1 — the unreserved set joins the commitment, under tag `0x0A`.**
 >   Tags ran `0x00`–`0x09` and `0x09` is a *pending* `U`; a `U` that had
 >   already fired was committed nowhere. The released name has no leaf in
@@ -46,6 +46,18 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 >   `ADMIN_ADDRESS` — which sign but have no income — go quiet rather than
 >   erroring when they drain. New §11.5 requires a balance precheck before
 >   signing and an alert threshold well above zero.
+> - **§7.4 — the verdict vocabulary is now enumerated, normative and
+>   closed.** §7.4 described forfeit and refund in prose while §8.2 committed
+>   the `<verdict>` *token* into the log hash; the 26 exact strings existed
+>   only in the reference implementation. Two implementations could agree
+>   about every rejection and still derive different log hashes by spelling
+>   one differently — the gap §8.1's layout had before r15. Each token now
+>   has a row naming its exact string, the message types that may carry it,
+>   and its condition, plus the within-message check order that decides which
+>   token a message earns. No token changed, so **this does not move bytes**;
+>   it makes the bytes reproducible from the spec alone. Also corrects §7.4's
+>   first forfeit bullet, which listed un-prefixed data as a forfeit when
+>   §7.5 discards it unlogged.
 >
 > **Changes in revision 15 — ratifying what the reference implementation
 > found.** `packages/core` (441 tests) surfaced nine spec gaps, four of which
@@ -1325,7 +1337,9 @@ the message before the race does.
 
 **Forfeit** — value not recoverable through the protocol:
 
-- Data not prefixed `NNS1`, unknown type, or > 64 bytes
+- Data prefixed `NNS1` but carrying an unknown type, an unparseable payload,
+  or more than 64 bytes. Data *not* prefixed `NNS1` is not a forfeit — §7.5
+  discards it before it is parsed, and it earns no log line
 - Wrong recipient for the message type
 - Insufficient value for a fee-bearing message
 - `G` whose name is invalid per §4.1 or reserved — checkable offline
@@ -1381,6 +1395,106 @@ client.
 Rejected messages are recorded in the NNS log (§8.2) with their reason code,
 so independent replays can confirm the rejection was correct rather than
 merely observing an absence.
+
+#### The verdict vocabulary
+
+The prose above says which *column* a rejection falls in. That is not enough:
+§8.2 commits the `<verdict>` token into the log hash, so two implementations
+that agree perfectly about which messages are rejected, and disagree by one
+character about what to call a rejection, derive different log hashes and
+therefore different checkpoints. The vocabulary below is **normative and
+closed** — every token an implementation may write into `<verdict>`, and
+nothing else may appear there.
+
+`REFUND` and `FORFEIT` are the names of the columns, not tokens. A "`REFUND`
+verdict" elsewhere in this document means a log line whose token is one of
+the three in the refundable table.
+
+**OK.** One token, `OK`, for every message that takes effect — whatever it
+did. An `M` that matches no outstanding obligation is `OK` too: it had no
+effect, but it broke no rule, and the debt it failed to discharge stays
+visible in the log (§6 `M`).
+
+**Forfeit tokens.** The *Types* column is exhaustive: a token may only appear
+against a message of a listed type.
+
+| Token | Types | Condition |
+|---|---|---|
+| `UNKNOWN_TYPE` | any | `NNS1` prefix, but the type character is not one of the 14 in §6 |
+| `OVER_LENGTH` | any | Payload longer than the 64-byte budget (§5.1) |
+| `MALFORMED_PAYLOAD` | any | Known type, but the payload does not parse per §6 — wrong field count, empty name, unparseable integer, non-canonical number (§6) |
+| `WRONG_RECIPIENT` | `G` `D` `K` `N` `O` `B` `A` `P` `U` `F` | Not the recipient §5.3 routes this type to |
+| `WRONG_SENDER` | `M` `F` | `M` from neither `MARKETPLACE_ADDRESS` nor `TREASURY_ADDRESS`; `F` from other than `TREASURY_ADDRESS` |
+| `INSUFFICIENT_VALUE` | `G` `N` `O` | Value below the fee this message owes: the band fee for the name at this message's height for `G` and `N` (§10.1), the listing fee for `O` (§6 `O`) |
+| `INVALID_NAME` | `G` | Name fails §4.1 |
+| `RESERVED_NAME` | `G` | Name in `RESERVED_NAMES` and not yet released by a fired `U` |
+| `NAME_IN_GRACE` | `G` | Name exists in `GRACE` |
+| `NAME_NOT_REGISTERED` | `S` `X` `R` `D` `O` | Name absent, expired, or in `GRACE` — these types require `REGISTERED` |
+| `NAME_NOT_FOUND` | `K` `N` | Name has no record at all. Distinct from the row above because `K` and `N` are valid against a name in `GRACE` |
+| `NOT_OWNER` | `S` `R` `D` `O` | Sender is not the current owner |
+| `NOT_OWNER_OR_RECOVERY` | `X` `K` | Sender is neither the current owner nor the recovery address |
+| `INVALID_HOST` | `D` | Host exceeds `MAX_HOST_LEN` or carries a scheme (§6 `D`) |
+| `NOT_ADMIN` | `P` `U` | Sender is not `ADMIN_ADDRESS` |
+| `INSUFFICIENT_NOTICE` | `P` `U` | `effective_height` less than `GOVERNANCE_DELAY` above the height of the block the message landed in |
+| `TOO_SOON` | `P` | Less than `PRICE_MIN_INTERVAL` since the last accepted `P` (§10.6) |
+| `GOVERNANCE_BOUND_VIOLATED` | `P` | A §10.6 bound exceeded, measured against the **active** prices |
+| `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no pending `R`, no `O` past `OFFER_IRREVOCABLE` |
+| `BELOW_MIN_PRICE` | `O` | Price below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
+| `AUCTION_NOT_IN_V1` | `A` | Every `A` that survives the recipient check — it precedes every check on the payload, so a below-reserve `A` takes this token rather than `BELOW_MIN_PRICE` (§6 `A`) |
+| `BELOW_REFUND_FLOOR` | `G` `B` | A message that would otherwise be refundable, carrying less than `REFUND_FLOOR`. The only token that crosses columns |
+
+**Refund tokens.** Each creates an obligation on the address named, discharged
+by an `M` (§6).
+
+| Token | Types | Owed by | Condition |
+|---|---|---|---|
+| `LOST_REGISTRATION_RACE` | `G` | `TREASURY_ADDRESS` | Name was taken by a transaction ordered ahead of this one |
+| `OFFER_NOT_OPEN` | `B` | `MARKETPLACE_ADDRESS` | No open offer: the race loser, a cancelled or expired offer, or a bid against an auction. All refund identically, so the log does not distinguish them |
+| `WRONG_PRICE` | `B` | `MARKETPLACE_ADDRESS` | Value is not **exactly** the offer price — over as well as under (§10.5) |
+
+**Check order.** A message can fail several of the rows above at once, and
+only the first one reached is written, so the order is as normative as the
+strings. Parsing runs **hex → `NNS1` prefix → length → type → payload** —
+which is why an over-length payload that is not ours is discarded by §7.5
+rather than forfeiting `OVER_LENGTH`, and why an unparseable payload of an
+unknown type is `UNKNOWN_TYPE`, not `MALFORMED_PAYLOAD`.
+
+The recipient check then precedes every other check on the types that have
+one. `S`, `X` and `R` have none: §5.3 routes them to the target address
+itself, so any recipient is meaningful. After it, each type runs its rows in
+this order:
+
+| Type | Order |
+|---|---|
+| `G` | `INVALID_NAME`, `RESERVED_NAME`, `INSUFFICIENT_VALUE`, `NAME_IN_GRACE`, `LOST_REGISTRATION_RACE` — as fixed above |
+| `S`, `R` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
+| `D` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `INVALID_HOST` |
+| `X` | `NAME_NOT_REGISTERED`, `NOT_OWNER_OR_RECOVERY` |
+| `K` | `NAME_NOT_FOUND`, `NOT_OWNER_OR_RECOVERY`, `NOTHING_TO_CANCEL` |
+| `N` | `NAME_NOT_FOUND`, `INSUFFICIENT_VALUE` |
+| `O` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE` |
+| `B` | `OFFER_NOT_OPEN`, `WRONG_PRICE` |
+| `M`, `F` | `WRONG_SENDER` |
+| `A` | `AUCTION_NOT_IN_V1` |
+| `P` | `NOT_ADMIN`, `INSUFFICIENT_NOTICE`, `TOO_SOON`, `GOVERNANCE_BOUND_VIOLATED` |
+| `U` | `NOT_ADMIN`, `INSUFFICIENT_NOTICE` |
+
+`BELOW_REFUND_FLOOR` is not a position in that order: it substitutes for
+whichever refund token the message had already earned.
+
+What the orders have in common is that a message's **own payload is checked
+before the value it carried** — `G`'s name syntax, `O`'s price floor — so a
+message that is unusable on its face is rejected on that ground whatever it
+paid. They do not put payload before *state*: `O` establishes that the sender
+owns a registered name before it looks at the price, because `BELOW_MIN_PRICE`
+against a name the sender never owned would be the less informative of two
+true answers.
+
+**§7.5 reasons are not verdict tokens.** A transaction discarded for wrong
+network, height below `LAUNCH_HEIGHT`, `executionResult: false`, being a
+reward transaction, or not carrying the `NNS1` prefix earns **no log line**
+at all (§7.6). An implementation naming those states internally must keep
+those names out of the `<verdict>` field.
 
 ### 7.5 Transactions the indexer must ignore
 
