@@ -4,8 +4,9 @@
 
 ### Human-readable names on Nimiq. No smart contracts.
 
-[![Spec](https://img.shields.io/badge/spec-v1%20draft%20r14-0582CA?style=flat-square)](docs/nns-spec-v1.md)
-[![Status](https://img.shields.io/badge/status-in%20development-EC991C?style=flat-square)](docs/status.md)
+[![Spec](https://img.shields.io/badge/spec-v1%20draft%20r15-0582CA?style=flat-square)](docs/nns-spec-v1.md)
+[![Status](https://img.shields.io/badge/status-core%20%2B%20indexer%20built-EC991C?style=flat-square)](docs/status.md)
+[![Tests](https://img.shields.io/badge/tests-614-1F2348?style=flat-square)](#building-and-testing)
 [![License](https://img.shields.io/badge/license-MIT-1F2348?style=flat-square)](LICENSE)
 [![Nimiq](https://img.shields.io/badge/chain-Nimiq%20Albatross-0582CA?style=flat-square)](https://nimiq.com)
 
@@ -93,19 +94,45 @@ Nimiq's 64-byte transaction data limit.
 |---|---|
 | `docs/nns-spec-v1.md` | **The protocol specification.** Authoritative |
 | `docs/rpc-reference.md` | What Nimiq's RPC actually does, measured not assumed |
+| `docs/decisions.md` | Every reading taken where the spec was silent, with the argument |
+| `docs/status.md` | What is built, what is next. Where a new session starts |
 | `packages/core` | Rules: encoding, validation, reducer, Merkle. Pure |
 | `packages/indexer` | RPC tail → reducer → Postgres → checkpoints |
 | `packages/api` | Read-only resolver, proofs |
 | `packages/app` | Nimiq Pay mini app |
 | `packages/resolver` | npm package other apps embed |
 | `packages/settlement` · `anchor` · `admin` | Payouts, anchoring, governance |
+| `tasks/` | One brief per package, naming the spec sections it needs |
+
+A pnpm workspace: TypeScript strict throughout, one Vitest run across every
+package, dependency versions pinned once in the workspace catalog.
 
 ## Status
 
-**In development.** The wire format is settled and empirically verified
-against mainnet; implementation is underway. See
-[`docs/status.md`](docs/status.md) for what is built and what is next, and
-[§12](docs/nns-spec-v1.md) for what remains undecided.
+**In development.** The wire format is settled and empirically verified against
+mainnet. Two of the eight packages are built.
+
+| Package | |
+|---|---|
+| `core` | **Complete**, conforming to spec r15. 469 tests, conformance vectors shipped |
+| `indexer` | **Complete** — scan, reduce, Postgres, checkpoints, container, heartbeat. 145 tests |
+| `api` · `app` · `resolver` · `settlement` · `anchor` · `admin` | Not started |
+
+`core` is the reference implementation, and writing it was how the spec got
+to r15: it surfaced **nine places where two conforming implementations would
+have derived different roots** — same-height effect order, the log's `<data>`
+field, the checkpoint layout byte for byte, six more. All nine are now pinned
+in the spec and held by a vector. The argument for each is in
+[`docs/decisions.md`](docs/decisions.md); that this list exists at all is the
+best evidence available that the design is being taken seriously.
+
+The indexer has been run against the mainnet node: ~9,000 batches replayed to
+head, reproducing probe transactions at their canonical body positions. Its
+acceptance test — two full replays from an empty database producing
+byte-identical checkpoint roots — is the next thing outstanding.
+
+[`docs/status.md`](docs/status.md) has the detail, and
+[§12](docs/nns-spec-v1.md) what remains undecided in the protocol itself.
 
 Names are `[a-z0-9-]`, 5–24 characters, with a positional digit rule that
 removes the `n1m1q` / `nimiq` class of impersonation entirely.
@@ -117,7 +144,30 @@ you already run — no new storage, no resync. An independent replay is worth
 more to this protocol than any assurance its authors can offer about
 themselves.
 
-Instructions land with the indexer package.
+```bash
+cp .env.example .env      # fill in NNS_RPC_URL and the five OPEN §3 values
+docker compose up
+```
+
+Postgres comes with it, published on `127.0.0.1:5433` so it does not clash
+with a local server. Compose refuses to start without the OPEN values —
+naming them, one by one — because a placeholder address parses, runs, matches
+nothing, and produces an empty registry with a clean log.
+
+To run it outside a container instead, `packages/indexer/.env.example` is the
+same set of variables pointed at a local database.
+
+## Building and testing
+
+```bash
+pnpm install
+pnpm test         # one Vitest run over every package — 614 tests
+pnpm typecheck    # strict, and wider than the build: tests and tooling too
+pnpm build
+```
+
+Nine of those tests are the indexer's pure-SQL ones; they skip unless
+`NNS_TEST_DATABASE_URL` points at a Postgres.
 
 ## Contributing
 
