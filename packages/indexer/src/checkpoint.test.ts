@@ -240,7 +240,11 @@ describe('CheckpointBuilder', () => {
 })
 
 describe('checkpointRow', () => {
-  it('carries every component of the commitment, and its layout', () => {
+  it('carries every stored component of the commitment, and its layout', () => {
+    // r16's `unreservedRoot` has no column: adding one is a migration, and the
+    // set itself is in the `unreserved` table, so the digest is recomputable.
+    // The cost is that a divergence in exactly that component cannot be
+    // localised from the row alone — only the `commitment` says it happened.
     const { builder: b, pipeline: p } = builder()
     const [record] = b.buildForBatch(p.applyBatch(initialState(CONFIG), [], LAUNCH + INTERVAL))
     const row = checkpointRow(record as NonNullable<typeof record>)
@@ -253,38 +257,42 @@ describe('checkpointRow', () => {
   })
 })
 
-describe('the unreserved set is not committed — known §8.1 gap', () => {
-  // §8.1 commits a *pending* `U` (tag 0x09) but not a fired one, so two
-  // indexers that disagree about which reserved names have been released
-  // derive identical roots and different registries. This test asserts the gap
-  // rather than the fix, so that closing it — a tenth tag in core's merkle.ts,
-  // and a COMMITMENT_LAYOUT bump here — makes this file fail and say why.
+describe('the unreserved set is committed — r16 §8.1, tag 0x0A', () => {
+  // Through r15, §8.1 committed a *pending* `U` (tag 0x09) but not a fired one,
+  // so two indexers that disagreed about which reserved names had been released
+  // derived identical roots and different registries. This block asserted that
+  // gap until core landed 0x0A, which is what made it fail and say why; it now
+  // asserts the fix from the one place in this package that calls core.
   const withName = (state: NnsState, record: NameRecord): NnsState =>
     Object.freeze({ ...state, names: new Map([[record.name, record]]) })
 
   const base = Object.freeze({ ...initialState(CONFIG), height: LAUNCH + INTERVAL })
+  /** The same name, in the two states the commitment has to tell apart. */
+  const released = Object.freeze({ ...base, unreserved: new Set(['nimiq']) })
+  const pending = Object.freeze({
+    ...base,
+    pendingUnreserve: new Map([['nimiq', { name: 'nimiq', effectiveHeight: LAUNCH + 2 * INTERVAL }]]),
+  })
+  const commit = (state: NnsState) => hex(commitmentFor(state, base.height, logHash([])).commitment)
 
-  it('commits alike whether or not a `U` has fired', () => {
-    const released = Object.freeze({ ...base, unreserved: new Set(['nimiq']) })
-    expect(hex(commitmentFor(released, base.height, logHash([])).commitment)).toBe(
-      hex(commitmentFor(base, base.height, logHash([])).commitment),
-    )
+  it('commits differently once a `U` has fired', () => {
+    expect(commit(released)).not.toBe(commit(base))
+  })
+
+  it('separates a fired `U` from the pending one that precedes it', () => {
+    // 0x09 and 0x0A are two states of the same name: a scheduled release is
+    // not a release, and neither digest may stand in for the other.
+    expect(commit(pending)).not.toBe(commit(released))
   })
 
   it('does commit the pending `U` that precedes it', () => {
-    // The asymmetry, stated: the seam is only about the fired set.
-    const pending = Object.freeze({
-      ...base,
-      pendingUnreserve: new Map([['nimiq', { name: 'nimiq', effectiveHeight: LAUNCH + 2 * INTERVAL }]]),
-    })
-    expect(hex(commitmentFor(pending, base.height, logHash([])).commitment)).not.toBe(
-      hex(commitmentFor(base, base.height, logHash([])).commitment),
-    )
+    expect(commit(pending)).not.toBe(commit(base))
   })
 
-  it('registers a released name into the tree, which is where it becomes visible', () => {
-    // Not a substitute for committing the set: the name only appears once
-    // somebody registers it, which is exactly too late to catch a divergence.
+  it('also moves the tree once the released name is registered', () => {
+    // The path that was the only visibility under r15, and the reason the gap
+    // mattered: it fires when somebody registers the name, which is one
+    // registration too late to catch a divergence about whether they could.
     const record: NameRecord = {
       name: 'nimiq',
       owner: compact(A),
@@ -294,8 +302,6 @@ describe('the unreserved set is not committed — known §8.1 gap', () => {
       recovery: null,
       host: '',
     }
-    expect(hex(commitmentFor(withName(base, record), base.height, logHash([])).commitment)).not.toBe(
-      hex(commitmentFor(base, base.height, logHash([])).commitment),
-    )
+    expect(commit(withName(base, record))).not.toBe(commit(base))
   })
 })

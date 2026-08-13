@@ -5,7 +5,7 @@
  * in one 32-byte value:
  *
  * ```
- * commitment = keccak256(0x02 ‖ name_root ‖ prices ‖ pending ‖ log_hash ‖ height:u64-BE)
+ * commitment = keccak256(0x02 ‖ name_root ‖ prices ‖ pending ‖ unreserved ‖ log_hash ‖ height:u64-BE)
  * ```
  *
  * **Not one byte of that layout is computed here.** `@nns/core` owns it, down
@@ -46,26 +46,28 @@
  * this reason: the in-memory hash would be ahead of the table, and every later
  * checkpoint would be unreproducible.
  *
- * ## Known spec gap: the unreserved set
+ * ## The unreserved set: a closed spec gap, and what the seam cost
  *
- * §8.1 does **not** commit `state.unreserved` — the names whose `U` has already
- * fired. A pending `U` is committed (tag `0x09`); a fired one vanishes from the
- * commitment, even though it is exactly what decides whether a reserved name is
- * registrable. Two indexers that disagree about it derive identical roots and
- * different registries.
+ * Through r15, §8.1 did **not** commit `state.unreserved` — the names whose `U`
+ * has already fired. A pending `U` was committed (tag `0x09`); a fired one
+ * vanished from the commitment, even though it is exactly what decides whether
+ * a reserved name is registrable. Two indexers that disagreed about it derived
+ * identical roots and different registries.
  *
- * That is a spec gap being fixed separately, not something to work around here.
- * The seam:
+ * r16 closed it (§8.1, tag `0x0A`) and `core` implements it. The seam this
+ * package left for that day worked, and is worth keeping in mind for the next
+ * one:
  *
- * - The fix belongs in `core`'s `merkle.ts` — a tenth tag, `0x0a`, and a fourth
- *   digest inside `checkpoint()`. Nothing in this file would change.
- * - {@link COMMITMENT_LAYOUT} is written with every checkpoint row, so roots
- *   computed under the gap are distinguishable in the data from roots computed
- *   after it closes. Bump it in the same commit that closes the gap; every
- *   stored checkpoint below the bump is then knowably a different function.
- * - `checkpoint.test.ts` pins the gap with a test that *asserts* two states
- *   differing only in `unreserved` commit alike. It fails the day the gap
- *   closes, which is the intended alarm.
+ * - The fix was entirely `core`'s — a tenth tag and a fourth digest inside
+ *   `checkpoint()`. Nothing in this file changed but the constant below,
+ *   because the commitment arrives through {@link commitmentFor}'s arguments
+ *   and nothing here assembles it.
+ * - {@link COMMITMENT_LAYOUT} is written with every checkpoint row, and went to
+ *   `2` in the commit that took the fix. Every stored checkpoint at layout `1`
+ *   is knowably the output of a different function, not a mismatch to explain.
+ * - `checkpoint.test.ts` pinned the gap with a test that *asserted* two states
+ *   differing only in `unreserved` commit alike. It went red the day `core`
+ *   landed `0x0A`, which is what it was for; it now asserts the opposite.
  */
 
 import {
@@ -87,11 +89,15 @@ export class CheckpointError extends Error {
 /**
  * Which §8.1 commitment function produced a row.
  *
- * `1` is r15's layout: name tree, prices, pending set, log hash, height — and
- * no unreserved set. See the gap note above; this exists so that closing it is
- * a visible event in the table rather than a silent change of meaning.
+ * - `1` — r15: name tree, prices, pending set, log hash, height.
+ * - `2` — r16: the same, plus the unreserved set under tag `0x0A`.
+ *
+ * Every commitment changed value between the two, so a layout `1` row and a
+ * layout `2` row at the same height are not comparable and their difference is
+ * not a divergence. This column exists so that stays legible in the data
+ * instead of being a mismatch nobody can explain.
  */
-export const COMMITMENT_LAYOUT = 1
+export const COMMITMENT_LAYOUT = 2
 
 /** A checkpoint, as it goes into the `checkpoints` table. `BYTEA` wants `Buffer`. */
 export type CheckpointRow = {
@@ -122,8 +128,8 @@ export const hex = (bytes: Uint8Array): string => Buffer.from(bytes).toString('h
  * The one call site of `core.checkpoint` in this package.
  *
  * Everything the commitment covers arrives through `state` and `logHash`, so
- * the day §8.1 grows a component — the unreserved set above — this function
- * does not change and neither does anything calling it.
+ * when §8.1 grew a component — the unreserved set above, in r16 — this function
+ * did not change and neither did anything calling it.
  *
  * @throws {CheckpointError} if the state is not current as of `height`.
  */

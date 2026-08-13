@@ -54,6 +54,7 @@ function checkpoint(height: number, byte: number): Checkpoint {
     nameRoot: bytes(byte),
     pricesRoot: bytes(byte),
     pendingRoot: bytes(byte),
+    unreservedRoot: bytes(byte),
     logHash: bytes(byte),
     commitment: bytes(byte),
   }
