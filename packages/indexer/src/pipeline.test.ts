@@ -1,5 +1,5 @@
-import { CONSTANTS, PROFILES, defineConfig, initialState } from '@nns/core'
-import { describe, expect, it, vi } from 'vitest'
+import { CONSTANTS, defineConfig, initialState } from '@nns/core'
+import { describe, expect, it } from 'vitest'
 
 import {
   Pipeline,
@@ -91,31 +91,6 @@ describe('checkpoint boundaries', () => {
     const seen: number[] = []
     advanceThroughBoundaries(initialState(CONFIG), LAUNCH + 60, (height) => seen.push(height), LAUNCH - 1)
     expect(seen).toEqual([LAUNCH])
-  })
-
-  it('takes the interval from the state’s own profile — a fast state checkpoints every block', () => {
-    // Mirrors the reducer's rule: the config's role ends at initialState, and
-    // a fast state advanced by any caller keeps the fast schedule.
-    expect(PROFILES.fast.CHECKPOINT_INTERVAL).toBe(1)
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    let fastConfig
-    try {
-      fastConfig = defineConfig({
-        networkId: 24,
-        launchHeight: LAUNCH,
-        treasury: A,
-        protocol: B,
-        admin: C,
-        marketplace: D,
-        listingFee: 100_000n,
-        profile: 'fast',
-      })
-    } finally {
-      warn.mockRestore()
-    }
-    const seen: number[] = []
-    advanceThroughBoundaries(initialState(fastConfig), LAUNCH + 3, (height) => seen.push(height), LAUNCH - 1)
-    expect(seen).toEqual([LAUNCH, LAUNCH + 1, LAUNCH + 2, LAUNCH + 3])
   })
 
   it('does not reach back below the state for a stale `after`', () => {

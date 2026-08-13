@@ -50,9 +50,9 @@
  */
 
 import {
+  CONSTANTS,
   advanceTo,
   canonicalLogLine,
-  constantsOf,
   parseAddress,
   reduce,
   type ChainTransaction,
@@ -122,9 +122,7 @@ export interface BatchResult {
  * settle; for this file the convention only has to be at least as frequent as
  * §7.3 demands.
  *
- * @param interval `CHECKPOINT_INTERVAL` of the profile the state evolves
- *   under — `constantsOf(state)`, never `CONSTANTS` directly, which is how a
- *   `fast` state (interval 1) keeps its own schedule.
+ * @param interval `CHECKPOINT_INTERVAL` (§3).
  */
 export function nextBoundaryAbove(height: number, interval: number): number {
   return (Math.floor(height / interval) + 1) * interval
@@ -149,10 +147,7 @@ export function advanceThroughBoundaries(
   after: number = state.height,
 ): NnsState {
   if (target < state.height) return state
-  // The state's own profile picks the interval, exactly as the reducer reads
-  // its timings — a fast state advanced by a mainnet-configured caller still
-  // checkpoints every block, not every 720.
-  const interval = constantsOf(state).CHECKPOINT_INTERVAL
+  const interval = CONSTANTS.CHECKPOINT_INTERVAL
   let current = state
   for (
     let boundary = nextBoundaryAbove(Math.max(after, state.height - 1), interval);

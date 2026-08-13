@@ -123,7 +123,6 @@ function populated(): NnsState {
 /** Compare two states structurally, Maps and Sets included. */
 function normalise(state: NnsState): unknown {
   return {
-    profile: state.profile,
     height: state.height,
     names: [...state.names.entries()].sort(),
     transfers: [...state.transfers.entries()].sort(),
@@ -169,26 +168,6 @@ describe('round trip', () => {
       'SALE_PROCEEDS',
       'COMMISSION',
     ])
-  })
-
-  it('carries the constants profile — fast in, fast out, mainnet unmarked', () => {
-    const mainnetRows = rowsOf(populated())
-    expect(mainnetRows.params.profile).toBeNull()
-    // Not merely undefined: no property at all, exactly as initialState
-    // builds a mainnet state, so the object shape survives a restart too.
-    expect('profile' in stateFromRows(mainnetRows)).toBe(false)
-
-    const fast = Object.freeze({ ...populated(), profile: 'fast' as const })
-    const rows = rowsOf(fast)
-    expect(rows.params.profile).toBe('fast')
-    expect(stateFromRows(rows).profile).toBe('fast')
-    expect(normalise(stateFromRows(rows))).toEqual(normalise(fast))
-  })
-
-  it('rejects a profile core does not know rather than guessing its constants', () => {
-    const rows = rowsOf(populated())
-    const broken = { ...rows, params: { ...rows.params, profile: 'devnet' } }
-    expect(() => stateFromRows(broken)).toThrow(RowError)
   })
 
   it('carries Infinity through as NULL and back', () => {

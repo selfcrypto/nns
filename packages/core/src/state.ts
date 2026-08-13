@@ -15,7 +15,7 @@
 
 import type { Address } from './address.js'
 import type { NnsConfig } from './config.js'
-import { CONSTANTS, type Constants, PROFILES, type ProfileName } from './constants.js'
+import { CONSTANTS } from './constants.js'
 
 /** §8.1 commits `0x00` for `REGISTERED` and `0x01` for `GRACE`. */
 export type NameStatus = 'REGISTERED' | 'GRACE'
@@ -123,15 +123,6 @@ export interface Obligation {
 }
 
 export interface NnsState {
-  /**
-   * Constants profile this state evolves under. **Absent means `mainnet`** —
-   * the unmarked case is deliberately the mainnet case, so every state built
-   * before profiles existed, and every state rehydrated from a layout-3
-   * database, reads back byte-for-byte unchanged. A state whose config
-   * selected another profile carries it from `initialState` through every
-   * reduction, and `checkpoint()` commits it.
-   */
-  readonly profile?: ProfileName
   /** Highest height whose scheduled effects have been applied. */
   readonly height: number
   readonly names: ReadonlyMap<string, NameRecord>
@@ -159,13 +150,6 @@ export interface NnsState {
   readonly nextDueHeight: number
 }
 
-/**
- * The constants a state (or a reducer draft) evolves under: its profile's
- * entry in `PROFILES`, with absent meaning `mainnet`.
- */
-export const constantsOf = (carrier: { readonly profile?: ProfileName }): Constants =>
-  PROFILES[carrier.profile ?? 'mainnet']
-
 /** Launch prices come from §3; governance moves them from there (§10.6). */
 export const LAUNCH_PRICES: Prices = Object.freeze({
   feeStandard: CONSTANTS.FEE_STANDARD,
@@ -175,24 +159,13 @@ export const LAUNCH_PRICES: Prices = Object.freeze({
 
 /** Empty state at `LAUNCH_HEIGHT` (§7.2 step 1). */
 export function initialState(config: NnsConfig): NnsState {
-  const constants = PROFILES[config.profile]
   return Object.freeze({
-    // Mainnet stays the unmarked case: no property, so the object — like its
-    // commitment — is indistinguishable from one built before profiles existed.
-    ...(config.profile === 'mainnet' ? {} : { profile: config.profile }),
     height: config.launchHeight,
     names: new Map<string, NameRecord>(),
     transfers: new Map<string, PendingTransfer>(),
     recoveries: new Map<string, PendingRecovery>(),
     offers: new Map<string, Offer>(),
-    prices:
-      constants === CONSTANTS
-        ? LAUNCH_PRICES
-        : Object.freeze({
-            feeStandard: constants.FEE_STANDARD,
-            feeLong: constants.FEE_LONG,
-            commissionBp: constants.COMMISSION_RATE,
-          }),
+    prices: LAUNCH_PRICES,
     pendingGovernance: null,
     lastGovernanceHeight: null,
     unreserved: new Set<string>(),

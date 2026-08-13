@@ -11,17 +11,8 @@
  */
 
 import { type Address, parseAddress } from './address.js'
-import { isProfileName, type ProfileName } from './constants.js'
 
 export interface NnsConfig {
-  /**
-   * Constants profile the deployment runs under — see `PROFILES` in
-   * {@link ./constants.ts | constants.ts}. Always resolved here: `mainnet`
-   * unless the input selected something else explicitly, in which case
-   * {@link defineConfig} has already warned loudly that the resulting roots
-   * are not mainnet roots.
-   */
-  readonly profile: ProfileName
   /** Guards against a node fed by a different network (§7.5). */
   readonly networkId: number
   /** Indexers start here, not at genesis (§3, §7.2). */
@@ -41,8 +32,6 @@ export interface NnsConfig {
 }
 
 export interface NnsConfigInput {
-  /** Omitted means `mainnet`. Anything else is a deliberate, warned-about act. */
-  profile?: ProfileName
   networkId: number
   launchHeight: number
   treasury: string
@@ -56,13 +45,6 @@ export interface NnsConfigInput {
 export class ConfigError extends Error {
   override readonly name = 'ConfigError'
 }
-
-// The build tsconfig deliberately loads no runtime type library — `core` is
-// pure, and an undeclared global turning up is a compile error, which is the
-// point. `defineConfig`'s warning is the one sanctioned exception, so exactly
-// the method it uses is declared here rather than pulling in all of node's
-// globals. Every runtime this package supports provides it.
-declare const console: { warn(message: string): void }
 
 function address(field: string, value: string): Address {
   try {
@@ -80,23 +62,6 @@ function address(field: string, value: string): Address {
  * which is exactly where a silent divergence would otherwise begin.
  */
 export function defineConfig(input: NnsConfigInput): NnsConfig {
-  const profile = input.profile ?? 'mainnet'
-  // Runtime-checked despite the type: profiles arrive from env vars and JSON,
-  // where a cast is one `as` away.
-  if (!isProfileName(profile)) {
-    throw new ConfigError(`unknown constants profile ${JSON.stringify(profile)} — expected "mainnet" or "fast"`)
-  }
-  if (profile !== 'mainnet') {
-    // Deliberately the one write to stderr in this package. It feeds no state,
-    // no root and no log hash — it exists so a process quietly pointed at a
-    // non-mainnet profile cannot start silently. Runs once, at config time,
-    // which is startup for every consumer.
-    console.warn(
-      `[nns] ⚠ constants profile "${profile}": waiting periods ÷1000, fee bands ÷100.\n` +
-        `[nns] ⚠ This is NOT the mainnet protocol. Nothing in a checkpoint marks the profile,\n` +
-        `[nns] ⚠ so keep its database separate and never quote its roots as a baseline.`,
-    )
-  }
   if (!Number.isInteger(input.networkId) || input.networkId < 0) {
     throw new ConfigError('networkId must be a non-negative integer')
   }
@@ -132,7 +97,6 @@ export function defineConfig(input: NnsConfigInput): NnsConfig {
   }
 
   return Object.freeze({
-    profile,
     networkId: input.networkId,
     launchHeight: input.launchHeight,
     treasury,

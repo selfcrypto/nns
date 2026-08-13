@@ -393,24 +393,6 @@ describe('checkpoint — §8.1 final clause', () => {
   })
 })
 
-describe('checkpoint — constants profile', () => {
-  const log = new Uint8Array(HASH_BYTES)
-
-  it('does not commit the profile: byte-identical states commit identically under any profile', () => {
-    // §8.1 is the whole truth about what a checkpoint commits, and the profile
-    // is a test-only mechanism the spec does not describe. Fast runs are kept
-    // apart from mainnet operationally — their own database, and a config
-    // fingerprint that refuses to resume across profiles — never by the
-    // commitment. (Profiled *histories* still diverge, because the profiled
-    // constants change what the state contains; the profile itself must not.)
-    const bare = stateWith(record({ name: 'kikename' }))
-    const explicit: NnsState = Object.freeze({ ...bare, profile: 'mainnet' as const })
-    const fast: NnsState = Object.freeze({ ...bare, profile: 'fast' as const })
-    expect(checkpoint(explicit, log).commitment).toEqual(checkpoint(bare, log).commitment)
-    expect(checkpoint(fast, log).commitment).toEqual(checkpoint(bare, log).commitment)
-  })
-})
-
 describe('a name longer than a u8 length prefix cannot occur', () => {
   it('because MAX_NAME_LEN and MAX_HOST_LEN are both well under 255', () => {
     expect(CONSTANTS.MAX_NAME_LEN).toBeLessThan(256)

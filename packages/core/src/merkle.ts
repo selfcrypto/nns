@@ -434,12 +434,8 @@ export interface Checkpoint {
  * them. A root derived here is **not** comparable with one derived by an r15
  * implementation of this clause.
  *
- * **The constants profile is deliberately not committed.** §8.1 is the whole
- * truth about what a checkpoint commits, and the profile is a test-only
- * mechanism the spec does not describe — an implementer reading §8.1 must
- * derive this exact byte string, for any state. Fast runs are kept apart from
- * mainnet operationally instead: their own database, and a config fingerprint
- * that refuses to resume across profiles.
+ * §8.1 is the whole truth about what a checkpoint commits — an implementer
+ * reading it must derive this exact byte string, for any state.
  *
  * @param logHash keccak256 of the canonical log file through this height.
  */

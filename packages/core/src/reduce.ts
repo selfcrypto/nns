@@ -27,7 +27,7 @@
 import { type Address, addressEquals } from './address.js'
 import { BURN_ADDRESS, type Message, parse } from './codec.js'
 import type { NnsConfig } from './config.js'
-import { CONSTANTS, type Constants, type ProfileName } from './constants.js'
+import { CONSTANTS } from './constants.js'
 import { feeBand, validateHost, validateName } from './name.js'
 import {
   type NameRecord,
@@ -40,7 +40,6 @@ import {
   type PendingUnreserve,
   type Prices,
   type TxRef,
-  constantsOf,
   isReserved,
   minPrice,
   refKey,
@@ -135,8 +134,6 @@ const ok = (obligations: readonly Obligation[] = []): Verdict => ({ kind: 'OK', 
 // ── Draft ───────────────────────────────────────────────────────────────────
 
 interface Draft {
-  /** Copied verbatim from the state, so `freeze` cannot lose the profile. */
-  profile?: ProfileName
   height: number
   names: Map<string, NameRecord>
   transfers: Map<string, PendingTransfer>
@@ -152,9 +149,6 @@ interface Draft {
 }
 
 const draftOf = (state: NnsState): Draft => ({
-  // Conditional so a mainnet draft, like a mainnet state, has no profile
-  // property at all rather than one set to `undefined`.
-  ...(state.profile === undefined ? {} : { profile: state.profile }),
   height: state.height,
   names: new Map(state.names),
   transfers: new Map(state.transfers),
@@ -177,7 +171,6 @@ const schedule = (draft: Draft, height: number): void => {
 }
 
 function computeNextDue(draft: Draft): number {
-  const constants = constantsOf(draft)
   let next = Number.POSITIVE_INFINITY
   const consider = (height: number): void => {
     if (height > draft.height && height < next) next = height
@@ -189,7 +182,7 @@ function computeNextDue(draft: Draft): number {
   for (const item of draft.offers.values()) consider(item.expiryHeight)
   for (const record of draft.names.values()) {
     if (record.status === 'REGISTERED') consider(record.expiry)
-    else consider(record.expiry + constants.GRACE_PERIOD)
+    else consider(record.expiry + CONSTANTS.GRACE_PERIOD)
   }
   return next
 }
@@ -226,7 +219,7 @@ function enterGrace(draft: Draft, name: string): void {
   draft.transfers.delete(name)
   draft.recoveries.delete(name)
   draft.offers.delete(name)
-  schedule(draft, record.expiry + constantsOf(draft).GRACE_PERIOD)
+  schedule(draft, record.expiry + CONSTANTS.GRACE_PERIOD)
 }
 
 /** §7.3 on falling to `AVAILABLE`: all state for the name is cleared. */
@@ -286,7 +279,6 @@ interface DueEffect {
 }
 
 function collectDue(draft: Draft, upto: number): DueEffect[] {
-  const constants = constantsOf(draft)
   const due: DueEffect[] = []
 
   const governance = draft.pendingGovernance
@@ -319,7 +311,7 @@ function collectDue(draft: Draft, upto: number): DueEffect[] {
         // recovery and delegate host unset, nothing pending. A release stops
         // at the line above and the name is AVAILABLE under the normal rules.
         if (pending.recipient !== null) {
-          const expiry = pending.effectiveHeight + constants.TERM_LENGTH
+          const expiry = pending.effectiveHeight + CONSTANTS.TERM_LENGTH
           d.names.set(item.name, {
             name: item.name,
             owner: pending.recipient,
@@ -380,7 +372,7 @@ function collectDue(draft: Draft, upto: number): DueEffect[] {
         })
       }
     } else {
-      const end = record.expiry + constants.GRACE_PERIOD
+      const end = record.expiry + CONSTANTS.GRACE_PERIOD
       if (end <= upto) {
         due.push({
           height: end,
@@ -389,7 +381,7 @@ function collectDue(draft: Draft, upto: number): DueEffect[] {
           apply: (d) => {
             const current = d.names.get(record.name)
             if (current === undefined || current.status !== 'GRACE') return
-            if (current.expiry + constants.GRACE_PERIOD > upto) return
+            if (current.expiry + CONSTANTS.GRACE_PERIOD > upto) return
             release(d, record.name)
           },
         })
@@ -471,9 +463,7 @@ export const feeFor = (name: string, prices: Prices): bigint =>
  * §6 `M`: `floor(price × rate)`, with the seller taking the remainder.
  *
  * `BASIS_POINTS` is the unit denominator that gives `commissionBp` its
- * meaning, identical in every profile (pinned by the identity walk in
- * `constants.test.ts`) — the one read this module takes from `CONSTANTS`
- * rather than from a state's own profile.
+ * meaning — a fixed unit, not a governable value.
  */
 export const commissionOn = (price: bigint, commissionBp: bigint): bigint =>
   (price * commissionBp) / CONSTANTS.BASIS_POINTS
@@ -494,13 +484,8 @@ const obligation = (
  * underfunded messages into an obligation to broadcast thousands of
  * transactions.
  */
-function refundOrForfeit(
-  constants: Constants,
-  tx: ChainTransaction,
-  reason: RefundReason,
-  owedBy: Address,
-): Verdict {
-  if (tx.value < constants.REFUND_FLOOR) return forfeit('BELOW_REFUND_FLOOR')
+function refundOrForfeit(tx: ChainTransaction, reason: RefundReason, owedBy: Address): Verdict {
+  if (tx.value < CONSTANTS.REFUND_FLOOR) return forfeit('BELOW_REFUND_FLOOR')
   const ref: TxRef = { height: tx.blockNumber, txIndex: tx.txIndex }
   return { kind: 'REFUND', reason, obligations: [obligation(ref, 'REFUND', owedBy, tx.sender, tx.value)] }
 }
@@ -563,9 +548,6 @@ export function reduce(state: NnsState, tx: ChainTransaction, config: NnsConfig)
 }
 
 function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message: Message): ReduceResult {
-  // The profiled timing constants come from the state's own profile — a fast
-  // state cannot be reduced under mainnet timings, whatever the caller passes.
-  const constants = constantsOf(state)
   const ref: TxRef = { height: tx.blockNumber, txIndex: tx.txIndex }
   const keep = (verdict: Verdict): ReduceResult => ({ state, verdict })
 
@@ -593,11 +575,11 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
         // prevents it. Losing a race to a transaction ordered ahead is not
         // client-preventable, so it is refunded.
         if (existing.status === 'GRACE') return keep(forfeit('NAME_IN_GRACE'))
-        return keep(refundOrForfeit(constants, tx, 'LOST_REGISTRATION_RACE', config.treasury))
+        return keep(refundOrForfeit(tx, 'LOST_REGISTRATION_RACE', config.treasury))
       }
 
       const draft = draftOf(state)
-      const expiry = tx.blockNumber + constants.TERM_LENGTH
+      const expiry = tx.blockNumber + CONSTANTS.TERM_LENGTH
       draft.names.set(message.name, {
         name: message.name,
         owner: tx.sender,
@@ -635,7 +617,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       const byRecovery = record.recovery !== null && addressEquals(record.recovery, tx.sender)
       if (!byOwner && !byRecovery) return keep(forfeit('NOT_OWNER_OR_RECOVERY'))
 
-      const timelock = byOwner ? constants.XFER_TIMELOCK : constants.RECOVERY_TIMELOCK
+      const timelock = byOwner ? CONSTANTS.XFER_TIMELOCK : CONSTANTS.RECOVERY_TIMELOCK
       const effectiveHeight = tx.blockNumber + timelock
 
       // A second X supersedes the first and restarts the timelock.
@@ -659,7 +641,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       // Sending to PROTOCOL_ADDRESS clears the recovery address. The r6
       // wording named the owner's own address, which the network cannot carry.
       const recovery = addressEquals(tx.recipient, config.protocol) ? null : tx.recipient
-      const effectiveHeight = tx.blockNumber + constants.XFER_TIMELOCK
+      const effectiveHeight = tx.blockNumber + CONSTANTS.XFER_TIMELOCK
 
       const draft = draftOf(state)
       draft.recoveries.set(message.name, { name: message.name, recovery, effectiveHeight })
@@ -698,7 +680,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       if (draft.transfers.delete(message.name)) cancelled = true
       if (draft.recoveries.delete(message.name)) cancelled = true
       const offer = draft.offers.get(message.name)
-      if (offer !== undefined && tx.blockNumber >= offer.openedHeight + constants.OFFER_IRREVOCABLE) {
+      if (offer !== undefined && tx.blockNumber >= offer.openedHeight + CONSTANTS.OFFER_IRREVOCABLE) {
         draft.offers.delete(message.name)
         cancelled = true
       }
@@ -717,7 +699,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
 
       // Extends from the current expiry, not the renewal height, so early
       // renewal is never penalised.
-      const expiry = record.expiry + constants.TERM_LENGTH
+      const expiry = record.expiry + CONSTANTS.TERM_LENGTH
       const status = expiry > tx.blockNumber ? 'REGISTERED' : record.status
 
       const draft = draftOf(state)
@@ -744,7 +726,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       if (message.price < minPrice(state.prices)) return keep(forfeit('BELOW_MIN_PRICE'))
       if (tx.value < config.listingFee) return keep(forfeit('INSUFFICIENT_VALUE'))
 
-      const expiryHeight = tx.blockNumber + constants.OFFER_MAX_LIFETIME
+      const expiryHeight = tx.blockNumber + CONSTANTS.OFFER_MAX_LIFETIME
       const draft = draftOf(state)
       // A later O replaces the standing one and restarts its irrevocability.
       draft.offers.set(message.name, {
@@ -768,9 +750,9 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       // an auction — which v1 never opens. All are refunded identically, so
       // the log does not need to tell them apart.
       if (offer === undefined || record === undefined || record.status !== 'REGISTERED') {
-        return keep(refundOrForfeit(constants, tx, 'OFFER_NOT_OPEN', config.marketplace))
+        return keep(refundOrForfeit(tx, 'OFFER_NOT_OPEN', config.marketplace))
       }
-      if (tx.value !== offer.price) return keep(refundOrForfeit(constants, tx, 'WRONG_PRICE', config.marketplace))
+      if (tx.value !== offer.price) return keep(refundOrForfeit(tx, 'WRONG_PRICE', config.marketplace))
 
       // Ownership moves immediately and deterministically. Settlement never
       // gates the transfer: the marketplace operator handles money, never
@@ -839,16 +821,16 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
     case 'P': {
       if (!addressEquals(tx.recipient, config.protocol)) return keep(forfeit('WRONG_RECIPIENT'))
       if (!addressEquals(tx.sender, config.admin)) return keep(forfeit('NOT_ADMIN'))
-      if (message.effectiveHeight < tx.blockNumber + constants.GOVERNANCE_DELAY) {
+      if (message.effectiveHeight < tx.blockNumber + CONSTANTS.GOVERNANCE_DELAY) {
         return keep(forfeit('INSUFFICIENT_NOTICE'))
       }
       if (
         state.lastGovernanceHeight !== null &&
-        tx.blockNumber - state.lastGovernanceHeight < constants.PRICE_MIN_INTERVAL
+        tx.blockNumber - state.lastGovernanceHeight < CONSTANTS.PRICE_MIN_INTERVAL
       ) {
         return keep(forfeit('TOO_SOON'))
       }
-      if (!withinGovernanceBounds(constants, state.prices, message)) return keep(forfeit('GOVERNANCE_BOUND_VIOLATED'))
+      if (!withinGovernanceBounds(state.prices, message)) return keep(forfeit('GOVERNANCE_BOUND_VIOLATED'))
 
       const draft = draftOf(state)
       draft.pendingGovernance = {
@@ -875,7 +857,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       // all-zero address §8.1 uses to encode *no* recipient — permitting it
       // would make an award to it and a release commit identical bytes (§6 U).
       if (addressEquals(tx.recipient, BURN_ADDRESS)) return keep(forfeit('INVALID_RECIPIENT'))
-      if (message.effectiveHeight < tx.blockNumber + constants.GOVERNANCE_DELAY) {
+      if (message.effectiveHeight < tx.blockNumber + CONSTANTS.GOVERNANCE_DELAY) {
         return keep(forfeit('INSUFFICIENT_NOTICE'))
       }
       // §4.1 rules 1–5 only — rule 6 is inverted by the row after: a `U`'s
@@ -920,24 +902,23 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
  * readings cannot diverge.
  */
 function withinGovernanceBounds(
-  constants: Constants,
   current: Prices,
   proposed: { feeStandard: bigint; feeLong: bigint; commissionBp: bigint },
 ): boolean {
-  const inBand = (fee: bigint): boolean => fee >= constants.PRICE_FLOOR && fee <= constants.PRICE_CEILING
+  const inBand = (fee: bigint): boolean => fee >= CONSTANTS.PRICE_FLOOR && fee <= CONSTANTS.PRICE_CEILING
   if (!inBand(proposed.feeStandard) || !inBand(proposed.feeLong)) return false
   if (proposed.feeLong > proposed.feeStandard) return false
 
   // At most PRICE_MAX_FACTOR up or down, per band.
   const withinFactor = (next: bigint, previous: bigint): boolean =>
-    next <= previous * constants.PRICE_MAX_FACTOR && next * constants.PRICE_MAX_FACTOR >= previous
+    next <= previous * CONSTANTS.PRICE_MAX_FACTOR && next * CONSTANTS.PRICE_MAX_FACTOR >= previous
   if (!withinFactor(proposed.feeStandard, current.feeStandard)) return false
   if (!withinFactor(proposed.feeLong, current.feeLong)) return false
 
-  if (proposed.commissionBp > constants.COMMISSION_CEILING) return false
+  if (proposed.commissionBp > CONSTANTS.COMMISSION_CEILING) return false
   const step =
     proposed.commissionBp > current.commissionBp
       ? proposed.commissionBp - current.commissionBp
       : current.commissionBp - proposed.commissionBp
-  return step <= constants.COMMISSION_MAX_STEP
+  return step <= CONSTANTS.COMMISSION_MAX_STEP
 }

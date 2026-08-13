@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import { EnvError, loadSettings } from './env.js'
 
@@ -49,30 +49,6 @@ describe('loadSettings', () => {
     expect(without('NNS_LAUNCH_HEIGHT')).toThrow(/NNS_LAUNCH_HEIGHT/)
     expect(without('NNS_DATABASE_URL')).toThrow(/NNS_DATABASE_URL/)
     expect(without('NNS_TREASURY_ADDRESS')).toThrow(/NNS_TREASURY_ADDRESS/)
-  })
-
-  it('defaults the constants profile to mainnet, silently', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    try {
-      expect(loadSettings(MINIMAL).config.profile).toBe('mainnet')
-      expect(warn).not.toHaveBeenCalled()
-    } finally {
-      warn.mockRestore()
-    }
-  })
-
-  it('reads NNS_PROFILE, with core validating the name and warning loudly', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    try {
-      expect(loadSettings({ ...MINIMAL, NNS_PROFILE: 'fast' }).config.profile).toBe('fast')
-      expect(warn).toHaveBeenCalledTimes(1)
-    } finally {
-      warn.mockRestore()
-    }
-    // Garbage is defineConfig's runtime check surfacing as an EnvError — the
-    // whole point of forwarding raw rather than validating here.
-    expect(() => loadSettings({ ...MINIMAL, NNS_PROFILE: 'devnet' })).toThrow(EnvError)
-    expect(() => loadSettings({ ...MINIMAL, NNS_PROFILE: 'devnet' })).toThrow(/unknown constants profile/)
   })
 
   it('hands core the §3 values and lets it validate them', () => {
