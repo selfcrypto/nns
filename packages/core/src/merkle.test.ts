@@ -396,33 +396,18 @@ describe('checkpoint — §8.1 final clause', () => {
 describe('checkpoint — constants profile', () => {
   const log = new Uint8Array(HASH_BYTES)
 
-  it('commits the profile: byte-identical states under fast and mainnet never share a commitment', () => {
-    const mainnet = stateWith(record({ name: 'kikename' }))
-    const fast: NnsState = Object.freeze({ ...mainnet, profile: 'fast' as const })
-    expect(bytesEqual(checkpoint(fast, log).commitment, checkpoint(mainnet, log).commitment)).toBe(false)
-    expect(checkpoint(fast, log).profile).toBe('fast')
-  })
-
-  it('keeps mainnet the unmarked case, so the layout-3 baseline is untouched', () => {
-    // A state with no profile property and one carrying an explicit `mainnet`
-    // must commit identically — both are the ratified §8.1 byte string.
+  it('does not commit the profile: byte-identical states commit identically under any profile', () => {
+    // §8.1 is the whole truth about what a checkpoint commits, and the profile
+    // is a test-only mechanism the spec does not describe. Fast runs are kept
+    // apart from mainnet operationally — their own database, and a config
+    // fingerprint that refuses to resume across profiles — never by the
+    // commitment. (Profiled *histories* still diverge, because the profiled
+    // constants change what the state contains; the profile itself must not.)
     const bare = stateWith(record({ name: 'kikename' }))
     const explicit: NnsState = Object.freeze({ ...bare, profile: 'mainnet' as const })
+    const fast: NnsState = Object.freeze({ ...bare, profile: 'fast' as const })
     expect(checkpoint(explicit, log).commitment).toEqual(checkpoint(bare, log).commitment)
-    expect(checkpoint(bare, log).profile).toBe('mainnet')
-  })
-
-  it('leaves the component roots profile-independent — only the binding commitment moves', () => {
-    // The profile marker enters at the outer keccak, not in the name tree or
-    // the other components, so proofs verify the same way under any profile.
-    const mainnet = stateWith(record({ name: 'kikename' }))
-    const fast: NnsState = Object.freeze({ ...mainnet, profile: 'fast' as const })
-    const a = checkpoint(mainnet, log)
-    const b = checkpoint(fast, log)
-    expect(b.nameRoot).toEqual(a.nameRoot)
-    expect(b.pricesRoot).toEqual(a.pricesRoot)
-    expect(b.pendingRoot).toEqual(a.pendingRoot)
-    expect(b.unreservedRoot).toEqual(a.unreservedRoot)
+    expect(checkpoint(fast, log).commitment).toEqual(checkpoint(bare, log).commitment)
   })
 })
 

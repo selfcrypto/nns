@@ -93,8 +93,8 @@ export function defineConfig(input: NnsConfigInput): NnsConfig {
     // which is startup for every consumer.
     console.warn(
       `[nns] ⚠ constants profile "${profile}": waiting periods ÷1000, fee bands ÷100.\n` +
-        `[nns] ⚠ This is NOT the mainnet protocol. Every checkpoint commitment derived under\n` +
-        `[nns] ⚠ it is domain-separated from mainnet and is never a conformance baseline.`,
+        `[nns] ⚠ This is NOT the mainnet protocol. Nothing in a checkpoint marks the profile,\n` +
+        `[nns] ⚠ so keep its database separate and never quote its roots as a baseline.`,
     )
   }
   if (!Number.isInteger(input.networkId) || input.networkId < 0) {
