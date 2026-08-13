@@ -67,6 +67,28 @@ importers:
         specifier: 'catalog:'
         version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@26.2.0))
 
+  packages/api:
+    dependencies:
+      '@nns/core':
+        specifier: workspace:*
+        version: link:../core
+      '@nns/indexer':
+        specifier: workspace:*
+        version: link:../indexer
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.21.0
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@26.2.0))
+
   packages/core:
     dependencies:
       '@noble/curves':

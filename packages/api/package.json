@@ -1,0 +1,34 @@
+{
+  "name": "@nns/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Read-only resolver REST over the indexer's database. No writes, no keys, no protocol rules.",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run",
+    "start": "node --env-file=.env dist/main.js",
+    "dev": "pnpm --filter @nns/api... build && node --env-file=.env dist/main.js"
+  },
+  "dependencies": {
+    "@nns/core": "workspace:*",
+    "@nns/indexer": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
