@@ -36,6 +36,14 @@ RUN pnpm --filter @nns/core build && pnpm --filter @nns/indexer build
 # Prune the build-only dependencies (typescript, vitest) in place. Re-running
 # install rather than deleting keeps pnpm's symlink layout coherent, which is
 # what the runtime stage copies wholesale.
+#
+# Going from a dev install to a `--prod` one changes the layout enough that pnpm
+# rebuilds `node_modules` from scratch, and it will not remove a directory it
+# did not create in this session without confirming — which it cannot do with no
+# TTY, so it aborts (ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY). `CI=true` is
+# the documented answer. The refetch is free: pnpm's content-addressable store
+# is in this stage already, so the reinstall is relinking, not downloading.
+ENV CI=true
 RUN pnpm install --frozen-lockfile --prod --filter @nns/indexer...
 
 
