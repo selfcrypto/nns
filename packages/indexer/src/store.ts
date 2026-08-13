@@ -43,6 +43,7 @@ const PENDING_COLUMNS = [
   'new_owner',
   'via_recovery',
   'recovery',
+  'recipient',
   'seller',
   'price',
   'opened_height',

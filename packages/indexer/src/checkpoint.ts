@@ -94,13 +94,17 @@ export class CheckpointError extends Error {
  *
  * - `1` — r15: name tree, prices, pending set, log hash, height.
  * - `2` — r16: the same, plus the unreserved set under tag `0x0A`.
+ * - `3` — r17: the same six components, but the pending-`U` entry (tag
+ *   `0x09`) commits its 20-byte `recipient` — zeros for a release, the
+ *   awardee for an award — so every commitment over a state with a pending
+ *   `U` changed value.
  *
- * Every commitment changed value between the two, so a layout `1` row and a
- * layout `2` row at the same height are not comparable and their difference is
- * not a divergence. This column exists so that stays legible in the data
- * instead of being a mismatch nobody can explain.
+ * Each bump changed the value of commitments the earlier function also
+ * produced, so rows at different layouts at the same height are not comparable
+ * and their difference is not a divergence. This column exists so that stays
+ * legible in the data instead of being a mismatch nobody can explain.
  */
-export const COMMITMENT_LAYOUT = 2
+export const COMMITMENT_LAYOUT = 3
 
 /** A checkpoint, as it goes into the `checkpoints` table. `BYTEA` wants `Buffer`. */
 export type CheckpointRow = {

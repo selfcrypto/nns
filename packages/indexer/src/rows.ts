@@ -28,6 +28,7 @@ import {
   type PendingGovernance,
   type PendingRecovery,
   type PendingTransfer,
+  type PendingUnreserve,
   type Prices,
 } from '@nns/core'
 
@@ -96,6 +97,8 @@ export type PendingRow = {
   new_owner: string | null
   via_recovery: boolean | null
   recovery: string | null
+  // UNRESERVE. NULL is meaningful: a release, not an award (§6 U, r17).
+  recipient: string | null
   seller: string | null
   price: string | null
   opened_height: number | null
@@ -150,6 +153,7 @@ const emptyPending = {
   new_owner: null,
   via_recovery: null,
   recovery: null,
+  recipient: null,
   seller: null,
   price: null,
   opened_height: null,
@@ -220,6 +224,9 @@ export function pendingRows(state: NnsState): PendingRow[] {
       ...emptyPending,
       kind: 'UNRESERVE',
       name: item.name,
+      // NULL is a release; an address is the awardee (§6 U, r17). §8.1
+      // commits this, so losing it across a restart would move the root.
+      recipient: item.recipient,
       effective_height: item.effectiveHeight,
     })
   }
@@ -299,7 +306,7 @@ export function stateFromRows(rows: StateRows): NnsState {
   const transfers = new Map<string, PendingTransfer>()
   const recoveries = new Map<string, PendingRecovery>()
   const offers = new Map<string, Offer>()
-  const pendingUnreserve = new Map<string, { readonly name: string; readonly effectiveHeight: number }>()
+  const pendingUnreserve = new Map<string, PendingUnreserve>()
   let pendingGovernance: PendingGovernance | null = null
 
   for (const row of rows.pending) {
@@ -344,6 +351,8 @@ export function stateFromRows(rows: StateRows): NnsState {
       case 'UNRESERVE':
         pendingUnreserve.set(name, {
           name,
+          // NULL survives as null: a release is not an award to nobody.
+          recipient: row.recipient === null ? null : toAddress(row.recipient, 'pending.recipient'),
           effectiveHeight: toHeight(required(row.effective_height, 'pending.effective_height'), 'pending.effective_height'),
         })
         break

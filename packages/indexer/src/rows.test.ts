@@ -8,6 +8,7 @@ import {
   type Offer,
   type PendingRecovery,
   type PendingTransfer,
+  type PendingUnreserve,
 } from '@nns/core'
 import { describe, expect, it } from 'vitest'
 
@@ -96,8 +97,11 @@ function populated(): NnsState {
     },
     lastGovernanceHeight: 58_180_000,
     unreserved: new Set(['nimiq', 'wallet']),
-    pendingUnreserve: new Map<string, { name: string; effectiveHeight: number }>([
-      ['reserved-one', { name: 'reserved-one', effectiveHeight: 58_260_000 }],
+    pendingUnreserve: new Map<string, PendingUnreserve>([
+      // One of each: a null recipient is a release, an address an award
+      // (§6 U, r17). §8.1 commits the distinction, so both must round-trip.
+      ['reserved-one', { name: 'reserved-one', recipient: null, effectiveHeight: 58_260_000 }],
+      ['reserved-two', { name: 'reserved-two', recipient: address(D), effectiveHeight: 58_270_000 }],
     ]),
     outstanding: new Map<string, Obligation[]>([
       [

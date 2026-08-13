@@ -300,6 +300,57 @@ describe.skipIf(URL === undefined)('Store', () => {
     expect(await store.checkpointAt(58_178_880)).toMatchObject({ layout: 1, unreservedRoot: null })
   })
 
+  it('a pending award differs from a pending release in the row and the commitment — r17, tag 0x09', async () => {
+    // Same name, same effective height; only who gets it differs. The
+    // (kind, name) key is identical on both sides, so this is the one pending
+    // change that moves nothing but the `recipient` column (migration 004) —
+    // if the diff or the row dropped it, release → award would write nothing,
+    // survive a restart as a release, and fire as one: an owner lost silently.
+    const unreserve = (recipient: ReturnType<typeof compact> | null) =>
+      new Map([['nimiq', { name: 'nimiq', recipient, effectiveHeight: 58_181_040 }]])
+    const release = Object.freeze({ ...initialState(CONFIG), pendingUnreserve: unreserve(null) })
+    const award = Object.freeze({ ...release, pendingUnreserve: unreserve(compact(D)) })
+
+    // §8.1 separates them, and `pending_root` is the component that says how.
+    const releaseCp = at(58_179_600, release)
+    const awardCp = at(58_180_320, award)
+    expect(hex(awardCp.pendingRoot)).not.toBe(hex(at(58_180_320, release).pendingRoot))
+    expect(hex(awardCp.commitment)).not.toBe(hex(at(58_180_320, release).commitment))
+
+    const storedRecipient = async () => {
+      const result = await pool.query<{ recipient: string | null }>(
+        `SELECT recipient FROM pending WHERE kind = 'UNRESERVE' AND name = 'nimiq'`,
+      )
+      return result.rows[0]?.recipient ?? null
+    }
+
+    await store.commitBatch({
+      before: initialState(CONFIG),
+      after: Object.freeze({ ...release, height: 58_179_600 }),
+      logRows: [],
+      checkpoints: [releaseCp],
+      nextBatch: 912_040,
+      scannedThrough: 58_179_600,
+    })
+    expect(await storedRecipient()).toBeNull()
+
+    await store.commitBatch({
+      before: Object.freeze({ ...release, height: 58_179_600 }),
+      after: Object.freeze({ ...award, height: 58_180_320 }),
+      logRows: [],
+      checkpoints: [awardCp],
+      nextBatch: 912_041,
+      scannedThrough: 58_180_320,
+    })
+    expect(await storedRecipient()).toBe(compact(D))
+    expect((await store.loadState()).pendingUnreserve.get('nimiq')?.recipient).toBe(compact(D))
+    expect(await store.checkpointAt(58_180_320)).toMatchObject({
+      layout: COMMITMENT_LAYOUT,
+      pendingRoot: hex(awardCp.pendingRoot),
+      commitment: hex(awardCp.commitment),
+    })
+  })
+
   it('streams the log back in canonical order, and reproduces the log hash', async () => {
     // The restart path: the running §8.2 hash is rebuilt from this table.
     // chunkSize 1 forces the keyset pagination to page.

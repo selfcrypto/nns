@@ -284,7 +284,9 @@ describe('the unreserved set is committed — r16 §8.1, tag 0x0A', () => {
   const released = Object.freeze({ ...base, unreserved: new Set(['nimiq']) })
   const pending = Object.freeze({
     ...base,
-    pendingUnreserve: new Map([['nimiq', { name: 'nimiq', effectiveHeight: LAUNCH + 2 * INTERVAL }]]),
+    pendingUnreserve: new Map([
+      ['nimiq', { name: 'nimiq', recipient: null, effectiveHeight: LAUNCH + 2 * INTERVAL }],
+    ]),
   })
   const commit = (state: NnsState) => hex(commitmentFor(state, base.height, logHash([])).commitment)
 
@@ -300,6 +302,20 @@ describe('the unreserved set is committed — r16 §8.1, tag 0x0A', () => {
 
   it('does commit the pending `U` that precedes it', () => {
     expect(commit(pending)).not.toBe(commit(base))
+  })
+
+  it('separates a pending award from a pending release — r17, tag 0x09', () => {
+    // Same name, same effective height; only the recipient differs. Through
+    // r16 the entry did not commit it, so these two states — one gives the
+    // name away, one merely opens it — derived identical roots until the `U`
+    // fired: tag 0x0A's hole one revision later, with an owner at stake.
+    const awarded = Object.freeze({
+      ...base,
+      pendingUnreserve: new Map([
+        ['nimiq', { name: 'nimiq', recipient: compact(D), effectiveHeight: LAUNCH + 2 * INTERVAL }],
+      ]),
+    })
+    expect(commit(awarded)).not.toBe(commit(pending))
   })
 
   it('also moves the tree once the released name is registered', () => {
