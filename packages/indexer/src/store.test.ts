@@ -20,7 +20,7 @@ import {
   type Obligation,
   type PendingRecovery,
 } from '@nns/core'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { CheckpointBuilder, COMMITMENT_LAYOUT, hex, logLineFromRow } from './checkpoint.js'
 import { createPool, migrate } from './db.js'
@@ -367,5 +367,52 @@ describe.skipIf(URL === undefined)('Store', () => {
     for (const row of rows) builder.seed(row)
     expect(builder.lines).toBe(rows.length)
     expect(hex(builder.logHash)).toBe(hex(logHash(rows.map(logLineFromRow))))
+  })
+})
+
+// Runs after the mainnet suite and resets the schema for itself, exactly as
+// that suite's beforeAll does — the two configs share a database but never
+// a set of rows, which is the point of the fingerprint.
+describe.skipIf(URL === undefined)('Store under the fast profile', () => {
+  const pool = createPool(URL ?? '')
+  const { logger } = collectingLogger()
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+  const FAST_CONFIG = defineConfig({
+    networkId: 24,
+    launchHeight: 58_177_000,
+    treasury: A,
+    protocol: B,
+    admin: C,
+    marketplace: D,
+    listingFee: 0n,
+    profile: 'fast',
+  })
+  warn.mockRestore()
+  const store = new Store(pool, FAST_CONFIG, logger)
+
+  beforeAll(async () => {
+    await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public')
+    await migrate(pool, logger)
+  })
+  afterAll(async () => {
+    await pool.end()
+  })
+
+  it('a fast state round-trips through Postgres with its profile intact', async () => {
+    const before = initialState(FAST_CONFIG)
+    expect(before.profile).toBe('fast')
+    const after = populated(before)
+    await store.commitBatch({ before: null, after, logRows: [], nextBatch: 1, scannedThrough: after.height })
+
+    const reloaded = await store.loadState()
+    // The field constantsOf reads: losing it here would advance this state
+    // under mainnet timings after a restart — and only after a restart.
+    expect(reloaded.profile).toBe('fast')
+    expect(rowsOf(reloaded)).toEqual(rowsOf(after))
+  })
+
+  it('refuses to resume under mainnet — the profile is part of the fingerprint', async () => {
+    const mainnet = new Store(pool, CONFIG, logger)
+    await expect(mainnet.loadCursor()).rejects.toThrow(/different deployment config/)
   })
 })

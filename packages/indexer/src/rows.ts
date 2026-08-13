@@ -17,6 +17,7 @@
 
 import {
   LAUNCH_PRICES,
+  isProfileName,
   parseAddress,
   type Address,
   type NameRecord,
@@ -30,6 +31,7 @@ import {
   type PendingTransfer,
   type PendingUnreserve,
   type Prices,
+  type ProfileName,
 } from '@nns/core'
 
 export class RowError extends Error {
@@ -115,6 +117,9 @@ export type ParamsRow = {
   last_governance_height: number | null
   state_height: number
   next_due_height: number | null
+  // NULL is mainnet — the unmarked case, exactly as on `NnsState.profile`,
+  // so a pre-profile database reads back unchanged, object shape included.
+  profile: string | null
 }
 
 export type SettlementRow = {
@@ -260,6 +265,7 @@ export function paramsRow(state: NnsState): ParamsRow {
     state_height: state.height,
     // Infinity has no SQL spelling; NULL is "nothing scheduled".
     next_due_height: Number.isFinite(state.nextDueHeight) ? state.nextDueHeight : null,
+    profile: state.profile ?? null,
   }
 }
 
@@ -294,6 +300,13 @@ function readName(row: NameRow): NameRecord {
 function required<T>(value: T | null | undefined, field: string): T {
   if (value === null || value === undefined) throw new RowError(`${field} must not be null for this kind`)
   return value
+}
+
+/** NULL is mainnet; a name has to be one core knows, since it picks the constants. */
+function toProfile(value: unknown): ProfileName | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'string' && isProfileName(value)) return value
+  throw new RowError(`params.profile: ${JSON.stringify(value)} is not a constants profile`)
 }
 
 export function stateFromRows(rows: StateRows): NnsState {
@@ -385,7 +398,15 @@ export function stateFromRows(rows: StateRows): NnsState {
     commissionBp: toLuna(rows.params.commission_bp, 'params.commission_bp'),
   }
 
+  const profile = toProfile(rows.params.profile)
+
   return Object.freeze({
+    // Mainnet stays the unmarked case: no property, exactly as `initialState`
+    // builds it — a state reloaded from a pre-profile database is
+    // indistinguishable from one that never restarted. A stamped profile is
+    // what `constantsOf` reads, so losing it here would advance a fast state
+    // under mainnet timings after the restart and nowhere else.
+    ...(profile === null ? {} : { profile }),
     height: toHeight(rows.params.state_height, 'params.state_height'),
     names,
     transfers,

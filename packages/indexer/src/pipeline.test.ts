@@ -1,5 +1,5 @@
-import { CONSTANTS, defineConfig, initialState } from '@nns/core'
-import { describe, expect, it } from 'vitest'
+import { CONSTANTS, PROFILES, defineConfig, initialState } from '@nns/core'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   Pipeline,
@@ -58,11 +58,12 @@ function pipeline(options: PipelineOptions = {}) {
 describe('checkpoint boundaries', () => {
   it('steps by CHECKPOINT_INTERVAL from an absolute origin', () => {
     expect(CONSTANTS.CHECKPOINT_INTERVAL).toBe(720)
-    expect(nextBoundaryAbove(0)).toBe(720)
-    expect(nextBoundaryAbove(719)).toBe(720)
+    const interval = CONSTANTS.CHECKPOINT_INTERVAL
+    expect(nextBoundaryAbove(0, interval)).toBe(720)
+    expect(nextBoundaryAbove(719, interval)).toBe(720)
     // A height that IS a boundary has already had it applied.
-    expect(nextBoundaryAbove(720)).toBe(1440)
-    expect(nextBoundaryAbove(58_176_000)).toBe(58_176_720)
+    expect(nextBoundaryAbove(720, interval)).toBe(1440)
+    expect(nextBoundaryAbove(58_176_000, interval)).toBe(58_176_720)
   })
 
   it('applies every boundary in the gap, in order', () => {
@@ -90,6 +91,31 @@ describe('checkpoint boundaries', () => {
     const seen: number[] = []
     advanceThroughBoundaries(initialState(CONFIG), LAUNCH + 60, (height) => seen.push(height), LAUNCH - 1)
     expect(seen).toEqual([LAUNCH])
+  })
+
+  it('takes the interval from the state’s own profile — a fast state checkpoints every block', () => {
+    // Mirrors the reducer's rule: the config's role ends at initialState, and
+    // a fast state advanced by any caller keeps the fast schedule.
+    expect(PROFILES.fast.CHECKPOINT_INTERVAL).toBe(1)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let fastConfig
+    try {
+      fastConfig = defineConfig({
+        networkId: 24,
+        launchHeight: LAUNCH,
+        treasury: A,
+        protocol: B,
+        admin: C,
+        marketplace: D,
+        listingFee: 100_000n,
+        profile: 'fast',
+      })
+    } finally {
+      warn.mockRestore()
+    }
+    const seen: number[] = []
+    advanceThroughBoundaries(initialState(fastConfig), LAUNCH + 3, (height) => seen.push(height), LAUNCH - 1)
+    expect(seen).toEqual([LAUNCH, LAUNCH + 1, LAUNCH + 2, LAUNCH + 3])
   })
 
   it('does not reach back below the state for a stale `after`', () => {

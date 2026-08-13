@@ -50,6 +50,7 @@ function result(overrides: Omit<Partial<BatchResult>, 'counts'> & { counts?: Par
 function checkpoint(height: number, byte: number): Checkpoint {
   const bytes = (fill: number) => new Uint8Array(32).fill(fill)
   return {
+    profile: 'mainnet',
     height,
     nameRoot: bytes(byte),
     pricesRoot: bytes(byte),

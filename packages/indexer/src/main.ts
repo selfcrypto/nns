@@ -48,6 +48,7 @@ async function main(): Promise<void> {
     networkId: settings.networkId,
     launchHeight: settings.launchHeight,
     pollIntervalMs: settings.pollIntervalMs,
+    profile: settings.config.profile,
   })
 
   const pool = createPool(settings.databaseUrl)

@@ -87,9 +87,16 @@ const CHECKPOINT_COLUMNS = [
  * under different §3 values fails instead of continuing on top of rows that
  * are no longer valid. Moving `LAUNCH_HEIGHT`, or adding a reserved name,
  * changes what a replay from scratch would have produced.
+ *
+ * The constants profile is part of that identity — every waiting period the
+ * replay applied came from it — with mainnet as the unmarked case: the key is
+ * absent rather than `"mainnet"`, so every fingerprint ever stored is
+ * unchanged, while a database built under `fast` refuses to resume under
+ * mainnet timings, and vice versa.
  */
 export function configFingerprint(config: NnsConfig): string {
   const payload = JSON.stringify({
+    ...(config.profile === 'mainnet' ? {} : { profile: config.profile }),
     networkId: config.networkId,
     launchHeight: config.launchHeight,
     treasury: config.treasury,
@@ -199,7 +206,7 @@ export class Store {
    */
   async loadState(): Promise<NnsState> {
     const params = await this.pool.query<ParamsRow>(
-      `SELECT fee_standard, fee_long, commission_bp, last_governance_height, state_height, next_due_height
+      `SELECT fee_standard, fee_long, commission_bp, last_governance_height, state_height, next_due_height, profile
        FROM params WHERE id`,
     )
     const paramsRow = params.rows[0]
@@ -398,15 +405,16 @@ export class Store {
   private async writeParams(client: PoolClient, params: ParamsRow): Promise<void> {
     await client.query(
       `INSERT INTO params (id, fee_standard, fee_long, commission_bp,
-                           last_governance_height, state_height, next_due_height)
-       VALUES (TRUE, $1, $2, $3, $4, $5, $6)
+                           last_governance_height, state_height, next_due_height, profile)
+       VALUES (TRUE, $1, $2, $3, $4, $5, $6, $7)
        ON CONFLICT (id) DO UPDATE
          SET fee_standard = EXCLUDED.fee_standard,
              fee_long = EXCLUDED.fee_long,
              commission_bp = EXCLUDED.commission_bp,
              last_governance_height = EXCLUDED.last_governance_height,
              state_height = EXCLUDED.state_height,
-             next_due_height = EXCLUDED.next_due_height`,
+             next_due_height = EXCLUDED.next_due_height,
+             profile = EXCLUDED.profile`,
       [
         params.fee_standard,
         params.fee_long,
@@ -414,6 +422,7 @@ export class Store {
         params.last_governance_height,
         params.state_height,
         params.next_due_height,
+        params.profile,
       ],
     )
   }

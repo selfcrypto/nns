@@ -13,7 +13,7 @@
  * shape.
  */
 
-import { defineConfig, type NnsConfig } from '@nns/core'
+import { defineConfig, type NnsConfig, type ProfileName } from '@nns/core'
 
 import { isLogLevel, type LogLevel } from './logger.js'
 
@@ -141,6 +141,11 @@ function nnsConfig(env: EnvSource, networkId: number, launchHeight: number): Nns
       marketplace: required(env, 'NNS_MARKETPLACE_ADDRESS'),
       listingFee: luna(env, 'NNS_LISTING_FEE'),
       reservedNames: nameList(env, 'NNS_RESERVED_NAMES'),
+      // The cast forwards whatever the variable holds: `defineConfig`
+      // runtime-checks the name — that check exists precisely because
+      // profiles arrive from env vars — and warns loudly on stderr for
+      // anything but mainnet, so a fast indexer cannot start silently.
+      profile: (read(env, 'NNS_PROFILE') ?? 'mainnet') as ProfileName,
     })
   } catch (cause) {
     throw new EnvError(cause instanceof Error ? cause.message : String(cause))

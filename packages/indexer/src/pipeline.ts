@@ -50,9 +50,9 @@
  */
 
 import {
-  CONSTANTS,
   advanceTo,
   canonicalLogLine,
+  constantsOf,
   parseAddress,
   reduce,
   type ChainTransaction,
@@ -121,9 +121,13 @@ export interface BatchResult {
  * heights are consensus-relevant, and those are the checkpoint builder's to
  * settle; for this file the convention only has to be at least as frequent as
  * §7.3 demands.
+ *
+ * @param interval `CHECKPOINT_INTERVAL` of the profile the state evolves
+ *   under — `constantsOf(state)`, never `CONSTANTS` directly, which is how a
+ *   `fast` state (interval 1) keeps its own schedule.
  */
-export function nextBoundaryAbove(height: number): number {
-  return (Math.floor(height / CONSTANTS.CHECKPOINT_INTERVAL) + 1) * CONSTANTS.CHECKPOINT_INTERVAL
+export function nextBoundaryAbove(height: number, interval: number): number {
+  return (Math.floor(height / interval) + 1) * interval
 }
 
 /**
@@ -145,11 +149,15 @@ export function advanceThroughBoundaries(
   after: number = state.height,
 ): NnsState {
   if (target < state.height) return state
+  // The state's own profile picks the interval, exactly as the reducer reads
+  // its timings — a fast state advanced by a mainnet-configured caller still
+  // checkpoints every block, not every 720.
+  const interval = constantsOf(state).CHECKPOINT_INTERVAL
   let current = state
   for (
-    let boundary = nextBoundaryAbove(Math.max(after, state.height - 1));
+    let boundary = nextBoundaryAbove(Math.max(after, state.height - 1), interval);
     boundary <= target;
-    boundary += CONSTANTS.CHECKPOINT_INTERVAL
+    boundary += interval
   ) {
     current = advanceTo(current, boundary)
     // After the advance, so the state handed out is the state *at* the
