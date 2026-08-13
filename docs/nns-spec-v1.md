@@ -15,7 +15,7 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > Everything else reflects decisions already taken.
 
 > **Changes in revision 16 — what building the indexer and sending on
-> mainnet found.** Five changes. One moves bytes, two close holes that made
+> mainnet found.** Six changes. One moves bytes, three close holes that made
 > a divergence invisible, and two are lessons that cost real transactions to
 > learn:
 > - **§8.1 — the unreserved set joins the commitment, under tag `0x0A`.**
@@ -58,6 +58,22 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 >   it makes the bytes reproducible from the spec alone. Also corrects §7.4's
 >   first forfeit bullet, which listed un-prefixed data as a forfeit when
 >   §7.5 discards it unlogged.
+> - **§8.2 — the IPFS clause said two incompatible things and is rewritten.**
+>   It specified the `raw` codec, which addresses a *single block* hashed
+>   over its own bytes, and in the same sentence a fixed chunk size, which
+>   only means anything for a multi-block DAG whose root hashes over
+>   structure. A ~15 MB log is also far past what a raw block can hold. It is
+>   now a **UnixFS file, `dag-pb` root, CIDv1, sha2-256**, with every
+>   DAG-shaping parameter pinned in a table — chunker **262,144 bytes**,
+>   balanced layout, 174 links per node, **raw leaves off**. Raw leaves are
+>   off because with them on, a log small enough to fit one chunk has a `raw`
+>   root: the codec would vary with file size, and reconstructing a CID from
+>   a bare digest requires it to be a constant. §9's `logDigest` is
+>   correspondingly the digest of the snapshot's **root CID**, not of the log
+>   bytes — it is not the keccak256 log hash, which is a different digest
+>   over different bytes and is already committed inside `root`. **No
+>   consensus bytes move**: no root, no log hash, and nothing has been
+>   anchored yet.
 >
 > **Changes in revision 15 — ratifying what the reference implementation
 > found.** `packages/core` (441 tests) surfaced nine spec gaps, four of which
@@ -1729,17 +1745,44 @@ verification began by downloading the log from the very party being checked;
 now anyone can fetch it from any node or gateway, and third parties can pin
 their own copies.
 
-- CIDv1, `raw` codec, sha2-256, added with a fixed chunk size so the same
-  bytes always produce the same CID
-- On the wire, the **32-byte digest as base64url — 43 characters**. Codec
-  and hash function are fixed by this spec, so a client reconstructs the
-  full CID. A base32 CIDv1 would be 59 characters and would fit a message
-  exactly, with no margin; the digest form leaves room
+**The DAG parameters are normative.** A log snapshot is a **UnixFS file**
+with a **dag-pb** root, **CIDv1**, **sha2-256**. A multi-megabyte file is not
+one block, so its root hash is over DAG structure rather than over the file
+bytes, and every parameter that shapes the DAG changes the root CID. All of
+them are therefore pinned here:
+
+| Parameter | Value |
+|---|---|
+| CID version | 1 |
+| Root codec | `dag-pb` (`0x70`) |
+| Multihash | sha2-256 (`0x12`), 32 bytes |
+| Chunker | fixed size, **262,144 bytes** (256 KiB) |
+| Layout | balanced — never trickle |
+| Max links per node | 174 |
+| Raw leaves | **off** |
+| Inline blocks | off |
+
+- **Raw leaves are off deliberately**, and it is not a performance choice.
+  With raw leaves on, a snapshot short enough to fit in a single chunk has no
+  intermediate node at all: the root *is* the leaf, and its codec is `raw`
+  rather than `dag-pb`. The codec would then depend on the size of the file,
+  which is exactly what a client reconstructing a CID from a bare digest
+  cannot know. With raw leaves off, every snapshot — the first one after
+  launch and a full segment alike — has a `dag-pb` root, and the codec is a
+  constant of this spec
+- On the wire, the root CID's **32-byte multihash digest as base64url — 43
+  characters**. Everything else is fixed above, so a client rebuilds the full
+  CID as CIDv1 + `0x70` + `0x12` + `0x20` + digest. A base32 CIDv1 would be
+  59 characters and would fit a message exactly, with no margin; the digest
+  form leaves room
 - **Never a URL, and never a shortener.** A shortener is a mutable
   indirection controlled by somebody, which destroys exactly the property
   content addressing provides
-- Clients MUST hash the fetched bytes and compare to the CID rather than
-  trusting a gateway to have served the right content
+- Clients MUST NOT trust a gateway to have served the right content. Because
+  the table above is pinned, re-deriving the root CID from the fetched bytes
+  is deterministic and is the cheap check. The binding one is stronger and
+  costs nothing extra: replaying the fetched log derives the checkpoint, and
+  a gateway that altered a byte cannot produce the anchored root (§8.4)
 
 Published once per anchor (hourly, §9) rather than once per checkpoint —
 120 CIDs a day would be noise, and the unchanged prefix dedupes anyway.
@@ -1788,11 +1831,14 @@ not-`REGISTERED`.
 ### 8.4 Tiered verification
 
 **Tier 1 — anyone, no node, seconds.** Fetch the log by the CID in the
-anchor (§8.2), verify the bytes hash to that CID, replay it with the
-reference implementation, and compare the root to the anchored root. Catches
-any manipulation of state or rules — and since r11 the fetch does not route
-through the operator, so the cheapest tier no longer depends on the party
-being checked.
+anchor (§8.2), replay it with the reference implementation, and compare the
+derived checkpoint to the anchored root. The comparison is what verifies the
+bytes: the log hash is committed inside the checkpoint, so a gateway that
+served altered bytes cannot reach the anchored root. Re-deriving the CID from
+the fetched bytes (§8.2) is a cheaper early check on the same thing, not a
+second guarantee. Catches any manipulation of state or rules — and since r11
+the fetch does not route through the operator, so the cheapest tier no longer
+depends on the party being checked.
 
 **Tier 2 — anyone with a normal node or a public endpoint.** Spot-check log
 entries by transaction hash against any Nimiq RPC, including the free
@@ -1968,16 +2014,23 @@ event Anchored(
     bytes32 indexed root,
     uint64  nimiqHeight,
     uint64  timestamp,
-    bytes32 logDigest      // sha2-256 digest of the log snapshot (§8.2)
+    bytes32 logDigest      // multihash digest of the log snapshot's CID (§8.2)
 );
 function anchor(bytes32 root, uint64 nimiqHeight, bytes32 logDigest)
     external onlyPublisher;
 ```
 
-`logDigest` is the raw 32-byte digest; the client rebuilds the CID from it,
-since codec and hash function are fixed by §8.2. Carrying it in the event
-costs one extra word of log data and means a single attestation covers both
-the state and the evidence for it.
+`logDigest` is the 32-byte sha2-256 multihash digest of the log snapshot's
+**root CID** — an address, not a hash of the file. It is not the keccak256
+log hash of §8.2, which is a hash of the file bytes and is already committed
+inside `root` by way of the checkpoint. The two are different digests over
+different things and both are load-bearing: `logDigest` says *where the
+evidence is*, the keccak256 inside `root` says *what it must contain*.
+
+The client rebuilds the full CID from `logDigest`, since CID version, codec
+and hash function are fixed by §8.2. Carrying it in the event costs one extra
+word of log data and means a single attestation covers both the state and the
+evidence for it.
 
 Events rather than storage — logs live in the receipt trie, are independently
 verifiable, and cost a fraction of an `SSTORE`.
