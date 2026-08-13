@@ -1,8 +1,9 @@
 import { keccak_256 } from '@noble/hashes/sha3.js'
 import { describe, expect, it } from 'vitest'
 import { LogError, canonicalLogLine, createLogHasher, logFile, logHash, parseLogLine, verdictToken } from './log.js'
-import type { ChainTransaction, ForfeitReason, RefundReason, Verdict } from './reduce.js'
+import type { ChainTransaction, Verdict } from './reduce.js'
 import { ALICE, MAINNET_ID, TREASURY } from './test-fixtures.js'
+import { unionMembers } from './vocabulary-fixture.js'
 
 const tx = (over: Partial<ChainTransaction> = {}): ChainTransaction => ({
   blockNumber: 58_060_800,
@@ -103,32 +104,14 @@ describe('verdictToken', () => {
     // The format carries no prefix, so the column a message landed in is only
     // recoverable if no code appears in both sets. That is an invariant of the
     // log format, not a coincidence of the current names.
-    const forfeits: readonly ForfeitReason[] = [
-      'UNKNOWN_TYPE',
-      'OVER_LENGTH',
-      'MALFORMED_PAYLOAD',
-      'WRONG_RECIPIENT',
-      'WRONG_SENDER',
-      'INSUFFICIENT_VALUE',
-      'INVALID_NAME',
-      'RESERVED_NAME',
-      'NAME_IN_GRACE',
-      'NAME_NOT_REGISTERED',
-      'NAME_NOT_FOUND',
-      'NOT_OWNER',
-      'NOT_OWNER_OR_RECOVERY',
-      'INVALID_HOST',
-      'NOT_ADMIN',
-      'GOVERNANCE_BOUND_VIOLATED',
-      'INSUFFICIENT_NOTICE',
-      'TOO_SOON',
-      'NOTHING_TO_CANCEL',
-      'BELOW_REFUND_FLOOR',
-      'AUCTION_NOT_IN_V1',
-    ]
-    const refunds: readonly RefundReason[] = ['LOST_REGISTRATION_RACE', 'OFFER_NOT_OPEN', 'WRONG_PRICE']
+    //
+    // Both sets come from the declarations themselves: this test once carried a
+    // hand-copied list, which drifted a token behind `ForfeitReason` and so
+    // stopped covering the token it had lost.
+    const forfeits = unionMembers('ForfeitReason')
+    const refunds = unionMembers('RefundReason')
 
-    const overlap = forfeits.filter((reason) => (refunds as readonly string[]).includes(reason))
+    const overlap = forfeits.filter((reason) => refunds.includes(reason))
     expect(overlap).toEqual([])
     expect(forfeits).not.toContain('OK')
     expect(refunds).not.toContain('OK')
