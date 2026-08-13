@@ -22,11 +22,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@noble/curves": "catalog:",
     "@noble/hashes": "catalog:"
   },
   "devDependencies": {
+    "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "@types/node": "catalog:"
+    "vitest": "catalog:"
   }
 }

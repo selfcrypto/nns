@@ -4,6 +4,13 @@
  * Pure and deterministic: no I/O, no network, no clock, no randomness. Two
  * independent implementations following `docs/nns-spec-v1.md` must produce
  * identical bytes from this surface.
+ *
+ * One exception, and it is not a consensus path: {@link generateKeypair} draws
+ * entropy, because generating a key is what it is for. Its entropy source is a
+ * parameter, so it is pure whenever a caller supplies one, and every
+ * derivation step around it — {@link keypairFromPrivateKey},
+ * {@link addressFromPublicKey} — is pure unconditionally. Nothing that feeds a
+ * root or a log hash touches it.
  */
 
 export { CONSTANTS, LUNA_PER_NIM, type Constants } from './constants.js'
@@ -21,6 +28,20 @@ export {
   tryParseAddress,
   type Address,
 } from './address.js'
+
+export {
+  KeypairError,
+  PRIVATE_KEY_BYTES,
+  PUBLIC_KEY_BYTES,
+  addressFromPublicKey,
+  generateKeypair,
+  keypairFromPrivateKey,
+  privateKeyBytes,
+  publicKeyFromPrivateKey,
+  type KeyInput,
+  type Keypair,
+  type RandomBytes,
+} from './keypair.js'
 
 export {
   ConfigError,

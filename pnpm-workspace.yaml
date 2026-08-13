@@ -4,6 +4,7 @@ packages:
 # One version per dependency across all eight packages. Referenced as
 # "catalog:" in each package.json, so they cannot drift apart.
 catalog:
+  '@noble/curves': ^2.3.0
   '@noble/hashes': ^2.3.0
   '@types/node': ^26.2.0
   '@types/pg': ^8.21.0
