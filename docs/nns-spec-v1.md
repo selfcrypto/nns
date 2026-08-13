@@ -76,6 +76,16 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > v2 anti-spam mechanism: the money leaves the system, so no
 > `PROTOCOL_ADDRESS` accumulation, no periodic burn, no `F` ceremony.
 
+> **Amended within r17, 2026-08-13 — two §7.4 clarifications, no bytes
+> move.** `INVALID_HOST`'s condition now names every §6 `D` host rule,
+> character set included: the row granted the token only for over-length and
+> scheme hosts while `MALFORMED_PAYLOAD` claimed "does not parse per §6", so
+> two conforming implementations could token a bad-character host differently
+> and fork the log hash. `core` already read it the way the row now states.
+> And a note records that `OVER_LENGTH` is unreachable on mainnet — the
+> network's 64-byte data cap equals the §5.1 budget, so the token stays in
+> the vocabulary but can never appear in a real log.
+
 > **Changes in revision 16 — what building the indexer and sending on
 > mainnet found.** Six changes. One moves bytes, three close holes that made
 > a divergence invisible, and two are lessons that cost real transactions to
@@ -1063,8 +1073,9 @@ NNS1D<name>|<host>
   NOT be included. Maximum `MAX_HOST_LEN`. Characters drawn only from `a-z`,
   `0-9`, `.`, `-`, `/` (ASCII); MUST NOT begin or end with `.` or `-`, MUST
   NOT begin with `/`, and MUST NOT contain consecutive `.` or `/`. Anything
-  else is rejected — validation must be exact or indexers diverge on the
-  same message.
+  else forfeits `INVALID_HOST` (§7.4) — every one of these rules, the
+  character set included, resolves to that one token, and validation must be
+  exact or indexers diverge on the same message.
 - **Size:** 5 + `len(name)` + 1 + `len(host)` ≤ 58, so name and host together
   MUST NOT exceed **52** characters. `D` is the largest message in the
   protocol; the limit is 58 rather than 64 so it keeps the same margin as
@@ -1616,7 +1627,7 @@ against a message of a listed type.
 | `NAME_NOT_FOUND` | `K` `N` | Name has no record at all. Distinct from the row above because `K` and `N` are valid against a name in `GRACE` |
 | `NOT_OWNER` | `S` `R` `D` `O` | Sender is not the current owner |
 | `NOT_OWNER_OR_RECOVERY` | `X` `K` | Sender is neither the current owner nor the recovery address |
-| `INVALID_HOST` | `D` | Host exceeds `MAX_HOST_LEN` or carries a scheme (§6 `D`) |
+| `INVALID_HOST` | `D` | Host fails any §6 `D` rule: over `MAX_HOST_LEN`, a character outside the §6 `D` alphabet (which is how a scheme is caught — `:` is not in it), or a leading/trailing/consecutive-character rule. Never `MALFORMED_PAYLOAD` — a bad host still splits into fields per §5.2, so the payload parses and the host is judged as content |
 | `NOT_ADMIN` | `P` `U` | Sender is not `ADMIN_ADDRESS` |
 | `INSUFFICIENT_NOTICE` | `P` `U` | `effective_height` less than `GOVERNANCE_DELAY` above the height of the block the message landed in |
 | `NAME_NOT_RESERVED` | `U` | Name is absent from `RESERVED_NAMES`, or a `U` for it has already fired |
@@ -1627,6 +1638,14 @@ against a message of a listed type.
 | `BELOW_MIN_PRICE` | `O` | Price below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
 | `AUCTION_NOT_IN_V1` | `A` | Every `A` that survives the recipient check — it precedes every check on the payload, so a below-reserve `A` takes this token rather than `BELOW_MIN_PRICE` (§6 `A`) |
 | `BELOW_REFUND_FLOOR` | `G` `B` | A message that would otherwise be refundable, carrying less than `REFUND_FLOOR`. The only token that crosses columns |
+
+`OVER_LENGTH` is **unreachable on mainnet**. The network caps transaction
+data at 64 bytes — the same number as the §5.1 budget — so an over-length
+payload is dropped before it can be judged: the RPC accepts it and returns a
+hash, and it never lands in a block (measured; `docs/rpc-reference.md`). The
+token stays in the vocabulary because the budget is the protocol's own rule,
+not a hope about the network's — a deployment with a looser data cap must
+still forfeit here — but no mainnet log can ever contain it.
 
 **Refund tokens.** Each creates an obligation on the address named, discharged
 by an `M` (§6).
