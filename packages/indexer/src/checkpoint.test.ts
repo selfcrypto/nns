@@ -44,9 +44,21 @@ const CONFIG = defineConfig({
 
 const compact = (value: string) => parseAddress(value)
 
+/**
+ * A builder and a pipeline that has already emitted the boundary at `LAUNCH`.
+ *
+ * `LAUNCH` is a multiple of the interval, so §8.1 puts a checkpoint there —
+ * `pipeline.ts` owns that rule and `pipeline.test.ts` covers it. Starting these
+ * tests past it keeps them about the builder: which state a boundary commits,
+ * and which log lines its hash covers.
+ */
 function builder() {
   const { logger, lines } = collectingLogger()
-  return { builder: new CheckpointBuilder({ logger }), pipeline: new Pipeline(CONFIG, logger), lines }
+  return {
+    builder: new CheckpointBuilder({ logger }),
+    pipeline: new Pipeline(CONFIG, logger, { lastCheckpointHeight: LAUNCH }),
+    lines,
+  }
 }
 
 function candidate(overrides: Partial<NnsCandidate> & { blockNumber: number }): NnsCandidate {

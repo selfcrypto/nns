@@ -63,6 +63,7 @@ export {
   toChainTransaction,
   type BatchResult,
   type BoundaryCrossing,
+  type PipelineOptions,
   type VerdictCounts,
 } from './pipeline.js'
 

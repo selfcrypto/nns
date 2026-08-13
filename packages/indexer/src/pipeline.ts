@@ -27,6 +27,26 @@
  * §7.3's fixed order, and applying them earlier than the next observation is
  * indistinguishable from applying them at it. Advancing *less* often is the
  * failure the spec paragraph describes.
+ *
+ * ## Which heights are boundaries
+ *
+ * §8.1: absolute multiples of `CHECKPOINT_INTERVAL`, **every one of them from
+ * `LAUNCH_HEIGHT` onwards** — including `LAUNCH_HEIGHT` itself when it happens
+ * to be such a multiple. That last case is the one this file used to get
+ * wrong: `nextBoundaryAbove` is strictly above, the initial state is already
+ * *at* `LAUNCH_HEIGHT`, and so a launch height of 58,204,800 got no checkpoint
+ * at 58,204,800 while a launch height one block lower got one at the same
+ * place. The schedule is supposed to be the one thing about checkpoints that
+ * does not move with an OPEN §3 value.
+ *
+ * The launch boundary is not an empty formality: it commits the prices in
+ * effect at launch and the (empty) name, pending and unreserved sets under the
+ * launch height, which is the base every later checkpoint is a delta from.
+ *
+ * It is also the one boundary that can fall at a height the state has already
+ * reached, so emitting it exactly once needs a memory of what has been
+ * committed — {@link PipelineOptions.lastCheckpointHeight}, and
+ * {@link Pipeline}'s own tracking of the boundaries it has handed out.
  */
 
 import {
@@ -107,20 +127,29 @@ export function nextBoundaryAbove(height: number): number {
 }
 
 /**
- * Apply every checkpoint boundary in `(state.height, target]`, then land on
- * `target` itself.
+ * Apply every checkpoint boundary in `(after, target]`, then land on `target`
+ * itself.
+ *
+ * @param after the highest boundary already accounted for. Defaults to
+ *   `state.height`, the ordinary case: whatever boundary sits exactly there was
+ *   applied by the call that landed on it. A caller holding a state at a
+ *   boundary it has *not* yet committed — only `LAUNCH_HEIGHT` at the start of
+ *   a run — passes `state.height - 1` to get it. Anything lower is clamped,
+ *   since `advanceTo` moves forward only and a boundary below `state.height`
+ *   belongs to a call that already happened.
  */
 export function advanceThroughBoundaries(
   state: NnsState,
   target: number,
   onBoundary?: (height: number, state: NnsState) => void,
+  after: number = state.height,
 ): NnsState {
-  if (target <= state.height) return state
+  if (target < state.height) return state
   let current = state
   for (
-    let boundary = nextBoundaryAbove(current.height);
+    let boundary = nextBoundaryAbove(Math.max(after, state.height - 1));
     boundary <= target;
-    boundary = nextBoundaryAbove(current.height)
+    boundary += CONSTANTS.CHECKPOINT_INTERVAL
   ) {
     current = advanceTo(current, boundary)
     // After the advance, so the state handed out is the state *at* the
@@ -191,13 +220,41 @@ function logRow(tx: ChainTransaction, verdict: Verdict): LogRow {
   }
 }
 
+export interface PipelineOptions {
+  /**
+   * The highest checkpoint height already committed to the database. Boundaries
+   * are emitted strictly above it.
+   *
+   * Omit it on a fresh start: the default, `launchHeight - 1`, makes
+   * `LAUNCH_HEIGHT` itself the first boundary when it is a multiple of
+   * `CHECKPOINT_INTERVAL` (§8.1).
+   *
+   * A resumed run must pass `store.latestCheckpoint()?.height`. Only one
+   * boundary can fall at a height a reloaded state has already reached —
+   * `LAUNCH_HEIGHT`, when the first batch's macro block *was* `LAUNCH_HEIGHT` —
+   * and re-deriving it would not be a harmless duplicate: the running log hash
+   * has since been reseeded with that block's own lines, so the second
+   * derivation commits a different value at the same height and `Store` stops
+   * the process as a divergence. Which is exactly what it should do; this is
+   * how the run avoids asking.
+   */
+  readonly lastCheckpointHeight?: number
+}
+
 export class Pipeline {
   private readonly config: NnsConfig
   private readonly logger: Logger
+  /**
+   * Highest boundary handed to a caller, so no boundary is emitted twice. One
+   * instance drives one run: the value starts from what the database already
+   * holds and only ever moves up.
+   */
+  private lastBoundary: number
 
-  constructor(config: NnsConfig, logger: Logger) {
+  constructor(config: NnsConfig, logger: Logger, options: PipelineOptions = {}) {
     this.config = config
     this.logger = logger
+    this.lastBoundary = options.lastCheckpointHeight ?? config.launchHeight - 1
   }
 
   /**
@@ -212,6 +269,7 @@ export class Pipeline {
     const logRows: LogRow[] = []
     const boundariesCrossed: BoundaryCrossing[] = []
     const onBoundary = (height: number, atBoundary: NnsState): void => {
+      this.lastBoundary = height
       boundariesCrossed.push({ height, state: atBoundary, logRowsBefore: logRows.length })
     }
 
@@ -228,8 +286,8 @@ export class Pipeline {
       }
       previousKey = key
 
-      // Boundaries below this transaction's height fire before it (§7.3).
-      current = advanceThroughBoundaries(current, candidate.blockNumber, onBoundary)
+      // Boundaries at or below this transaction's height fire before it (§7.3).
+      current = advanceThroughBoundaries(current, candidate.blockNumber, onBoundary, this.lastBoundary)
 
       const tx = toChainTransaction(candidate)
       const result = reduce(current, tx, this.config)
@@ -261,7 +319,7 @@ export class Pipeline {
     // The batch is over whether or not anything happened in it. This is the
     // call the spec makes a MUST, and the one an implementation that advances
     // only on messages silently skips.
-    current = advanceThroughBoundaries(current, throughHeight, onBoundary)
+    current = advanceThroughBoundaries(current, throughHeight, onBoundary, this.lastBoundary)
 
     return { state: current, logRows, counts, boundariesCrossed }
   }

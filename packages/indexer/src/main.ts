@@ -59,6 +59,11 @@ async function main(): Promise<void> {
     // Throws if the database was built under different §3 values.
     const cursor = await store.loadCursor()
     let state = await store.loadState()
+    // §8.1 boundaries are absolute multiples of CHECKPOINT_INTERVAL from
+    // LAUNCH_HEIGHT on, and LAUNCH_HEIGHT can be one of them — a boundary at a
+    // height the reloaded state has already reached. What the database holds
+    // is what says whether it has been committed already.
+    const latestCheckpoint = await store.latestCheckpoint()
 
     // The §8.2 log hash is a fold over every line ever written, and state is
     // reloaded rather than replayed — so the fold is rebuilt from the `log`
@@ -75,7 +80,9 @@ async function main(): Promise<void> {
       attempts: settings.rpcAttempts,
       logger,
     })
-    const pipeline = new Pipeline(settings.config, logger)
+    const pipeline = new Pipeline(settings.config, logger, {
+      ...(latestCheckpoint === null ? {} : { lastCheckpointHeight: latestCheckpoint.height }),
+    })
     // Declared before the scanner so its `target` can read the scanner's view
     // of the chain head; assigned after, since the two refer to each other.
     let scanner: Scanner

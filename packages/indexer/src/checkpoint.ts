@@ -25,9 +25,12 @@
  * agreement. (They are also always macro blocks: the PoS genesis, 3,456,000,
  * is itself a multiple of 720, and 720 is 12 batches.)
  *
- * A boundary is *strictly above* the previous height, so `LAUNCH_HEIGHT`
- * itself never gets a checkpoint even when it is a multiple — the state there
- * is the empty state and commits nothing.
+ * Every multiple from `LAUNCH_HEIGHT` onwards, `LAUNCH_HEIGHT` included when it
+ * is itself a multiple. The state there is the empty state, but the checkpoint
+ * is not empty: it commits the launch prices under the launch height, and it is
+ * the base every later checkpoint is a delta from. Which boundaries a run
+ * emits, and how the launch one is emitted exactly once across a restart, is
+ * `pipeline.ts`'s to settle — see `PipelineOptions.lastCheckpointHeight`.
  *
  * ## The log hash, and why it streams
  *
