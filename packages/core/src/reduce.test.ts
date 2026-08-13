@@ -959,6 +959,18 @@ describe('U — unreserve (§6)', () => {
     expect(lookup(state, 'binance')).toBeNull()
   })
 
+  it('registers a released name with a builder-built G — the builder must not reject on the static list', () => {
+    stepR(unreserve(), { sender: ADMIN })
+    state = advanceTo(state, H)
+
+    // encodeRegister sees the same config that reserves `binance`; released-ness
+    // lives in state.unreserved, which only the reducer can consult.
+    const result = stepR(encodeRegister(reserving, { name: 'binance', fee: FEE }), { sender: ALICE, at: H })
+    expect(result.verdict.kind).toBe('OK')
+    expect(lookup(state, 'binance')?.owner).toBe(ALICE)
+    expect(resolve(state, 'binance')).toBe(ALICE)
+  })
+
   it('awards straight to the recipient at effective_height, never through AVAILABLE', () => {
     expect(stepR(unreserve(BOB), { sender: ADMIN }).verdict).toEqual({ kind: 'OK', obligations: [] })
     expect(state.pendingUnreserve.get('binance')).toEqual({ name: 'binance', recipient: BOB, effectiveHeight: H })
@@ -981,7 +993,7 @@ describe('U — unreserve (§6)', () => {
     stepR(unreserve(BOB), { sender: ADMIN })
     // A sniper who saw the U coming, with a G prepared for the exact block: at
     // H the name is already REGISTERED, so this is a concurrency loss.
-    const g: BuiltTransaction = { ...encodeRegister(reserving, { name: 'kikename', fee: FEE }), data: hexOf('NNS1Gbinance') }
+    const g = encodeRegister(reserving, { name: 'binance', fee: FEE })
     expect(stepR(g, { sender: ALICE, at: H }).verdict).toMatchObject({ kind: 'REFUND', reason: 'LOST_REGISTRATION_RACE' })
     expect(lookup(state, 'binance')?.owner).toBe(BOB)
   })

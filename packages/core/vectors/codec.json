@@ -676,15 +676,6 @@
         "fee": "400000000"
       },
       {
-        "id": "reserved_name",
-        "builder": "register",
-        "name": "binance",
-        "fee": "400000000",
-        "reservedNames": [
-          "binance"
-        ]
-      },
-      {
         "id": "zero_value",
         "builder": "register",
         "name": "kikename",

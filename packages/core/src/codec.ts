@@ -347,9 +347,12 @@ export function encodeRegister(
   config: NnsConfig,
   params: { name: string; ref?: string | undefined; fee: bigint } & SenderOption,
 ): BuiltTransaction {
-  // Reserved names are checked here because §7.4 puts a reserved `G` in the
-  // forfeit column precisely on the grounds that it is "checkable offline".
-  const name = requireName(params.name, config.reservedNames)
+  // Reservation is deliberately NOT checked here. `config.reservedNames` is
+  // the static published list, but whether a name is *registrable* is chain
+  // state: a fired `U` release makes it AVAILABLE (§7.3), and the builder
+  // cannot see `state.unreserved`. Rejecting on the list alone would refuse
+  // registrations the reducer accepts. A still-reserved `G` forfeits (§7.4).
+  const name = requireName(params.name)
   if (params.ref !== undefined && !isValidRef(params.ref)) {
     fail(`invalid ref ${JSON.stringify(params.ref)} — 1…${CONSTANTS.MAX_REF_LEN} chars from a-z, 0-9, - (§6 G)`)
   }

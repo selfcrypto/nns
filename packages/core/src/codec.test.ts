@@ -214,11 +214,14 @@ describe('builders fail loudly where the chain would fail silently', () => {
     expect(() => encodeRegister(config, { name: 'kikename', fee: 0n })).toThrow(/value must be positive/)
   })
 
-  it('rejects an invalid or reserved name for G, both checkable offline (§7.4)', () => {
+  it('rejects an invalid name for G, which is checkable offline (§7.4)', () => {
     expect(() => encodeRegister(config, { name: 'n1m1q', fee: 1n })).toThrow(/INTERIOR_DIGIT/)
     expect(() => encodeRegister(config, { name: 'abcd', fee: 1n })).toThrow(/TOO_SHORT/)
+  })
+
+  it('does not reject a G on reservation alone — released-ness is chain state the builder cannot see', () => {
     const withReserved = testConfig({ reservedNames: ['binance'] })
-    expect(() => encodeRegister(withReserved, { name: 'binance', fee: 1n })).toThrow(/RESERVED/)
+    expect(() => encodeRegister(withReserved, { name: 'binance', fee: 1n })).not.toThrow()
   })
 
   it('does not apply the reserved list to U, which names a reserved name by definition', () => {
