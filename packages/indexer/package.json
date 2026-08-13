@@ -20,7 +20,7 @@
     "typecheck": "tsc -p tsconfig.check.json",
     "test": "vitest run",
     "start": "node --env-file=.env dist/main.js",
-    "dev": "node --env-file=.env src/main.ts",
+    "dev": "pnpm --filter @nns/indexer... build && node --env-file=.env dist/main.js",
     "migrate": "node --env-file=.env dist/migrate.js"
   },
   "dependencies": {
