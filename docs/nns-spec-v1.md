@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 15**
+**Protocol specification, v1 draft — revision 16**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -14,6 +14,39 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > **Review status.** Everything marked **OPEN** is undecided or unverified.
 > Everything else reflects decisions already taken.
 
+> **Changes in revision 16 — what building the indexer and sending on
+> mainnet found.** Four changes. One moves bytes, one closes a hole that
+> made a divergence invisible, and two are lessons that cost real
+> transactions to learn:
+> - **§8.1 — the unreserved set joins the commitment, under tag `0x0A`.**
+>   Tags ran `0x00`–`0x09` and `0x09` is a *pending* `U`; a `U` that had
+>   already fired was committed nowhere. The released name has no leaf in
+>   the name tree either, so two indexers disagreeing about whether a
+>   reserved name is released derived **identical checkpoints** — and went
+>   on doing so until somebody registered the name. Encoded as a flat
+>   bytewise-ordered name list, empty form `keccak256(0x0A)`. **This
+>   changes the commitment**: r16 roots do not match r15 roots.
+> - **§8.1 — checkpoint heights are absolute multiples of
+>   `CHECKPOINT_INTERVAL`**, from block zero, never offsets from
+>   `LAUNCH_HEIGHT`. `LAUNCH_HEIGHT` is still **OPEN**, and an anchor that
+>   moves with an unsettled config value is an anchor two operators can
+>   disagree about while both implementing the clause honestly.
+> - **§6 `P`/`U`, §10.6, §7.4 — `GOVERNANCE_DELAY` runs from the block the
+>   message lands in**, not from when it was built. "Current height" read as
+>   send time; an indexer cannot see send time and two indexers could not
+>   agree on it. §6 `P` was also missing the notice bound entirely — it was
+>   only ever stated for `U` and in §10.6. Verified the expensive way on
+>   mainnet 2026-08-13: a `P` and a `U` carrying `head + 10,000` forfeited
+>   `INSUFFICIENT_NOTICE` and are on-chain permanently. **A governance
+>   message is unretractable**, which is now said out loud.
+> - **§5.3, §11.5 — an unfunded sender is a third silent-drop route**,
+>   alongside self-transactions (§5.3) and over-length payloads (§5.1). The
+>   RPC accepts, returns a hash, and the transaction is never mined. Since
+>   every message carries at least `DUST_VALUE`, `MARKETPLACE_ADDRESS` and
+>   `ADMIN_ADDRESS` — which sign but have no income — go quiet rather than
+>   erroring when they drain. New §11.5 requires a balance precheck before
+>   signing and an alert threshold well above zero.
+>
 > **Changes in revision 15 — ratifying what the reference implementation
 > found.** `packages/core` (441 tests) surfaced nine spec gaps, four of which
 > change bytes: two conforming implementations reading them differently
@@ -319,6 +352,7 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 - [11.2 Do not co-locate with a validator](#112-do-not-co-locate-with-a-validator)
 - [11.3 Start the history sync early](#113-start-the-history-sync-early)
 - [11.4 Public fallback](#114-public-fallback)
+- [11.5 Sending addresses MUST be balance-checked and alerted on](#115-sending-addresses-must-be-balance-checked-and-alerted-on)
 
 **[12. Open questions](#12-open-questions)**
 
@@ -718,6 +752,25 @@ must therefore have a recipient that cannot be the sender. Two operations
 would otherwise be unsendable, and both use `PROTOCOL_ADDRESS` as a sentinel
 recipient: `S` resetting a name's target to the owner's own address, and `R`
 clearing the recovery address (§6).
+
+**Three routes to a silent drop, not two.** The RPC accepting a transaction and
+returning a hash means nothing; there are three known ways for a well-formed
+NNS message to be accepted, hashed, and never mined:
+
+| Route | Where |
+|---|---|
+| Payload over 64 bytes | §5.1 |
+| Sender equals recipient | above |
+| **Sender cannot cover `value` + `fee`** | here |
+
+The third was found the hard way on mainnet 2026-08-13, sending from an
+`ADMIN_ADDRESS` that had drained to 0. Every NNS message carries at least
+`DUST_VALUE` (§5.4), so an address with no income eventually stops being able
+to send at all — and it stops *quietly*, indistinguishably from a healthy send.
+`getTransactionByHash` returning "not found" after the transaction should have
+been included is the only signal there is, so a client MUST NOT treat a
+returned hash as confirmation that a message was sent. See §11.5 for what this
+requires of the addresses NNS itself signs from.
 
 **Two protocol addresses, split by purpose.** `TREASURY_ADDRESS` receives
 money — registration and renewal fees, listing fees, marketplace commission.
@@ -1123,11 +1176,27 @@ NNS1P<fee_standard>|<fee_long>|<commission_bp>|<effective_height>
 - **To:** `PROTOCOL_ADDRESS`, value `DUST_VALUE`
 - Sender MUST be `ADMIN_ADDRESS`
 - `commission_bp`: marketplace rate in basis points, 0 … `COMMISSION_CEILING`
+- `effective_height` ≥ **the height of the block this message lands in** +
+  `GOVERNANCE_DELAY`
 
 All three parameters are set in one message so they can never drift out of
 order or out of sync.
 Bounds and scope in §10.6. Rejected if any bound is violated — every indexer
 enforces them independently.
+
+**Notice is measured from inclusion, not from sending.** The indexer sees only
+the block a message landed in; it has no idea when the message was built, and
+two indexers could not agree on it if it did. A governance message therefore
+has to carry enough notice to survive however long it waits in the mempool.
+
+Get this wrong and there is no second attempt at the same message: it takes an
+`INSUFFICIENT_NOTICE` forfeit and stays on-chain permanently. **A governance
+message is unretractable** — there is no `K` for a `P` or a `U`, and nothing
+that has landed can be recalled. Verified on mainnet 2026-08-13: a `P` and a
+`U` built with `head + 10,000` against a `GOVERNANCE_DELAY` of 43,200 both
+forfeited, and both are still there. Clients MUST compute `effective_height`
+from a fresh head with margin above `GOVERNANCE_DELAY`, never from the exact
+minimum.
 
 ### `U` — Unreserve
 
@@ -1137,10 +1206,12 @@ NNS1U<name>|<effective_height>
 
 - **To:** `PROTOCOL_ADDRESS`, value `DUST_VALUE`
 - Sender MUST be `ADMIN_ADDRESS`
-- `effective_height` ≥ current height + `GOVERNANCE_DELAY`
+- `effective_height` ≥ **the height of the block this message lands in** +
+  `GOVERNANCE_DELAY`, measured and unretractable exactly as for `P` above
 
 Removes `name` from `RESERVED_NAMES` at `effective_height`, after which it is
-`AVAILABLE` under the normal rules. This is the wire mechanism for the
+`AVAILABLE` under the normal rules and the name joins the unreserved set
+committed to in every checkpoint (§8.1). This is the wire mechanism for the
 release power in §10.6. *Adding* to the list remains impossible without a new
 spec version — that direction takes names away from people.
 
@@ -1272,7 +1343,10 @@ the message before the race does.
 - `D` whose host exceeds `MAX_HOST_LEN` or includes a scheme
 - `P` from any sender other than `ADMIN_ADDRESS`, or violating a §10.6 bound
 - `U` from any sender other than `ADMIN_ADDRESS`, or with less than
-  `GOVERNANCE_DELAY` notice
+  `GOVERNANCE_DELAY` notice. For both `P` and `U`, notice is counted from the
+  height of the block the message landed in (§6 `P`), so a message that sat
+  too long in the mempool takes an `INSUFFICIENT_NOTICE` forfeit even though
+  it was correct when it was built — and cannot be withdrawn
 
 **Refundable** — recorded in the log with a `REFUND` verdict. The value sits
 at whichever address received it, which owes the sender a refund discharged
@@ -1349,7 +1423,17 @@ the analysis behind them so the work is not lost.
 ### 8.1 Merkle tree
 
 Every `CHECKPOINT_INTERVAL` blocks, build a tree over all names in
-`REGISTERED` **or `GRACE`** state:
+`REGISTERED` **or `GRACE`** state.
+
+**Checkpoint heights are absolute multiples of `CHECKPOINT_INTERVAL`** —
+counted from block zero, never as offsets from `LAUNCH_HEIGHT`. The schedule
+must not move with a config value: `LAUNCH_HEIGHT` is an **OPEN** §3 value, so
+an offset schedule is one two operators can disagree about while both honestly
+implementing "every `CHECKPOINT_INTERVAL` blocks". Multiples of 720 from zero
+need no agreement. `LAUNCH_HEIGHT` itself never gets a checkpoint unless it
+happens to be such a multiple; a boundary is strictly above the previous one.
+
+The tree itself:
 
 - Leaves sorted bytewise-lexicographically by name
 - `leaf = keccak256(0x00 ‖ enc)`; internal nodes `keccak256(0x01 ‖ left ‖
@@ -1375,16 +1459,29 @@ The delegate host is inside the leaf so that clients can verify *which*
 resolver a parent designated, even though they cannot verify what that
 resolver answers.
 
-The **active prices and commission rate** (§10.6) and the
-**pending set** — in-flight `X`/`R`, open offers, **and any pending `P` or
-`U`**, each with its effective or expiry height — are consensus-relevant
-state and MUST be committed to in the checkpoint alongside the name tree, or
-independent replays diverge. A pending `P` decides what a later registration
-costs and a pending `U` whether a name is registrable at all; they are as
-consensus-relevant as a pending transfer.
+Three things beyond the name tree are consensus-relevant state and MUST be
+committed to in the checkpoint alongside it, or independent replays diverge:
+
+- The **active prices and commission rate** (§10.6).
+- The **pending set** — in-flight `X`/`R`, open offers, **and any pending `P`
+  or `U`**, each with its effective or expiry height. A pending `P` decides
+  what a later registration costs and a pending `U` whether a name is
+  registrable at all; they are as consensus-relevant as a pending transfer.
+- The **unreserved set** — the names whose `U` has already taken effect.
+
+The unreserved set was missing through r15, and its absence was the sharpest
+hole in this clause. A pending `U` is committed under tag `0x09` and then falls
+out of the commitment entirely the moment it fires: the name has no leaf in the
+name tree (it is `AVAILABLE`, not `REGISTERED` or `GRACE`), and it is no longer
+pending. So two indexers disagreeing about whether a reserved name has been
+released — the disagreement that decides whether a registration for it is
+honoured or forfeited as reserved — produced **identical checkpoints**, and
+stayed identical until somebody actually registered the name. The one class of
+divergence this whole design exists to catch was invisible for exactly as long
+as it was cheapest to fix. Tag `0x0A` closes it.
 
 **The commitment layout.** Each component is domain-separated by a distinct
-tag byte and hashed on its own; the three digests are then bound together with
+tag byte and hashed on its own; the four digests are then bound together with
 the log hash and the height into the single value an anchor publishes (§9).
 
 | Tag | Domain |
@@ -1399,6 +1496,7 @@ the log hash and the height into the single value an anchor publishes (§9).
 | `0x07` | an open `O` |
 | `0x08` | a pending `P` |
 | `0x09` | a pending `U` |
+| `0x0A` | the unreserved set |
 
 Field conventions, throughout: heights and luna amounts are **`u64-BE`**;
 addresses are the raw **20 bytes**, never the `NQ` string, and an unset address
@@ -1438,9 +1536,26 @@ With nothing pending the concatenation is empty and `pending` is
 name tree, whose empty form is 32 zero bytes: the two empty cases are different
 values on purpose, so an implementation cannot substitute one for the other.
 
+The unreserved set is a flat list of names — no heights, because a `U` that has
+fired carries nothing but the fact that it fired — encoded exactly as a name is
+encoded everywhere else in this clause, and ordered the same way the pending
+entries within a category are:
+
+```
+unreserved = keccak256(0x0A ‖ len(name₁):u8 ‖ name₁
+                            ‖ len(name₂):u8 ‖ name₂ ‖ … )
+```
+
+Names bytewise-lexicographic, no separators. With nothing unreserved the
+concatenation is empty and the digest is `keccak256(0x0A)`, following `pending`
+rather than the name tree. A name enters this set when its `U` reaches its
+`effective_height` and never leaves it — the set is the record of a governance
+act, not of the name's current status, so a later registration of the name does
+not remove it.
+
 ```
 commitment = keccak256(0x02 ‖ name_root:32B ‖ prices:32B ‖ pending:32B
-                            ‖ log_hash:32B ‖ height:u64-BE)
+                            ‖ unreserved:32B ‖ log_hash:32B ‖ height:u64-BE)
 ```
 
 `height` is the checkpoint height and `log_hash` the §8.2 log hash through it.
@@ -1449,7 +1564,10 @@ settled-versus-owed computable from the log, which makes them derived state
 rather than consensus state.
 
 The reference implementation's `merkle.json` conformance vectors pin every value
-above, both empty forms included.
+above, all three empty forms included. **They are r15 vectors as of this
+revision** — the `0x0A` component is spec text ahead of the implementation, so
+`merkle.json` must be regenerated before an r16 root is published, and any
+checkpoint already computed must record which layout produced it.
 
 keccak256 here so proofs stay cheap to verify on-chain if a future version
 wants that.
@@ -1937,7 +2055,7 @@ anything in flight.
 | Ordering | `fee_long` MUST be ≤ `fee_standard` |
 | Commission | 0 … `COMMISSION_CEILING` (10%), moving at most `COMMISSION_MAX_STEP` (250 bp) per adjustment |
 | Frequency | at least `PRICE_MIN_INTERVAL` (~7 d) since the last accepted `P` |
-| Notice | `effective_height` ≥ current height + `GOVERNANCE_DELAY` |
+| Notice | `effective_height` ≥ **the height of the block the `P` lands in** + `GOVERNANCE_DELAY` (§6 `P`) |
 
 Because all indexers validate these, a **compromised admin key buys a slow,
 visible, bounded nuisance rather than a catastrophe**. It cannot zero the
@@ -2062,6 +2180,35 @@ Sync time grows with chain length. Begin before writing indexer code.
 `rpc.nimiqwatch.com` is a free rate-limited public Nimiq RPC endpoint —
 default for Tier 2 spot-checks, for tutorial readers without a node, and a
 fallback for the mini app.
+
+### 11.5 Sending addresses MUST be balance-checked and alerted on
+
+An address that cannot cover `value` + `fee` fails by silence, not by error
+(§5.3). Two of NNS's own addresses sign transactions and have **no income at
+all**:
+
+| Address | Sends | Income |
+|---|---|---|
+| `MARKETPLACE_ADDRESS` | `M` settlements and refunds (§6 `M`) | Buyer value in, but a `B` it must refund arrives *with* its own value — a run of forfeits does not fund it |
+| `ADMIN_ADDRESS` | `P`, `U` (§6) | None. Dust from `S`/`X`/`R` that happen to name it, and nothing else |
+
+For both, an operator MUST:
+
+1. **Precheck the balance before signing.** Read the sender's balance and
+   compare it against `value` + `fee`; refuse to broadcast rather than emit a
+   transaction that will be dropped.
+2. **Alert on a threshold well above zero**, sized so that topping up is
+   routine rather than an incident. Alerting at zero alerts after the failure.
+
+`TREASURY_ADDRESS` also spends — the burn share (§10.2) and registration
+refunds — but it takes fee income continuously, so it fails differently and
+§10.6 already asks that only an operational balance be kept there. It belongs
+under the same monitoring regardless.
+
+This is an operational requirement, not a consensus rule: an undelivered `M`
+leaves the obligation standing in the log (§6 `M`), which is exactly how a
+shortfall is meant to stay visible. The point of the alert is that the log
+records the debt whether or not anyone is watching.
 
 ---
 
