@@ -233,9 +233,10 @@ interface VectorPrices {
 
 /**
  * Everything §8.1 requires a checkpoint to commit to. Deliberately not the
- * whole of `NnsState`: `outstanding`, `unreserved`, `lastGovernanceHeight` and
+ * whole of `NnsState`: `outstanding`, `lastGovernanceHeight` and
  * `nextDueHeight` are outside the commitment, so a vector that named them
- * would suggest they are inside it.
+ * would suggest they are inside it. `unreserved` was in that list until r16
+ * put it inside the commitment under tag `0x0A`.
  */
 export interface VectorCheckpointState {
   height: number
@@ -246,6 +247,8 @@ export interface VectorCheckpointState {
   offers?: Array<{ name: string; seller: string; price: string; openedHeight: number; expiryHeight: number }>
   pendingGovernance?: { prices: VectorPrices; effectiveHeight: number } | null
   pendingUnreserve?: Array<{ name: string; effectiveHeight: number }>
+  /** Names whose `U` has fired (§8.1 tag `0x0A`). Authored unsorted where the case is about ordering. */
+  unreserved?: string[]
 }
 
 const readPrices = (raw: VectorPrices): Prices => ({
@@ -281,5 +284,6 @@ export function readCheckpointState(
         ? null
         : { prices: readPrices(raw.pendingGovernance.prices), effectiveHeight: raw.pendingGovernance.effectiveHeight },
     pendingUnreserve: byName(raw.pendingUnreserve ?? []),
+    unreserved: new Set(raw.unreserved ?? []),
   })
 }

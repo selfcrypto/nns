@@ -79,10 +79,17 @@ only; it defaults to empty.
 - `proofs` — inclusion proofs over a fixed five-leaf tree, and non-inclusion.
 - `checkpoints` — the §8.1 commitment. `state` is the part of the registry the
   clause requires committed and `logHash` is an input; `nameRoot`,
-  `pricesRoot`, `pendingRoot` and `commitment` are derived. `tags` lists the
-  domain-separation byte for each component. The two empty forms are pinned
-  deliberately: an empty name tree is 32 zero bytes, while an empty pending set
-  is `keccak256(0x04)` — the tag byte alone.
+  `pricesRoot`, `pendingRoot`, `unreservedRoot` and `commitment` are derived.
+  `tags` lists the domain-separation byte for each component. The empty forms
+  are pinned deliberately: an empty name tree is 32 zero bytes, while an empty
+  pending or unreserved set is `keccak256(0x04)` / `keccak256(0x0A)` — the tag
+  byte alone.
+
+  **These commitments are r16.** The unreserved set (tag `0x0A`) is the sixth
+  component; an r15 implementation reproduces all four component digests and
+  none of the commitments. `one_fired_unreserve` is the pair that shows why the
+  component exists — a released name has no leaf and no pending entry, so
+  without `0x0A` it is invisible to the checkpoint.
 
 ### `ordering.json` and `reduce.json`
 
@@ -122,4 +129,7 @@ implementations fork *silently* if they read the clause differently:
    *at that message's height* — so a `P` that moves `FEE_LONG` moves the floor
    (§3, §6 `O`).
 8. **The checkpoint commitment layout** (§8.1), down to the tag bytes and the
-   two empty forms.
+   empty forms. r16 added a sixth component, the unreserved set under `0x0A`:
+   a `U` that has fired leaves no leaf and no pending entry, so before it two
+   indexers disagreeing about whether a name was released committed identical
+   bytes.

@@ -16,6 +16,7 @@ import {
   merkleRoot,
   pendingCommitment,
   sortedRecords,
+  unreservedCommitment,
   verifyProof,
 } from './merkle.js'
 import { type NameRecord, type NnsState, initialState } from './state.js'
@@ -313,6 +314,42 @@ describe('checkpoint — §8.1 final clause', () => {
       pendingUnreserve: new Map([['binance', { name: 'binance', effectiveHeight: 100 }]]),
     })
     expect(bytesEqual(pendingCommitment(withUnreserve), empty)).toBe(false)
+  })
+
+  it('moves when a U fires — the r16 hole, tag 0x0A', () => {
+    const state = stateWith(record({ name: 'kikename' }))
+    const log = new Uint8Array(HASH_BYTES).fill(7)
+    // A fired `U` leaves no leaf and no pending entry, so through r15 these two
+    // states committed alike while disagreeing about whether `binance` was
+    // registrable at all.
+    const released = Object.freeze({ ...state, unreserved: new Set(['binance']) })
+    expect(bytesEqual(checkpoint(released, log).commitment, checkpoint(state, log).commitment)).toBe(false)
+  })
+
+  it('commits an empty unreserved set as keccak256 of its tag byte alone', () => {
+    expect(unreservedCommitment(initialState(config))).toEqual(keccak_256(Uint8Array.of(0x0a)))
+  })
+
+  it('orders the unreserved names bytewise, so insertion order cannot move a root', () => {
+    const forward = Object.freeze({ ...initialState(config), unreserved: new Set(['aname', 'bname', 'cname']) })
+    const backward = Object.freeze({ ...initialState(config), unreserved: new Set(['cname', 'aname', 'bname']) })
+    expect(unreservedCommitment(forward)).toEqual(unreservedCommitment(backward))
+    expect(unreservedCommitment(forward)).toEqual(
+      keccak_256(
+        Uint8Array.from([
+          0x0a,
+          5, ...[...'aname'].map((c) => c.charCodeAt(0)),
+          5, ...[...'bname'].map((c) => c.charCodeAt(0)),
+          5, ...[...'cname'].map((c) => c.charCodeAt(0)),
+        ]),
+      ),
+    )
+  })
+
+  it('length-prefixes the names, so no two sets share an encoding', () => {
+    const split = Object.freeze({ ...initialState(config), unreserved: new Set(['ab', 'cd']) })
+    const joined = Object.freeze({ ...initialState(config), unreserved: new Set(['abcd']) })
+    expect(bytesEqual(unreservedCommitment(split), unreservedCommitment(joined))).toBe(false)
   })
 
   it('rejects a log hash of the wrong length', () => {

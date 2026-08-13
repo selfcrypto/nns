@@ -90,6 +90,7 @@ const stateWith = (config: ReturnType<typeof readConfig>, records: NameRecord[])
     testCase.nameRoot = bytesToHex(result.nameRoot)
     testCase.pricesRoot = bytesToHex(result.pricesRoot)
     testCase.pendingRoot = bytesToHex(result.pendingRoot)
+    testCase.unreservedRoot = bytesToHex(result.unreservedRoot)
     testCase.commitment = bytesToHex(result.commitment)
   }
   save('merkle.json', file)

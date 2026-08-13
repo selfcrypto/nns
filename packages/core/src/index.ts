@@ -119,6 +119,7 @@ export {
   pendingCommitment,
   pricesCommitment,
   sortedRecords,
+  unreservedCommitment,
   verifyProof,
   type Checkpoint,
   type MerkleProof,

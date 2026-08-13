@@ -43,6 +43,7 @@ const TAG = {
   PENDING_OFFER: 0x07,
   PENDING_GOVERNANCE: 0x08,
   PENDING_UNRESERVE: 0x09,
+  UNRESERVED: 0x0a,
 } as const
 
 export class MerkleError extends Error {
@@ -309,6 +310,9 @@ export function merkleNonInclusion(state: NnsState, name: string): NonInclusionP
  * and a pending `U`, which the enumeration then omitted. **r15 ratified both**
  * and writes the bytes out in §8.1 itself; this file implements that clause,
  * and `vectors/merkle.json` pins every value it produces.
+ *
+ * **r16 added a fourth component**, the unreserved set — see
+ * {@link unreservedCommitment}.
  */
 export function pricesCommitment(prices: Prices): Uint8Array {
   return keccak_256(
@@ -373,19 +377,50 @@ export function pendingCommitment(state: NnsState): Uint8Array {
   return keccak_256(concat([u8(TAG.PENDING), ...entries]))
 }
 
+/**
+ * The names whose `U` has already fired — a flat, bytewise-ordered list, no
+ * heights (§8.1, tag `0x0A`, added in r16).
+ *
+ * This is the component whose absence was the sharpest hole in §8.1. A pending
+ * `U` is committed under `0x09` and then falls out of the commitment entirely
+ * the moment it fires: the name has no leaf in the name tree — it is
+ * `AVAILABLE`, not `REGISTERED` or `GRACE` — and it is no longer pending. So
+ * two indexers disagreeing about whether a reserved name had been released
+ * derived *identical* checkpoints, and stayed identical until somebody
+ * registered the name. That disagreement decides whether a registration is
+ * honoured or forfeited as reserved, which makes it exactly the divergence
+ * this design exists to catch.
+ *
+ * A fired `U` carries no height because there is nothing left to schedule, and
+ * a name never leaves the set: it records a governance act, not the name's
+ * current status, so a later registration does not remove it.
+ *
+ * The empty form is `keccak256(0x0A)` — the tag byte alone, following
+ * `pendingCommitment` rather than the name tree's 32 zero bytes.
+ */
+export function unreservedCommitment(state: NnsState): Uint8Array {
+  const names = [...state.unreserved].sort(compareNames)
+  return keccak_256(concat([u8(TAG.UNRESERVED), ...names.map(lengthPrefixed)]))
+}
+
 export interface Checkpoint {
   readonly height: number
   readonly nameRoot: Uint8Array
   readonly pricesRoot: Uint8Array
   readonly pendingRoot: Uint8Array
+  readonly unreservedRoot: Uint8Array
   readonly logHash: Uint8Array
   /** What an anchor publishes (§9). */
   readonly commitment: Uint8Array
 }
 
 /**
- * Bind the name tree, the prices, the pending set, the log hash (§8.2) and the
- * height into the single value an anchor publishes.
+ * Bind the name tree, the prices, the pending set, the unreserved set, the log
+ * hash (§8.2) and the height into the single value an anchor publishes.
+ *
+ * Six components since r16; through r15 the unreserved set was in none of
+ * them. A root derived here is **not** comparable with one derived by an r15
+ * implementation of this clause.
  *
  * @param logHash keccak256 of the canonical log file through this height.
  */
@@ -394,8 +429,9 @@ export function checkpoint(state: NnsState, logHash: Uint8Array): Checkpoint {
   const nameRoot = merkleRoot(state)
   const pricesRoot = pricesCommitment(state.prices)
   const pendingRoot = pendingCommitment(state)
+  const unreservedRoot = unreservedCommitment(state)
   const commitment = keccak_256(
-    concat([u8(TAG.CHECKPOINT), nameRoot, pricesRoot, pendingRoot, logHash, u64be(state.height)]),
+    concat([u8(TAG.CHECKPOINT), nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash, u64be(state.height)]),
   )
-  return { height: state.height, nameRoot, pricesRoot, pendingRoot, logHash, commitment }
+  return { height: state.height, nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash, commitment }
 }

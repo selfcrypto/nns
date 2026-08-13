@@ -201,28 +201,45 @@ describe('vectors/merkle.json', () => {
       expect(bytesToHex(result.nameRoot)).toBe(testCase.nameRoot)
       expect(bytesToHex(result.pricesRoot)).toBe(testCase.pricesRoot)
       expect(bytesToHex(result.pendingRoot)).toBe(testCase.pendingRoot)
+      expect(bytesToHex(result.unreservedRoot)).toBe(testCase.unreservedRoot)
       expect(bytesToHex(result.commitment)).toBe(testCase.commitment)
       expect(result.height).toBe(testCase.state.height)
 
-      // `sameNameRootAs` and `differsFrom` are the point of the pair: the same
-      // names committed under different prices or a different pending set must
-      // keep the name root and move the checkpoint.
+      // The cross-references are the point of each pair: the same names
+      // committed under different prices, a different pending set or a
+      // different unreserved set must keep the name root and move the
+      // checkpoint — while a set authored in a different order must not move it.
       for (const [field, other] of [
         ['sameNameRootAs', testCase.sameNameRootAs],
+        ['sameCommitmentAs', testCase.sameCommitmentAs],
         ['differsFrom', testCase.differsFrom],
       ] as const) {
         if (other === undefined) continue
         const reference = cases.find((c) => c.id === other)
         if (field === 'sameNameRootAs') expect(testCase.nameRoot).toBe(reference.nameRoot)
+        else if (field === 'sameCommitmentAs') expect(testCase.commitment).toBe(reference.commitment)
         else expect(testCase.commitment).not.toBe(reference.commitment)
       }
     })
 
-    it('commits an empty pending set as keccak256 of its tag byte alone, not as zeros', () => {
+    it('commits an empty pending or unreserved set as keccak256 of its tag byte alone, not as zeros', () => {
       const empty = cases.find((c) => c.id === 'empty_state_at_launch')
       expect(empty.nameRoot).toMatch(/^0{64}$/)
       expect(empty.pendingRoot).not.toMatch(/^0{64}$/)
       expect(empty.pendingRoot).toBe(bytesToHex(keccak_256(Uint8Array.of(0x04))))
+      expect(empty.unreservedRoot).toBe(bytesToHex(keccak_256(Uint8Array.of(0x0a))))
+    })
+
+    it('keeps a fired U in the commitment, which is the whole of r16 (tag 0x0A)', () => {
+      // Same names, same prices, same log hash, nothing pending on either side —
+      // the two differ only in whether `binance` has been released. Through r15
+      // they were the same 32 bytes.
+      const before = cases.find((c) => c.id === 'one_name_nothing_pending')
+      const after = cases.find((c) => c.id === 'one_fired_unreserve')
+      expect(after.nameRoot).toBe(before.nameRoot)
+      expect(after.pendingRoot).toBe(before.pendingRoot)
+      expect(after.unreservedRoot).not.toBe(before.unreservedRoot)
+      expect(after.commitment).not.toBe(before.commitment)
     })
   })
 
