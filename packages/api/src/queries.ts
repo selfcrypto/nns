@@ -12,8 +12,8 @@
  * "as of block" stamp the RPC's `metadata` gives state reads.
  */
 
-import { parseAddress, type Address, type NameStatus } from '@nns/core'
-import { toHeight, toLuna } from '@nns/indexer'
+import { BURN_ADDRESS, merkleRoot, parseAddress, type Address, type NameStatus } from '@nns/core'
+import { logLineFromRow, toHeight, toLuna, type LogRow } from '@nns/indexer'
 import type { Pool, PoolClient } from 'pg'
 
 /** The database is present but the indexer has not initialised it yet. */
@@ -88,6 +88,61 @@ export interface ParamsSnapshot {
   } | null
 }
 
+/** A stored §8.1 checkpoint row, digests as bare lowercase hex. */
+export interface LatestCheckpoint {
+  readonly height: number
+  readonly layout: number
+  readonly nameRoot: string
+  readonly pricesRoot: string
+  readonly pendingRoot: string
+  /** `null` on a layout `1` row, whose commitment function had no such digest. */
+  readonly unreservedRoot: string | null
+  readonly logHash: string
+  readonly commitment: string
+}
+
+/**
+ * What §8.3 proofs derive from: the latest checkpoint and the name records
+ * at its height (migration `005` in the indexer).
+ *
+ * `records` is `null` when the snapshot cannot back the checkpoint — the
+ * table is stale or missing, or the §8.1 root derived from it disagrees with
+ * `checkpoints.name_root`. Either way the API degrades to "no proof", never
+ * to a proof that fails verification.
+ */
+export interface ProofBase {
+  readonly checkpoint: LatestCheckpoint
+  readonly records: ReadonlyMap<string, ApiNameRecord> | null
+}
+
+/** The §8.2 log through the latest checkpoint — the hash-covered prefix. */
+export interface CheckpointLog {
+  readonly checkpointHeight: number
+  readonly logHash: string
+  readonly lines: readonly string[]
+}
+
+/** One outstanding obligation (§6 `M`, §7.4), keyed by the owing transaction. */
+export interface ApiObligation {
+  readonly refHeight: number
+  readonly refTxIndex: number
+  readonly ordinal: number
+  readonly kind: string
+  readonly owedBy: Address
+  readonly owedTo: Address
+  readonly amount: bigint
+}
+
+/** A log line addressed to `BURN_ADDRESS` — an `F` attestation, or junk that forfeited (§6 `F`). */
+export interface BurnAttestation {
+  readonly height: number
+  readonly txIndex: number
+  readonly txHash: string
+  readonly sender: Address
+  readonly value: bigint
+  readonly verdict: string
+}
+
 /** A value plus the state height it was read at. */
 export interface Snapshot<T> {
   readonly height: number
@@ -101,6 +156,14 @@ export interface Queries {
   byOwner(owner: Address): Promise<Snapshot<readonly ApiNameRecord[]>>
   offers(): Promise<Snapshot<readonly ApiOffer[]>>
   params(): Promise<Snapshot<ParamsSnapshot>>
+  /** `null` while no checkpoint exists yet. */
+  latestCheckpoint(): Promise<Snapshot<LatestCheckpoint | null>>
+  /** `null` while no checkpoint exists yet; see {@link ProofBase} for degraded forms. */
+  proofBase(): Promise<Snapshot<ProofBase | null>>
+  /** `null` while no checkpoint exists yet. */
+  logThroughCheckpoint(): Promise<Snapshot<CheckpointLog | null>>
+  outstanding(owedTo: Address | null): Promise<Snapshot<readonly ApiObligation[]>>
+  burn(): Promise<Snapshot<readonly BurnAttestation[]>>
 }
 
 // ── Row mapping ─────────────────────────────────────────────────────────────
@@ -151,12 +214,42 @@ function offer(row: Row): ApiOffer {
 
 const NAME_COLUMNS = 'name, owner, target, expiry, status, recovery, host'
 
+const CHECKPOINT_COLUMNS =
+  'height, layout, name_root, prices_root, pending_root, unreserved_root, log_hash, commitment'
+
+function bytesHex(row: Row, field: string): string {
+  const value = row[field]
+  if (!(value instanceof Buffer)) throw new QueryError(`${field}: expected bytes, got ${JSON.stringify(value)}`)
+  return value.toString('hex')
+}
+
+function latestCheckpointOf(row: Row): LatestCheckpoint {
+  return {
+    height: toHeight(row['height'], 'height'),
+    layout: toHeight(row['layout'], 'layout'),
+    nameRoot: bytesHex(row, 'name_root'),
+    pricesRoot: bytesHex(row, 'prices_root'),
+    pendingRoot: bytesHex(row, 'pending_root'),
+    unreservedRoot: row['unreserved_root'] === null ? null : bytesHex(row, 'unreserved_root'),
+    logHash: bytesHex(row, 'log_hash'),
+    commitment: bytesHex(row, 'commitment'),
+  }
+}
+
 // ── Postgres implementation ─────────────────────────────────────────────────
 
 const UNDEFINED_TABLE = '42P01'
 
 export class PgQueries implements Queries {
   readonly #pool: Pool
+  /**
+   * The checkpoint tree, rebuilt only when the checkpoint moves. Keyed on
+   * `height:name_root` so a divergent rewrite at the same height — which
+   * `Store.writeCheckpoints` refuses anyway — could never serve a stale tree.
+   * A cache of a projection: worst case is one wasted rebuild, never a wrong
+   * answer, because the derived root is compared to the stored one below.
+   */
+  #tree: { key: string; records: ReadonlyMap<string, ApiNameRecord> | null } | null = null
 
   constructor(pool: Pool) {
     this.#pool = pool
@@ -314,6 +407,137 @@ export class PgQueries implements Queries {
       }
     })
   }
+
+  async latestCheckpoint(): Promise<Snapshot<LatestCheckpoint | null>> {
+    return this.#snapshot(async (client) => {
+      const row = await latestCheckpointRow(client)
+      return row === null ? null : latestCheckpointOf(row)
+    })
+  }
+
+  async proofBase(): Promise<Snapshot<ProofBase | null>> {
+    return this.#snapshot(async (client) => {
+      const row = await latestCheckpointRow(client)
+      if (row === null) return null
+      const checkpoint = latestCheckpointOf(row)
+
+      const key = `${checkpoint.height}:${checkpoint.nameRoot}`
+      if (this.#tree?.key !== key) {
+        this.#tree = { key, records: await loadTree(client, checkpoint) }
+      }
+      return { checkpoint, records: this.#tree.records }
+    })
+  }
+
+  async logThroughCheckpoint(): Promise<Snapshot<CheckpointLog | null>> {
+    return this.#snapshot(async (client) => {
+      const row = await latestCheckpointRow(client)
+      if (row === null) return null
+      const checkpoint = latestCheckpointOf(row)
+
+      // Keyset-paginated like the indexer's own seed read: the log is small
+      // by design (§8.2), but one unbounded SELECT would bet on that.
+      const lines: string[] = []
+      let after: readonly [number, number] = [-1, -1]
+      for (;;) {
+        const page = await client.query(
+          `SELECT block_height, tx_index, tx_hash, sender, recipient, value, data, verdict
+             FROM log
+            WHERE block_height <= $1 AND (block_height, tx_index) > ($2::bigint, $3::int)
+            ORDER BY block_height, tx_index
+            LIMIT 10000`,
+          [checkpoint.height, after[0], after[1]],
+        )
+        for (const raw of page.rows as LogRow[]) lines.push(logLineFromRow(raw))
+        const last = page.rows[page.rows.length - 1] as LogRow | undefined
+        if (last === undefined || page.rows.length < 10_000) break
+        after = [last.block_height, last.tx_index]
+      }
+      return { checkpointHeight: checkpoint.height, logHash: checkpoint.logHash, lines }
+    })
+  }
+
+  async outstanding(owedTo: Address | null): Promise<Snapshot<readonly ApiObligation[]>> {
+    return this.#snapshot(async (client) => {
+      const filter = owedTo === null ? '' : ' WHERE owed_to = $1'
+      const result = await client.query(
+        `SELECT ref_height, ref_tx_index, ordinal, kind, owed_by, owed_to, amount
+           FROM settlements${filter}
+          ORDER BY ref_height, ref_tx_index, ordinal`,
+        owedTo === null ? [] : [owedTo],
+      )
+      return (result.rows as Row[]).map((row) => ({
+        refHeight: toHeight(row['ref_height'], 'ref_height'),
+        refTxIndex: toHeight(row['ref_tx_index'], 'ref_tx_index'),
+        ordinal: toHeight(row['ordinal'], 'ordinal'),
+        kind: text(row, 'kind'),
+        owedBy: address(row, 'owed_by'),
+        owedTo: address(row, 'owed_to'),
+        amount: toLuna(row['amount'], 'amount'),
+      }))
+    })
+  }
+
+  async burn(): Promise<Snapshot<readonly BurnAttestation[]>> {
+    return this.#snapshot(async (client) => {
+      // Only tagged transfers enter the log (§6 `F`) — an untagged burn is
+      // exactly the shortfall the dashboard exists to make visible.
+      const result = await client.query(
+        `SELECT block_height, tx_index, tx_hash, sender, value, verdict
+           FROM log WHERE recipient = $1
+          ORDER BY block_height, tx_index`,
+        [BURN_ADDRESS],
+      )
+      return (result.rows as Row[]).map((row) => ({
+        height: toHeight(row['block_height'], 'block_height'),
+        txIndex: toHeight(row['tx_index'], 'tx_index'),
+        txHash: text(row, 'tx_hash'),
+        sender: address(row, 'sender'),
+        value: toLuna(row['value'], 'value'),
+        verdict: text(row, 'verdict'),
+      }))
+    })
+  }
+}
+
+async function latestCheckpointRow(client: PoolClient): Promise<Row | null> {
+  const result = await client.query(
+    `SELECT ${CHECKPOINT_COLUMNS} FROM checkpoints ORDER BY height DESC LIMIT 1`,
+  )
+  return (result.rows[0] as Row | undefined) ?? null
+}
+
+/**
+ * The checkpoint's name records, or `null` when they cannot back it.
+ *
+ * The §8.1 root is re-derived from the loaded rows and compared to the
+ * stored `name_root` — this is what lets a full-table snapshot be trusted
+ * without trusting the write path: a stale, torn or missing snapshot (or an
+ * indexer that predates migration `005`) degrades to "no proof", never to a
+ * proof that will not verify. An empty table backs an empty tree, whose
+ * root really is 32 zero bytes.
+ */
+async function loadTree(
+  client: PoolClient,
+  checkpoint: LatestCheckpoint,
+): Promise<ReadonlyMap<string, ApiNameRecord> | null> {
+  // Probed rather than queried outright: an indexer that predates migration
+  // `005` has no such table, and the error would abort the surrounding
+  // transaction — turning "no proofs yet" into a 503 for resolution itself.
+  const probe = await client.query(`SELECT to_regclass('checkpoint_names') AS t`)
+  if ((probe.rows[0] as Row | undefined)?.['t'] === null) return null
+
+  const result = await client.query(
+    `SELECT height, ${NAME_COLUMNS} FROM checkpoint_names`,
+  )
+  const records = new Map<string, ApiNameRecord>()
+  for (const raw of result.rows as Row[]) {
+    if (toHeight(raw['height'], 'height') !== checkpoint.height) return null
+    const record = nameRecord(raw)
+    records.set(record.name, record)
+  }
+  const derived = Buffer.from(merkleRoot({ names: records })).toString('hex')
+  return derived === checkpoint.nameRoot ? records : null
 }
 
 function isUndefinedTable(error: unknown): boolean {

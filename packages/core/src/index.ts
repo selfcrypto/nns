@@ -124,6 +124,7 @@ export {
   verifyProof,
   type Checkpoint,
   type MerkleProof,
+  type NameTreeState,
   type NonInclusionProof,
   type ProofStep,
 } from './merkle.js'

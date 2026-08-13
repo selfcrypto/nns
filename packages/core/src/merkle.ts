@@ -154,8 +154,17 @@ export const leafHash = (record: NameRecord): Uint8Array => keccak_256(concat([u
 const nodeHash = (left: Uint8Array, right: Uint8Array): Uint8Array =>
   keccak_256(concat([u8(TAG.NODE), left, right]))
 
+/**
+ * The name tree is a function of the name records alone, and the parameter
+ * type says so: `Pick<NnsState, 'names'>` lets a caller that has only the
+ * records — the API serving proofs from a checkpoint snapshot — use these
+ * without inventing the rest of a state. A full `NnsState` still satisfies
+ * it structurally. Type-level only; not a byte of §8.1 moved.
+ */
+export type NameTreeState = Pick<NnsState, 'names'>
+
 /** Every name in `REGISTERED` or `GRACE`, sorted bytewise-lexicographically. */
-export function sortedRecords(state: NnsState): NameRecord[] {
+export function sortedRecords(state: NameTreeState): NameRecord[] {
   return [...state.names.values()].sort((a, b) => compareNames(a.name, b.name))
 }
 
@@ -179,7 +188,7 @@ function buildLevels(leaves: readonly Uint8Array[]): Uint8Array[][] {
 }
 
 /** The checkpoint root over the name tree. An empty tree is 32 zero bytes. */
-export function merkleRoot(state: NnsState): Uint8Array {
+export function merkleRoot(state: NameTreeState): Uint8Array {
   const leaves = sortedRecords(state).map(leafHash)
   if (leaves.length === 0) return new Uint8Array(HASH_BYTES)
   const levels = buildLevels(leaves)
@@ -214,7 +223,7 @@ export interface MerkleProof {
  * count, so neither the sibling's side nor the promotion points can be
  * recovered from the hashes alone.
  */
-export function merkleProof(state: NnsState, name: string): MerkleProof | null {
+export function merkleProof(state: NameTreeState, name: string): MerkleProof | null {
   const records = sortedRecords(state)
   const index = records.findIndex((record) => record.name === name)
   if (index < 0) return null
@@ -273,7 +282,7 @@ export type NonInclusionProof =
     }
 
 /** @throws {MerkleError} if the name *is* in the tree — ask for an inclusion proof instead. */
-export function merkleNonInclusion(state: NnsState, name: string): NonInclusionProof {
+export function merkleNonInclusion(state: NameTreeState, name: string): NonInclusionProof {
   const records = sortedRecords(state)
   const root = merkleRoot(state)
 

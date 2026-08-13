@@ -19,6 +19,7 @@ import { createPool, migrate } from './db.js'
 import { Pipeline } from './pipeline.js'
 import { Progress } from './progress.js'
 import { RpcClient } from './rpc.js'
+import { nameRows } from './rows.js'
 import { Scanner } from './scan.js'
 import { Store } from './store.js'
 
@@ -108,11 +109,17 @@ async function main(): Promise<void> {
         // here is fatal by design — the running log hash would be ahead of the
         // table, and a restart reseeds it from the table.
         const due = checkpoints.buildForBatch(result)
+        // The proof snapshot follows the highest boundary this batch crossed
+        // (migration 005) — the API serves §8.3 proofs from it.
+        const boundary = result.boundariesCrossed[result.boundariesCrossed.length - 1]
         await store.commitBatch({
           before,
           after: result.state,
           logRows: result.logRows,
           checkpoints: due,
+          ...(boundary === undefined
+            ? {}
+            : { snapshot: { height: boundary.height, names: nameRows(boundary.state) } }),
           nextBatch: batch + 1,
           scannedThrough: macroBlock,
         })

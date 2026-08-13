@@ -4,10 +4,28 @@
  * its own gated test in `queries.test.ts`.
  */
 
-import { formatAddress, parseAddress } from '@nns/core'
+import {
+  formatAddress,
+  leafHash,
+  logFile,
+  merkleRoot,
+  parseAddress,
+  verifyProof,
+  type NameRecord,
+  type NameStatus,
+  type ProofStep,
+} from '@nns/core'
 import { describe, expect, it } from 'vitest'
 
-import { NotSyncedError, type NameDetail, type Queries, type Snapshot } from './queries.js'
+import {
+  NotSyncedError,
+  type ApiNameRecord,
+  type LatestCheckpoint,
+  type NameDetail,
+  type ProofBase,
+  type Queries,
+  type Snapshot,
+} from './queries.js'
 import { createRoutes, type RouteHandler } from './routes.js'
 
 const A = parseAddress('NQ34 248H 248H 248H 248H 248H 248H 248H 248H')
@@ -48,10 +66,24 @@ const PARAMS = {
 }
 
 /** Every method rejects unless the test stubs it, so a route that reaches for
- * the wrong query fails loudly instead of passing on a default. */
+ * the wrong query fails loudly instead of passing on a default — except
+ * `proofBase`, which every successful resolve/available touches: it defaults
+ * to "no checkpoint yet", the state every route must serve through. */
 function queriesOf(partial: Partial<Queries>): Queries {
   const unstubbed = () => Promise.reject(new Error('query not stubbed'))
-  return { record: unstubbed, detail: unstubbed, byOwner: unstubbed, offers: unstubbed, params: unstubbed, ...partial }
+  return {
+    record: unstubbed,
+    detail: unstubbed,
+    byOwner: unstubbed,
+    offers: unstubbed,
+    params: unstubbed,
+    latestCheckpoint: unstubbed,
+    proofBase: () => Promise.resolve(snap(null)),
+    logThroughCheckpoint: unstubbed,
+    outstanding: unstubbed,
+    burn: unstubbed,
+    ...partial,
+  }
 }
 
 function routes(partial: Partial<Queries>, reservedNames: ReadonlySet<string> = new Set()): RouteHandler {
@@ -100,6 +132,7 @@ describe('/resolve', () => {
         status: 'REGISTERED',
         expiry: 215_880_000,
         host: 'r.example.com',
+        proof: null,
         height: HEIGHT,
       },
     })
@@ -146,7 +179,7 @@ describe('/available', () => {
     const handle = routes({ detail: () => Promise.resolve(snap(EMPTY_DETAIL)) })
     expect(await handle('GET', '/available/alice-example')).toEqual({
       status: 200,
-      body: { name: 'alice-example', available: true, height: HEIGHT },
+      body: { name: 'alice-example', available: true, proof: null, height: HEIGHT },
     })
   })
 
@@ -176,7 +209,7 @@ describe('/available', () => {
     const released = routes({ detail: () => Promise.resolve(snap({ ...EMPTY_DETAIL, unreserved: true })) }, new Set(['nimiq']))
     expect(await released('GET', '/available/nimiq')).toEqual({
       status: 200,
-      body: { name: 'nimiq', available: true, height: HEIGHT },
+      body: { name: 'nimiq', available: true, proof: null, height: HEIGHT },
     })
   })
 })
@@ -333,5 +366,285 @@ describe('/params', () => {
         effectiveHeight: 58_243_200,
       },
     })
+  })
+})
+
+// ── Proofs (§8.3) ───────────────────────────────────────────────────────────
+
+const CHECKPOINT_HEIGHT = 58_198_320 // a multiple of 720
+
+function treeOf(records: readonly ApiNameRecord[]): {
+  base: ProofBase
+  rootHex: string
+  stub: Partial<Queries>
+} {
+  const map = new Map(records.map((record) => [record.name, record]))
+  const rootHex = Buffer.from(merkleRoot({ names: map })).toString('hex')
+  const checkpoint: LatestCheckpoint = {
+    height: CHECKPOINT_HEIGHT,
+    layout: 3,
+    nameRoot: rootHex,
+    pricesRoot: '11'.repeat(32),
+    pendingRoot: '22'.repeat(32),
+    unreservedRoot: '33'.repeat(32),
+    logHash: '44'.repeat(32),
+    commitment: '55'.repeat(32),
+  }
+  const base: ProofBase = { checkpoint, records: map }
+  return { base, rootHex, stub: { proofBase: () => Promise.resolve(snap(base)) } }
+}
+
+/**
+ * The `tasks/02-api.md` "done when", as code: rebuild the leaf from the
+ * document's own fields and recombine it with the proof — **core only**, no
+ * API code anywhere in the path. This is also why the document must carry
+ * `recovery`: without it the preimage below cannot be built.
+ */
+function verifiesWithCoreAlone(doc: Record<string, unknown>, rootHex0x: string): boolean {
+  const record: NameRecord = {
+    name: doc['name'] as string,
+    owner: parseAddress(doc['owner'] as string),
+    target: parseAddress(doc['target'] as string),
+    expiry: doc['expiry'] as number,
+    status: doc['status'] as NameStatus,
+    recovery: doc['recovery'] === null ? null : parseAddress(doc['recovery'] as string),
+    host: doc['delegate'] as string,
+  }
+  const steps: ProofStep[] = (doc['proof'] as { hash: string; side: 'left' | 'right' }[]).map((step) => ({
+    hash: Buffer.from(step.hash.slice(2), 'hex'),
+    side: step.side,
+  }))
+  return verifyProof(leafHash(record), steps, Buffer.from(rootHex0x.slice(2), 'hex'))
+}
+
+describe('/resolve proof (§8.3)', () => {
+  const RECORDS: ApiNameRecord[] = [
+    { ...RECORD, name: 'alice-example', recovery: C },
+    { ...RECORD, name: 'middle-name', owner: B, target: A },
+    { ...RECORD, name: 'omega-name', status: 'GRACE' },
+  ]
+
+  it('serves a document that verifies against the checkpoint root using only core', async () => {
+    const { rootHex, stub } = treeOf(RECORDS)
+    const handle = routes({ record: () => Promise.resolve(snap({ ...RECORDS[0]!, host: '' })), ...stub })
+
+    const response = await handle('GET', '/resolve/alice-example')
+    expect(response.status).toBe(200)
+    const doc = (response.body as { proof: Record<string, unknown> }).proof
+    expect(doc).toMatchObject({
+      name: 'alice-example',
+      owner: formatAddress(A),
+      target: formatAddress(B),
+      recovery: formatAddress(C),
+      delegate: '',
+      root: `0x${rootHex}`,
+      nimiq_height: CHECKPOINT_HEIGHT,
+      anchor: null,
+    })
+    expect(typeof doc['leaf_index']).toBe('number')
+
+    expect(verifiesWithCoreAlone(doc, doc['root'] as string)).toBe(true)
+
+    // Tampering with any served field breaks verification — the proof binds
+    // the fields, which is the entire point of rebuilding the leaf.
+    expect(verifiesWithCoreAlone({ ...doc, owner: formatAddress(B) }, doc['root'] as string)).toBe(false)
+    expect(verifiesWithCoreAlone({ ...doc, recovery: null }, doc['root'] as string)).toBe(false)
+  })
+
+  it('is null for a name the checkpoint tree does not hold yet (§8.7: depth pending, not an error)', async () => {
+    const { stub } = treeOf([RECORDS[1]!, RECORDS[2]!])
+    const handle = routes({ record: () => Promise.resolve(snap(RECORD)), ...stub })
+    const response = await handle('GET', '/resolve/alice-example')
+    expect(response.status).toBe(200)
+    expect((response.body as { proof: unknown }).proof).toBeNull()
+  })
+
+  it('is null when the snapshot cannot back the checkpoint', async () => {
+    const { base } = treeOf(RECORDS)
+    const degraded: ProofBase = { checkpoint: base.checkpoint, records: null }
+    const handle = routes({
+      record: () => Promise.resolve(snap(RECORD)),
+      proofBase: () => Promise.resolve(snap(degraded)),
+    })
+    expect(((await handle('GET', '/resolve/alice-example')).body as { proof: unknown }).proof).toBeNull()
+  })
+})
+
+describe('/available non-inclusion proof (§8.3)', () => {
+  const available = routes.bind(null)
+
+  async function proofFor(name: string, records: readonly ApiNameRecord[]): Promise<Record<string, unknown>> {
+    const { stub } = treeOf(records)
+    const handle = available({ detail: () => Promise.resolve(snap(EMPTY_DETAIL)), ...stub })
+    const response = await handle('GET', `/available/${name}`)
+    expect(response.status).toBe(200)
+    const body = response.body as { available: boolean; proof: Record<string, unknown> }
+    expect(body.available).toBe(true)
+    return body.proof
+  }
+
+  const leafVerifies = (doc: Record<string, unknown>, leaf: unknown): void => {
+    expect(verifiesWithCoreAlone(leaf as Record<string, unknown>, doc['root'] as string)).toBe(true)
+  }
+
+  it('BETWEEN: both bracketing leaves verify against the same root', async () => {
+    const records = [
+      { ...RECORD, name: 'alpha-name' },
+      { ...RECORD, name: 'omega-name' },
+    ]
+    const doc = await proofFor('middle-name', records)
+    expect(doc).toMatchObject({ kind: 'BETWEEN', nimiq_height: CHECKPOINT_HEIGHT, anchor: null })
+    expect((doc['previous'] as Record<string, unknown>)['name']).toBe('alpha-name')
+    expect((doc['next'] as Record<string, unknown>)['name']).toBe('omega-name')
+    leafVerifies(doc, doc['previous'])
+    leafVerifies(doc, doc['next'])
+  })
+
+  it('single-leaf edges: BEFORE_FIRST and AFTER_LAST carry one boundary leaf', async () => {
+    const records = [{ ...RECORD, name: 'middle-name' }]
+
+    const before = await proofFor('alpha-name', records)
+    expect(before['kind']).toBe('BEFORE_FIRST')
+    expect(before['previous']).toBeNull()
+    leafVerifies(before, before['next'])
+
+    const after = await proofFor('omega-name', records)
+    expect(after['kind']).toBe('AFTER_LAST')
+    expect(after['next']).toBeNull()
+    leafVerifies(after, after['previous'])
+  })
+
+  it('EMPTY_TREE: the all-zero root is itself the proof', async () => {
+    const doc = await proofFor('alice-example', [])
+    expect(doc).toMatchObject({
+      kind: 'EMPTY_TREE',
+      previous: null,
+      next: null,
+      root: `0x${'00'.repeat(32)}`,
+    })
+  })
+
+  it('is null when the checkpoint tree still holds the name (released since the boundary)', async () => {
+    const { stub } = treeOf([RECORD])
+    const handle = routes({ detail: () => Promise.resolve(snap(EMPTY_DETAIL)), ...stub })
+    const body = (await handle('GET', '/available/alice-example')).body as { available: boolean; proof: unknown }
+    expect(body.available).toBe(true)
+    expect(body.proof).toBeNull()
+  })
+})
+
+describe('/checkpoints/latest', () => {
+  it('404s while no checkpoint exists', async () => {
+    const handle = routes({ latestCheckpoint: () => Promise.resolve(snap(null)) })
+    expect((await handle('GET', '/checkpoints/latest')).status).toBe(404)
+  })
+
+  it('serves every digest 0x-prefixed', async () => {
+    const { base } = treeOf([RECORD])
+    const handle = routes({ latestCheckpoint: () => Promise.resolve(snap(base.checkpoint)) })
+    expect(await handle('GET', '/checkpoints/latest')).toEqual({
+      status: 200,
+      body: {
+        checkpoint: {
+          height: CHECKPOINT_HEIGHT,
+          layout: 3,
+          nameRoot: `0x${base.checkpoint.nameRoot}`,
+          pricesRoot: `0x${'11'.repeat(32)}`,
+          pendingRoot: `0x${'22'.repeat(32)}`,
+          unreservedRoot: `0x${'33'.repeat(32)}`,
+          logHash: `0x${'44'.repeat(32)}`,
+          commitment: `0x${'55'.repeat(32)}`,
+        },
+        height: HEIGHT,
+      },
+    })
+  })
+})
+
+describe('/log', () => {
+  it('serves the exact §8.2 file bytes through the checkpoint, with its committed hash in a header', async () => {
+    const lines = [
+      '58177017 0 aa11 NQ340000000000000000000000000000000000 NQ930000000000000000000000000000000000 1 4e4e5331 OK',
+      '58177020 2 bb22 NQ340000000000000000000000000000000000 NQ930000000000000000000000000000000000 1 4e4e5331 WRONG_RECIPIENT',
+    ]
+    const handle = routes({
+      logThroughCheckpoint: () =>
+        Promise.resolve(snap({ checkpointHeight: CHECKPOINT_HEIGHT, logHash: '44'.repeat(32), lines })),
+    })
+    const response = await handle('GET', '/log')
+    expect(response.status).toBe(200)
+    expect(response.contentType).toBe('text/plain; charset=utf-8')
+    expect(response.headers).toEqual({
+      'x-nns-checkpoint-height': String(CHECKPOINT_HEIGHT),
+      'x-nns-log-hash': `0x${'44'.repeat(32)}`,
+    })
+    expect(response.body).toEqual(logFile(lines))
+  })
+
+  it('404s while no checkpoint exists', async () => {
+    const handle = routes({ logThroughCheckpoint: () => Promise.resolve(snap(null)) })
+    expect((await handle('GET', '/log')).status).toBe(404)
+  })
+})
+
+describe('/settlements', () => {
+  const OBLIGATION = {
+    refHeight: 58_190_001,
+    refTxIndex: 3,
+    ordinal: 0,
+    kind: 'SALE_PROCEEDS',
+    owedBy: A,
+    owedTo: B,
+    amount: 390_000_000_000n,
+  }
+
+  it('lists outstanding obligations with string amounts', async () => {
+    const handle = routes({ outstanding: () => Promise.resolve(snap([OBLIGATION])) })
+    expect(await handle('GET', '/settlements')).toEqual({
+      status: 200,
+      body: {
+        outstanding: [
+          {
+            ref: { height: 58_190_001, txIndex: 3 },
+            ordinal: 0,
+            kind: 'SALE_PROCEEDS',
+            owedBy: formatAddress(A),
+            owedTo: formatAddress(B),
+            amount: '390000000000',
+          },
+        ],
+        height: HEIGHT,
+      },
+    })
+  })
+
+  it('forwards a parsed owed_to filter and rejects a malformed one', async () => {
+    let seen: unknown = 'not called'
+    const handle = routes({
+      outstanding: (owedTo) => {
+        seen = owedTo
+        return Promise.resolve(snap([]))
+      },
+    })
+    await handle('GET', `/settlements?owed_to=${encodeURIComponent(formatAddress(B))}`)
+    expect(seen).toBe(B)
+    expect((await handle('GET', '/settlements?owed_to=junk')).status).toBe(400)
+  })
+})
+
+describe('/burn', () => {
+  it('sums only accepted attestations; rejected lines stay listed', async () => {
+    const attestations = [
+      { height: 58_190_000, txIndex: 1, txHash: 'aa11', sender: A, value: 100_000n, verdict: 'OK' },
+      { height: 58_190_060, txIndex: 0, txHash: 'bb22', sender: B, value: 999_999n, verdict: 'WRONG_SENDER' },
+      { height: 58_190_120, txIndex: 2, txHash: 'cc33', sender: A, value: 25_000n, verdict: 'OK' },
+    ]
+    const handle = routes({ burn: () => Promise.resolve(snap(attestations)) })
+    const response = await handle('GET', '/burn')
+    expect(response.status).toBe(200)
+    const body = response.body as { burned: string; attestations: { verdict: string; value: string }[] }
+    expect(body.burned).toBe('125000')
+    expect(body.attestations).toHaveLength(3)
+    expect(body.attestations[1]).toMatchObject({ verdict: 'WRONG_SENDER', value: '999999' })
   })
 })

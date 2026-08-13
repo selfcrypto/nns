@@ -20,6 +20,7 @@
 
 import {
   formatAddress,
+  logFile,
   minPrice,
   parseQuery,
   tryParseAddress,
@@ -28,17 +29,25 @@ import {
   type NameInvalidReason,
 } from '@nns/core'
 
+import { inclusionDocument, nonInclusionDocument, type ProofContext } from './proofs.js'
 import {
   NotSyncedError,
   type ApiNameRecord,
   type ApiOffer,
+  type ProofBase,
   type Queries,
 } from './queries.js'
 
 export interface ApiResponse {
   readonly status: number
-  /** Already JSON-serialisable: no `bigint` may reach this field. */
+  /**
+   * Already JSON-serialisable — no `bigint` may reach this field — or raw
+   * bytes when `contentType` says so (`/log` serves the exact §8.2 file).
+   */
   readonly body: unknown
+  /** Defaults to JSON. */
+  readonly contentType?: string
+  readonly headers?: Readonly<Record<string, string>>
 }
 
 export interface RouteOptions {
@@ -79,6 +88,12 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
   const reserved = (name: string, unreserved: boolean): boolean =>
     options.reservedNames.has(name) && !unreserved
 
+  /** `null` when the base cannot back proofs — no checkpoint, or a snapshot that does not reproduce the root. */
+  const contextOf = (base: ProofBase | null): ProofContext | null =>
+    base === null || base.records === null
+      ? null
+      : { records: base.records, nimiqHeight: base.checkpoint.height, rootHex: base.checkpoint.nameRoot }
+
   async function resolveRoute(name: string): Promise<ApiResponse> {
     // No reserved set on purpose: a reserved name awarded by a `U` (§6 `U`)
     // is registered and must resolve like any other.
@@ -105,12 +120,19 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
       // owner can renew — so say which of the two absences this is.
       return respond(404, { error: 'IN_GRACE', name, expiry: record.expiry, height })
     }
+    // The proof rides on its own clock (§8.7): it derives from the latest
+    // checkpoint, so a name registered since simply has `proof: null` until
+    // the next boundary — pending depth, not an error. The §8.3 document
+    // carries the *checkpoint's* record, which may lag the live fields above.
+    const base = await queries.proofBase()
+    const context = contextOf(base.value)
     return respond(200, {
       name,
       target: formatAddress(record.target),
       status: record.status,
       expiry: record.expiry,
       host: record.host,
+      proof: context === null ? null : inclusionDocument(context, name),
       height,
     })
   }
@@ -128,7 +150,18 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
     if (value.record !== null) {
       return no(height, 'TAKEN', { status: value.record.status, expiry: value.record.expiry })
     }
-    return respond(200, { name, available: true, height })
+
+    // §8.5: the app checks availability via non-inclusion proof before
+    // letting a user pay. `null` when the name is still in the checkpoint
+    // tree (released since the boundary) or no checkpoint backs proofs yet.
+    const base = await queries.proofBase()
+    const context = contextOf(base.value)
+    return respond(200, {
+      name,
+      available: true,
+      proof: context === null ? null : nonInclusionDocument(context, name),
+      height,
+    })
   }
 
   async function nameRoute(name: string): Promise<ApiResponse> {
@@ -202,6 +235,84 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
     })
   }
 
+  async function checkpointRoute(): Promise<ApiResponse> {
+    const { height, value } = await queries.latestCheckpoint()
+    if (value === null) return respond(404, { error: 'NO_CHECKPOINT', height })
+    return respond(200, {
+      checkpoint: {
+        height: value.height,
+        layout: value.layout,
+        nameRoot: `0x${value.nameRoot}`,
+        pricesRoot: `0x${value.pricesRoot}`,
+        pendingRoot: `0x${value.pendingRoot}`,
+        unreservedRoot: value.unreservedRoot === null ? null : `0x${value.unreservedRoot}`,
+        logHash: `0x${value.logHash}`,
+        commitment: `0x${value.commitment}`,
+      },
+      height,
+    })
+  }
+
+  async function logRoute(): Promise<ApiResponse> {
+    const { value } = await queries.logThroughCheckpoint()
+    if (value === null) return respond(404, { error: 'NO_CHECKPOINT' })
+    // The exact §8.2 file bytes through the checkpoint, assembled by core:
+    // keccak256 of this body IS the checkpoint's committed log hash, which is
+    // what makes this endpoint verifiable rather than merely informative.
+    return {
+      status: 200,
+      body: logFile(value.lines),
+      contentType: 'text/plain; charset=utf-8',
+      headers: {
+        'x-nns-checkpoint-height': String(value.checkpointHeight),
+        'x-nns-log-hash': `0x${value.logHash}`,
+      },
+    }
+  }
+
+  async function settlementsRoute(owedTo: string | null): Promise<ApiResponse> {
+    let filter: Address | null = null
+    if (owedTo !== null) {
+      filter = tryParseAddress(owedTo)
+      if (filter === null) return respond(400, { error: 'INVALID_ADDRESS' })
+    }
+    const { height, value } = await queries.outstanding(filter)
+    return respond(200, {
+      outstanding: value.map((obligation) => ({
+        ref: { height: obligation.refHeight, txIndex: obligation.refTxIndex },
+        ordinal: obligation.ordinal,
+        kind: obligation.kind,
+        owedBy: formatAddress(obligation.owedBy),
+        owedTo: formatAddress(obligation.owedTo),
+        amount: obligation.amount.toString(),
+      })),
+      height,
+    })
+  }
+
+  async function burnRoute(): Promise<ApiResponse> {
+    const { height, value } = await queries.burn()
+    // 'OK' is §8.2's published verdict token for an accepted message — a
+    // wire constant, like 'REGISTERED'. Rejected lines stay listed: an
+    // attestation that forfeited is part of the auditable record (§10.2).
+    let burned = 0n
+    for (const line of value) {
+      if (line.verdict === 'OK') burned += line.value
+    }
+    return respond(200, {
+      burned: burned.toString(),
+      attestations: value.map((line) => ({
+        height: line.height,
+        txIndex: line.txIndex,
+        txHash: line.txHash,
+        sender: formatAddress(line.sender),
+        value: line.value.toString(),
+        verdict: line.verdict,
+      })),
+      height,
+    })
+  }
+
   async function offersRoute(): Promise<ApiResponse> {
     const { height, value } = await queries.offers()
     return respond(200, { offers: value.map(serialiseOffer), height })
@@ -246,9 +357,11 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
     }
 
     let segments: string[]
+    let searchParams: URLSearchParams
     try {
-      const pathname = new URL(url, 'http://api.invalid').pathname
-      segments = pathname.split('/').filter((s) => s !== '').map(decodeURIComponent)
+      const parsed = new URL(url, 'http://api.invalid')
+      segments = parsed.pathname.split('/').filter((s) => s !== '').map(decodeURIComponent)
+      searchParams = parsed.searchParams
     } catch {
       return respond(400, { error: 'BAD_REQUEST' })
     }
@@ -263,6 +376,12 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
       }
       if (head === 'offers' && segments.length === 1) return await offersRoute()
       if (head === 'params' && segments.length === 1) return await paramsRoute()
+      if (head === 'checkpoints' && a === 'latest' && segments.length === 2) return await checkpointRoute()
+      if (head === 'log' && segments.length === 1) return await logRoute()
+      if (head === 'settlements' && segments.length === 1) {
+        return await settlementsRoute(searchParams.get('owed_to'))
+      }
+      if (head === 'burn' && segments.length === 1) return await burnRoute()
       return respond(404, { error: 'UNKNOWN_ROUTE' })
     } catch (error) {
       if (error instanceof NotSyncedError) {

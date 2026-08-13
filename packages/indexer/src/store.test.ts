@@ -25,7 +25,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { CheckpointBuilder, COMMITMENT_LAYOUT, hex, logLineFromRow } from './checkpoint.js'
 import { createPool, migrate } from './db.js'
 import { Store } from './store.js'
-import { rowsOf, type LogRow } from './rows.js'
+import { nameRows, rowsOf, type LogRow } from './rows.js'
 import { collectingLogger } from './test-fixtures.js'
 
 const URL = process.env['NNS_TEST_DATABASE_URL']
@@ -367,5 +367,42 @@ describe.skipIf(URL === undefined)('Store', () => {
     for (const row of rows) builder.seed(row)
     expect(builder.lines).toBe(rows.length)
     expect(hex(builder.logHash)).toBe(hex(logHash(rows.map(logLineFromRow))))
+  })
+
+  it('replaces the proof snapshot wholesale with the checkpoint it belongs to (migration 005)', async () => {
+    const snapshotRows = async () =>
+      (await pool.query<{ height: number; name: string }>(
+        'SELECT height, name FROM checkpoint_names ORDER BY name',
+      )).rows
+
+    const first = populated(initialState(CONFIG))
+    await store.commitBatch({
+      before: initialState(CONFIG),
+      after: first,
+      logRows: [],
+      snapshot: { height: 58_181_760, names: nameRows(first) },
+      nextBatch: 912_040,
+      scannedThrough: 58_181_760,
+    })
+    expect(await snapshotRows()).toEqual([{ height: 58_181_760, name: 'alice-example' }])
+
+    // The next checkpoint's snapshot replaces, never accumulates: the table
+    // is one checkpoint's name records, and a leftover row from the previous
+    // boundary would change the derived root — which the API checks, so the
+    // failure would be "no proofs", silently, until someone asked why.
+    const second = Object.freeze({
+      ...first,
+      names: new Map([['zeta-name', { ...(first.names.get('alice-example') as NameRecord), name: 'zeta-name' }]]),
+      height: first.height + 720,
+    })
+    await store.commitBatch({
+      before: first,
+      after: second,
+      logRows: [],
+      snapshot: { height: 58_182_480, names: nameRows(second) },
+      nextBatch: 912_041,
+      scannedThrough: 58_182_480,
+    })
+    expect(await snapshotRows()).toEqual([{ height: 58_182_480, name: 'zeta-name' }])
   })
 })

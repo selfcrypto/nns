@@ -113,6 +113,13 @@ export interface CommitInput {
    * behind it did not would be a root nothing can reproduce.
    */
   checkpoints?: readonly Checkpoint[]
+  /**
+   * The name records at the highest checkpoint this batch crossed, for the
+   * API's §8.3 proofs (migration `005`). Same transaction as the checkpoint
+   * row, so `checkpoint_names` can never disagree with `checkpoints` about
+   * which height it snapshots.
+   */
+  snapshot?: { readonly height: number; readonly names: readonly NameRow[] }
   nextBatch: number
   scannedThrough: number
 }
@@ -287,6 +294,7 @@ export class Store {
       await this.writeParams(client, diff.params)
       await insertRows(client, 'log', LOG_COLUMNS, input.logRows, 'DO NOTHING')
       await this.writeCheckpoints(client, input.checkpoints ?? [])
+      if (input.snapshot !== undefined) await this.writeSnapshot(client, input.snapshot)
       await client.query(
         `INSERT INTO "cursor" (id, next_batch, scanned_through, config_fingerprint, updated_at)
          VALUES (TRUE, $1, $2, $3, now())
@@ -339,6 +347,27 @@ export class Store {
           'find which rule they disagree on.',
       )
     }
+  }
+
+  /**
+   * Replace the proof snapshot wholesale. A full rewrite every
+   * `CHECKPOINT_INTERVAL` is deliberate simplicity — the table is one
+   * checkpoint's name records, and a diff against the previous snapshot would
+   * be a second copy of `diff.ts` guarding a projection that a wrong write
+   * cannot corrupt anyway: the API re-derives the root and refuses to serve
+   * proofs from a snapshot that does not reproduce `checkpoints.name_root`.
+   */
+  private async writeSnapshot(
+    client: PoolClient,
+    snapshot: NonNullable<CommitInput['snapshot']>,
+  ): Promise<void> {
+    await client.query('DELETE FROM checkpoint_names')
+    await insertRows(
+      client,
+      'checkpoint_names',
+      ['height', ...NAME_COLUMNS],
+      snapshot.names.map((row) => ({ ...row, height: snapshot.height })),
+    )
   }
 
   private async writeDiff(client: PoolClient, diff: StateDiff): Promise<void> {

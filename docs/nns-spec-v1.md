@@ -2036,6 +2036,7 @@ of overclaim §2.1 exists to avoid.
   "target": "NQ...",
   "expiry": 215725374,
   "status": "REGISTERED",
+  "recovery": null,
   "delegate": "nns.binance.com",
   "root": "0x...",
   "nimiq_height": 58060800,
@@ -2053,6 +2054,14 @@ proof. A bare array of hashes — the obvious format — is not verifiable
 here: §8.1's odd-node promotion makes the tree shape depend on the leaf
 count, so neither a sibling's side nor the promotion points can be recovered
 from the hashes alone.
+
+The document carries **every field the §8.1 leaf encodes** — `recovery`
+included, `null` when unset — because the client re-derives the leaf hash
+from these fields and recombines it with the proof (§8.5). Omit one and the
+proof stops binding the record: a verifier that cannot rebuild the preimage
+is verifying a hash it was handed, which proves nothing about the fields
+next to it. (`recovery` was missing from this example through r16 — the
+gap was found when the first verification test tried to rebuild a leaf.)
 
 **Non-inclusion** — needed before a user pays to register — is proven by
 returning the two adjacent leaves that lexicographically bracket the queried

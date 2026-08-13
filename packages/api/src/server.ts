@@ -17,13 +17,14 @@ export function createServer(handle: RouteHandler, logger?: Logger): Server {
     const started = Date.now()
 
     void (async () => {
-      const { status, body } = await handle(method, url)
-      const payload = JSON.stringify(body)
+      const { status, body, contentType, headers } = await handle(method, url)
+      const payload = body instanceof Uint8Array ? Buffer.from(body) : Buffer.from(JSON.stringify(body))
       response.writeHead(status, {
-        'content-type': 'application/json; charset=utf-8',
-        'content-length': Buffer.byteLength(payload),
+        'content-type': contentType ?? 'application/json; charset=utf-8',
+        'content-length': payload.length,
         // Resolution answers go stale a block later; never let a proxy pin one.
         'cache-control': 'no-store',
+        ...headers,
       })
       response.end(method === 'HEAD' ? undefined : payload)
       logger?.debug('api.request', { method, url, status, ms: Date.now() - started })

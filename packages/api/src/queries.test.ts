@@ -9,11 +9,23 @@
  * the indexer writes, in the shape migration `004` leaves them.
  */
 
-import { parseAddress } from '@nns/core'
-import { createPool, migrate } from '@nns/indexer'
+import {
+  BURN_ADDRESS,
+  leafHash,
+  logFile,
+  logHash,
+  merkleRoot,
+  parseAddress,
+  verifyProof,
+  type NameRecord,
+  type NameStatus,
+  type ProofStep,
+} from '@nns/core'
+import { createPool, logLineFromRow, migrate, type LogRow } from '@nns/indexer'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { NotSyncedError, PgQueries } from './queries.js'
+import { NotSyncedError, PgQueries, type ApiNameRecord } from './queries.js'
+import { createRoutes } from './routes.js'
 
 const URL = process.env['NNS_TEST_DATABASE_URL']
 const A = parseAddress('NQ34 248H 248H 248H 248H 248H 248H 248H 248H')
@@ -134,5 +146,189 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
       unreserve: null,
       unreserved: false,
     })
+  })
+})
+
+// ── Checkpoint-derived reads: proofs, the log, settlements, the burn ─────────
+
+const CP_HEIGHT = 58_198_320 // a multiple of 720, at or below HEIGHT
+
+const record = (name: string, over: Partial<ApiNameRecord> = {}): ApiNameRecord => ({
+  name,
+  owner: A,
+  target: B,
+  expiry: 215_880_000,
+  status: 'REGISTERED',
+  recovery: null,
+  host: '',
+  ...over,
+})
+
+/** The done-when, over real SQL: rebuild the leaf from the served fields, core only. */
+function docVerifies(doc: Record<string, unknown>, rootHex0x: string): boolean {
+  const leaf: NameRecord = {
+    name: doc['name'] as string,
+    owner: parseAddress(doc['owner'] as string),
+    target: parseAddress(doc['target'] as string),
+    expiry: doc['expiry'] as number,
+    status: doc['status'] as NameStatus,
+    recovery: doc['recovery'] === null ? null : parseAddress(doc['recovery'] as string),
+    host: doc['delegate'] as string,
+  }
+  const steps: ProofStep[] = (doc['proof'] as { hash: string; side: 'left' | 'right' }[]).map((step) => ({
+    hash: Buffer.from(step.hash.slice(2), 'hex'),
+    side: step.side,
+  }))
+  return verifyProof(leafHash(leaf), steps, Buffer.from(rootHex0x.slice(2), 'hex'))
+}
+
+describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
+  const pool = createPool(URL ?? '')
+  const queries = new PgQueries(pool)
+  const handle = createRoutes(queries, { reservedNames: new Set(), listingFee: 0n })
+
+  afterAll(async () => {
+    await pool.end()
+  })
+
+  const treeRecords = [record('alice-example', { recovery: C, host: 'r.example.com' }), record('zeta-name')]
+  const coveredRows: LogRow[] = [
+    {
+      block_height: 58_190_000,
+      tx_index: 0,
+      tx_hash: 'aa'.repeat(32),
+      sender: A,
+      recipient: B,
+      value: '400000000',
+      data: '4e4e533147616c6963652d6578616d706c65',
+      verdict: 'OK',
+    },
+    {
+      block_height: 58_190_060,
+      tx_index: 1,
+      tx_hash: 'bb'.repeat(32),
+      sender: B,
+      recipient: A,
+      value: '1',
+      data: '4e4e533153616c6963652d6578616d706c65',
+      verdict: 'WRONG_RECIPIENT',
+    },
+  ]
+
+  it('seeds a checkpoint whose root and log hash the fixtures reproduce', async () => {
+    const nameRoot = Buffer.from(merkleRoot({ names: new Map(treeRecords.map((r) => [r.name, r])) }))
+    const coveredHash = Buffer.from(logHash(coveredRows.map(logLineFromRow)))
+
+    for (const row of coveredRows) {
+      await pool.query(
+        `INSERT INTO log (block_height, tx_index, tx_hash, sender, recipient, value, data, verdict)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [row.block_height, row.tx_index, row.tx_hash, row.sender, row.recipient, row.value, row.data, row.verdict],
+      )
+    }
+    // One line above the checkpoint: committed, but outside the covered prefix.
+    await pool.query(
+      `INSERT INTO log (block_height, tx_index, tx_hash, sender, recipient, value, data, verdict)
+       VALUES ($1, 0, $2, $3, $4, '1', '4e4e53314b616c6963652d6578616d706c65', 'OK')`,
+      [CP_HEIGHT + 60, 'cc'.repeat(32), A, B],
+    )
+
+    const filler = Buffer.alloc(32, 7)
+    await pool.query(
+      `INSERT INTO checkpoints (height, layout, name_root, prices_root, pending_root, unreserved_root, log_hash, commitment)
+       VALUES ($1, 3, $2, $3, $3, $3, $4, $3)`,
+      [CP_HEIGHT, nameRoot, filler, coveredHash],
+    )
+    for (const r of treeRecords) {
+      await pool.query(
+        `INSERT INTO checkpoint_names (height, name, owner, target, expiry, status, recovery, host)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [CP_HEIGHT, r.name, r.owner, r.target, r.expiry, r.status, r.recovery, r.host],
+      )
+    }
+
+    const latest = await queries.latestCheckpoint()
+    expect(latest.value).toMatchObject({ height: CP_HEIGHT, layout: 3, nameRoot: nameRoot.toString('hex') })
+
+    const base = await queries.proofBase()
+    expect(base.value?.records?.size).toBe(2)
+  })
+
+  it('a proof fetched over HTTP routes verifies with core alone — the task-02 done-when', async () => {
+    const resolved = await handle('GET', '/resolve/alice-example')
+    expect(resolved.status).toBe(200)
+    const doc = (resolved.body as { proof: Record<string, unknown> }).proof
+    expect(doc).toMatchObject({ nimiq_height: CP_HEIGHT, recovery: 'NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK' })
+
+    const checkpointRoute = await handle('GET', '/checkpoints/latest')
+    const advertised = (checkpointRoute.body as { checkpoint: { nameRoot: string } }).checkpoint.nameRoot
+    expect(doc['root']).toBe(advertised)
+    expect(docVerifies(doc, advertised)).toBe(true)
+  })
+
+  it('a non-inclusion proof brackets the queried name and both leaves verify', async () => {
+    const response = await handle('GET', '/available/gamma-name')
+    expect(response.status).toBe(200)
+    const body = response.body as { available: boolean; proof: Record<string, unknown> }
+    expect(body.available).toBe(true)
+    expect(body.proof).toMatchObject({ kind: 'BETWEEN', nimiq_height: CP_HEIGHT })
+    for (const side of ['previous', 'next'] as const) {
+      expect(docVerifies(body.proof[side] as Record<string, unknown>, body.proof['root'] as string)).toBe(true)
+    }
+  })
+
+  it('/log serves exactly the §8.2 bytes the checkpoint committed to', async () => {
+    const response = await handle('GET', '/log')
+    expect(response.status).toBe(200)
+    expect(response.body).toEqual(logFile(coveredRows.map(logLineFromRow)))
+    expect(response.headers).toMatchObject({
+      'x-nns-log-hash': `0x${Buffer.from(logHash(coveredRows.map(logLineFromRow))).toString('hex')}`,
+    })
+  })
+
+  it('degrades to no proof when the snapshot cannot reproduce the newest root', async () => {
+    // A newer checkpoint lands but its snapshot write is missing — the exact
+    // state an indexer that predates migration 005 leaves behind. The stale
+    // snapshot's height no longer matches, so proofs must vanish rather than
+    // verify against the wrong root.
+    const filler = Buffer.alloc(32, 9)
+    await pool.query(
+      `INSERT INTO checkpoints (height, layout, name_root, prices_root, pending_root, unreserved_root, log_hash, commitment)
+       VALUES ($1, 3, $2, $2, $2, $2, $2, $2)`,
+      [CP_HEIGHT + 720, filler],
+    )
+    const base = await queries.proofBase()
+    expect(base.value?.checkpoint.height).toBe(CP_HEIGHT + 720)
+    expect(base.value?.records).toBeNull()
+
+    const resolved = await handle('GET', '/resolve/alice-example')
+    expect(resolved.status).toBe(200)
+    expect((resolved.body as { proof: unknown }).proof).toBeNull()
+  })
+
+  it('lists outstanding settlements, optionally filtered by creditor', async () => {
+    await pool.query(
+      `INSERT INTO settlements (ref_height, ref_tx_index, ordinal, kind, owed_by, owed_to, amount)
+       VALUES (58190001, 3, 0, 'SALE_PROCEEDS', $1, $2, '390000000000'),
+              (58190001, 3, 1, 'COMMISSION', $1, $3, '10000000000')`,
+      [B, A, C],
+    )
+    expect((await queries.outstanding(null)).value).toHaveLength(2)
+    const filtered = await queries.outstanding(A)
+    expect(filtered.value).toHaveLength(1)
+    expect(filtered.value[0]?.amount).toBe(390_000_000_000n)
+  })
+
+  it('/burn sums accepted attestations and keeps rejected ones visible', async () => {
+    await pool.query(
+      `INSERT INTO log (block_height, tx_index, tx_hash, sender, recipient, value, data, verdict)
+       VALUES (58199000, 0, $1, $2, $4, '100000', '4e4e533146', 'OK'),
+              (58199060, 0, $3, $2, $4, '999', '4e4e533146', 'WRONG_SENDER')`,
+      ['dd'.repeat(32), A, 'ee'.repeat(32), BURN_ADDRESS],
+    )
+    const response = await handle('GET', '/burn')
+    const body = response.body as { burned: string; attestations: unknown[] }
+    expect(body.burned).toBe('100000')
+    expect(body.attestations).toHaveLength(2)
   })
 })

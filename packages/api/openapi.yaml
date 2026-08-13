@@ -1,0 +1,574 @@
+# OpenAPI description of the NNS read-only resolver API (@nns/api).
+#
+# Conventions the whole surface shares:
+# - Read-only: every route is GET (HEAD is honoured), there are no writes.
+# - Luna amounts are decimal STRINGS (bigint does not survive JSON).
+# - Heights are integers.
+# - Addresses go out in the conventional spaced form ("NQ34 248H …");
+#   inputs are accepted with or without spaces.
+# - Every state-derived JSON response carries `height`: the state height of
+#   the single database snapshot it was read from.
+# - Digests are 0x-prefixed lowercase hex.
+# - 503 NOT_SYNCED on every route until the indexer has initialised the
+#   database the API reads.
+# - Proof documents follow spec §8.3 verbatim (snake_case field names there
+#   are the wire format, not this API's style).
+
+openapi: 3.1.0
+info:
+  title: NNS resolver API
+  version: 0.2.0
+  description: >
+    Read-only HTTP over the NNS indexer's database: resolution, availability,
+    name detail, ownership listings, offers, parameters, §8.3 Merkle proofs,
+    the §8.2 log, checkpoints, settlements and the burn record. No writes, no
+    keys, no protocol rules — every rule and every hash comes from @nns/core.
+
+paths:
+  /resolve/{name}:
+    get:
+      summary: Resolve a name to its payment target
+      description: >
+        Answers only while the name is REGISTERED (§7.3): during GRACE the
+        record exists but resolution is off, and the 404 distinguishes the
+        two. Dotted queries are refused — §8.6 delegated resolution is the
+        client's job. The attached §8.3 proof derives from the latest
+        checkpoint, so a name registered since the boundary carries
+        `proof: null` until the next one (§8.7 — depth pending, not an
+        error); the proof's fields are the checkpoint's record, which may lag
+        the live fields beside it.
+      parameters:
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: The name resolves.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name, target, status, expiry, host, proof, height]
+                properties:
+                  name: { type: string }
+                  target: { $ref: '#/components/schemas/Address' }
+                  status: { const: REGISTERED }
+                  expiry: { $ref: '#/components/schemas/Height' }
+                  host:
+                    type: string
+                    description: Delegate resolver host (§6 D), '' when none.
+                  proof:
+                    oneOf:
+                      - $ref: '#/components/schemas/InclusionProof'
+                      - type: 'null'
+                  height: { $ref: '#/components/schemas/Height' }
+        '400':
+          description: INVALID_NAME (with the §4.1 reason) or DOTTED_QUERY (with the parent to resolve instead).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: NOT_FOUND, or IN_GRACE (record exists, resolution off, expiry included).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
+  /available/{name}:
+    get:
+      summary: Whether a name can be registered
+      description: >
+        Always 200 for a well-formed request — unavailability is an answer,
+        with a reason: a §4.1 validity reason, RESERVED (on the published
+        list and not released by a fired U), or TAKEN (REGISTERED or GRACE —
+        grace names are renewable, hence taken). When available, carries the
+        §8.3 non-inclusion proof against the latest checkpoint (§8.5 requires
+        checking it before letting a user pay); `null` when no checkpoint
+        backs proofs yet or the checkpoint tree still holds the name.
+      parameters:
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: Availability verdict.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name, available, height]
+                properties:
+                  name: { type: string }
+                  available: { type: boolean }
+                  reason:
+                    type: string
+                    description: Present iff not available. A §4.1 reason code, RESERVED, or TAKEN.
+                  status:
+                    type: string
+                    description: With reason TAKEN — REGISTERED or GRACE.
+                  expiry: { $ref: '#/components/schemas/Height' }
+                  proof:
+                    oneOf:
+                      - $ref: '#/components/schemas/NonInclusionProof'
+                      - type: 'null'
+                    description: Present iff available.
+                  height: { $ref: '#/components/schemas/Height' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
+  /name/{name}:
+    get:
+      summary: Everything the state knows about one name
+      parameters:
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: >
+            The record (null when unregistered) plus pending items — transfer,
+            recovery change, open offer, pending unreserve — and the reserved
+            / unreserved flags. Served whenever anything is known, including a
+            bare reserved-list entry.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name, reserved, unreserved, record, pending, height]
+                properties:
+                  name: { type: string }
+                  reserved:
+                    type: boolean
+                    description: On the published list and not released by a fired U.
+                  unreserved:
+                    type: boolean
+                    description: A U for this name has fired (release or award). Permanent.
+                  record:
+                    oneOf:
+                      - $ref: '#/components/schemas/NameRecord'
+                      - type: 'null'
+                  pending:
+                    type: object
+                    required: [transfer, recovery, offer, unreserve]
+                    properties:
+                      transfer:
+                        oneOf: [{ $ref: '#/components/schemas/PendingTransfer' }, { type: 'null' }]
+                      recovery:
+                        oneOf: [{ $ref: '#/components/schemas/PendingRecovery' }, { type: 'null' }]
+                      offer:
+                        oneOf: [{ $ref: '#/components/schemas/Offer' }, { type: 'null' }]
+                      unreserve:
+                        oneOf: [{ $ref: '#/components/schemas/PendingUnreserve' }, { type: 'null' }]
+                  height: { $ref: '#/components/schemas/Height' }
+        '400':
+          description: INVALID_NAME with the §4.1 reason.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: NOT_FOUND — nothing known about a valid name.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
+  /address/{addr}/names:
+    get:
+      summary: Names owned by an address
+      parameters:
+        - name: addr
+          in: path
+          required: true
+          schema: { type: string }
+          description: Nimiq address, spaced or compact.
+      responses:
+        '200':
+          description: Owned names (REGISTERED and GRACE), sorted by name. Empty list when none.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [address, names, height]
+                properties:
+                  address: { $ref: '#/components/schemas/Address' }
+                  names:
+                    type: array
+                    items:
+                      type: object
+                      required: [name, target, expiry, status, host]
+                      properties:
+                        name: { type: string }
+                        target: { $ref: '#/components/schemas/Address' }
+                        expiry: { $ref: '#/components/schemas/Height' }
+                        status: { $ref: '#/components/schemas/Status' }
+                        host: { type: string }
+                  height: { $ref: '#/components/schemas/Height' }
+        '400':
+          description: INVALID_ADDRESS.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
+  /offers:
+    get:
+      summary: All open offers
+      responses:
+        '200':
+          description: The pending set's open O messages, sorted by name.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [offers, height]
+                properties:
+                  offers:
+                    type: array
+                    items: { $ref: '#/components/schemas/Offer' }
+                  height: { $ref: '#/components/schemas/Height' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
+  /params:
+    get:
+      summary: The fees in effect, and what a client needs to build fee-bearing messages
+      description: >
+        The active prices (governable, §10.6), MIN_PRICE — FEE_LONG as in
+        effect at this height, computed by core, never a constant (§6 O) —
+        the O listing fee, and any scheduled governance change with its
+        effective height, so a client sees a fee change coming before it
+        bites. A client cannot build a correct G, O or A without this route.
+      responses:
+        '200':
+          description: Current parameters.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [prices, minPrice, listingFee, lastGovernanceHeight, pendingGovernance, height]
+                properties:
+                  prices: { $ref: '#/components/schemas/Prices' }
+                  minPrice: { $ref: '#/components/schemas/Luna' }
+                  listingFee: { $ref: '#/components/schemas/Luna' }
+                  lastGovernanceHeight:
+                    oneOf: [{ $ref: '#/components/schemas/Height' }, { type: 'null' }]
+                  pendingGovernance:
+                    oneOf:
+                      - type: object
+                        required: [prices, effectiveHeight]
+                        properties:
+                          prices: { $ref: '#/components/schemas/Prices' }
+                          effectiveHeight: { $ref: '#/components/schemas/Height' }
+                      - type: 'null'
+                  height: { $ref: '#/components/schemas/Height' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
+  /checkpoints/latest:
+    get:
+      summary: The latest §8.1 checkpoint
+      responses:
+        '200':
+          description: >
+            The six committed components and the commitment, 0x-hex, plus the
+            layout of the commitment function that produced them.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [checkpoint, height]
+                properties:
+                  checkpoint:
+                    type: object
+                    required: [height, layout, nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash, commitment]
+                    properties:
+                      height: { $ref: '#/components/schemas/Height' }
+                      layout: { type: integer }
+                      nameRoot: { $ref: '#/components/schemas/Digest' }
+                      pricesRoot: { $ref: '#/components/schemas/Digest' }
+                      pendingRoot: { $ref: '#/components/schemas/Digest' }
+                      unreservedRoot:
+                        oneOf: [{ $ref: '#/components/schemas/Digest' }, { type: 'null' }]
+                        description: null on a layout-1 row, whose commitment function had no such digest.
+                      logHash: { $ref: '#/components/schemas/Digest' }
+                      commitment: { $ref: '#/components/schemas/Digest' }
+                  height: { $ref: '#/components/schemas/Height' }
+        '404':
+          description: NO_CHECKPOINT — none written yet.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
+  /log:
+    get:
+      summary: The §8.2 log through the latest checkpoint
+      description: >
+        The exact canonical file bytes whose keccak256 IS the checkpoint's
+        committed log hash — verifiable, not merely informative. Lines above
+        the checkpoint are excluded until the next boundary covers them.
+      responses:
+        '200':
+          description: The canonical log file.
+          headers:
+            x-nns-checkpoint-height:
+              schema: { type: integer }
+              description: The checkpoint height the served prefix is covered through.
+            x-nns-log-hash:
+              schema: { type: string }
+              description: The committed keccak256 of exactly this body, 0x-hex.
+          content:
+            text/plain:
+              schema: { type: string }
+        '404':
+          description: NO_CHECKPOINT — none written yet.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
+  /settlements:
+    get:
+      summary: Outstanding settlement obligations
+      description: >
+        What an M has yet to discharge (§6 M, §7.4): refunds, sale proceeds
+        and commission, keyed by the transaction that created the debt.
+        Deliberately not part of the §8.1 commitment — settled-versus-owed is
+        computable from the log; this is the convenience view.
+      parameters:
+        - name: owed_to
+          in: query
+          required: false
+          schema: { type: string }
+          description: Filter by creditor address.
+      responses:
+        '200':
+          description: Outstanding obligations in canonical order.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [outstanding, height]
+                properties:
+                  outstanding:
+                    type: array
+                    items:
+                      type: object
+                      required: [ref, ordinal, kind, owedBy, owedTo, amount]
+                      properties:
+                        ref:
+                          type: object
+                          required: [height, txIndex]
+                          properties:
+                            height: { $ref: '#/components/schemas/Height' }
+                            txIndex: { type: integer }
+                        ordinal: { type: integer }
+                        kind:
+                          type: string
+                          enum: [REFUND, SALE_PROCEEDS, COMMISSION]
+                        owedBy: { $ref: '#/components/schemas/Address' }
+                        owedTo: { $ref: '#/components/schemas/Address' }
+                        amount: { $ref: '#/components/schemas/Luna' }
+                  height: { $ref: '#/components/schemas/Height' }
+        '400':
+          description: INVALID_ADDRESS in owed_to.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
+  /burn:
+    get:
+      summary: The burn record (§10.2)
+      description: >
+        Every log line addressed to BURN_ADDRESS — F attestations and
+        anything that forfeited trying — with the accepted total. Only
+        tagged transfers enter the log, which is the point of F: an untagged
+        burn is exactly the shortfall this record makes visible. The "owed"
+        side of burned-versus-owed is fee accounting over the log and belongs
+        to the dashboard consuming /log, not to this API.
+      responses:
+        '200':
+          description: Attestations in canonical order, and the accepted sum.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [burned, attestations, height]
+                properties:
+                  burned:
+                    $ref: '#/components/schemas/Luna'
+                    description: Sum of value over lines whose verdict is OK.
+                  attestations:
+                    type: array
+                    items:
+                      type: object
+                      required: [height, txIndex, txHash, sender, value, verdict]
+                      properties:
+                        height: { $ref: '#/components/schemas/Height' }
+                        txIndex: { type: integer }
+                        txHash: { type: string }
+                        sender: { $ref: '#/components/schemas/Address' }
+                        value: { $ref: '#/components/schemas/Luna' }
+                        verdict: { type: string }
+                  height: { $ref: '#/components/schemas/Height' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
+components:
+  parameters:
+    name:
+      name: name
+      in: path
+      required: true
+      schema: { type: string }
+      description: A §4.1 name. Lowercase; the API rejects rather than normalises.
+
+  responses:
+    NotSynced:
+      description: The indexer has not initialised this database yet.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Address:
+      type: string
+      description: Nimiq address in conventional spaced form.
+      examples: ['NQ34 248H 248H 248H 248H 248H 248H 248H 248H']
+    Luna:
+      type: string
+      pattern: '^[0-9]+$'
+      description: Integer luna as a decimal string. 1 NIM = 100,000 luna.
+    Height:
+      type: integer
+      description: Nimiq block height.
+    Digest:
+      type: string
+      pattern: '^0x[0-9a-f]{64}$'
+    Status:
+      type: string
+      enum: [REGISTERED, GRACE]
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Stable machine-readable code (NOT_FOUND, IN_GRACE, INVALID_NAME, DOTTED_QUERY, INVALID_ADDRESS, UNKNOWN_ROUTE, METHOD_NOT_ALLOWED, NO_CHECKPOINT, NOT_SYNCED, INTERNAL).
+      additionalProperties: true
+    NameRecord:
+      type: object
+      required: [name, owner, target, expiry, status, recovery, host]
+      properties:
+        name: { type: string }
+        owner: { $ref: '#/components/schemas/Address' }
+        target: { $ref: '#/components/schemas/Address' }
+        expiry: { $ref: '#/components/schemas/Height' }
+        status: { $ref: '#/components/schemas/Status' }
+        recovery:
+          oneOf: [{ $ref: '#/components/schemas/Address' }, { type: 'null' }]
+        host: { type: string }
+    PendingTransfer:
+      type: object
+      required: [newOwner, effectiveHeight, viaRecovery]
+      properties:
+        newOwner: { $ref: '#/components/schemas/Address' }
+        effectiveHeight: { $ref: '#/components/schemas/Height' }
+        viaRecovery: { type: boolean }
+    PendingRecovery:
+      type: object
+      required: [recovery, effectiveHeight]
+      properties:
+        recovery:
+          oneOf: [{ $ref: '#/components/schemas/Address' }, { type: 'null' }]
+          description: null clears the recovery address — a value, not an absence (§6 R).
+        effectiveHeight: { $ref: '#/components/schemas/Height' }
+    PendingUnreserve:
+      type: object
+      required: [recipient, effectiveHeight]
+      properties:
+        recipient:
+          oneOf: [{ $ref: '#/components/schemas/Address' }, { type: 'null' }]
+          description: null releases the name, an address is awarded it (§6 U, r17).
+        effectiveHeight: { $ref: '#/components/schemas/Height' }
+    Offer:
+      type: object
+      required: [name, seller, price, openedHeight, expiryHeight]
+      properties:
+        name: { type: string }
+        seller: { $ref: '#/components/schemas/Address' }
+        price: { $ref: '#/components/schemas/Luna' }
+        openedHeight: { $ref: '#/components/schemas/Height' }
+        expiryHeight: { $ref: '#/components/schemas/Height' }
+    Prices:
+      type: object
+      required: [feeStandard, feeLong, commissionBp]
+      properties:
+        feeStandard: { $ref: '#/components/schemas/Luna' }
+        feeLong: { $ref: '#/components/schemas/Luna' }
+        commissionBp:
+          type: string
+          description: Basis points, decimal string.
+    ProofStep:
+      type: object
+      required: [hash, side]
+      properties:
+        hash: { $ref: '#/components/schemas/Digest' }
+        side:
+          type: string
+          enum: [left, right]
+          description: Which side the SIBLING sits on (§8.3).
+    ProvenLeaf:
+      type: object
+      description: >
+        One §8.1 leaf with its path. Carries every field the leaf encodes —
+        recovery included, null when unset — because the verifier re-derives
+        the leaf hash from these fields; omit one and the proof binds
+        nothing (§8.3).
+      required: [name, owner, target, expiry, status, recovery, delegate, leaf_index, proof]
+      properties:
+        name: { type: string }
+        owner: { $ref: '#/components/schemas/Address' }
+        target: { $ref: '#/components/schemas/Address' }
+        expiry: { $ref: '#/components/schemas/Height' }
+        status: { $ref: '#/components/schemas/Status' }
+        recovery:
+          oneOf: [{ $ref: '#/components/schemas/Address' }, { type: 'null' }]
+        delegate:
+          type: string
+          description: Delegate resolver host, '' when none. §8.3's name for the record's host field.
+        leaf_index: { type: integer }
+        proof:
+          type: array
+          items: { $ref: '#/components/schemas/ProofStep' }
+    InclusionProof:
+      description: The §8.3 inclusion document. anchor is null until the Ethereum anchor publishes (§9).
+      allOf:
+        - $ref: '#/components/schemas/ProvenLeaf'
+        - type: object
+          required: [root, nimiq_height, anchor]
+          properties:
+            root: { $ref: '#/components/schemas/Digest' }
+            nimiq_height:
+              $ref: '#/components/schemas/Height'
+              description: The checkpoint height the proof is against.
+            anchor:
+              oneOf:
+                - type: object
+                  properties:
+                    chain: { type: string }
+                    tx: { type: string }
+                    block: { type: integer }
+                - type: 'null'
+    NonInclusionProof:
+      type: object
+      description: >
+        §8.3 non-inclusion — the two leaves that lexicographically bracket
+        the queried name, each with its own proof; a single boundary leaf at
+        the tree's edges; both null on an empty tree, whose all-zero root is
+        itself the proof. Proves AVAILABLE, since grace names are in the
+        tree (§8.1).
+      required: [kind, previous, next, root, nimiq_height, anchor]
+      properties:
+        kind:
+          type: string
+          enum: [EMPTY_TREE, BEFORE_FIRST, AFTER_LAST, BETWEEN]
+        previous:
+          oneOf: [{ $ref: '#/components/schemas/ProvenLeaf' }, { type: 'null' }]
+        next:
+          oneOf: [{ $ref: '#/components/schemas/ProvenLeaf' }, { type: 'null' }]
+        root: { $ref: '#/components/schemas/Digest' }
+        nimiq_height: { $ref: '#/components/schemas/Height' }
+        anchor:
+          oneOf: [{ type: object }, { type: 'null' }]
