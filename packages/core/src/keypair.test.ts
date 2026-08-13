@@ -57,6 +57,41 @@ const VECTORS: ReadonlyArray<readonly [string, string, string]> = [
   ],
 ]
 
+/**
+ * Externally supplied `publicKey → address` vectors: the four §3 protocol
+ * addresses, generated outside this repo by separate Nimiq tooling and
+ * confirmed by the author on 2026-08-13.
+ *
+ * These pin the half that is ours to get wrong — `blake2b-256(pk)[0..20]` plus
+ * the codec — against an implementation we did not write and cannot see.
+ *
+ * A public key is not a secret and recovers nothing, so unlike a private-key
+ * vector these cost nothing to publish. Pinning the same four addresses the
+ * other way round would have meant committing the keys that control them.
+ */
+const PUBLIC_KEY_VECTORS: ReadonlyArray<readonly [string, string, string]> = [
+  [
+    'treasury',
+    'd2d42e4ce03a9d6e8e6ccd1c342aae802a06040d73e50b54a1b27e7ebc109618',
+    'NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3',
+  ],
+  [
+    'protocol',
+    '51a68659d31398a25ba0b9f1df12bedd58cd09046573e0fe63ca80f25182c80f',
+    'NQ38NKD47ALGYRDQDXL8PARE7JRSJGJDMAU8',
+  ],
+  [
+    'admin',
+    '56e66d464878088e5b6104e643cc9d944a6d2d0a28d831ce98019a1abdbec59e',
+    'NQ806XNVJDFYYEKFHMM3UCYKVBLP7H6YFNXS',
+  ],
+  [
+    'marketplace',
+    '7f119c2211e8a33fc4065f8aa2e54100e34e52558f9fed36abd567c6e9ef23d6',
+    'NQ71TPMVQN9DMV6A1HX1NL2Q4CJG5J8MQPTB',
+  ],
+]
+
 /** Raw Ed25519 public key via OpenSSL, for an independent second opinion. */
 function crossCheckWithOpenSSL(seedHex: string): string {
   const wrapper = Buffer.from('302e020100300506032b657004220420', 'hex')
@@ -91,6 +126,13 @@ describe('the derivation is pinned outside this implementation', () => {
     expect(addressFromPublicKey(publicKey)).toBe(address)
     expect(keypairFromPrivateKey(privateKey)).toEqual({ privateKey, publicKey, address })
   })
+
+  it.each(PUBLIC_KEY_VECTORS)(
+    'derives the §3 %s address from a public key generated elsewhere',
+    (_role, publicKey, address) => {
+      expect(addressFromPublicKey(publicKey)).toBe(address)
+    },
+  )
 })
 
 describe('addressFromPublicKey', () => {
