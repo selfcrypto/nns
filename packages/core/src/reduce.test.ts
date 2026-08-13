@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Address } from './address.js'
 import {
+  BURN_ADDRESS,
   type BuiltTransaction,
   encodeBurn,
   encodeBuy,
@@ -881,16 +882,108 @@ describe('P — governance (§6, §10.6)', () => {
 })
 
 describe('U — unreserve (§6)', () => {
+  const reserving = testConfig({ reservedNames: ['binance'] })
+  const H = LAUNCH + CONSTANTS.GOVERNANCE_DELAY
+
+  /** `step`, but against the config that reserves `binance`. */
+  const stepR = (built: BuiltTransaction, options: SendOptions): ReduceResult => {
+    const result = reduce(state, send(built, options), reserving)
+    state = result.state
+    return result
+  }
+
+  const unreserve = (recipient: Address | null = null): BuiltTransaction =>
+    encodeUnreserve(reserving, { name: 'binance', effectiveHeight: H, recipient })
+
+  beforeEach(() => {
+    state = initialState(reserving)
+  })
+
   it('forfeits from anyone but ADMIN_ADDRESS, and without notice', () => {
-    expect(
-      step(encodeUnreserve(config, { name: 'binance', effectiveHeight: LAUNCH + CONSTANTS.GOVERNANCE_DELAY }), {
-        sender: ALICE,
-      }).verdict,
-    ).toEqual({ kind: 'FORFEIT', reason: 'NOT_ADMIN' })
+    expect(stepR(unreserve(), { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'NOT_ADMIN' })
 
     expect(
-      step(encodeUnreserve(config, { name: 'binance', effectiveHeight: LAUNCH + 1 }), { sender: ADMIN }).verdict,
+      stepR(encodeUnreserve(reserving, { name: 'binance', effectiveHeight: LAUNCH + 1 }), { sender: ADMIN }).verdict,
     ).toEqual({ kind: 'FORFEIT', reason: 'INSUFFICIENT_NOTICE' })
+  })
+
+  it('forfeits an award to BURN_ADDRESS, in its own row of the §7.4 order', () => {
+    // The builder refuses to produce this, so the recipient is swapped by hand.
+    const toBurn: BuiltTransaction = { ...unreserve(), recipient: BURN_ADDRESS }
+    // NOT_ADMIN still comes first…
+    expect(stepR(toBurn, { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'NOT_ADMIN' })
+    // …then INVALID_RECIPIENT, *before* the notice check: the recipient
+    // decides which of two operations the message even is (§7.4).
+    const short: BuiltTransaction = {
+      ...encodeUnreserve(reserving, { name: 'binance', effectiveHeight: LAUNCH + 1 }),
+      recipient: BURN_ADDRESS,
+    }
+    expect(stepR(short, { sender: ADMIN }).verdict).toEqual({ kind: 'FORFEIT', reason: 'INVALID_RECIPIENT' })
+  })
+
+  it('forfeits a name failing §4.1 rules 1–5 — the short names stay where §6 A expects them', () => {
+    // 1–4 character names are reserved *and* invalid; INVALID_NAME wins, so a
+    // U can neither release one as a no-op nor award a name no client accepts.
+    const built: BuiltTransaction = { ...unreserve(), data: hexOf(`NNS1Uabc|${H}`) }
+    expect(stepR(built, { sender: ADMIN }).verdict).toEqual({ kind: 'FORFEIT', reason: 'INVALID_NAME' })
+  })
+
+  it('forfeits a name that is not reserved, or whose U has already fired', () => {
+    expect(
+      stepR(encodeUnreserve(reserving, { name: 'kikename', effectiveHeight: H }), { sender: ADMIN }).verdict,
+    ).toEqual({ kind: 'FORFEIT', reason: 'NAME_NOT_RESERVED' })
+
+    stepR(unreserve(), { sender: ADMIN })
+    const again = encodeUnreserve(reserving, {
+      name: 'binance',
+      effectiveHeight: H + CONSTANTS.GOVERNANCE_DELAY,
+    })
+    expect(stepR(again, { sender: ADMIN, at: H }).verdict).toEqual({ kind: 'FORFEIT', reason: 'NAME_NOT_RESERVED' })
+  })
+
+  it('forfeits a second U while one is pending — nothing queues behind a pending U', () => {
+    stepR(unreserve(), { sender: ADMIN })
+    expect(stepR(unreserve(BOB), { sender: ADMIN, txIndex: 1 }).verdict).toEqual({
+      kind: 'FORFEIT',
+      reason: 'UNRESERVE_PENDING',
+    })
+  })
+
+  it('releases with no recipient recorded, and the name is AVAILABLE at effective_height', () => {
+    stepR(unreserve(), { sender: ADMIN })
+    expect(state.pendingUnreserve.get('binance')).toEqual({ name: 'binance', recipient: null, effectiveHeight: H })
+
+    state = advanceTo(state, H)
+    expect(state.pendingUnreserve.has('binance')).toBe(false)
+    expect(state.unreserved.has('binance')).toBe(true)
+    expect(lookup(state, 'binance')).toBeNull()
+  })
+
+  it('awards straight to the recipient at effective_height, never through AVAILABLE', () => {
+    expect(stepR(unreserve(BOB), { sender: ADMIN }).verdict).toEqual({ kind: 'OK', obligations: [] })
+    expect(state.pendingUnreserve.get('binance')).toEqual({ name: 'binance', recipient: BOB, effectiveHeight: H })
+
+    state = advanceTo(state, H)
+    expect(state.unreserved.has('binance')).toBe(true)
+    expect(lookup(state, 'binance')).toEqual({
+      name: 'binance',
+      owner: BOB,
+      target: BOB,
+      expiry: H + CONSTANTS.TERM_LENGTH,
+      status: 'REGISTERED',
+      recovery: null,
+      host: '',
+    })
+    expect(resolve(state, 'binance')).toBe(BOB)
+  })
+
+  it('an award beats every G in the block it takes effect in — a refundable loss (§7.3)', () => {
+    stepR(unreserve(BOB), { sender: ADMIN })
+    // A sniper who saw the U coming, with a G prepared for the exact block: at
+    // H the name is already REGISTERED, so this is a concurrency loss.
+    const g: BuiltTransaction = { ...encodeRegister(reserving, { name: 'kikename', fee: FEE }), data: hexOf('NNS1Gbinance') }
+    expect(stepR(g, { sender: ALICE, at: H }).verdict).toMatchObject({ kind: 'REFUND', reason: 'LOST_REGISTRATION_RACE' })
+    expect(lookup(state, 'binance')?.owner).toBe(BOB)
   })
 })
 

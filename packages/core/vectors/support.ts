@@ -125,6 +125,8 @@ export interface BuildSpec {
   effectiveHeight?: number
   name?: string
   sender?: string
+  /** `U` only: the awardee, or `null`/absent for a release (§6 `U`, r17). */
+  recipient?: string | null
 }
 
 /**
@@ -195,7 +197,12 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
         ...sender,
       })
     case 'unreserve':
-      return encodeUnreserve(config, { name, effectiveHeight: spec.effectiveHeight as number, ...sender })
+      return encodeUnreserve(config, {
+        name,
+        effectiveHeight: spec.effectiveHeight as number,
+        recipient: optionalAddress(book, spec.recipient),
+        ...sender,
+      })
     case 'burn':
       return encodeBurn(config, { amount: BigInt(spec.amount as string), ...sender })
     default:
@@ -246,7 +253,8 @@ export interface VectorCheckpointState {
   recoveries?: Array<{ name: string; recovery: string | null; effectiveHeight: number }>
   offers?: Array<{ name: string; seller: string; price: string; openedHeight: number; expiryHeight: number }>
   pendingGovernance?: { prices: VectorPrices; effectiveHeight: number } | null
-  pendingUnreserve?: Array<{ name: string; effectiveHeight: number }>
+  /** `recipient: null` is a release; an address is the awardee (§6 `U`, r17). */
+  pendingUnreserve?: Array<{ name: string; recipient: string | null; effectiveHeight: number }>
   /** Names whose `U` has fired (§8.1 tag `0x0A`). Authored unsorted where the case is about ordering. */
   unreserved?: string[]
 }
@@ -283,7 +291,9 @@ export function readCheckpointState(
       raw.pendingGovernance == null
         ? null
         : { prices: readPrices(raw.pendingGovernance.prices), effectiveHeight: raw.pendingGovernance.effectiveHeight },
-    pendingUnreserve: byName(raw.pendingUnreserve ?? []),
+    pendingUnreserve: byName(
+      (raw.pendingUnreserve ?? []).map((item) => ({ ...item, recipient: optionalAddress(book, item.recipient) })),
+    ),
     unreserved: new Set(raw.unreserved ?? []),
   })
 }

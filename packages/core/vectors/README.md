@@ -85,11 +85,15 @@ only; it defaults to empty.
   pending or unreserved set is `keccak256(0x04)` / `keccak256(0x0A)` — the tag
   byte alone.
 
-  **These commitments are r16.** The unreserved set (tag `0x0A`) is the sixth
-  component; an r15 implementation reproduces all four component digests and
-  none of the commitments. `one_fired_unreserve` is the pair that shows why the
-  component exists — a released name has no leaf and no pending entry, so
-  without `0x0A` it is invisible to the checkpoint.
+  **These commitments are r17.** The unreserved set (tag `0x0A`, r16) is the
+  sixth component; an r15 implementation reproduces all four component digests
+  and none of the commitments. `one_fired_unreserve` is the pair that shows
+  why the component exists — a released name has no leaf and no pending entry,
+  so without `0x0A` it is invisible to the checkpoint. r17 put a 20-byte
+  `recipient` inside the pending-`U` entry (`0x09`): zeros for a release, the
+  awardee for an award. `pending_award_commits_the_awardee` is that pair — an
+  r16 implementation reproduces every case without a pending `U` and diverges
+  on every one that carries one.
 
 ### `ordering.json` and `reduce.json`
 

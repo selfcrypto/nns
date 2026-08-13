@@ -37,6 +37,7 @@ import {
   type PendingGovernance,
   type PendingRecovery,
   type PendingTransfer,
+  type PendingUnreserve,
   type Prices,
   type TxRef,
   isReserved,
@@ -90,6 +91,7 @@ export type ForfeitReason =
   | 'OVER_LENGTH'
   | 'MALFORMED_PAYLOAD'
   | 'WRONG_RECIPIENT'
+  | 'INVALID_RECIPIENT'
   | 'WRONG_SENDER'
   | 'INSUFFICIENT_VALUE'
   | 'INVALID_NAME'
@@ -103,6 +105,8 @@ export type ForfeitReason =
   | 'NOT_ADMIN'
   | 'GOVERNANCE_BOUND_VIOLATED'
   | 'INSUFFICIENT_NOTICE'
+  | 'NAME_NOT_RESERVED'
+  | 'UNRESERVE_PENDING'
   | 'TOO_SOON'
   | 'NOTHING_TO_CANCEL'
   | 'BELOW_REFUND_FLOOR'
@@ -139,7 +143,7 @@ interface Draft {
   pendingGovernance: PendingGovernance | null
   lastGovernanceHeight: number | null
   unreserved: Set<string>
-  pendingUnreserve: Map<string, { readonly name: string; readonly effectiveHeight: number }>
+  pendingUnreserve: Map<string, PendingUnreserve>
   outstanding: Map<string, readonly Obligation[]>
   nextDueHeight: number
 }
@@ -302,6 +306,22 @@ function collectDue(draft: Draft, upto: number): DueEffect[] {
         if (pending === undefined || pending.effectiveHeight > upto) return
         d.pendingUnreserve.delete(item.name)
         d.unreserved.add(item.name)
+        // §7.3: an award additionally creates the REGISTERED record — owner
+        // and target the awardee, full TERM_LENGTH from the effective height,
+        // recovery and delegate host unset, nothing pending. A release stops
+        // at the line above and the name is AVAILABLE under the normal rules.
+        if (pending.recipient !== null) {
+          const expiry = pending.effectiveHeight + CONSTANTS.TERM_LENGTH
+          d.names.set(item.name, {
+            name: item.name,
+            owner: pending.recipient,
+            target: pending.recipient,
+            expiry,
+            status: 'REGISTERED',
+            recovery: null,
+            host: '',
+          })
+        }
       },
     })
   }
@@ -823,15 +843,33 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
 
     // ── U — Unreserve (§6) ───────────────────────────────────────────────────
     case 'U': {
-      if (!addressEquals(tx.recipient, config.protocol)) return keep(forfeit('WRONG_RECIPIENT'))
+      // Since r17 `U` has no recipient *routing* check: the recipient is an
+      // operand — PROTOCOL_ADDRESS releases the name, any other address is
+      // awarded it at effective_height — so it gets a row of its own rather
+      // than the §5.3 check that precedes everything else (§7.4).
       if (!addressEquals(tx.sender, config.admin)) return keep(forfeit('NOT_ADMIN'))
+      // The one forbidden recipient. BURN_ADDRESS has no key, and it is the
+      // all-zero address §8.1 uses to encode *no* recipient — permitting it
+      // would make an award to it and a release commit identical bytes (§6 U).
+      if (addressEquals(tx.recipient, BURN_ADDRESS)) return keep(forfeit('INVALID_RECIPIENT'))
       if (message.effectiveHeight < tx.blockNumber + CONSTANTS.GOVERNANCE_DELAY) {
         return keep(forfeit('INSUFFICIENT_NOTICE'))
       }
+      // §4.1 rules 1–5 only — rule 6 is inverted by the row after: a `U`'s
+      // name must be *in* RESERVED_NAMES. The short names §4.1 rule 1 rejects
+      // are reserved too, and a `U` may not touch them: releasing one is a
+      // no-op, awarding one would put a leaf in the tree for a name every
+      // conforming client rejects.
+      if (!validateName(message.name).ok) return keep(forfeit('INVALID_NAME'))
+      if (!isReserved(state, config, message.name)) return keep(forfeit('NAME_NOT_RESERVED'))
+      // One pending U per name — this is what makes the effect at
+      // effective_height unconditional rather than racing a sibling (§6 U).
+      if (state.pendingUnreserve.has(message.name)) return keep(forfeit('UNRESERVE_PENDING'))
 
       const draft = draftOf(state)
       draft.pendingUnreserve.set(message.name, {
         name: message.name,
+        recipient: addressEquals(tx.recipient, config.protocol) ? null : tx.recipient,
         effectiveHeight: message.effectiveHeight,
       })
       schedule(draft, message.effectiveHeight)

@@ -526,21 +526,33 @@ export function encodeGovernance(
 }
 
 /**
- * `U` — Unreserve (§6). Releases a name from `RESERVED_NAMES`. *Adding* to the
+ * `U` — Unreserve (§6). Takes a name out of `RESERVED_NAMES`; *adding* to the
  * list remains impossible without a new spec version.
+ *
+ * The recipient is an operand, not a route (r17): `recipient: null` (or
+ * omitted) releases the name — the transaction goes to `PROTOCOL_ADDRESS` and
+ * the name is `AVAILABLE` at `effective_height` — while an address **awards**
+ * it, `REGISTERED` to that address at `effective_height` with a full term. The
+ * payload is identical either way. `BURN_ADDRESS` is refused here because the
+ * reducer forfeits it (`INVALID_RECIPIENT`), which §7.4 classes as
+ * client-preventable — this is the client preventing it.
  *
  * The name is validated for syntax but **not** against the reserved set — a
  * `U` names a reserved name by definition.
  */
 export function encodeUnreserve(
   config: NnsConfig,
-  params: { name: string; effectiveHeight: number } & SenderOption,
+  params: { name: string; effectiveHeight: number; recipient?: Address | null } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
+  const awardee = params.recipient ?? null
+  if (awardee !== null && addressEquals(awardee, BURN_ADDRESS)) {
+    fail('a name may not be awarded to BURN_ADDRESS — the message would forfeit INVALID_RECIPIENT (§6 U)')
+  }
   return build(
     'U',
     `${name}|${formatHeight(params.effectiveHeight)}`,
-    config.protocol,
+    awardee ?? config.protocol,
     CONSTANTS.DUST_VALUE,
     params.sender,
   )

@@ -241,6 +241,18 @@ describe('vectors/merkle.json', () => {
       expect(after.unreservedRoot).not.toBe(before.unreservedRoot)
       expect(after.commitment).not.toBe(before.commitment)
     })
+
+    it('commits a pending U’s recipient, which is the whole of r17 (tag 0x09)', () => {
+      // Same names, same unreserved set, same log hash — the two differ only
+      // in who the pending `U` hands `binance` to. Through r16 the recipient
+      // was not committed, and these were the same 32 bytes.
+      const release = cases.find((c) => c.id === 'fired_unreserve_is_not_a_pending_one')
+      const award = cases.find((c) => c.id === 'pending_award_commits_the_awardee')
+      expect(award.nameRoot).toBe(release.nameRoot)
+      expect(award.unreservedRoot).toBe(release.unreservedRoot)
+      expect(award.pendingRoot).not.toBe(release.pendingRoot)
+      expect(award.commitment).not.toBe(release.commitment)
+    })
   })
 
   describe('proofs', () => {

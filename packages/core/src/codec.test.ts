@@ -226,6 +226,21 @@ describe('builders fail loudly where the chain would fail silently', () => {
     expect(() => encodeUnreserve(withReserved, { name: 'binance', effectiveHeight: 1 })).not.toThrow()
   })
 
+  it('routes a U by its operand: release to the protocol address, award to the awardee (§6 U)', () => {
+    // The payload is identical in both cases — the recipient decides.
+    const release = encodeUnreserve(config, { name: 'binance', effectiveHeight: 1, recipient: null })
+    const award = encodeUnreserve(config, { name: 'binance', effectiveHeight: 1, recipient: BOB })
+    expect(release.recipient).toBe(PROTOCOL)
+    expect(award.recipient).toBe(BOB)
+    expect(award.data).toBe(release.data)
+  })
+
+  it('refuses to award to BURN_ADDRESS — the reducer would forfeit INVALID_RECIPIENT', () => {
+    expect(() => encodeUnreserve(config, { name: 'binance', effectiveHeight: 1, recipient: BURN_ADDRESS })).toThrow(
+      /BURN_ADDRESS/,
+    )
+  })
+
   it('rejects a delegate host that carries a scheme (§6 D)', () => {
     expect(() => encodeDelegate(config, { name: 'binance', host: 'https://nns.binance.com' })).toThrow(
       /BAD_CHARACTER/,

@@ -73,6 +73,22 @@ export interface PendingGovernance {
 }
 
 /**
+ * A `U` awaiting its `effective_height` (§6 `U`).
+ *
+ * The recipient is what makes it a release or an award, and §8.1 commits it
+ * rather than deriving it: `null` is a release (20 zero bytes in the pending
+ * entry — the same "unset address" form a clearing `R` uses), an address is
+ * the awardee. `BURN_ADDRESS` never appears here — §7.4 rejects it as an
+ * awardee (`INVALID_RECIPIENT`) precisely so the all-zero bytes can only ever
+ * mean a release.
+ */
+export interface PendingUnreserve {
+  readonly name: string
+  readonly recipient: Address | null
+  readonly effectiveHeight: number
+}
+
+/**
  * §3 `MIN_PRICE` — the floor on an `O` price and an `A` reserve (§6 `O`, §6 `A`).
  *
  * Defined **as `FEE_LONG`**, not as a luna amount, so it tracks the NIM price
@@ -120,7 +136,7 @@ export interface NnsState {
   /** Names released from `RESERVED_NAMES` by a `U` that has taken effect. */
   readonly unreserved: ReadonlySet<string>
   /** `U` messages awaiting their `effective_height`, keyed by name. */
-  readonly pendingUnreserve: ReadonlyMap<string, { readonly name: string; readonly effectiveHeight: number }>
+  readonly pendingUnreserve: ReadonlyMap<string, PendingUnreserve>
   /** Unsettled obligations, keyed by {@link refKey} of the transaction owing them. */
   readonly outstanding: ReadonlyMap<string, readonly Obligation[]>
   /**
@@ -153,7 +169,7 @@ export function initialState(config: NnsConfig): NnsState {
     pendingGovernance: null,
     lastGovernanceHeight: null,
     unreserved: new Set<string>(),
-    pendingUnreserve: new Map<string, { name: string; effectiveHeight: number }>(),
+    pendingUnreserve: new Map<string, PendingUnreserve>(),
     outstanding: new Map<string, readonly Obligation[]>(),
     nextDueHeight: Number.POSITIVE_INFINITY,
   })

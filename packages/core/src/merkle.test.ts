@@ -311,9 +311,38 @@ describe('checkpoint — §8.1 final clause', () => {
 
     const withUnreserve = Object.freeze({
       ...state,
-      pendingUnreserve: new Map([['binance', { name: 'binance', effectiveHeight: 100 }]]),
+      pendingUnreserve: new Map([['binance', { name: 'binance', recipient: null, effectiveHeight: 100 }]]),
     })
     expect(bytesEqual(pendingCommitment(withUnreserve), empty)).toBe(false)
+  })
+
+  it('commits a pending U’s recipient — release and award are different bytes (r17)', () => {
+    // Two indexers agreeing a U is pending and disagreeing about who the name
+    // goes to must not derive identical checkpoints until it fires — the shape
+    // of hole tag 0x0A closed in r16, this time with an owner at stake (§8.1).
+    const state = stateWith(record({ name: 'kikename' }))
+    const pendingTo = (recipient: typeof BOB | null): NnsState =>
+      Object.freeze({
+        ...state,
+        pendingUnreserve: new Map([['binance', { name: 'binance', recipient, effectiveHeight: 100 }]]),
+      })
+    const release = pendingCommitment(pendingTo(null))
+    expect(bytesEqual(pendingCommitment(pendingTo(BOB)), release)).toBe(false)
+    expect(bytesEqual(pendingCommitment(pendingTo(ALICE)), pendingCommitment(pendingTo(BOB)))).toBe(false)
+
+    // The release form is the same 20 zero bytes a clearing R uses — pinned
+    // byte for byte so "no recipient" can never drift to a sentinel address.
+    expect(release).toEqual(
+      keccak_256(
+        Uint8Array.from([
+          0x04,
+          0x09,
+          7, ...[...'binance'].map((c) => c.charCodeAt(0)),
+          ...new Uint8Array(20),
+          0, 0, 0, 0, 0, 0, 0, 100,
+        ]),
+      ),
+    )
   })
 
   it('moves when a U fires — the r16 hole, tag 0x0A', () => {

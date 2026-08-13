@@ -1,7 +1,7 @@
 {
   "vectors": "nns/merkle",
   "version": 1,
-  "spec": "nns-spec-v1 draft r16, §8.1 and §8.3",
+  "spec": "nns-spec-v1 draft r17, §8.1 and §8.3",
   "description": "Checkpoint tree byte layout. `enc` is the §8.1 leaf preimage, `leaf` is keccak256(0x00 ‖ enc), internal nodes are keccak256(0x01 ‖ left ‖ right), odd nodes are promoted unchanged, and an empty tree is 32 zero bytes. All hex is lowercase and unprefixed.",
   "addresses": {
     "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
@@ -246,7 +246,7 @@
     ]
   },
   "checkpoints": {
-    "description": "The §8.1 checkpoint commitment, byte for byte. `state` is the part of the registry §8.1 requires committed — the name tree, the active prices, the pending set and, since r16, the unreserved set — and `logHash` is an input, the §8.2 log hash at this height. `nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` and `commitment` are derived. Two implementations that agree on every other file here and disagree on this one publish checkpoints that never match. These values are r16: an r15 implementation, which committed five components rather than six, reproduces the four component digests and none of the commitments.",
+    "description": "The §8.1 checkpoint commitment, byte for byte. `state` is the part of the registry §8.1 requires committed — the name tree, the active prices, the pending set and, since r16, the unreserved set — and `logHash` is an input, the §8.2 log hash at this height. `nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` and `commitment` are derived. Two implementations that agree on every other file here and disagree on this one publish checkpoints that never match. These values are r17: a pending `U` entry (tag 0x09) commits a 20-byte recipient — 20 zero bytes for a release, the awardee's 20 for an award. An r16 implementation, which committed no recipient, reproduces every case without a pending `U` and diverges on every one that carries one.",
     "tags": {
       "leaf": "0x00",
       "node": "0x01",
@@ -378,6 +378,7 @@
           "pendingUnreserve": [
             {
               "name": "binance",
+              "recipient": null,
               "effectiveHeight": 58104000
             }
           ]
@@ -385,9 +386,9 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "nameRoot": "8d3a11999e76ef35bd1c5659e0a8ac81f6b2a2f995ef472d3148af2de65bcc50",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
-        "pendingRoot": "1c29c8923dd29de363f441dfb991d22ec0e1a33cf1d32150a309fa8f46352b08",
+        "pendingRoot": "528809fd19d8db9e740d02ac220e5458a9becf1aa9bb7c28f1c1f7e03a601ab9",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "bcba7ac496483aa67201875fc329f24a05cc11c6aa1472d0ada5a5150d54cc4b"
+        "commitment": "516b49a1a542644c8dd4a5349204efc9394f2312007c968e17ac1d0542394044"
       },
       {
         "id": "same_names_no_pending_set",
@@ -518,6 +519,7 @@
           "pendingUnreserve": [
             {
               "name": "binance",
+              "recipient": null,
               "effectiveHeight": 58104000
             }
           ]
@@ -527,9 +529,47 @@
         "differsFrom": "one_fired_unreserve",
         "nameRoot": "448387cbe1dfe2cc91c33cab8636f0cde4f346eb4a4642d7f52de128e10752f4",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
-        "pendingRoot": "90909742de706f222776dfe3be4d7604ba4b41478057f582a4201a31923840ee",
+        "pendingRoot": "addff06910fad0733492a5a088a2c4d8e25dc04308c4b89950762e08f3b5784d",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "be3813bb04a6255780aa614ce24e4f56d5fb26651cf52d451977d0c0fed8f323"
+        "commitment": "62eb58e6cc866caf5ac51b652d086395450f13fc7d24f1eff5770a1a8be5e5f4"
+      },
+      {
+        "id": "pending_award_commits_the_awardee",
+        "note": "The r17 case. Identical to fired_unreserve_is_not_a_pending_one except the pending `U`'s recipient: BOB's 20 bytes rather than the 20 zero bytes of a release. Two indexers that agree a `U` is pending and disagree about who the name goes to must not derive identical checkpoints until it fires — tag 0x0A's hole one revision later, with an owner at stake rather than a status.",
+        "state": {
+          "height": 58060800,
+          "prices": {
+            "feeStandard": "400000000",
+            "feeLong": "40000000",
+            "commissionBp": "250"
+          },
+          "names": [
+            {
+              "name": "kikename",
+              "owner": "ALICE",
+              "target": "ALICE",
+              "expiry": 215680000,
+              "status": "REGISTERED",
+              "recovery": null,
+              "host": ""
+            }
+          ],
+          "pendingUnreserve": [
+            {
+              "name": "binance",
+              "recipient": "BOB",
+              "effectiveHeight": 58104000
+            }
+          ]
+        },
+        "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
+        "sameNameRootAs": "fired_unreserve_is_not_a_pending_one",
+        "differsFrom": "fired_unreserve_is_not_a_pending_one",
+        "nameRoot": "448387cbe1dfe2cc91c33cab8636f0cde4f346eb4a4642d7f52de128e10752f4",
+        "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
+        "pendingRoot": "046adcc6d338539e382cd1e28b1c7a2534f4969866988f74c0e159901c15bd08",
+        "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
+        "commitment": "c7a5853cf0dc83071f22fe1fb679365010206548bc1333960ca9e45727166464"
       },
       {
         "id": "unreserved_sorted_bytewise",
