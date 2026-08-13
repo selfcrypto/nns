@@ -62,7 +62,20 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 >   before it queries. A message type that can create a registration has to
 >   respect the rules on what a registration may be. Rule 6 stays inverted for
 >   `U`: its name must be reserved.
->
+
+> **Amended within r17, 2026-08-13, on corrections from the Nimiq team.**
+> Deferred-to-v2 material and one open question only; no bytes move. §16.2
+> had the fee-gate blocked by Nimiq Pay's size-derived fee tiers topping out
+> around 276 luna — those tiers are the **web wallet's**. The mini-app
+> provider's `sendBasicTransaction` takes a `fee` parameter, while the
+> native Nimiq Pay UI sets the fee to 0 and does not let a user edit it, so
+> whether an app-supplied fee survives to signing is the remaining question
+> (§12), pending one send test once consensus returns. And network fees go
+> to the **validators** — pooled per batch, paid at the next macro block —
+> which promotes the fee-gate from one mechanism of three to the *preferred*
+> v2 anti-spam mechanism: the money leaves the system, so no
+> `PROTOCOL_ADDRESS` accumulation, no periodic burn, no `F` ceremony.
+
 > **Changes in revision 16 — what building the indexer and sending on
 > mainnet found.** Six changes. One moves bytes, three close holes that made
 > a divergence invisible, and two are lessons that cost real transactions to
@@ -2627,8 +2640,12 @@ Decisions pending:
    PoW chain still exists, and whether to acknowledge it as prior art
 6. **Two mini-app SDK questions, testable with the SDK probe already
    built:** can a mini app set the transaction **value** (every fee-bearing
-   message depends on it), and can it set the **fee** (decides whether
-   §16.2's fee-gate is ever viable)? Plus, for the Nimiq team: can the
+   message depends on it), and does a mini-app-supplied **fee** survive to
+   signing (decides whether §16.2's fee-gate is viable)? The provider's
+   `sendBasicTransaction` takes a `fee` parameter, but the native Nimiq Pay
+   UI sets the fee to 0 and does not let a user edit it (Nimiq team,
+   2026-08-13) — one send test once consensus returns settles it. Plus, for
+   the Nimiq team: can the
    framework pin a build by **content hash** rather than a live URL (§2.2,
    mitigation 3) — the only thing that would narrow the client-delivery
    hole without wallet-native resolution
@@ -2800,19 +2817,29 @@ were considered:
   recipient is the counterparty — usually the user's own other address — so
   the fee would be money moving between one person's pockets, or in the award's
   case a fee paid to the person being given a name.
-- **A fee-field gate.** Elegant, since network fees leave the system
-  entirely. Blocked by the wallet: Nimiq Pay offers three size-derived tiers
-  topping out around 276 luna (≈ $0.0000014), four orders of magnitude below
-  a meaningful price. Viable only if the mini-app SDK lets an app set the
-  fee directly — an open question (§12).
+- **A fee-field gate — the preferred mechanism.** Network fees go to the
+  validators: pooled per batch and paid out at the next macro block (Nimiq
+  team, 2026-08-13). The money leaves the system entirely, so nothing
+  accumulates at `PROTOCOL_ADDRESS`, there is no periodic burn to run and no
+  `F` ceremony to audit. An earlier draft called this blocked by
+  size-derived fee tiers topping out around 276 luna — that was the **web
+  wallet**, not Nimiq Pay. The mini-app provider's `sendBasicTransaction`
+  takes a `fee` parameter, while the native Nimiq Pay UI sets the fee to 0
+  and does not let a user edit it — so whether a mini-app-supplied fee
+  survives to signing is the open question (§12), answerable with one send
+  test once consensus returns.
 - **A companion message.** `S` keeps the counterparty as recipient, and a
   second message to `PROTOCOL_ADDRESS` carries the fee plus the `S`
-  transaction hash; only paired messages are logged. This is the one that
-  prices `S` without weakening §5.3's trusted-UI property, at the cost of two
-  signatures per retarget and a pending-match set in the indexer.
+  transaction hash; only paired messages are logged. This is the fallback
+  that prices `S` without weakening §5.3's trusted-UI property should the
+  fee test fail, at the cost of two signatures per retarget and a
+  pending-match set in the indexer.
 
-Any of these would also make `PROTOCOL_ADDRESS` accumulate value, which
-§10.2 would then burn in full.
+The signalling fee and the companion message would both make
+`PROTOCOL_ADDRESS` accumulate value, which §10.2 would then burn in full.
+The fee gate is preferred precisely because it does neither: the fee is out
+of the system the moment the transaction lands, with no balance anywhere
+the operator has to be trusted to sweep.
 
 ### 16.3 Rate limiting and backoff
 
