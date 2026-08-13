@@ -13,7 +13,7 @@
  * root or a log hash touches it.
  */
 
-export { CONSTANTS, LUNA_PER_NIM, type Constants } from './constants.js'
+export { CONSTANTS, LUNA_PER_NIM, PROFILES, isProfileName, type Constants, type ProfileName } from './constants.js'
 
 export {
   ADDRESS_BYTES,
@@ -72,6 +72,7 @@ export {
 
 export {
   LAUNCH_PRICES,
+  constantsOf,
   initialState,
   isReserved,
   lookup,

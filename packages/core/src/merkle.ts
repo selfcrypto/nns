@@ -27,6 +27,7 @@
 
 import { keccak_256 } from '@noble/hashes/sha3.js'
 import { ADDRESS_BYTES, addressToBytes } from './address.js'
+import type { ProfileName } from './constants.js'
 import type { NameRecord, NnsState, Prices } from './state.js'
 
 export const HASH_BYTES = 32
@@ -44,6 +45,8 @@ const TAG = {
   PENDING_GOVERNANCE: 0x08,
   PENDING_UNRESERVE: 0x09,
   UNRESERVED: 0x0a,
+  /** Constants-profile marker. Never appears in a mainnet commitment. */
+  PROFILE: 0x0b,
 } as const
 
 export class MerkleError extends Error {
@@ -416,6 +419,8 @@ export function unreservedCommitment(state: NnsState): Uint8Array {
 }
 
 export interface Checkpoint {
+  /** Constants profile the committed state evolved under. */
+  readonly profile: ProfileName
   readonly height: number
   readonly nameRoot: Uint8Array
   readonly pricesRoot: Uint8Array
@@ -434,16 +439,26 @@ export interface Checkpoint {
  * them. A root derived here is **not** comparable with one derived by an r15
  * implementation of this clause.
  *
+ * **The constants profile is committed too.** Mainnet is the unmarked case:
+ * its preimage is exactly the ratified §8.1 byte string, so every existing
+ * mainnet commitment — the layout-3 baseline included — is unchanged. Any
+ * other profile appends `0x0B ‖ len(name) ‖ name`, which makes its preimage
+ * strictly longer than the fixed-length mainnet one: no commitment derived
+ * under `fast` can equal any mainnet commitment, however the underlying states
+ * relate, so a fast root can never be mistaken for a mainnet root or quoted as
+ * a conformance baseline.
+ *
  * @param logHash keccak256 of the canonical log file through this height.
  */
 export function checkpoint(state: NnsState, logHash: Uint8Array): Checkpoint {
   if (logHash.length !== HASH_BYTES) throw new MerkleError(`logHash must be ${HASH_BYTES} bytes`)
+  const profile: ProfileName = state.profile ?? 'mainnet'
   const nameRoot = merkleRoot(state)
   const pricesRoot = pricesCommitment(state.prices)
   const pendingRoot = pendingCommitment(state)
   const unreservedRoot = unreservedCommitment(state)
-  const commitment = keccak_256(
-    concat([u8(TAG.CHECKPOINT), nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash, u64be(state.height)]),
-  )
-  return { height: state.height, nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash, commitment }
+  const parts = [u8(TAG.CHECKPOINT), nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash, u64be(state.height)]
+  if (profile !== 'mainnet') parts.push(u8(TAG.PROFILE), lengthPrefixed(profile))
+  const commitment = keccak_256(concat(parts))
+  return { profile, height: state.height, nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash, commitment }
 }

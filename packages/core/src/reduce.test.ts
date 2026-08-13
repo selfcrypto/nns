@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Address } from './address.js'
 import {
   BURN_ADDRESS,
@@ -17,7 +17,7 @@ import {
   encodeTransfer,
   encodeUnreserve,
 } from './codec.js'
-import { CONSTANTS } from './constants.js'
+import { CONSTANTS, PROFILES } from './constants.js'
 import {
   type ChainTransaction,
   type ReduceResult,
@@ -1054,3 +1054,74 @@ describe('purity', () => {
 function hexOf(text: string): string {
   return [...text].map((ch) => ch.charCodeAt(0).toString(16).padStart(2, '0')).join('')
 }
+
+// ── Constants profiles ──────────────────────────────────────────────────────
+
+describe('constants profiles — a fast state runs the same rules at 1/1000 tempo', () => {
+  const FAST = PROFILES.fast
+  // defineConfig warns loudly on a non-mainnet profile; that is the tested
+  // contract of config.test.ts, not noise this suite should print.
+  const fastConfig = (() => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      return testConfig({ profile: 'fast' })
+    } finally {
+      warn.mockRestore()
+    }
+  })()
+
+  let fastState: NnsState
+  beforeEach(() => {
+    fastState = initialState(fastConfig)
+  })
+
+  function fstep(built: BuiltTransaction, options: SendOptions): ReduceResult {
+    const result = reduce(fastState, send(built, options), fastConfig)
+    fastState = result.state
+    return result
+  }
+
+  it('starts with the profile on the state and the divided launch prices', () => {
+    expect(fastState.profile).toBe('fast')
+    expect(fastState.prices).toEqual({
+      feeStandard: 4_000_000n,
+      feeLong: 400_000n,
+      commissionBp: CONSTANTS.COMMISSION_RATE,
+    })
+  })
+
+  it('registers at the fast fee for a fast term, and the profile survives the reduction', () => {
+    const result = fstep(encodeRegister(fastConfig, { name: 'kikename', fee: FAST.FEE_STANDARD }), { sender: ALICE })
+    expect(result.verdict.kind).toBe('OK')
+    expect(fastState.profile).toBe('fast')
+    expect(lookup(fastState, 'kikename')?.expiry).toBe(LAUNCH + FAST.TERM_LENGTH)
+  })
+
+  it('runs the full lifecycle — register, expire, grace, release — inside fast heights', () => {
+    fstep(encodeRegister(fastConfig, { name: 'kikename', fee: FAST.FEE_STANDARD }), { sender: ALICE })
+    const expiry = LAUNCH + FAST.TERM_LENGTH
+
+    fastState = advanceTo(fastState, expiry)
+    expect(lookup(fastState, 'kikename')?.status).toBe('GRACE')
+    expect(fastState.profile).toBe('fast')
+
+    fastState = advanceTo(fastState, expiry + FAST.GRACE_PERIOD)
+    expect(lookup(fastState, 'kikename')).toBeNull()
+  })
+
+  it('matures a transfer after the fast timelock', () => {
+    fstep(encodeRegister(fastConfig, { name: 'kikename', fee: FAST.FEE_STANDARD }), { sender: ALICE })
+    fstep(encodeTransfer(fastConfig, { name: 'kikename', newOwner: BOB }), { sender: ALICE, at: LAUNCH + 1 })
+
+    fastState = advanceTo(fastState, LAUNCH + FAST.XFER_TIMELOCK)
+    expect(lookup(fastState, 'kikename')?.owner).toBe(ALICE)
+    fastState = advanceTo(fastState, LAUNCH + 1 + FAST.XFER_TIMELOCK)
+    expect(lookup(fastState, 'kikename')?.owner).toBe(BOB)
+  })
+
+  it('keeps mainnet the unmarked case: a mainnet state never grows a profile property', () => {
+    registerToAlice()
+    state = advanceTo(state, LAUNCH + 100)
+    expect('profile' in state).toBe(false)
+  })
+})
