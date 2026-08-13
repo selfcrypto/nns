@@ -57,6 +57,13 @@ export class ConfigError extends Error {
   override readonly name = 'ConfigError'
 }
 
+// The build tsconfig deliberately loads no runtime type library — `core` is
+// pure, and an undeclared global turning up is a compile error, which is the
+// point. `defineConfig`'s warning is the one sanctioned exception, so exactly
+// the method it uses is declared here rather than pulling in all of node's
+// globals. Every runtime this package supports provides it.
+declare const console: { warn(message: string): void }
+
 function address(field: string, value: string): Address {
   try {
     return parseAddress(value)
