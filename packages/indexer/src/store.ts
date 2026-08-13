@@ -76,6 +76,7 @@ const CHECKPOINT_COLUMNS = [
   'name_root',
   'prices_root',
   'pending_root',
+  'unreserved_root',
   'log_hash',
   'commitment',
 ] as const
@@ -122,6 +123,8 @@ export interface StoredCheckpoint {
   nameRoot: string
   pricesRoot: string
   pendingRoot: string
+  /** `null` on a layout `1` row, whose commitment function had no such digest. */
+  unreservedRoot: string | null
   logHash: string
   commitment: string
 }
@@ -132,6 +135,7 @@ type CheckpointDbRow = {
   name_root: Buffer
   prices_root: Buffer
   pending_root: Buffer
+  unreserved_root: Buffer | null
   log_hash: Buffer
   commitment: Buffer
 }
@@ -142,6 +146,7 @@ const readCheckpoint = (row: CheckpointDbRow): StoredCheckpoint => ({
   nameRoot: row.name_root.toString('hex'),
   pricesRoot: row.prices_root.toString('hex'),
   pendingRoot: row.pending_root.toString('hex'),
+  unreservedRoot: row.unreserved_root?.toString('hex') ?? null,
   logHash: row.log_hash.toString('hex'),
   commitment: row.commitment.toString('hex'),
 })
@@ -310,7 +315,7 @@ export class Store {
       const row = checkpointRow(record)
       const inserted = await client.query(
         `INSERT INTO checkpoints (${CHECKPOINT_COLUMNS.join(', ')})
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         VALUES (${CHECKPOINT_COLUMNS.map((_, index) => `$${index + 1}`).join(', ')})
          ON CONFLICT (height) DO NOTHING`,
         CHECKPOINT_COLUMNS.map((column) => row[column]),
       )

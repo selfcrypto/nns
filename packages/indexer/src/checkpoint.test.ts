@@ -240,17 +240,18 @@ describe('CheckpointBuilder', () => {
 })
 
 describe('checkpointRow', () => {
-  it('carries every stored component of the commitment, and its layout', () => {
-    // r16's `unreservedRoot` has no column: adding one is a migration, and the
-    // set itself is in the `unreserved` table, so the digest is recomputable.
-    // The cost is that a divergence in exactly that component cannot be
-    // localised from the row alone — only the `commitment` says it happened.
+  it('carries every component of the commitment, and its layout', () => {
+    // Every one, including r16's `unreservedRoot` (migration 003). The
+    // per-component columns are what turn a divergence into a *localised*
+    // divergence, and the unreserved set is the component whose absence from
+    // the commitment caused this whole episode.
     const { builder: b, pipeline: p } = builder()
     const [record] = b.buildForBatch(p.applyBatch(initialState(CONFIG), [], LAUNCH + INTERVAL))
     const row = checkpointRow(record as NonNullable<typeof record>)
     expect(row.height).toBe(LAUNCH + INTERVAL)
     expect(row.layout).toBe(COMMITMENT_LAYOUT)
-    for (const column of ['name_root', 'prices_root', 'pending_root', 'log_hash', 'commitment'] as const) {
+    const columns = ['name_root', 'prices_root', 'pending_root', 'unreserved_root', 'log_hash', 'commitment'] as const
+    for (const column of columns) {
       expect(Buffer.isBuffer(row[column])).toBe(true)
       expect(row[column]).toHaveLength(32)
     }

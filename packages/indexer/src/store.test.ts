@@ -187,6 +187,7 @@ describe.skipIf(URL === undefined)('Store', () => {
       nameRoot: hex(record.nameRoot),
       pricesRoot: hex(record.pricesRoot),
       pendingRoot: hex(record.pendingRoot),
+      unreservedRoot: hex(record.unreservedRoot),
       logHash: hex(record.logHash),
       commitment: hex(record.commitment),
     })
@@ -243,6 +244,60 @@ describe.skipIf(URL === undefined)('Store', () => {
     expect(await store.checkpointAt(58_177_440)).toMatchObject({
       commitment: hex(at(58_177_440, initialState(CONFIG)).commitment),
     })
+  })
+
+  // These two write at their own heights, so they follow the row-count and
+  // divergence tests above rather than interleaving with them.
+
+  it('stores the unreserved digest, which is what localises a released-name divergence', async () => {
+    // The reason the column exists (migration 003). Two states differing only
+    // in a fired `U` agree on every other component, so `unreserved_root` is
+    // the only per-component column that says *what* they disagree about;
+    // without it the difference shows up in `commitment` alone.
+    const state = initialState(CONFIG)
+    const released = Object.freeze({ ...state, unreserved: new Set(['nimiq']) })
+    const plain = at(58_178_160, state)
+    const withU = at(58_178_160, released)
+
+    expect(hex(withU.unreservedRoot)).not.toBe(hex(plain.unreservedRoot))
+    for (const component of ['nameRoot', 'pricesRoot', 'pendingRoot', 'logHash'] as const) {
+      expect(hex(withU[component])).toBe(hex(plain[component]))
+    }
+    expect(hex(withU.commitment)).not.toBe(hex(plain.commitment))
+
+    await store.commitBatch({
+      before: state,
+      after: Object.freeze({ ...released, height: 58_178_160 }),
+      logRows: [],
+      checkpoints: [withU],
+      nextBatch: 912_030,
+      scannedThrough: 58_178_160,
+    })
+    expect(await store.checkpointAt(58_178_160)).toMatchObject({
+      layout: COMMITMENT_LAYOUT,
+      unreservedRoot: hex(withU.unreservedRoot),
+    })
+  })
+
+  it('rejects a row whose unreserved digest disagrees with its layout', async () => {
+    // Migration 003's CHECK, in both directions: a layout 1 row carries no such
+    // digest because the function that produced it had none, and no layout at
+    // or above 2 may omit one. Written straight to SQL — `checkpointRow` cannot
+    // produce either shape, which is why the schema is where this is pinned.
+    const bytes = Buffer.alloc(32, 7)
+    const insert = (height: number, layout: number, unreservedRoot: Buffer | null) =>
+      pool.query(
+        `INSERT INTO checkpoints
+           (height, layout, name_root, prices_root, pending_root, unreserved_root, log_hash, commitment)
+         VALUES ($1, $2, $3, $3, $3, $4, $3, $3)`,
+        [height, layout, bytes, unreservedRoot],
+      )
+    await expect(insert(58_178_880, 1, bytes)).rejects.toThrow(/checkpoints_unreserved_root_matches_layout/)
+    await expect(insert(58_178_880, 2, null)).rejects.toThrow(/checkpoints_unreserved_root_matches_layout/)
+
+    // The r15 shape the column was made nullable for, and it reads back as null.
+    await insert(58_178_880, 1, null)
+    expect(await store.checkpointAt(58_178_880)).toMatchObject({ layout: 1, unreservedRoot: null })
   })
 
   it('streams the log back in canonical order, and reproduces the log hash', async () => {

@@ -106,6 +106,7 @@ export type CheckpointRow = {
   name_root: Buffer
   prices_root: Buffer
   pending_root: Buffer
+  unreserved_root: Buffer
   log_hash: Buffer
   commitment: Buffer
 }
@@ -117,6 +118,7 @@ export function checkpointRow(record: Checkpoint): CheckpointRow {
     name_root: Buffer.from(record.nameRoot),
     prices_root: Buffer.from(record.pricesRoot),
     pending_root: Buffer.from(record.pendingRoot),
+    unreserved_root: Buffer.from(record.unreservedRoot),
     log_hash: Buffer.from(record.logHash),
     commitment: Buffer.from(record.commitment),
   }
