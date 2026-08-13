@@ -1125,3 +1125,134 @@ describe('constants profiles — a fast state runs the same rules at 1/1000 temp
     expect('profile' in state).toBe(false)
   })
 })
+
+// ── Profile differential ────────────────────────────────────────────────────
+//
+// The audit this suite pins: every profiled value the reducer reads must come
+// from `constantsOf(state)`, never from `CONSTANTS`. A single missed call site
+// would run `fast` under a mix of tempos nobody specified — and it would only
+// show up as a timing-dependent outcome that *fails to differ* between
+// profiles, or one that differs where the ratified profile says it must not.
+// So: the same transactions, reduced under both profiles, asserting divergence
+// exactly where the ten profiled fields say it belongs.
+
+describe('profile differential — the same transactions under mainnet and fast', () => {
+  const FAST = PROFILES.fast
+  // defineConfig warns loudly on a non-mainnet profile; that is the tested
+  // contract of config.test.ts, not noise this suite should print.
+  const fastConfig = (() => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      return testConfig({ profile: 'fast' })
+    } finally {
+      warn.mockRestore()
+    }
+  })()
+
+  /** One literal transaction sequence, reduced under each profile. */
+  function both(txs: readonly ChainTransaction[]): { mainnet: NnsState; fast: NnsState } {
+    let mainnet = initialState(config)
+    let fast = initialState(fastConfig)
+    for (const tx of txs) {
+      mainnet = reduce(mainnet, tx, config).state
+      fast = reduce(fast, tx, fastConfig).state
+    }
+    return { mainnet, fast }
+  }
+
+  it('a term that has fully elapsed under fast is still running under mainnet (TERM_LENGTH, GRACE_PERIOD)', () => {
+    // One identical G paying the mainnet fee — an overpayment under fast,
+    // which §6 G accepts (`value ≥ fee`), so timing is the only thing that
+    // can diverge from here on.
+    const register = send(encodeRegister(config, { name: 'kikename', fee: CONSTANTS.FEE_STANDARD }), {
+      sender: ALICE,
+    })
+    let { mainnet, fast } = both([register])
+    expect(lookup(mainnet, 'kikename')?.expiry).toBe(LAUNCH + CONSTANTS.TERM_LENGTH)
+    expect(lookup(fast, 'kikename')?.expiry).toBe(LAUNCH + FAST.TERM_LENGTH)
+
+    const past = LAUNCH + FAST.TERM_LENGTH + FAST.GRACE_PERIOD
+    mainnet = advanceTo(mainnet, past)
+    fast = advanceTo(fast, past)
+    expect(lookup(fast, 'kikename')).toBeNull()
+    expect(lookup(mainnet, 'kikename')?.status).toBe('REGISTERED')
+  })
+
+  it('the fast fee registers under fast and forfeits under mainnet (FEE_STANDARD)', () => {
+    const register = send(encodeRegister(config, { name: 'kikename', fee: FAST.FEE_STANDARD }), { sender: ALICE })
+    const onMainnet = reduce(initialState(config), register, config)
+    const onFast = reduce(initialState(fastConfig), register, fastConfig)
+
+    expect(onMainnet.verdict).toEqual({ kind: 'FORFEIT', reason: 'INSUFFICIENT_VALUE' })
+    expect(lookup(onMainnet.state, 'kikename')).toBeNull()
+    expect(onFast.verdict.kind).toBe('OK')
+    expect(lookup(onFast.state, 'kikename')?.owner).toBe(ALICE)
+  })
+
+  it('a transfer matured under fast is still vetoable under mainnet at the same height (XFER_TIMELOCK)', () => {
+    let { mainnet, fast } = both([
+      send(encodeRegister(config, { name: 'kikename', fee: CONSTANTS.FEE_STANDARD }), { sender: ALICE }),
+      send(encodeTransfer(config, { name: 'kikename', newOwner: BOB }), { sender: ALICE, at: LAUNCH + 1 }),
+    ])
+
+    const matured = LAUNCH + 1 + FAST.XFER_TIMELOCK
+    mainnet = advanceTo(mainnet, matured)
+    fast = advanceTo(fast, matured)
+    expect(lookup(fast, 'kikename')?.owner).toBe(BOB)
+    expect(lookup(mainnet, 'kikename')?.owner).toBe(ALICE)
+  })
+
+  it('fast-scale notice on a P is INSUFFICIENT_NOTICE under mainnet and pending under fast (GOVERNANCE_DELAY)', () => {
+    // Proposes fast's own launch prices, so the fast reduction reaches the
+    // §10.6 bounds check and passes it. Mainnet never gets that far: §6 P
+    // checks notice first, so the divergent verdict isolates GOVERNANCE_DELAY.
+    const p = send(
+      encodeGovernance(config, {
+        feeStandard: FAST.FEE_STANDARD,
+        feeLong: FAST.FEE_LONG,
+        commissionBp: CONSTANTS.COMMISSION_RATE,
+        effectiveHeight: LAUNCH + 1_000,
+      }),
+      { sender: ADMIN },
+    )
+    const onMainnet = reduce(initialState(config), p, config)
+    const onFast = reduce(initialState(fastConfig), p, fastConfig)
+
+    expect(onMainnet.verdict).toEqual({ kind: 'FORFEIT', reason: 'INSUFFICIENT_NOTICE' })
+    expect(onMainnet.state.pendingGovernance).toBeNull()
+    expect(onFast.verdict.kind).toBe('OK')
+    expect(onFast.state.pendingGovernance?.effectiveHeight).toBe(LAUNCH + 1_000)
+  })
+
+  it('PRICE_MIN_INTERVAL deliberately does not scale: a 100k-block gap is TOO_SOON under both', () => {
+    // Ratified with the profiles decision: the ~7 d between accepted P
+    // messages is the protocol's shape, not its tempo, so `fast` keeps the
+    // full 604,800. Each profile first accepts a P proposing its own current
+    // prices; 100,000 blocks later — over 165× the 605 a ÷1000 reading would
+    // demand, well inside the ratified interval — a second P is TOO_SOON
+    // under *both*. If a profile ever divides PRICE_MIN_INTERVAL, or the
+    // reducer ever reads it from anywhere but the state's own constants, the
+    // fast half of this test fails.
+    const propose = (cfg: typeof config, from: NnsState, at: number): ReduceResult =>
+      reduce(
+        from,
+        send(
+          encodeGovernance(cfg, {
+            feeStandard: from.prices.feeStandard,
+            feeLong: from.prices.feeLong,
+            commissionBp: from.prices.commissionBp,
+            effectiveHeight: at + CONSTANTS.GOVERNANCE_DELAY,
+          }),
+          { sender: ADMIN, at },
+        ),
+        cfg,
+      )
+
+    for (const cfg of [config, fastConfig]) {
+      const first = propose(cfg, initialState(cfg), LAUNCH)
+      expect(first.verdict.kind).toBe('OK')
+      const second = propose(cfg, first.state, LAUNCH + 100_000)
+      expect(second.verdict).toEqual({ kind: 'FORFEIT', reason: 'TOO_SOON' })
+    }
+  })
+})

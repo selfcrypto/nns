@@ -27,7 +27,7 @@
 import { type Address, addressEquals } from './address.js'
 import { BURN_ADDRESS, type Message, parse } from './codec.js'
 import type { NnsConfig } from './config.js'
-import { CONSTANTS, type ProfileName } from './constants.js'
+import { CONSTANTS, type Constants, type ProfileName } from './constants.js'
 import { feeBand, validateHost, validateName } from './name.js'
 import {
   type NameRecord,
@@ -467,7 +467,14 @@ export function advanceTo(state: NnsState, height: number): NnsState {
 export const feeFor = (name: string, prices: Prices): bigint =>
   feeBand(name) === 'LONG' ? prices.feeLong : prices.feeStandard
 
-/** §6 `M`: `floor(price × rate)`, with the seller taking the remainder. */
+/**
+ * §6 `M`: `floor(price × rate)`, with the seller taking the remainder.
+ *
+ * `BASIS_POINTS` is the unit denominator that gives `commissionBp` its
+ * meaning, identical in every profile (pinned by the identity walk in
+ * `constants.test.ts`) — the one read this module takes from `CONSTANTS`
+ * rather than from a state's own profile.
+ */
 export const commissionOn = (price: bigint, commissionBp: bigint): bigint =>
   (price * commissionBp) / CONSTANTS.BASIS_POINTS
 
@@ -487,8 +494,13 @@ const obligation = (
  * underfunded messages into an obligation to broadcast thousands of
  * transactions.
  */
-function refundOrForfeit(tx: ChainTransaction, reason: RefundReason, owedBy: Address): Verdict {
-  if (tx.value < CONSTANTS.REFUND_FLOOR) return forfeit('BELOW_REFUND_FLOOR')
+function refundOrForfeit(
+  constants: Constants,
+  tx: ChainTransaction,
+  reason: RefundReason,
+  owedBy: Address,
+): Verdict {
+  if (tx.value < constants.REFUND_FLOOR) return forfeit('BELOW_REFUND_FLOOR')
   const ref: TxRef = { height: tx.blockNumber, txIndex: tx.txIndex }
   return { kind: 'REFUND', reason, obligations: [obligation(ref, 'REFUND', owedBy, tx.sender, tx.value)] }
 }
@@ -581,7 +593,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
         // prevents it. Losing a race to a transaction ordered ahead is not
         // client-preventable, so it is refunded.
         if (existing.status === 'GRACE') return keep(forfeit('NAME_IN_GRACE'))
-        return keep(refundOrForfeit(tx, 'LOST_REGISTRATION_RACE', config.treasury))
+        return keep(refundOrForfeit(constants, tx, 'LOST_REGISTRATION_RACE', config.treasury))
       }
 
       const draft = draftOf(state)
@@ -756,9 +768,9 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       // an auction — which v1 never opens. All are refunded identically, so
       // the log does not need to tell them apart.
       if (offer === undefined || record === undefined || record.status !== 'REGISTERED') {
-        return keep(refundOrForfeit(tx, 'OFFER_NOT_OPEN', config.marketplace))
+        return keep(refundOrForfeit(constants, tx, 'OFFER_NOT_OPEN', config.marketplace))
       }
-      if (tx.value !== offer.price) return keep(refundOrForfeit(tx, 'WRONG_PRICE', config.marketplace))
+      if (tx.value !== offer.price) return keep(refundOrForfeit(constants, tx, 'WRONG_PRICE', config.marketplace))
 
       // Ownership moves immediately and deterministically. Settlement never
       // gates the transfer: the marketplace operator handles money, never
@@ -832,11 +844,11 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       }
       if (
         state.lastGovernanceHeight !== null &&
-        tx.blockNumber - state.lastGovernanceHeight < CONSTANTS.PRICE_MIN_INTERVAL
+        tx.blockNumber - state.lastGovernanceHeight < constants.PRICE_MIN_INTERVAL
       ) {
         return keep(forfeit('TOO_SOON'))
       }
-      if (!withinGovernanceBounds(state.prices, message)) return keep(forfeit('GOVERNANCE_BOUND_VIOLATED'))
+      if (!withinGovernanceBounds(constants, state.prices, message)) return keep(forfeit('GOVERNANCE_BOUND_VIOLATED'))
 
       const draft = draftOf(state)
       draft.pendingGovernance = {
@@ -908,23 +920,24 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
  * readings cannot diverge.
  */
 function withinGovernanceBounds(
+  constants: Constants,
   current: Prices,
   proposed: { feeStandard: bigint; feeLong: bigint; commissionBp: bigint },
 ): boolean {
-  const inBand = (fee: bigint): boolean => fee >= CONSTANTS.PRICE_FLOOR && fee <= CONSTANTS.PRICE_CEILING
+  const inBand = (fee: bigint): boolean => fee >= constants.PRICE_FLOOR && fee <= constants.PRICE_CEILING
   if (!inBand(proposed.feeStandard) || !inBand(proposed.feeLong)) return false
   if (proposed.feeLong > proposed.feeStandard) return false
 
   // At most PRICE_MAX_FACTOR up or down, per band.
   const withinFactor = (next: bigint, previous: bigint): boolean =>
-    next <= previous * CONSTANTS.PRICE_MAX_FACTOR && next * CONSTANTS.PRICE_MAX_FACTOR >= previous
+    next <= previous * constants.PRICE_MAX_FACTOR && next * constants.PRICE_MAX_FACTOR >= previous
   if (!withinFactor(proposed.feeStandard, current.feeStandard)) return false
   if (!withinFactor(proposed.feeLong, current.feeLong)) return false
 
-  if (proposed.commissionBp > CONSTANTS.COMMISSION_CEILING) return false
+  if (proposed.commissionBp > constants.COMMISSION_CEILING) return false
   const step =
     proposed.commissionBp > current.commissionBp
       ? proposed.commissionBp - current.commissionBp
       : current.commissionBp - proposed.commissionBp
-  return step <= CONSTANTS.COMMISSION_MAX_STEP
+  return step <= constants.COMMISSION_MAX_STEP
 }
