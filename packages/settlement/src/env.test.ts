@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { MARKETPLACE, TREASURY, testAddress } from './test-fixtures.js'
-import { loadLedgerSettings, loadSettings, loadWatcherSettings } from './env.js'
+import { loadIssuerSettings, loadLedgerSettings, loadSettings, loadWatcherSettings } from './env.js'
 
 const BASE = {
   NNS_API_URL: 'http://api.test/',
@@ -80,5 +80,59 @@ describe('loadLedgerSettings', () => {
         NNS_SETTLEMENT_DATABASE_URL: 'postgres://nns@localhost:5433/nns',
       }),
     ).toThrow(/its own/)
+  })
+})
+
+describe('loadIssuerSettings', () => {
+  const ISSUER = {
+    ...BASE,
+    NNS_SETTLEMENT_DATABASE_URL: 'postgres://nns@localhost:5434/nns_settlement',
+    NNS_RPC_URL: 'http://127.0.0.1:6488',
+    NNS_SETTLEMENT_EXPIRY_BLOCKS: '120',
+    NNS_SETTLEMENT_MIN_BALANCE: '10000000',
+  } as const
+
+  it('adds a node and the §11.5 thresholds to the ledger’s settings', () => {
+    const settings = loadIssuerSettings(ISSUER)
+    expect(settings.rpcUrl).toBe('http://127.0.0.1:6488')
+    expect(settings.expiryBlocks).toBe(120)
+    expect(settings.minBalance).toBe(10_000_000n)
+    expect(settings.databaseUrl).toBe('postgres://nns@localhost:5434/nns_settlement')
+  })
+
+  it('still loads no key — those are keys.ts’s, and only issue-main reaches it', () => {
+    const settings = loadIssuerSettings({ ...ISSUER, NNS_SETTLEMENT_MARKETPLACE_KEY: 'ab'.repeat(32) })
+    expect(Object.values(settings)).not.toContain('ab'.repeat(32))
+  })
+
+  it('assembles the RPC URL from host and port, like admin does', () => {
+    const settings = loadIssuerSettings({ ...ISSUER, NNS_RPC_URL: undefined, NNS_RPC_HOST: '10.0.0.4', NNS_RPC_PORT: '6488' })
+    expect(settings.rpcUrl).toBe('http://10.0.0.4:6488')
+  })
+
+  it('requires a node', () => {
+    expect(() => loadIssuerSettings({ ...ISSUER, NNS_RPC_URL: undefined })).toThrow(/NNS_RPC_URL/)
+  })
+
+  // Too long is a stall; too short pins a replacement while the first is still
+  // valid, which is the double payment. There is no default to drift.
+  it('requires the expiry window rather than guessing the chain’s', () => {
+    expect(() => loadIssuerSettings({ ...ISSUER, NNS_SETTLEMENT_EXPIRY_BLOCKS: undefined })).toThrow(
+      /NNS_SETTLEMENT_EXPIRY_BLOCKS is required/,
+    )
+    expect(() => loadIssuerSettings({ ...ISSUER, NNS_SETTLEMENT_EXPIRY_BLOCKS: '0' })).toThrow(/integer >= 1/)
+  })
+
+  // §11.5 rule 2: alerting at zero alerts after the failure.
+  it('requires an alert threshold above zero', () => {
+    expect(() => loadIssuerSettings({ ...ISSUER, NNS_SETTLEMENT_MIN_BALANCE: undefined })).toThrow(
+      /NNS_SETTLEMENT_MIN_BALANCE is required/,
+    )
+    expect(() => loadIssuerSettings({ ...ISSUER, NNS_SETTLEMENT_MIN_BALANCE: '0' })).toThrow(/well above zero/)
+  })
+
+  it('defaults the fee to zero, which the network accepts', () => {
+    expect(loadIssuerSettings(ISSUER).feeLuna).toBe(0n)
+    expect(loadIssuerSettings({ ...ISSUER, NNS_SETTLEMENT_FEE_LUNA: '138' }).feeLuna).toBe(138n)
   })
 })

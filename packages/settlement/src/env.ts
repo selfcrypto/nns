@@ -3,10 +3,18 @@
  *
  * The same variable names as `packages/indexer` and `packages/admin`, so one
  * `.env` on a box serves all three — minus everything the reconciler must not
- * have. **There is no database URL and no key here, and that is the deliverable
- * rather than an omission**: the reconciler's whole claim is that it computes
- * owed and settled without reading the settlement service's state, and a
- * connection string it never opens would still be an invitation to.
+ * have. **`loadSettings` reads no database URL and no key, and that is the
+ * deliverable rather than an omission**: the reconciler's whole claim is that it
+ * computes owed and settled without reading the settlement service's state, and
+ * a connection string it never opens would still be an invitation to.
+ *
+ * The four loaders are a chain, each adding exactly what its command needs:
+ * `loadSettings` (reconcile) → `loadWatcherSettings` (watch) →
+ * `loadLedgerSettings` (ledger, + its own database) → `loadIssuerSettings`
+ * (issue, + a node and the §11.5 thresholds). **No key is read anywhere in this
+ * file.** Key material lives in `keys.ts`, which only `issue-main.ts` imports,
+ * so "which commands can spend" is a property of the import graph — see
+ * `import-graph.test.ts`.
  *
  * `NNS_RESERVED_NAMES` must equal the indexer's value, for the same reason the
  * API's must: the list is an input to §7.4's `RESERVED_NAME` verdict, and a
@@ -49,10 +57,47 @@ export interface WatcherSettings extends ReconcilerSettings {
  * out. It is loaded here and nowhere near {@link loadSettings}, so `reconcile`
  * and `watch` keep starting on a box that has no database at all.
  *
- * **There is still no key.** That belongs to the issuer, which is not built.
+ * **There is still no key.** The issuer's keys are `keys.ts`'s.
  */
 export interface LedgerSettings extends WatcherSettings {
   readonly databaseUrl: string
+}
+
+/**
+ * The issuer's settings: the ledger's, plus a node and the §11.5 thresholds.
+ *
+ * **Still no key** — see {@link LedgerSettings}. What is here is everything the
+ * issuer needs to *plan* a settlement, which is deliberately the whole of a dry
+ * run: the balance precheck is a read, and a dry run that could not perform it
+ * would leave §11.5's first rule untested until the moment it mattered.
+ */
+export interface IssuerSettings extends LedgerSettings {
+  readonly rpcUrl: string
+  readonly rpcUser: string | undefined
+  readonly rpcPassword: string | undefined
+  /**
+   * Fee on every `M`, in luna. `0` is accepted by the network
+   * (`docs/rpc-reference.md` §4) and is what every other NNS sender uses; the
+   * knob exists because a fee-zero transaction can be deprioritised under
+   * congestion, and the plan stores the fee it was pinned with either way.
+   */
+  readonly feeLuna: bigint
+  /**
+   * Blocks after `validityStartHeight` at which a pinned `M` is treated as dead.
+   *
+   * **The two directions do not cost the same.** Too long is a stall: the
+   * transaction has already expired on-chain and the ledger waits longer than it
+   * needed to before pinning a replacement. Too short is the double payment:
+   * the ledger declares an attempt dead, pins a second one at a fresh
+   * `validityStartHeight`, and both are valid at once. When in doubt, set it
+   * high — which is why there is no default to drift out of date.
+   */
+  readonly expiryBlocks: number
+  /**
+   * §11.5 rule 2: alert on a threshold well above zero, sized so topping up is
+   * routine. Refused at zero, because alerting at zero alerts after the failure.
+   */
+  readonly minBalance: bigint
 }
 
 export type EnvSource = Readonly<Record<string, string | undefined>>
@@ -155,4 +200,55 @@ export function loadLedgerSettings(env: EnvSource = process.env): LedgerSettings
     )
   }
   return Object.freeze({ ...base, databaseUrl })
+}
+
+/**
+ * `NNS_RPC_URL` wins if set; otherwise the host/port pair is assembled, which
+ * is the form a `client.toml` reader recognises. Identical to `admin`'s, and
+ * for the same reason: one `.env` on a box serves both.
+ */
+function rpcUrl(env: EnvSource): string {
+  const explicit = read(env, 'NNS_RPC_URL')
+  if (explicit !== undefined) return explicit
+  const host = read(env, 'NNS_RPC_HOST')
+  const port = read(env, 'NNS_RPC_PORT')
+  if (host === undefined || port === undefined) {
+    throw new EnvError('set NNS_RPC_URL, or both NNS_RPC_HOST and NNS_RPC_PORT — see packages/settlement/.env.example')
+  }
+  const scheme = read(env, 'NNS_RPC_SCHEME') ?? 'http'
+  return `${scheme}://${host}:${port}`
+}
+
+/** Like {@link luna}, but a missing or zero value is an error rather than `0n`. */
+function requiredLuna(env: EnvSource, key: string, why: string): bigint {
+  const raw = required(env, key)
+  if (!/^\d+$/.test(raw)) {
+    throw new EnvError(`${key} must be a whole number of luna (1 NIM = 100,000 luna), got ${JSON.stringify(raw)}`)
+  }
+  const value = BigInt(raw)
+  if (value === 0n) throw new EnvError(`${key} must be greater than zero — ${why}`)
+  return value
+}
+
+export function loadIssuerSettings(env: EnvSource = process.env): IssuerSettings {
+  const base = loadLedgerSettings(env)
+  const url = rpcUrl(env)
+  try {
+    void new URL(url)
+  } catch {
+    throw new EnvError(`NNS_RPC_URL is not a valid URL: ${JSON.stringify(url)}`)
+  }
+  return Object.freeze({
+    ...base,
+    rpcUrl: url,
+    rpcUser: read(env, 'NNS_RPC_USER'),
+    rpcPassword: read(env, 'NNS_RPC_PASSWORD'),
+    feeLuna: luna(env, 'NNS_SETTLEMENT_FEE_LUNA'),
+    expiryBlocks: requiredInteger(env, 'NNS_SETTLEMENT_EXPIRY_BLOCKS', 1),
+    minBalance: requiredLuna(
+      env,
+      'NNS_SETTLEMENT_MIN_BALANCE',
+      '§11.5 asks for a threshold well above zero, because alerting at zero alerts after the failure',
+    ),
+  })
 }

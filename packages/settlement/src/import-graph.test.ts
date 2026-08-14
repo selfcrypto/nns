@@ -1,15 +1,20 @@
 /**
- * `reconcile` and `watch` must keep starting on a box with no database.
+ * Two properties of this package, both stated as reachability.
  *
- * That is the oldest rule in this package — the reconciler was built first so
- * that "computed by code that never reads this service's own database" could
- * not decay — and until the ledger existed it was true because there was no
- * database code to reach. Now there is, so the property needs a test rather
- * than an absence.
+ * **`reconcile` and `watch` must keep starting on a box with no database.**
+ * That is the oldest rule here — the reconciler was built first so that
+ * "computed by code that never reads this service's own database" could not
+ * decay — and until the ledger existed it was true because there was no
+ * database code to reach.
+ *
+ * **Only `issue` can spend.** The hot key is read in exactly one module,
+ * `keys.ts`, and only `issue-main.ts` imports it. `issue.ts` — where every
+ * decision about *what* to pay is made and tested — must not reach it either,
+ * which is what keeps that decision testable against a fake wallet.
  *
  * The walk is over the transitive *runtime* import graph of each entry point.
- * A `type` import is erased and cannot open a connection, so it is excluded;
- * anything else that reaches `db.ts`, `ledger.ts` or `pg` fails here.
+ * A `type` import is erased and can neither open a connection nor read a key,
+ * so it is excluded.
  */
 
 import { readFileSync } from 'node:fs'
@@ -59,6 +64,22 @@ describe('the import graph', () => {
   it('ledger-main.ts reaches the database', () => {
     const graph = reachable('./ledger-main.ts')
     expect(graph).toContain('./db.ts')
+    expect(graph).toContain('./ledger.ts')
+  })
+
+  for (const entry of ['./reconcile-main.ts', './watch-main.ts', './ledger-main.ts', './issue.ts']) {
+    it(`${entry} reaches no key material`, () => {
+      expect([...reachable(entry)]).not.toContain('./keys.ts')
+    })
+  }
+
+  // And the one that does. `issue.ts` decides what to pay; `keys.ts` is the
+  // only thing that can sign it, and `issue-main.ts` is the only thing that
+  // joins them.
+  it('issue-main.ts reaches the key and the database', () => {
+    const graph = reachable('./issue-main.ts')
+    expect(graph).toContain('./keys.ts')
+    expect(graph).toContain('./issue.ts')
     expect(graph).toContain('./ledger.ts')
   })
 })
