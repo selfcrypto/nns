@@ -535,9 +535,18 @@ export class PgQueries implements Queries {
     return this.#snapshot(async (client) => {
       // Only tagged transfers enter the log (§6 `F`) — an untagged burn is
       // exactly the shortfall the dashboard exists to make visible.
+      //
+      // Filtering by recipient alone is not enough, and the 2026-08-14 battery
+      // proved it: an `S` pointing a name at `BURN_ADDRESS` (a legitimate way
+      // to say "this name resolves nowhere") and a `U` awarding to it (which
+      // the reducer rejects, `INVALID_RECIPIENT`) both carry `DUST_VALUE` to
+      // that address and both appeared here as burn attestations. So the type
+      // tag is part of the filter: `NNS1F` is 4e4e533146 in the hex the log
+      // stores, and the recipient check stays because an `F` aimed anywhere
+      // else burned nothing.
       const result = await client.query(
         `SELECT block_height, tx_index, tx_hash, sender, value, verdict
-           FROM log WHERE recipient = $1
+           FROM log WHERE recipient = $1 AND data LIKE '4e4e533146%'
           ORDER BY block_height, tx_index`,
         [BURN_ADDRESS],
       )

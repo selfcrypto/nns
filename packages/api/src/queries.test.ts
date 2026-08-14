@@ -392,4 +392,21 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     expect(body.burned).toBe('100000')
     expect(body.attestations).toHaveLength(2)
   })
+
+  it('counts only `F`, not everything addressed to BURN_ADDRESS', async () => {
+    // Found by the 2026-08-14 battery, which filtered by recipient alone: an
+    // `S` pointing a name at the burn address — a legitimate "resolves
+    // nowhere" — and a `U` awarding to it, which the reducer *rejects*, both
+    // carry DUST_VALUE there and both showed up as burn attestations. Neither
+    // burned anything anybody attested to.
+    await pool.query(
+      `INSERT INTO log (block_height, tx_index, tx_hash, sender, recipient, value, data, verdict)
+       VALUES (58199120, 0, $1, $2, $4, '1', '4e4e533153746573746e616d65', 'OK'),
+              (58199180, 0, $3, $2, $4, '1', '4e4e5331557465737400', 'INVALID_RECIPIENT')`,
+      ['aa'.repeat(32), A, 'bb'.repeat(32), BURN_ADDRESS],
+    )
+    const body = (await handle('GET', '/burn')).body as { burned: string; attestations: unknown[] }
+    expect(body.burned).toBe('100000')
+    expect(body.attestations).toHaveLength(2)
+  })
 })
