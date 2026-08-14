@@ -122,8 +122,13 @@ export const CONSTANTS = Object.freeze({
   RESOLVER_QUORUM: 2,
   /** Independent publishers whose roots must match (§9). */
   ANCHOR_QUORUM: 2,
-  /** Client warns beyond this (§8.5). Seconds; core itself never reads a clock. */
-  ANCHOR_STALENESS_LIMIT_SEC: 7_200,
+  /**
+   * Client warns beyond this (§8.5). Seconds; core itself never reads a
+   * clock. 48 h: one missed daily-floor anchor of margin under §9's
+   * on-change cadence (was 2 h against the hourly cadence, same margin at
+   * the old scale).
+   */
+  ANCHOR_STALENESS_LIMIT_SEC: 172_800,
 
   // ── Addresses that are settled (§3) ───────────────────────────────────────
   /**

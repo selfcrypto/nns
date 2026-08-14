@@ -10,6 +10,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./publisher": {
+      "types": "./dist/publish.d.ts",
+      "default": "./dist/publish.js"
+    },
+    "./reader": {
+      "types": "./dist/reader.d.ts",
+      "default": "./dist/reader.js"
     }
   },
   "files": [
@@ -22,9 +30,11 @@
     "test": "vitest run",
     "compile": "pnpm build && node dist/compile-cli.js",
     "deploy": "pnpm build && node --env-file=.env dist/deploy-cli.js deploy",
-    "verify": "pnpm build && node --env-file=.env dist/deploy-cli.js verify"
+    "verify": "pnpm build && node --env-file=.env dist/deploy-cli.js verify",
+    "publisher": "pnpm build && node --env-file=.env dist/publish-cli.js publish"
   },
   "dependencies": {
+    "@nns/core": "workspace:*",
     "@noble/hashes": "catalog:",
     "viem": "catalog:"
   },

@@ -217,6 +217,28 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > implementation is inverted. See "The CID is a locator, not a verifier" in
 > `docs/decisions.md`.
 
+> **Amended within r17, 2026-08-14 — cadence is on change with a daily
+> floor, superseding hourly; `ANCHOR_STALENESS_LIMIT` becomes 48 h. No bytes
+> move.** Building the publisher showed what the hourly cadence actually
+> buys and what it actually costs. Gas was never the cost — r12 established
+> that when it moved daily to hourly. The costs are **pin churn and
+> operational noise**: every anchor obligates a log snapshot pinned on two
+> independent services (§8.2), so an hourly schedule mints ~8,700 pinned
+> snapshots a year per publisher — almost all of them anchoring a commitment
+> identical to the last, since registry traffic is bursty and mostly absent.
+> §9 now reads: the publisher runs on a schedule, anchors **when the current
+> commitment differs from the one it last anchored**, and anchors
+> **unconditionally when its newest anchor is older than 24 h**, so a live
+> quiet registry still produces a fresh attestation daily and §8.5 #8's
+> staleness check stays meaningful. `ANCHOR_STALENESS_LIMIT` moves 2 h →
+> **48 h** — the same one-missed-anchor margin at the new scale. What bounds
+> the wider window: a day-wide not-yet-anchored gap is proportionate because
+> every prior anchor already chains the history (the commitment binds
+> `log_hash`, cumulative), §8.7 says anchoring never gated usability anyway,
+> and the §8.4 tiers above the anchor are untouched. Corollary, recorded in
+> `docs/decisions.md`: pin retention is **keep-all** — at a daily ceiling
+> the retention question dissolves rather than needing an answer.
+
 > **Changes in revision 16 — what building the indexer and sending on
 > mainnet found.** Six changes. One moves bytes, three close holes that made
 > a divergence invisible, and two are lessons that cost real transactions to
@@ -765,7 +787,7 @@ NIM figures assume ~$0.0005/NIM.
 | `TREASURY_ADDRESS` | **OPEN** | Receives fees — and only fees |
 | `PROTOCOL_ADDRESS` | **OPEN** | Receives dust-only signalling messages and acts as the §5.3 sentinel; key held cold, never in a node |
 | `REFUND_FLOOR` | 10,000 luna | Below this, a refundable amount is forfeited instead (§7.4) |
-| `ANCHOR_STALENESS_LIMIT` | 2 h | Client warns beyond this (§8.5) |
+| `ANCHOR_STALENESS_LIMIT` | 48 h | Client warns beyond this (§8.5). One missed daily-floor anchor of margin (§9) |
 | `SEGMENT_LENGTH` | 3,153,600 blocks (~1 y) | Log segment boundary (§8.8) |
 | `AUCTION_MIN_INCREMENT` | 5% | Minimum raise over the standing bid (§6 `A`) |
 | `MIN_PRICE` | `FEE_LONG` | Floor on an `O` price and an `A` reserve (§6) |
@@ -2167,8 +2189,12 @@ copy of the bytes still verifies against it. The mitigation is therefore
 operational — a publisher adds the snapshot through **two independent
 implementations** and requires equal CIDs before anchoring the digest.
 
-Published once per anchor (hourly, §9) rather than once per checkpoint —
-120 CIDs a day would be noise, and the unchanged prefix dedupes anyway.
+Published once per anchor (on change with a daily floor, §9) rather than
+once per checkpoint — 120 CIDs a day would be noise, and the unchanged
+prefix dedupes anyway. Pinned snapshots are **kept, all of them**: at a
+daily ceiling the retention question dissolves — a year of a full registry
+is a few gigabytes across two free tiers — rather than needing a pruning
+policy that would itself be an availability decision.
 
 **IPFS gives integrity, not persistence.** Unpinned content disappears.
 Publication is therefore backed by pinning: the operator's own service, and
@@ -2453,17 +2479,30 @@ evidence for it.
 Events rather than storage — logs live in the receipt trie, are independently
 verifiable, and cost a fraction of an `SSTORE`.
 
-Cadence: **hourly**, to one chain. Every root also published to the NNS API
-and the repo.
+Cadence: **on change, with a daily floor**, to one chain. The publisher
+runs on a schedule (every few hours), anchors when the current commitment
+differs from the one it last anchored — which it already reads from the
+chain for idempotency — and anchors **unconditionally when its newest
+anchor is older than 24 hours**, so a live publisher over a quiet registry
+still attests daily and a stale anchor still means what §8.5 #8 needs it to
+mean: the publisher stopped, not the registry. Every root also published to
+the NNS API and the repo.
 
 An anchor is an event emission of roughly 30k gas — fractions of a cent on
-any cheap EVM chain, so hourly costs a publisher a few dollars a year. The
-cadence is chosen to keep the not-yet-anchored window short (§8.7) rather
-than to save gas. One hour against `ANCHOR_STALENESS_LIMIT`'s two leaves
-exactly one missed anchor of margin before clients warn (§8.5 #8), which is
-the real reason not to stretch it. Per-checkpoint anchoring (120 a day) is
-affordable too, but it multiplies the cost and the log-publication churn for
-every independent publisher, which is a bad trade against recruiting them.
+any cheap EVM chain — so gas was never the constraint; even hourly would
+cost a publisher a few dollars a year. What a fixed fast cadence actually
+multiplies is **pin churn and operational noise**: each anchor obligates a
+log snapshot pinned on two independent services (§8.2), and a bursty,
+mostly-quiet registry makes almost all fixed-schedule anchors re-attest an
+unchanged commitment. Anchoring on change spends the pins where the
+attestations are, and the daily floor bounds the not-yet-anchored window at
+a width that is proportionate because every prior anchor already chains the
+whole history — the commitment binds the cumulative `log_hash` — and
+because anchoring never gates usability (§8.7). Twenty-four hours against
+`ANCHOR_STALENESS_LIMIT`'s forty-eight leaves exactly one missed floor
+anchor of margin before clients warn, the same margin the hourly design
+had at its scale. Per-checkpoint anchoring (120 a day) remains affordable
+in gas and remains the wrong trade for the same churn reason.
 
 ### The chain is a deployment choice, not a protocol rule
 
@@ -2840,8 +2879,9 @@ self-proving — the root either matches or it does not, and the publication
 is on-chain.
 
 Note what this is *not* paying for. Anchoring is an event emission of
-roughly 30k gas; on the §9 anchor chain an hourly cadence costs a few dollars
-a year. The cost being recognised is **operational attention** — running,
+roughly 30k gas; on the §9 anchor chain even an hourly cadence would cost a
+few dollars a year, and §9's on-change cadence costs less. The cost being
+recognised is **operational attention** — running,
 monitoring and updating a service — not gas. Cost recovery would be
 rounding error, so the stipend should be sized as recognition, alongside
 the non-cash incentives in §15 that do most of the work.

@@ -284,7 +284,7 @@ export interface CodeVerification {
  * committed artifact, which the test suite independently proves is the
  * compilation of `contracts/NnsAnchor.sol`.
  */
-export async function verifyDeployedCode(rpc: DeployRpc, address: EvmAddress): Promise<CodeVerification> {
+export async function verifyDeployedCode(rpc: Pick<DeployRpc, 'getCode'>, address: EvmAddress): Promise<CodeVerification> {
   const actual = (await rpc.getCode(normaliseAddress(address))).toLowerCase()
   const expected = ARTIFACT.deployedBytecode.toLowerCase()
   return { match: actual === expected, expected, actual }

@@ -48,7 +48,7 @@ export interface DeployRpc {
   getCode(address: EvmAddress): Promise<Hex>
 }
 
-/** What a deploy transaction needs signed. No `to`: this is a creation. */
+/** What a transaction needs signed. `to` absent is the creation form. */
 export interface DeployTransaction {
   readonly chainId: number
   readonly nonce: number
@@ -56,6 +56,45 @@ export interface DeployTransaction {
   readonly maxFeePerGas: bigint
   readonly maxPriorityFeePerGas: bigint
   readonly data: Hex
+  /** Call target. Omitted for a contract creation, present for `anchor()`. */
+  readonly to?: EvmAddress
+}
+
+/** One emitted event, the fields this package reads. */
+export interface EvmLog {
+  readonly address: EvmAddress
+  readonly topics: readonly Hex[]
+  readonly data: Hex
+  readonly blockNumber: bigint
+  readonly transactionHash: Hex
+}
+
+/** An `eth_getLogs` filter. `null` in a topic slot matches anything. */
+export interface EvmLogFilter {
+  readonly address: EvmAddress
+  readonly topics: readonly (Hex | null)[]
+  readonly fromBlock: bigint
+  readonly toBlock: 'latest'
+}
+
+/**
+ * What publishing an anchor costs, same idiom as {@link DeployRpc}. The two
+ * additions over deploying are `blockNumber` and `getLogs` — the publisher
+ * reads its own past anchors off the chain before sending, which is what
+ * makes a re-run idempotent — and `estimateGas` gains the `to` a call has.
+ */
+export interface PublisherRpc {
+  chainId(): Promise<number>
+  getBalance(address: EvmAddress): Promise<bigint>
+  getTransactionCount(address: EvmAddress): Promise<number>
+  estimateGas(params: { from: EvmAddress; to: EvmAddress; data: Hex }): Promise<bigint>
+  estimateFees(): Promise<FeeEstimate>
+  sendRawTransaction(signed: Hex): Promise<Hex>
+  waitForReceipt(hash: Hex): Promise<DeployReceipt>
+  /** `0x` when nothing is deployed at the address. */
+  getCode(address: EvmAddress): Promise<Hex>
+  blockNumber(): Promise<bigint>
+  getLogs(filter: EvmLogFilter): Promise<readonly EvmLog[]>
 }
 
 /**

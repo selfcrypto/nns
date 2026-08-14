@@ -13,6 +13,8 @@
  * prevent.
  */
 
+import { FILEBASE_ENDPOINT_DEFAULT } from './filebase.js'
+
 export class EnvError extends Error {
   override readonly name = 'EnvError'
 }
@@ -93,6 +95,188 @@ export function loadSettings(env: EnvSource = process.env): DeploySettings {
   // require a key it has no business holding. The deploy path asks for it
   // instead, via `requireDeployer`.
   return { rpcUrl, chainId, deployKey, deployAddress }
+}
+
+// ── Publisher settings ──────────────────────────────────────────────────────
+
+/** One kubo-RPC add endpoint, as configured. */
+export interface IpfsEndpointSettings {
+  readonly url: string
+  readonly auth: string | undefined
+  readonly label: string
+}
+
+/**
+ * The second §8.2 implementation, chosen by which variables are set:
+ * a second kubo-RPC endpoint, or Filebase over its S3-compatible API.
+ * Exactly one — both configured is ambiguous and refused. The edge modules
+ * (`ipfs.ts`, `filebase.ts`) hide the difference behind `IpfsAdd`, so the
+ * choice is an environment change alone.
+ */
+export type SecondAddSettings =
+  | { readonly kind: 'kubo'; readonly url: string; readonly auth: string | undefined; readonly label: string }
+  | {
+      readonly kind: 'filebase'
+      readonly bucket: string
+      readonly accessKey: string
+      readonly secretKey: string
+      readonly endpoint: string
+      readonly label: string
+    }
+
+export interface PublisherSettings {
+  readonly rpcUrl: string
+  readonly chainId: number
+  /** Where `NnsAnchor` lives. An output of the deploy script, never derived. */
+  readonly contractAddress: string
+  /** The NNS API serving `/log` and `/checkpoints/{height}`. */
+  readonly apiUrl: string
+  /** Implementation A: the operator's own kubo-RPC endpoint. */
+  readonly ipfsPrimary: IpfsEndpointSettings
+  /** Implementation B — §8.2's independent second. */
+  readonly ipfsSecondary: SecondAddSettings
+  /** Present only when a key is configured; absent is legal for a dry run. */
+  readonly publisherKey: string | undefined
+  /** The publisher address, for planning without the key present. */
+  readonly publisherAddress: string | undefined
+  /** §11.5 alert threshold, wei. Alerts fire below it; sends still go out. */
+  readonly minBalanceWei: bigint
+  /** `eth_getLogs` window for reading own anchors back. */
+  readonly lookbackBlocks: bigint
+}
+
+/**
+ * ~2.3 days of Polygon PoS blocks (~2 s each): wide enough that a weekend
+ * outage is still seen as "my last anchor", narrow enough for the range
+ * limits public `eth_getLogs` endpoints impose. Overridable because it is an
+ * operational window, not an identity — unlike the chain id, a wrong value
+ * cannot silently target the wrong network.
+ */
+export const DEFAULT_LOOKBACK_BLOCKS = 100_000n
+
+function requiredDecimalBigint(env: EnvSource, key: string): bigint {
+  const raw = required(env, key)
+  if (!/^[0-9]+$/.test(raw)) {
+    throw new EnvError(`${key} must be a decimal integer (wei / blocks), got ${JSON.stringify(raw)}`)
+  }
+  return BigInt(raw)
+}
+
+export function loadPublisherSettings(env: EnvSource = process.env): PublisherSettings {
+  // Same endpoint discipline as the deploy path, same reason: the chain id
+  // has no default, so it can contradict a stale RPC URL.
+  const { rpcUrl, chainId } = loadSettings({
+    NNS_ANCHOR_RPC_URL: env['NNS_ANCHOR_RPC_URL'],
+    NNS_ANCHOR_CHAIN_ID: env['NNS_ANCHOR_CHAIN_ID'],
+  })
+
+  const contractAddress = required(env, 'NNS_ANCHOR_CONTRACT_ADDRESS')
+  if (!/^0x[0-9a-fA-F]{40}$/.test(contractAddress)) {
+    throw new EnvError('NNS_ANCHOR_CONTRACT_ADDRESS must be a 0x-prefixed 20-byte hex address')
+  }
+  const apiUrl = required(env, 'NNS_ANCHOR_API_URL')
+
+  const primary: IpfsEndpointSettings = {
+    url: required(env, 'NNS_ANCHOR_IPFS_ADD_URL'),
+    auth: read(env, 'NNS_ANCHOR_IPFS_ADD_AUTH'),
+    label: 'ipfs-1',
+  }
+
+  const secondaryUrl = read(env, 'NNS_ANCHOR_IPFS_ADD_URL_2')
+  const filebaseBucket = read(env, 'NNS_ANCHOR_FILEBASE_BUCKET')
+  if (secondaryUrl !== undefined && filebaseBucket !== undefined) {
+    throw new EnvError(
+      'both NNS_ANCHOR_IPFS_ADD_URL_2 and NNS_ANCHOR_FILEBASE_BUCKET are set — the second §8.2 ' +
+        'implementation is one or the other, not both',
+    )
+  }
+  let secondary: SecondAddSettings
+  if (filebaseBucket !== undefined) {
+    secondary = {
+      kind: 'filebase',
+      bucket: filebaseBucket,
+      accessKey: required(env, 'NNS_ANCHOR_FILEBASE_KEY'),
+      secretKey: required(env, 'NNS_ANCHOR_FILEBASE_SECRET'),
+      endpoint: read(env, 'NNS_ANCHOR_FILEBASE_ENDPOINT') ?? FILEBASE_ENDPOINT_DEFAULT,
+      label: 'filebase',
+    }
+  } else if (secondaryUrl !== undefined) {
+    secondary = { kind: 'kubo', url: secondaryUrl, auth: read(env, 'NNS_ANCHOR_IPFS_ADD_AUTH_2'), label: 'ipfs-2' }
+    if (primary.url.replace(/\/+$/, '') === secondaryUrl.replace(/\/+$/, '')) {
+      // The same endpoint twice would make the §8.2 agreement check vacuous
+      // while looking like it ran. Two *URLs* differing is necessary, not
+      // sufficient — point them at genuinely different implementations.
+      throw new EnvError(
+        'NNS_ANCHOR_IPFS_ADD_URL and NNS_ANCHOR_IPFS_ADD_URL_2 are the same endpoint — §8.2 requires two ' +
+          'independent implementations, and one service asked twice agrees with itself by definition',
+      )
+    }
+  } else {
+    throw new EnvError(
+      'the second §8.2 implementation is missing — set NNS_ANCHOR_FILEBASE_BUCKET (+ KEY, SECRET) for ' +
+        'Filebase, or NNS_ANCHOR_IPFS_ADD_URL_2 for a second kubo-RPC endpoint',
+    )
+  }
+
+  const publisherKey = read(env, 'NNS_ANCHOR_PUBLISHER_KEY')
+  if (publisherKey !== undefined && !/^0x[0-9a-fA-F]{64}$/.test(publisherKey)) {
+    // Shape only, and the value never appears in the message.
+    throw new EnvError('NNS_ANCHOR_PUBLISHER_KEY must be a 0x-prefixed 32-byte hex private key')
+  }
+  const publisherAddress = read(env, 'NNS_ANCHOR_PUBLISHER_ADDRESS')
+  if (publisherAddress !== undefined && !/^0x[0-9a-fA-F]{40}$/.test(publisherAddress)) {
+    throw new EnvError('NNS_ANCHOR_PUBLISHER_ADDRESS must be a 0x-prefixed 20-byte hex address')
+  }
+
+  const minBalanceWei = requiredDecimalBigint(env, 'NNS_ANCHOR_MIN_BALANCE_WEI')
+
+  const rawLookback = read(env, 'NNS_ANCHOR_LOOKBACK_BLOCKS')
+  let lookbackBlocks = DEFAULT_LOOKBACK_BLOCKS
+  if (rawLookback !== undefined) {
+    if (!/^[0-9]+$/.test(rawLookback)) {
+      throw new EnvError(`NNS_ANCHOR_LOOKBACK_BLOCKS must be a decimal integer, got ${JSON.stringify(rawLookback)}`)
+    }
+    lookbackBlocks = BigInt(rawLookback)
+  }
+
+  return {
+    rpcUrl,
+    chainId,
+    contractAddress,
+    apiUrl,
+    ipfsPrimary: primary,
+    ipfsSecondary: secondary,
+    publisherKey,
+    publisherAddress,
+    minBalanceWei,
+    lookbackBlocks,
+  }
+}
+
+/** The publisher identity — same two-configuration shape as {@link Deployer}. */
+export type PublisherIdentity =
+  | { readonly kind: 'signing'; readonly key: string; readonly declaredAddress: string | undefined }
+  | { readonly kind: 'planning'; readonly address: string }
+
+export function requirePublisherIdentity(settings: PublisherSettings): PublisherIdentity {
+  if (settings.publisherKey !== undefined) {
+    return { kind: 'signing', key: settings.publisherKey, declaredAddress: settings.publisherAddress }
+  }
+  if (settings.publisherAddress !== undefined) {
+    return { kind: 'planning', address: settings.publisherAddress }
+  }
+  throw new EnvError(
+    'set NNS_ANCHOR_PUBLISHER_KEY to anchor, or NNS_ANCHOR_PUBLISHER_ADDRESS to dry-run without the key ' +
+      '— see packages/anchor/.env.example',
+  )
+}
+
+/** The key, or a usable error. Separate so a dry run can run without one. */
+export function requirePublisherKey(settings: PublisherSettings): string {
+  if (settings.publisherKey === undefined) {
+    throw new EnvError('NNS_ANCHOR_PUBLISHER_KEY is required to send — see packages/anchor/.env.example')
+  }
+  return settings.publisherKey
 }
 
 /**

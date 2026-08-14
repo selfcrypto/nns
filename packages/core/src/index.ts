@@ -134,6 +134,7 @@ export {
   canonicalLogLine,
   cidFromDigest,
   createLogHasher,
+  digestFromCid,
   logFile,
   logHash,
   parseLogLine,

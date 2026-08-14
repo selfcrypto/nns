@@ -1,7 +1,7 @@
 import { keccak_256 } from '@noble/hashes/sha3.js'
 import { hexToBytes } from '@noble/hashes/utils.js'
 import { describe, expect, it } from 'vitest'
-import { LogError, canonicalLogLine, cidFromDigest, createLogHasher, logFile, logHash, parseLogLine, verdictToken } from './log.js'
+import { LogError, canonicalLogLine, cidFromDigest, createLogHasher, digestFromCid, logFile, logHash, parseLogLine, verdictToken } from './log.js'
 import type { ChainTransaction, Verdict } from './reduce.js'
 import { ALICE, MAINNET_ID, TREASURY } from './test-fixtures.js'
 import { unionMembers } from './vocabulary-fixture.js'
@@ -210,5 +210,63 @@ describe('cidFromDigest', () => {
     expect(() => cidFromDigest(new Uint8Array(31))).toThrow(LogError)
     expect(() => cidFromDigest(new Uint8Array(33))).toThrow(LogError)
     expect(() => cidFromDigest(new Uint8Array(0))).toThrow(LogError)
+  })
+})
+
+describe('digestFromCid', () => {
+  // A base32 CIDv1 string over arbitrary prefix bytes, for building the
+  // near-miss cases below. Deliberately local to the test: the shipped
+  // encoder only ever emits the §8.2 prefix.
+  function base32Cid(prefix: readonly number[], digest: Uint8Array): string {
+    const bytes = Uint8Array.from([...prefix, ...digest])
+    const alphabet = 'abcdefghijklmnopqrstuvwxyz234567'
+    let out = 'b'
+    let value = 0
+    let bits = 0
+    for (const byte of bytes) {
+      value = (value << 8) | byte
+      bits += 8
+      while (bits >= 5) {
+        bits -= 5
+        out += alphabet.charAt((value >>> bits) & 31)
+      }
+    }
+    if (bits > 0) out += alphabet.charAt((value << (5 - bits)) & 31)
+    return out
+  }
+
+  it('inverts cidFromDigest on the pinned pairs', () => {
+    for (const hex of [
+      'bfccda787baba32b59c78450ac3d20b633360b43992c77289f9ed46d843561e6',
+      '46d44814b9c5af141c3aaab7c05dc5e844ead5f91f12858b021eba45768b4c0e',
+    ]) {
+      const digest = hexToBytes(hex)
+      expect(digestFromCid(cidFromDigest(digest))).toEqual(digest)
+    }
+  })
+
+  it('extracts the digest from the pinned kubo CID directly', () => {
+    expect(digestFromCid('bafybeif7ztnhq65lumvvtr4ekcwd2ifwgm3awq4zfr3srh462rwyinlb4y')).toEqual(
+      hexToBytes('bfccda787baba32b59c78450ac3d20b633360b43992c77289f9ed46d843561e6'),
+    )
+  })
+
+  it('refuses a raw-leaves CID — the kubo --cid-version=1 default trap', () => {
+    const digest = hexToBytes('46d44814b9c5af141c3aaab7c05dc5e844ead5f91f12858b021eba45768b4c0e')
+    // 0x55 is the raw codec: what kubo mints for a single-chunk file unless
+    // --raw-leaves=false is passed explicitly (§8.2).
+    expect(() => digestFromCid(base32Cid([0x01, 0x55, 0x12, 0x20], digest))).toThrow(/raw-leaves/)
+  })
+
+  it('refuses the wrong multibase, length, alphabet and padding', () => {
+    const good = 'bafybeif7ztnhq65lumvvtr4ekcwd2ifwgm3awq4zfr3srh462rwyinlb4y'
+    expect(() => digestFromCid(`z${good.slice(1)}`)).toThrow(LogError) // not multibase b
+    expect(() => digestFromCid(good.slice(0, -1))).toThrow(LogError) // 58 chars
+    expect(() => digestFromCid(`${good}a`)).toThrow(LogError) // 60 chars
+    expect(() => digestFromCid(good.slice(0, -1) + '1')).toThrow(LogError) // '1' not in RFC 4648 base32
+    expect(() => digestFromCid(good.toUpperCase())).toThrow(LogError) // uppercase is a different multibase
+    // Last char with non-zero padding bits: 'y' ends the pinned CID with two
+    // zero pad bits; '7' (31) has them set.
+    expect(() => digestFromCid(good.slice(0, -1) + '7')).toThrow(/padding/)
   })
 })

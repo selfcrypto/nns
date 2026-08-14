@@ -75,6 +75,9 @@ importers:
 
   packages/anchor:
     dependencies:
+      '@nns/core':
+        specifier: workspace:*
+        version: link:../core
       '@noble/hashes':
         specifier: 'catalog:'
         version: 2.3.0

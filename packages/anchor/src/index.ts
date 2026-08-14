@@ -1,10 +1,11 @@
 /**
  * `@nns/anchor` — the NNS anchor contract (§9) and the record of its build.
  *
- * Deliverable 1 of `tasks/05-anchor.md`. The publisher cron and the
- * client-side reader land later, behind their own subpath exports
- * (`@nns/anchor/publisher`, `@nns/anchor/reader`) so that a mini app bundling
- * the reader can never pull in key-handling code.
+ * Deliverable 1 of `tasks/05-anchor.md`. The publisher lives behind
+ * `@nns/anchor/publisher` and the client-side reader behind
+ * `@nns/anchor/reader` — kept off this root so that a mini app bundling
+ * the reader can never pull in key-handling code, a property
+ * `browser-safety.test.ts` enforces over the import graph.
  *
  * Nothing exported here touches the network, the filesystem or a key. The
  * compiler wrapper is deliberately *not* re-exported: `compile.ts` reads the

@@ -258,3 +258,60 @@ export function cidFromDigest(digest: Uint8Array): string {
   if (bits > 0) out += BASE32.charAt((value << (5 - bits)) & 31)
   return out
 }
+
+/**
+ * The 32-byte multihash digest a §8.2-conforming CID string carries — the
+ * inverse of {@link cidFromDigest}, for the party that *has* a CID (an IPFS
+ * add's answer, a pin listing) and needs the `logDigest` the `Anchored`
+ * event carries (§9).
+ *
+ * This is parsing, not derivation: no bytes are hashed, and a CID never
+ * enters or leaves except as the string a reference implementation minted.
+ * The prefix check is the §8.2 conformance gate, and its most likely
+ * customer is a misconfigured add — kubo turns raw leaves **on** the moment
+ * `--cid-version=1` is given, which mints a `raw` (0x55) root for any
+ * single-chunk file, so a publisher that forgot `--raw-leaves=false` is
+ * caught here rather than anchoring a digest no conforming client can
+ * rebuild a CID from.
+ *
+ * @throws {LogError} unless the string is a multibase-`b`, base32, CIDv1
+ * `dag-pb` sha2-256 CID with a 32-byte digest — §8.2's exact shape.
+ */
+export function digestFromCid(cid: string): Uint8Array {
+  // 1 multibase char + ceil((4 prefix + 32 digest) * 8 / 5) = 59.
+  if (cid.length !== 59 || !cid.startsWith('b')) {
+    throw new LogError(`not a §8.2 CID: expected 59 chars starting 'b' (base32 CIDv1), got ${JSON.stringify(cid)}`)
+  }
+  const bytes: number[] = []
+  let value = 0
+  let bits = 0
+  for (const char of cid.slice(1)) {
+    const index = BASE32.indexOf(char)
+    if (index < 0) throw new LogError(`not a §8.2 CID: ${JSON.stringify(char)} is not lowercase base32`)
+    value = (value << 5) | index
+    bits += 5
+    if (bits >= 8) {
+      bits -= 8
+      bytes.push((value >>> bits) & 0xff)
+    }
+  }
+  // 58 chars decode to 36 bytes with 2 leftover bits, which canonical
+  // encoding leaves zero.
+  if ((value & ((1 << bits) - 1)) !== 0) {
+    throw new LogError('not a §8.2 CID: non-zero padding bits')
+  }
+  for (let i = 0; i < CID_PREFIX.length; i += 1) {
+    if (bytes[i] !== CID_PREFIX[i]) {
+      const got = bytes
+        .slice(0, 4)
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join(' ')
+      throw new LogError(
+        `not a §8.2 CID: prefix is ${got}, expected 01 70 12 20 (CIDv1 dag-pb sha2-256) — ` +
+          'a 01 55 prefix is a raw-leaves root, which §8.2 forbids (pass --raw-leaves=false; ' +
+          "kubo's --cid-version=1 default turns raw leaves on)",
+      )
+    }
+  }
+  return Uint8Array.from(bytes.slice(CID_PREFIX.length))
+}
