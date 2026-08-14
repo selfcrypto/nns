@@ -1,4 +1,5 @@
 /**
+ * `configFingerprint` is pure and runs unconditionally. Everything below it is
  * Store integration — **needs a real Postgres**, and is skipped without one.
  *
  *   NNS_TEST_DATABASE_URL=postgres://…/nns_test pnpm vitest run --project indexer
@@ -7,6 +8,16 @@
  * Everything here is SQL: the migration, the upsert/delete paths, the
  * per-batch transaction. None of it is exercised by the pure tests, and none
  * of it can be — which is exactly why this file exists rather than a mock.
+ *
+ * **The schema is named, not `public`.** `packages/api`'s gated suite points
+ * at the same `NNS_TEST_DATABASE_URL`, and vitest runs the two projects in
+ * parallel — when both claimed `public`, whichever dropped second deleted the
+ * other's tables mid-run, and the failures read as "relation does not exist"
+ * from code that had just created it. Each suite owning a named schema makes
+ * the two independent, so the gate can be satisfied by a plain `pnpm test`
+ * rather than one project at a time. The search_path is set on the connection
+ * itself, so `migrate()` and every query land in it with no change to
+ * `createPool`.
  */
 
 import {
@@ -24,11 +35,22 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { CheckpointBuilder, COMMITMENT_LAYOUT, hex, logLineFromRow } from './checkpoint.js'
 import { createPool, migrate } from './db.js'
-import { Store } from './store.js'
+import { configFingerprint, Store } from './store.js'
 import { nameRows, rowsOf, type LogRow } from './rows.js'
 import { collectingLogger } from './test-fixtures.js'
 
 const URL = process.env['NNS_TEST_DATABASE_URL']
+
+/**
+ * This suite's own schema. Appended as a libpq `options` parameter rather than
+ * issued as a `SET`, so it is in force on every pooled connection from the
+ * first one — a `SET` on the pool only reaches the connection that ran it.
+ * Built by hand because `URL` above shadows the global `URL` constructor.
+ */
+const SCHEMA = 'store_test'
+const POOL_URL =
+  URL === undefined ? '' : `${URL}${URL.includes('?') ? '&' : '?'}options=${encodeURIComponent(`-c search_path=${SCHEMA}`)}`
+
 const A = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
 const B = 'NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2'
 const C = 'NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK'
@@ -45,6 +67,71 @@ const CONFIG = defineConfig({
 })
 
 const compact = (value: string) => parseAddress(value)
+
+describe('configFingerprint', () => {
+  // `Store.loadCursor` refuses a database whose stored fingerprint differs from
+  // the running config, which is what stops an indexer continuing on top of
+  // rows a replay from scratch would never have produced. A §3 value that
+  // failed to reach the payload would leave that check passing while the two
+  // deployments disagreed — visible only much later, as a divergent root.
+  //
+  // The function is pure, so this belongs above the Postgres gate rather than
+  // inside it, where it sat until the test audit on 2026-08-14.
+
+  const BASE = {
+    networkId: 24,
+    launchHeight: 58_177_000,
+    treasury: A,
+    protocol: B,
+    admin: C,
+    marketplace: D,
+    listingFee: 0n,
+  }
+  // A fifth address, because §3 requires the four roles to be distinct: moving
+  // one field at a time is only possible with a spare to move it to.
+  const E = 'NQ21 1111 1111 1111 1111 1111 1111 1111 1111'
+
+  const fingerprint = (input: Parameters<typeof defineConfig>[0]) => configFingerprint(defineConfig(input))
+  const BASELINE = fingerprint(BASE)
+
+  it('is a sha256 digest, and the same config always produces it', () => {
+    expect(BASELINE).toMatch(/^[0-9a-f]{64}$/)
+    expect(fingerprint({ ...BASE })).toBe(BASELINE)
+    expect(configFingerprint(CONFIG)).toBe(BASELINE)
+  })
+
+  // One row per §3 value the fingerprint claims to cover. A field dropped from
+  // the payload shows up here and nowhere else.
+  it.each([
+    ['networkId', { ...BASE, networkId: 5 }],
+    ['launchHeight', { ...BASE, launchHeight: BASE.launchHeight + 1 }],
+    ['treasury', { ...BASE, treasury: E }],
+    ['protocol', { ...BASE, protocol: E }],
+    ['admin', { ...BASE, admin: E }],
+    ['marketplace', { ...BASE, marketplace: E }],
+    ['listingFee', { ...BASE, listingFee: 1n }],
+    ['reservedNames', { ...BASE, reservedNames: ['nimiq'] }],
+  ])('changes when %s changes', (_field, input) => {
+    expect(fingerprint(input)).not.toBe(BASELINE)
+  })
+
+  it('distinguishes the roles, not just the set of addresses', () => {
+    // Swapping two roles leaves the same four addresses configured. A payload
+    // that hashed them unkeyed would call these two deployments identical, and
+    // they replay to different states.
+    expect(fingerprint({ ...BASE, treasury: B, protocol: A })).not.toBe(BASELINE)
+  })
+
+  it('ignores the order reserved names were listed in', () => {
+    // §4.1 matches the set, so two operators who wrote the same list in a
+    // different order run the same deployment — the `.sort()` in the payload
+    // is what keeps that from reading as a config change on restart.
+    const one = fingerprint({ ...BASE, reservedNames: ['nimiq', 'team', 'bank'] })
+    const other = fingerprint({ ...BASE, reservedNames: ['bank', 'nimiq', 'team'] })
+    expect(one).toBe(other)
+    expect(one).not.toBe(fingerprint({ ...BASE, reservedNames: ['nimiq', 'team'] }))
+  })
+})
 
 function populated(base: NnsState): NnsState {
   return Object.freeze({
@@ -81,12 +168,12 @@ function populated(base: NnsState): NnsState {
 }
 
 describe.skipIf(URL === undefined)('Store', () => {
-  const pool = createPool(URL ?? '')
+  const pool = createPool(POOL_URL)
   const { logger } = collectingLogger()
   const store = new Store(pool, CONFIG, logger)
 
   beforeAll(async () => {
-    await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public')
+    await pool.query(`DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE; CREATE SCHEMA ${SCHEMA}`)
     await migrate(pool, logger)
   })
   afterAll(async () => {

@@ -3,10 +3,16 @@
  *
  *   NNS_TEST_DATABASE_URL=postgres://…/nns_test pnpm vitest run --project api
  *
- * It drops and recreates the `public` schema, so point it at a throwaway
+ * It drops and recreates its own schema, so point it at a throwaway
  * database. The schema comes from the indexer's own migrations — the API has
  * none of its own, which is the point: these tests read exactly the tables
  * the indexer writes, in the shape migration `004` leaves them.
+ *
+ * **The schema is named, not `public`.** `packages/indexer`'s gated suite
+ * points at the same `NNS_TEST_DATABASE_URL`, and vitest runs the two
+ * projects in parallel — when both claimed `public`, whichever dropped second
+ * deleted the other's tables mid-run. See the note in
+ * `packages/indexer/src/store.test.ts`.
  */
 
 import {
@@ -28,6 +34,17 @@ import { NotSyncedError, PgQueries, type ApiNameRecord } from './queries.js'
 import { createRoutes } from './routes.js'
 
 const URL = process.env['NNS_TEST_DATABASE_URL']
+
+/**
+ * This suite's own schema — see the header. Appended as a libpq `options`
+ * parameter so it is in force on every pooled connection, and built by hand
+ * because `URL` above shadows the global `URL` constructor. Both describes
+ * below share it: the second reads what the first migrated.
+ */
+const SCHEMA = 'api_test'
+const POOL_URL =
+  URL === undefined ? '' : `${URL}${URL.includes('?') ? '&' : '?'}options=${encodeURIComponent(`-c search_path=${SCHEMA}`)}`
+
 const A = parseAddress('NQ34 248H 248H 248H 248H 248H 248H 248H 248H')
 const B = parseAddress('NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2')
 const C = parseAddress('NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK')
@@ -35,11 +52,11 @@ const C = parseAddress('NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK')
 const HEIGHT = 58_200_000
 
 describe.skipIf(URL === undefined)('PgQueries', () => {
-  const pool = createPool(URL ?? '')
+  const pool = createPool(POOL_URL)
   const queries = new PgQueries(pool)
 
   beforeAll(async () => {
-    await pool.query('DROP SCHEMA public CASCADE; CREATE SCHEMA public')
+    await pool.query(`DROP SCHEMA IF EXISTS ${SCHEMA} CASCADE; CREATE SCHEMA ${SCHEMA}`)
   })
   afterAll(async () => {
     await pool.end()
@@ -183,7 +200,7 @@ function docVerifies(doc: Record<string, unknown>, rootHex0x: string): boolean {
 }
 
 describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
-  const pool = createPool(URL ?? '')
+  const pool = createPool(POOL_URL)
   const queries = new PgQueries(pool)
   const handle = createRoutes(queries, { reservedNames: new Set(), listingFee: 0n })
 
