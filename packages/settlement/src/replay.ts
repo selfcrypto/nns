@@ -168,7 +168,7 @@ function dischargedLeg(
  * Replay every line and account for every leg.
  *
  * @param lines the canonical §8.2 lines, in order, without terminators.
- * @param initial the state to start from — `core.initialState(config)`. Taken
+ * @param initial the state to start from — `core.initialState()`. Taken
  *   as a parameter rather than built here so a test can start from a staged
  *   state without this file growing a second way to make one.
  */

@@ -536,13 +536,13 @@ describe.skipIf(URL === undefined)('Ledger over Postgres', () => {
   it('takes a real log through the watcher and records what it owes', async () => {
     const name = 'alicename'
     const price = 50_000_001n
-    const prices = initialState(config).prices
+    const prices = initialState().prices
     const staged = stageLog(
       [
-        send(LAUNCH_HEIGHT + 10, 0, SELLER, encodeRegister(config, { name, fee: feeFor(name, prices) })),
-        send(LAUNCH_HEIGHT + 20, 0, SELLER, encodeOffer(config, { name, price, minPrice: minPrice(prices) })),
-        send(LAUNCH_HEIGHT + 30, 0, WINNER, encodeBuy(config, { name, price })),
-        send(LAUNCH_HEIGHT + 30, 1, LOSER, encodeBuy(config, { name, price })),
+        send(LAUNCH_HEIGHT + 10, 0, SELLER, encodeRegister({ name, fee: feeFor(name, prices) })),
+        send(LAUNCH_HEIGHT + 20, 0, SELLER, encodeOffer({ name, price, minPrice: minPrice(prices) })),
+        send(LAUNCH_HEIGHT + 30, 0, WINNER, encodeBuy({ name, price })),
+        send(LAUNCH_HEIGHT + 30, 1, LOSER, encodeBuy({ name, price })),
       ],
       config,
     )
@@ -554,7 +554,7 @@ describe.skipIf(URL === undefined)('Ledger over Postgres', () => {
       logHash: hex(coreLogHash(staged.lines)),
       boundToCheckpoint: true,
     }
-    const snapshot = takeSnapshot(log, replayLog(staged.lines, initialState(config), config))
+    const snapshot = takeSnapshot(log, replayLog(staged.lines, initialState(), config))
 
     const update = await ledgerOf().applySnapshot(snapshot)
     expect(update.inserted).toHaveLength(3)

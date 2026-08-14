@@ -15,7 +15,7 @@ const LINES = stageLog(
       LAUNCH_HEIGHT + 10,
       0,
       SELLER,
-      encodeRegister(config, { name: 'alicename', fee: feeFor('alicename', initialState(config).prices) }),
+      encodeRegister({ name: 'alicename', fee: feeFor('alicename', initialState().prices) }),
     ),
   ],
   config,
@@ -24,7 +24,7 @@ const LINES = stageLog(
 const hex = (bytes: Uint8Array): string => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 
 const HASH = hex(logHash(LINES))
-const HEIGHT = 1_000_720
+const HEIGHT = LAUNCH_HEIGHT + 720
 
 interface StubOptions {
   readonly bytes?: Uint8Array

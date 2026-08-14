@@ -341,7 +341,7 @@ describe('history horizon', () => {
     const node = fakeNode({ head: 3_456_600, genesis: 3_456_000, horizon: 3_456_400, blocks: {} })
     const { scanner: s } = scanner(node, { launchHeight: 3_456_190 })
     await expect(s.tick()).rejects.toThrow(HorizonError)
-    await expect(s.tick()).rejects.toThrow(/NNS_LAUNCH_HEIGHT 3,456,190.*3,456,400/s)
+    await expect(s.tick()).rejects.toThrow(/LAUNCH_HEIGHT 3,456,190.*3,456,400/s)
     expect(node.calls.batches).toEqual([])
   })
 

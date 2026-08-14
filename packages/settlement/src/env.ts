@@ -152,11 +152,6 @@ export function loadSettings(env: EnvSource = process.env): ReconcilerSettings {
   try {
     config = defineConfig({
       networkId: requiredInteger(env, 'NNS_NETWORK_ID', 0),
-      launchHeight: requiredInteger(env, 'NNS_LAUNCH_HEIGHT', 0),
-      treasury: required(env, 'NNS_TREASURY_ADDRESS'),
-      protocol: required(env, 'NNS_PROTOCOL_ADDRESS'),
-      admin: required(env, 'NNS_ADMIN_ADDRESS'),
-      marketplace: required(env, 'NNS_MARKETPLACE_ADDRESS'),
     })
   } catch (cause) {
     if (cause instanceof EnvError) throw cause

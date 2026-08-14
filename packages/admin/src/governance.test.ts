@@ -15,19 +15,12 @@ import {
 } from './governance.js'
 import type { ActiveParams, ParamsSource } from './params.js'
 
-const TREASURY = parseAddress('NQ82 24C1 X9HD 6GVL 4JAG AVF6 AT3K FA0Q H3UN')
-const PROTOCOL = parseAddress('NQ07 48LK 0DRX 8M65 6NK1 D1PP CYC4 HE99 K857')
-const ADMIN = parseAddress('NQ67 6CV4 2J2F AREN 8STJ F608 F3LM KJHS MCDQ')
-const MARKETPLACE = parseAddress('NQ28 8H5M 4NB0 CVP7 AY43 HA8R H7V6 MNSB PGN9')
+const TREASURY = CONSTANTS.TREASURY_ADDRESS
+const PROTOCOL = CONSTANTS.PROTOCOL_ADDRESS
+const ADMIN = CONSTANTS.ADMIN_ADDRESS
+const MARKETPLACE = CONSTANTS.MARKETPLACE_ADDRESS
 
-const config = defineConfig({
-  networkId: 24,
-  launchHeight: 58_000_000,
-  treasury: TREASURY,
-  protocol: PROTOCOL,
-  admin: ADMIN,
-  marketplace: MARKETPLACE,
-})
+const config = defineConfig({ networkId: 24 })
 
 const HEAD = 58_099_950
 /** The minimum this CLI will accept: GOVERNANCE_DELAY plus the mempool margin. */
@@ -99,7 +92,7 @@ describe('planGovernance', () => {
     const { rpc, calls } = fakeRpc()
     const built = await planGovernance(rpc, source(), config, params)
 
-    const expected = encodeGovernance(config, params)
+    const expected = encodeGovernance(params)
     expect(built.data).toBe(expected.data)
     expect(built.recipient).toBe(PROTOCOL)
     expect(built.sender).toBe(ADMIN)
@@ -230,7 +223,7 @@ describe('describeGovernancePlan', () => {
     expect(lines).toContain('250 bp → 300 bp')
     expect(lines).toContain(`effective at height ${EFFECTIVE} — head is ${HEAD}`)
     expect(lines).toContain('~13.0 h from now')
-    expect(lines).toContain('NQ07 48LK 0DRX 8M65 6NK1 D1PP CYC4 HE99 K857')
+    expect(lines).toContain('NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8')
     expect(lines).toContain('PROTOCOL_ADDRESS')
     expect(lines).toContain('ADMIN_ADDRESS), balance 1000000 luna (10 NIM)')
     expect(lines).toContain(`http://api.test/params at height ${HEAD - 100} (100 blocks behind head)`)

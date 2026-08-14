@@ -159,7 +159,7 @@ export function buildPlan(
   feeLuna: bigint,
   expiryBlocks: number,
 ): TransactionPlan {
-  const built = encodeSettlement(config, {
+  const built = encodeSettlement({
     height: entry.ref.height,
     txIndex: entry.ref.txIndex,
     payee: entry.owedTo,

@@ -22,12 +22,11 @@
  * the reducer with a §7.4 verdict — it has to, because a rejected message
  * still earns a log line (§7.6).
  *
- * Every builder takes the config first, for one uniform call shape, even in
- * the three cases (`X`, `M`, `F`) whose routing does not depend on it.
+ * No builder takes a config since the launch freeze: every §3 routing
+ * address is a constant, so the params object is the whole call shape.
  */
 
 import { type Address, addressEquals, parseAddress } from './address.js'
-import type { NnsConfig } from './config.js'
 import { CONSTANTS } from './constants.js'
 import { isValidRef, validateHost, validateNameSyntax } from './name.js'
 
@@ -353,7 +352,6 @@ function requireName(name: string): string {
 
 /** `G` — Register (§6). To `TREASURY_ADDRESS`, carrying the fee. */
 export function encodeRegister(
-  config: NnsConfig,
   params: { name: string; ref?: string | undefined; fee: bigint } & SenderOption,
 ): BuiltTransaction {
   // Reservation is deliberately NOT checked here. `CONSTANTS.RESERVED_NAMES`
@@ -367,7 +365,7 @@ export function encodeRegister(
     fail(`invalid ref ${JSON.stringify(params.ref)} — 1…${CONSTANTS.MAX_REF_LEN} chars from a-z, 0-9, - (§6 G)`)
   }
   const payload = params.ref === undefined ? name : `${name}|${params.ref}`
-  return build('G', payload, config.treasury, params.fee, params.sender)
+  return build('G', payload, CONSTANTS.TREASURY_ADDRESS, params.fee, params.sender)
 }
 
 /**
@@ -376,17 +374,15 @@ export function encodeRegister(
  * owner's own address" — which cannot be expressed as a self-transaction.
  */
 export function encodeSetTarget(
-  config: NnsConfig,
   params: { name: string; target: Address | null } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
-  const recipient = params.target ?? config.protocol
+  const recipient = params.target ?? CONSTANTS.PROTOCOL_ADDRESS
   return build('S', name, recipient, CONSTANTS.DUST_VALUE, params.sender)
 }
 
 /** `X` — Transfer ownership (§6). To the new owner. */
 export function encodeTransfer(
-  _config: NnsConfig,
   params: { name: string; newOwner: Address } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
@@ -399,11 +395,10 @@ export function encodeTransfer(
  * own address as recipient") specified an operation the network cannot carry.
  */
 export function encodeRecovery(
-  config: NnsConfig,
   params: { name: string; recovery: Address | null } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
-  const recipient = params.recovery ?? config.protocol
+  const recipient = params.recovery ?? CONSTANTS.PROTOCOL_ADDRESS
   return build('R', name, recipient, CONSTANTS.DUST_VALUE, params.sender)
 }
 
@@ -415,7 +410,6 @@ export function encodeRecovery(
  * everything else.
  */
 export function encodeDelegate(
-  config: NnsConfig,
   params: { name: string; host: string } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
@@ -424,7 +418,7 @@ export function encodeDelegate(
   return build(
     'D',
     `${name}|${params.host}`,
-    config.protocol,
+    CONSTANTS.PROTOCOL_ADDRESS,
     CONSTANTS.DUST_VALUE,
     params.sender,
     CONSTANTS.MAX_DELEGATE_MESSAGE_BYTES,
@@ -432,16 +426,15 @@ export function encodeDelegate(
 }
 
 /** `K` — Cancel (§6). Vetoes a pending `X` or `R`, or withdraws an `O`. */
-export function encodeCancel(config: NnsConfig, params: { name: string } & SenderOption): BuiltTransaction {
-  return build('K', requireName(params.name), config.protocol, CONSTANTS.DUST_VALUE, params.sender)
+export function encodeCancel(params: { name: string } & SenderOption): BuiltTransaction {
+  return build('K', requireName(params.name), CONSTANTS.PROTOCOL_ADDRESS, CONSTANTS.DUST_VALUE, params.sender)
 }
 
 /** `N` — Renew (§6). Anyone may send it; it extends from the current expiry. */
 export function encodeRenew(
-  config: NnsConfig,
   params: { name: string; fee: bigint } & SenderOption,
 ): BuiltTransaction {
-  return build('N', requireName(params.name), config.treasury, params.fee, params.sender)
+  return build('N', requireName(params.name), CONSTANTS.TREASURY_ADDRESS, params.fee, params.sender)
 }
 
 /**
@@ -455,7 +448,6 @@ export function encodeRenew(
  * cannot show the seller a listing fee without them.
  */
 export function encodeOffer(
-  config: NnsConfig,
   params: { name: string; price: bigint; minPrice: bigint } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
@@ -466,7 +458,7 @@ export function encodeOffer(
   // outright: the fee is a constant, not a literal, and a spec revision that
   // moves it must not have to remember this line.
   const value = CONSTANTS.LISTING_FEE > 0n ? CONSTANTS.LISTING_FEE : CONSTANTS.DUST_VALUE
-  return build('O', `${name}|${formatLuna(params.price)}`, config.treasury, value, params.sender)
+  return build('O', `${name}|${formatLuna(params.price)}`, CONSTANTS.TREASURY_ADDRESS, value, params.sender)
 }
 
 /**
@@ -476,10 +468,9 @@ export function encodeOffer(
  * the client UI must present the offer's name, price and seller itself (§5.3).
  */
 export function encodeBuy(
-  config: NnsConfig,
   params: { name: string; price: bigint } & SenderOption,
 ): BuiltTransaction {
-  return build('B', requireName(params.name), config.marketplace, params.price, params.sender)
+  return build('B', requireName(params.name), CONSTANTS.MARKETPLACE_ADDRESS, params.price, params.sender)
 }
 
 /**
@@ -488,7 +479,6 @@ export function encodeBuy(
  * its canonical `(height, tx_index)` identity.
  */
 export function encodeSettlement(
-  _config: NnsConfig,
   params: { height: number; txIndex: number; payee: Address; amount: bigint } & SenderOption,
 ): BuiltTransaction {
   return build(
@@ -508,13 +498,12 @@ export function encodeSettlement(
  * AUCTION_MIN_INCREMENT)` is 0 and the increment rule stops existing.
  */
 export function encodeAuction(
-  config: NnsConfig,
   params: { name: string; reserve: bigint; endHeight: number; minPrice: bigint } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
   requireAtLeastMinPrice('A reserve', params.reserve, params.minPrice)
   const payload = `${name}|${formatLuna(params.reserve)}|${formatHeight(params.endHeight)}`
-  return build('A', payload, config.protocol, CONSTANTS.DUST_VALUE, params.sender)
+  return build('A', payload, CONSTANTS.PROTOCOL_ADDRESS, CONSTANTS.DUST_VALUE, params.sender)
 }
 
 /**
@@ -523,7 +512,6 @@ export function encodeAuction(
  * by the reducer, independently, in every implementation.
  */
 export function encodeGovernance(
-  config: NnsConfig,
   params: {
     feeStandard: bigint
     feeLong: bigint
@@ -537,7 +525,7 @@ export function encodeGovernance(
     formatLuna(params.commissionBp),
     formatHeight(params.effectiveHeight),
   ].join('|')
-  return build('P', payload, config.protocol, CONSTANTS.DUST_VALUE, params.sender)
+  return build('P', payload, CONSTANTS.PROTOCOL_ADDRESS, CONSTANTS.DUST_VALUE, params.sender)
 }
 
 /**
@@ -557,7 +545,6 @@ export function encodeGovernance(
  * reserved by rule (§4.1), and releasing or awarding them is a designed use.
  */
 export function encodeUnreserve(
-  config: NnsConfig,
   params: { name: string; effectiveHeight: number; recipient?: Address | null } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
@@ -568,7 +555,7 @@ export function encodeUnreserve(
   return build(
     'U',
     `${name}|${formatHeight(params.effectiveHeight)}`,
-    awardee ?? config.protocol,
+    awardee ?? CONSTANTS.PROTOCOL_ADDRESS,
     CONSTANTS.DUST_VALUE,
     params.sender,
   )
@@ -578,6 +565,6 @@ export function encodeUnreserve(
  * `F` — Burn attestation (§6). Tags a treasury-to-burn transfer so it enters
  * the log and the burn dashboard. No protocol effect.
  */
-export function encodeBurn(_config: NnsConfig, params: { amount: bigint } & SenderOption): BuiltTransaction {
+export function encodeBurn(params: { amount: bigint } & SenderOption): BuiltTransaction {
   return build('F', '', BURN_ADDRESS, params.amount, params.sender)
 }

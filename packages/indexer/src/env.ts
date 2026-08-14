@@ -33,8 +33,6 @@ export interface IndexerSettings {
   readonly rpcAttempts: number
   /** §7.5: guards against a node fed by a different network. 24 is main-albatross. */
   readonly networkId: number
-  /** §3, §7.2: indexers start here, not at genesis. */
-  readonly launchHeight: number
   /** Idle wait once the scan has caught up to the last finalised macro block. */
   readonly pollIntervalMs: number
   /** How often the `indexer.progress` heartbeat may repeat. */
@@ -96,7 +94,6 @@ function rpcUrl(env: EnvSource): string {
 export function loadSettings(env: EnvSource = process.env): IndexerSettings {
   const url = rpcUrl(env)
   const networkId = requiredInteger(env, 'NNS_NETWORK_ID', 0)
-  const launchHeight = requiredInteger(env, 'NNS_LAUNCH_HEIGHT', 0)
   try {
     void new URL(url)
   } catch {
@@ -115,32 +112,22 @@ export function loadSettings(env: EnvSource = process.env): IndexerSettings {
     rpcTimeoutMs: integer(env, 'NNS_RPC_TIMEOUT_MS', 30_000, 1),
     rpcAttempts: integer(env, 'NNS_RPC_ATTEMPTS', 4, 1),
     networkId,
-    launchHeight,
     pollIntervalMs: integer(env, 'NNS_POLL_INTERVAL_MS', 15_000, 100),
     progressIntervalMs: integer(env, 'NNS_PROGRESS_INTERVAL_MS', 60_000, 1_000),
     logLevel: level,
     databaseUrl: required(env, 'NNS_DATABASE_URL'),
-    config: nnsConfig(env, networkId, launchHeight),
+    config: nnsConfig(networkId),
   })
 }
 
 /**
- * The §3 values, validated by `core`.
- *
- * `defineConfig` checks the addresses parse and that all four are distinct —
- * at startup, rather than at the first Merkle root, which is where a silent
- * divergence would otherwise begin.
+ * What is left of `NnsConfig` since the launch freeze: `networkId` alone.
+ * The §3 addresses and `LAUNCH_HEIGHT` are `CONSTANTS` — there is no env var
+ * for them, deliberately, so two indexers cannot disagree about them.
  */
-function nnsConfig(env: EnvSource, networkId: number, launchHeight: number): NnsConfig {
+function nnsConfig(networkId: number): NnsConfig {
   try {
-    return defineConfig({
-      networkId,
-      launchHeight,
-      treasury: required(env, 'NNS_TREASURY_ADDRESS'),
-      protocol: required(env, 'NNS_PROTOCOL_ADDRESS'),
-      admin: required(env, 'NNS_ADMIN_ADDRESS'),
-      marketplace: required(env, 'NNS_MARKETPLACE_ADDRESS'),
-    })
+    return defineConfig({ networkId })
   } catch (cause) {
     throw new EnvError(cause instanceof Error ? cause.message : String(cause))
   }

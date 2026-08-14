@@ -52,19 +52,12 @@ const SCHEMA = 'store_test'
 const POOL_URL =
   URL === undefined ? '' : `${URL}${URL.includes('?') ? '&' : '?'}options=${encodeURIComponent(`-c search_path=${SCHEMA}`)}`
 
-const A = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
-const B = 'NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2'
-const C = 'NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK'
-const D = 'NQ14 8H24 8H24 8H24 8H24 8H24 8H24 8H24 8H24'
+const A = 'NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3' // CONSTANTS.TREASURY_ADDRESS, spaced as the RPC prints it
+const B = 'NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8' // CONSTANTS.PROTOCOL_ADDRESS
+const C = 'NQ80 6XNV JDFY YEKF HMM3 UCYK VBLP 7H6Y FNXS' // CONSTANTS.ADMIN_ADDRESS
+const D = 'NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB' // CONSTANTS.MARKETPLACE_ADDRESS
 
-const CONFIG = defineConfig({
-  networkId: 24,
-  launchHeight: 58_177_000,
-  treasury: A,
-  protocol: B,
-  admin: C,
-  marketplace: D,
-})
+const CONFIG = defineConfig({ networkId: 24 })
 
 const compact = (value: string) => parseAddress(value)
 
@@ -78,55 +71,29 @@ describe('configFingerprint', () => {
   // The function is pure, so this belongs above the Postgres gate rather than
   // inside it, where it sat until the test audit on 2026-08-14.
 
-  const BASE = {
-    networkId: 24,
-    launchHeight: 58_177_000,
-    treasury: A,
-    protocol: B,
-    admin: C,
-    marketplace: D,
-  }
-  // A fifth address, because §3 requires the four roles to be distinct: moving
-  // one field at a time is only possible with a spare to move it to.
-  const E = 'NQ21 1111 1111 1111 1111 1111 1111 1111 1111'
-
   const fingerprint = (input: Parameters<typeof defineConfig>[0]) => configFingerprint(defineConfig(input))
-  const BASELINE = fingerprint(BASE)
+  const BASELINE = configFingerprint(CONFIG)
 
   it('is a sha256 digest, and the same config always produces it', () => {
     expect(BASELINE).toMatch(/^[0-9a-f]{64}$/)
-    expect(fingerprint({ ...BASE })).toBe(BASELINE)
-    expect(configFingerprint(CONFIG)).toBe(BASELINE)
+    expect(fingerprint({ networkId: 24 })).toBe(BASELINE)
   })
 
-  // One row per §3 value the fingerprint claims to cover. A field dropped from
-  // the payload shows up here and nowhere else.
-  it.each([
-    ['networkId', { ...BASE, networkId: 5 }],
-    ['launchHeight', { ...BASE, launchHeight: BASE.launchHeight + 1 }],
-    ['treasury', { ...BASE, treasury: E }],
-    ['protocol', { ...BASE, protocol: E }],
-    ['admin', { ...BASE, admin: E }],
-    ['marketplace', { ...BASE, marketplace: E }],
-  ])('changes when %s changes', (_field, input) => {
-    expect(fingerprint(input)).not.toBe(BASELINE)
+  it('changes when networkId changes — the one configurable input left', () => {
+    expect(fingerprint({ networkId: 5 })).not.toBe(BASELINE)
   })
 
-  it('distinguishes the roles, not just the set of addresses', () => {
-    // Swapping two roles leaves the same four addresses configured. A payload
-    // that hashed them unkeyed would call these two deployments identical, and
-    // they replay to different states.
-    expect(fingerprint({ ...BASE, treasury: B, protocol: A })).not.toBe(BASELINE)
-  })
-
-  it('covers the frozen §3 constants too, pinned as a known answer', () => {
-    // RESERVED_NAMES and LISTING_FEE moved into CONSTANTS at the launch freeze
+  it('covers the frozen §3 constants, pinned as a known answer', () => {
+    // Everything except networkId moved into CONSTANTS at the launch freeze
     // and can no longer be varied from a test — so the payload's dependency on
-    // them is pinned as a digest instead. Expanding the published list before
-    // `LAUNCH_HEIGHT` is expected and free (§10.6 closes it afterwards), and it
-    // must invalidate every database built under the older list: this is the
-    // test that says so, and its failure means "rebuild, do not resume".
-    expect(BASELINE).toBe('35513be41f34d69dab361c04b03a0f7c21d82c4608c641aa0941b97b60977d19')
+    // the frozen values is pinned as a digest instead. Two edits are expected
+    // before launch and must both invalidate every database built earlier:
+    // expanding RESERVED_NAMES (free until `LAUNCH_HEIGHT`, §10.6 closes it
+    // afterwards) and the second freeze that bumps `LAUNCH_HEIGHT` and
+    // replaces the four battery addresses (tasks/08 step 7). This digest
+    // moving means "rebuild, do not resume" — recompute it and update the pin
+    // alongside either edit.
+    expect(BASELINE).toBe('d993cd422b68950d4c85dab1dcc1711a00e05d1b12e7b5c235e46853abeb2608')
     // Order is not protocol (§4.1 is exact-match membership), which is what the
     // `.sort()` in the payload buys: resorting the constant leaves this digest
     // alone, and only an added, removed or edited entry moves it.
@@ -183,11 +150,11 @@ describe.skipIf(URL === undefined)('Store', () => {
 
   it('starts empty', async () => {
     expect(await store.loadCursor()).toBeNull()
-    expect((await store.loadState()).height).toBe(CONFIG.launchHeight)
+    expect((await store.loadState()).height).toBe(CONSTANTS.LAUNCH_HEIGHT)
   })
 
   it('commits a batch and reloads it exactly', async () => {
-    const before = initialState(CONFIG)
+    const before = initialState()
     const after = populated(before)
     await store.commitBatch({
       before: null,
@@ -216,7 +183,7 @@ describe.skipIf(URL === undefined)('Store', () => {
   it('is idempotent on a re-applied batch', async () => {
     // A crash between commit and cursor advance would replay the batch. The
     // log's primary key and the upserts make that harmless.
-    const after = populated(initialState(CONFIG))
+    const after = populated(initialState())
     await store.commitBatch({
       before: after,
       after,
@@ -240,14 +207,14 @@ describe.skipIf(URL === undefined)('Store', () => {
   })
 
   it('deletes rows that left the state', async () => {
-    const before = populated(initialState(CONFIG))
+    const before = populated(initialState())
     const after = Object.freeze({ ...before, names: new Map<string, NameRecord>(), height: before.height + 720 })
     await store.commitBatch({ before, after, logRows: [], nextBatch: 912_019, scannedThrough: 58_177_080 })
     expect((await store.loadState()).names.size).toBe(0)
   })
 
   it('refuses a database built under a different config', async () => {
-    const other = new Store(pool, { ...CONFIG, launchHeight: CONFIG.launchHeight + 1 }, logger)
+    const other = new Store(pool, defineConfig({ networkId: 5 }), logger)
     await expect(other.loadCursor()).rejects.toThrow(/different deployment config/)
   })
 
@@ -257,7 +224,7 @@ describe.skipIf(URL === undefined)('Store', () => {
     checkpoint(Object.freeze({ ...state, height }), logHash([]))
 
   it('writes a checkpoint in the batch transaction and reads it back', async () => {
-    const state = initialState(CONFIG)
+    const state = initialState()
     const record = at(58_177_440, state)
     await store.commitBatch({
       before: state,
@@ -283,7 +250,7 @@ describe.skipIf(URL === undefined)('Store', () => {
   })
 
   it('accepts the identical checkpoint again — a replayed batch is not a divergence', async () => {
-    const state = initialState(CONFIG)
+    const state = initialState()
     await store.commitBatch({
       before: state,
       after: Object.freeze({ ...state, height: 58_177_440 }),
@@ -301,7 +268,7 @@ describe.skipIf(URL === undefined)('Store', () => {
     // DO NOTHING here would keep the first root while the indexer carried on
     // producing the second.
     const different = Object.freeze({
-      ...initialState(CONFIG),
+      ...initialState(),
       names: new Map<string, NameRecord>([
         [
           'divergent',
@@ -330,7 +297,7 @@ describe.skipIf(URL === undefined)('Store', () => {
 
     // …and the transaction rolled back, so the stored root is untouched.
     expect(await store.checkpointAt(58_177_440)).toMatchObject({
-      commitment: hex(at(58_177_440, initialState(CONFIG)).commitment),
+      commitment: hex(at(58_177_440, initialState()).commitment),
     })
   })
 
@@ -342,7 +309,7 @@ describe.skipIf(URL === undefined)('Store', () => {
     // in a fired `U` agree on every other component, so `unreserved_root` is
     // the only per-component column that says *what* they disagree about;
     // without it the difference shows up in `commitment` alone.
-    const state = initialState(CONFIG)
+    const state = initialState()
     const released = Object.freeze({ ...state, unreserved: new Set(['nimiq']) })
     const plain = at(58_178_160, state)
     const withU = at(58_178_160, released)
@@ -396,7 +363,7 @@ describe.skipIf(URL === undefined)('Store', () => {
     // survive a restart as a release, and fire as one: an owner lost silently.
     const unreserve = (recipient: ReturnType<typeof compact> | null) =>
       new Map([['nimiq', { name: 'nimiq', recipient, effectiveHeight: 58_181_040 }]])
-    const release = Object.freeze({ ...initialState(CONFIG), pendingUnreserve: unreserve(null) })
+    const release = Object.freeze({ ...initialState(), pendingUnreserve: unreserve(null) })
     const award = Object.freeze({ ...release, pendingUnreserve: unreserve(compact(D)) })
 
     // §8.1 separates them, and `pending_root` is the component that says how.
@@ -413,7 +380,7 @@ describe.skipIf(URL === undefined)('Store', () => {
     }
 
     await store.commitBatch({
-      before: initialState(CONFIG),
+      before: initialState(),
       after: Object.freeze({ ...release, height: 58_179_600 }),
       logRows: [],
       checkpoints: [releaseCp],
@@ -463,9 +430,9 @@ describe.skipIf(URL === undefined)('Store', () => {
         'SELECT height, name FROM checkpoint_names ORDER BY name',
       )).rows
 
-    const first = populated(initialState(CONFIG))
+    const first = populated(initialState())
     await store.commitBatch({
-      before: initialState(CONFIG),
+      before: initialState(),
       after: first,
       logRows: [],
       snapshot: { height: 58_181_760, names: nameRows(first) },

@@ -1,24 +1,20 @@
 import { describe, expect, it } from 'vitest'
 
-import { MARKETPLACE, TREASURY, testAddress } from './test-fixtures.js'
+import { testAddress } from './test-fixtures.js'
 import { loadIssuerSettings, loadLedgerSettings, loadSettings, loadWatcherSettings } from './env.js'
 
 const BASE = {
   NNS_API_URL: 'http://api.test/',
   NNS_NETWORK_ID: '5',
-  NNS_LAUNCH_HEIGHT: '58177000',
-  NNS_TREASURY_ADDRESS: TREASURY,
-  NNS_PROTOCOL_ADDRESS: testAddress(2),
-  NNS_ADMIN_ADDRESS: testAddress(3),
-  NNS_MARKETPLACE_ADDRESS: MARKETPLACE,
 } as const
 
 describe('loadSettings', () => {
   it('builds a validated config and strips the trailing slash from the API URL', () => {
     const settings = loadSettings(BASE)
     expect(settings.apiUrl).toBe('http://api.test')
-    expect(settings.config.launchHeight).toBe(58_177_000)
-    expect(settings.config.marketplace).toBe(MARKETPLACE)
+    expect(settings.config.networkId).toBe(5)
+    // The frozen §3 values have no variable here: setting one is inert.
+    expect(Object.keys(settings.config)).toEqual(['networkId'])
   })
 
   it('has no database and no key to load — the independence is structural', () => {
@@ -35,29 +31,28 @@ describe('loadSettings', () => {
   it('rejects a listing fee written in NIM', () => {
   })
 
-  it('rejects a launch height that is not an integer', () => {
-    expect(() => loadSettings({ ...BASE, NNS_LAUNCH_HEIGHT: '58177000.5' })).toThrow(/must be an integer/)
+  it('rejects a network id that is not an integer', () => {
+    expect(() => loadSettings({ ...BASE, NNS_NETWORK_ID: '5.5' })).toThrow(/must be an integer/)
   })
 
-  it('reports a bad address through EnvError rather than core’s own error', () => {
-    expect(() => loadSettings({ ...BASE, NNS_TREASURY_ADDRESS: 'NQ00 NOPE' })).toThrow(
+  it('reports a bad value through EnvError rather than core’s own error', () => {
+    expect(() => loadSettings({ ...BASE, NNS_NETWORK_ID: '-1' })).toThrow(
       expect.objectContaining({ name: 'EnvError' }),
     )
   })
 
-  it('reads no reserved list at all — it is a §3 constant since the launch freeze', () => {
-    // Setting the deleted variable is inert, not honoured. An env var that
+  it('reads no frozen §3 value at all — they are constants since the launch freeze', () => {
+    // Setting a deleted variable is inert, not honoured. An env var that
     // still existed is one an operator could still use to make this service
-    // replay under a list the indexer never ran with.
-    const settings = loadSettings({ ...BASE, NNS_RESERVED_NAMES: 'binance', NNS_LISTING_FEE: '100000' })
-    expect(Object.keys(settings.config).sort()).toEqual([
-      'admin',
-      'launchHeight',
-      'marketplace',
-      'networkId',
-      'protocol',
-      'treasury',
-    ])
+    // replay under values the indexer never ran with.
+    const settings = loadSettings({
+      ...BASE,
+      NNS_RESERVED_NAMES: 'binance',
+      NNS_LISTING_FEE: '100000',
+      NNS_LAUNCH_HEIGHT: '1',
+      NNS_TREASURY_ADDRESS: testAddress(9),
+    })
+    expect(Object.keys(settings.config)).toEqual(['networkId'])
   })
 })
 

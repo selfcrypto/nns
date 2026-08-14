@@ -33,7 +33,7 @@
  * never tested; the confirmation is a second `isAccountUnlocked`.
  */
 
-import { formatAddress, keypairFromPrivateKey, parseAddress, type Address, type NnsConfig } from '@nns/core'
+import { CONSTANTS, formatAddress, keypairFromPrivateKey, parseAddress, type Address } from '@nns/core'
 
 import { EnvError, type EnvSource } from './env.js'
 import type { IssuerRpc, Wallet } from './issue.js'
@@ -51,8 +51,8 @@ export interface HotKey {
 }
 
 const KEY_VARIABLES = [
-  { variable: 'NNS_SETTLEMENT_MARKETPLACE_KEY', role: 'MARKETPLACE_ADDRESS' as const, of: (config: NnsConfig) => config.marketplace },
-  { variable: 'NNS_SETTLEMENT_TREASURY_KEY', role: 'TREASURY_ADDRESS' as const, of: (config: NnsConfig) => config.treasury },
+  { variable: 'NNS_SETTLEMENT_MARKETPLACE_KEY', role: 'MARKETPLACE_ADDRESS' as const, of: () => CONSTANTS.MARKETPLACE_ADDRESS },
+  { variable: 'NNS_SETTLEMENT_TREASURY_KEY', role: 'TREASURY_ADDRESS' as const, of: () => CONSTANTS.TREASURY_ADDRESS },
 ]
 
 /**
@@ -66,7 +66,7 @@ const KEY_VARIABLES = [
  * An empty map is legal and means "dry run only" — `issue --send` refuses
  * later, when it knows which senders actually owe anything.
  */
-export function loadHotKeys(env: EnvSource, config: NnsConfig): ReadonlyMap<Address, HotKey> {
+export function loadHotKeys(env: EnvSource): ReadonlyMap<Address, HotKey> {
   const keys = new Map<Address, HotKey>()
   for (const { variable, role, of } of KEY_VARIABLES) {
     const raw = env[variable]?.trim()
@@ -82,7 +82,7 @@ export function loadHotKeys(env: EnvSource, config: NnsConfig): ReadonlyMap<Addr
     } catch (cause) {
       throw new EnvError(`${variable} is not a usable Ed25519 private key — ${(cause as Error).message}`)
     }
-    const expected = of(config)
+    const expected = of()
     if (derived !== expected) {
       throw new EnvError(
         `${variable} derives ${formatAddress(derived)}, but ${role} is ${formatAddress(expected)}. ` +

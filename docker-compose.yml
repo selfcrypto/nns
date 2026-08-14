@@ -7,24 +7,17 @@
 # Nothing is baked into the image: the same image runs against any node and any
 # deployment's §3 constants.
 #
-# ## What you must set, and why it is more than the RPC URL
+# ## What you must set
 #
 # Everything with a working default is defaulted here — the database URL, the
-# network id, every tuning knob. Two groups are not:
+# network id, every tuning knob. The one exception is `NNS_RPC_URL`, the one
+# piece of *deployment* configuration; it too has a default (a node on the
+# host's port 6488), so a local node needs no configuration at all.
 #
-#   - `NNS_RPC_URL`, which is the one piece of *deployment* configuration. It
-#     has a default (a node on the host's port 6488), so a local node needs no
-#     configuration at all.
-#   - `NNS_LAUNCH_HEIGHT` and the four addresses, which are the §3 values still
-#     **OPEN** in the spec. These are `${VAR:?...}`, so compose refuses to start
-#     and names the missing variable.
-#
-# That second group deliberately has no default. A placeholder address in this
-# file is a placeholder that reaches mainnet: it would parse, the reducer would
-# run, and every message aimed at the real protocol address would be ignored —
-# producing an empty registry and a clean log. `core`'s `defineConfig` exists to
-# make these injected rather than baked in, and defaulting them here would undo
-# that from the outside.
+# Every §3 value — `LAUNCH_HEIGHT`, the four role addresses, `RESERVED_NAMES`,
+# the `O` listing fee — is a `CONSTANT` since the launch freeze and has no
+# variable here at all: an env var that still existed is one an operator could
+# still set, which is the silent-divergence surface the freeze closed.
 
 name: nns
 
@@ -113,13 +106,6 @@ services:
 
       # 24 is main-albatross. §7.5 checks it on every transaction.
       NNS_NETWORK_ID: ${NNS_NETWORK_ID:-24}
-
-      # The OPEN §3 values. No defaults — see the header.
-      NNS_LAUNCH_HEIGHT: ${NNS_LAUNCH_HEIGHT:?set NNS_LAUNCH_HEIGHT in .env (spec §3, still OPEN) — see .env.example}
-      NNS_TREASURY_ADDRESS: ${NNS_TREASURY_ADDRESS:?set NNS_TREASURY_ADDRESS in .env (spec §3, still OPEN) — see .env.example}
-      NNS_PROTOCOL_ADDRESS: ${NNS_PROTOCOL_ADDRESS:?set NNS_PROTOCOL_ADDRESS in .env (spec §3, still OPEN) — see .env.example}
-      NNS_ADMIN_ADDRESS: ${NNS_ADMIN_ADDRESS:?set NNS_ADMIN_ADDRESS in .env (spec §3, still OPEN) — see .env.example}
-      NNS_MARKETPLACE_ADDRESS: ${NNS_MARKETPLACE_ADDRESS:?set NNS_MARKETPLACE_ADDRESS in .env (spec §3, still OPEN) — see .env.example}
 
       NNS_LOG_LEVEL: ${NNS_LOG_LEVEL:-info}
       NNS_POLL_INTERVAL_MS: ${NNS_POLL_INTERVAL_MS:-15000}

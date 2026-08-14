@@ -244,7 +244,7 @@ export class Scanner {
     await assertHistoryHorizon({
       rpc: this.rpc,
       startHeight: Math.max(firstBlock, this.launchHeight),
-      origin: resumed ? `the stored cursor's batch ${batch}, first block` : 'NNS_LAUNCH_HEIGHT',
+      origin: resumed ? `the stored cursor's batch ${batch}, first block` : 'LAUNCH_HEIGHT',
       logger: this.logger,
     })
     this.logger.info('scan.start', {

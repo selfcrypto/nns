@@ -12,20 +12,13 @@ import {
 
 // Arbitrary valid addresses, same seeds as core's test fixtures (which are
 // deliberately not shipped in its build).
-const TREASURY = parseAddress('NQ82 24C1 X9HD 6GVL 4JAG AVF6 AT3K FA0Q H3UN')
-const PROTOCOL = parseAddress('NQ07 48LK 0DRX 8M65 6NK1 D1PP CYC4 HE99 K857')
-const ADMIN = parseAddress('NQ67 6CV4 2J2F AREN 8STJ F608 F3LM KJHS MCDQ')
-const MARKETPLACE = parseAddress('NQ28 8H5M 4NB0 CVP7 AY43 HA8R H7V6 MNSB PGN9')
+const TREASURY = CONSTANTS.TREASURY_ADDRESS
+const PROTOCOL = CONSTANTS.PROTOCOL_ADDRESS
+const ADMIN = CONSTANTS.ADMIN_ADDRESS
+const MARKETPLACE = CONSTANTS.MARKETPLACE_ADDRESS
 const BOB = parseAddress('NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK')
 
-const config = defineConfig({
-  networkId: 24,
-  launchHeight: 58_000_000,
-  treasury: TREASURY,
-  protocol: PROTOCOL,
-  admin: ADMIN,
-  marketplace: MARKETPLACE,
-})
+const config = defineConfig({ networkId: 24 })
 
 const HEAD = 58_099_950
 /** A comfortable day of notice — twice GOVERNANCE_DELAY. */
@@ -65,7 +58,7 @@ describe('planUnreserve', () => {
     const { rpc, calls } = fakeRpc()
     const plan = await planUnreserve(rpc, config, release)
 
-    const expected = encodeUnreserve(config, { name: 'binance', effectiveHeight: EFFECTIVE })
+    const expected = encodeUnreserve({ name: 'binance', effectiveHeight: EFFECTIVE })
     expect(plan).toEqual({
       params: release,
       kind: 'release',
@@ -83,7 +76,7 @@ describe('planUnreserve', () => {
     const plan = await planUnreserve(rpc, config, award)
     expect(plan.kind).toBe('award')
     expect(plan.recipient).toBe(BOB)
-    expect(plan.data).toBe(encodeUnreserve(config, release).data)
+    expect(plan.data).toBe(encodeUnreserve(release).data)
   })
 
   it('refuses BURN_ADDRESS before the node hears anything (encodeUnreserve contract)', async () => {
@@ -128,7 +121,7 @@ describe('describePlan', () => {
   it('says what a release does, where it goes, and when — absolutely and in hours', () => {
     const lines = describePlan(planFor(HEAD + 2 * CONSTANTS.GOVERNANCE_DELAY)).join('\n')
     expect(lines).toContain('U release: binance')
-    expect(lines).toContain('NQ07 48LK 0DRX 8M65 6NK1 D1PP CYC4 HE99 K857')
+    expect(lines).toContain('NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8')
     expect(lines).toContain('PROTOCOL_ADDRESS')
     expect(lines).toContain(`effective at height ${HEAD + 2 * CONSTANTS.GOVERNANCE_DELAY}`)
     // 86,400 blocks at ~1 block/s is ~24 h.

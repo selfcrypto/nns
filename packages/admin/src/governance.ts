@@ -159,10 +159,10 @@ export async function planGovernance(
   config: NnsConfig,
   params: GovernanceParams,
 ): Promise<GovernancePlan> {
-  const tx = encodeGovernance(config, { ...params, sender: config.admin })
+  const tx = encodeGovernance({ ...params, sender: CONSTANTS.ADMIN_ADDRESS })
   const head = await rpc.call<number>('getBlockNumber')
   const active = await source.fetchParams()
-  const balance = await readBalance(rpc, config.admin)
+  const balance = await readBalance(rpc, CONSTANTS.ADMIN_ADDRESS)
   // The fee is 0, as it is for every message this CLI sends (§5.4 accepts it).
   const cost = tx.value
   return {
@@ -170,7 +170,7 @@ export async function planGovernance(
     data: tx.data,
     value: tx.value,
     recipient: tx.recipient,
-    sender: config.admin,
+    sender: CONSTANTS.ADMIN_ADDRESS,
     head,
     active,
     balance,
@@ -307,9 +307,9 @@ export async function broadcastGovernance(
         blocking.map((check) => check.message).join('; '),
     )
   }
-  await rpc.call('unlockAccount', [config.admin, null, null])
+  await rpc.call('unlockAccount', [CONSTANTS.ADMIN_ADDRESS, null, null])
   const hash = await rpc.call<string>('sendBasicTransactionWithData', [
-    config.admin,
+    CONSTANTS.ADMIN_ADDRESS,
     plan.recipient,
     plan.data,
     // JSON has no bigint; the value is DUST_VALUE by construction, so the

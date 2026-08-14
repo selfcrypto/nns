@@ -4,21 +4,16 @@
   "spec": "nns-spec-v1 draft r18, §5 and §6",
   "description": "Wire format. `text` is the message as ASCII; `data` is the same bytes as lowercase hex, which is what the RPC carries in both directions (§5.1). Recipients are role names resolved through `addresses`; `value` is luna as a decimal string.",
   "addresses": {
-    "TREASURY": "NQ82 24C1 X9HD 6GVL 4JAG AVF6 AT3K FA0Q H3UN",
-    "PROTOCOL": "NQ07 48LK 0DRX 8M65 6NK1 D1PP CYC4 HE99 K857",
-    "ADMIN": "NQ67 6CV4 2J2F AREN 8STJ F608 F3LM KJHS MCDQ",
-    "MARKETPLACE": "NQ28 8H5M 4NB0 CVP7 AY43 HA8R H7V6 MNSB PGN9",
+    "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
+    "PROTOCOL": "NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8",
+    "ADMIN": "NQ80 6XNV JDFY YEKF HMM3 UCYK VBLP 7H6Y FNXS",
+    "MARKETPLACE": "NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB",
     "BURN": "NQ07 0000 0000 0000 0000 0000 0000 0000 0000",
     "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
     "BOB": "NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK"
   },
   "config": {
-    "networkId": 24,
-    "launchHeight": 58000000,
-    "treasury": "TREASURY",
-    "protocol": "PROTOCOL",
-    "admin": "ADMIN",
-    "marketplace": "MARKETPLACE"
+    "networkId": 24
   },
   "roundTrip": {
     "description": "Each case encodes to `data` and parses back to `message`. Every one of the fourteen §6 types appears at least once.",
@@ -284,11 +279,11 @@
       },
       {
         "id": "M_settlement_zero_based_index",
-        "text": "NNS1M58060800|0",
-        "data": "4e4e53314d35383036303830307c30",
+        "text": "NNS1M58903520|0",
+        "data": "4e4e53314d35383930333532307c30",
         "message": {
           "type": "M",
-          "height": 58060800,
+          "height": 58903520,
           "txIndex": 0
         },
         "build": {
@@ -301,18 +296,18 @@
       },
       {
         "id": "A_auction",
-        "text": "NNS1Akikename|40000000|58200000",
-        "data": "4e4e5331416b696b656e616d657c34303030303030307c3538323030303030",
+        "text": "NNS1Akikename|40000000|59042720",
+        "data": "4e4e5331416b696b656e616d657c34303030303030307c3539303432373230",
         "message": {
           "type": "A",
           "name": "kikename",
           "reserve": "40000000",
-          "endHeight": 58200000
+          "endHeight": 59042720
         },
         "build": {
           "builder": "auction",
           "reserve": "40000000",
-          "endHeight": 58200000
+          "endHeight": 59042720
         },
         "note": "The reserve carries the same MIN_PRICE floor as an O price (§6 A), so the builder will not encode less than FEE_LONG.",
         "recipient": "PROTOCOL",
@@ -320,37 +315,37 @@
       },
       {
         "id": "P_governance",
-        "text": "NNS1P400000000|40000000|250|58100000",
-        "data": "4e4e5331503430303030303030307c34303030303030307c3235307c3538313030303030",
+        "text": "NNS1P400000000|40000000|250|58942720",
+        "data": "4e4e5331503430303030303030307c34303030303030307c3235307c3538393432373230",
         "message": {
           "type": "P",
           "feeStandard": "400000000",
           "feeLong": "40000000",
           "commissionBp": "250",
-          "effectiveHeight": 58100000
+          "effectiveHeight": 58942720
         },
         "build": {
           "builder": "governance",
           "feeStandard": "400000000",
           "feeLong": "40000000",
           "commissionBp": "250",
-          "effectiveHeight": 58100000
+          "effectiveHeight": 58942720
         },
         "recipient": "PROTOCOL",
         "value": "1"
       },
       {
         "id": "U_unreserve",
-        "text": "NNS1Ubinance|58100000",
-        "data": "4e4e53315562696e616e63657c3538313030303030",
+        "text": "NNS1Ubinance|58942720",
+        "data": "4e4e53315562696e616e63657c3538393432373230",
         "message": {
           "type": "U",
           "name": "binance",
-          "effectiveHeight": 58100000
+          "effectiveHeight": 58942720
         },
         "build": {
           "builder": "unreserve",
-          "effectiveHeight": 58100000
+          "effectiveHeight": 58942720
         },
         "recipient": "PROTOCOL",
         "value": "1"
@@ -358,16 +353,16 @@
       {
         "id": "U_award_of_a_short_name",
         "note": "Short names are reserved by rule (§4.1, r18), so the builder accepts them and the recipient operand awards: same payload shape, the recipient decides (§6 U).",
-        "text": "NNS1Unq|58100000",
-        "data": "4e4e5331556e717c3538313030303030",
+        "text": "NNS1Unq|58942720",
+        "data": "4e4e5331556e717c3538393432373230",
         "message": {
           "type": "U",
           "name": "nq",
-          "effectiveHeight": 58100000
+          "effectiveHeight": 58942720
         },
         "build": {
           "builder": "unreserve",
-          "effectiveHeight": 58100000,
+          "effectiveHeight": 58942720,
           "recipient": "BOB"
         },
         "recipient": "BOB",
@@ -583,8 +578,8 @@
       },
       {
         "id": "M_without_index",
-        "text": "NNS1M58060800",
-        "data": "4e4e53314d3538303630383030",
+        "text": "NNS1M58903520",
+        "data": "4e4e53314d3538393033353230",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -647,8 +642,8 @@
       },
       {
         "id": "padded_height_rejected",
-        "text": "NNS1M0058060800|0",
-        "data": "4e4e53314d303035383036303830307c30",
+        "text": "NNS1M0058903520|0",
+        "data": "4e4e53314d303035383930333532307c30",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -736,7 +731,7 @@
         "builder": "auction",
         "name": "kikename",
         "reserve": "39999999",
-        "endHeight": 58200000
+        "endHeight": 59042720
       },
       {
         "id": "O_price_below_a_MIN_PRICE_a_P_has_raised",

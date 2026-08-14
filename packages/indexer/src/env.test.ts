@@ -5,14 +5,7 @@ import { EnvError, loadSettings } from './env.js'
 const MINIMAL = {
   NNS_RPC_URL: 'http://127.0.0.1:6488',
   NNS_NETWORK_ID: '24',
-  NNS_LAUNCH_HEIGHT: '58200000',
   NNS_DATABASE_URL: 'postgres://nns@localhost:5432/nns',
-  // The four §3 addresses, still OPEN in the spec and therefore injected.
-  // `defineConfig` requires them to parse and to be distinct.
-  NNS_TREASURY_ADDRESS: 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H',
-  NNS_PROTOCOL_ADDRESS: 'NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2',
-  NNS_ADMIN_ADDRESS: 'NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK',
-  NNS_MARKETPLACE_ADDRESS: 'NQ14 8H24 8H24 8H24 8H24 8H24 8H24 8H24 8H24',
 }
 
 describe('loadSettings', () => {
@@ -21,7 +14,6 @@ describe('loadSettings', () => {
     expect(settings).toMatchObject({
       rpcUrl: 'http://127.0.0.1:6488',
       networkId: 24,
-      launchHeight: 58_200_000,
       rpcUser: undefined,
       logLevel: 'info',
     })
@@ -46,42 +38,35 @@ describe('loadSettings', () => {
     const without = (key: string) => () => loadSettings({ ...MINIMAL, [key]: undefined })
     expect(without('NNS_RPC_URL')).toThrow(/NNS_RPC_URL/)
     expect(without('NNS_NETWORK_ID')).toThrow(/NNS_NETWORK_ID/)
-    expect(without('NNS_LAUNCH_HEIGHT')).toThrow(/NNS_LAUNCH_HEIGHT/)
     expect(without('NNS_DATABASE_URL')).toThrow(/NNS_DATABASE_URL/)
-    expect(without('NNS_TREASURY_ADDRESS')).toThrow(/NNS_TREASURY_ADDRESS/)
   })
 
-  it('hands core the §3 values and lets it validate them', () => {
-    expect(loadSettings(MINIMAL).config.launchHeight).toBe(58_200_000)
+  it('hands core the networkId and lets it validate it', () => {
+    expect(loadSettings(MINIMAL).config.networkId).toBe(24)
   })
 
   it('has no variable for a frozen §3 value, so an operator cannot set one', () => {
-    // The launch freeze deleted NNS_RESERVED_NAMES and NNS_LISTING_FEE. An env
-    // var that still existed is one an operator could still set, which is the
-    // whole silent-divergence surface the freeze closed — so setting them is
-    // inert rather than honoured.
-    const settings = loadSettings({ ...MINIMAL, NNS_RESERVED_NAMES: 'nimiq, wallet', NNS_LISTING_FEE: '100000' })
-    expect(Object.keys(settings.config).sort()).toEqual([
-      'admin',
-      'launchHeight',
-      'marketplace',
-      'networkId',
-      'protocol',
-      'treasury',
-    ])
+    // The launch freeze deleted NNS_RESERVED_NAMES and NNS_LISTING_FEE, and
+    // its second half deleted NNS_LAUNCH_HEIGHT and the four address vars. An
+    // env var that still existed is one an operator could still set, which is
+    // the whole silent-divergence surface the freeze closed — so setting them
+    // is inert rather than honoured.
+    const settings = loadSettings({
+      ...MINIMAL,
+      NNS_RESERVED_NAMES: 'nimiq, wallet',
+      NNS_LISTING_FEE: '100000',
+      NNS_LAUNCH_HEIGHT: '1',
+      NNS_TREASURY_ADDRESS: 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H',
+      NNS_PROTOCOL_ADDRESS: 'NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2',
+      NNS_ADMIN_ADDRESS: 'NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK',
+      NNS_MARKETPLACE_ADDRESS: 'NQ14 8H24 8H24 8H24 8H24 8H24 8H24 8H24 8H24',
+    })
+    expect(Object.keys(settings.config)).toEqual(['networkId'])
   })
 
-  it('surfaces core’s own config errors', () => {
-    // All four addresses must be distinct (§3, §10.6). core decides that;
-    // this only checks the message reaches the operator.
-    expect(() => loadSettings({ ...MINIMAL, NNS_ADMIN_ADDRESS: MINIMAL.NNS_TREASURY_ADDRESS })).toThrow(
-      /must be distinct/,
-    )
-  })
-
-  it('rejects a non-integer height instead of scanning from NaN', () => {
-    expect(() => loadSettings({ ...MINIMAL, NNS_LAUNCH_HEIGHT: '58_200_000' })).toThrow(EnvError)
-    expect(() => loadSettings({ ...MINIMAL, NNS_LAUNCH_HEIGHT: '1.5' })).toThrow(/integer/)
+  it('rejects a non-integer networkId instead of scanning from NaN', () => {
+    expect(() => loadSettings({ ...MINIMAL, NNS_NETWORK_ID: '2_4' })).toThrow(EnvError)
+    expect(() => loadSettings({ ...MINIMAL, NNS_NETWORK_ID: '1.5' })).toThrow(/integer/)
     expect(() => loadSettings({ ...MINIMAL, NNS_NETWORK_ID: '-1' })).toThrow(/integer/)
   })
 

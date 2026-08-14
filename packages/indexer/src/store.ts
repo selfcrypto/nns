@@ -100,11 +100,11 @@ const CHECKPOINT_COLUMNS = [
 export function configFingerprint(config: NnsConfig): string {
   const payload = JSON.stringify({
     networkId: config.networkId,
-    launchHeight: config.launchHeight,
-    treasury: config.treasury,
-    protocol: config.protocol,
-    admin: config.admin,
-    marketplace: config.marketplace,
+    launchHeight: CONSTANTS.LAUNCH_HEIGHT,
+    treasury: CONSTANTS.TREASURY_ADDRESS,
+    protocol: CONSTANTS.PROTOCOL_ADDRESS,
+    admin: CONSTANTS.ADMIN_ADDRESS,
+    marketplace: CONSTANTS.MARKETPLACE_ADDRESS,
     listingFee: CONSTANTS.LISTING_FEE.toString(10),
     reservedNames: [...CONSTANTS.RESERVED_NAMES].sort(),
   })
@@ -219,7 +219,7 @@ export class Store {
        FROM params WHERE id`,
     )
     const paramsRow = params.rows[0]
-    if (paramsRow === undefined) return initialState(this.config)
+    if (paramsRow === undefined) return initialState()
 
     const [names, pending, unreserved, settlements] = await Promise.all([
       this.pool.query<NameRow>(`SELECT ${NAME_COLUMNS.join(', ')} FROM names`),

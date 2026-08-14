@@ -39,7 +39,7 @@ const save = (name: string, value: unknown): void =>
   writeFileSync(join(here, name), `${JSON.stringify(value, null, 2)}\n`, 'utf8')
 
 const stateWith = (config: ReturnType<typeof readConfig>, records: NameRecord[]): NnsState =>
-  Object.freeze({ ...initialState(config), names: new Map(records.map((r) => [r.name, r])) })
+  Object.freeze({ ...initialState(), names: new Map(records.map((r) => [r.name, r])) })
 
 // ── codec.json ──────────────────────────────────────────────────────────────
 
@@ -108,7 +108,7 @@ const stateWith = (config: ReturnType<typeof readConfig>, records: NameRecord[])
   const config = readConfig(file.config, book)
 
   for (const testCase of file.cases) {
-    let state = initialState(config)
+    let state = initialState()
     const lines: string[] = []
     for (const raw of testCase.transactions) {
       const tx = readTx({ ...raw, blockNumber: testCase.block }, book, file.config.networkId)

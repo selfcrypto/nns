@@ -10,11 +10,18 @@
  * derive different roots and the disagreement first shows up as a
  * `QUORUM_ROOT_MISMATCH` in somebody's client.
  *
- * Still injected through {@link ./config.ts | NnsConfig}, and only until the
- * operator supplies them: `LAUNCH_HEIGHT` and the four §3 addresses
- * (`TREASURY_ADDRESS`, `PROTOCOL_ADDRESS`, `ADMIN_ADDRESS`,
- * `MARKETPLACE_ADDRESS`). Nothing invented may be baked into a build and reach
- * mainnet unnoticed, so they stay out of here until they are real.
+ * `LAUNCH_HEIGHT` and the four §3 addresses followed at the second half of
+ * the freeze (2026-08-14): the operator supplied the funded addresses whose
+ * keys are held in `~/.nns`, deciding that this whole cast is replaced at
+ * launch by a **second freeze** — a deliberate commit that edits these pinned
+ * literals (`tasks/08` step 7 bumps the height; the addresses are regenerated
+ * with it). What may never happen is a *silent* placeholder: every value here
+ * is pinned by `constants.test.ts`, so replacing one is a red diff on a
+ * literal, not a config drift.
+ *
+ * The only configuration left is `networkId` ({@link ./config.ts | NnsConfig}):
+ * mainnet and testnet honestly differ, so two honest deployments may
+ * legitimately disagree about it.
  *
  * No magic number appears anywhere else in this package.
  *
@@ -25,6 +32,7 @@
  * - **Heights are `number`.** The chain is nowhere near 2^53.
  */
 
+import { parseAddress } from './address.js'
 import { RESERVED_NAMES } from './reserved-names.js'
 
 /** 1 NIM in luna. */
@@ -187,7 +195,38 @@ export const CONSTANTS = Object.freeze({
    */
   ANCHOR_STALENESS_LIMIT_SEC: 172_800,
 
+  // ── Launch (§3, §7.2) ─────────────────────────────────────────────────────
+  /**
+   * Indexers start here, not at genesis; the checkpoint at this height is
+   * §8.1's genesis. Frozen 2026-08-14 at the height the indexer deployment
+   * already started from, 60 blocks above the node's measured history horizon
+   * (58,842,660) so the determinism harness can run against this exact value.
+   *
+   * **Provisional by design, not by accident**: `tasks/08` step 7 bumps this
+   * pinned literal to a future mainnet height in a deliberate commit before
+   * going live, and the compressed-tempo battery edits it on its throwaway
+   * branch. Neither is a config override — there is no env var for it.
+   */
+  LAUNCH_HEIGHT: 58_842_720,
+
   // ── Addresses that are settled (§3) ───────────────────────────────────────
+  /**
+   * The four §3 role addresses, frozen 2026-08-14 (launch freeze, second
+   * half). These are the funded battery addresses whose keys the operator
+   * holds in `~/.nns` — chosen deliberately: the battery must test the build
+   * that ships, and launch replaces the whole cast in a second freeze (see
+   * the header). All four are pairwise distinct (§3, §10.6), asserted once in
+   * `constants.test.ts` now that they are literals rather than at every
+   * startup.
+   */
+  /** Receives fees — and only fees (§5.3). */
+  TREASURY_ADDRESS: parseAddress('NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3'),
+  /** Receives dust-only signalling, and acts as the §5.3 sentinel. */
+  PROTOCOL_ADDRESS: parseAddress('NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8'),
+  /** Governance only; cold key, distinct from the treasury (§10.6). */
+  ADMIN_ADDRESS: parseAddress('NQ80 6XNV JDFY YEKF HMM3 UCYK VBLP 7H6Y FNXS'),
+  /** `B` escrow and `M` settlement; the only NNS hot wallet (§3). */
+  MARKETPLACE_ADDRESS: parseAddress('NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB'),
   /**
    * Canonical Nimiq burn address. Decodes to 20 zero bytes, which is also the
    * §8.1 encoding of an *unset* recovery address — see `docs/decisions.md`.

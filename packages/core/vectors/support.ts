@@ -47,22 +47,17 @@ export function address(book: AddressBook, alias: string): Address {
 
 export interface VectorConfig {
   networkId: number
-  launchHeight: number
-  treasury: string
-  protocol: string
-  admin: string
-  marketplace: string
 }
 
-export const readConfig = (raw: VectorConfig, book: AddressBook): NnsConfig =>
-  defineConfig({
-    networkId: raw.networkId,
-    launchHeight: raw.launchHeight,
-    treasury: address(book, raw.treasury),
-    protocol: address(book, raw.protocol),
-    admin: address(book, raw.admin),
-    marketplace: address(book, raw.marketplace),
-  })
+/**
+ * Since the launch freeze a vector declares only `networkId`: the §3
+ * addresses and `LAUNCH_HEIGHT` are constants, so the vectors exercise the
+ * frozen values — their transactions route to `CONSTANTS.TREASURY_ADDRESS`
+ * et al. via the address book, and their heights sit above
+ * `CONSTANTS.LAUNCH_HEIGHT`.
+ */
+export const readConfig = (raw: VectorConfig, _book: AddressBook): NnsConfig =>
+  defineConfig({ networkId: raw.networkId })
 
 /** ASCII → lowercase hex. Vectors carry `text` for review and `data` for machines. */
 export const hexOf = (text: string): string =>
@@ -141,43 +136,43 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
   const sender = spec.sender === undefined ? {} : { sender: address(book, spec.sender) }
   switch (spec.builder) {
     case 'register':
-      return encodeRegister(config, {
+      return encodeRegister({
         name,
         ...(spec.ref === undefined ? {} : { ref: spec.ref }),
         fee: BigInt(spec.fee ?? '1'),
         ...sender,
       })
     case 'setTarget':
-      return encodeSetTarget(config, { name, target: optionalAddress(book, spec.target), ...sender })
+      return encodeSetTarget({ name, target: optionalAddress(book, spec.target), ...sender })
     case 'transfer':
-      return encodeTransfer(config, { name, newOwner: address(book, spec.newOwner as string), ...sender })
+      return encodeTransfer({ name, newOwner: address(book, spec.newOwner as string), ...sender })
     case 'recovery':
-      return encodeRecovery(config, { name, recovery: optionalAddress(book, spec.recovery), ...sender })
+      return encodeRecovery({ name, recovery: optionalAddress(book, spec.recovery), ...sender })
     case 'delegate':
-      return encodeDelegate(config, { name, host: spec.host as string, ...sender })
+      return encodeDelegate({ name, host: spec.host as string, ...sender })
     case 'cancel':
-      return encodeCancel(config, { name, ...sender })
+      return encodeCancel({ name, ...sender })
     case 'renew':
-      return encodeRenew(config, { name, fee: BigInt(spec.fee as string), ...sender })
+      return encodeRenew({ name, fee: BigInt(spec.fee as string), ...sender })
     case 'offer':
-      return encodeOffer(config, {
+      return encodeOffer({
         name,
         price: BigInt(spec.price as string),
         minPrice: floorFor(spec),
         ...sender,
       })
     case 'buy':
-      return encodeBuy(config, { name, price: BigInt(spec.price as string), ...sender })
+      return encodeBuy({ name, price: BigInt(spec.price as string), ...sender })
     case 'settlement':
-      return encodeSettlement(config, {
-        height: 58060800,
+      return encodeSettlement({
+        height: 58903520,
         txIndex: 0,
         payee: address(book, spec.payee as string),
         amount: BigInt(spec.amount as string),
         ...sender,
       })
     case 'auction':
-      return encodeAuction(config, {
+      return encodeAuction({
         name,
         reserve: BigInt(spec.reserve as string),
         endHeight: spec.endHeight as number,
@@ -185,7 +180,7 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
         ...sender,
       })
     case 'governance':
-      return encodeGovernance(config, {
+      return encodeGovernance({
         feeStandard: BigInt(spec.feeStandard as string),
         feeLong: BigInt(spec.feeLong as string),
         commissionBp: BigInt(spec.commissionBp as string),
@@ -193,14 +188,14 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
         ...sender,
       })
     case 'unreserve':
-      return encodeUnreserve(config, {
+      return encodeUnreserve({
         name,
         effectiveHeight: spec.effectiveHeight as number,
         recipient: optionalAddress(book, spec.recipient),
         ...sender,
       })
     case 'burn':
-      return encodeBurn(config, { amount: BigInt(spec.amount as string), ...sender })
+      return encodeBurn({ amount: BigInt(spec.amount as string), ...sender })
     default:
       throw new Error(`unknown builder ${JSON.stringify(spec.builder)}`)
   }
@@ -270,7 +265,7 @@ export function readCheckpointState(
   config: NnsConfig,
 ): NnsState {
   return Object.freeze({
-    ...initialState(config),
+    ...initialState(),
     height: raw.height,
     prices: readPrices(raw.prices),
     names: byName((raw.names ?? []).map((record) => readRecord(record, book))),

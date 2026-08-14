@@ -6,21 +6,14 @@ import type { BatchResult, VerdictCounts } from './pipeline.js'
 import type { LogRow } from './rows.js'
 import { collectingLogger } from './test-fixtures.js'
 
-const A = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
-const B = 'NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2'
-const C = 'NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK'
-const D = 'NQ14 8H24 8H24 8H24 8H24 8H24 8H24 8H24 8H24'
+const A = 'NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3' // CONSTANTS.TREASURY_ADDRESS, spaced as the RPC prints it
+const B = 'NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8' // CONSTANTS.PROTOCOL_ADDRESS
+const C = 'NQ80 6XNV JDFY YEKF HMM3 UCYK VBLP 7H6Y FNXS' // CONSTANTS.ADMIN_ADDRESS
+const D = 'NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB' // CONSTANTS.MARKETPLACE_ADDRESS
 
-const CONFIG = defineConfig({
-  networkId: 24,
-  launchHeight: 58_176_000,
-  treasury: A,
-  protocol: B,
-  admin: C,
-  marketplace: D,
-})
+const CONFIG = defineConfig({ networkId: 24 })
 
-const STATE: NnsState = initialState(CONFIG)
+const STATE: NnsState = initialState()
 
 function logRow(blockHeight: number): LogRow {
   return {

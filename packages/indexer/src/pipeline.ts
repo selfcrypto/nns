@@ -257,7 +257,7 @@ export class Pipeline {
   constructor(config: NnsConfig, logger: Logger, options: PipelineOptions = {}) {
     this.config = config
     this.logger = logger
-    this.lastBoundary = options.lastCheckpointHeight ?? config.launchHeight - 1
+    this.lastBoundary = options.lastCheckpointHeight ?? CONSTANTS.LAUNCH_HEIGHT - 1
   }
 
   /**

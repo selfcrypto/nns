@@ -16,6 +16,7 @@
 import {
   addressFromBytes,
   canonicalLogLine,
+  CONSTANTS,
   defineConfig,
   initialState,
   reduce,
@@ -34,25 +35,23 @@ export function testAddress(seed: number): Address {
   return addressFromBytes(bytes)
 }
 
-export const TREASURY = testAddress(1)
-export const PROTOCOL = testAddress(2)
-export const ADMIN = testAddress(3)
-export const MARKETPLACE = testAddress(4)
+// The §3 roles are frozen constants since the launch freeze — the replay
+// routes by those literals, so the fixtures alias them rather than invent
+// addresses the reducer would refuse.
+export const TREASURY = CONSTANTS.TREASURY_ADDRESS
+export const PROTOCOL = CONSTANTS.PROTOCOL_ADDRESS
+export const ADMIN = CONSTANTS.ADMIN_ADDRESS
+export const MARKETPLACE = CONSTANTS.MARKETPLACE_ADDRESS
 export const SELLER = testAddress(10)
 export const WINNER = testAddress(11)
 export const LOSER = testAddress(12)
 
-export const LAUNCH_HEIGHT = 1_000_000
+export const LAUNCH_HEIGHT: number = CONSTANTS.LAUNCH_HEIGHT
 export const NETWORK_ID = 5
 
 export const testConfig = (overrides: Partial<Parameters<typeof defineConfig>[0]> = {}): NnsConfig =>
   defineConfig({
     networkId: NETWORK_ID,
-    launchHeight: LAUNCH_HEIGHT,
-    treasury: TREASURY,
-    protocol: PROTOCOL,
-    admin: ADMIN,
-    marketplace: MARKETPLACE,
     ...overrides,
   })
 
@@ -97,7 +96,7 @@ export interface StagedLog {
 
 /** Reduce every send in order and emit the log line each one earns (§7.6). */
 export function stageLog(sends: readonly Send[], config: NnsConfig): StagedLog {
-  let state = initialState(config)
+  let state = initialState()
   const lines: string[] = []
   for (const item of sends) {
     const tx = toChainTransaction(item, config)

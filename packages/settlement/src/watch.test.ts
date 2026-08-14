@@ -49,13 +49,13 @@ const CP2 = CP1 + CONSTANTS.CHECKPOINT_INTERVAL
 
 /** The full scenario: one sale (two legs), one race loser (one refund). */
 function saleScenario(cfg: NnsConfig) {
-  const fee = feeFor(NAME, initialState(cfg).prices)
-  const floor = minPrice(initialState(cfg).prices)
+  const fee = feeFor(NAME, initialState().prices)
+  const floor = minPrice(initialState().prices)
   return [
-    send(H.register, 0, SELLER, encodeRegister(cfg, { name: NAME, fee })),
-    send(H.offer, 0, SELLER, encodeOffer(cfg, { name: NAME, price: PRICE, minPrice: floor })),
-    send(H.buy, 0, WINNER, encodeBuy(cfg, { name: NAME, price: PRICE })),
-    send(H.buy, 1, LOSER, encodeBuy(cfg, { name: NAME, price: PRICE })),
+    send(H.register, 0, SELLER, encodeRegister({ name: NAME, fee })),
+    send(H.offer, 0, SELLER, encodeOffer({ name: NAME, price: PRICE, minPrice: floor })),
+    send(H.buy, 0, WINNER, encodeBuy({ name: NAME, price: PRICE })),
+    send(H.buy, 1, LOSER, encodeBuy({ name: NAME, price: PRICE })),
   ]
 }
 
@@ -63,7 +63,7 @@ function saleScenario(cfg: NnsConfig) {
 function partlySettled(cfg: NnsConfig) {
   return [
     ...saleScenario(cfg),
-    send(H.settle, 0, MARKETPLACE, encodeSettlement(cfg, { height: H.buy, txIndex: 0, payee: SELLER, amount: PROCEEDS })),
+    send(H.settle, 0, MARKETPLACE, encodeSettlement({ height: H.buy, txIndex: 0, payee: SELLER, amount: PROCEEDS })),
   ]
 }
 
@@ -72,7 +72,7 @@ const hex = (bytes: Uint8Array): string => Array.from(bytes, (b) => b.toString(1
 const snapshotOf = (lines: readonly string[], checkpointHeight: number, bound = true): LogSnapshot =>
   Object.freeze({ lines, checkpointHeight, logHash: hex(logHash(lines)), boundToCheckpoint: bound })
 
-const replayOf = (lines: readonly string[]) => replayLog(lines, initialState(config), config)
+const replayOf = (lines: readonly string[]) => replayLog(lines, initialState(), config)
 
 // ── A stub API whose checkpoint and log can be moved between polls ───────────
 
@@ -123,7 +123,7 @@ function stubApi(state: ServerState): { fetcher: Fetcher; calls: string[] } {
 }
 
 const watcherOver = (fetcher: Fetcher) =>
-  createWatcher({ apiUrl: 'https://api.example', config, fetcher, initial: initialState(config) })
+  createWatcher({ apiUrl: 'https://api.example', config, fetcher, initial: initialState() })
 
 // ── The due set ─────────────────────────────────────────────────────────────
 
@@ -199,7 +199,7 @@ describe('takeSnapshot', () => {
       [
         ...saleScenario(config),
         // Names a transaction that owes nothing: money moved, no leg cleared.
-        send(H.settle, 0, MARKETPLACE, encodeSettlement(config, { height: H.register, txIndex: 0, payee: SELLER, amount: 1n })),
+        send(H.settle, 0, MARKETPLACE, encodeSettlement({ height: H.register, txIndex: 0, payee: SELLER, amount: 1n })),
       ],
       config,
     ).lines

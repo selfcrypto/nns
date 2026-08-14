@@ -16,19 +16,12 @@ import { RowError, rowsOf, stateFromRows, toHeight, toLuna } from './rows.js'
 
 // Valid addresses: the checksum is part of the format, so a made-up NQ11…
 // string is rejected by `parseAddress`.
-const A = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
-const B = 'NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2'
-const C = 'NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK'
-const D = 'NQ14 8H24 8H24 8H24 8H24 8H24 8H24 8H24 8H24'
+const A = 'NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3' // CONSTANTS.TREASURY_ADDRESS, spaced as the RPC prints it
+const B = 'NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8' // CONSTANTS.PROTOCOL_ADDRESS
+const C = 'NQ80 6XNV JDFY YEKF HMM3 UCYK VBLP 7H6Y FNXS' // CONSTANTS.ADMIN_ADDRESS
+const D = 'NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB' // CONSTANTS.MARKETPLACE_ADDRESS
 
-const CONFIG = defineConfig({
-  networkId: 24,
-  launchHeight: 58_177_000,
-  treasury: A,
-  protocol: B,
-  admin: C,
-  marketplace: D,
-})
+const CONFIG = defineConfig({ networkId: 24 })
 
 /** Real `Address` values: the brand is what keeps a raw string out of state. */
 const address = (value: string) => parseAddress(value)
@@ -40,7 +33,7 @@ const address = (value: string) => parseAddress(value)
  * `nextDueHeight` that has no SQL spelling.
  */
 function populated(): NnsState {
-  const base = initialState(CONFIG)
+  const base = initialState()
   return Object.freeze({
     ...base,
     height: 58_200_000,
@@ -144,7 +137,7 @@ describe('round trip', () => {
   })
 
   it('rebuilds the empty state at LAUNCH_HEIGHT', () => {
-    const state = initialState(CONFIG)
+    const state = initialState()
     const restored = stateFromRows(rowsOf(state))
     expect(normalise(restored)).toEqual(normalise(state))
     expect(restored.nextDueHeight).toBe(Number.POSITIVE_INFINITY)

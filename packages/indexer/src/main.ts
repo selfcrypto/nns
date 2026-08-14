@@ -12,6 +12,7 @@
  * `docker-compose.yml`; `--env-file` is the local-development path only.
  */
 
+import { CONSTANTS } from '@nns/core'
 import { CheckpointBuilder } from './checkpoint.js'
 import { createLogger, type Logger } from './logger.js'
 import { EnvError, loadSettings, type IndexerSettings } from './env.js'
@@ -48,7 +49,7 @@ async function main(): Promise<void> {
     rpcUrl: settings.rpcUrl,
     authenticated: settings.rpcUser !== undefined,
     networkId: settings.networkId,
-    launchHeight: settings.launchHeight,
+    launchHeight: CONSTANTS.LAUNCH_HEIGHT,
     pollIntervalMs: settings.pollIntervalMs,
   })
 
@@ -99,7 +100,7 @@ async function main(): Promise<void> {
       rpc,
       logger,
       networkId: settings.networkId,
-      launchHeight: settings.launchHeight,
+      launchHeight: CONSTANTS.LAUNCH_HEIGHT,
       pollIntervalMs: settings.pollIntervalMs,
       ...(cursor === null ? {} : { startBatch: cursor.nextBatch }),
       onBatchComplete: async ({ batch, macroBlock, candidates }) => {

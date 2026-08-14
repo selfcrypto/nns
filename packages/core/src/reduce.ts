@@ -511,7 +511,7 @@ export function reduce(state: NnsState, tx: ChainTransaction, config: NnsConfig)
   // The network and launch checks come first: a transaction from another
   // chain, or from before LAUNCH_HEIGHT, must not even advance our height.
   if (tx.networkId !== config.networkId) return { state, verdict: ignored('WRONG_NETWORK') }
-  if (tx.blockNumber < config.launchHeight) return { state, verdict: ignored('BEFORE_LAUNCH') }
+  if (tx.blockNumber < CONSTANTS.LAUNCH_HEIGHT) return { state, verdict: ignored('BEFORE_LAUNCH') }
 
   const advanced = advanceTo(state, tx.blockNumber)
 
@@ -539,7 +539,7 @@ export function reduce(state: NnsState, tx: ChainTransaction, config: NnsConfig)
     }
   }
 
-  const verdictAndState = apply(advanced, tx, config, result.message)
+  const verdictAndState = apply(advanced, tx, result.message)
   const obligations =
     verdictAndState.verdict.kind === 'OK' || verdictAndState.verdict.kind === 'REFUND'
       ? verdictAndState.verdict.obligations
@@ -547,14 +547,14 @@ export function reduce(state: NnsState, tx: ChainTransaction, config: NnsConfig)
   return { state: withObligations(verdictAndState.state, obligations), verdict: verdictAndState.verdict }
 }
 
-function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message: Message): ReduceResult {
+function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceResult {
   const ref: TxRef = { height: tx.blockNumber, txIndex: tx.txIndex }
   const keep = (verdict: Verdict): ReduceResult => ({ state, verdict })
 
   switch (message.type) {
     // ── G — Register (§6) ────────────────────────────────────────────────────
     case 'G': {
-      if (!addressEquals(tx.recipient, config.treasury)) return keep(forfeit('WRONG_RECIPIENT'))
+      if (!addressEquals(tx.recipient, CONSTANTS.TREASURY_ADDRESS)) return keep(forfeit('WRONG_RECIPIENT'))
 
       // §4.1 in full, against chain state: both membership routes live inside
       // validateName — the frozen published list and the by-rule short names —
@@ -578,7 +578,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
         // prevents it. Losing a race to a transaction ordered ahead is not
         // client-preventable, so it is refunded.
         if (existing.status === 'GRACE') return keep(forfeit('NAME_IN_GRACE'))
-        return keep(refundOrForfeit(tx, 'LOST_REGISTRATION_RACE', config.treasury))
+        return keep(refundOrForfeit(tx, 'LOST_REGISTRATION_RACE', CONSTANTS.TREASURY_ADDRESS))
       }
 
       const draft = draftOf(state)
@@ -604,7 +604,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
 
       // §5.3 sentinel: the owner cannot name themselves as recipient, so
       // PROTOCOL_ADDRESS means "reset the target to my own address".
-      const target = addressEquals(tx.recipient, config.protocol) ? tx.sender : tx.recipient
+      const target = addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS) ? tx.sender : tx.recipient
 
       const draft = draftOf(state)
       draft.names.set(message.name, { ...record, target })
@@ -643,7 +643,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
 
       // Sending to PROTOCOL_ADDRESS clears the recovery address. The r6
       // wording named the owner's own address, which the network cannot carry.
-      const recovery = addressEquals(tx.recipient, config.protocol) ? null : tx.recipient
+      const recovery = addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS) ? null : tx.recipient
       const effectiveHeight = tx.blockNumber + CONSTANTS.XFER_TIMELOCK
 
       const draft = draftOf(state)
@@ -654,7 +654,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
 
     // ── D — Set delegate resolver (§6) ───────────────────────────────────────
     case 'D': {
-      if (!addressEquals(tx.recipient, config.protocol)) return keep(forfeit('WRONG_RECIPIENT'))
+      if (!addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS)) return keep(forfeit('WRONG_RECIPIENT'))
       const record = state.names.get(message.name)
       if (record === undefined || record.status !== 'REGISTERED') return keep(forfeit('NAME_NOT_REGISTERED'))
       if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
@@ -667,7 +667,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
 
     // ── K — Cancel (§6) ──────────────────────────────────────────────────────
     case 'K': {
-      if (!addressEquals(tx.recipient, config.protocol)) return keep(forfeit('WRONG_RECIPIENT'))
+      if (!addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS)) return keep(forfeit('WRONG_RECIPIENT'))
       const record = state.names.get(message.name)
       if (record === undefined) return keep(forfeit('NAME_NOT_FOUND'))
 
@@ -694,7 +694,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
 
     // ── N — Renew (§6) ───────────────────────────────────────────────────────
     case 'N': {
-      if (!addressEquals(tx.recipient, config.treasury)) return keep(forfeit('WRONG_RECIPIENT'))
+      if (!addressEquals(tx.recipient, CONSTANTS.TREASURY_ADDRESS)) return keep(forfeit('WRONG_RECIPIENT'))
       // Sender: anyone. A grace name can still be renewed by its former owner.
       const record = state.names.get(message.name)
       if (record === undefined) return keep(forfeit('NAME_NOT_FOUND'))
@@ -714,7 +714,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
 
     // ── O — Offer (§6) ───────────────────────────────────────────────────────
     case 'O': {
-      if (!addressEquals(tx.recipient, config.treasury)) return keep(forfeit('WRONG_RECIPIENT'))
+      if (!addressEquals(tx.recipient, CONSTANTS.TREASURY_ADDRESS)) return keep(forfeit('WRONG_RECIPIENT'))
       const record = state.names.get(message.name)
       if (record === undefined || record.status !== 'REGISTERED') return keep(forfeit('NAME_NOT_REGISTERED'))
       if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
@@ -748,7 +748,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
 
     // ── B — Buy (§6) ─────────────────────────────────────────────────────────
     case 'B': {
-      if (!addressEquals(tx.recipient, config.marketplace)) return keep(forfeit('WRONG_RECIPIENT'))
+      if (!addressEquals(tx.recipient, CONSTANTS.MARKETPLACE_ADDRESS)) return keep(forfeit('WRONG_RECIPIENT'))
 
       const offer = state.offers.get(message.name)
       const record = state.names.get(message.name)
@@ -756,9 +756,9 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       // an auction — which v1 never opens. All are refunded identically, so
       // the log does not need to tell them apart.
       if (offer === undefined || record === undefined || record.status !== 'REGISTERED') {
-        return keep(refundOrForfeit(tx, 'OFFER_NOT_OPEN', config.marketplace))
+        return keep(refundOrForfeit(tx, 'OFFER_NOT_OPEN', CONSTANTS.MARKETPLACE_ADDRESS))
       }
-      if (tx.value !== offer.price) return keep(refundOrForfeit(tx, 'WRONG_PRICE', config.marketplace))
+      if (tx.value !== offer.price) return keep(refundOrForfeit(tx, 'WRONG_PRICE', CONSTANTS.MARKETPLACE_ADDRESS))
 
       // Ownership moves immediately and deterministically. Settlement never
       // gates the transfer: the marketplace operator handles money, never
@@ -771,8 +771,8 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       draft.nextDueHeight = computeNextDue(draft)
 
       const obligations = [
-        obligation(ref, 'SALE_PROCEEDS', config.marketplace, offer.seller, proceeds),
-        obligation(ref, 'COMMISSION', config.marketplace, config.treasury, commission),
+        obligation(ref, 'SALE_PROCEEDS', CONSTANTS.MARKETPLACE_ADDRESS, offer.seller, proceeds),
+        obligation(ref, 'COMMISSION', CONSTANTS.MARKETPLACE_ADDRESS, CONSTANTS.TREASURY_ADDRESS, commission),
       ]
       return { state: freeze(draft), verdict: ok(obligations) }
     }
@@ -781,8 +781,8 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
     case 'M': {
       // Whichever address holds the funds: the marketplace for a B, the
       // treasury for a refunded G.
-      const fromMarketplace = addressEquals(tx.sender, config.marketplace)
-      const fromTreasury = addressEquals(tx.sender, config.treasury)
+      const fromMarketplace = addressEquals(tx.sender, CONSTANTS.MARKETPLACE_ADDRESS)
+      const fromTreasury = addressEquals(tx.sender, CONSTANTS.TREASURY_ADDRESS)
       if (!fromMarketplace && !fromTreasury) return keep(forfeit('WRONG_SENDER'))
 
       const key = refKey({ height: message.height, txIndex: message.txIndex })
@@ -810,7 +810,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
 
     // ── A — Auction (§6) ─────────────────────────────────────────────────────
     case 'A': {
-      if (!addressEquals(tx.recipient, config.protocol)) return keep(forfeit('WRONG_RECIPIENT'))
+      if (!addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS)) return keep(forfeit('WRONG_RECIPIENT'))
       // Not implemented in v1, by protocol version rather than by omission.
       // See the module docblock.
       //
@@ -825,8 +825,8 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
 
     // ── P — Governance (§6, §10.6) ───────────────────────────────────────────
     case 'P': {
-      if (!addressEquals(tx.recipient, config.protocol)) return keep(forfeit('WRONG_RECIPIENT'))
-      if (!addressEquals(tx.sender, config.admin)) return keep(forfeit('NOT_ADMIN'))
+      if (!addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS)) return keep(forfeit('WRONG_RECIPIENT'))
+      if (!addressEquals(tx.sender, CONSTANTS.ADMIN_ADDRESS)) return keep(forfeit('NOT_ADMIN'))
       if (message.effectiveHeight < tx.blockNumber + CONSTANTS.GOVERNANCE_DELAY) {
         return keep(forfeit('INSUFFICIENT_NOTICE'))
       }
@@ -858,7 +858,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       // operand — PROTOCOL_ADDRESS releases the name, any other address is
       // awarded it at effective_height — so it gets a row of its own rather
       // than the §5.3 check that precedes everything else (§7.4).
-      if (!addressEquals(tx.sender, config.admin)) return keep(forfeit('NOT_ADMIN'))
+      if (!addressEquals(tx.sender, CONSTANTS.ADMIN_ADDRESS)) return keep(forfeit('NOT_ADMIN'))
       // The one forbidden recipient. BURN_ADDRESS has no key, and it is the
       // all-zero address §8.1 uses to encode *no* recipient — permitting it
       // would make an award to it and a release commit identical bytes (§6 U).
@@ -883,7 +883,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       const draft = draftOf(state)
       draft.pendingUnreserve.set(message.name, {
         name: message.name,
-        recipient: addressEquals(tx.recipient, config.protocol) ? null : tx.recipient,
+        recipient: addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS) ? null : tx.recipient,
         effectiveHeight: message.effectiveHeight,
       })
       schedule(draft, message.effectiveHeight)
@@ -893,7 +893,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
     // ── F — Burn attestation (§6) ────────────────────────────────────────────
     case 'F': {
       if (!addressEquals(tx.recipient, BURN_ADDRESS)) return keep(forfeit('WRONG_RECIPIENT'))
-      if (!addressEquals(tx.sender, config.treasury)) return keep(forfeit('WRONG_SENDER'))
+      if (!addressEquals(tx.sender, CONSTANTS.TREASURY_ADDRESS)) return keep(forfeit('WRONG_SENDER'))
       // No protocol effect. It exists to make the burn commitment auditable.
       return keep(ok())
     }

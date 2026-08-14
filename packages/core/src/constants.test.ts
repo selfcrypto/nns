@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { parseAddress } from './address.js'
 import { CONSTANTS, LUNA_PER_NIM } from './constants.js'
 import { validateNameSyntax } from './name.js'
 
@@ -108,8 +109,38 @@ describe('CONSTANTS — §3', () => {
       RESOLVER_QUORUM: 2,
       ANCHOR_QUORUM: 2,
       ANCHOR_STALENESS_LIMIT_SEC: 172_800,
+      // The launch freeze's second half (2026-08-14). The height and the
+      // four addresses are the operator-supplied battery cast; launch
+      // replaces them in a second freeze that edits these exact literals
+      // (tasks/08 step 7). Compact form: parseAddress strips the spaces.
+      LAUNCH_HEIGHT: 58_842_720,
+      TREASURY_ADDRESS: 'NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3',
+      PROTOCOL_ADDRESS: 'NQ38NKD47ALGYRDQDXL8PARE7JRSJGJDMAU8',
+      ADMIN_ADDRESS: 'NQ806XNVJDFYYEKFHMM3UCYKVBLP7H6YFNXS',
+      MARKETPLACE_ADDRESS: 'NQ71TPMVQN9DMV6A1HX1NL2Q4CJG5J8MQPTB',
       BURN_ADDRESS: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
     })
+  })
+
+  it('keeps the four §3 role addresses pairwise distinct (§3, §10.6)', () => {
+    // The check `defineConfig` ran at every startup, asserted once now that
+    // the values are literals: the treasury/protocol split is what makes the
+    // burn base exact, the admin key is cold while the treasury is hot, and
+    // the marketplace is "distinct from both".
+    const roles = [
+      CONSTANTS.TREASURY_ADDRESS,
+      CONSTANTS.PROTOCOL_ADDRESS,
+      CONSTANTS.ADMIN_ADDRESS,
+      CONSTANTS.MARKETPLACE_ADDRESS,
+    ]
+    expect(new Set(roles).size).toBe(roles.length)
+    // And none of them is the burn address, which decodes to the §8.1
+    // "unset" sentinel of 20 zero bytes.
+    for (const role of roles) expect(role).not.toBe(parseAddress(CONSTANTS.BURN_ADDRESS))
+  })
+
+  it('sits LAUNCH_HEIGHT above the PoS genesis, where batch numbering starts', () => {
+    expect(CONSTANTS.LAUNCH_HEIGHT).toBeGreaterThan(3_456_000)
   })
 
   it('equals the published RESERVED_NAMES list, as a set — order is not protocol (§4.1)', () => {

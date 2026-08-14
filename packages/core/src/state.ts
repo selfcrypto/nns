@@ -14,7 +14,6 @@
  */
 
 import type { Address } from './address.js'
-import type { NnsConfig } from './config.js'
 import { CONSTANTS } from './constants.js'
 import { isReservedName } from './name.js'
 
@@ -159,9 +158,9 @@ export const LAUNCH_PRICES: Prices = Object.freeze({
 })
 
 /** Empty state at `LAUNCH_HEIGHT` (§7.2 step 1). */
-export function initialState(config: NnsConfig): NnsState {
+export function initialState(): NnsState {
   return Object.freeze({
-    height: config.launchHeight,
+    height: CONSTANTS.LAUNCH_HEIGHT,
     names: new Map<string, NameRecord>(),
     transfers: new Map<string, PendingTransfer>(),
     recoveries: new Map<string, PendingRecovery>(),

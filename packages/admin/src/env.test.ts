@@ -7,11 +7,6 @@ const FULL: EnvSource = {
   NNS_RPC_USER: 'admin',
   NNS_RPC_PASSWORD: 'hunter2',
   NNS_NETWORK_ID: '24',
-  NNS_LAUNCH_HEIGHT: '58000000',
-  NNS_TREASURY_ADDRESS: 'NQ82 24C1 X9HD 6GVL 4JAG AVF6 AT3K FA0Q H3UN',
-  NNS_PROTOCOL_ADDRESS: 'NQ07 48LK 0DRX 8M65 6NK1 D1PP CYC4 HE99 K857',
-  NNS_ADMIN_ADDRESS: 'NQ67 6CV4 2J2F AREN 8STJ F608 F3LM KJHS MCDQ',
-  NNS_MARKETPLACE_ADDRESS: 'NQ28 8H5M 4NB0 CVP7 AY43 HA8R H7V6 MNSB PGN9',
 }
 
 describe('loadSettings', () => {
@@ -29,13 +24,20 @@ describe('loadSettings', () => {
     expect(settings.rpcUrl).toBe('http://10.0.0.5:6488')
   })
 
-  it('requires every §3 address and reports the variable by name', () => {
-    const { NNS_ADMIN_ADDRESS: _omitted, ...rest } = FULL
-    expect(() => loadSettings(rest)).toThrow(/NNS_ADMIN_ADDRESS/)
+  it('requires the network id and reports the variable by name', () => {
+    const { NNS_NETWORK_ID: _omitted, ...rest } = FULL
+    expect(() => loadSettings(rest)).toThrow(/NNS_NETWORK_ID/)
   })
 
-  it("wraps core's validation into EnvError, so a bad address fails at startup", () => {
-    expect(() => loadSettings({ ...FULL, NNS_ADMIN_ADDRESS: 'NQ00 NOT A REAL ADDRESS' })).toThrow(EnvError)
+  it("wraps core's validation into EnvError, so a bad value fails at startup", () => {
+    expect(() => loadSettings({ ...FULL, NNS_NETWORK_ID: '1.5' })).toThrow(EnvError)
+  })
+
+  it('has no variable for a frozen §3 value, so an operator cannot set one', () => {
+    // The freeze's second half deleted NNS_LAUNCH_HEIGHT and the four address
+    // vars from this loader; setting them is inert rather than honoured.
+    const settings = loadSettings({ ...FULL, NNS_ADMIN_ADDRESS: 'NQ00 NOT A REAL ADDRESS' })
+    expect(Object.keys(settings.config)).toEqual(['networkId'])
   })
 
   it('rejects a fractional listing fee — a NIM/luna mix-up', () => {

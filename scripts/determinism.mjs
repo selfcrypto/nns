@@ -28,9 +28,10 @@
 //                         CHECKPOINT_INTERVAL. Default: the highest boundary
 //                         at least two intervals below the current head, so
 //                         every run can reach it without waiting on the chain
-//   --launch-height <h>   override NNS_LAUNCH_HEIGHT for every run equally —
-//                         the window is a harness parameter, and .env's value
-//                         is whatever the last session left there
+//   (there is no --launch-height: LAUNCH_HEIGHT is a frozen constant since
+//   the launch freeze, and the indexer under test reads it from CONSTANTS —
+//   an override here would replay a build nobody runs. The flag errors out
+//   rather than being silently ignored.)
 //   --database <name>     throwaway database (default nns_determinism). It is
 //                         dropped before every run and after the last one
 //   --env <path>          base environment (default packages/indexer/.env)
@@ -116,9 +117,13 @@ const baseEnv = Object.fromEntries(
 )
 
 if (opts['launch-height'] !== undefined) {
-  baseEnv.NNS_LAUNCH_HEIGHT = String(integer(opts['launch-height'], 'launch-height', 0))
+  fail(
+    'LAUNCH_HEIGHT is a frozen constant since the launch freeze — the indexer reads it from CONSTANTS ' +
+      `and would ignore this override, so the run would silently test ${CONSTANTS.LAUNCH_HEIGHT.toLocaleString()} anyway. ` +
+      'Changing the window means editing the pinned literal (a tempo-branch commit), not passing a flag.',
+  )
 }
-const launchHeight = integer(baseEnv.NNS_LAUNCH_HEIGHT ?? '', 'launch-height', 0)
+const launchHeight = CONSTANTS.LAUNCH_HEIGHT
 
 if (!baseEnv.NNS_DATABASE_URL) fail(`${envPath} sets no NNS_DATABASE_URL`)
 
@@ -192,11 +197,11 @@ const head = Number(await rpc('getBlockNumber'))
 const earliest = await historyHorizon(blockReader, launchHeight)
 if (earliest !== null) {
   fail(
-    `the node has no block at NNS_LAUNCH_HEIGHT ${launchHeight.toLocaleString()} — its history starts at ` +
+    `the node has no block at LAUNCH_HEIGHT ${launchHeight.toLocaleString()} — its history starts at ` +
       `${earliest.toLocaleString()}.\n` +
       '  A batch below that answers with an empty transaction list, not an error, so every run would\n' +
       '  agree on a registry that is empty because the messages are unreachable. Re-index the node\n' +
-      `  with history, or pass --launch-height at or above ${earliest.toLocaleString()}.`,
+      `  with history, or edit the pinned LAUNCH_HEIGHT literal to at or above ${earliest.toLocaleString()}.`,
   )
 }
 const boundaryBelow = (height) => Math.floor(height / INTERVAL) * INTERVAL
@@ -207,7 +212,7 @@ const boundaryBelow = (height) => Math.floor(height / INTERVAL) * INTERVAL
 const target = opts.height === undefined ? boundaryBelow(head - 2 * INTERVAL) : integer(opts.height, 'height', 0)
 
 if (target % INTERVAL !== 0) fail(`--height ${target} is not a multiple of CHECKPOINT_INTERVAL (${INTERVAL})`)
-if (target <= launchHeight) fail(`--height ${target} is not above NNS_LAUNCH_HEIGHT ${launchHeight}`)
+if (target <= launchHeight) fail(`--height ${target} is not above LAUNCH_HEIGHT ${launchHeight}`)
 if (target > head - INTERVAL) fail(`--height ${target} is within one interval of head ${head} — pick a lower target`)
 
 const outDir = opts.out ?? join(tmpdir(), `nns-determinism-${new Date().toISOString().replace(/[:.]/g, '-')}`)

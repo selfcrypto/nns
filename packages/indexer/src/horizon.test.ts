@@ -95,7 +95,7 @@ describe('assertHistoryHorizon', () => {
     const error = await assertHistoryHorizon({
       rpc,
       startHeight: 58_764_940,
-      origin: 'NNS_LAUNCH_HEIGHT',
+      origin: 'LAUNCH_HEIGHT',
       logger,
     }).catch((thrown: unknown) => thrown)
 
@@ -103,7 +103,7 @@ describe('assertHistoryHorizon', () => {
     const horizon = error as HorizonError
     expect(horizon.startHeight).toBe(58_764_940)
     expect(horizon.earliestBlock).toBe(58_842_660)
-    expect(horizon.message).toContain('NNS_LAUNCH_HEIGHT 58,764,940')
+    expect(horizon.message).toContain('LAUNCH_HEIGHT 58,764,940')
     expect(horizon.message).toContain('58,842,660')
   })
 
@@ -111,7 +111,7 @@ describe('assertHistoryHorizon', () => {
     const { rpc } = node(1_000, 2_000)
     const { logger } = collectingLogger()
     await expect(
-      assertHistoryHorizon({ rpc, startHeight: 1_000, origin: 'NNS_LAUNCH_HEIGHT', logger }),
+      assertHistoryHorizon({ rpc, startHeight: 1_000, origin: 'LAUNCH_HEIGHT', logger }),
     ).resolves.toBeUndefined()
   })
 })

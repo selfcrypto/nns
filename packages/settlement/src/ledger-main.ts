@@ -72,7 +72,7 @@ async function run(argv: readonly string[]): Promise<number> {
       apiUrl: settings.apiUrl,
       config: settings.config,
       fetcher: httpFetcher,
-      initial: initialState(settings.config),
+      initial: initialState(),
     })
     const pollSeconds = interval ?? settings.pollSeconds
 

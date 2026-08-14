@@ -37,7 +37,7 @@ const record = (over: Partial<NameRecord> & { name: string }): NameRecord => ({
 
 const stateWith = (...records: NameRecord[]): NnsState =>
   Object.freeze({
-    ...initialState(config),
+    ...initialState(),
     names: new Map(records.map((r) => [r.name, r])),
   })
 
@@ -131,7 +131,7 @@ describe('compareNames — bytewise-lexicographic', () => {
 
 describe('merkleRoot', () => {
   it('is 32 zero bytes for an empty tree', () => {
-    expect(merkleRoot(initialState(config))).toEqual(new Uint8Array(HASH_BYTES))
+    expect(merkleRoot(initialState())).toEqual(new Uint8Array(HASH_BYTES))
   })
 
   it('is the leaf hash itself for a single leaf', () => {
@@ -234,7 +234,7 @@ describe('merkleNonInclusion — §8.3', () => {
   const state = stateWith(...records)
 
   it('reports an empty tree', () => {
-    expect(merkleNonInclusion(initialState(config), 'kikename').kind).toBe('EMPTY_TREE')
+    expect(merkleNonInclusion(initialState(), 'kikename').kind).toBe('EMPTY_TREE')
   })
 
   it('returns the two bracketing leaves for a name in the middle', () => {
@@ -357,12 +357,12 @@ describe('checkpoint — §8.1 final clause', () => {
   })
 
   it('commits an empty unreserved set as keccak256 of its tag byte alone', () => {
-    expect(unreservedCommitment(initialState(config))).toEqual(keccak_256(Uint8Array.of(0x0a)))
+    expect(unreservedCommitment(initialState())).toEqual(keccak_256(Uint8Array.of(0x0a)))
   })
 
   it('orders the unreserved names bytewise, so insertion order cannot move a root', () => {
-    const forward = Object.freeze({ ...initialState(config), unreserved: new Set(['aname', 'bname', 'cname']) })
-    const backward = Object.freeze({ ...initialState(config), unreserved: new Set(['cname', 'aname', 'bname']) })
+    const forward = Object.freeze({ ...initialState(), unreserved: new Set(['aname', 'bname', 'cname']) })
+    const backward = Object.freeze({ ...initialState(), unreserved: new Set(['cname', 'aname', 'bname']) })
     expect(unreservedCommitment(forward)).toEqual(unreservedCommitment(backward))
     expect(unreservedCommitment(forward)).toEqual(
       keccak_256(
@@ -377,13 +377,13 @@ describe('checkpoint — §8.1 final clause', () => {
   })
 
   it('length-prefixes the names, so no two sets share an encoding', () => {
-    const split = Object.freeze({ ...initialState(config), unreserved: new Set(['ab', 'cd']) })
-    const joined = Object.freeze({ ...initialState(config), unreserved: new Set(['abcd']) })
+    const split = Object.freeze({ ...initialState(), unreserved: new Set(['ab', 'cd']) })
+    const joined = Object.freeze({ ...initialState(), unreserved: new Set(['abcd']) })
     expect(bytesEqual(unreservedCommitment(split), unreservedCommitment(joined))).toBe(false)
   })
 
   it('rejects a log hash of the wrong length', () => {
-    expect(() => checkpoint(initialState(config), new Uint8Array(31))).toThrow(MerkleError)
+    expect(() => checkpoint(initialState(), new Uint8Array(31))).toThrow(MerkleError)
   })
 
   it('is reproducible from the six served components alone — §8.5 #3', () => {
@@ -405,7 +405,7 @@ describe('checkpoint — §8.1 final clause', () => {
   })
 
   it('rejects components that are not five 32-byte digests at a real height', () => {
-    const good = checkpoint(initialState(config), new Uint8Array(HASH_BYTES))
+    const good = checkpoint(initialState(), new Uint8Array(HASH_BYTES))
     expect(() => commitmentFrom({ ...good, pendingRoot: new Uint8Array(31) })).toThrow(MerkleError)
     expect(() => commitmentFrom({ ...good, height: -1 })).toThrow(MerkleError)
     expect(() => commitmentFrom({ ...good, height: 1.5 })).toThrow(MerkleError)

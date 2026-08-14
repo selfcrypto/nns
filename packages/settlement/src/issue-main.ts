@@ -86,7 +86,7 @@ async function run(argv: readonly string[]): Promise<number> {
   }
 
   const settings = loadIssuerSettings()
-  const keys = loadHotKeys(process.env, settings.config)
+  const keys = loadHotKeys(process.env)
   if (send && keys.size === 0) {
     console.error(
       '--send needs a key: set NNS_SETTLEMENT_MARKETPLACE_KEY, NNS_SETTLEMENT_TREASURY_KEY, or both.\n' +
@@ -112,7 +112,7 @@ async function run(argv: readonly string[]): Promise<number> {
       apiUrl: settings.apiUrl,
       config: settings.config,
       fetcher: httpFetcher,
-      initial: initialState(settings.config),
+      initial: initialState(),
     })
     const pollSeconds = interval ?? settings.pollSeconds
     // Read once, at startup: the window is a chain constant, and re-reading it

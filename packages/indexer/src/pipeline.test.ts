@@ -13,21 +13,14 @@ import { collectingLogger, payload } from './test-fixtures.js'
 
 // Valid addresses: the checksum is part of the format, so a made-up NQ11…
 // string is rejected by `parseAddress`.
-const A = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
-const B = 'NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2'
-const C = 'NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK'
-const D = 'NQ14 8H24 8H24 8H24 8H24 8H24 8H24 8H24 8H24'
+const A = 'NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3' // CONSTANTS.TREASURY_ADDRESS, spaced as the RPC prints it
+const B = 'NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8' // CONSTANTS.PROTOCOL_ADDRESS
+const C = 'NQ80 6XNV JDFY YEKF HMM3 UCYK VBLP 7H6Y FNXS' // CONSTANTS.ADMIN_ADDRESS
+const D = 'NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB' // CONSTANTS.MARKETPLACE_ADDRESS
 
-const LAUNCH = 58_176_000 // a multiple of CHECKPOINT_INTERVAL, so boundaries are easy to read
+const LAUNCH = CONSTANTS.LAUNCH_HEIGHT // a multiple of CHECKPOINT_INTERVAL, so boundaries read easily
 
-const CONFIG = defineConfig({
-  networkId: 24,
-  launchHeight: LAUNCH,
-  treasury: A,
-  protocol: B,
-  admin: C,
-  marketplace: D,
-})
+const CONFIG = defineConfig({ networkId: 24 })
 
 function candidate(overrides: Partial<NnsCandidate> & { blockNumber: number }): NnsCandidate {
   return {
@@ -67,7 +60,7 @@ describe('checkpoint boundaries', () => {
 
   it('applies every boundary in the gap, in order', () => {
     const seen: number[] = []
-    const state = advanceThroughBoundaries(initialState(CONFIG), LAUNCH + 1_500, (height) => seen.push(height))
+    const state = advanceThroughBoundaries(initialState(), LAUNCH + 1_500, (height) => seen.push(height))
     expect(seen).toEqual([LAUNCH + 720, LAUNCH + 1_440])
     // …and lands on the target itself, not on the last boundary.
     expect(state.height).toBe(LAUNCH + 1_500)
@@ -75,12 +68,12 @@ describe('checkpoint boundaries', () => {
 
   it('crosses no boundary inside one batch that spans none', () => {
     const seen: number[] = []
-    advanceThroughBoundaries(initialState(CONFIG), LAUNCH + 60, (height) => seen.push(height))
+    advanceThroughBoundaries(initialState(), LAUNCH + 60, (height) => seen.push(height))
     expect(seen).toEqual([])
   })
 
   it('never moves backwards', () => {
-    const state = advanceThroughBoundaries(initialState(CONFIG), LAUNCH + 5_000)
+    const state = advanceThroughBoundaries(initialState(), LAUNCH + 5_000)
     expect(advanceThroughBoundaries(state, LAUNCH + 100).height).toBe(LAUNCH + 5_000)
   })
 
@@ -88,7 +81,7 @@ describe('checkpoint boundaries', () => {
     // The `after` argument, and the only case that uses it: a state sitting on
     // a boundary nobody has committed yet.
     const seen: number[] = []
-    advanceThroughBoundaries(initialState(CONFIG), LAUNCH + 60, (height) => seen.push(height), LAUNCH - 1)
+    advanceThroughBoundaries(initialState(), LAUNCH + 60, (height) => seen.push(height), LAUNCH - 1)
     expect(seen).toEqual([LAUNCH])
   })
 
@@ -96,7 +89,7 @@ describe('checkpoint boundaries', () => {
     // `advanceTo` moves forward only, so a boundary below `state.height` is one
     // an earlier call already passed. Clamped rather than thrown at.
     const seen: number[] = []
-    const state = advanceThroughBoundaries(initialState(CONFIG), LAUNCH + 1_500)
+    const state = advanceThroughBoundaries(initialState(), LAUNCH + 1_500)
     advanceThroughBoundaries(state, LAUNCH + 2_200, (height) => seen.push(height), LAUNCH - 1)
     expect(seen).toEqual([LAUNCH + 2_160])
   })
@@ -108,7 +101,7 @@ describe('applyBatch', () => {
     // passes almost every test and then commits a stale root.
     const { pipeline: p } = pipeline()
     const macroBlock = LAUNCH + 1_440
-    const result = p.applyBatch(initialState(CONFIG), [], macroBlock)
+    const result = p.applyBatch(initialState(), [], macroBlock)
     expect(result.state.height).toBe(macroBlock)
     // LAUNCH leads, because it is itself a multiple of the interval.
     expect(result.boundariesCrossed.map((crossing) => crossing.height)).toEqual([LAUNCH, LAUNCH + 720, LAUNCH + 1_440])
@@ -125,7 +118,7 @@ describe('applyBatch', () => {
   it('registers a name and writes exactly one log line', () => {
     const { pipeline: p } = pipeline()
     const result = p.applyBatch(
-      initialState(CONFIG),
+      initialState(),
       [
         candidate({
           blockNumber: LAUNCH + 10,
@@ -153,7 +146,7 @@ describe('applyBatch', () => {
     // confirm that a rejection was correct.
     const { pipeline: p } = pipeline()
     const result = p.applyBatch(
-      initialState(CONFIG),
+      initialState(),
       [candidate({ blockNumber: LAUNCH + 10, recipientData: payload('NNS1Gab-'), recipient: A })],
       LAUNCH + 60,
     )
@@ -167,7 +160,7 @@ describe('applyBatch', () => {
   it('gives an IGNORED message no log line at all (§7.6)', () => {
     const { pipeline: p } = pipeline()
     const result = p.applyBatch(
-      initialState(CONFIG),
+      initialState(),
       [candidate({ blockNumber: LAUNCH + 10, executionResult: false })],
       LAUNCH + 60,
     )
@@ -179,7 +172,7 @@ describe('applyBatch', () => {
     const { pipeline: p } = pipeline()
     expect(() =>
       p.applyBatch(
-        initialState(CONFIG),
+        initialState(),
         [candidate({ blockNumber: LAUNCH + 20 }), candidate({ blockNumber: LAUNCH + 10 })],
         LAUNCH + 60,
       ),
@@ -190,7 +183,7 @@ describe('applyBatch', () => {
     // Replay is forward-only: `advanceTo` throws rather than reapplying
     // effects, which is what makes a resumed run identical to a fresh one.
     const { pipeline: p } = pipeline()
-    const first = p.applyBatch(initialState(CONFIG), [], LAUNCH + 120)
+    const first = p.applyBatch(initialState(), [], LAUNCH + 120)
     expect(() => p.applyBatch(first.state, [candidate({ blockNumber: LAUNCH + 60 })], LAUNCH + 180)).toThrow(
       /cannot advance/,
     )
@@ -200,7 +193,7 @@ describe('applyBatch', () => {
     const { pipeline: p } = pipeline()
     expect(() =>
       p.applyBatch(
-        initialState(CONFIG),
+        initialState(),
         [candidate({ blockNumber: LAUNCH + 10, txIndex: 1 }), candidate({ blockNumber: LAUNCH + 10, txIndex: 1 })],
         LAUNCH + 60,
       ),
@@ -222,9 +215,9 @@ describe('applyBatch', () => {
     const { pipeline: whole } = pipeline()
     const { pipeline: p } = pipeline()
 
-    const together = whole.applyBatch(initialState(CONFIG), messages, LAUNCH + 2_000)
+    const together = whole.applyBatch(initialState(), messages, LAUNCH + 2_000)
 
-    let state = initialState(CONFIG)
+    let state = initialState()
     const rows = []
     for (const [index, message] of messages.entries()) {
       const step = p.applyBatch(state, [message], LAUNCH + 60 * (index + 1))
@@ -247,15 +240,6 @@ describe('LAUNCH_HEIGHT as a boundary (§8.1)', () => {
   // the initial state starts *at* LAUNCH_HEIGHT.
   const OFF_BOUNDARY = LAUNCH + 1 // …the same launch, one block later
 
-  const offBoundaryConfig = defineConfig({
-    networkId: 24,
-    launchHeight: OFF_BOUNDARY,
-    treasury: A,
-    protocol: B,
-    admin: C,
-    marketplace: D,
-  })
-
   it('is a multiple of CHECKPOINT_INTERVAL, which is what makes it one', () => {
     expect(LAUNCH % CONSTANTS.CHECKPOINT_INTERVAL).toBe(0)
   })
@@ -263,7 +247,7 @@ describe('LAUNCH_HEIGHT as a boundary (§8.1)', () => {
   it('checkpoints LAUNCH_HEIGHT itself, before anything in the launch block', () => {
     const { pipeline: p } = pipeline()
     const result = p.applyBatch(
-      initialState(CONFIG),
+      initialState(),
       [candidate({ blockNumber: LAUNCH, recipientData: payload('NNS1Gtestname'), value: CONSTANTS.FEE_STANDARD, recipient: A })],
       LAUNCH + 60,
     )
@@ -281,12 +265,12 @@ describe('LAUNCH_HEIGHT as a boundary (§8.1)', () => {
     // 720 is a multiple of 60, so a LAUNCH_HEIGHT on a boundary is always a
     // macro block too: the first batch can begin and end at it.
     const { pipeline: p } = pipeline()
-    expect(p.applyBatch(initialState(CONFIG), [], LAUNCH).boundariesCrossed.map((c) => c.height)).toEqual([LAUNCH])
+    expect(p.applyBatch(initialState(), [], LAUNCH).boundariesCrossed.map((c) => c.height)).toEqual([LAUNCH])
   })
 
   it('emits it exactly once, however the batches fall', () => {
     const { pipeline: p } = pipeline()
-    const first = p.applyBatch(initialState(CONFIG), [], LAUNCH)
+    const first = p.applyBatch(initialState(), [], LAUNCH)
     const second = p.applyBatch(first.state, [], LAUNCH + 60)
     const third = p.applyBatch(second.state, [], LAUNCH + 720)
     expect(first.boundariesCrossed.map((c) => c.height)).toEqual([LAUNCH])
@@ -299,15 +283,21 @@ describe('LAUNCH_HEIGHT as a boundary (§8.1)', () => {
     // same height: the log hash has been reseeded with the launch block's own
     // lines, so a second derivation is a divergence, not a duplicate.
     const { pipeline: p } = pipeline({ lastCheckpointHeight: LAUNCH })
-    const state = initialState(CONFIG) // reloaded at LAUNCH, its checkpoint already written
+    const state = initialState() // reloaded at LAUNCH, its checkpoint already written
     expect(p.applyBatch(state, [], LAUNCH + 60).boundariesCrossed).toEqual([])
     expect(p.applyBatch(state, [], LAUNCH + 720).boundariesCrossed.map((c) => c.height)).toEqual([LAUNCH + 720])
   })
 
   it('gives a LAUNCH_HEIGHT that is not a multiple no checkpoint of its own', () => {
+    // The frozen LAUNCH_HEIGHT happens to be a multiple, so the off-boundary
+    // case §8.1's wording still allows is emulated the way the constructor
+    // computes it: a fresh start at launch `OFF_BOUNDARY` has
+    // `lastBoundary = OFF_BOUNDARY - 1`, and an off-boundary launch height
+    // never appears in the schedule.
     const { logger } = collectingLogger()
-    const p = new Pipeline(offBoundaryConfig, logger)
-    const result = p.applyBatch(initialState(offBoundaryConfig), [], OFF_BOUNDARY + 1_000)
+    const p = new Pipeline(CONFIG, logger, { lastCheckpointHeight: OFF_BOUNDARY - 1 })
+    const state = Object.freeze({ ...initialState(), height: OFF_BOUNDARY })
+    const result = p.applyBatch(state, [], OFF_BOUNDARY + 1_000)
     // The schedule is absolute, so the first boundary is the next multiple of
     // 720 — not `LAUNCH_HEIGHT + 720`.
     expect(result.boundariesCrossed.map((crossing) => crossing.height)).toEqual([LAUNCH + 720])

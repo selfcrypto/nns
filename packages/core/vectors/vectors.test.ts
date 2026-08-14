@@ -147,7 +147,7 @@ describe('vectors/merkle.json', () => {
   const config = readConfig(reduceFile.config, readAddresses(reduceFile.addresses))
 
   const stateWith = (records: NameRecord[]): NnsState =>
-    Object.freeze({ ...initialState(config), names: new Map(records.map((r) => [r.name, r])) })
+    Object.freeze({ ...initialState(), names: new Map(records.map((r) => [r.name, r])) })
 
   const recordsFor = (testCase: any): NameRecord[] =>
     (testCase.names as string[]).map((name) =>
@@ -290,7 +290,7 @@ describe('vectors/ordering.json', () => {
   const config = readConfig(file.config, book)
 
   const run = (testCase: any): { state: NnsState; lines: string[] } => {
-    let state = initialState(config)
+    let state = initialState()
     const lines: string[] = []
     for (const raw of testCase.transactions) {
       const tx = readTx({ ...raw, blockNumber: testCase.block }, book, file.config.networkId)
@@ -352,7 +352,7 @@ describe('vectors/reduce.json', () => {
 
   it.each(entries(file.scenarios))('%s', (_id, scenario: any) => {
     const config = readConfig({ ...file.config, ...(scenario.config ?? {}) }, book)
-    let state = initialState(config)
+    let state = initialState()
 
     for (const step of scenario.steps) {
       if (step.advanceTo !== undefined) {

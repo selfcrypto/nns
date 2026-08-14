@@ -24,22 +24,15 @@ import type { LogRow } from './rows.js'
 import type { NnsCandidate } from './scan.js'
 import { collectingLogger, payload } from './test-fixtures.js'
 
-const A = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
-const B = 'NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2'
-const C = 'NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK'
-const D = 'NQ14 8H24 8H24 8H24 8H24 8H24 8H24 8H24 8H24'
+const A = 'NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3' // CONSTANTS.TREASURY_ADDRESS, spaced as the RPC prints it
+const B = 'NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8' // CONSTANTS.PROTOCOL_ADDRESS
+const C = 'NQ80 6XNV JDFY YEKF HMM3 UCYK VBLP 7H6Y FNXS' // CONSTANTS.ADMIN_ADDRESS
+const D = 'NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB' // CONSTANTS.MARKETPLACE_ADDRESS
 
-const LAUNCH = 58_176_000 // a multiple of CHECKPOINT_INTERVAL, so boundaries read easily
+const LAUNCH = CONSTANTS.LAUNCH_HEIGHT // a multiple of CHECKPOINT_INTERVAL, so boundaries read easily
 const INTERVAL = CONSTANTS.CHECKPOINT_INTERVAL
 
-const CONFIG = defineConfig({
-  networkId: 24,
-  launchHeight: LAUNCH,
-  treasury: A,
-  protocol: B,
-  admin: C,
-  marketplace: D,
-})
+const CONFIG = defineConfig({ networkId: 24 })
 
 const compact = (value: string) => parseAddress(value)
 
@@ -96,7 +89,7 @@ describe('logLineFromRow', () => {
     // the columns back has to be the identity, or the committed hash is over
     // bytes no replayer produces.
     const { pipeline: p } = builder()
-    const result = p.applyBatch(initialState(CONFIG), [candidate({ blockNumber: LAUNCH + 10 })], LAUNCH + 60)
+    const result = p.applyBatch(initialState(), [candidate({ blockNumber: LAUNCH + 10 })], LAUNCH + 60)
     const row = result.logRows[0] as LogRow
     expect(logLineFromRow(row)).toBe(
       [LAUNCH + 10, 0, 'ab'.repeat(32), compact(candidate({ blockNumber: 0 }).sender), compact(A),
@@ -111,7 +104,7 @@ describe('logLineFromRow', () => {
 
 describe('commitmentFor', () => {
   it('delegates to core, byte for byte', () => {
-    const state = initialState(CONFIG)
+    const state = initialState()
     const hash = logHash([])
     expect(commitmentFor(state, LAUNCH, hash)).toEqual(coreCheckpoint(state, hash))
   })
@@ -119,14 +112,14 @@ describe('commitmentFor', () => {
   it('refuses a state that is not current as of the checkpoint height', () => {
     // `core.checkpoint` takes the height from the state, so a mismatch here
     // would commit silently at the wrong height rather than fail.
-    expect(() => commitmentFor(initialState(CONFIG), LAUNCH + INTERVAL, logHash([]))).toThrow(CheckpointError)
+    expect(() => commitmentFor(initialState(), LAUNCH + INTERVAL, logHash([]))).toThrow(CheckpointError)
   })
 })
 
 describe('CheckpointBuilder', () => {
   it('commits at every boundary a batch crosses, at that boundary’s state', () => {
     const { builder: b, pipeline: p } = builder()
-    const result = p.applyBatch(initialState(CONFIG), [], LAUNCH + 2 * INTERVAL)
+    const result = p.applyBatch(initialState(), [], LAUNCH + 2 * INTERVAL)
     const records = b.buildForBatch(result)
 
     expect(records.map((record) => record.height)).toEqual([LAUNCH + INTERVAL, LAUNCH + 2 * INTERVAL])
@@ -138,7 +131,7 @@ describe('CheckpointBuilder', () => {
 
   it('crosses no boundary, and commits nothing, inside a quiet batch', () => {
     const { builder: b, pipeline: p } = builder()
-    expect(b.buildForBatch(p.applyBatch(initialState(CONFIG), [], LAUNCH + 60))).toEqual([])
+    expect(b.buildForBatch(p.applyBatch(initialState(), [], LAUNCH + 60))).toEqual([])
   })
 
   it('covers exactly the log lines at or below the checkpoint height', () => {
@@ -153,7 +146,7 @@ describe('CheckpointBuilder', () => {
       blockNumber: LAUNCH + INTERVAL + 10,
       recipientData: payload('NNS1Glatername'),
     })
-    const result = p.applyBatch(initialState(CONFIG), [before, after], LAUNCH + INTERVAL + 60)
+    const result = p.applyBatch(initialState(), [before, after], LAUNCH + INTERVAL + 60)
 
     expect(result.boundariesCrossed.map((crossing) => crossing.logRowsBefore)).toEqual([1])
     const [record] = b.buildForBatch(result)
@@ -167,7 +160,7 @@ describe('CheckpointBuilder', () => {
   it('commits a name registered before the boundary, and not one after it', () => {
     const { builder: b, pipeline: p } = builder()
     const result = p.applyBatch(
-      initialState(CONFIG),
+      initialState(),
       [
         candidate({ blockNumber: LAUNCH + INTERVAL - 10, recipientData: payload('NNS1Gearlyname') }),
         candidate({ blockNumber: LAUNCH + INTERVAL + 10, recipientData: payload('NNS1Glatername') }),
@@ -194,11 +187,11 @@ describe('CheckpointBuilder', () => {
 
     const whole = builder()
     const together = whole.builder.buildForBatch(
-      whole.pipeline.applyBatch(initialState(CONFIG), messages, through),
+      whole.pipeline.applyBatch(initialState(), messages, through),
     )
 
     const split = builder()
-    let state = initialState(CONFIG)
+    let state = initialState()
     const apart = []
     for (const [index, message] of messages.entries()) {
       const step = split.pipeline.applyBatch(state, [message], LAUNCH + INTERVAL * (index + 1) - 60)
@@ -236,13 +229,13 @@ describe('CheckpointBuilder', () => {
 
   it('refuses to seed once a checkpoint has been built', () => {
     const { builder: b, pipeline: p } = builder()
-    b.buildForBatch(p.applyBatch(initialState(CONFIG), [], LAUNCH + INTERVAL))
+    b.buildForBatch(p.applyBatch(initialState(), [], LAUNCH + INTERVAL))
     expect(() => b.seed(logRow({ block_height: LAUNCH + INTERVAL + 1 }))).toThrow(/after a checkpoint/)
   })
 
   it('logs each checkpoint it builds', () => {
     const { builder: b, pipeline: p, lines } = builder()
-    b.buildForBatch(p.applyBatch(initialState(CONFIG), [], LAUNCH + INTERVAL))
+    b.buildForBatch(p.applyBatch(initialState(), [], LAUNCH + INTERVAL))
     const built = lines.filter((line) => line['msg'] === 'checkpoint.built')
     expect(built).toHaveLength(1)
     expect(built[0]).toMatchObject({ height: LAUNCH + INTERVAL, layout: COMMITMENT_LAYOUT })
@@ -257,7 +250,7 @@ describe('checkpointRow', () => {
     // divergence, and the unreserved set is the component whose absence from
     // the commitment caused this whole episode.
     const { builder: b, pipeline: p } = builder()
-    const [record] = b.buildForBatch(p.applyBatch(initialState(CONFIG), [], LAUNCH + INTERVAL))
+    const [record] = b.buildForBatch(p.applyBatch(initialState(), [], LAUNCH + INTERVAL))
     const row = checkpointRow(record as NonNullable<typeof record>)
     expect(row.height).toBe(LAUNCH + INTERVAL)
     expect(row.layout).toBe(COMMITMENT_LAYOUT)
@@ -278,7 +271,7 @@ describe('the unreserved set is committed — r16 §8.1, tag 0x0A', () => {
   const withName = (state: NnsState, record: NameRecord): NnsState =>
     Object.freeze({ ...state, names: new Map([[record.name, record]]) })
 
-  const base = Object.freeze({ ...initialState(CONFIG), height: LAUNCH + INTERVAL })
+  const base = Object.freeze({ ...initialState(), height: LAUNCH + INTERVAL })
   /** The same name, in the two states the commitment has to tell apart. */
   const released = Object.freeze({ ...base, unreserved: new Set(['nimiq']) })
   const pending = Object.freeze({

@@ -32,22 +32,22 @@ const COMMISSION = commissionOn(PRICE, CONSTANTS.COMMISSION_RATE)
 const PROCEEDS = PRICE - COMMISSION
 
 const config = testConfig()
-const FEE = feeFor(NAME, initialState(config).prices)
-const FLOOR = minPrice(initialState(config).prices)
+const FEE = feeFor(NAME, initialState().prices)
+const FLOOR = minPrice(initialState().prices)
 
 const H = { register: LAUNCH_HEIGHT + 10, offer: LAUNCH_HEIGHT + 20, buy: LAUNCH_HEIGHT + 30, settle: LAUNCH_HEIGHT + 40 }
 
 const scenario = [
-  send(H.register, 0, SELLER, encodeRegister(config, { name: NAME, fee: FEE })),
-  send(H.offer, 0, SELLER, encodeOffer(config, { name: NAME, price: PRICE, minPrice: FLOOR })),
-  send(H.buy, 0, WINNER, encodeBuy(config, { name: NAME, price: PRICE })),
-  send(H.buy, 1, LOSER, encodeBuy(config, { name: NAME, price: PRICE })),
-  send(H.settle, 0, MARKETPLACE, encodeSettlement(config, { height: H.buy, txIndex: 0, payee: SELLER, amount: PROCEEDS })),
+  send(H.register, 0, SELLER, encodeRegister({ name: NAME, fee: FEE })),
+  send(H.offer, 0, SELLER, encodeOffer({ name: NAME, price: PRICE, minPrice: FLOOR })),
+  send(H.buy, 0, WINNER, encodeBuy({ name: NAME, price: PRICE })),
+  send(H.buy, 1, LOSER, encodeBuy({ name: NAME, price: PRICE })),
+  send(H.settle, 0, MARKETPLACE, encodeSettlement({ height: H.buy, txIndex: 0, payee: SELLER, amount: PROCEEDS })),
 ]
 
 function reportFor(sends: typeof scenario, boundToCheckpoint = true) {
   const staged = stageLog(sends, config)
-  const replay = replayLog(staged.lines, initialState(config), config)
+  const replay = replayLog(staged.lines, initialState(), config)
   return reconcile({
     replay,
     checkpointHeight: LAUNCH_HEIGHT + 720,
@@ -97,7 +97,7 @@ describe('reconcile', () => {
   it('is unsound when a verdict disagrees with the replay', () => {
     const staged = stageLog(scenario, config)
     const tampered = staged.lines.map((line) => line.replace(/ OFFER_NOT_OPEN$/, ' OK'))
-    const replay = replayLog(tampered, initialState(config), config)
+    const replay = replayLog(tampered, initialState(), config)
     const report = reconcile({
       replay,
       checkpointHeight: LAUNCH_HEIGHT + 720,
@@ -151,7 +151,7 @@ describe('reconcile', () => {
         H.settle + 5,
         0,
         MARKETPLACE,
-        encodeSettlement(config, { height: H.buy, txIndex: 1, payee: LOSER, amount: 1n }),
+        encodeSettlement({ height: H.buy, txIndex: 1, payee: LOSER, amount: 1n }),
       ),
     ]
     const report = reportFor(withStray)
@@ -169,13 +169,13 @@ describe('reconcile', () => {
         H.settle,
         1,
         MARKETPLACE,
-        encodeSettlement(config, { height: H.buy, txIndex: 0, payee: TREASURY, amount: COMMISSION }),
+        encodeSettlement({ height: H.buy, txIndex: 0, payee: TREASURY, amount: COMMISSION }),
       ),
       send(
         H.settle,
         2,
         MARKETPLACE,
-        encodeSettlement(config, { height: H.buy, txIndex: 1, payee: LOSER, amount: PRICE }),
+        encodeSettlement({ height: H.buy, txIndex: 1, payee: LOSER, amount: PRICE }),
       ),
     ]
     const report = reportFor(settled)

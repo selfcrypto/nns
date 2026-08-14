@@ -48,25 +48,25 @@ const H = {
  * standing so the outstanding side of the report is never empty by accident.
  */
 function saleScenario(config: NnsConfig) {
-  const fee = feeFor(NAME, initialState(config).prices)
-  const floor = minPrice(initialState(config).prices)
+  const fee = feeFor(NAME, initialState().prices)
+  const floor = minPrice(initialState().prices)
   return [
-    send(H.register, 0, SELLER, encodeRegister(config, { name: NAME, fee })),
-    send(H.offer, 0, SELLER, encodeOffer(config, { name: NAME, price: PRICE, minPrice: floor })),
+    send(H.register, 0, SELLER, encodeRegister({ name: NAME, fee })),
+    send(H.offer, 0, SELLER, encodeOffer({ name: NAME, price: PRICE, minPrice: floor })),
     // Canonical order decides the race: index 0 wins, index 1 refunds.
-    send(H.buy, 0, WINNER, encodeBuy(config, { name: NAME, price: PRICE })),
-    send(H.buy, 1, LOSER, encodeBuy(config, { name: NAME, price: PRICE })),
+    send(H.buy, 0, WINNER, encodeBuy({ name: NAME, price: PRICE })),
+    send(H.buy, 1, LOSER, encodeBuy({ name: NAME, price: PRICE })),
     send(
       H.settle,
       0,
       MARKETPLACE,
-      encodeSettlement(config, { height: H.buy, txIndex: 0, payee: SELLER, amount: PROCEEDS }),
+      encodeSettlement({ height: H.buy, txIndex: 0, payee: SELLER, amount: PROCEEDS }),
     ),
     send(
       H.settle,
       1,
       MARKETPLACE,
-      encodeSettlement(config, { height: H.buy, txIndex: 0, payee: TREASURY, amount: COMMISSION }),
+      encodeSettlement({ height: H.buy, txIndex: 0, payee: TREASURY, amount: COMMISSION }),
     ),
   ]
 }
@@ -76,13 +76,13 @@ describe('replayLog', () => {
   const staged = stageLog(saleScenario(config), config)
 
   it('agrees with every verdict the log carries', () => {
-    const result = replayLog(staged.lines, initialState(config), config)
+    const result = replayLog(staged.lines, initialState(), config)
     expect(result.mismatches).toEqual([])
     expect(result.lineCount).toBe(6)
   })
 
   it('finds the three legs a sale and a race loser create', () => {
-    const result = replayLog(staged.lines, initialState(config), config)
+    const result = replayLog(staged.lines, initialState(), config)
     expect(result.created.map((leg) => leg.obligation.kind).sort()).toEqual([
       'COMMISSION',
       'REFUND',
@@ -104,7 +104,7 @@ describe('replayLog', () => {
   })
 
   it('a race loser is refunded in full, never deducted from', () => {
-    const result = replayLog(staged.lines, initialState(config), config)
+    const result = replayLog(staged.lines, initialState(), config)
     const refund = result.created.find((leg) => leg.obligation.kind === 'REFUND')
     expect(refund?.obligation.amount).toBe(PRICE)
     expect(refund?.obligation.owedTo).toBe(LOSER)
@@ -112,14 +112,14 @@ describe('replayLog', () => {
   })
 
   it('matches each M to the leg it discharged', () => {
-    const result = replayLog(staged.lines, initialState(config), config)
+    const result = replayLog(staged.lines, initialState(), config)
     expect(result.settled).toHaveLength(2)
     expect(result.settled.map((leg) => leg.obligation.kind).sort()).toEqual(['COMMISSION', 'SALE_PROCEEDS'])
     expect(result.settled.every((leg) => leg.settledAt.height === H.settle)).toBe(true)
   })
 
   it('leaves the unpaid refund outstanding', () => {
-    const result = replayLog(staged.lines, initialState(config), config)
+    const result = replayLog(staged.lines, initialState(), config)
     expect(result.outstanding).toHaveLength(1)
     expect(result.outstanding[0]?.obligation.kind).toBe('REFUND')
     expect(result.outstanding[0]?.obligation.amount).toBe(PRICE)
@@ -129,14 +129,14 @@ describe('replayLog', () => {
   })
 
   it('created equals settled plus outstanding', () => {
-    const result = replayLog(staged.lines, initialState(config), config)
+    const result = replayLog(staged.lines, initialState(), config)
     const total = (legs: readonly { obligation: { amount: bigint } }[]): bigint =>
       legs.reduce((sum, leg) => sum + leg.obligation.amount, 0n)
     expect(total(result.created)).toBe(total(result.settled) + total(result.outstanding))
   })
 
   it('reaches the same outstanding set the staging run ended on', () => {
-    const result = replayLog(staged.lines, initialState(config), config)
+    const result = replayLog(staged.lines, initialState(), config)
     expect([...result.state.outstanding.keys()].sort()).toEqual([...staged.state.outstanding.keys()].sort())
   })
 
@@ -150,12 +150,12 @@ describe('replayLog', () => {
           H.settle + 10,
           0,
           MARKETPLACE,
-          encodeSettlement(config, { height: H.buy, txIndex: 1, payee: LOSER, amount: PRICE - 1n }),
+          encodeSettlement({ height: H.buy, txIndex: 1, payee: LOSER, amount: PRICE - 1n }),
         ),
       ],
       config,
     )
-    const result = replayLog(withStrayM.lines, initialState(config), config)
+    const result = replayLog(withStrayM.lines, initialState(), config)
 
     expect(result.unmatched).toHaveLength(1)
     expect(result.unmatched[0]?.value).toBe(PRICE - 1n)
@@ -173,7 +173,7 @@ describe('replayLog', () => {
     )
     expect(tampered[3]).not.toBe(staged.lines[3])
 
-    const result = replayLog(tampered, initialState(config), config)
+    const result = replayLog(tampered, initialState(), config)
     expect(result.mismatches).toHaveLength(1)
     expect(result.mismatches[0]).toMatchObject({
       at: { height: H.buy, txIndex: 1 },
@@ -190,31 +190,31 @@ describe('replayLog', () => {
     // produced: a `G` on a reserved name logged as OK. That must be a loud
     // disagreement rather than a quietly different total.
     const reservedName = 'binance'
-    const fee = feeFor(reservedName, initialState(config).prices)
+    const fee = feeFor(reservedName, initialState().prices)
     const held = stageLog(
-      [send(H.register, 0, SELLER, encodeRegister(config, { name: reservedName, fee }))],
+      [send(H.register, 0, SELLER, encodeRegister({ name: reservedName, fee }))],
       config,
     )
     expect(held.lines[0]).toMatch(/ RESERVED_NAME$/)
-    expect(replayLog(held.lines, initialState(config), config).mismatches).toEqual([])
+    expect(replayLog(held.lines, initialState(), config).mismatches).toEqual([])
 
     const tampered = held.lines.map((line) => line.replace(/ RESERVED_NAME$/, ' OK'))
-    const result = replayLog(tampered, initialState(config), config)
+    const result = replayLog(tampered, initialState(), config)
     expect(result.mismatches).toHaveLength(1)
     expect(result.mismatches[0]).toMatchObject({ logged: 'OK', replayed: 'RESERVED_NAME' })
   })
 
   it('refuses a log that is out of canonical order', () => {
     const reordered = [staged.lines[1], staged.lines[0], ...staged.lines.slice(2)] as string[]
-    expect(() => replayLog(reordered, initialState(config), config)).toThrow(/not in canonical order/)
+    expect(() => replayLog(reordered, initialState(), config)).toThrow(/not in canonical order/)
   })
 
   it('refuses a line that is not a canonical §8.2 line', () => {
-    expect(() => replayLog(['1000 0 deadbeef'], initialState(config), config)).toThrow(/not a canonical/)
+    expect(() => replayLog(['1000 0 deadbeef'], initialState(), config)).toThrow(/not a canonical/)
   })
 
   it('an empty log reconciles to nothing owed', () => {
-    const result = replayLog([], initialState(config), config)
+    const result = replayLog([], initialState(), config)
     expect(result.created).toEqual([])
     expect(result.settled).toEqual([])
     expect(result.outstanding).toEqual([])
@@ -225,25 +225,25 @@ describe('replayLog', () => {
     // Underfunded: §7.4 puts INSUFFICIENT_VALUE in the forfeit column, so the
     // value is not recoverable and nothing is owed.
     const underfunded = stageLog(
-      [send(H.register, 0, SELLER, { recipient: TREASURY, value: 1n, data: encodeRegister(config, { name: NAME, fee: feeFor(NAME, initialState(config).prices) }).data })],
+      [send(H.register, 0, SELLER, { recipient: TREASURY, value: 1n, data: encodeRegister({ name: NAME, fee: feeFor(NAME, initialState().prices) }).data })],
       config,
     )
-    const result = replayLog(underfunded.lines, initialState(config), config)
+    const result = replayLog(underfunded.lines, initialState(), config)
     expect(result.mismatches).toEqual([])
     expect(result.created).toEqual([])
     expect(result.outstanding).toEqual([])
   })
 
   it('a G that loses a registration race is owed by the treasury, not the marketplace', () => {
-    const fee = feeFor(NAME, initialState(config).prices)
+    const fee = feeFor(NAME, initialState().prices)
     const race = stageLog(
       [
-        send(H.register, 0, SELLER, encodeRegister(config, { name: NAME, fee })),
-        send(H.register, 1, testAddress(20), encodeRegister(config, { name: NAME, fee })),
+        send(H.register, 0, SELLER, encodeRegister({ name: NAME, fee })),
+        send(H.register, 1, testAddress(20), encodeRegister({ name: NAME, fee })),
       ],
       config,
     )
-    const result = replayLog(race.lines, initialState(config), config)
+    const result = replayLog(race.lines, initialState(), config)
     expect(result.created).toHaveLength(1)
     expect(result.created[0]?.obligation.kind).toBe('REFUND')
     expect(result.created[0]?.obligation.owedBy).toBe(TREASURY)

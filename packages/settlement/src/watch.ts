@@ -123,7 +123,7 @@ export interface WatcherOptions {
   readonly apiUrl: string
   readonly config: NnsConfig
   readonly fetcher: Fetcher
-  /** `core.initialState(config)`, taken as a parameter for the same reason `replayLog` does. */
+  /** `core.initialState()`, taken as a parameter for the same reason `replayLog` does. */
   readonly initial: NnsState
 }
 

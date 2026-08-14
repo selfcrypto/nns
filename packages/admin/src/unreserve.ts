@@ -85,7 +85,7 @@ export async function planUnreserve(
   config: NnsConfig,
   params: UnreserveParams,
 ): Promise<UnreservePlan> {
-  const tx = encodeUnreserve(config, { ...params, sender: config.admin })
+  const tx = encodeUnreserve({ ...params, sender: CONSTANTS.ADMIN_ADDRESS })
   const head = await rpc.call<number>('getBlockNumber')
   return {
     params,
@@ -128,9 +128,9 @@ export async function broadcastUnreserve(
   config: NnsConfig,
   plan: UnreservePlan,
 ): Promise<UnreserveOutcome> {
-  await rpc.call('unlockAccount', [config.admin, null, null])
+  await rpc.call('unlockAccount', [CONSTANTS.ADMIN_ADDRESS, null, null])
   const hash = await rpc.call<string>('sendBasicTransactionWithData', [
-    config.admin,
+    CONSTANTS.ADMIN_ADDRESS,
     plan.recipient,
     plan.data,
     // JSON has no bigint; the value is DUST_VALUE by construction, so the
