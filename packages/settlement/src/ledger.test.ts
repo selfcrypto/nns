@@ -365,7 +365,7 @@ describe.skipIf(URL === undefined)('Ledger over Postgres', () => {
     await ledgerOf().applySnapshot(snapshotOf(1_440, [first]))
     const other = createLedger({
       pool,
-      config: testConfig({ listingFee: 200_000n }),
+      config: testConfig({ networkId: config.networkId + 1 }),
       apiUrl: 'http://api.test',
       migrate: async () => [],
     })

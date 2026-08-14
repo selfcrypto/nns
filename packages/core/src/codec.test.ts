@@ -172,12 +172,9 @@ describe('routing and value — §5.3, §5.4', () => {
     expect(tx.data).toBe(hex('NNS1F'))
   })
 
-  it('falls back to DUST_VALUE when the OPEN listing fee is zero', () => {
-    expect(config.listingFee).toBe(0n)
+  it('carries DUST_VALUE, because LISTING_FEE is frozen at zero and §5.4 rejects a value of 0', () => {
+    expect(CONSTANTS.LISTING_FEE).toBe(0n)
     expect(encodeOffer(config, { name: 'kikename', price: FLOOR, minPrice: FLOOR }).value).toBe(CONSTANTS.DUST_VALUE)
-    expect(
-      encodeOffer(testConfig({ listingFee: 500n }), { name: 'kikename', price: FLOOR, minPrice: FLOOR }).value,
-    ).toBe(500n)
   })
 })
 
@@ -222,16 +219,14 @@ describe('builders fail loudly where the chain would fail silently', () => {
   })
 
   it('does not reject a G on reservation alone — released-ness is chain state the builder cannot see', () => {
-    const withReserved = testConfig({ reservedNames: ['binance'] })
-    expect(() => encodeRegister(withReserved, { name: 'binance', fee: 1n })).not.toThrow()
+    expect(() => encodeRegister(config, { name: 'binance', fee: 1n })).not.toThrow()
     // Well-formed short names are reserved by rule (§4.1) — the same case:
     // a released `abcd` is a normal name and its G must be encodable.
     expect(() => encodeRegister(config, { name: 'abcd', fee: 1n })).not.toThrow()
   })
 
   it('does not apply the reserved list to U, which names a reserved name by definition', () => {
-    const withReserved = testConfig({ reservedNames: ['binance'] })
-    expect(() => encodeUnreserve(withReserved, { name: 'binance', effectiveHeight: 1 })).not.toThrow()
+    expect(() => encodeUnreserve(config, { name: 'binance', effectiveHeight: 1 })).not.toThrow()
   })
 
   it('routes a U by its operand: release to the protocol address, award to the awardee (§6 U)', () => {

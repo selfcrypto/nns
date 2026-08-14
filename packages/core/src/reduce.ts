@@ -556,13 +556,12 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
     case 'G': {
       if (!addressEquals(tx.recipient, config.treasury)) return keep(forfeit('WRONG_RECIPIENT'))
 
-      // §4.1 in full, against chain state: config.reservedNames is the
-      // published list, the by-rule short names are members inside
-      // validateName itself, and state.unreserved is the part already
-      // released. RESERVED is the one reason with its own token — a held
-      // short name forfeits RESERVED_NAME, not INVALID_NAME (§7.4), and a
-      // released one registers normally.
-      const check = validateName(message.name, config.reservedNames, state.unreserved)
+      // §4.1 in full, against chain state: both membership routes live inside
+      // validateName — the frozen published list and the by-rule short names —
+      // and state.unreserved is the part already released. RESERVED is the one
+      // reason with its own token: a held short name forfeits RESERVED_NAME,
+      // not INVALID_NAME (§7.4), and a released one registers normally.
+      const check = validateName(message.name, state.unreserved)
       if (!check.ok) {
         return keep(forfeit(check.reason === 'RESERVED' ? 'RESERVED_NAME' : 'INVALID_NAME'))
       }
@@ -728,7 +727,10 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       // same reason `G` checks name syntax before value: a message whose own
       // payload is unusable is rejected on that ground whatever it paid.
       if (message.price < minPrice(state.prices)) return keep(forfeit('BELOW_MIN_PRICE'))
-      if (tx.value < config.listingFee) return keep(forfeit('INSUFFICIENT_VALUE'))
+      // Frozen at zero (§12 item 3), so this never fires today — kept because
+      // the rule is the rule, and the day a spec revision moves the fee the
+      // check must already be in the right place relative to the floor above.
+      if (tx.value < CONSTANTS.LISTING_FEE) return keep(forfeit('INSUFFICIENT_VALUE'))
 
       const expiryHeight = tx.blockNumber + CONSTANTS.OFFER_MAX_LIFETIME
       const draft = draftOf(state)
@@ -871,9 +873,9 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       // the full check is the expected case, not a failure. TOO_SHORT — a
       // short name failing rules 2–5, on neither membership route — still
       // forfeits here.
-      const check = validateName(message.name, config.reservedNames, state.unreserved)
+      const check = validateName(message.name, state.unreserved)
       if (!check.ok && check.reason !== 'RESERVED') return keep(forfeit('INVALID_NAME'))
-      if (!isReserved(state, config, message.name)) return keep(forfeit('NAME_NOT_RESERVED'))
+      if (!isReserved(state, message.name)) return keep(forfeit('NAME_NOT_RESERVED'))
       // One pending U per name — this is what makes the effect at
       // effective_height unconditional rather than racing a sibling (§6 U).
       if (state.pendingUnreserve.has(message.name)) return keep(forfeit('UNRESERVE_PENDING'))

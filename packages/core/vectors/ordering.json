@@ -17,9 +17,7 @@
     "treasury": "TREASURY",
     "protocol": "PROTOCOL",
     "admin": "ADMIN",
-    "marketplace": "MARKETPLACE",
-    "listingFee": "0",
-    "reservedNames": []
+    "marketplace": "MARKETPLACE"
   },
   "cases": [
     {

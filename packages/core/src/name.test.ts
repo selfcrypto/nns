@@ -27,7 +27,7 @@ describe('validateName — §4.2 table, verbatim', () => {
       // releases them. They are digit-rule valid and (while held)
       // registrable-name invalid, and the table does not say so.
       expect(reason(name)).toBe('RESERVED')
-      expect(validateName(name, undefined, new Set([name])).ok).toBe(true)
+      expect(validateName(name, new Set([name])).ok).toBe(true)
     },
   )
 
@@ -43,7 +43,7 @@ describe('validateName — §4.1 rules, in order', () => {
     // short name is a reserved-set member by rule, and a fired U makes it a
     // normal name.
     expect(reason('abcd')).toBe('RESERVED')
-    expect(validateName('abcd', undefined, new Set(['abcd'])).ok).toBe(true)
+    expect(validateName('abcd', new Set(['abcd'])).ok).toBe(true)
     expect(validateName('abcde').ok).toBe(true)
   })
 
@@ -52,7 +52,7 @@ describe('validateName — §4.1 rules, in order', () => {
     expect(reason('ab-')).toBe('TOO_SHORT') // trailing hyphen
     expect(reason('a0')).toBe('TOO_SHORT') // boundary digit
     // A fired U cannot exist for these, but even a claimed one changes nothing.
-    expect(validateName('ab-', undefined, new Set(['ab-'])).ok).toBe(false)
+    expect(validateName('ab-', new Set(['ab-'])).ok).toBe(false)
   })
 
   it('rejects above MAX_NAME_LEN and accepts at it', () => {
@@ -83,11 +83,12 @@ describe('validateName — §4.1 rules, in order', () => {
     expect(validateName('self-crypto').ok).toBe(true)
   })
 
-  it('applies RESERVED_NAMES by exact match', () => {
-    const reserved = new Set(['nimiq', 'binance'])
-    expect(validateName('nimiq', reserved)).toEqual({ ok: false, reason: 'RESERVED' })
-    expect(validateName('nimiq').ok).toBe(true)
-    expect(validateName('nimiqq', reserved).ok).toBe(true)
+  it('applies RESERVED_NAMES by exact match, from the frozen list', () => {
+    // Exact match, never a prefix or a normalisation (§4.1). The list is a
+    // constant since the launch freeze, so there is no second list to pass.
+    expect(validateName('nimiq')).toEqual({ ok: false, reason: 'RESERVED' })
+    expect(validateName('nimiqq').ok).toBe(true)
+    expect(validateName('nimiq', new Set(['nimiq'])).ok).toBe(true)
   })
 })
 
@@ -156,25 +157,25 @@ describe('validateLabel — §4.4', () => {
 
 describe('parseQuery — §4.4', () => {
   it('reads a bare name', () => {
-    expect(parseQuery('binance')).toEqual({ ok: true, query: { kind: 'name', name: 'binance' } })
+    expect(parseQuery('kikename')).toEqual({ ok: true, query: { kind: 'name', name: 'kikename' } })
   })
 
   it('splits label from parent', () => {
-    expect(parseQuery('alice.binance')).toEqual({
+    expect(parseQuery('alice.kikename')).toEqual({
       ok: true,
-      query: { kind: 'dotted', label: 'alice', parent: 'binance' },
+      query: { kind: 'dotted', label: 'alice', parent: 'kikename' },
     })
   })
 
   it('rejects more than one dot — nested delegation is v2', () => {
-    expect(parseQuery('a.b.binance')).toEqual({ ok: false, reason: 'TOO_MANY_DOTS', detail: null })
+    expect(parseQuery('a.b.kikename')).toEqual({ ok: false, reason: 'TOO_MANY_DOTS', detail: null })
   })
 
   it('requires the parent to be a valid registrable name', () => {
-    expect(parseQuery('alice.b1nance')).toEqual({ ok: false, reason: 'BAD_NAME', detail: 'INTERIOR_DIGIT' })
+    expect(parseQuery('alice.k1kename')).toEqual({ ok: false, reason: 'BAD_NAME', detail: 'INTERIOR_DIGIT' })
   })
 
   it('rejects an empty label', () => {
-    expect(parseQuery('.binance')).toEqual({ ok: false, reason: 'BAD_LABEL', detail: 'TOO_SHORT' })
+    expect(parseQuery('.kikename')).toEqual({ ok: false, reason: 'BAD_LABEL', detail: 'TOO_SHORT' })
   })
 })

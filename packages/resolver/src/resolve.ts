@@ -271,14 +271,14 @@ export class NnsResolver {
    * @throws {DelegateError} a dotted query whose parent delegates nowhere, or whose host failed
    */
   async resolve(query: string): Promise<ResolveResult> {
-    // §4.1/§4.4 syntax is core's, not this package's. No reserved set is
-    // passed: a reserved name awarded by a `U` (§6 `U`) is registered and
-    // resolves like any other, which is the same reasoning that keeps the
-    // reserved list out of the API's /resolve. Since r18 short names are
-    // reserved *by rule*, so the candidate is passed as `unreserved` to make
-    // reservation invisible to the structural check too.
+    // §4.1/§4.4 syntax is core's, not this package's. Reservation is
+    // neutralised: a reserved name awarded by a `U` (§6 `U`) is registered and
+    // resolves like any other, which is the same reasoning that keeps rule 6
+    // out of the API's /resolve. The candidate goes in as `unreserved`, which
+    // covers both membership routes — the published list and r18's by-rule
+    // short names — in one move.
     const dot = query.indexOf('.')
-    const parsed = parseQuery(query, undefined, new Set([dot < 0 ? query : query.slice(dot + 1)]))
+    const parsed = parseQuery(query, new Set([dot < 0 ? query : query.slice(dot + 1)]))
     if (!parsed.ok) {
       throw new NameError('NAME_INVALID', `${query} is not a name or a dotted query: ${parsed.reason}`)
     }
@@ -341,7 +341,7 @@ export class NnsResolver {
     // Reservation is the serving resolver's answer (`RESERVED`, below), not
     // a structural failure — so the by-rule short reservation (§4.1, r18) is
     // neutralised here exactly as in resolve().
-    const parsed = parseQuery(name, undefined, new Set([name]))
+    const parsed = parseQuery(name, new Set([name]))
     if (!parsed.ok || parsed.query.kind !== 'name') {
       // §4.4 labels are never protocol state and never registrable, so a
       // dotted query has no availability to report.

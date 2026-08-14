@@ -9,7 +9,7 @@
 
 import { createHash } from 'node:crypto'
 
-import { initialState, type Checkpoint, type NnsConfig, type NnsState } from '@nns/core'
+import { CONSTANTS, initialState, type Checkpoint, type NnsConfig, type NnsState } from '@nns/core'
 import type { Pool, PoolClient } from 'pg'
 
 import { checkpointRow, hex, type CheckpointRow } from './checkpoint.js'
@@ -83,10 +83,19 @@ const CHECKPOINT_COLUMNS = [
 ] as const
 
 /**
- * Identity of the deployment config, so a restart against a database built
- * under different §3 values fails instead of continuing on top of rows that
- * are no longer valid. Moving `LAUNCH_HEIGHT`, or adding a reserved name,
- * changes what a replay from scratch would have produced.
+ * Identity of the §3 values a replay depends on, so a restart against a
+ * database built under different ones fails instead of continuing on top of
+ * rows that are no longer valid. Moving `LAUNCH_HEIGHT`, or adding a reserved
+ * name, changes what a replay from scratch would have produced.
+ *
+ * `RESERVED_NAMES` and `LISTING_FEE` are `CONSTANTS` since the launch freeze
+ * and are hashed from there rather than from the config. They are kept in
+ * **because the list is still expected to move before `LAUNCH_HEIGHT`** —
+ * adding an entry is free until then (§10.6 puts additions out of governance
+ * scope afterwards), and resuming a battery database across such an edit is
+ * exactly the silent divergence this digest exists to turn into a refusal.
+ * The list is sorted first: order is not protocol (§4.1 is exact-match
+ * membership), so resorting the constant must not invalidate a database.
  */
 export function configFingerprint(config: NnsConfig): string {
   const payload = JSON.stringify({
@@ -96,8 +105,8 @@ export function configFingerprint(config: NnsConfig): string {
     protocol: config.protocol,
     admin: config.admin,
     marketplace: config.marketplace,
-    listingFee: config.listingFee.toString(10),
-    reservedNames: [...config.reservedNames].sort(),
+    listingFee: CONSTANTS.LISTING_FEE.toString(10),
+    reservedNames: [...CONSTANTS.RESERVED_NAMES].sort(),
   })
   return createHash('sha256').update(payload).digest('hex')
 }

@@ -11,8 +11,6 @@ const BASE = {
   NNS_PROTOCOL_ADDRESS: testAddress(2),
   NNS_ADMIN_ADDRESS: testAddress(3),
   NNS_MARKETPLACE_ADDRESS: MARKETPLACE,
-  NNS_LISTING_FEE: '100000',
-  NNS_RESERVED_NAMES: 'binance, kraken',
 } as const
 
 describe('loadSettings', () => {
@@ -21,7 +19,6 @@ describe('loadSettings', () => {
     expect(settings.apiUrl).toBe('http://api.test')
     expect(settings.config.launchHeight).toBe(58_177_000)
     expect(settings.config.marketplace).toBe(MARKETPLACE)
-    expect([...settings.config.reservedNames]).toEqual(['binance', 'kraken'])
   })
 
   it('has no database and no key to load — the independence is structural', () => {
@@ -36,7 +33,6 @@ describe('loadSettings', () => {
   })
 
   it('rejects a listing fee written in NIM', () => {
-    expect(() => loadSettings({ ...BASE, NNS_LISTING_FEE: '1.5' })).toThrow(/whole number of luna/)
   })
 
   it('rejects a launch height that is not an integer', () => {
@@ -49,9 +45,19 @@ describe('loadSettings', () => {
     )
   })
 
-  it('an unset reserved list is empty, not absent', () => {
-    const settings = loadSettings({ ...BASE, NNS_RESERVED_NAMES: undefined })
-    expect([...settings.config.reservedNames]).toEqual([])
+  it('reads no reserved list at all — it is a §3 constant since the launch freeze', () => {
+    // Setting the deleted variable is inert, not honoured. An env var that
+    // still existed is one an operator could still use to make this service
+    // replay under a list the indexer never ran with.
+    const settings = loadSettings({ ...BASE, NNS_RESERVED_NAMES: 'binance', NNS_LISTING_FEE: '100000' })
+    expect(Object.keys(settings.config).sort()).toEqual([
+      'admin',
+      'launchHeight',
+      'marketplace',
+      'networkId',
+      'protocol',
+      'treasury',
+    ])
   })
 })
 

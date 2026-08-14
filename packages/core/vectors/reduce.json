@@ -19,9 +19,7 @@
     "treasury": "TREASURY",
     "protocol": "PROTOCOL",
     "admin": "ADMIN",
-    "marketplace": "MARKETPLACE",
-    "listingFee": "0",
-    "reservedNames": []
+    "marketplace": "MARKETPLACE"
   },
   "constants": {
     "FEE_STANDARD": "400000000",
@@ -621,7 +619,7 @@
     },
     {
       "id": "unreserve_releases_a_name_at_its_effective_height",
-      "config": { "reservedNames": ["binance"] },
+      "note": "binance is on the published half of RESERVED_NAMES, a §3 constant since the launch freeze — the scenario overrides no config.",
       "steps": [
         {
           "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gbinance" },
@@ -644,7 +642,7 @@
     },
     {
       "id": "unreserve_releases_a_short_name_reserved_by_rule",
-      "note": "web3 has no reservedNames entry — 1-4 character names satisfying rules 2-5 are RESERVED_NAMES members by rule (§4.1, r18). Released, the floor no longer binds and a G registers it at the normal fee.",
+      "note": "web3 is on no published list — 1-4 character names satisfying rules 2-5 are RESERVED_NAMES members by rule (§4.1, r18). Released, the floor no longer binds and a G registers it at the normal fee.",
       "steps": [
         {
           "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gweb3" },

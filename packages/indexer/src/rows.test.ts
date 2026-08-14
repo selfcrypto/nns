@@ -28,7 +28,6 @@ const CONFIG = defineConfig({
   protocol: B,
   admin: C,
   marketplace: D,
-  listingFee: 100_000n,
 })
 
 /** Real `Address` values: the brand is what keeps a raw string out of state. */

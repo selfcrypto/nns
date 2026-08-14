@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CONSTANTS, LUNA_PER_NIM } from './constants.js'
+import { validateNameSyntax } from './name.js'
 
 describe('CONSTANTS — §3', () => {
   it('is frozen, so nothing downstream can edit a protocol rule at runtime', () => {
@@ -65,7 +66,10 @@ describe('CONSTANTS — §3', () => {
     // ("Constants profiles" in docs/decisions.md); this is the test that
     // fails CI if such an edit ever reaches master. It also covers
     // CHECKPOINT_INTERVAL, which no conformance vector exercises.
-    expect(CONSTANTS).toStrictEqual({
+    // RESERVED_NAMES is pinned separately, as a set: it is the one entry whose
+    // *order* must not be protocol (see below).
+    const { RESERVED_NAMES: _reserved, ...values } = CONSTANTS
+    expect(values).toStrictEqual({
       PROTOCOL_ID: 'NNS1',
       MAX_DATA_BYTES: 64,
       MAX_DELEGATE_MESSAGE_BYTES: 58,
@@ -77,6 +81,7 @@ describe('CONSTANTS — §3', () => {
       MAX_REF_LEN: 12,
       DUST_VALUE: 1n,
       REFUND_FLOOR: 10_000n,
+      LISTING_FEE: 0n,
       FEE_STANDARD: 400_000_000n, //         4,000 NIM
       FEE_LONG: 40_000_000n, //                400 NIM
       PRICE_FLOOR: 100_000n, //                  1 NIM
@@ -105,5 +110,103 @@ describe('CONSTANTS — §3', () => {
       ANCHOR_STALENESS_LIMIT_SEC: 172_800,
       BURN_ADDRESS: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
     })
+  })
+
+  it('equals the published RESERVED_NAMES list, as a set — order is not protocol (§4.1)', () => {
+    // The same inline-literal pin as above, with one difference that is the
+    // whole point: it compares **sets**. Rule 6 is exact-match membership, so
+    // resorting the constant — or inserting an entry in the middle rather than
+    // at the end — must never be a protocol change or a red CI run. Length is
+    // asserted against the literal too, which is what catches a duplicate that
+    // set comparison alone would swallow.
+    const published = [
+      'abuse',
+      'admin',
+      'amazon',
+      'apple',
+      'binance',
+      'bitcoin',
+      'bitfinex',
+      'bitget',
+      'bybit',
+      'circle',
+      'coinbase',
+      'contact',
+      'crypto',
+      'discord',
+      'ethereum',
+      'exchange',
+      'exodus',
+      'facebook',
+      'foundation',
+      'github',
+      'google',
+      'kraken',
+      'kucoin',
+      'ledger',
+      'market',
+      'marketplace',
+      'mastercard',
+      'metamask',
+      'microsoft',
+      'money',
+      'names',
+      'nimiq',
+      'nimiqhub',
+      'nimiqpay',
+      'official',
+      'paypal',
+      'phantom',
+      'polygon',
+      'postmaster',
+      'protocol',
+      'register',
+      'revolut',
+      'security',
+      'selfcrypto',
+      'solana',
+      'sonar',
+      'staking',
+      'store',
+      'stripe',
+      'support',
+      'system',
+      'telegram',
+      'tether',
+      'treasury',
+      'trezor',
+      'trustwallet',
+      'validator',
+      'wallet',
+    ]
+    expect(new Set(CONSTANTS.RESERVED_NAMES)).toEqual(new Set(published))
+    expect(CONSTANTS.RESERVED_NAMES).toHaveLength(published.length)
+    expect(new Set(CONSTANTS.RESERVED_NAMES).size).toBe(CONSTANTS.RESERVED_NAMES.length)
+    expect(published).toHaveLength(58)
+  })
+
+  it('keeps every published entry registrable, so no entry reserves nothing', () => {
+    // An entry that no `G` could ever carry — uppercase, too short, a digit in
+    // the wrong place — silently reserves nothing at all: the name it looks
+    // like stays registrable and nobody finds out until it is taken. §4.1
+    // never normalises, so this is exact.
+    for (const name of CONSTANTS.RESERVED_NAMES) {
+      expect(validateNameSyntax(name), name).toEqual({ ok: true })
+      expect(name.length, name).toBeGreaterThanOrEqual(CONSTANTS.MIN_NAME_LEN)
+      expect(name, name).toBe(name.toLowerCase())
+    }
+  })
+
+  it('leaves the published list to the names the by-rule route cannot reach', () => {
+    // 1–4 character names are members by rule (§4.1, r18) and are deliberately
+    // not materialised. An entry here would be either redundant or, worse,
+    // read as the list being the only route.
+    expect(CONSTANTS.RESERVED_NAMES.filter((name) => name.length < CONSTANTS.MIN_NAME_LEN)).toEqual([])
+  })
+
+  it('freezes the list itself, not just the object holding it', () => {
+    // Object.freeze is shallow; a frozen CONSTANTS with a live array is a
+    // consensus input any caller could push onto.
+    expect(Object.isFrozen(CONSTANTS.RESERVED_NAMES)).toBe(true)
   })
 })

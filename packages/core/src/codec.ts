@@ -29,7 +29,7 @@
 import { type Address, addressEquals, parseAddress } from './address.js'
 import type { NnsConfig } from './config.js'
 import { CONSTANTS } from './constants.js'
-import { isValidRef, validateHost, validateName } from './name.js'
+import { isValidRef, validateHost, validateNameSyntax } from './name.js'
 
 /** §3's canonical burn address, parsed once. The `F` recipient is not a config value. */
 export const BURN_ADDRESS: Address = parseAddress(CONSTANTS.BURN_ADDRESS)
@@ -337,7 +337,8 @@ function requireAtLeastMinPrice(what: string, amount: bigint, floor: bigint): vo
 
 /**
  * Names carried in a payload must be syntactically valid and pipe-free:
- * §4.1 rules 2–5 and the length ceiling. `RESERVED` is not a builder error —
+ * §4.1 rules 1–5 without the floor, which is what `validateNameSyntax` is.
+ * Reservation is deliberately not checked — it is not a builder error —
  * whether a name is reserved is chain state the builder cannot see (§4.1's
  * floor included: a released or awarded short name is a normal name, and
  * every owner operation must be encodable for it), so reservation is left to
@@ -345,10 +346,8 @@ function requireAtLeastMinPrice(what: string, amount: bigint, floor: bigint): vo
  * on neither membership route and no message may carry it.
  */
 function requireName(name: string): string {
-  const check = validateName(name)
-  if (!check.ok && check.reason !== 'RESERVED') {
-    fail(`invalid name ${JSON.stringify(name)}: ${check.reason} (§4.1)`)
-  }
+  const check = validateNameSyntax(name)
+  if (!check.ok) fail(`invalid name ${JSON.stringify(name)}: ${check.reason} (§4.1)`)
   return name
 }
 
@@ -357,8 +356,8 @@ export function encodeRegister(
   config: NnsConfig,
   params: { name: string; ref?: string | undefined; fee: bigint } & SenderOption,
 ): BuiltTransaction {
-  // Reservation is deliberately NOT checked here. `config.reservedNames` is
-  // the static published list, but whether a name is *registrable* is chain
+  // Reservation is deliberately NOT checked here. `CONSTANTS.RESERVED_NAMES`
+  // is the static published list, but whether a name is *registrable* is chain
   // state: a fired `U` release makes it AVAILABLE (§7.3) — short names
   // included, since §4.1's floor lifts with the release — and the builder
   // cannot see `state.unreserved`. Rejecting on the list alone would refuse
@@ -446,7 +445,7 @@ export function encodeRenew(
 }
 
 /**
- * `O` — Offer (§6). Carries the listing fee; the price travels in the payload.
+ * `O` — Offer (§6). Carries `LISTING_FEE`; the price travels in the payload.
  *
  * `minPrice` is §3's `MIN_PRICE` — `FEE_LONG` as in effect at the height this
  * message will land at (§6 `O`). It is a parameter rather than a constant
@@ -461,10 +460,12 @@ export function encodeOffer(
 ): BuiltTransaction {
   const name = requireName(params.name)
   requireAtLeastMinPrice('O price', params.price, params.minPrice)
-  // The listing fee is still OPEN in §6/§10.6, so a deployment may set it to
-  // zero — but the network rejects a `value` of 0 outright (§5.4), so the only
-  // sendable encoding of "no listing fee" is DUST_VALUE.
-  const value = config.listingFee > 0n ? config.listingFee : CONSTANTS.DUST_VALUE
+  // LISTING_FEE is frozen at zero (§12 item 3) — and the network rejects a
+  // `value` of 0 outright (§5.4), so the only sendable encoding of "no listing
+  // fee" is DUST_VALUE. Written as a comparison rather than as DUST_VALUE
+  // outright: the fee is a constant, not a literal, and a spec revision that
+  // moves it must not have to remember this line.
+  const value = CONSTANTS.LISTING_FEE > 0n ? CONSTANTS.LISTING_FEE : CONSTANTS.DUST_VALUE
   return build('O', `${name}|${formatLuna(params.price)}`, config.treasury, value, params.sender)
 }
 

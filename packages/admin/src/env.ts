@@ -75,26 +75,6 @@ function rpcUrl(env: EnvSource): string {
   return `${scheme}://${host}:${port}`
 }
 
-/** Luna is integer and `bigint`. A decimal point here is a NIM/luna mix-up. */
-function luna(env: EnvSource, key: string): bigint {
-  const raw = read(env, key)
-  if (raw === undefined) return 0n
-  if (!/^\d+$/.test(raw)) {
-    throw new EnvError(`${key} must be a whole number of luna (1 NIM = 100,000 luna), got ${JSON.stringify(raw)}`)
-  }
-  return BigInt(raw)
-}
-
-/** Comma-separated. §4.1 matches reserved names exactly and never normalises. */
-function nameList(env: EnvSource, key: string): string[] {
-  const raw = read(env, key)
-  if (raw === undefined) return []
-  return raw
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter((entry) => entry !== '')
-}
-
 export function loadSettings(env: EnvSource = process.env): AdminSettings {
   const url = rpcUrl(env)
   try {
@@ -112,8 +92,6 @@ export function loadSettings(env: EnvSource = process.env): AdminSettings {
       protocol: required(env, 'NNS_PROTOCOL_ADDRESS'),
       admin: required(env, 'NNS_ADMIN_ADDRESS'),
       marketplace: required(env, 'NNS_MARKETPLACE_ADDRESS'),
-      listingFee: luna(env, 'NNS_LISTING_FEE'),
-      reservedNames: nameList(env, 'NNS_RESERVED_NAMES'),
     })
   } catch (cause) {
     if (cause instanceof EnvError) throw cause

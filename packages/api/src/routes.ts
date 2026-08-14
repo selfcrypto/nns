@@ -21,12 +21,12 @@
 import {
   CONSTANTS,
   formatAddress,
-  isShortReserved,
+  isReservedName,
   logFile,
   minPrice,
   parseQuery,
   tryParseAddress,
-  validateName,
+  validateNameSyntax,
   type Address,
   type NameInvalidReason,
 } from '@nns/core'
@@ -51,13 +51,6 @@ export interface ApiResponse {
   /** Defaults to JSON. */
   readonly contentType?: string
   readonly headers?: Readonly<Record<string, string>>
-}
-
-export interface RouteOptions {
-  /** §4.1 rule 6 — must match the indexer's list. */
-  readonly reservedNames: ReadonlySet<string>
-  /** Listing fee for an `O` (§6 `O`), served by `/params`. */
-  readonly listingFee: bigint
 }
 
 export type RouteHandler = (method: string, url: string) => Promise<ApiResponse>
@@ -105,13 +98,14 @@ function serialiseOffer(offer: ApiOffer): Record<string, unknown> {
   }
 }
 
-export function createRoutes(queries: Queries, options: RouteOptions): RouteHandler {
+export function createRoutes(queries: Queries): RouteHandler {
   /**
-   * Effectively reserved: a `RESERVED_NAMES` member — on the list, or a 1–4
-   * character name reserved by rule (§4.1, r18) — not released by a fired `U`.
+   * Effectively reserved: a `RESERVED_NAMES` member — on the published list,
+   * or a 1–4 character name reserved by rule (§4.1, r18) — not released by a
+   * fired `U`. Both routes are `core`'s since the launch freeze; this service
+   * carries no list of its own, so it can no longer drift from the indexer's.
    */
-  const reserved = (name: string, unreserved: boolean): boolean =>
-    (options.reservedNames.has(name) || isShortReserved(name)) && !unreserved
+  const reserved = (name: string, unreserved: boolean): boolean => isReservedName(name) && !unreserved
 
   /** `null` when the base cannot back proofs — no checkpoint, or a snapshot that does not reproduce the root. */
   const contextOf = (base: ProofBase | null): ProofContext | null =>
@@ -126,7 +120,7 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
     // passing the candidate as `unreserved` makes reservation invisible to
     // the structural check, exactly as the omitted list always did.
     const dot = name.indexOf('.')
-    const parsed = parseQuery(name, undefined, new Set([dot < 0 ? name : name.slice(dot + 1)]))
+    const parsed = parseQuery(name, new Set([dot < 0 ? name : name.slice(dot + 1)]))
     if (!parsed.ok) {
       return respond(400, { error: 'INVALID_NAME', reason: parsed.reason, detail: parsed.detail })
     }
@@ -172,12 +166,13 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
 
     const { height, value } = await queries.detail(name)
 
-    // §4.1 order: structure first, reservation last — then state. RESERVED
-    // is deferred to the state-aware check below: released-ness lives in
-    // state, and since r18 short names are reserved by rule, so the
-    // stateless check alone would hold a released one forever.
-    const structural = validateName(name)
-    if (!structural.ok && structural.reason !== 'RESERVED') return no(height, structural.reason)
+    // §4.1 order: structure first, reservation last — then state. Rule 6 is
+    // deferred to the state-aware check below, which is what
+    // `validateNameSyntax` is for: released-ness lives in state, and since r18
+    // short names are reserved by rule, so a stateless check that applied rule
+    // 6 would hold a released name forever.
+    const structural = validateNameSyntax(name)
+    if (!structural.ok) return no(height, structural.reason)
     if (reserved(name, value.unreserved)) return no(height, 'RESERVED')
     if (value.record !== null) {
       return no(height, 'TAKEN', { status: value.record.status, expiry: value.record.expiry })
@@ -199,8 +194,8 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
   async function nameRoute(name: string): Promise<ApiResponse> {
     // Structural check only: reserved names are legitimate subjects here —
     // short ones included, whose RESERVED comes by rule (§4.1, r18).
-    const structural = validateName(name)
-    if (!structural.ok && structural.reason !== 'RESERVED') {
+    const structural = validateNameSyntax(name)
+    if (!structural.ok) {
       return respond(400, { error: 'INVALID_NAME', reason: structural.reason })
     }
 
@@ -447,7 +442,7 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
       // §3 MIN_PRICE is FEE_LONG *as in effect at this height* — core's rule,
       // applied to the active prices, never a constant (§6 `O`).
       minPrice: minPrice(prices).toString(),
-      listingFee: options.listingFee.toString(),
+      listingFee: CONSTANTS.LISTING_FEE.toString(),
       lastGovernanceHeight: value.lastGovernanceHeight,
       pendingGovernance:
         value.pending === null

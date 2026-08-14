@@ -1,11 +1,20 @@
 /**
  * Protocol constants — spec §3.
  *
- * Only settled values live here. The five §3 entries still marked **OPEN**
- * (`LAUNCH_HEIGHT`, `TREASURY_ADDRESS`, `PROTOCOL_ADDRESS`, `ADMIN_ADDRESS`,
- * `MARKETPLACE_ADDRESS`) plus `RESERVED_NAMES` are injected through
- * {@link ./config.ts | NnsConfig} instead, so nothing invented can be baked
- * into a build and reach mainnet unnoticed.
+ * A value belongs here if **every honest implementation on the same network
+ * must agree on it byte for byte**; it is configuration only if two honest
+ * deployments may legitimately differ. `RESERVED_NAMES` and the `O`
+ * `LISTING_FEE` were injected while their values were unknown and are frozen
+ * here now that they are not — an injected consensus input is a
+ * silent-divergence surface, since two indexers with different `.env` files
+ * derive different roots and the disagreement first shows up as a
+ * `QUORUM_ROOT_MISMATCH` in somebody's client.
+ *
+ * Still injected through {@link ./config.ts | NnsConfig}, and only until the
+ * operator supplies them: `LAUNCH_HEIGHT` and the four §3 addresses
+ * (`TREASURY_ADDRESS`, `PROTOCOL_ADDRESS`, `ADMIN_ADDRESS`,
+ * `MARKETPLACE_ADDRESS`). Nothing invented may be baked into a build and reach
+ * mainnet unnoticed, so they stay out of here until they are real.
  *
  * No magic number appears anywhere else in this package.
  *
@@ -15,6 +24,8 @@
  *   precision.
  * - **Heights are `number`.** The chain is nowhere near 2^53.
  */
+
+import { RESERVED_NAMES } from './reserved-names.js'
 
 /** 1 NIM in luna. */
 export const LUNA_PER_NIM = 100_000n
@@ -47,6 +58,35 @@ export const CONSTANTS = Object.freeze({
   MAX_LABEL_LEN: 24,
   /** Delegate resolver host, §6 `D`. */
   MAX_HOST_LEN: 30,
+  /**
+   * §4.1 rule 6, the **published half** of `RESERVED_NAMES`.
+   *
+   * Authored in `reserved-names.json` and compiled into `reserved-names.ts` by
+   * `scripts/gen-reserved-names.ts` — the JSON is a reviewable diff, the
+   * generated module is what ships, and **nothing reads the JSON at runtime**: a
+   * list loaded from disk is a list two operators can hold different copies of.
+   *
+   * 1–4 character names are the other half and appear here nowhere: since r18
+   * they are members *by rule* (length plus rules 2–5, `isShortReserved`), never
+   * materialised into the ~1.7M entries that route would need.
+   *
+   * Stored sorted so a reviewer can read it, **not** because order means
+   * anything — this is a set, and `constants.test.ts` pins it order-insensitively
+   * so that resorting it is never a protocol change.
+   *
+   * **This list is not final.** It is battery-grade: enough to exercise the
+   * `G`/`U`/award paths against real entries, not enough to launch behind.
+   * Completing it is a blocking pre-launch step (`tasks/08-launch-freeze.md`),
+   * and it is free only until `LAUNCH_HEIGHT`.
+   *
+   * The asymmetry that governs edits: a name left off is registrable by anyone
+   * the block after `LAUNCH_HEIGHT` and no rule takes it back — **under-reserving
+   * is permanent**. A name reserved by mistake is released, or awarded to the
+   * right party, with one `U` (§6 `U`) — **over-reserving is reversible**.
+   * *Adding* an entry is out of scope for governance (§10.6) and so is free only
+   * until `LAUNCH_HEIGHT`; after it, an addition is a spec revision.
+   */
+  RESERVED_NAMES,
   /** Integrator referrer id, §6 `G`. */
   MAX_REF_LEN: 12,
 
@@ -58,6 +98,23 @@ export const CONSTANTS = Object.freeze({
   DUST_VALUE: 1n,
   /** Below this, a refundable amount is forfeited instead (§7.4). */
   REFUND_FLOOR: 10_000n,
+  /**
+   * Listing fee on `O` (§6 `O`, §10.3). **Zero** — §12 item 3 settled by
+   * taking its second option, dropping the fee rather than inventing a `P`
+   * field for it.
+   *
+   * It is a constant and not governance, because no `P` field carries it: an
+   * ungovernable price is the one price that cannot track NIM, and §10.6's own
+   * argument says a fixed luna amount goes stale. A listing that never settles
+   * should cost nothing beyond the network fee, and a listing that does settle
+   * is already charged `COMMISSION_RATE` at the moment money actually moves.
+   *
+   * Consequences worth knowing: an `O` therefore carries `DUST_VALUE` (§5.4
+   * rejects a `value` of 0), and `INSUFFICIENT_VALUE` is unreachable for `O`
+   * at this value — reachable for `G` and `N` as ever. Making it non-zero is a
+   * spec revision from a stated height, like any other frozen §3 number.
+   */
+  LISTING_FEE: 0n,
 
   // ── Pricing and governance bounds (§10.1, §10.6) ──────────────────────────
   /** Names of 5–11 characters. Governable within the bounds below. */

@@ -88,8 +88,11 @@ function queriesOf(partial: Partial<Queries>): Queries {
   }
 }
 
-function routes(partial: Partial<Queries>, reservedNames: ReadonlySet<string> = new Set()): RouteHandler {
-  return createRoutes(queriesOf(partial), { reservedNames, listingFee: 100_000n })
+function routes(partial: Partial<Queries>): RouteHandler {
+  // No options: `RESERVED_NAMES` and the `O` listing fee are `CONSTANTS` since
+  // the launch freeze, so this service has nothing left to be configured with.
+  // `nimiq` below is on the real published list, not a fixture entry.
+  return createRoutes(queriesOf(partial))
 }
 
 describe('routing', () => {
@@ -164,7 +167,7 @@ describe('/resolve', () => {
   })
 
   it('resolves a reserved name — a `U` award registers it like any other', async () => {
-    const handle = routes({ record: () => Promise.resolve(snap({ ...RECORD, name: 'nimiq' })) }, new Set(['nimiq']))
+    const handle = routes({ record: () => Promise.resolve(snap({ ...RECORD, name: 'nimiq' })) })
     expect((await handle('GET', '/resolve/nimiq')).status).toBe(200)
   })
 
@@ -225,13 +228,13 @@ describe('/available', () => {
   })
 
   it('reports RESERVED until the release fires, then available', async () => {
-    const withheld = routes({ detail: () => Promise.resolve(snap(EMPTY_DETAIL)) }, new Set(['nimiq']))
+    const withheld = routes({ detail: () => Promise.resolve(snap(EMPTY_DETAIL)) })
     expect(await withheld('GET', '/available/nimiq')).toEqual({
       status: 200,
       body: { name: 'nimiq', available: false, reason: 'RESERVED', height: HEIGHT },
     })
 
-    const released = routes({ detail: () => Promise.resolve(snap({ ...EMPTY_DETAIL, unreserved: true })) }, new Set(['nimiq']))
+    const released = routes({ detail: () => Promise.resolve(snap({ ...EMPTY_DETAIL, unreserved: true })) })
     expect(await released('GET', '/available/nimiq')).toEqual({
       status: 200,
       body: { name: 'nimiq', available: true, proof: null, height: HEIGHT },
@@ -257,7 +260,7 @@ describe('/name', () => {
   })
 
   it('a reserved name with no state is still 200 — RESERVED is an answer', async () => {
-    const handle = routes({ detail: () => Promise.resolve(snap(EMPTY_DETAIL)) }, new Set(['nimiq']))
+    const handle = routes({ detail: () => Promise.resolve(snap(EMPTY_DETAIL)) })
     const response = await handle('GET', '/name/nimiq')
     expect(response.status).toBe(200)
     expect(response.body).toMatchObject({ name: 'nimiq', reserved: true, unreserved: false, record: null })
@@ -307,7 +310,7 @@ describe('/name', () => {
 
   it('a pending `U` award carries its recipient; a release carries null (r17)', async () => {
     const award: NameDetail = { ...EMPTY_DETAIL, unreserve: { recipient: C, effectiveHeight: 58_250_000 } }
-    const handle = routes({ detail: () => Promise.resolve(snap(award)) }, new Set(['nimiq']))
+    const handle = routes({ detail: () => Promise.resolve(snap(award)) })
     const response = await handle('GET', '/name/nimiq')
     expect(response.body).toMatchObject({
       pending: { unreserve: { recipient: formatAddress(C), effectiveHeight: 58_250_000 } },
@@ -368,7 +371,7 @@ describe('/params', () => {
       body: {
         prices: { feeStandard: '400000000', feeLong: '40000000', commissionBp: '250' },
         minPrice: '40000000',
-        listingFee: '100000',
+        listingFee: '0',
         lastGovernanceHeight: null,
         pendingGovernance: null,
         height: HEIGHT,

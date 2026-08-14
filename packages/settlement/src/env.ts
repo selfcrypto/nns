@@ -16,10 +16,11 @@
  * so "which commands can spend" is a property of the import graph — see
  * `import-graph.test.ts`.
  *
- * `NNS_RESERVED_NAMES` must equal the indexer's value, for the same reason the
- * API's must: the list is an input to §7.4's `RESERVED_NAME` verdict, and a
- * replay under a different list derives different verdicts and reports them as
- * the operator's divergence.
+ * `RESERVED_NAMES` is a `CONSTANTS` entry since the launch freeze and is read
+ * from `core`, so there is nothing here to keep equal to the indexer's value —
+ * the list is an input to §7.4's `RESERVED_NAME` verdict, and a replay under a
+ * different list would derive different verdicts and report them as the
+ * operator's divergence.
  */
 
 import { defineConfig, type NnsConfig } from '@nns/core'
@@ -139,16 +140,6 @@ function luna(env: EnvSource, key: string): bigint {
   return BigInt(raw)
 }
 
-/** Comma-separated. §4.1 matches reserved names exactly and never normalises. */
-function nameList(env: EnvSource, key: string): string[] {
-  const raw = read(env, key)
-  if (raw === undefined) return []
-  return raw
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter((entry) => entry !== '')
-}
-
 export function loadSettings(env: EnvSource = process.env): ReconcilerSettings {
   const apiUrl = required(env, 'NNS_API_URL').replace(/\/+$/, '')
   try {
@@ -166,8 +157,6 @@ export function loadSettings(env: EnvSource = process.env): ReconcilerSettings {
       protocol: required(env, 'NNS_PROTOCOL_ADDRESS'),
       admin: required(env, 'NNS_ADMIN_ADDRESS'),
       marketplace: required(env, 'NNS_MARKETPLACE_ADDRESS'),
-      listingFee: luna(env, 'NNS_LISTING_FEE'),
-      reservedNames: nameList(env, 'NNS_RESERVED_NAMES'),
     })
   } catch (cause) {
     if (cause instanceof EnvError) throw cause

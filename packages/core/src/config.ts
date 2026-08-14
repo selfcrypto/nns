@@ -1,13 +1,18 @@
 /**
- * Deployment configuration — the §3 constants that are still **OPEN**.
+ * Deployment configuration — what is left of it.
  *
- * `LAUNCH_HEIGHT`, `TREASURY_ADDRESS`, `PROTOCOL_ADDRESS`, `ADMIN_ADDRESS` and
- * `MARKETPLACE_ADDRESS` have no settled values yet, and `RESERVED_NAMES` is a
- * versioned list published in the repo before launch (§4.1). Injecting them
- * keeps core pure and fully testable with fixture addresses, and makes it
- * impossible for a placeholder to survive quietly into a mainnet build.
+ * `networkId` is the only entry here that is configuration on the merits:
+ * mainnet and testnet honestly differ, so two honest deployments may
+ * legitimately disagree about it. Everything else in this file is a §3 value
+ * that is still **OPEN** — `LAUNCH_HEIGHT`, `TREASURY_ADDRESS`,
+ * `PROTOCOL_ADDRESS`, `ADMIN_ADDRESS`, `MARKETPLACE_ADDRESS` — and is injected
+ * only because it has no value yet. Injection keeps core pure and testable
+ * against fixture addresses, and makes it impossible for a placeholder to
+ * survive quietly into a mainnet build.
  *
- * The `O` listing fee is also OPEN (§6 `O`, §10.6), so it lives here too.
+ * **These five move to `constants.ts` the moment the operator supplies them**,
+ * and this file then holds `networkId` alone. `RESERVED_NAMES` and the `O`
+ * listing fee took that route already, at the launch freeze.
  */
 
 import { type Address, parseAddress } from './address.js'
@@ -25,10 +30,6 @@ export interface NnsConfig {
   readonly admin: Address
   /** `B` escrow and `M` settlement; the only NNS hot wallet (§3). */
   readonly marketplace: Address
-  /** Listing fee for `O`. Still **OPEN** in the spec. */
-  readonly listingFee: bigint
-  /** §4.1 rule 6. Lowercase, exact-match. */
-  readonly reservedNames: ReadonlySet<string>
 }
 
 export interface NnsConfigInput {
@@ -38,8 +39,6 @@ export interface NnsConfigInput {
   protocol: string
   admin: string
   marketplace: string
-  listingFee: bigint
-  reservedNames?: Iterable<string>
 }
 
 export class ConfigError extends Error {
@@ -68,8 +67,6 @@ export function defineConfig(input: NnsConfigInput): NnsConfig {
   if (!Number.isInteger(input.launchHeight) || input.launchHeight < 0) {
     throw new ConfigError('launchHeight must be a non-negative integer')
   }
-  if (input.listingFee < 0n) throw new ConfigError('listingFee must not be negative')
-
   const treasury = address('treasury', input.treasury)
   const protocol = address('protocol', input.protocol)
   const admin = address('admin', input.admin)
@@ -88,14 +85,6 @@ export function defineConfig(input: NnsConfigInput): NnsConfig {
     seen.set(value, role)
   }
 
-  const reservedNames = new Set<string>()
-  for (const name of input.reservedNames ?? []) {
-    if (name !== name.toLowerCase()) {
-      throw new ConfigError(`reservedNames entry ${JSON.stringify(name)} must be lowercase — §4.1 matches exactly and never normalises`)
-    }
-    reservedNames.add(name)
-  }
-
   return Object.freeze({
     networkId: input.networkId,
     launchHeight: input.launchHeight,
@@ -103,7 +92,5 @@ export function defineConfig(input: NnsConfigInput): NnsConfig {
     protocol,
     admin,
     marketplace,
-    listingFee: input.listingFee,
-    reservedNames: reservedNames as ReadonlySet<string>,
   })
 }

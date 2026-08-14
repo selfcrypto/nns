@@ -52,8 +52,6 @@ export interface VectorConfig {
   protocol: string
   admin: string
   marketplace: string
-  listingFee: string
-  reservedNames?: string[]
 }
 
 export const readConfig = (raw: VectorConfig, book: AddressBook): NnsConfig =>
@@ -64,8 +62,6 @@ export const readConfig = (raw: VectorConfig, book: AddressBook): NnsConfig =>
     protocol: address(book, raw.protocol),
     admin: address(book, raw.admin),
     marketplace: address(book, raw.marketplace),
-    listingFee: BigInt(raw.listingFee),
-    reservedNames: raw.reservedNames ?? [],
   })
 
 /** ASCII → lowercase hex. Vectors carry `text` for review and `data` for machines. */

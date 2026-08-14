@@ -15,7 +15,6 @@ const CONFIG = defineConfig({
   protocol: B,
   admin: C,
   marketplace: D,
-  listingFee: 0n,
 })
 
 const compact = (value: string) => parseAddress(value)

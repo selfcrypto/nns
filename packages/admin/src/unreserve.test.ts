@@ -25,8 +25,6 @@ const config = defineConfig({
   protocol: PROTOCOL,
   admin: ADMIN,
   marketplace: MARKETPLACE,
-  listingFee: 0n,
-  reservedNames: ['binance'],
 })
 
 const HEAD = 58_099_950

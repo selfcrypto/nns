@@ -52,6 +52,8 @@ export {
 
 export {
   feeBand,
+  isListedReserved,
+  isReservedName,
   isShortReserved,
   isValidName,
   isValidRef,
@@ -59,6 +61,7 @@ export {
   validateHost,
   validateLabel,
   validateName,
+  validateNameSyntax,
   type FeeBand,
   type HostInvalidReason,
   type HostValidation,

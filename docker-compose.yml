@@ -120,8 +120,6 @@ services:
       NNS_PROTOCOL_ADDRESS: ${NNS_PROTOCOL_ADDRESS:?set NNS_PROTOCOL_ADDRESS in .env (spec §3, still OPEN) — see .env.example}
       NNS_ADMIN_ADDRESS: ${NNS_ADMIN_ADDRESS:?set NNS_ADMIN_ADDRESS in .env (spec §3, still OPEN) — see .env.example}
       NNS_MARKETPLACE_ADDRESS: ${NNS_MARKETPLACE_ADDRESS:?set NNS_MARKETPLACE_ADDRESS in .env (spec §3, still OPEN) — see .env.example}
-      NNS_LISTING_FEE: ${NNS_LISTING_FEE:-0}
-      NNS_RESERVED_NAMES: ${NNS_RESERVED_NAMES:-}
 
       NNS_LOG_LEVEL: ${NNS_LOG_LEVEL:-info}
       NNS_POLL_INTERVAL_MS: ${NNS_POLL_INTERVAL_MS:-15000}

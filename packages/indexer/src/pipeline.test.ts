@@ -27,7 +27,6 @@ const CONFIG = defineConfig({
   protocol: B,
   admin: C,
   marketplace: D,
-  listingFee: 100_000n,
 })
 
 function candidate(overrides: Partial<NnsCandidate> & { blockNumber: number }): NnsCandidate {
@@ -255,7 +254,6 @@ describe('LAUNCH_HEIGHT as a boundary (§8.1)', () => {
     protocol: B,
     admin: C,
     marketplace: D,
-    listingFee: 100_000n,
   })
 
   it('is a multiple of CHECKPOINT_INTERVAL, which is what makes it one', () => {

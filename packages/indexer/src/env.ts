@@ -2,11 +2,12 @@
  * Environment → indexer settings.
  *
  * The five §3 values that are still **OPEN** (`LAUNCH_HEIGHT` and the four
- * addresses) plus the `O` listing fee and `RESERVED_NAMES` are read here and
- * handed to `core`'s `defineConfig`, which validates them. That is the whole
- * reason they are injected: a placeholder cannot survive quietly into a
- * mainnet build if it has to come from the environment of the machine running
- * it.
+ * addresses) are read here and handed to `core`'s `defineConfig`, which
+ * validates them. That is the whole reason they are injected: a placeholder
+ * cannot survive quietly into a mainnet build if it has to come from the
+ * environment of the machine running it. `RESERVED_NAMES` and the `O` listing
+ * fee took the opposite route at the launch freeze — they are `CONSTANTS` now,
+ * and there is deliberately no environment variable that can set them.
  *
  * No secrets in the repo: `NNS_RPC_PASSWORD` and `NNS_DATABASE_URL` come from
  * the environment, and `.env` is gitignored. `.env.example` is the committed
@@ -139,30 +140,8 @@ function nnsConfig(env: EnvSource, networkId: number, launchHeight: number): Nns
       protocol: required(env, 'NNS_PROTOCOL_ADDRESS'),
       admin: required(env, 'NNS_ADMIN_ADDRESS'),
       marketplace: required(env, 'NNS_MARKETPLACE_ADDRESS'),
-      listingFee: luna(env, 'NNS_LISTING_FEE'),
-      reservedNames: nameList(env, 'NNS_RESERVED_NAMES'),
     })
   } catch (cause) {
     throw new EnvError(cause instanceof Error ? cause.message : String(cause))
   }
-}
-
-/** Luna is integer and `bigint`. A decimal point here is a NIM/luna mix-up. */
-function luna(env: EnvSource, key: string): bigint {
-  const raw = read(env, key)
-  if (raw === undefined) return 0n
-  if (!/^\d+$/.test(raw)) {
-    throw new EnvError(`${key} must be a whole number of luna (1 NIM = 100,000 luna), got ${JSON.stringify(raw)}`)
-  }
-  return BigInt(raw)
-}
-
-/** Comma-separated. §4.1 matches reserved names exactly and never normalises. */
-function nameList(env: EnvSource, key: string): string[] {
-  const raw = read(env, key)
-  if (raw === undefined) return []
-  return raw
-    .split(',')
-    .map((entry) => entry.trim())
-    .filter((entry) => entry !== '')
 }

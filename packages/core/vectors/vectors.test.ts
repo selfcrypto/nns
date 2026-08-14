@@ -50,9 +50,8 @@ describe('vectors/names.json', () => {
   const file = load('names.json')
 
   it.each(entries(file.cases))('name %s', (_id, testCase: any) => {
-    const reserved = new Set<string>(testCase.reserved ?? [])
     const unreserved = new Set<string>(testCase.unreserved ?? [])
-    const result = validateName(testCase.name, reserved, unreserved)
+    const result = validateName(testCase.name, unreserved)
     expect(result.ok).toBe(testCase.valid)
     if (!testCase.valid) expect(result).toEqual({ ok: false, reason: testCase.reason })
   })
@@ -130,11 +129,7 @@ describe('vectors/codec.json', () => {
   })
 
   it.each(entries(file.builderErrors.cases))('%s throws in the builder', (_id, testCase: any) => {
-    const caseConfig =
-      testCase.reservedNames === undefined
-        ? config
-        : readConfig({ ...file.config, reservedNames: testCase.reservedNames }, book)
-    expect(() => build(caseConfig, testCase, testCase.name, book)).toThrow()
+    expect(() => build(config, testCase, testCase.name, book)).toThrow()
   })
 
   it('covers all fourteen §6 message types', () => {

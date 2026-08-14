@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 18**
+**Protocol specification, v1 draft — revision 19**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -13,6 +13,32 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 
 > **Review status.** Everything marked **OPEN** is undecided or unverified.
 > Everything else reflects decisions already taken.
+
+> **Changes in revision 19 — the launch freeze, as far as it can go.** Prose
+> only. **No bytes move**: nothing here enters the §8.1 preimage or the §8.2
+> log hash, and every root derived under r18 is unchanged.
+> - **§3, §4.1 — `RESERVED_NAMES`'s published half is published**, in
+>   `packages/core/src/constants.ts`, and is a constant rather than a
+>   deployment setting: every honest implementation on the same network must
+>   agree on it byte for byte, so an injected list was a silent-divergence
+>   surface. It is **not final** — additions are free until `LAUNCH_HEIGHT`
+>   and out of governance scope afterwards (§10.6), so completing it is a
+>   blocking pre-launch step, listed in §12 beside the five §3 values that
+>   are still **OPEN**.
+> - **§3, §6 `O`, §10.6, §12 item 3 — the `O` listing fee is settled at
+>   `LISTING_FEE` = 0**, taking §12 item 3's second option. No `P` field
+>   carries it, so it was never governable; an ungovernable price is the one
+>   price that cannot track NIM, and §10.6's own argument says a fixed luna
+>   amount goes stale. A listing that never settles should cost nothing beyond
+>   the network fee, and one that does settle is already charged
+>   `COMMISSION_RATE` at the moment money moves (§10.3). Consequences: an `O`
+>   carries `DUST_VALUE`, since §5.4 rejects a `value` of 0; and
+>   `INSUFFICIENT_VALUE` is unreachable for `O` at this value. Raising it is a
+>   spec revision from a stated height, like any other frozen §3 number.
+> - **`LAUNCH_HEIGHT` and the four §3 addresses stay OPEN** and stay injected
+>   through deployment configuration until they are supplied. `networkId` is
+>   the one value that stays configuration on the merits — mainnet and testnet
+>   honestly differ.
 
 > **Changes in revision 18 — short names are reserved, not invalid.** One
 > change, reverting one r17 rule, and it moves bytes — pre-launch, with no
@@ -829,6 +855,8 @@ NIM figures assume ~$0.0005/NIM.
 | `ADMIN_ADDRESS` | **OPEN** | Governance only; cold key, distinct from treasury |
 | `MARKETPLACE_ADDRESS` | **OPEN** | `B` escrow and `M` settlement; the only NNS hot wallet, distinct from both |
 | `BURN_ADDRESS` | `NQ07 0000 0000 0000 0000 0000 0000 0000 0000` | Canonical Nimiq burn address |
+| `RESERVED_NAMES` | Published list + by rule (§4.1) | The published half is in the reference implementation's constants; **still incomplete** — additions are free until `LAUNCH_HEIGHT` and out of scope afterwards (§10.6) |
+| `LISTING_FEE` | 0 | Value owed on an `O` (§6 `O`). Not governable: no `P` field carries it (§10.6, §12 item 3) |
 | `MIN_NAME_LEN` | 5 chars | 1–4 reserved by rule (§4.1) for later award or auction; the floor binds only while a name is reserved |
 | `LONG_NAME_LEN` | 12 chars | Threshold for the cheap band |
 | `MAX_NAME_LEN` | 24 chars | Longer than any handle people actually use; keeps messages well inside 64 bytes |
@@ -906,8 +934,13 @@ lowercased — it is invalid.
 `RESERVED_NAMES` has two membership routes, checked in this order or any
 other — they are disjoint:
 
-- **By list:** a versioned list published in the repo before launch,
-  covering `nimiq`, `nns`, major exchanges, and obvious brand terms.
+- **By list:** a versioned list published in the repo, covering `nimiq`,
+  Nimiq's own products, major exchanges, wallets, and obvious brand terms.
+  It is a **constant**, not a deployment setting — two indexers running
+  different lists derive different roots and neither is detectably wrong at
+  startup. It is also **not yet complete**: adding an entry is free until
+  `LAUNCH_HEIGHT` and out of governance scope afterwards (§10.6), and the
+  asymmetry below says which way to err.
 - **By rule:** every name of length 1–4 satisfying rules 2–5. Membership is
   checked exactly that way — measure the length, run rules 2–5 — never by
   materialising the ~1.7 million short names into the published list. A
@@ -923,6 +956,12 @@ normal name.
 > an afternoon of real work rather than a token twenty entries. With
 > single-transaction registration, an empty namespace is trivially scriptable
 > on day one.
+>
+> **Err long, never short.** A name left off is registrable by anyone the block
+> after `LAUNCH_HEIGHT`, and no rule takes it back once it has an owner (§10.6)
+> — under-reserving is **permanent**. A name reserved by mistake is released,
+> or awarded to the right party, with one `U` (§6 `U`) — over-reserving is
+> **reversible**, and costs one announced governance message.
 
 ### 4.2 Positional digit rule
 
@@ -1330,7 +1369,11 @@ NNS1O<name>|<price_in_luna>
 
 - **Size:** 5 + `MAX_NAME_LEN` + 1 + 15 = **45 bytes** max
 - **To:** `TREASURY_ADDRESS`
-- **Value:** listing fee (**OPEN**)
+- **Value:** `LISTING_FEE`. Settled at **0** (§3, §12 item 3), so an `O`
+  carries `DUST_VALUE` — §5.4 rejects a `value` of 0 outright, and dust is
+  the only sendable encoding of "no fee". The check survives at zero because
+  the fee is a constant rather than a literal, but `INSUFFICIENT_VALUE` is
+  unreachable for `O` while it stays there (§7.4)
 - **`price` MUST be ≥ `MIN_PRICE`.** Below it the message forfeits:
   client-preventable. `MIN_PRICE` is `FEE_LONG` — the cheapest a name can be
   registered from scratch — so an offer can never be priced below what a
@@ -1831,7 +1874,7 @@ against a message of a listed type.
 | `WRONG_RECIPIENT` | `G` `D` `K` `N` `O` `B` `A` `P` `F` | Not the recipient §5.3 routes this type to |
 | `INVALID_RECIPIENT` | `U` | Recipient is `BURN_ADDRESS` — the one address a name may not be awarded to (§6 `U`) |
 | `WRONG_SENDER` | `M` `F` | `M` from neither `MARKETPLACE_ADDRESS` nor `TREASURY_ADDRESS`; `F` from other than `TREASURY_ADDRESS` |
-| `INSUFFICIENT_VALUE` | `G` `N` `O` | Value below the fee this message owes: the band fee for the name at this message's height for `G` and `N` (§10.1), the listing fee for `O` (§6 `O`) |
+| `INSUFFICIENT_VALUE` | `G` `N` `O` | Value below the fee this message owes: the band fee for the name at this message's height for `G` and `N` (§10.1), the listing fee for `O` (§6 `O`) — unreachable for `O` while `LISTING_FEE` is 0 |
 | `INVALID_NAME` | `G` `U` | Name fails §4.1 rules 2–5 or the rule 1 ceiling. The floor never fires here: a 1–4 character name satisfying rules 2–5 is reserved by rule (§4.1), so a `G` for one takes `RESERVED_NAME` while it is held and is a normal registration once a `U` has released it. Rule 6 is inverted for `U`, since a `U`'s name must be *in* `RESERVED_NAMES` |
 | `RESERVED_NAME` | `G` | Name currently in `RESERVED_NAMES` — on the published list or reserved by rule (§4.1) — and not yet removed from it by a fired `U` |
 | `NAME_IN_GRACE` | `G` | Name exists in `GRACE` |
@@ -2867,16 +2910,16 @@ governance into something slower and more dangerous than a visible,
 versioned edit.
 
 **In scope:** `FEE_STANDARD`, `FEE_LONG`, and `COMMISSION_RATE` (via `P`),
-the listing fee
-(**OPEN** — needs its own field once the structure is decided, §12), and
-*releasing* names from `RESERVED_NAMES` — or *awarding* one directly to a
+and *releasing* names from `RESERVED_NAMES` — or *awarding* one directly to a
 named address, which is the same `U` under a different recipient (§6 `U`),
 under the same `GOVERNANCE_DELAY` notice.
 
 **Out of scope — requires a new spec version applying from a stated height:**
 name validity rules (§4), `LONG_NAME_LEN`, ordering, expiry semantics,
-`TERM_LENGTH`, `BURN_SHARE`, anything touching the ownership of a name that
-*has* an owner, and *adding* to `RESERVED_NAMES`.
+`TERM_LENGTH`, `BURN_SHARE`, `LISTING_FEE` — no `P` field carries it, which
+is why §12 item 3 settled it at 0 rather than inventing one — anything
+touching the ownership of a name that *has* an owner, and *adding* to
+`RESERVED_NAMES`.
 
 The ownership line is worth stating precisely, because the `U` award crosses
 part of it. Governance can give away a name in `RESERVED_NAMES`, which by
@@ -3046,11 +3089,17 @@ Decisions pending:
 
 1. `LAUNCH_HEIGHT`, `TREASURY_ADDRESS`, `PROTOCOL_ADDRESS`, `ADMIN_ADDRESS`,
    `MARKETPLACE_ADDRESS`
-2. `RESERVED_NAMES` contents — the highest-value item on this list (§4.1)
-3. Listing fee structure for `O`, and how governance later adjusts it —
-   the last revenue line without an on-chain mechanism. Options: fold it
-   into `P` as a fourth field, or drop it entirely now that commission
-   captures marketplace value at the point of sale
+2. `RESERVED_NAMES` contents — the highest-value item on this list (§4.1).
+   **Partly answered in r19**: the published half exists and is a §3 constant,
+   but it is not complete, and completing it blocks launch exactly as the five
+   values above do. Additions are free until `LAUNCH_HEIGHT` and out of
+   governance scope afterwards (§10.6), so this is the last moment they cost
+   nothing
+3. ~~Listing fee structure for `O`~~ — **settled in r19**, by taking this
+   item's second option: dropped, `LISTING_FEE` = 0. Commission captures
+   marketplace value at the point of sale (§10.3), and folding a fourth field
+   into `P` would have bought the smallest revenue line a governance
+   mechanism, new §10.6 bounds, and a wire change
 4. Whether signed delegate responses (format already fixed, §8.6, §16.5)
    should ever become REQUIRED rather than optional
 5. Whether the Mopsus "name your address by burning 1 Luna" feature from the

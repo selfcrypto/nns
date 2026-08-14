@@ -18,9 +18,7 @@
     "treasury": "TREASURY",
     "protocol": "PROTOCOL",
     "admin": "ADMIN",
-    "marketplace": "MARKETPLACE",
-    "listingFee": "0",
-    "reservedNames": []
+    "marketplace": "MARKETPLACE"
   },
   "roundTrip": {
     "description": "Each case encodes to `data` and parses back to `message`. Every one of the fourteen §6 types appears at least once.",

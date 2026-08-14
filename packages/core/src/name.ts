@@ -1,9 +1,11 @@
 /**
  * Name rules — spec §4.
  *
- * Deliberately independent of {@link ./config.ts | NnsConfig}: the reserved
- * list arrives as a plain set, so this module sits at the bottom of the
- * dependency order and can be tested with nothing else present.
+ * Independent of {@link ./config.ts | NnsConfig}: rule 6's published list is
+ * `CONSTANTS.RESERVED_NAMES`, frozen at the launch freeze, so this module sits
+ * at the bottom of the dependency order and can be tested with nothing else
+ * present. The only thing it still takes from outside is `unreserved` — which
+ * names a fired `U` has released — because that is chain state, not config.
  *
  * **Implementations MUST reject rather than normalise** (§4.1). Uppercase
  * input is invalid, not lowercased. A caller that wants leniency lowercases
@@ -35,6 +37,13 @@ const OK: NameValidation = Object.freeze({ ok: true })
 const no = (reason: NameInvalidReason): NameValidation => Object.freeze({ ok: false, reason })
 
 const EMPTY_RESERVED: ReadonlySet<string> = new Set()
+
+/**
+ * The published half of `RESERVED_NAMES`, as a set, built once. The constant
+ * is an array so it reads as a reviewable list; every lookup goes through
+ * here, so membership never costs a scan.
+ */
+const LISTED_RESERVED: ReadonlySet<string> = new Set<string>(CONSTANTS.RESERVED_NAMES)
 
 const isDigit = (ch: string): boolean => ch >= '0' && ch <= '9'
 const isLetter = (ch: string): boolean => ch >= 'a' && ch <= 'z'
@@ -99,6 +108,35 @@ function checkRules2to5(name: string): NameValidation {
 export const isShortReserved = (name: string): boolean =>
   name.length >= 1 && name.length < CONSTANTS.MIN_NAME_LEN && checkRules2to5(name).ok
 
+/** §4.1's other membership route: an entry on the published list, exact match. */
+export const isListedReserved = (name: string): boolean => LISTED_RESERVED.has(name)
+
+/**
+ * §4.1 rule 6 membership by either route — the published list or the by-rule
+ * short names. Says nothing about *release*: a fired `U` is chain state, so
+ * ask `isReserved(state, name)` when you hold a state.
+ */
+export const isReservedName = (name: string): boolean => isListedReserved(name) || isShortReserved(name)
+
+/**
+ * §4.1 rules 1–5: everything that is a property of the string alone, with
+ * rule 1's floor left off.
+ *
+ * This is the check for a caller that has no chain state — a builder, or an
+ * API route taking a reserved name as a legitimate subject. It accepts a
+ * well-formed short name, because a released or awarded one is an ordinary
+ * name and every owner operation must be encodable for it. `TOO_SHORT` still
+ * fails: a short name failing rules 2–5 is on *neither* membership route, so
+ * nothing can ever release it and no message may carry it.
+ */
+export function validateNameSyntax(name: string): NameValidation {
+  if (name.length > CONSTANTS.MAX_NAME_LEN) return no('TOO_LONG')
+  // Length claims a malformed short name before the specific rule does, which
+  // keeps §4.2's `sud0` a length rejection, as its vector notes.
+  if (name.length < CONSTANTS.MIN_NAME_LEN) return checkRules2to5(name).ok ? OK : no('TOO_SHORT')
+  return checkRules2to5(name)
+}
+
 /**
  * §4.1 validity, in the order the spec lists its six rules. A name is valid
  * iff every one holds.
@@ -107,43 +145,29 @@ export const isShortReserved = (name: string): boolean =>
  * short name is reserved *by rule*, and rule 1's floor binds only while a
  * name is still reserved — released by a fired `U`, it is a normal name.
  *
- * @param reserved the published `RESERVED_NAMES` list (§4.1). Empty by
- * default — the list is versioned in the repo and injected through
- * `NnsConfig`, so core never carries a stale copy. 1–4 character names need
- * no entry: they are members by rule.
+ * Rule 6 reads `CONSTANTS.RESERVED_NAMES` and takes no list parameter: the
+ * list is a consensus input, and a caller able to supply a different one is a
+ * caller able to derive a different root.
+ *
  * @param unreserved names released from the reserved set by a fired `U`
  * (`state.unreserved`). Empty by default, which is the launch state — a
  * stateless caller gets `RESERVED` for every held name.
  */
-export function validateName(
-  name: string,
-  reserved: ReadonlySet<string> = EMPTY_RESERVED,
-  unreserved: ReadonlySet<string> = EMPTY_RESERVED,
-): NameValidation {
-  // 1. Length. The ceiling is unconditional. Below the floor, TOO_SHORT is
-  // reserved for names failing rules 2–5 — on neither membership route, so
-  // permanently invalid, and length claims them before the specific rule
-  // (which keeps §4.2's `sud0` a length rejection, as its vector notes).
-  // A well-formed short name is a reserved-set member by rule: RESERVED
-  // while held, a normal name once a fired `U` has released it.
-  if (name.length > CONSTANTS.MAX_NAME_LEN) return no('TOO_LONG')
-  if (name.length < CONSTANTS.MIN_NAME_LEN) {
-    if (!checkRules2to5(name).ok) return no('TOO_SHORT')
-    return unreserved.has(name) ? OK : no('RESERVED')
-  }
+export function validateName(name: string, unreserved: ReadonlySet<string> = EMPTY_RESERVED): NameValidation {
+  // 1–5.
+  const syntax = validateNameSyntax(name)
+  if (!syntax.ok) return syntax
 
-  // 2–5. Syntax.
-  const rules = checkRules2to5(name)
-  if (!rules.ok) return rules
-
-  // 6. Not currently reserved: on the published list and not yet released.
-  if (reserved.has(name) && !unreserved.has(name)) return no('RESERVED')
+  // 6. Not currently reserved: a member by either route, not yet released.
+  // This subsumes rule 1's floor — a well-formed short name reaches here as a
+  // by-rule member, so it is RESERVED while held and ordinary once released.
+  if (isReservedName(name) && !unreserved.has(name)) return no('RESERVED')
 
   return OK
 }
 
-export const isValidName = (name: string, reserved?: ReadonlySet<string>, unreserved?: ReadonlySet<string>): boolean =>
-  validateName(name, reserved, unreserved).ok
+export const isValidName = (name: string, unreserved?: ReadonlySet<string>): boolean =>
+  validateName(name, unreserved).ok
 
 /** Pricing band for a name, by length alone (§10.1). */
 export type FeeBand = 'STANDARD' | 'LONG'
@@ -263,12 +287,12 @@ export type QueryParse =
  * Syntax only. Whether `parent` is currently `REGISTERED` and carries a
  * delegate host is state, and belongs to the resolver.
  */
-export function parseQuery(query: string, reserved?: ReadonlySet<string>, unreserved?: ReadonlySet<string>): QueryParse {
+export function parseQuery(query: string, unreserved?: ReadonlySet<string>): QueryParse {
   const dots = query.split('.').length - 1
   if (dots > 1) return { ok: false, reason: 'TOO_MANY_DOTS', detail: null }
 
   if (dots === 0) {
-    const check = validateName(query, reserved, unreserved)
+    const check = validateName(query, unreserved)
     return check.ok
       ? { ok: true, query: { kind: 'name', name: query } }
       : { ok: false, reason: 'BAD_NAME', detail: check.reason }
@@ -281,7 +305,7 @@ export function parseQuery(query: string, reserved?: ReadonlySet<string>, unrese
   const labelCheck = validateLabel(label)
   if (!labelCheck.ok) return { ok: false, reason: 'BAD_LABEL', detail: labelCheck.reason }
 
-  const parentCheck = validateName(parent, reserved, unreserved)
+  const parentCheck = validateName(parent, unreserved)
   if (!parentCheck.ok) return { ok: false, reason: 'BAD_NAME', detail: parentCheck.reason }
 
   return { ok: true, query: { kind: 'dotted', label, parent } }

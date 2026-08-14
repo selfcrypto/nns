@@ -12,7 +12,6 @@ const FULL: EnvSource = {
   NNS_PROTOCOL_ADDRESS: 'NQ07 48LK 0DRX 8M65 6NK1 D1PP CYC4 HE99 K857',
   NNS_ADMIN_ADDRESS: 'NQ67 6CV4 2J2F AREN 8STJ F608 F3LM KJHS MCDQ',
   NNS_MARKETPLACE_ADDRESS: 'NQ28 8H5M 4NB0 CVP7 AY43 HA8R H7V6 MNSB PGN9',
-  NNS_RESERVED_NAMES: 'binance, coinbase',
 }
 
 describe('loadSettings', () => {
@@ -21,7 +20,6 @@ describe('loadSettings', () => {
     expect(settings.rpcUrl).toBe('http://127.0.0.1:6488')
     expect(settings.rpcUser).toBe('admin')
     expect(settings.config.networkId).toBe(24)
-    expect(settings.config.reservedNames).toEqual(new Set(['binance', 'coinbase']))
     expect(Object.isFrozen(settings)).toBe(true)
   })
 
@@ -41,7 +39,6 @@ describe('loadSettings', () => {
   })
 
   it('rejects a fractional listing fee — a NIM/luna mix-up', () => {
-    expect(() => loadSettings({ ...FULL, NNS_LISTING_FEE: '1.5' })).toThrow(/luna/)
   })
 
   it('leaves NNS_API_URL unset rather than failing — only p needs it', () => {

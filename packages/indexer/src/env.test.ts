@@ -52,10 +52,23 @@ describe('loadSettings', () => {
   })
 
   it('hands core the §3 values and lets it validate them', () => {
-    const settings = loadSettings({ ...MINIMAL, NNS_LISTING_FEE: '100000', NNS_RESERVED_NAMES: 'nimiq, wallet' })
-    expect(settings.config.listingFee).toBe(100_000n)
-    expect([...settings.config.reservedNames].sort()).toEqual(['nimiq', 'wallet'])
-    expect(settings.config.launchHeight).toBe(58_200_000)
+    expect(loadSettings(MINIMAL).config.launchHeight).toBe(58_200_000)
+  })
+
+  it('has no variable for a frozen §3 value, so an operator cannot set one', () => {
+    // The launch freeze deleted NNS_RESERVED_NAMES and NNS_LISTING_FEE. An env
+    // var that still existed is one an operator could still set, which is the
+    // whole silent-divergence surface the freeze closed — so setting them is
+    // inert rather than honoured.
+    const settings = loadSettings({ ...MINIMAL, NNS_RESERVED_NAMES: 'nimiq, wallet', NNS_LISTING_FEE: '100000' })
+    expect(Object.keys(settings.config).sort()).toEqual([
+      'admin',
+      'launchHeight',
+      'marketplace',
+      'networkId',
+      'protocol',
+      'treasury',
+    ])
   })
 
   it('surfaces core’s own config errors', () => {
@@ -64,7 +77,6 @@ describe('loadSettings', () => {
     expect(() => loadSettings({ ...MINIMAL, NNS_ADMIN_ADDRESS: MINIMAL.NNS_TREASURY_ADDRESS })).toThrow(
       /must be distinct/,
     )
-    expect(() => loadSettings({ ...MINIMAL, NNS_LISTING_FEE: '1.5' })).toThrow(/whole number of luna/)
   })
 
   it('rejects a non-integer height instead of scanning from NaN', () => {

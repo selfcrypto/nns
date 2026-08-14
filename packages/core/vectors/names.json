@@ -75,10 +75,10 @@
       "note": "Fails both clauses. §4.2 states the main rule first and introduces the boundary clause with 'Additionally', so the interior reason is the one reported."
     },
 
-    { "id": "reserved_exact_match", "name": "binance", "reserved": ["binance"], "valid": false, "reason": "RESERVED" },
-    { "id": "reserved_released_by_a_fired_u", "name": "binance", "reserved": ["binance"], "unreserved": ["binance"], "valid": true },
-    { "id": "reserved_is_not_a_prefix_match", "name": "binanced", "reserved": ["binance"], "valid": true },
-    { "id": "not_reserved_when_list_is_empty", "name": "binance", "valid": true }
+    { "id": "reserved_exact_match", "name": "binance", "valid": false, "reason": "RESERVED", "note": "RESERVED_NAMES is a §3 constant since the launch freeze — no list is passed in, and `binance` is on the published half." },
+    { "id": "reserved_released_by_a_fired_u", "name": "binance", "unreserved": ["binance"], "valid": true },
+    { "id": "reserved_is_not_a_prefix_match", "name": "binanced", "valid": true },
+    { "id": "not_on_the_published_list", "name": "kikename", "valid": true }
   ],
   "labels": {
     "description": "§4.4 subdomain labels. The positional digit rule deliberately does not apply, and no letter is required.",
@@ -131,8 +131,8 @@
   "queries": {
     "description": "§4.4 dotted queries. A dot is resolution syntax; more than one is invalid in v1.",
     "cases": [
-      { "id": "bare_name", "query": "binance", "kind": "name", "name": "binance" },
-      { "id": "dotted", "query": "alice.binance", "kind": "dotted", "label": "alice", "parent": "binance" },
+      { "id": "bare_name", "query": "kikename", "kind": "name", "name": "kikename" },
+      { "id": "dotted", "query": "alice.kikename", "kind": "dotted", "label": "alice", "parent": "kikename" },
       { "id": "two_dots", "query": "a.b.binance", "kind": "invalid", "reason": "TOO_MANY_DOTS" },
       { "id": "empty_label", "query": ".binance", "kind": "invalid", "reason": "BAD_LABEL" },
       { "id": "invalid_parent", "query": "alice.b1nance", "kind": "invalid", "reason": "BAD_NAME" }

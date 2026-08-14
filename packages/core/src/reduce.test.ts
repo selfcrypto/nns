@@ -210,7 +210,8 @@ describe('G — register (§6, §7.4)', () => {
   })
 
   it('forfeits a reserved name, and accepts it once a U has released it', () => {
-    const reservedConfig = testConfig({ reservedNames: ['binance'] })
+    // `binance` is on the frozen §4.1 list, so the ordinary config reserves it.
+    const reservedConfig = config
     let s = initialState(reservedConfig)
     const attempt = (at: number): ReduceResult =>
       reduce(
@@ -317,17 +318,17 @@ describe('S — set resolution target (§6)', () => {
 })
 
 describe('D — set delegate resolver (§6)', () => {
-  beforeEach(() => registerToAlice('binance'))
+  beforeEach(() => registerToAlice('kikename'))
 
   it('sets and clears the delegate host', () => {
-    step(encodeDelegate(config, { name: 'binance', host: 'nns.binance.com' }), { sender: ALICE })
-    expect(lookup(state, 'binance')?.host).toBe('nns.binance.com')
-    step(encodeDelegate(config, { name: 'binance', host: '' }), { sender: ALICE })
-    expect(lookup(state, 'binance')?.host).toBe('')
+    step(encodeDelegate(config, { name: 'kikename', host: 'nns.kike.com' }), { sender: ALICE })
+    expect(lookup(state, 'kikename')?.host).toBe('nns.kike.com')
+    step(encodeDelegate(config, { name: 'kikename', host: '' }), { sender: ALICE })
+    expect(lookup(state, 'kikename')?.host).toBe('')
   })
 
   it('forfeits a host carrying a scheme', () => {
-    const built = { ...encodeDelegate(config, { name: 'binance', host: 'x.com' }), data: hexOf('NNS1Dbinance|ht:p') }
+    const built = { ...encodeDelegate(config, { name: 'kikename', host: 'x.com' }), data: hexOf('NNS1Dkikename|ht:p') }
     expect(step(built, { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'INVALID_HOST' })
   })
 })
@@ -516,7 +517,7 @@ describe('ordering of effects that come due at the same height', () => {
     // governance, unreserve, maturing X, maturing R, expiry, grace release,
     // offer expiry — and fixes that the whole batch runs *before* the block's
     // own transactions, which is what the final `G` here checks.
-    const reserving = testConfig({ reservedNames: ['binance'] })
+    const reserving = config
     const at = (height: number): SendOptions => ({ sender: ALICE, at: height })
     /** `step`, but against the reserving config this one test needs. */
     const send1 = (built: BuiltTransaction, options: SendOptions): ReduceResult => {
@@ -799,10 +800,15 @@ describe('MIN_PRICE — the floor on an O price (§3, §6 O)', () => {
     expect(step(offerAt(FLOOR * 2n), { sender: ALICE, at: effective }).verdict.kind).toBe('OK')
   })
 
-  it('checks the floor before the listing fee, so the payload’s own defect claims it', () => {
-    const paid = testConfig({ listingFee: 500n })
+  it('claims a below-floor O on its own defect, whatever it paid', () => {
+    // The floor is checked before the value carried, the same way `G` checks
+    // name syntax first: a message whose payload is unusable is rejected on
+    // that ground. LISTING_FEE is frozen at zero, so INSUFFICIENT_VALUE is
+    // unreachable for `O` — but the *order* is what this pins, and it is what
+    // a spec revision moving the fee would rely on.
+    expect(CONSTANTS.LISTING_FEE).toBe(0n)
     const built = { ...offerAt(1n), recipient: TREASURY, value: 1n }
-    const result = reduce(state, send(built, { sender: ALICE }), paid)
+    const result = reduce(state, send(built, { sender: ALICE }), config)
     expect(result.verdict).toEqual({ kind: 'FORFEIT', reason: 'BELOW_MIN_PRICE' })
   })
 })
@@ -937,7 +943,8 @@ describe('P — governance (§6, §10.6)', () => {
 })
 
 describe('U — unreserve (§6)', () => {
-  const reserving = testConfig({ reservedNames: ['binance'] })
+  // `binance` is on the frozen §4.1 published list (§3), not a fixture entry.
+  const reserving = config
   const H = LAUNCH + CONSTANTS.GOVERNANCE_DELAY
 
   /** `step`, but against the config that reserves `binance`. */

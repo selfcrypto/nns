@@ -53,8 +53,6 @@ export const testConfig = (overrides: Partial<Parameters<typeof defineConfig>[0]
     protocol: PROTOCOL,
     admin: ADMIN,
     marketplace: MARKETPLACE,
-    listingFee: 100_000n,
-    reservedNames: ['binance'],
     ...overrides,
   })
 

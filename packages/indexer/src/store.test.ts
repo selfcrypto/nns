@@ -22,6 +22,7 @@
 
 import {
   checkpoint,
+  CONSTANTS,
   defineConfig,
   initialState,
   logHash,
@@ -63,7 +64,6 @@ const CONFIG = defineConfig({
   protocol: B,
   admin: C,
   marketplace: D,
-  listingFee: 0n,
 })
 
 const compact = (value: string) => parseAddress(value)
@@ -85,7 +85,6 @@ describe('configFingerprint', () => {
     protocol: B,
     admin: C,
     marketplace: D,
-    listingFee: 0n,
   }
   // A fifth address, because §3 requires the four roles to be distinct: moving
   // one field at a time is only possible with a spare to move it to.
@@ -109,8 +108,6 @@ describe('configFingerprint', () => {
     ['protocol', { ...BASE, protocol: E }],
     ['admin', { ...BASE, admin: E }],
     ['marketplace', { ...BASE, marketplace: E }],
-    ['listingFee', { ...BASE, listingFee: 1n }],
-    ['reservedNames', { ...BASE, reservedNames: ['nimiq'] }],
   ])('changes when %s changes', (_field, input) => {
     expect(fingerprint(input)).not.toBe(BASELINE)
   })
@@ -122,14 +119,18 @@ describe('configFingerprint', () => {
     expect(fingerprint({ ...BASE, treasury: B, protocol: A })).not.toBe(BASELINE)
   })
 
-  it('ignores the order reserved names were listed in', () => {
-    // §4.1 matches the set, so two operators who wrote the same list in a
-    // different order run the same deployment — the `.sort()` in the payload
-    // is what keeps that from reading as a config change on restart.
-    const one = fingerprint({ ...BASE, reservedNames: ['nimiq', 'team', 'bank'] })
-    const other = fingerprint({ ...BASE, reservedNames: ['bank', 'nimiq', 'team'] })
-    expect(one).toBe(other)
-    expect(one).not.toBe(fingerprint({ ...BASE, reservedNames: ['nimiq', 'team'] }))
+  it('covers the frozen §3 constants too, pinned as a known answer', () => {
+    // RESERVED_NAMES and LISTING_FEE moved into CONSTANTS at the launch freeze
+    // and can no longer be varied from a test — so the payload's dependency on
+    // them is pinned as a digest instead. Expanding the published list before
+    // `LAUNCH_HEIGHT` is expected and free (§10.6 closes it afterwards), and it
+    // must invalidate every database built under the older list: this is the
+    // test that says so, and its failure means "rebuild, do not resume".
+    expect(BASELINE).toBe('35513be41f34d69dab361c04b03a0f7c21d82c4608c641aa0941b97b60977d19')
+    // Order is not protocol (§4.1 is exact-match membership), which is what the
+    // `.sort()` in the payload buys: resorting the constant leaves this digest
+    // alone, and only an added, removed or edited entry moves it.
+    expect([...CONSTANTS.RESERVED_NAMES].sort()).toEqual([...CONSTANTS.RESERVED_NAMES])
   })
 })
 

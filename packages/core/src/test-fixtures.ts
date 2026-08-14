@@ -31,7 +31,6 @@ export const testConfigInput = (overrides: Partial<NnsConfigInput> = {}): NnsCon
   protocol: PROTOCOL,
   admin: ADMIN,
   marketplace: MARKETPLACE,
-  listingFee: 0n,
   ...overrides,
 })
 

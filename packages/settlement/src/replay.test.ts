@@ -182,12 +182,26 @@ describe('replayLog', () => {
     })
   })
 
-  it('a different reserved list shows up as a verdict disagreement, not a silent skew', () => {
-    const reserved = stageLog(saleScenario(testConfig({ reservedNames: [NAME] })), testConfig({ reservedNames: [NAME] }))
-    const result = replayLog(reserved.lines, initialState(config), config)
-    // Staged as RESERVED_NAME, replayed under a list that does not hold the
-    // name — the reconciler must say so rather than quietly reconcile to zero.
-    expect(result.mismatches.length).toBeGreaterThan(0)
+  it('catches the verdict a divergent reserved list would have produced', () => {
+    // RESERVED_NAMES is a §3 constant since the launch freeze, so two honest
+    // replays can no longer disagree about it — the wrong-list scenario this
+    // test used to stage is unreachable by configuration. What is still
+    // reachable is a log claiming the verdict a divergent list *would* have
+    // produced: a `G` on a reserved name logged as OK. That must be a loud
+    // disagreement rather than a quietly different total.
+    const reservedName = 'binance'
+    const fee = feeFor(reservedName, initialState(config).prices)
+    const held = stageLog(
+      [send(H.register, 0, SELLER, encodeRegister(config, { name: reservedName, fee }))],
+      config,
+    )
+    expect(held.lines[0]).toMatch(/ RESERVED_NAME$/)
+    expect(replayLog(held.lines, initialState(config), config).mismatches).toEqual([])
+
+    const tampered = held.lines.map((line) => line.replace(/ RESERVED_NAME$/, ' OK'))
+    const result = replayLog(tampered, initialState(config), config)
+    expect(result.mismatches).toHaveLength(1)
+    expect(result.mismatches[0]).toMatchObject({ logged: 'OK', replayed: 'RESERVED_NAME' })
   })
 
   it('refuses a log that is out of canonical order', () => {

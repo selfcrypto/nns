@@ -202,7 +202,7 @@ function docVerifies(doc: Record<string, unknown>, rootHex0x: string): boolean {
 describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
   const pool = createPool(POOL_URL)
   const queries = new PgQueries(pool)
-  const handle = createRoutes(queries, { reservedNames: new Set(), listingFee: 0n })
+  const handle = createRoutes(queries)
 
   afterAll(async () => {
     await pool.end()

@@ -37,18 +37,11 @@ async function main(): Promise<void> {
 
   const logger = createLogger({ level: settings.logLevel, base: { component: 'api' } })
   const pool = createPool(settings.databaseUrl)
-  const handle = createRoutes(new PgQueries(pool), {
-    reservedNames: settings.reservedNames,
-    listingFee: settings.listingFee,
-  })
+  const handle = createRoutes(new PgQueries(pool))
   const server = createServer(handle, logger)
 
   server.listen(settings.port, settings.host, () => {
-    logger.info('api.start', {
-      host: settings.host,
-      port: settings.port,
-      reservedNames: settings.reservedNames.size,
-    })
+    logger.info('api.start', { host: settings.host, port: settings.port })
   })
 
   const shutdown = (): void => {

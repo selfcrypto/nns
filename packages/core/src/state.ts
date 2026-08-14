@@ -16,7 +16,7 @@
 import type { Address } from './address.js'
 import type { NnsConfig } from './config.js'
 import { CONSTANTS } from './constants.js'
-import { isShortReserved } from './name.js'
+import { isReservedName } from './name.js'
 
 /** §8.1 commits `0x00` for `REGISTERED` and `0x01` for `GRACE`. */
 export type NameStatus = 'REGISTERED' | 'GRACE'
@@ -181,8 +181,8 @@ export function initialState(config: NnsConfig): NnsState {
  * published list, or a 1–4 character name reserved by rule (§4.1) — and not
  * yet released by a `U` that has taken effect (§6 `U`).
  */
-export const isReserved = (state: NnsState, config: NnsConfig, name: string): boolean =>
-  (config.reservedNames.has(name) || isShortReserved(name)) && !state.unreserved.has(name)
+export const isReserved = (state: NnsState, name: string): boolean =>
+  isReservedName(name) && !state.unreserved.has(name)
 
 /** The name's record, or `null` when it is `AVAILABLE`. */
 export const lookup = (state: NnsState, name: string): NameRecord | null => state.names.get(name) ?? null

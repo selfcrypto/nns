@@ -18,7 +18,6 @@ const CONFIG = defineConfig({
   protocol: B,
   admin: C,
   marketplace: D,
-  listingFee: 100_000n,
 })
 
 const STATE: NnsState = initialState(CONFIG)

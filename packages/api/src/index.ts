@@ -19,5 +19,5 @@ export {
   type Snapshot,
 } from './queries.js'
 export { inclusionDocument, nonInclusionDocument, type ProofContext } from './proofs.js'
-export { createRoutes, type ApiResponse, type RouteHandler, type RouteOptions } from './routes.js'
+export { createRoutes, type ApiResponse, type RouteHandler } from './routes.js'
 export { createServer } from './server.js'
