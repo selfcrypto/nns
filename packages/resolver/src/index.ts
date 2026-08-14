@@ -47,6 +47,19 @@ export type { HttpFetch, HttpResponse, ResolverEndpoint } from './transport.js'
 
 export { warn, type ResolveWarning, type WarningCode } from './warnings.js'
 
+// §4.3 is a SHOULD that fails silently when it is not followed, so it ships
+// as CSS rather than as advice. The stylesheet is also a file —
+// `@nns/resolver/rendering.css` — for hosts with a CSS loader; the string and
+// the injector are the path for hosts with no build step at all.
+export {
+  NNS_NAME_CLASS,
+  RENDERING_CSS,
+  injectRenderingCss,
+  type AppendableNode,
+  type StyleHost,
+  type StyleSheetElement,
+} from './rendering.js'
+
 export {
   AnchorError,
   ConfigurationError,

@@ -5,18 +5,21 @@
   "type": "module",
   "description": "Client-side NNS resolution: resolver quorum, §8.3 proof verification, §8.6 delegation. Browser and Node.",
   "license": "MIT",
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./rendering.css": "./dist/rendering.css"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/emit-css.mjs",
     "typecheck": "tsc -p tsconfig.check.json",
     "test": "vitest run"
   },
