@@ -27,7 +27,7 @@ import { createLogger, RpcClient } from '@nns/indexer'
 
 import { createPool } from './db.js'
 import { loadIssuerSettings } from './env.js'
-import { describeIssue, issueFailed, issuePass, type Wallet } from './issue.js'
+import { describeIssue, issueFailed, issuePass, resolveExpiryBlocks, type Wallet } from './issue.js'
 import { createNodeWallet, loadHotKeys } from './keys.js'
 import { createLedger, describeLedger } from './ledger.js'
 import { httpFetcher } from './source.js'
@@ -47,6 +47,11 @@ and prints every transaction it would broadcast, but pins nothing.
 --interval=<seconds>   override NNS_SETTLEMENT_POLL_SECONDS.
 --limit=<n>            broadcast at most n transactions per cycle.
 --quiet                print the issuance report only, not the ledger.
+
+A pinned M expires after the node's own transactionValidityWindow, read once at
+startup from getPolicyConstants. NNS_SETTLEMENT_EXPIRY_BLOCKS overrides it and
+may only be higher: expiring sooner than the chain does pins a replacement while
+the first transaction is still valid, which is the double payment.
 
 Settings come from the environment; see packages/settlement/.env.example. The
 keys are NNS_SETTLEMENT_MARKETPLACE_KEY and NNS_SETTLEMENT_TREASURY_KEY, and
@@ -110,6 +115,9 @@ async function run(argv: readonly string[]): Promise<number> {
       initial: initialState(settings.config),
     })
     const pollSeconds = interval ?? settings.pollSeconds
+    // Read once, at startup: the window is a chain constant, and re-reading it
+    // per cycle would let it change under a plan already pinned against it.
+    const expiry = await resolveExpiryBlocks(rpc, settings.expiryBlocks)
 
     console.log(
       `issue over ${settings.apiUrl} via ${settings.rpcUrl}${once ? '' : ` every ${pollSeconds}s`} — ` +
@@ -124,8 +132,11 @@ async function run(argv: readonly string[]): Promise<number> {
         : `resuming from checkpoint ${source.checkpointHeight}, log ${source.logHash}.`,
     )
     console.log(
-      `every M expires ${settings.expiryBlocks} blocks after its validityStartHeight, and the §11.5 alert ` +
-        `threshold is ${settings.minBalance} luna.`,
+      `every M expires ${expiry.blocks} blocks after its validityStartHeight ` +
+        (expiry.source === 'node'
+          ? "(the node's own transactionValidityWindow)"
+          : `(NNS_SETTLEMENT_EXPIRY_BLOCKS${expiry.nodeWindow === null ? ', this node has no getPolicyConstants' : `, above the node's ${expiry.nodeWindow}`})`) +
+        `, and the §11.5 alert threshold is ${settings.minBalance} luna.`,
     )
 
     for (;;) {
@@ -152,7 +163,7 @@ async function run(argv: readonly string[]): Promise<number> {
         config: settings.config,
         wallet,
         feeLuna: settings.feeLuna,
-        expiryBlocks: settings.expiryBlocks,
+        expiryBlocks: expiry.blocks,
         minBalance: settings.minBalance,
         limit,
         logger,

@@ -83,16 +83,21 @@ export interface IssuerSettings extends LedgerSettings {
    */
   readonly feeLuna: bigint
   /**
-   * Blocks after `validityStartHeight` at which a pinned `M` is treated as dead.
+   * Blocks after `validityStartHeight` at which a pinned `M` is treated as dead,
+   * or `null` to take the node's own `transactionValidityWindow`.
    *
    * **The two directions do not cost the same.** Too long is a stall: the
    * transaction has already expired on-chain and the ledger waits longer than it
    * needed to before pinning a replacement. Too short is the double payment:
    * the ledger declares an attempt dead, pins a second one at a fresh
-   * `validityStartHeight`, and both are valid at once. When in doubt, set it
-   * high — which is why there is no default to drift out of date.
+   * `validityStartHeight`, and both are valid at once.
+   *
+   * `null` is the normal case and the safe one — `getPolicyConstants` answers
+   * the window authoritatively (7,200 blocks on mainnet, ~2 h), and the
+   * override exists for an operator who wants to wait *longer* than the chain
+   * requires, never shorter. {@link resolveExpiryBlocks} refuses a shorter one.
    */
-  readonly expiryBlocks: number
+  readonly expiryBlocks: number | null
   /**
    * §11.5 rule 2: alert on a threshold well above zero, sized so topping up is
    * routine. Refused at zero, because alerting at zero alerts after the failure.
@@ -244,7 +249,10 @@ export function loadIssuerSettings(env: EnvSource = process.env): IssuerSettings
     rpcUser: read(env, 'NNS_RPC_USER'),
     rpcPassword: read(env, 'NNS_RPC_PASSWORD'),
     feeLuna: luna(env, 'NNS_SETTLEMENT_FEE_LUNA'),
-    expiryBlocks: requiredInteger(env, 'NNS_SETTLEMENT_EXPIRY_BLOCKS', 1),
+    expiryBlocks:
+      read(env, 'NNS_SETTLEMENT_EXPIRY_BLOCKS') === undefined
+        ? null
+        : requiredInteger(env, 'NNS_SETTLEMENT_EXPIRY_BLOCKS', 1),
     minBalance: requiredLuna(
       env,
       'NNS_SETTLEMENT_MIN_BALANCE',

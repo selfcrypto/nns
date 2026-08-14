@@ -114,12 +114,12 @@ describe('loadIssuerSettings', () => {
     expect(() => loadIssuerSettings({ ...ISSUER, NNS_RPC_URL: undefined })).toThrow(/NNS_RPC_URL/)
   })
 
-  // Too long is a stall; too short pins a replacement while the first is still
-  // valid, which is the double payment. There is no default to drift.
-  it('requires the expiry window rather than guessing the chain’s', () => {
-    expect(() => loadIssuerSettings({ ...ISSUER, NNS_SETTLEMENT_EXPIRY_BLOCKS: undefined })).toThrow(
-      /NNS_SETTLEMENT_EXPIRY_BLOCKS is required/,
-    )
+  // Unset means "take the node's transactionValidityWindow", which is the
+  // normal case; resolveExpiryBlocks holds the rule that an override may only
+  // be longer.
+  it('leaves the expiry window null when unset, for the node to answer', () => {
+    expect(loadIssuerSettings({ ...ISSUER, NNS_SETTLEMENT_EXPIRY_BLOCKS: undefined }).expiryBlocks).toBeNull()
+    expect(loadIssuerSettings(ISSUER).expiryBlocks).toBe(120)
     expect(() => loadIssuerSettings({ ...ISSUER, NNS_SETTLEMENT_EXPIRY_BLOCKS: '0' })).toThrow(/integer >= 1/)
   })
 

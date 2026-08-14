@@ -27,6 +27,7 @@ import {
   issueFailed,
   issuePass,
   jsonLuna,
+  resolveExpiryBlocks,
   resumeOf,
   sendParams,
   IssueError,
@@ -209,6 +210,71 @@ describe('resumeOf', () => {
 
   it('refuses an entry with nothing pinned', () => {
     expect(() => resumeOf(entry({ ref: { height: 1, txIndex: 0 }, kind: 'REFUND', amount: 1n }))).toThrow(IssueError)
+  })
+})
+
+describe('resolveExpiryBlocks', () => {
+  /** The live mainnet answer, 2026-08-14: 7,200 blocks, ~2 h at 1 s blocks. */
+  const MAINNET_WINDOW = 7_200
+
+  const node = (answer: unknown): IssuerRpc => ({
+    async call<T>(method: string): Promise<T> {
+      if (method !== 'getPolicyConstants') throw new Error(`unexpected ${method}`)
+      if (answer instanceof Error) throw answer
+      return answer as T
+    },
+  })
+
+  const methodNotFound = Object.assign(new Error('method not found'), { code: -32601 })
+
+  it('takes the node’s own window when nothing overrides it', async () => {
+    expect(await resolveExpiryBlocks(node({ transactionValidityWindow: MAINNET_WINDOW }), null)).toEqual({
+      blocks: MAINNET_WINDOW,
+      source: 'node',
+      nodeWindow: MAINNET_WINDOW,
+    })
+  })
+
+  it('lets an override wait longer than the chain requires', async () => {
+    // Longer only costs a stall: the transaction has already expired on-chain
+    // and the ledger waits before replacing it.
+    expect(await resolveExpiryBlocks(node({ transactionValidityWindow: MAINNET_WINDOW }), 10_000)).toEqual({
+      blocks: 10_000,
+      source: 'override',
+      nodeWindow: MAINNET_WINDOW,
+    })
+    expect((await resolveExpiryBlocks(node({ transactionValidityWindow: MAINNET_WINDOW }), MAINNET_WINDOW)).blocks).toBe(MAINNET_WINDOW)
+  })
+
+  it('refuses an override below the node’s window — that is the double payment', async () => {
+    // 120 was this file's own placeholder before the window was probed, and it
+    // is 60× too short. That is exactly the mistake now impossible to make.
+    await expect(resolveExpiryBlocks(node({ transactionValidityWindow: MAINNET_WINDOW }), 120)).rejects.toThrow(
+      /below the node's transactionValidityWindow of 7200/,
+    )
+  })
+
+  it('falls back to the override on a node without the method', async () => {
+    expect(await resolveExpiryBlocks(node(methodNotFound), 8_000)).toEqual({
+      blocks: 8_000,
+      source: 'override',
+      nodeWindow: null,
+    })
+  })
+
+  it('refuses to guess when the node cannot answer and nothing was set', async () => {
+    await expect(resolveExpiryBlocks(node(methodNotFound), null)).rejects.toThrow(/no getPolicyConstants/)
+  })
+
+  it('does not swallow a real RPC failure', async () => {
+    await expect(resolveExpiryBlocks(node(new Error('401 Unauthorized')), null)).rejects.toThrow('401 Unauthorized')
+  })
+
+  it('refuses a window the node did not answer with a block count', async () => {
+    await expect(resolveExpiryBlocks(node({ transactionValidityWindow: '7200' }), null)).rejects.toThrow(
+      /expected a positive whole number of blocks/,
+    )
+    await expect(resolveExpiryBlocks(node({}), null)).rejects.toThrow(IssueError)
   })
 })
 

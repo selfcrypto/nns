@@ -57,6 +57,7 @@
  */
 
 import { CodecError, encodeSettlement, formatAddress, type Address, type NnsConfig } from '@nns/core'
+import { METHOD_NOT_FOUND } from '@nns/indexer'
 
 import type { Logger } from '@nns/indexer'
 import type { Ledger, LedgerEntry, TransactionPlan } from './ledger.js'
@@ -200,6 +201,73 @@ export function resumeOf(entry: LedgerEntry): TransactionPlan {
     validityStartHeight: live.validityStartHeight,
     expiresAfter: live.expiresAfter,
   })
+}
+
+/**
+ * Where the expiry window came from, so the startup banner can say.
+ *
+ * `nodeWindow` is `null` only when the node has no `getPolicyConstants` — an
+ * older build, or another operator's. That is the one case where the setting is
+ * still required.
+ */
+export interface ExpiryWindow {
+  readonly blocks: number
+  readonly source: 'node' | 'override'
+  readonly nodeWindow: number | null
+}
+
+/** `getPolicyConstants`, arity 0. Only one of its fourteen fields is read here. */
+export async function readValidityWindow(rpc: IssuerRpc): Promise<number | null> {
+  let constants: { transactionValidityWindow?: unknown }
+  try {
+    constants = await rpc.call<{ transactionValidityWindow?: unknown }>('getPolicyConstants')
+  } catch (cause) {
+    // A node without the method is a fallback, not a failure. Anything else —
+    // bad credentials, a broken envelope — must still be loud.
+    if ((cause as { code?: unknown }).code === METHOD_NOT_FOUND) return null
+    throw cause
+  }
+  const window = constants?.transactionValidityWindow
+  if (typeof window !== 'number' || !Number.isInteger(window) || window < 1) {
+    throw new IssueError(
+      `getPolicyConstants returned transactionValidityWindow ${JSON.stringify(window)} — expected a positive whole number of blocks`,
+    )
+  }
+  return window
+}
+
+/**
+ * How long a pinned `M` stays replaceable-only-after, resolved once at startup.
+ *
+ * **The node is the authority and the override may only lengthen.** An attempt
+ * is replaceable only once it can no longer land, and it can land until
+ * `validityStartHeight + transactionValidityWindow`; anything shorter declares
+ * an attempt dead while it is still valid, pins a second one at a fresh height,
+ * and lets both land. That is the double payment, and now that the window is
+ * one call away it is refused rather than documented.
+ *
+ * Waiting *longer* than the chain requires is always safe — it costs a stall —
+ * so the override survives for the operator who wants one.
+ */
+export async function resolveExpiryBlocks(rpc: IssuerRpc, override: number | null): Promise<ExpiryWindow> {
+  const nodeWindow = await readValidityWindow(rpc)
+  if (nodeWindow === null) {
+    if (override === null) {
+      throw new IssueError(
+        'this node has no getPolicyConstants, so the transaction validity window cannot be read — ' +
+          'set NNS_SETTLEMENT_EXPIRY_BLOCKS to it, or higher. Setting it lower than the chain\'s window is the double payment',
+      )
+    }
+    return Object.freeze({ blocks: override, source: 'override', nodeWindow: null })
+  }
+  if (override === null) return Object.freeze({ blocks: nodeWindow, source: 'node', nodeWindow })
+  if (override < nodeWindow) {
+    throw new IssueError(
+      `NNS_SETTLEMENT_EXPIRY_BLOCKS is ${override}, below the node's transactionValidityWindow of ${nodeWindow}. ` +
+        `A pinned M can land until validityStartHeight + ${nodeWindow}; expiring it sooner pins a replacement while the first is still valid`,
+    )
+  }
+  return Object.freeze({ blocks: override, source: 'override', nodeWindow })
 }
 
 /**
