@@ -58,7 +58,7 @@ import { parseArgs } from 'node:util'
 const repo = dirname(dirname(fileURLToPath(import.meta.url)))
 
 const { CONSTANTS } = await import(join(repo, 'packages/core/dist/index.js'))
-const { createPool } = await import(join(repo, 'packages/indexer/dist/index.js'))
+const { createPool, historyHorizon } = await import(join(repo, 'packages/indexer/dist/index.js'))
 
 const INTERVAL = CONSTANTS.CHECKPOINT_INTERVAL
 
@@ -173,37 +173,24 @@ async function rpc(method, params = []) {
 // no history below its sync point, and `getTransactionsByBatchNumber` answers a
 // batch it no longer has with `[]` rather than an error. Every run then agrees,
 // perfectly, on an empty registry — the harness reports byte-identical
-// checkpoints and proves nothing. Block presence is the signal that separates
-// the two, since the transaction call cannot.
+// checkpoints and proves nothing.
+//
+// The probe and the bisection are `packages/indexer/src/horizon.ts`, which is
+// also what the indexer itself refuses to start below: one mechanism, so the
+// harness cannot end up disagreeing with the thing it measures. `historyHorizon`
+// takes any client with the two block methods, so the raw `rpc` above will do.
 
-async function hasBlock(height) {
-  try {
-    await rpc('getBlockByNumber', [height, false])
-    return true
-  } catch (error) {
-    if (/not found/i.test(String(error.message))) return false
-    throw error
-  }
-}
-
-/** Binary search, run only when the launch height is already known to be gone. */
-async function earliestBlock(missing, present) {
-  let low = missing
-  let high = present
-  while (high - low > 1) {
-    const mid = Math.floor((low + high) / 2)
-    if (await hasBlock(mid)) high = mid
-    else low = mid
-  }
-  return high
+const blockReader = {
+  getBlockNumber: () => rpc('getBlockNumber').then(Number),
+  getBlockByNumber: (height, includeBody) => rpc('getBlockByNumber', [height, includeBody]),
 }
 
 // ── Target ───────────────────────────────────────────────────────────────────
 
 const head = Number(await rpc('getBlockNumber'))
 
-if (!(await hasBlock(launchHeight))) {
-  const earliest = await earliestBlock(launchHeight, head)
+const earliest = await historyHorizon(blockReader, launchHeight)
+if (earliest !== null) {
   fail(
     `the node has no block at NNS_LAUNCH_HEIGHT ${launchHeight.toLocaleString()} — its history starts at ` +
       `${earliest.toLocaleString()}.\n` +

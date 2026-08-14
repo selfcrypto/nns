@@ -19,6 +19,7 @@
 import { CONSTANTS } from '@nns/core'
 
 import { type ChainGeometry, calibrate, lastFinalisedBatch } from './chain.js'
+import { HorizonError, assertHistoryHorizon } from './horizon.js'
 import type { Logger } from './logger.js'
 import { resolvePositions } from './ordering.js'
 import type { RpcClient, RpcTransaction } from './rpc.js'
@@ -187,7 +188,7 @@ export class Scanner {
     const target = lastFinalisedBatch(currentBatch)
     this.target = target
 
-    let cursor = this.cursor ?? this.startBatch(geometry)
+    let cursor = this.cursor ?? (await this.startBatch(geometry))
     this.cursor = cursor
 
     if (cursor > target) {
@@ -220,21 +221,37 @@ export class Scanner {
   }
 
   /**
-   * The batch to start from, given `LAUNCH_HEIGHT`.
+   * The batch to start from, given `LAUNCH_HEIGHT`, once the node has been
+   * shown to still hold it.
    *
    * `LAUNCH_HEIGHT` can sit mid-batch; the batch containing it is scanned
    * whole and the per-transaction height filter drops what precedes launch.
+   * So the height the node must still hold is not the batch's first block but
+   * the first block whose transactions can survive that filter — anything
+   * below `LAUNCH_HEIGHT` is dropped whether the node has it or not.
+   *
+   * On a resume that height is the stored batch's first block: every block of
+   * it counts, and a node resynced under a running indexer is the same
+   * silent-empty failure as a fresh start below the horizon.
    */
-  private startBatch(geometry: ChainGeometry): number {
+  private async startBatch(geometry: ChainGeometry): Promise<number> {
     const fromLaunch = Math.max(1, geometry.batchAt(this.launchHeight))
     // A stored cursor wins: it is where the last committed transaction left
     // off, and rescanning from LAUNCH_HEIGHT would replay applied messages.
+    const resumed = this.startBatchOverride !== undefined
     const batch = this.startBatchOverride ?? fromLaunch
+    const firstBlock = geometry.firstBlockOf(batch)
+    await assertHistoryHorizon({
+      rpc: this.rpc,
+      startHeight: Math.max(firstBlock, this.launchHeight),
+      origin: resumed ? `the stored cursor's batch ${batch}, first block` : 'NNS_LAUNCH_HEIGHT',
+      logger: this.logger,
+    })
     this.logger.info('scan.start', {
       launchHeight: this.launchHeight,
       startBatch: batch,
-      resumed: this.startBatchOverride !== undefined,
-      firstBlock: geometry.firstBlockOf(batch),
+      resumed,
+      firstBlock,
     })
     return batch
   }
@@ -250,6 +267,11 @@ export class Scanner {
         if (scanned === 0) await this.sleep(this.pollIntervalMs, signal)
       } catch (error) {
         if (signal.aborted) break
+        // A node that does not hold the window is not a transient failure, and
+        // the poll loop would turn it into a quiet one: an indexer retrying
+        // forever at `error` level looks the same as an indexer that is merely
+        // behind. It leaves here, and the process exits non-zero.
+        if (error instanceof HorizonError) throw error
         this.logger.error('scan.error', { nextBatch: this.cursor, error })
         await this.sleep(this.pollIntervalMs, signal)
       }

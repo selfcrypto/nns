@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { HorizonError } from './horizon.js'
 import { PROTOCOL_PREFIX_HEX, Scanner, hasProtocolPrefix } from './scan.js'
 import { MAINNET, collectingLogger, fakeNode, payload, tx } from './test-fixtures.js'
 
@@ -329,6 +330,59 @@ describe('candidate shape', () => {
     await s.scanBatch(2)
     const line = lines.find((entry) => entry['msg'] === 'nns.candidate')
     expect(line).toMatchObject({ blockNumber: 61, txIndex: 0, dataBytes: 12 })
+  })
+})
+
+describe('history horizon', () => {
+  it('refuses to start below it, naming both heights', async () => {
+    // The failure this exists to prevent: the batch call answers `[]` below the
+    // horizon exactly as it does for an empty batch, so without the guard this
+    // scan reports success over an unreachable window.
+    const node = fakeNode({ head: 3_456_600, genesis: 3_456_000, horizon: 3_456_400, blocks: {} })
+    const { scanner: s } = scanner(node, { launchHeight: 3_456_190 })
+    await expect(s.tick()).rejects.toThrow(HorizonError)
+    await expect(s.tick()).rejects.toThrow(/NNS_LAUNCH_HEIGHT 3,456,190.*3,456,400/s)
+    expect(node.calls.batches).toEqual([])
+  })
+
+  it('leaves the poll loop instead of retrying, so the process can exit', async () => {
+    const node = fakeNode({ head: 3_456_600, genesis: 3_456_000, horizon: 3_456_400, blocks: {} })
+    const { logger, lines } = collectingLogger()
+    const s = new Scanner({
+      rpc: node.rpc,
+      logger,
+      networkId: 24,
+      launchHeight: 3_456_190,
+      pollIntervalMs: 1,
+      sleep: async () => {
+        throw new Error('the loop idled instead of giving up')
+      },
+    })
+    await expect(s.run(new AbortController().signal)).rejects.toThrow(HorizonError)
+    // Not logged as a transient scan.error either — that reads as "behind".
+    expect(lines.some((line) => line['msg'] === 'scan.error')).toBe(false)
+  })
+
+  it('checks the resumed cursor, not LAUNCH_HEIGHT, once there is one', async () => {
+    // A node resynced under a running indexer is the same silent-empty
+    // failure; a launch height pruned away long after it was indexed is not.
+    const node = fakeNode({ head: 3_456_600, genesis: 3_456_000, horizon: 3_456_400, blocks: {} })
+    const { logger } = collectingLogger()
+    const s = new Scanner({
+      rpc: node.rpc,
+      logger,
+      networkId: 24,
+      launchHeight: 3_456_190,
+      pollIntervalMs: 1,
+      startBatch: 8, // 3,456,421–3,456,480, above the horizon
+    })
+    await expect(s.tick()).resolves.toBeGreaterThan(0)
+  })
+
+  it('does not refuse a launch height the chain has not reached', async () => {
+    const node = fakeNode({ head: 3_456_600, genesis: 3_456_000, horizon: 3_456_400, blocks: {} })
+    const { scanner: s } = scanner(node, { launchHeight: 3_460_000 })
+    expect(await s.tick()).toBe(0)
   })
 })
 

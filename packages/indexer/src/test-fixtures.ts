@@ -5,7 +5,7 @@
 
 import { BLOCKS_PER_BATCH } from './chain.js'
 import { createLogger, type Logger } from './logger.js'
-import type { RpcBlock, RpcTransaction } from './rpc.js'
+import { RpcError, type RpcBlock, type RpcTransaction } from './rpc.js'
 import type { ScanRpc } from './scan.js'
 
 export const MAINNET = 24
@@ -47,6 +47,12 @@ export interface FakeNodeOptions {
   /** Extra entries the batch call returns that are NOT in any body (rewards). */
   inherents?: readonly RpcTransaction[]
   consensus?: boolean
+  /**
+   * History horizon: the earliest block still held. Below it `getBlockByNumber`
+   * errors the way a pruned node's does, while the batch call keeps answering
+   * `[]` — which is the whole trap.
+   */
+  horizon?: number
 }
 
 export interface FakeNode {
@@ -84,6 +90,10 @@ export function fakeNode(options: FakeNodeOptions): FakeNode {
     },
     getBlockByNumber: async (height: number, includeBody: boolean): Promise<RpcBlock> => {
       ;(includeBody ? calls.blocks : calls.probes).push(height)
+      if ((options.horizon !== undefined && height < options.horizon) || height > head) {
+        // The node's own shape: a flat message, the detail in `data`.
+        throw new RpcError('getBlockByNumber', -32603, 'Internal error', `Block not found: ${height}`)
+      }
       // Every block carries its own batch and type, as the node's do.
       const header = {
         number: height,

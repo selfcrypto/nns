@@ -16,6 +16,7 @@ import { CheckpointBuilder } from './checkpoint.js'
 import { createLogger, type Logger } from './logger.js'
 import { EnvError, loadSettings, type IndexerSettings } from './env.js'
 import { createPool, migrate } from './db.js'
+import { HorizonError } from './horizon.js'
 import { Pipeline } from './pipeline.js'
 import { Progress } from './progress.js'
 import { RpcClient } from './rpc.js'
@@ -150,9 +151,17 @@ function installSignalHandlers(logger: Logger, controller: AbortController): voi
 try {
   await main()
 } catch (error) {
-  // A daemon that cannot reach its database or its node should say so in one
-  // line, not in a driver stack trace.
-  const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
-  process.stderr.write(`indexer: ${message}\n`)
-  process.exitCode = 1
+  // The node not holding LAUNCH_HEIGHT is the same class of problem as a bad
+  // .env — the configuration and the node disagree — so it exits 2 like one,
+  // and its own message already names both heights.
+  if (error instanceof HorizonError) {
+    process.stderr.write(`indexer: ${error.message}\n`)
+    process.exitCode = 2
+  } else {
+    // A daemon that cannot reach its database or its node should say so in one
+    // line, not in a driver stack trace.
+    const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+    process.stderr.write(`indexer: ${message}\n`)
+    process.exitCode = 1
+  }
 }

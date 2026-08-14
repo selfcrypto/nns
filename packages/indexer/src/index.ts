@@ -30,6 +30,16 @@ export {
 export { EnvError, loadSettings, type EnvSource, type IndexerSettings } from './env.js'
 
 export {
+  HorizonError,
+  assertHistoryHorizon,
+  earliestBlockHeld,
+  historyHorizon,
+  holdsBlock,
+  type HorizonCheck,
+  type HorizonRpc,
+} from './horizon.js'
+
+export {
   createLogger,
   isLogLevel,
   type LogFields,
