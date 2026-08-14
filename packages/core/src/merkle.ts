@@ -424,15 +424,60 @@ export function unreservedCommitment(state: NnsState): Uint8Array {
   return keccak_256(concat([u8(TAG.UNRESERVED), ...names.map(lengthPrefixed)]))
 }
 
-export interface Checkpoint {
+/**
+ * The five digests and the height that §8.1's commitment is taken over.
+ *
+ * Named separately from {@link Checkpoint} because a **client** has these and
+ * nothing else: a served `/checkpoints/{height}` document carries the six
+ * values, never the state they were derived from, and §8.5 #3 requires it to
+ * check that the commitment an anchor carries really is the one binding the
+ * `nameRoot` its proof verified against. {@link Checkpoint} satisfies this
+ * shape, so a producer passes its own result straight back in.
+ */
+export interface CheckpointComponents {
   readonly height: number
   readonly nameRoot: Uint8Array
   readonly pricesRoot: Uint8Array
   readonly pendingRoot: Uint8Array
   readonly unreservedRoot: Uint8Array
   readonly logHash: Uint8Array
+}
+
+export interface Checkpoint extends CheckpointComponents {
   /** What an anchor publishes (§9). */
   readonly commitment: Uint8Array
+}
+
+/**
+ * §8.1's commitment, over components rather than over state.
+ *
+ * This is the whole of what §8.1 fixes about the outer digest, and it is the
+ * only place the preimage is written down — {@link checkpoint} derives the
+ * five digests and then calls this, so a producer and a client cannot drift
+ * apart on the concatenation itself.
+ *
+ * A client uses it to close §8.5 #3's chain: recompute the commitment from a
+ * served document's own six fields, require it to equal the `commitment` that
+ * document claims, and only then compare that value with what publishers
+ * anchored. Skipping the recomputation leaves the hole the two-digest
+ * confusion opened — a party can pair a genuinely anchored commitment with any
+ * `nameRoot` it likes, and every check downstream still passes.
+ */
+export function commitmentFrom(components: CheckpointComponents): Uint8Array {
+  const { height, nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash } = components
+  for (const [name, digest] of [
+    ['nameRoot', nameRoot],
+    ['pricesRoot', pricesRoot],
+    ['pendingRoot', pendingRoot],
+    ['unreservedRoot', unreservedRoot],
+    ['logHash', logHash],
+  ] as const) {
+    if (digest.length !== HASH_BYTES) throw new MerkleError(`${name} must be ${HASH_BYTES} bytes`)
+  }
+  if (!Number.isSafeInteger(height) || height < 0) throw new MerkleError(`not a checkpoint height: ${String(height)}`)
+  return keccak_256(
+    concat([u8(TAG.CHECKPOINT), nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash, u64be(height)]),
+  )
 }
 
 /**
@@ -450,12 +495,13 @@ export interface Checkpoint {
  */
 export function checkpoint(state: NnsState, logHash: Uint8Array): Checkpoint {
   if (logHash.length !== HASH_BYTES) throw new MerkleError(`logHash must be ${HASH_BYTES} bytes`)
-  const nameRoot = merkleRoot(state)
-  const pricesRoot = pricesCommitment(state.prices)
-  const pendingRoot = pendingCommitment(state)
-  const unreservedRoot = unreservedCommitment(state)
-  const commitment = keccak_256(
-    concat([u8(TAG.CHECKPOINT), nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash, u64be(state.height)]),
-  )
-  return { height: state.height, nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash, commitment }
+  const components: CheckpointComponents = {
+    height: state.height,
+    nameRoot: merkleRoot(state),
+    pricesRoot: pricesCommitment(state.prices),
+    pendingRoot: pendingCommitment(state),
+    unreservedRoot: unreservedCommitment(state),
+    logHash,
+  }
+  return { ...components, commitment: commitmentFrom(components) }
 }

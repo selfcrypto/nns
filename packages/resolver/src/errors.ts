@@ -9,6 +9,11 @@
  * throws. The second always throws {@link ProofError}.
  */
 
+// Type-only: erased at compile time, so it adds nothing to a bundle and
+// nothing to the reader's import graph (`browser-safety.test.ts` skips
+// `import type` for exactly this reason).
+import type { AnchorCheck } from '@nns/anchor/reader'
+
 export type ResolverErrorCode =
   /** The query is not a valid §4.1 name or §4.4 dotted query. */
   | 'NAME_INVALID'
@@ -26,6 +31,25 @@ export type ResolverErrorCode =
   | 'NOT_FOUND'
   /** The name exists but is in `GRACE`, where §7.3 turns resolution off. */
   | 'IN_GRACE'
+  /**
+   * A resolver's own `/checkpoints/{height}` document contradicts the proof it
+   * served, or itself: its `nameRoot` is not the root the proof verified
+   * against, or §8.1 over its own six components is not the `commitment` it
+   * claims. One party, two states — nothing it serves can be tied to an anchor.
+   */
+  | 'CHECKPOINT_BINDING_INVALID'
+  /**
+   * Listed publishers anchored a different commitment for this checkpoint than
+   * the resolver served (§8.5 #3, #7). The resolver's state is not the state
+   * that was anchored, and §8.5 says stop rather than prefer one.
+   */
+  | 'ANCHOR_MISMATCH'
+  /**
+   * Listed publishers anchored **conflicting** commitments at one height
+   * (§8.5 #7). The parties this client trusts to agree do not, and the client
+   * has no basis to pick between them.
+   */
+  | 'ANCHOR_DIVERGENCE'
   /** A dotted query whose parent is not `REGISTERED` or sets no delegate host (§8.6). */
   | 'PARENT_NOT_DELEGATING'
   /** The delegate host failed, or answered with something that is not §8.6's shape. */
@@ -116,6 +140,35 @@ export class LookupError extends ResolverError {
 
   constructor(code: 'NOT_FOUND' | 'IN_GRACE', message: string) {
     super(code, message)
+  }
+}
+
+/**
+ * §8.5 #1's tier failed hard: the anchored commitment and the served
+ * checkpoint are not the same value, or the listed publishers contradict each
+ * other.
+ *
+ * These halt for the same reason a bad proof does. The tempting alternative is
+ * to report "anchor mismatch" as a warning beside an answer that verified
+ * locally — but a resolver whose checkpoint nobody anchored is either on a
+ * fork or lying, and both are exactly what this tier exists to catch. §8.5 #7
+ * says stop and warn, never silently prefer one.
+ *
+ * The reader's own typed answer rides along as `check` when there was one, so
+ * an app can show which publishers said what.
+ */
+export class AnchorError extends ResolverError {
+  override readonly name = 'AnchorError'
+  /** The `@nns/anchor/reader` verdict behind this failure, when the reader produced one. */
+  readonly check: AnchorCheck | null
+
+  constructor(
+    code: 'CHECKPOINT_BINDING_INVALID' | 'ANCHOR_MISMATCH' | 'ANCHOR_DIVERGENCE',
+    message: string,
+    check: AnchorCheck | null = null,
+  ) {
+    super(code, message)
+    this.check = check
   }
 }
 

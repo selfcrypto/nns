@@ -56,11 +56,37 @@ export type WarningCode =
    */
   | 'DELEGATED_ANSWER'
   /**
-   * §8.5 #1 did not run: no anchor publishers are configured, so the agreed
-   * root was never compared against Ethereum. Present on every result until
-   * the anchor reader ships, so the gap is loud rather than assumed closed.
+   * §8.5 #1 **did not run**, and the result says which of the reasons applies:
+   * no anchor policy is configured, `ANCHOR_PUBLISHERS` is empty (the shipped
+   * default — nothing is deployed), no proof was served so there is no
+   * checkpoint height to ask about, or the serving resolver could not supply
+   * the §8.1 components the anchored commitment has to be tied to.
+   *
+   * It rides on every result in all four cases, because the gap has to stay
+   * loud rather than be assumed closed. What it is *not* is an alarm: nothing
+   * has been found wrong.
    */
   | 'ANCHOR_NOT_CHECKED'
+  /**
+   * The anchor check ran and could not conclude: fewer than two endpoints
+   * answered, or the endpoints disagree about what is on chain. "Couldn't
+   * check", never "checked and agreed" — an absent or contradicted anchor is
+   * never read as confirmation.
+   */
+  | 'ANCHOR_UNAVAILABLE'
+  /**
+   * Fewer than `ANCHOR_QUORUM` listed publishers have anchored this checkpoint
+   * yet. Depth pending in the §8.7 sense, one tier out: the checkpoint is
+   * young, or a publisher is behind. Render as depth, not as alarm.
+   */
+  | 'ANCHOR_QUORUM_NOT_MET'
+  /**
+   * §8.5 #8: the newest anchor is older than `ANCHOR_STALENESS_LIMIT`, or the
+   * scanned window holds none at all. Under §9's on-change cadence an empty
+   * window can mean "nothing changed", and a client cannot tell that from "the
+   * publisher stopped" — so it says so rather than guessing.
+   */
+  | 'ANCHOR_STALE'
 
 export interface ResolveWarning {
   readonly code: WarningCode

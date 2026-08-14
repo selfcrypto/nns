@@ -21,6 +21,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@nns/anchor": "workspace:*",
     "@nns/core": "workspace:*"
   },
   "devDependencies": {

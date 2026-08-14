@@ -12,11 +12,13 @@
 
 import {
   addressFromBytes,
+  commitmentFrom,
   formatAddress,
   merkleNonInclusion,
   merkleProof,
   merkleRoot,
   type Address,
+  type CheckpointComponents,
   type MerkleProof,
   type NameRecord,
 } from '@nns/core'
@@ -84,6 +86,56 @@ export function nonInclusionJson(records: readonly NameRecord[], name: string): 
 }
 
 export const rootHex = (records: readonly NameRecord[]): string => hex0x(merkleRoot(treeOf(records)))
+
+// ── Checkpoint documents, with a commitment that is actually §8.1's ─────────
+
+const filled = (byte: number): Uint8Array => new Uint8Array(32).fill(byte)
+
+/** The five digests and the height of a checkpoint over `records`. */
+export function checkpointComponents(
+  records: readonly NameRecord[],
+  height: number = CHECKPOINT_HEIGHT,
+): CheckpointComponents {
+  return {
+    height,
+    nameRoot: merkleRoot(treeOf(records)),
+    pricesRoot: filled(0x11),
+    pendingRoot: filled(0x22),
+    unreservedRoot: filled(0x33),
+    logHash: filled(0x44),
+  }
+}
+
+/** What listed publishers would have anchored for that checkpoint (§9). */
+export const commitmentOf = (records: readonly NameRecord[], height: number = CHECKPOINT_HEIGHT): string =>
+  hex0x(commitmentFrom(checkpointComponents(records, height)))
+
+/**
+ * A `GET /checkpoints/{height}` body whose `commitment` really is §8.1 over
+ * the five digests beside it — which is the property the anchor check
+ * recomputes, so a fixture that faked it would test nothing.
+ */
+export function checkpointJson(
+  records: readonly NameRecord[],
+  options: { readonly height?: number; readonly overrides?: Record<string, unknown> } = {},
+): Record<string, unknown> {
+  const height = options.height ?? CHECKPOINT_HEIGHT
+  const components = checkpointComponents(records, height)
+  return {
+    checkpoint: {
+      height,
+      layout: 3,
+      nameRoot: hex0x(components.nameRoot),
+      pricesRoot: hex0x(components.pricesRoot),
+      pendingRoot: hex0x(components.pendingRoot),
+      unreservedRoot: hex0x(components.unreservedRoot),
+      logHash: hex0x(components.logHash),
+      commitment: hex0x(commitmentFrom(components)),
+      ...options.overrides,
+    },
+    height,
+  }
+}
 
 /** A `GET /resolve/{name}` body, as `packages/api` serves it. */
 export function resolveJson(

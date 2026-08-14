@@ -19,6 +19,16 @@
 
 import { CONSTANTS, parseQuery, type Address, type NameRecord } from '@nns/core'
 
+import {
+  ANCHORS_NOT_CONFIGURED,
+  anchorSettings,
+  anchorWarnings,
+  checkAnchor,
+  type AnchorPolicy,
+  type AnchorReport,
+  type AnchorSettings,
+} from './anchors.js'
+import { DEFAULT_RESOLVERS } from './defaults.js'
 import { DelegateCache, askDelegate, type DelegateInfo } from './delegate.js'
 import { readAvailableResponse, readErrorCode, readResolveResponse, toHex, type ResolveResponse } from './documents.js'
 import { ConfigurationError, DelegateError, LookupError, NameError, ResolverError } from './errors.js'
@@ -77,6 +87,8 @@ export interface ResolveResult {
   /** Present only for a dotted query (§8.6). */
   readonly delegate: DelegateInfo | null
   readonly quorum: QuorumReport
+  /** What §8.5 #1 concluded about the checkpoint above — or why it did not run. */
+  readonly anchor: AnchorReport
   readonly warnings: readonly ResolveWarning[]
 }
 
@@ -90,14 +102,33 @@ export interface AvailableResult {
   readonly checkpoint: CheckpointRef | null
   readonly height: number
   readonly quorum: QuorumReport
+  /** What §8.5 #1 concluded about the checkpoint above — or why it did not run. */
+  readonly anchor: AnchorReport
   readonly warnings: readonly ResolveWarning[]
 }
 
 // ── Options ─────────────────────────────────────────────────────────────────
 
 export interface ResolverOptions {
-  /** The independent resolvers to query. Must hold at least `quorum` entries. */
-  readonly resolvers: readonly ResolverEndpoint[]
+  /**
+   * The independent resolvers to query. Must hold at least `quorum` entries.
+   *
+   * Defaults to {@link DEFAULT_RESOLVERS}, which is **empty** — no NNS API is
+   * deployed yet — so a host app that omits it gets a {@link ConfigurationError}
+   * naming that fact rather than a resolver that answers from nowhere.
+   */
+  readonly resolvers?: readonly ResolverEndpoint[]
+  /**
+   * §8.5 #1: read §9 anchors and require the checkpoint this answer was proven
+   * against to be the one listed publishers anchored.
+   *
+   * Omitted by default, and **inert even when supplied** until
+   * `ANCHOR_PUBLISHERS` has entries — nothing is deployed, so the shipped list
+   * is empty and every result reports `not-checked`. The rule itself is
+   * `@nns/anchor/reader`'s and exists once; what this package adds is tying the
+   * anchored commitment to the `nameRoot` the proof verified against.
+   */
+  readonly anchors?: AnchorPolicy
   /**
    * How many must agree. Defaults to `CONSTANTS.RESOLVER_QUORUM`.
    *
@@ -115,17 +146,6 @@ export interface ResolverOptions {
   /** Clock for the §8.6 delegate cache. Injectable so cache expiry is testable. */
   readonly now?: () => number
 }
-
-/**
- * §8.5 #1 has not run. No anchor publisher list exists yet, so the agreed
- * root was never compared against Ethereum — which is half of what makes a
- * quorum meaningful. Carried on every result so the gap is visible rather
- * than assumed closed, and removed when the anchor reader ships.
- */
-const ANCHOR_NOT_CHECKED = warn(
-  'ANCHOR_NOT_CHECKED',
-  'no anchor publishers configured: the agreed root was not compared against Ethereum (§8.5 #1, §9)',
-)
 
 // ── Observations ────────────────────────────────────────────────────────────
 
@@ -166,24 +186,28 @@ const provesTheAnswer = (observation: ResolveObservation): boolean =>
 
 export class NnsResolver {
   readonly #policy: QuorumPolicy
+  readonly #anchors: AnchorSettings | null
   readonly #onWarning: ((warning: ResolveWarning) => void) | null
   readonly #cache: DelegateCache
   readonly #belowSpec: ResolveWarning | null
 
   constructor(options: ResolverOptions) {
     const required = options.quorum ?? CONSTANTS.RESOLVER_QUORUM
+    const resolvers = options.resolvers ?? DEFAULT_RESOLVERS
     if (!Number.isSafeInteger(required) || required < 1) {
       throw new ConfigurationError(`quorum must be a positive integer, got ${String(options.quorum)}`)
     }
-    if (options.resolvers.length < required) {
+    if (resolvers.length < required) {
       throw new ConfigurationError(
-        `quorum is ${required} but only ${options.resolvers.length} resolvers are configured — ` +
-          'a quorum that cannot be met is a quorum that is not enforced',
+        `quorum is ${required} but only ${resolvers.length} resolvers are configured — ` +
+          'a quorum that cannot be met is a quorum that is not enforced' +
+          (resolvers.length === 0 ? '. DEFAULT_RESOLVERS is empty: no NNS API is deployed yet, so pass your own' : ''),
       )
     }
 
+    this.#anchors = options.anchors === undefined ? null : anchorSettings(options.anchors)
     this.#policy = {
-      endpoints: options.resolvers,
+      endpoints: resolvers,
       required,
       fetch: options.fetch ?? defaultFetch(),
       timeoutMs: options.timeoutMs ?? 5_000,
@@ -216,6 +240,25 @@ export class NnsResolver {
   #raise(warnings: readonly ResolveWarning[]): readonly ResolveWarning[] {
     if (this.#onWarning !== null) for (const warning of warnings) this.#onWarning(warning)
     return warnings
+  }
+
+  /**
+   * §8.5 #1 for the checkpoint the quorum proved against.
+   *
+   * Runs after agreement and after proof verification, never instead of them:
+   * an anchor says the *checkpoint* is the one publishers attested, and a
+   * proof says the *answer* is in that checkpoint. Neither substitutes for the
+   * other, which is why this sits on `result.anchor` rather than promoting
+   * `verification` to a fourth value — `PROVEN` would otherwise mean something
+   * different depending on a deployment setting.
+   */
+  async #anchorFor<O extends Observation>(agreement: Agreement<O>): Promise<AnchorReport> {
+    if (this.#anchors === null) return ANCHORS_NOT_CONFIGURED
+    return await checkAnchor(
+      { settings: this.#anchors, fetch: this.#policy.fetch, timeoutMs: this.#policy.timeoutMs },
+      agreement.checkpoint,
+      agreement.provenBy,
+    )
   }
 
   /**
@@ -326,6 +369,7 @@ export class NnsResolver {
 
     const first = agreement.witnesses[0]?.observation as AvailableObservation
     const proved = agreement.witnesses.some((witness) => witness.observation.proved)
+    const anchor = await this.#anchorFor(agreement)
     const warnings = [
       ...agreement.warnings,
       ...(this.#belowSpec === null ? [] : [this.#belowSpec]),
@@ -339,7 +383,7 @@ export class NnsResolver {
                 : `unavailability is reported, not proven — "${first.reason ?? 'unknown'}" is state or list data, not a §8.3 proof`,
             ),
           ]),
-      ANCHOR_NOT_CHECKED,
+      ...anchorWarnings(anchor),
     ]
 
     return {
@@ -350,6 +394,7 @@ export class NnsResolver {
       checkpoint: agreement.checkpoint,
       height: Math.min(...agreement.witnesses.map((witness) => (witness.observation as AvailableObservation).height)),
       quorum: this.#report(agreement),
+      anchor,
       warnings: this.#raise(warnings),
     }
   }
@@ -411,6 +456,7 @@ export class NnsResolver {
     }
 
     const live = first.response as ResolveResponse
+    const anchor = await this.#anchorFor(agreement)
     const proven = observations.some(provesTheAnswer)
     // A proof arrived and commits to something else: an `S` landed since the
     // checkpoint. Not an error — but the answer is not the proven one, and
@@ -430,7 +476,7 @@ export class NnsResolver {
               ),
             ]
           : [warn('PROOF_PENDING', `no checkpoint proves "${name}" yet — recently registered, anchor pending (§8.7)`)]),
-      ANCHOR_NOT_CHECKED,
+      ...anchorWarnings(anchor),
     ]
 
     return {
@@ -443,6 +489,7 @@ export class NnsResolver {
       height: Math.min(...observations.map((observation) => (observation.response as ResolveResponse).height)),
       delegate: null,
       quorum: this.#report(agreement),
+      anchor,
       warnings: this.#raise(warnings),
     }
   }

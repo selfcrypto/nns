@@ -60,6 +60,16 @@ export interface Agreement<O extends Observation> {
   readonly queried: number
   /** The deepest checkpoint any witness proved against, `null` when none served a proof. */
   readonly checkpoint: CheckpointRef | null
+  /**
+   * The resolver whose proof {@link checkpoint} came from, `null` when none
+   * served one.
+   *
+   * Carried because §8.5 #3's anchor comparison has to ask **that** party for
+   * the checkpoint's §8.1 components: the commitment an anchor carries is only
+   * evidence about this answer if it is the commitment binding the very
+   * `nameRoot` this party's proof verified against.
+   */
+  readonly provenBy: ResolverEndpoint | null
   readonly warnings: readonly ResolveWarning[]
 }
 
@@ -144,10 +154,12 @@ export async function agree<O extends Observation>(
     )
   }
 
+  const deepest = reconcileRoots(witnesses)
   return {
     witnesses,
     queried: policy.endpoints.length,
-    checkpoint: reconcileRoots(witnesses),
+    checkpoint: deepest === null ? null : (deepest.observation.checkpoint as CheckpointRef),
+    provenBy: deepest === null ? null : deepest.endpoint,
     // A second round-trip, and only when the heights actually differ: the
     // ahead resolvers are asked what they had at the behind one's boundary.
     // This used to be a warning that named the gap; it now closes it.
@@ -176,8 +188,12 @@ function checkpoints<O extends Observation>(witnesses: readonly Witness<O>[]): W
  * Different heights are reconciled separately and asynchronously, by
  * {@link reconcileAcrossHeights} — the ahead party is asked what it had at
  * the behind party's boundary.
+ *
+ * Returns the **witness**, not just its checkpoint: §8.5 #3's anchor
+ * comparison has to go back to the party whose proof was used and ask for that
+ * checkpoint's §8.1 components.
  */
-function reconcileRoots<O extends Observation>(witnesses: readonly Witness<O>[]): CheckpointRef | null {
+function reconcileRoots<O extends Observation>(witnesses: readonly Witness<O>[]): Witness<O> | null {
   const proving = checkpoints(witnesses)
   const deepest = proving[0]
   if (deepest === undefined) return null
@@ -203,7 +219,7 @@ function reconcileRoots<O extends Observation>(witnesses: readonly Witness<O>[])
     }
   }
 
-  return deepest.observation.checkpoint
+  return deepest
 }
 
 /**

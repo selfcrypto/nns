@@ -24,6 +24,23 @@ export {
 
 export { MAX_DELEGATE_TTL_SEC, type DelegateInfo } from './delegate.js'
 
+// §8.5 #1 is `@nns/anchor/reader`'s rule, wired here and not restated. What
+// this package adds is §8.5 #3's binding: the anchored commitment is compared
+// against the checkpoint the proof verified against, recomputed from its own
+// six components through core.
+export {
+  anchorWarnings,
+  type AnchorNotRunReason,
+  type AnchorPolicy,
+  type AnchorReport,
+} from './anchors.js'
+export type { AnchorCheck, AnchorReadRpc } from '@nns/anchor/reader'
+export { createAnchorReadRpc } from '@nns/anchor/reader'
+
+// Both empty: nothing is deployed. Spread them, so the day they have entries
+// an integrator picks those up by upgrading rather than by editing.
+export { DEFAULT_ANCHOR_PUBLISHERS, DEFAULT_RESOLVERS } from './defaults.js'
+
 export type { CheckpointRef } from './quorum.js'
 
 export type { HttpFetch, HttpResponse, ResolverEndpoint } from './transport.js'
@@ -31,6 +48,7 @@ export type { HttpFetch, HttpResponse, ResolverEndpoint } from './transport.js'
 export { warn, type ResolveWarning, type WarningCode } from './warnings.js'
 
 export {
+  AnchorError,
   ConfigurationError,
   DelegateError,
   DocumentError,

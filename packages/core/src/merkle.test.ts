@@ -8,6 +8,7 @@ import {
   MerkleError,
   bytesEqual,
   checkpoint,
+  commitmentFrom,
   compareNames,
   encodeLeaf,
   leafHash,
@@ -383,6 +384,31 @@ describe('checkpoint — §8.1 final clause', () => {
 
   it('rejects a log hash of the wrong length', () => {
     expect(() => checkpoint(initialState(config), new Uint8Array(31))).toThrow(MerkleError)
+  })
+
+  it('is reproducible from the six served components alone — §8.5 #3', () => {
+    // What a client has: a `/checkpoints/{height}` document, and no state.
+    // If this ever stops holding, a client cannot tell whether an anchored
+    // commitment binds the nameRoot its proof verified against.
+    const state = stateWith(record({ name: 'kikename' }), record({ name: 'othername' }))
+    const derived = checkpoint(state, new Uint8Array(HASH_BYTES).fill(7))
+
+    expect(commitmentFrom(derived)).toEqual(derived.commitment)
+
+    // And it is sensitive to every one of them: swapping any single component
+    // must move the value, or the pairing it is supposed to prove is free.
+    for (const field of ['nameRoot', 'pricesRoot', 'pendingRoot', 'unreservedRoot', 'logHash'] as const) {
+      const tampered = { ...derived, [field]: new Uint8Array(HASH_BYTES).fill(9) }
+      expect(bytesEqual(commitmentFrom(tampered), derived.commitment), field).toBe(false)
+    }
+    expect(bytesEqual(commitmentFrom({ ...derived, height: derived.height + 1 }), derived.commitment)).toBe(false)
+  })
+
+  it('rejects components that are not five 32-byte digests at a real height', () => {
+    const good = checkpoint(initialState(config), new Uint8Array(HASH_BYTES))
+    expect(() => commitmentFrom({ ...good, pendingRoot: new Uint8Array(31) })).toThrow(MerkleError)
+    expect(() => commitmentFrom({ ...good, height: -1 })).toThrow(MerkleError)
+    expect(() => commitmentFrom({ ...good, height: 1.5 })).toThrow(MerkleError)
   })
 
   it('is stable across identical states built independently', () => {

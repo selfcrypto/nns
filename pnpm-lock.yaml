@@ -163,6 +163,9 @@ importers:
 
   packages/resolver:
     dependencies:
+      '@nns/anchor':
+        specifier: workspace:*
+        version: link:../anchor
       '@nns/core':
         specifier: workspace:*
         version: link:../core
