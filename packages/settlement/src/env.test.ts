@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { MARKETPLACE, TREASURY, testAddress } from './test-fixtures.js'
-import { loadSettings } from './env.js'
+import { loadLedgerSettings, loadSettings, loadWatcherSettings } from './env.js'
 
 const BASE = {
   NNS_API_URL: 'http://api.test/',
@@ -52,5 +52,33 @@ describe('loadSettings', () => {
   it('an unset reserved list is empty, not absent', () => {
     const settings = loadSettings({ ...BASE, NNS_RESERVED_NAMES: undefined })
     expect([...settings.config.reservedNames]).toEqual([])
+  })
+})
+
+describe('loadLedgerSettings', () => {
+  const LEDGER = { ...BASE, NNS_SETTLEMENT_DATABASE_URL: 'postgres://nns@localhost:5434/nns_settlement' } as const
+
+  it('loads the ledger database, and only the ledger loads it', () => {
+    expect(loadLedgerSettings(LEDGER).databaseUrl).toBe('postgres://nns@localhost:5434/nns_settlement')
+    // The two commands that must keep starting on a box with no database.
+    expect(Object.keys(loadSettings(LEDGER))).not.toContain('databaseUrl')
+    expect(Object.keys(loadWatcherSettings(LEDGER))).not.toContain('databaseUrl')
+  })
+
+  it('requires it — a ledger without a database is not a ledger', () => {
+    expect(() => loadLedgerSettings(BASE)).toThrow(/NNS_SETTLEMENT_DATABASE_URL is required/)
+  })
+
+  // One .env on a box serves several of these processes, and pointing the
+  // ledger at the indexer's database is the one arrangement this package rules
+  // out: that one is a droppable projection of the chain, this one is not.
+  it('refuses the indexer’s own database', () => {
+    expect(() =>
+      loadLedgerSettings({
+        ...BASE,
+        NNS_DATABASE_URL: 'postgres://nns@localhost:5433/nns',
+        NNS_SETTLEMENT_DATABASE_URL: 'postgres://nns@localhost:5433/nns',
+      }),
+    ).toThrow(/its own/)
   })
 })

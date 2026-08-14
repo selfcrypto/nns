@@ -6,20 +6,25 @@
   "description": "Settlement service and its independent reconciler. The reconciler is built first and reads /log only — never this service's database.",
   "license": "MIT",
   "files": [
-    "dist"
+    "dist",
+    "migrations"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.check.json",
     "test": "vitest run",
     "reconcile": "node --env-file=.env dist/reconcile-main.js",
-    "watch": "node --env-file=.env dist/watch-main.js"
+    "watch": "node --env-file=.env dist/watch-main.js",
+    "ledger": "node --env-file=.env dist/ledger-main.js"
   },
   "dependencies": {
-    "@nns/core": "workspace:*"
+    "@nns/core": "workspace:*",
+    "@nns/indexer": "workspace:*",
+    "pg": "catalog:"
   },
   "devDependencies": {
     "@types/node": "catalog:",
+    "@types/pg": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

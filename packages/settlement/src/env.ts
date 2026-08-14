@@ -39,6 +39,22 @@ export interface WatcherSettings extends ReconcilerSettings {
   readonly pollSeconds: number
 }
 
+/**
+ * The ledger's settings: the watcher's, plus its own database.
+ *
+ * **`NNS_SETTLEMENT_DATABASE_URL`, never `NNS_DATABASE_URL`.** The name is
+ * different from the indexer's on purpose: one `.env` on a box serves several of
+ * these processes, and a shared variable name is how a ledger ends up beside the
+ * indexer's tables — the one arrangement `packages/settlement/CLAUDE.md` rules
+ * out. It is loaded here and nowhere near {@link loadSettings}, so `reconcile`
+ * and `watch` keep starting on a box that has no database at all.
+ *
+ * **There is still no key.** That belongs to the issuer, which is not built.
+ */
+export interface LedgerSettings extends WatcherSettings {
+  readonly databaseUrl: string
+}
+
 export type EnvSource = Readonly<Record<string, string | undefined>>
 
 function read(env: EnvSource, key: string): string | undefined {
@@ -127,4 +143,16 @@ export function loadWatcherSettings(env: EnvSource = process.env): WatcherSettin
   const raw = read(env, 'NNS_SETTLEMENT_POLL_SECONDS')
   const pollSeconds = raw === undefined ? DEFAULT_POLL_SECONDS : requiredInteger(env, 'NNS_SETTLEMENT_POLL_SECONDS', 1)
   return Object.freeze({ ...base, pollSeconds })
+}
+
+export function loadLedgerSettings(env: EnvSource = process.env): LedgerSettings {
+  const base = loadWatcherSettings(env)
+  const databaseUrl = required(env, 'NNS_SETTLEMENT_DATABASE_URL')
+  if (read(env, 'NNS_DATABASE_URL') !== undefined && env['NNS_DATABASE_URL'] === databaseUrl) {
+    throw new EnvError(
+      'NNS_SETTLEMENT_DATABASE_URL is the indexer\'s NNS_DATABASE_URL. The ledger records payments that have left a hot key ' +
+        'and cannot be rebuilt from the chain; the indexer\'s database is a projection that is meant to be droppable. Give the ledger its own',
+    )
+  }
+  return Object.freeze({ ...base, databaseUrl })
 }

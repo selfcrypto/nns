@@ -53,6 +53,37 @@ services:
       start_period: 10s
     restart: unless-stopped
 
+  # The settlement ledger's database. **A separate server in a separate
+  # container, not a second database inside `postgres` above.**
+  #
+  # The two hold different kinds of thing. The indexer's database is a
+  # projection of the chain: droppable, and rebuilt from `LAUNCH_HEIGHT` by
+  # anyone — `down -v` on it is a routine step in the determinism runs. The
+  # ledger records transactions that have left the system's only hot key and
+  # cannot be rebuilt from anywhere. Sharing a server would put one `down -v`,
+  # one disk, and one `DROP SCHEMA` between them.
+  #
+  # It has no `depends_on` and nothing depends on it: the issuer's own service
+  # is deliverable 2, and until then `pnpm --filter @nns/settlement ledger`
+  # runs against this from the host.
+  settlement-postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: nns
+      POSTGRES_PASSWORD: ${NNS_SETTLEMENT_POSTGRES_PASSWORD:-nns}
+      POSTGRES_DB: nns_settlement
+    volumes:
+      - settlement-data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:${NNS_SETTLEMENT_POSTGRES_PORT:-5434}:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nns -d nns_settlement']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
   indexer:
     build:
       context: .
@@ -113,3 +144,5 @@ volumes:
   # is the deliberate way to start over — and the way to reproduce the
   # "byte-identical roots from an empty database" check.
   postgres-data:
+  # Never included in that `down -v`: this one cannot be rebuilt from the chain.
+  settlement-data:
