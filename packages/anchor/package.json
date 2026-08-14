@@ -1,0 +1,32 @@
+{
+  "name": "@nns/anchor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "NNS anchor contract (§9): a permissionless, append-only event emitter, and the committed record of its compilation.",
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "contracts",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run",
+    "compile": "pnpm build && node dist/compile-cli.js"
+  },
+  "devDependencies": {
+    "@noble/hashes": "catalog:",
+    "@types/node": "catalog:",
+    "solc": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

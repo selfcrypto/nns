@@ -146,6 +146,58 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > deployed contract — `packages/anchor` is unwritten and nothing is deployed,
 > so the cost is zero today and would not be later.
 
+> **Amended within r17, 2026-08-14 — §9 names its chain, and says what that
+> chain does not give you. No bytes move.** Building `packages/anchor` needed
+> a chain, and §9 offered "a cheap L2 (Base or Arbitrum), monthly to L1
+> mainnet" — a decision deferred by listing options.
+> - **§9 — v1 anchors to Polygon PoS (chain id 137), hourly, and to nothing
+>   else.** Explicitly the PoS chain, not Polygon zkEVM. Chosen because Nimiq
+>   already runs its stablecoin rails there, which makes it the chain the team
+>   and community already operate and makes the most likely first independent
+>   publisher — the Nimiq team — one that already has keys, funding and
+>   monitoring on it. Anchoring is worth what the number of independent
+>   publishers makes it worth (§2.1), so that number is the only thing the
+>   choice should optimise. Base was the alternative and was picked on RPC
+>   availability, which optimises nothing that matters here.
+> - **§9 — monthly Ethereum L1 anchoring is dropped.** A second chain doubles
+>   what every publisher must fund, key and monitor, and it was buying a
+>   data-availability property §9 now declines to claim (below). Adding it
+>   later is a deployment decision, not a revision.
+> - **§9 — a new subsection states that the chain is not a protocol rule.**
+>   Chain id, address and RPC are configuration; the contract is chain-neutral
+>   Solidity and takes one `CREATE2` address anywhere EVM. Written down
+>   explicitly so no later session treats the chain as load-bearing and
+>   "corrects" it back into the protocol.
+> - **§9 — the sidechain tradeoff is stated rather than implied.** Polygon PoS
+>   checkpoints state roots to Ethereum but does not post transaction data
+>   there, so its anchors are **not** reconstructible from L1 the way a
+>   rollup's are. §9 now says so, next to the three things that bound the
+>   cost: the anchor is one tier beside §8.4 replay and §8.2 IPFS publication,
+>   its failure mode is a loud client warning, and it is one config value away
+>   from a different chain. Claiming rollup-grade availability for a sidechain
+>   is exactly the overclaim §2.1 exists to prevent.
+> - **§9 — the injected-provider chain list is withdrawn, not updated.** It
+>   enumerated mainnet, Base, Arbitrum, Optimism, BNB Chain and Sepolia; per
+>   Nimiq's developer documentation the reachable set is whatever their RPC
+>   provider supports, extensible without a client change, and it includes
+>   Polygon PoS. A list in a spec goes stale silently, so §9 states the rule
+>   and tells future editors not to re-add one.
+> - **§8.5 #3, §9 — "root" is disambiguated.** What §9 anchors is the §8.1
+>   **checkpoint commitment**; an inclusion proof verifies against the
+>   **name root**, one of its six components. §8.5 #3 read as though they were
+>   one value. It now specifies both steps — commitment against the anchor,
+>   then proof against that document's `nameRoot` — because checking a proof
+>   against an unverified `nameRoot` establishes only that one party is
+>   internally consistent, which §2.1 says it always is. §9 also states that a
+>   publisher takes the commitment verbatim and never recomputes it.
+> - Headings and cross-references move from "Ethereum anchoring" to **"EVM
+>   anchoring"** (§9, §2, §8.4, §8.5, §8.7, §12, §14), since neither the
+>   anchor chain nor the requirement is Ethereum specific.
+>
+> Nothing here touches the §8.1 preimage, the §8.2 log hash or the event
+> signature. `packages/anchor` deliverable 1 — the contract — lands against
+> this text.
+
 > **Changes in revision 16 — what building the indexer and sending on
 > mainnet found.** Six changes. One moves bytes, three close holes that made
 > a divergence invisible, and two are lessons that cost real transactions to
@@ -494,7 +546,7 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 - [8.7 What gates usability, and what does not](#87-what-gates-usability-and-what-does-not)
 - [8.8 Segments and snapshots](#88-segments-and-snapshots)
 
-**[9. Ethereum anchoring](#9-ethereum-anchoring)**
+**[9. EVM anchoring](#9-evm-anchoring)**
 
 **[10. Economics](#10-economics)**
 
@@ -564,7 +616,7 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 
 | Threat | Mitigation | Residual risk |
 |---|---|---|
-| Indexer operator rewrites the mapping | Merkle inclusion proofs verified client-side; roots anchored on Ethereum | A name newer than the last anchor is trusted until the next checkpoint |
+| Indexer operator rewrites the mapping | Merkle inclusion proofs verified client-side; roots anchored on an EVM chain (§9) | A name newer than the last anchor is trusted until the next checkpoint |
 | **Operator forges a whole state and anchors it** | Not stopped by proofs — a sole publisher's lie is internally consistent. Defeated by independent replay (Tier 3), client quorum (§8.5), and multi-publisher anchoring (§9) | Users of a single resolver with a single anchor publisher are exposed; see §2.1 |
 | Operator refuses to answer for a name (API censorship) | Detectable — the entry is in the published log and any independent resolver answers it | Not preventable; users must switch resolver endpoints |
 | Log-growth spam | **Not mitigated in v1** — only registration is priced (§7.6). Mechanisms designed and deferred (§16.2, §16.3) | Spam scales with names owned (~$200 of names sustains ~6.5 GB/year); visible in the log, and answerable by raising `FEE_LONG` within a week (§10.6) |
@@ -2163,7 +2215,8 @@ operator has an honest-operator assumption, however many proofs it serves.
 
 The mini app MUST:
 
-1. Fetch the latest anchored root from a **public Ethereum RPC**, never from
+1. Fetch the latest anchored root from a **public RPC for the anchor chain
+   (§9)**, never from
    the NNS API — and from at least `ANCHOR_QUORUM` independent publishers
    (§9), treating a mismatch as a hard failure. `anchor()` is permissionless,
    so "publisher" here means an address **on the client's
@@ -2175,7 +2228,18 @@ The mini app MUST:
    party, and a single party's proofs are internally consistent whether or
    not they are honest (§2.1). Two fetches is the entire cost of closing
    that hole, and the resolver list ships with the client
-3. Verify the inclusion proof locally against the agreed root
+3. Verify the inclusion proof locally against the agreed root. **"Root"
+   means two different digests in this list and the client must not conflate
+   them.** What §9 anchors is the §8.1 **checkpoint commitment** — the
+   six-component digest, which is the only value that binds the prices, the
+   pending set, the unreserved set and the log hash as well as the names. An
+   inclusion proof, by contrast, verifies against the **name root**, one of
+   those six components. So the check is in two steps: confirm the
+   checkpoint document's `commitment` equals the anchored value, then verify
+   the proof against that same document's `nameRoot`. Verifying a proof
+   against a `nameRoot` from a document whose `commitment` was never checked
+   proves only that the server is internally consistent, which is precisely
+   what §2.1 says a single party's proofs always are
 4. Resolve normally if the name is at or below `nimiq_height` of the anchor
 5. If newer than the last anchor, label it as *recently registered — anchor
    pending*. This is a **depth indicator, not a warning**: the name
@@ -2257,7 +2321,7 @@ a name works:
 |---|---|---|
 | Finality (`FINALITY_RULE`) | ~minutes, last finalised macro block | **The name is registered and resolves** |
 | Checkpoint (`CHECKPOINT_INTERVAL`) | ~12 min | A Merkle proof exists for it |
-| Anchor (§9) | ~1 h to L2, monthly to L1 | The root is notarised on Ethereum |
+| Anchor (§9) | ~1 h | The root is notarised on the anchor chain (§9) |
 
 **A name is usable at the first clock.** Registration takes effect when the
 transaction is final; the indexer applies it, the resolver answers for it,
@@ -2267,7 +2331,7 @@ part of this specification makes resolution wait for them.
 
 The practical consequence is that a name registered between anchors resolves
 normally and carries a proof against the current checkpoint, with only the
-Ethereum attestation pending. §8.5 requires the client to show that state
+anchor attestation pending. §8.5 requires the client to show that state
 plainly, and to make it read as a depth indicator rather than a problem: a
 user who has just paid for a name should not be told something is wrong
 with it.
@@ -2313,7 +2377,7 @@ its own CID so the compaction itself is checkable.
 
 ---
 
-## 9. Ethereum anchoring
+## 9. EVM anchoring
 
 ```solidity
 event Anchored(
@@ -2326,6 +2390,15 @@ event Anchored(
 function anchor(bytes32 root, uint64 nimiqHeight, bytes32 logDigest)
     external;                    // permissionless — see below
 ```
+
+`root` is the **§8.1 checkpoint commitment** at `nimiqHeight` — the
+six-component digest, not the name root and not any other component. It is
+the only one of the six that binds all of them, and it is the value a client
+compares an anchor against before trusting a proof (§8.5 #3). A publisher
+takes it verbatim from the checkpoint it is anchoring and never recomputes
+it: re-deriving a commitment in a publisher would make the publisher a
+second implementation of §8.1, which is the divergence this whole section
+exists to detect rather than to contain.
 
 `logDigest` is the 32-byte sha2-256 multihash digest of the log snapshot's
 **root CID** — an address, not a hash of the file. It is not the keccak256
@@ -2342,15 +2415,78 @@ evidence for it.
 Events rather than storage — logs live in the receipt trie, are independently
 verifiable, and cost a fraction of an `SSTORE`.
 
-Cadence: **hourly** to a cheap L2 (Base or Arbitrum), monthly to L1
-mainnet. Every root also published to the NNS API and the repo.
+Cadence: **hourly**, to one chain. Every root also published to the NNS API
+and the repo.
 
 An anchor is an event emission of roughly 30k gas — fractions of a cent on
-any supported L2, so hourly costs a publisher a few dollars a year. The
+any cheap EVM chain, so hourly costs a publisher a few dollars a year. The
 cadence is chosen to keep the not-yet-anchored window short (§8.7) rather
-than to save gas. Per-checkpoint anchoring (120 a day) is affordable too,
-but it multiplies the cost and the log-publication churn for every
-independent publisher, which is a bad trade against recruiting them.
+than to save gas. One hour against `ANCHOR_STALENESS_LIMIT`'s two leaves
+exactly one missed anchor of margin before clients warn (§8.5 #8), which is
+the real reason not to stretch it. Per-checkpoint anchoring (120 a day) is
+affordable too, but it multiplies the cost and the log-publication churn for
+every independent publisher, which is a bad trade against recruiting them.
+
+### The chain is a deployment choice, not a protocol rule
+
+**Nothing in this specification depends on which chain the anchor contract
+lives on.** Chain id, contract address and RPC endpoints are client and
+publisher *configuration*; the contract below is plain Solidity with no
+chain-specific opcode, precompile or assumption, and deployed through
+`CREATE2` with a fixed salt it takes the same address on any EVM chain.
+Moving to a different chain, or anchoring to a second one in parallel, is a
+deployment decision and a change to a config value — it needs **no revision
+of this document**. A future reader should treat the chain named below as
+current practice, not as a constant of the protocol.
+
+**v1 launches on Polygon PoS — chain id 137, the PoS chain and not
+Polygon zkEVM.** The reason is not gas and not RPC availability, both of
+which several chains would satisfy. It is that Nimiq already runs its
+stablecoin rails on Polygon PoS, so it is the chain the team and the
+community already operate on, and the most likely first independent
+publisher (§2.1's whole point) is the Nimiq team. A publisher who already
+has keys, funding and monitoring on a chain is a publisher who might
+actually run the cron; one who would have to stand all of that up on a
+chain chosen for its RPC ecosystem probably will not. Anchoring is worth
+exactly as much as the number of independent parties doing it, so the
+chain should be picked to maximise that number and nothing else.
+
+A non-EVM L2 was considered and rejected on cost, not merit: it would
+replace Solidity, the toolchain, the event-signature seam and `eth_getLogs`
+decoding for a contract that is one event and one function.
+
+**What Polygon PoS does not give you, stated plainly.** It is a
+**sidechain, not a rollup**. It checkpoints its state roots to Ethereum but
+does **not** post its transaction data there, so an anchor recorded here is
+*not* reconstructible from L1 data the way a rollup's would be: if the
+Polygon validator set were to withhold or lose history, the anchors are as
+available as that chain and no more. This specification does not claim
+rollup-grade data availability for them, and no client should be written as
+though it had it.
+
+Three things bound what that costs:
+
+1. **The anchor is one tier of three, not the root of trust.** §8.4's Tier 1
+   is replaying the log and deriving the root yourself, which needs no
+   Ethereum access at all; §8.2's IPFS publication makes the evidence for
+   that replay available independently of both the operator and the anchor
+   chain. The anchor adds a timestamped third-party attestation on top. It
+   is the tier that degrades most gracefully, because losing it costs
+   *notarisation*, not verifiability.
+2. **Its failure mode is loud.** A client that cannot read anchors reports
+   the fact (§8.5 #8) rather than silently resolving unverified.
+3. **It is one config value away from a different chain**, per the
+   subsection above — including anchoring to Ethereum L1 as well, should
+   the registry's value ever justify the gas.
+
+Monthly anchoring to Ethereum L1 was specified through r17 and is
+**dropped**. Its purpose was availability that did not depend on an L2, and
+it does not survive contact with the reasoning above: a second chain doubles
+what every independent publisher must fund, key and monitor, which is a
+direct tax on the one number that makes anchoring worth anything. Paying it
+to soften a data-availability property this section now declines to claim is
+the wrong trade at launch. Nothing prevents adding it later; per the
+subsection above, doing so is a deployment decision.
 
 **Anchoring is permissionless.** `anchor()` has no access control: any
 address may call it, and every independent indexer is encouraged to publish
@@ -2406,11 +2542,16 @@ unilaterally. Note that this is now a statement about one entry in
 `ANCHOR_PUBLISHERS`, not about privileged access — under a permissionless
 contract the reference publisher has no power another publisher lacks.
 
-Nimiq Pay injects `window.ethereum` and supports Ethereum mainnet, Base,
-Arbitrum, Optimism, BNB Chain, and Sepolia, so a mini app can read anchors
-through the injected provider with no extra setup. Note that Nimiq Pay
-mediates only wallet requests; other RPC calls go to the host's configured
-endpoint. Because that endpoint is chosen by the host rather than the
+Nimiq Pay injects `window.ethereum`. The earlier enumeration here — mainnet,
+Base, Arbitrum, Optimism, BNB Chain, Sepolia — was a snapshot and is
+**withdrawn**; per Nimiq's developer documentation the reachable set is not
+a fixed list but whatever their RPC provider supports, extensible without a
+client change, and it explicitly includes **Polygon PoS** (where their own
+USDT rails run). Anchors on the chain named above are therefore readable
+through the injected provider with no extra setup. Do not re-add a list
+here: it will be stale again, and §9 does not depend on one. Note that
+Nimiq Pay mediates only wallet requests; other RPC calls go to the host's
+configured endpoint. Because that endpoint is chosen by the host rather than the
 client, the app MUST cross-check the `Anchored` event against at least one
 independent public JSON-RPC endpoint over plain `fetch` and require
 agreement, so no single provider can feed a client a false anchor.
@@ -2661,8 +2802,8 @@ self-proving — the root either matches or it does not, and the publication
 is on-chain.
 
 Note what this is *not* paying for. Anchoring is an event emission of
-roughly 30k gas; on any supported L2 a daily cadence costs a few dollars a
-year. The cost being recognised is **operational attention** — running,
+roughly 30k gas; on the §9 anchor chain an hourly cadence costs a few dollars
+a year. The cost being recognised is **operational attention** — running,
 monitoring and updating a service — not gas. Cost recovery would be
 rounding error, so the stipend should be sized as recognition, alongside
 the non-cash incentives in §15 that do most of the work.
@@ -2792,7 +2933,7 @@ Decisions pending:
 8. Whether the publisher stipend exists in v1 at all (§10.7)
 9. Whether a Nimiq-side log attestation message (an `L` type carrying the
    CID digest) is worth adding, giving a verification path that never
-   touches Ethereum. It duplicates what the anchor already carries, and
+   touches an EVM chain. It duplicates what the anchor already carries, and
    §1's simplicity principle argues against a message type that buys nothing
    new — but it would make the log addressable to a client with no EVM
    access at all
@@ -2828,7 +2969,7 @@ functional on first use, not a prototype.
 4. Mini app UI: register, resolve, send-by-name
 5. `D` and delegated resolution, with the verified/delegated UI distinction
 6. Run-your-own-indexer tutorial, both paths
-7. Ethereum anchoring
+7. EVM anchoring
 8. Marketplace (`O` + `B` + the `M` settlement service)
 
 Step 5 is small in code and large in pitch — it is the piece that makes the

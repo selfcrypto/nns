@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    // Node types are here for `compile.ts` and `compile-cli.ts`, which read
+    // the contract and write the artifact. They are build-time modules and
+    // `index.ts` does not export them — the reader and publisher land in
+    // later deliverables behind their own subpath exports, and the reader's
+    // browser-safety is a `package.json` "exports" question then, not an
+    // argument for keeping `fs` out of the compiler now.
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts"]
+}

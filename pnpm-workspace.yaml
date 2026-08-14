@@ -10,5 +10,10 @@ catalog:
   '@types/pg': ^8.21.0
   '@vitest/coverage-v8': ^4.1.10
   pg: ^8.23.0
+  # Exact, no caret, and deliberately so: solc version is an input to the
+  # bytecode. A floating range would let `pnpm install` change the deployed
+  # contract's CREATE2 address on somebody else's machine, which is the one
+  # thing packages/anchor's committed artifact exists to make impossible.
+  solc: 0.8.30
   typescript: ^7.0.2
   vitest: ^4.1.10
