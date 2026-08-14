@@ -1,6 +1,7 @@
 import { keccak_256 } from '@noble/hashes/sha3.js'
+import { hexToBytes } from '@noble/hashes/utils.js'
 import { describe, expect, it } from 'vitest'
-import { LogError, canonicalLogLine, createLogHasher, logFile, logHash, parseLogLine, verdictToken } from './log.js'
+import { LogError, canonicalLogLine, cidFromDigest, createLogHasher, logFile, logHash, parseLogLine, verdictToken } from './log.js'
 import type { ChainTransaction, Verdict } from './reduce.js'
 import { ALICE, MAINNET_ID, TREASURY } from './test-fixtures.js'
 import { unionMembers } from './vocabulary-fixture.js'
@@ -182,5 +183,32 @@ describe('createLogHasher — the incremental form of the same value', () => {
 
   it('rejects a non-ASCII line, exactly as logFile does', () => {
     expect(() => createLogHasher().append('café')).toThrow(LogError)
+  })
+})
+
+describe('cidFromDigest', () => {
+  // Ground truth is kubo 0.32.1: `ipfs add --only-hash --cid-version=1
+  // --raw-leaves=false --chunker=size-262144 -Q <file>`, cross-checked against
+  // ipfs-unixfs-importer 17.0.1 with §8.2's parameters (identical CIDs, both
+  // cases, 2026-08-14).
+
+  it('rebuilds the CID of the empty log — the first snapshot a publisher could anchor', () => {
+    // The digest is also plain sha2-256 of the canonical empty UnixFS file
+    // block `0a 04 08 02 18 00`, confirmable with sha256sum alone.
+    expect(cidFromDigest(hexToBytes('bfccda787baba32b59c78450ac3d20b633360b43992c77289f9ed46d843561e6'))).toBe(
+      'bafybeif7ztnhq65lumvvtr4ekcwd2ifwgm3awq4zfr3srh462rwyinlb4y',
+    )
+  })
+
+  it('rebuilds the CID of "hello world\\n"', () => {
+    expect(cidFromDigest(hexToBytes('46d44814b9c5af141c3aaab7c05dc5e844ead5f91f12858b021eba45768b4c0e'))).toBe(
+      'bafybeicg2rebjoofv4kbyovkw7af3rpiitvnl6i7ckcywaq6xjcxnc2mby',
+    )
+  })
+
+  it('refuses any digest that is not 32 bytes', () => {
+    expect(() => cidFromDigest(new Uint8Array(31))).toThrow(LogError)
+    expect(() => cidFromDigest(new Uint8Array(33))).toThrow(LogError)
+    expect(() => cidFromDigest(new Uint8Array(0))).toThrow(LogError)
   })
 })

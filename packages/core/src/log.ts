@@ -222,3 +222,39 @@ export function createLogHasher(): LogHasher {
     digest: (): Uint8Array => sponge.clone().digest(),
   }
 }
+
+/** CIDv1, dag-pb, sha2-256, 32-byte digest — §8.2's fixed prefix. */
+const CID_PREFIX = [0x01, 0x70, 0x12, 0x20]
+/** RFC 4648 base32, lowercase, unpadded — multibase prefix `b`. */
+const BASE32 = 'abcdefghijklmnopqrstuvwxyz234567'
+
+/**
+ * The log snapshot's CID **string**, rebuilt from the 32-byte multihash digest
+ * the `Anchored` event carries (§9 `logDigest`). Every other component is a
+ * constant of §8.2, so the digest determines the CID.
+ *
+ * This is the repo's only CID computation, deliberately. Deriving a CID from
+ * log *bytes* is UnixFS/dag-pb work done by whatever performs the IPFS add;
+ * a client verifies fetched bytes with keccak256 against the committed log
+ * hash, and IPFS itself refuses to serve content that does not match its CID.
+ * See "The CID is a locator, not a verifier" in `docs/decisions.md`.
+ *
+ * @throws {LogError} unless the digest is exactly 32 bytes.
+ */
+export function cidFromDigest(digest: Uint8Array): string {
+  if (digest.length !== 32) throw new LogError(`a §9 logDigest is 32 bytes, got ${digest.length}`)
+  const bytes = Uint8Array.from([...CID_PREFIX, ...digest])
+  let out = 'b'
+  let value = 0
+  let bits = 0
+  for (const byte of bytes) {
+    value = (value << 8) | byte
+    bits += 8
+    while (bits >= 5) {
+      bits -= 5
+      out += BASE32.charAt((value >>> bits) & 31)
+    }
+  }
+  if (bits > 0) out += BASE32.charAt((value << (5 - bits)) & 31)
+  return out
+}

@@ -132,6 +132,7 @@ export {
 export {
   LogError,
   canonicalLogLine,
+  cidFromDigest,
   createLogHasher,
   logFile,
   logHash,

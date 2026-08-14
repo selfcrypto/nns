@@ -198,6 +198,25 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > signature. `packages/anchor` deliverable 1 — the contract — lands against
 > this text.
 
+> **Amended within r17, 2026-08-14 — the CID is a locator, not a verifier.
+> No bytes move.** §8.2 and §8.4 read as though clients re-derive the root
+> CID from fetched bytes as a verification step. They do not, and nothing
+> needs them to: integrity rests on the keccak256 `log_hash` committed inside
+> the anchored checkpoint, and the IPFS transport itself refuses content that
+> does not match the CID it was asked for. The DAG parameter table stays
+> normative as the flag set the *producer* — the party doing the add — must
+> use (with a note that kubo's `--cid-version=1` flips raw leaves on by
+> default, so `--raw-leaves=false` must be explicit), and the only CID
+> computation a client performs is rebuilding the CID **string** from the
+> event's 32-byte digest, every other component being a constant of §8.2. A
+> wrong CID in an anchor costs discoverability, never integrity, and the
+> mitigation is operational: a publisher adds each snapshot through two
+> independent implementations and anchors only when the CIDs agree. This
+> cancels the planned UnixFS/dag-pb derivation in `core` — reimplementing
+> the reference implementation in order to check the reference
+> implementation is inverted. See "The CID is a locator, not a verifier" in
+> `docs/decisions.md`.
+
 > **Changes in revision 16 — what building the indexer and sending on
 > mainnet found.** Six changes. One moves bytes, three close holes that made
 > a divergence invisible, and two are lessons that cost real transactions to
@@ -2091,11 +2110,13 @@ verification began by downloading the log from the very party being checked;
 now anyone can fetch it from any node or gateway, and third parties can pin
 their own copies.
 
-**The DAG parameters are normative.** A log snapshot is a **UnixFS file**
-with a **dag-pb** root, **CIDv1**, **sha2-256**. A multi-megabyte file is not
-one block, so its root hash is over DAG structure rather than over the file
-bytes, and every parameter that shapes the DAG changes the root CID. All of
-them are therefore pinned here:
+**The DAG parameters are normative — and they bind the party doing the
+add.** A log snapshot is a **UnixFS file** with a **dag-pb** root, **CIDv1**,
+**sha2-256**. A multi-megabyte file is not one block, so its root hash is
+over DAG structure rather than over the file bytes, and every parameter that
+shapes the DAG changes the root CID. The table is the flag set every
+publisher and pinner MUST use, pinned so that independent parties adding the
+same bytes mint the same CID:
 
 | Parameter | Value |
 |---|---|
@@ -2115,7 +2136,9 @@ them are therefore pinned here:
   which is exactly what a client reconstructing a CID from a bare digest
   cannot know. With raw leaves off, every snapshot — the first one after
   launch and a full segment alike — has a `dag-pb` root, and the codec is a
-  constant of this spec
+  constant of this spec. Note that **kubo turns raw leaves on by default the
+  moment `--cid-version=1` is given**, so a conforming add passes
+  `--raw-leaves=false` explicitly rather than relying on any default
 - On the wire, the root CID's **32-byte multihash digest as base64url — 43
   characters**. Everything else is fixed above, so a client rebuilds the full
   CID as CIDv1 + `0x70` + `0x12` + `0x20` + digest. A base32 CIDv1 would be
@@ -2124,11 +2147,25 @@ them are therefore pinned here:
 - **Never a URL, and never a shortener.** A shortener is a mutable
   indirection controlled by somebody, which destroys exactly the property
   content addressing provides
-- Clients MUST NOT trust a gateway to have served the right content. Because
-  the table above is pinned, re-deriving the root CID from the fetched bytes
-  is deterministic and is the cheap check. The binding one is stronger and
-  costs nothing extra: replaying the fetched log derives the checkpoint, and
-  a gateway that altered a byte cannot produce the anchored root (§8.4)
+- Clients MUST NOT trust a gateway to have served the right content, and
+  the check is keccak256: hash the fetched bytes and compare against the
+  `log_hash` committed inside the anchored checkpoint. The binding check
+  costs nothing extra on top: replaying the fetched log derives the
+  checkpoint, and a gateway that altered a byte cannot produce the anchored
+  root (§8.4). **No client re-derives the root CID from fetched bytes** —
+  the CID is a locator, not a verifier; IPFS itself refuses to serve content
+  that does not match the CID it was asked for, and the only CID computation
+  a client performs is rebuilding the CID *string* from the event's digest,
+  above
+
+**Only the producer of a snapshot ever derives a CID from bytes**, and it
+does so by running a reference implementation of the table — kubo, or a
+pinning service's importer — never by reimplementing UnixFS. A wrong CID in
+an anchor costs discoverability, not integrity: the event points at nothing
+fetchable, but the anchored commitment still binds the log hash, and any
+copy of the bytes still verifies against it. The mitigation is therefore
+operational — a publisher adds the snapshot through **two independent
+implementations** and requires equal CIDs before anchoring the digest.
 
 Published once per anchor (hourly, §9) rather than once per checkpoint —
 120 CIDs a day would be noise, and the unchanged prefix dedupes anyway.
@@ -2189,9 +2226,10 @@ not-`REGISTERED`.
 anchor (§8.2), replay it with the reference implementation, and compare the
 derived checkpoint to the anchored root. The comparison is what verifies the
 bytes: the log hash is committed inside the checkpoint, so a gateway that
-served altered bytes cannot reach the anchored root. Re-deriving the CID from
-the fetched bytes (§8.2) is a cheaper early check on the same thing, not a
-second guarantee. Catches any manipulation of state or rules — and since r11
+served altered bytes cannot reach the anchored root. Keccak256 of the fetched
+bytes against the committed log hash is a cheaper early check on the same
+thing, not a second guarantee; no tier re-derives the CID from the bytes
+(§8.2). Catches any manipulation of state or rules — and since r11
 the fetch does not route through the operator, so the cheapest tier no longer
 depends on the party being checked.
 
