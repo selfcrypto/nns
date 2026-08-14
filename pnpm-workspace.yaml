@@ -16,4 +16,11 @@ catalog:
   # thing packages/anchor's committed artifact exists to make impossible.
   solc: 0.8.30
   typescript: ^7.0.2
+  # EVM transaction signing only — see packages/anchor/src/viem-rpc.ts. Reads
+  # go through plain JSON-RPC over fetch; what is not worth hand-rolling under
+  # a real deploy key is secp256k1 + RLP + the EIP-1559 envelope.
+  viem: ^2.55.15
   vitest: ^4.1.10
+
+minimumReleaseAgeExclude:
+  - viem@2.55.15
