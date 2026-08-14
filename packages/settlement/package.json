@@ -12,7 +12,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.check.json",
     "test": "vitest run",
-    "reconcile": "node --env-file=.env dist/reconcile-main.js"
+    "reconcile": "node --env-file=.env dist/reconcile-main.js",
+    "watch": "node --env-file=.env dist/watch-main.js"
   },
   "dependencies": {
     "@nns/core": "workspace:*"

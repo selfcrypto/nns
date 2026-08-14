@@ -27,6 +27,18 @@ export interface ReconcilerSettings {
   readonly apiUrl: string
 }
 
+/**
+ * The watcher's settings: the reconciler's, plus how often to look.
+ *
+ * Still **no database URL and no key** — the watcher holds neither, and will
+ * not until the issuer and the ledger exist. Sharing one settings loader is
+ * what keeps that true by inspection rather than by intention.
+ */
+export interface WatcherSettings extends ReconcilerSettings {
+  /** Seconds between polls. */
+  readonly pollSeconds: number
+}
+
 export type EnvSource = Readonly<Record<string, string | undefined>>
 
 function read(env: EnvSource, key: string): string | undefined {
@@ -97,4 +109,22 @@ export function loadSettings(env: EnvSource = process.env): ReconcilerSettings {
   }
 
   return Object.freeze({ config, apiUrl })
+}
+
+/**
+ * Default poll interval, seconds.
+ *
+ * A quarter of `CHECKPOINT_INTERVAL` at ~1 s blocks. `/log` only changes at a
+ * checkpoint boundary, so polling faster buys nothing but requests — and the
+ * poll is a cheap `/checkpoints/latest` that refetches the file only when the
+ * height moves, so overshooting the boundary costs a few minutes of latency and
+ * nothing else.
+ */
+export const DEFAULT_POLL_SECONDS = 180
+
+export function loadWatcherSettings(env: EnvSource = process.env): WatcherSettings {
+  const base = loadSettings(env)
+  const raw = read(env, 'NNS_SETTLEMENT_POLL_SECONDS')
+  const pollSeconds = raw === undefined ? DEFAULT_POLL_SECONDS : requiredInteger(env, 'NNS_SETTLEMENT_POLL_SECONDS', 1)
+  return Object.freeze({ ...base, pollSeconds })
 }

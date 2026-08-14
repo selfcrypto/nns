@@ -114,6 +114,55 @@ async function getJson(fetcher: Fetcher, url: string): Promise<unknown> {
   }
 }
 
+/** What `/checkpoints/latest` is asked for here: which log, and through where. */
+export interface LatestCheckpoint {
+  readonly height: number
+  /** Bare lowercase hex, no `0x`. The `log_hash` component of the §8.1 commitment. */
+  readonly logHash: string
+}
+
+/**
+ * The newest checkpoint the server has, or `null` if it has none.
+ *
+ * A cheap poll: `/log` is served **through** the latest checkpoint, so its
+ * contents cannot change while this pair does not, and a caller that asks this
+ * first refetches the whole file only when there is something new in it.
+ *
+ * The hash is fetched alongside the height rather than the height alone,
+ * because a server that changes its log **without** advancing its checkpoint is
+ * exactly the case a height comparison cannot see, and skipping the refetch on
+ * an unmoved height would make that case invisible for free.
+ *
+ * `404 NO_CHECKPOINT` is a real state, not a failure — an indexer that has not
+ * reached its first boundary yet — so it comes back as `null` rather than as a
+ * throw. Every other non-200 does throw: a 503 `NOT_SYNCED` looks exactly like
+ * "no news" from here, and treating it as such would let a watcher sit quiet
+ * against a server that is not answering.
+ */
+export async function fetchLatestCheckpoint(baseUrl: string, fetcher: Fetcher): Promise<LatestCheckpoint | null> {
+  const url = `${baseUrl.replace(/\/+$/, '')}/checkpoints/latest`
+  const response = await get(fetcher, url)
+  const body = await response.text()
+  if (response.status === 404 && body.includes('NO_CHECKPOINT')) return null
+  if (!response.ok) throw new SourceError(`GET ${url} returned ${response.status}: ${body.slice(0, 200)}`)
+
+  let document: unknown
+  try {
+    document = JSON.parse(body) as unknown
+  } catch {
+    throw new SourceError(`GET ${url} did not return JSON`)
+  }
+  const checkpoint = (document as { checkpoint?: { height?: unknown; logHash?: unknown } }).checkpoint
+  const height = checkpoint?.height
+  if (typeof height !== 'number' || !Number.isInteger(height) || height < 0) {
+    throw new SourceError(`${url} carried no checkpoint.height: ${JSON.stringify(height)}`)
+  }
+  if (typeof checkpoint?.logHash !== 'string') {
+    throw new SourceError(`${url} carried no checkpoint.logHash`)
+  }
+  return Object.freeze({ height, logHash: digest(checkpoint.logHash, `${url} checkpoint.logHash`) })
+}
+
 /**
  * Fetch, verify, and return the log.
  *
