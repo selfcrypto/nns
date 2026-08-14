@@ -86,6 +86,66 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > network's 64-byte data cap equals the §5.1 budget, so the token stays in
 > the vocabulary but can never appear in a real log.
 
+> **Amended within r17, 2026-08-14 — §8.3's proof document was missing a
+> leaf field. No bytes move.** The example document had no `recovery`, but
+> the §8.1 leaf *encodes* the recovery address, so a client following §8.5 —
+> which rebuilds the leaf preimage from the document's fields and recombines
+> it with the proof — could not build the preimage for any record with a
+> recovery address set. The document was unverifiable exactly where it
+> mattered, and a verifier that checks a hash it was handed instead of one it
+> rebuilt is verifying nothing about the fields beside it. The example now
+> carries `"recovery": null`, and a paragraph states the rule the example was
+> only ever implying: **a proof document carries every field the §8.1 leaf
+> encodes.** Nothing about the leaf preimage, the tree or the commitment
+> changed — this is the wire format catching up with §8.1, which is why it is
+> an amendment and not a revision. Found by `packages/api` when its first
+> verification test tried to rebuild a leaf; the served documents,
+> `openapi.yaml` and a test that strips `recovery` and expects verification
+> to fail all followed the same day.
+
+> **Amended within r17, 2026-08-14 — §9 anchoring is permissionless, and the
+> allowlist was two contracts at once. No bytes move.** §9 described two
+> incompatible designs: `anchor()` was `onlyPublisher` and callable "by any
+> registered publisher" — a contract-level allowlist — while the same section
+> called `ANCHOR_PUBLISHERS` a client-side list and not a protocol constant,
+> and §10.7 said publisher admission was by allowlist. Resolved **in favour
+> of permissionless**, which is also what r9 introduced multi-publisher
+> anchoring as ("any indexer may anchor its own root"); `onlyPublisher` was
+> the later inconsistency.
+> - **§9 — `anchor()` loses `onlyPublisher` and takes no access control.**
+>   With no publisher registry the contract needs no owner, no admin function
+>   and no upgrade path: it is an append-only event emitter with one external
+>   function. §2.1's trust signal is that *independent* parties agree, and a
+>   contract-level allowlist would hand the operator the power to exclude a
+>   dissenting publisher — silencing the disagreement anchoring exists to
+>   expose — while buying nothing, since the same operator ships the client
+>   that holds the list either way (§2.2).
+> - **§9 — the `Anchored` event gains `address indexed publisher`,
+>   `msg.sender`.** This closes a contradiction recorded but not amended
+>   during the resolver session: §9's prose said the event carried the
+>   publisher and its Solidity signature did not, which cost a client an
+>   `eth_getTransactionByHash` per anchor to learn who published it. `root`
+>   and `publisher` are both `indexed` so a permissionless contract's spam
+>   costs a client nothing — junk roots never match the topic filter.
+>   `nimiqHeight` stays unindexed: the client knows the height it is asking
+>   about and MUST check the field against it.
+> - **§8.5 #1 — "publisher" is now defined as an address on the client's
+>   `ANCHOR_PUBLISHERS` list.** Required by the change above: with anyone able
+>   to emit an anchor, an undefined "`ANCHOR_QUORUM` independent publishers"
+>   would be satisfiable by two addresses an attacker created. Unknown
+>   publishers are ignored — not counted, and not a mismatch either.
+> - **§10.7 — the stipend roster is treasury policy, not contract
+>   permission.** The free-riding mitigation is unchanged in substance and
+>   only ever needed to be a payment decision: an allowlist never excluded a
+>   mirroring free-rider anyway, since qualifying for the stipend makes them a
+>   known party by construction. Not paying someone is unilateral and
+>   reversible; excluding them from the contract is neither.
+>
+> Nothing here enters the §8.1 preimage or the §8.2 log hash. The event's
+> signature hash changes, which would be a breaking ABI change against a
+> deployed contract — `packages/anchor` is unwritten and nothing is deployed,
+> so the cost is zero today and would not be later.
+
 > **Changes in revision 16 — what building the indexer and sending on
 > mainnet found.** Six changes. One moves bytes, three close holes that made
 > a divergence invisible, and two are lessons that cost real transactions to
@@ -2105,7 +2165,10 @@ The mini app MUST:
 
 1. Fetch the latest anchored root from a **public Ethereum RPC**, never from
    the NNS API — and from at least `ANCHOR_QUORUM` independent publishers
-   (§9), treating a mismatch as a hard failure
+   (§9), treating a mismatch as a hard failure. `anchor()` is permissionless,
+   so "publisher" here means an address **on the client's
+   `ANCHOR_PUBLISHERS` list**: anchors from unknown addresses are ignored,
+   never counted toward the quorum, and never treated as a mismatch
 2. **Query at least `RESOLVER_QUORUM` independent resolvers** and compare
    both the root and the resolved answer. If they disagree, stop and warn —
    never silently prefer one. One resolver plus one anchor publisher is one
@@ -2255,12 +2318,13 @@ its own CID so the compaction itself is checkable.
 ```solidity
 event Anchored(
     bytes32 indexed root,
+    address indexed publisher,   // msg.sender
     uint64  nimiqHeight,
     uint64  timestamp,
     bytes32 logDigest      // multihash digest of the log snapshot's CID (§8.2)
 );
 function anchor(bytes32 root, uint64 nimiqHeight, bytes32 logDigest)
-    external onlyPublisher;
+    external;                    // permissionless — see below
 ```
 
 `logDigest` is the 32-byte sha2-256 multihash digest of the log snapshot's
@@ -2288,13 +2352,46 @@ than to save gas. Per-checkpoint anchoring (120 a day) is affordable too,
 but it multiplies the cost and the log-publication churn for every
 independent publisher, which is a bad trade against recruiting them.
 
-**Anchoring is not exclusive.** `anchor()` is callable by any registered
-publisher, and every independent indexer is encouraged to publish its own
-root for the same Nimiq height. The `Anchored` event carries the publisher
-address, so clients can group roots by height and check that at least
-`ANCHOR_QUORUM` *independent* publishers agree. A single publisher's anchor
-proves only that they said it (§2.1); matching roots from parties with no
-reason to collude are the actual trust signal.
+**Anchoring is permissionless.** `anchor()` has no access control: any
+address may call it, and every independent indexer is encouraged to publish
+its own root for the same Nimiq height. The contract records who called by
+emitting `msg.sender` as the `publisher` field, and **that is the only thing
+it does about identity** — it does not decide who counts. There is no
+publisher registry, no `onlyPublisher` modifier, and consequently no owner,
+no admin function, and no upgrade path: the contract is a deployed
+append-only event emitter with a single external function.
+
+**Who counts is decided entirely on the client.** `ANCHOR_PUBLISHERS` is a
+**client-side list**, not a protocol constant and not contract state —
+shipped with `packages/resolver` and extended as independent indexers come
+online. A client fetches the anchors for a root, keeps the ones whose
+`publisher` is on its list, and requires at least `ANCHOR_QUORUM` distinct
+survivors (§8.5 #1). An anchor from an address the client does not know is
+not invalid; it is simply not counted.
+
+Why the allowlist is not in the contract, given §2. The trust signal is that
+**independent parties agree** (§2.1) — a single publisher's anchor proves
+only that they said it. A contract-level allowlist would put the operator in
+charge of who is allowed to be one of those parties, which converts "several
+independent parties agree" into "several parties the operator admitted
+agree", and an operator who can exclude a dissenting publisher can silence
+exactly the disagreement anchoring exists to expose. Nothing is gained in
+exchange: the same operator ships the client, so an on-chain allowlist would
+not even reduce the client-delivery exposure §2.2 already bounds — it would
+add a second lever to the same hand. Between two lists controlled by the
+operator, the honest choice is the one that is visibly a client-side default
+the user's client can override, not one that looks like a protocol rule.
+
+**Spam is a client-side non-problem, which is what the indexed fields are
+for.** A permissionless `anchor()` lets anyone emit anything, so the event
+must be cheap to filter without trusting the emitter. `root` and `publisher`
+are both `indexed`: the client's primary query is "anchors for *this* root",
+a topic filter that a junk root never appears in, and the secondary filter is
+by publisher address, also a topic. Garbage anchors therefore cost a client
+no bandwidth and no parsing — only the spammer's gas. `nimiqHeight` stays
+unindexed deliberately: the client already knows which height it is asking
+about and MUST check the field against it, so indexing it would spend the
+third topic on a query nobody makes.
 
 Because each publisher anchors its **own** log digest as well as its own
 root, two publishers that disagree have both published the evidence for
@@ -2302,12 +2399,12 @@ their disagreement. Anyone can fetch both logs and diff them, turning
 "someone deviated" into "here is the transaction they handled differently" —
 without either party's cooperation.
 
-`ANCHOR_PUBLISHERS` is therefore a **client-side list**, not a protocol
-constant — shipped with the resolver package, and extended as independent
-indexers come online. The reference publisher key SHOULD be a multisig, and
-handing a signer to the Nimiq team or another ecosystem party is the
-cheapest available reduction in operator trust: it removes the project's
-ability to anchor unilaterally.
+The reference publisher key SHOULD be a multisig, and handing a signer to
+the Nimiq team or another ecosystem party is the cheapest available
+reduction in operator trust: it removes the project's ability to anchor
+unilaterally. Note that this is now a statement about one entry in
+`ANCHOR_PUBLISHERS`, not about privileged access — under a permissionless
+contract the reference publisher has no power another publisher lacks.
 
 Nimiq Pay injects `window.ethereum` and supports Ethereum mainnet, Base,
 Arbitrum, Optimism, BNB Chain, and Sepolia, so a mini app can read anchors
@@ -2573,9 +2670,23 @@ the non-cash incentives in §15 that do most of the work.
 The honest weakness: paying for *agreement* invites free-riding, since an
 operator can mirror the published root without replaying anything and still
 qualify. There is no clean cryptographic fix. The practical mitigation is
-that publisher admission is by allowlist and by known parties — the Nimiq
-team, validators, exchanges — whose reputation is the stake. **OPEN:** the
-stipend amount, and whether it should exist at all in v1.
+that **the stipend is paid to a roster of known parties** — the Nimiq team,
+validators, exchanges — whose reputation is the stake, and admission to that
+roster is by application and review.
+
+That roster is a **treasury programme, not a contract permission**, and the
+distinction is load-bearing. §9's `anchor()` is permissionless: anyone may
+publish a root, nobody needs admission to do it, and a client's
+`ANCHOR_PUBLISHERS` list decides whose anchors it counts. Being paid is a
+third thing again, decided by whoever holds the treasury. Enforcing the
+anti-free-riding rule in Solidity would have meant an on-chain allowlist,
+which buys nothing here — a mirroring free-rider is a *known party* by
+construction, so an allowlist never excluded them anyway — while costing the
+property §9 depends on, that no one party controls who is allowed to
+disagree. Paying an unwanted publisher nothing is a decision the treasury can
+take unilaterally at any time; excluding them from the contract is not, and
+should not be. **OPEN:** the stipend amount, and whether it should exist at
+all in v1.
 
 ---
 
