@@ -1,0 +1,25 @@
+{
+  "name": "@nns/settlement",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Settlement service and its independent reconciler. The reconciler is built first and reads /log only — never this service's database.",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run",
+    "reconcile": "node --env-file=.env dist/reconcile-main.js"
+  },
+  "dependencies": {
+    "@nns/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
