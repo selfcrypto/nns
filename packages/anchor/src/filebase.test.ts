@@ -1,10 +1,16 @@
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 import { describe, expect, it } from 'vitest'
-import { createFilebaseAdd, signV4, type FilebaseEndpoint } from './filebase.js'
+import { canonicalCid, createFilebaseAdd, signV4, type FilebaseEndpoint } from './filebase.js'
 import { IpfsError } from './ipfs.js'
 
 const CID = 'bafybeicg2rebjoofv4kbyovkw7af3rpiitvnl6i7ckcywaq6xjcxnc2mby'
+/**
+ * The same DAG in the spelling the live service actually answers with,
+ * measured 2026-08-14 for these exact bytes. Every fake response below uses
+ * it, so the suite exercises the real shape rather than a convenient one.
+ */
+const CID_V0 = 'QmT78zSuBmuS4z925WZfrqQ1qHaJ56DQaTfyMUF7F8ff5o'
 const BODY = utf8ToBytes('hello world\n')
 const BODY_HASH = 'a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447'
 
@@ -48,7 +54,7 @@ function capture(
   }
 }
 
-const ok = () => new Response('', { status: 200, headers: { 'x-amz-meta-cid': CID } })
+const ok = () => new Response('', { status: 200, headers: { 'x-amz-meta-cid': CID_V0 } })
 const deleted = () => new Response(null, { status: 204 })
 
 describe('signV4', () => {
@@ -100,7 +106,7 @@ describe('signV4', () => {
 })
 
 describe('createFilebaseAdd', () => {
-  it('PUTs to a content-derived key and returns the CID Filebase reports', async () => {
+  it('PUTs to a content-derived key and returns the reported CID in §8.2 form', async () => {
     const { fetch, calls } = capture(ok)
     const add = createFilebaseAdd(ENDPOINT, fetch, CLOCK)
 
@@ -164,5 +170,36 @@ describe('createFilebaseAdd', () => {
       CLOCK,
     )
     await expect(badCleanup.add(BODY, { pin: false })).rejects.toThrow(IpfsError)
+  })
+})
+
+describe('canonicalCid', () => {
+  // Filebase answers in CIDv0 and kubo in CIDv1, and `publish.ts` compares the
+  // two strings for equality — so without this normalisation the §8.2
+  // agreement gate hard-stops on every run over content the two services
+  // actually agree about. Measured against the live service on 2026-08-14,
+  // the first credentialed use in this project's history.
+
+  it('re-spells the CIDv0 the live service answers with as §8.2\'s CIDv1 base32', () => {
+    // Both sides are inline literals: the v0 is what Filebase returned for
+    // `hello world\n`, the v1 is what kubo 0.32.1 mints for the same bytes
+    // under §8.2's flags and what `core`'s own vector pins.
+    expect(canonicalCid(CID_V0, 'filebase')).toBe(CID)
+  })
+
+  it('passes a CIDv1 through untouched, so a v1-reporting service needs no change', () => {
+    expect(canonicalCid(CID, 'filebase')).toBe(CID)
+  })
+
+  it('refuses a spelling it is neither told nor able to read, rather than guessing', () => {
+    // An unreadable CID must not reach the agreement comparison, where it
+    // would masquerade as the two services disagreeing about the bytes.
+    for (const bad of ['', 'Qm', 'zdj7WgYfWTGPz2W3v9M9Xm1234567890abcdefghijklmn', `Qm0${CID_V0.slice(3)}`]) {
+      expect(() => canonicalCid(bad, 'filebase')).toThrow(IpfsError)
+    }
+  })
+
+  it('names the service in the refusal, since two implementations report here', () => {
+    expect(() => canonicalCid('nonsense', 'filebase')).toThrow(/^filebase: /)
   })
 })

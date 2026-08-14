@@ -11,6 +11,21 @@
  * hard-stops. Nothing Filebase-specific exists outside this module;
  * swapping the second implementation is an environment change alone.
  *
+ * **Filebase answers in CIDv0, and that is a spelling, not a disagreement**
+ * (measured against the live service 2026-08-14, the first credentialed run).
+ * For `hello world\n` it returns `QmT78zSuBmuS4z925WZfrqQ1qHaJ56DQaTfyMUF7F8ff5o`
+ * where kubo under §8.2's flags returns
+ * `bafybeicg2rebjoofv4kbyovkw7af3rpiitvnl6i7ckcywaq6xjcxnc2mby` — the same
+ * dag-pb DAG and the same sha2-256 multihash, so its importer *does* match
+ * §8.2's parameter table (raw leaves off above all). CIDv0 has no version or
+ * codec byte and only one legal spelling, which is why the two forms carry
+ * identical information. This edge therefore normalises v0 into §8.2's
+ * canonical CIDv1 base32 **before returning**, so `publish.ts` keeps
+ * comparing two canonical strings and "both implementations agreed on one
+ * §8.2 CID" stays literally true. The canonical form is rebuilt with
+ * `core.cidFromDigest` rather than assembled here: the CID string format has
+ * one implementation, and it is not this file.
+ *
  * The request signing is AWS SigV4 (region `us-east-1`, service `s3`,
  * path-style), hand-rolled over `@noble/hashes` — three signed headers,
  * pinned in `filebase.test.ts` against signatures independently produced by
@@ -24,6 +39,7 @@
  * delete the very object the anchor points at.
  */
 
+import { cidFromDigest } from '@nns/core'
 import { hmac } from '@noble/hashes/hmac.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
@@ -81,6 +97,64 @@ export function signV4(input: SignInput, accessKey: string, secretKey: string): 
   return `AWS4-HMAC-SHA256 Credential=${accessKey}/${scope}, SignedHeaders=${SIGNED_HEADERS}, Signature=${signature}`
 }
 
+const BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+
+/** base58btc → bytes. Only ever fed a 46-character CIDv0, so it stays small. */
+function base58Decode(input: string, label: string): Uint8Array {
+  const bytes: number[] = []
+  for (const char of input) {
+    let carry = BASE58.indexOf(char)
+    if (carry < 0) {
+      throw new IpfsError(`${label}: ${JSON.stringify(char)} is not base58btc — cannot read the CID it reported`)
+    }
+    for (let i = 0; i < bytes.length; i += 1) {
+      carry += (bytes[i] ?? 0) * 58
+      bytes[i] = carry & 0xff
+      carry >>= 8
+    }
+    while (carry > 0) {
+      bytes.push(carry & 0xff)
+      carry >>= 8
+    }
+  }
+  // Each leading '1' is one leading zero byte — not reachable from a 0x12
+  // multihash prefix, but decoding base58btc half-way is how subtle bugs start.
+  for (const char of input) {
+    if (char !== '1') break
+    bytes.push(0)
+  }
+  return Uint8Array.from(bytes.reverse())
+}
+
+/**
+ * Filebase's CIDv0 → §8.2's CIDv1 base32. A `b`-prefixed answer is already
+ * canonical and passes straight through, so a future Filebase that reports v1
+ * needs no change here and no new agreement failure.
+ *
+ * This is a re-spelling and never a re-derivation: CIDv0 *is* the raw
+ * dag-pb/sha2-256 multihash, so the digest is read out and handed to
+ * `core.cidFromDigest`. Anything that is neither form is refused rather than
+ * guessed at — an unreadable CID must not reach the agreement comparison,
+ * where it would masquerade as a mismatch between the two services.
+ */
+export function canonicalCid(cid: string, label: string): string {
+  if (cid.startsWith('b')) return cid
+  if (!cid.startsWith('Qm') || cid.length !== 46) {
+    throw new IpfsError(
+      `${label}: reported ${JSON.stringify(cid)}, which is neither a CIDv1 base32 (§8.2's form) nor a ` +
+        'CIDv0 this edge can normalise. Nothing can be anchored through it.',
+    )
+  }
+  const multihash = base58Decode(cid, label)
+  // 0x12 0x20: sha2-256, 32 bytes. CIDv0 is dag-pb by definition.
+  if (multihash.length !== 34 || multihash[0] !== 0x12 || multihash[1] !== 0x20) {
+    throw new IpfsError(
+      `${label}: reported a CIDv0 whose multihash is not sha2-256/32 bytes — §8.2 requires sha2-256`,
+    )
+  }
+  return cidFromDigest(multihash.slice(2))
+}
+
 export function createFilebaseAdd(
   endpoint: FilebaseEndpoint,
   fetchImpl: typeof fetch = fetch,
@@ -121,13 +195,15 @@ export function createFilebaseAdd(
       if (!response.ok) {
         throw new IpfsError(`${endpoint.label}: PUT answered ${response.status} ${await response.text()}`)
       }
-      const cid = response.headers.get('x-amz-meta-cid')
-      if (cid === null || cid === '') {
+      const reported = response.headers.get('x-amz-meta-cid')
+      if (reported === null || reported === '') {
         throw new IpfsError(
           `${endpoint.label}: response carried no x-amz-meta-cid header — the endpoint is not an ` +
             'IPFS-backed Filebase bucket, or the API changed. Nothing can be anchored through it.',
         )
       }
+      // v0 is what the live service actually answers; see the header.
+      const cid = canonicalCid(reported, endpoint.label)
 
       if (!options.pin) {
         const cleanup = await request('DELETE', key, null)
