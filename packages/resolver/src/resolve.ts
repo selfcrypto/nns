@@ -274,8 +274,11 @@ export class NnsResolver {
     // §4.1/§4.4 syntax is core's, not this package's. No reserved set is
     // passed: a reserved name awarded by a `U` (§6 `U`) is registered and
     // resolves like any other, which is the same reasoning that keeps the
-    // reserved list out of the API's /resolve.
-    const parsed = parseQuery(query)
+    // reserved list out of the API's /resolve. Since r18 short names are
+    // reserved *by rule*, so the candidate is passed as `unreserved` to make
+    // reservation invisible to the structural check too.
+    const dot = query.indexOf('.')
+    const parsed = parseQuery(query, undefined, new Set([dot < 0 ? query : query.slice(dot + 1)]))
     if (!parsed.ok) {
       throw new NameError('NAME_INVALID', `${query} is not a name or a dotted query: ${parsed.reason}`)
     }
@@ -335,7 +338,10 @@ export class NnsResolver {
    * `RESERVED` reason, which is data rather than proof.
    */
   async available(name: string): Promise<AvailableResult> {
-    const parsed = parseQuery(name)
+    // Reservation is the serving resolver's answer (`RESERVED`, below), not
+    // a structural failure — so the by-rule short reservation (§4.1, r18) is
+    // neutralised here exactly as in resolve().
+    const parsed = parseQuery(name, undefined, new Set([name]))
     if (!parsed.ok || parsed.query.kind !== 'name') {
       // §4.4 labels are never protocol state and never registrable, so a
       // dotted query has no availability to report.

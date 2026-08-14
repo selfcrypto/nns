@@ -1,7 +1,7 @@
 {
   "vectors": "nns/codec",
   "version": 1,
-  "spec": "nns-spec-v1 draft r14, §5 and §6",
+  "spec": "nns-spec-v1 draft r18, §5 and §6",
   "description": "Wire format. `text` is the message as ASCII; `data` is the same bytes as lowercase hex, which is what the RPC carries in both directions (§5.1). Recipients are role names resolved through `addresses`; `value` is luna as a decimal string.",
   "addresses": {
     "TREASURY": "NQ82 24C1 X9HD 6GVL 4JAG AVF6 AT3K FA0Q H3UN",
@@ -358,6 +358,24 @@
         "value": "1"
       },
       {
+        "id": "U_award_of_a_short_name",
+        "note": "Short names are reserved by rule (§4.1, r18), so the builder accepts them and the recipient operand awards: same payload shape, the recipient decides (§6 U).",
+        "text": "NNS1Unq|58100000",
+        "data": "4e4e5331556e717c3538313030303030",
+        "message": {
+          "type": "U",
+          "name": "nq",
+          "effectiveHeight": 58100000
+        },
+        "build": {
+          "builder": "unreserve",
+          "effectiveHeight": 58100000,
+          "recipient": "BOB"
+        },
+        "recipient": "BOB",
+        "value": "1"
+      },
+      {
         "id": "F_burn_attestation_5_bytes",
         "text": "NNS1F",
         "data": "4e4e533146",
@@ -672,8 +690,9 @@
       {
         "id": "too_short_name",
         "builder": "register",
-        "name": "abcd",
-        "fee": "400000000"
+        "name": "ab-",
+        "fee": "400000000",
+        "note": "A short name failing rules 2-5 is on neither §4.1 membership route. A well-formed short name (abcd) is reserved by rule, not invalid, and the builder accepts it — released-ness is chain state (r18)."
       },
       {
         "id": "zero_value",

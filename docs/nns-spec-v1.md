@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 17**
+**Protocol specification, v1 draft — revision 18**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -13,6 +13,39 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 
 > **Review status.** Everything marked **OPEN** is undecided or unverified.
 > Everything else reflects decisions already taken.
+
+> **Changes in revision 18 — short names are reserved, not invalid.** One
+> change, reverting one r17 rule, and it moves bytes — pre-launch, with no
+> real registration behind any existing root:
+> - **§4.1 — every 1–4 character name satisfying rules 2–5 is a member of
+>   `RESERVED_NAMES` at launch, by rule rather than enumeration.** Membership
+>   is checked by measuring the length and running rules 2–5, never by
+>   materialising the ~1.7 million short names into a list; the published
+>   list carries only the named entries (`nimiq`, exchanges, brands). Rule
+>   1's floor binds only while a name is still reserved: once a fired `U`
+>   removes a short name from the reserved set, it is a normal name — a `G`
+>   registers it at the normal fee, and every owner operation works on it.
+> - **§6 `U`, §7.4 — the r17 narrowing of `INVALID_NAME` to `U` is
+>   reverted.** r17 forfeited any `U` naming a 1–4 character name, on the
+>   premise that a short name can never be a valid registration. Under §4.1
+>   as amended that premise no longer holds — and under r17's own rules it
+>   had quietly turned "held for later auction" into *lost*: `MIN_NAME_LEN`
+>   blocked every `G`, the narrowing blocked every `U`, and `A` is deferred,
+>   so nothing in the protocol could ever release or award a short name. A
+>   `U` now works on a short name exactly as on any other reserved name —
+>   release and award both. Awards are a designed feature here as for long
+>   names: handing `nq` to an exchange so it can run a delegate host is
+>   handing `binance` to Binance, two characters shorter. `U`'s name check
+>   is rules 2–5 plus the rule 1 ceiling; the floor never binds a `U`,
+>   because every well-formed short name is reserved by rule.
+> - **What moves.** No layout changes and `COMMITMENT_LAYOUT` does not bump:
+>   the same state still commits the same bytes. What changes is which
+>   messages are *accepted* — a `U` naming a short name was a forfeit line
+>   and is now `OK`; a `G` for a still-held short name writes
+>   `RESERVED_NAME` where it wrote `INVALID_NAME`; an awarded or released
+>   short name puts a leaf in the checkpoint tree that r17 said could not
+>   exist. Log-hash class, not layout class — replaying the same chain under
+>   r17 and r18 rules diverges at the first short-name `U` or `G`.
 
 > **Changes in revision 17 — `U` can award a name, not only release it.**
 > One change, in one message type, and it moves bytes:
@@ -796,7 +829,7 @@ NIM figures assume ~$0.0005/NIM.
 | `ADMIN_ADDRESS` | **OPEN** | Governance only; cold key, distinct from treasury |
 | `MARKETPLACE_ADDRESS` | **OPEN** | `B` escrow and `M` settlement; the only NNS hot wallet, distinct from both |
 | `BURN_ADDRESS` | `NQ07 0000 0000 0000 0000 0000 0000 0000 0000` | Canonical Nimiq burn address |
-| `MIN_NAME_LEN` | 5 chars | 1–4 reserved for later auction |
+| `MIN_NAME_LEN` | 5 chars | 1–4 reserved by rule (§4.1) for later award or auction; the floor binds only while a name is reserved |
 | `LONG_NAME_LEN` | 12 chars | Threshold for the cheap band |
 | `MAX_NAME_LEN` | 24 chars | Longer than any handle people actually use; keeps messages well inside 64 bytes |
 | `MAX_LABEL_LEN` | 24 chars | Subdomain label (§4.4) |
@@ -833,12 +866,18 @@ NIM figures assume ~$0.0005/NIM.
 
 A candidate name is **valid** if and only if all hold:
 
-1. Length between `MIN_NAME_LEN` and `MAX_NAME_LEN` inclusive.
+1. Length between `MIN_NAME_LEN` and `MAX_NAME_LEN` inclusive. **The floor
+   binds only while a name is reserved:** a 1–4 character name satisfying
+   rules 2–5 is a member of `RESERVED_NAMES` by rule (below), so while it is
+   held it fails rule 6, not rule 1 — and once a fired `U` (§6 `U`) removes
+   it from the reserved set, the floor no longer applies and it is a normal
+   name. The ceiling is unconditional.
 2. Characters drawn only from `a-z`, `0-9`, and `-` (ASCII, lowercase).
 3. Contains at least one letter.
 4. Does not begin or end with `-`, and contains no two consecutive `-`.
 5. Satisfies the positional digit rule (§4.2).
-6. Not present in `RESERVED_NAMES`.
+6. Not currently in `RESERVED_NAMES` — on neither membership route below,
+   or already removed by a fired `U`.
 
 `.` is **not** a valid character in a registered name. Dots appear only in
 queries, as resolution syntax (§4.4).
@@ -864,9 +903,21 @@ recognition is the entire product: `kike` instead of an address.
 Implementations MUST reject rather than normalise. Uppercase input is not
 lowercased — it is invalid.
 
-`RESERVED_NAMES` is a versioned list published in the repo before launch,
-covering all 1–4 character names (held for auction), `nimiq`, `nns`, major
-exchanges, and obvious brand terms.
+`RESERVED_NAMES` has two membership routes, checked in this order or any
+other — they are disjoint:
+
+- **By list:** a versioned list published in the repo before launch,
+  covering `nimiq`, `nns`, major exchanges, and obvious brand terms.
+- **By rule:** every name of length 1–4 satisfying rules 2–5. Membership is
+  checked exactly that way — measure the length, run rules 2–5 — never by
+  materialising the ~1.7 million short names into the published list. A
+  short name failing rules 2–5 is on neither route: it is plain invalid and
+  can never be released.
+
+Short names are **reserved, not invalid** — held back for later release,
+award (§6 `U`) or auction (§6 `A`), not lost. A `U` moves one out of the
+reserved set exactly as it moves `binance` out, and from that point it is a
+normal name.
 
 > **This list is the primary defence against a launch land-grab** and deserves
 > an afternoon of real work rather than a token twenty entries. With
@@ -883,8 +934,8 @@ digits; the remainder MUST contain no digits.
 |---|---|
 | `layer`, `web3`, `2fa`, `bitcoin7`, `21kike` | `n1m1q`, `nimiq0pay`, `g00gle`, `b1tc0in`, `1ayer`, `sud0` |
 
-*(`web3` and `2fa` illustrate the digit rule only — below `MIN_NAME_LEN`
-they sit in the withheld 1–4 character set and are not registrable in v1.
+*(`web3` and `2fa` illustrate the digit rule only — at 1–4 characters they
+are reserved by rule (§4.1) and registrable only after a `U` releases them.
 Do not turn them into acceptance tests.)*
 
 Lowercase-only already removes `I`/`l` and `O`/`0` at the capital end. This
@@ -1107,8 +1158,8 @@ Removing commit–reveal re-opens the possibility that a mempool observer takes
 a name after seeing someone else's intent. The judgement to accept it:
 
 1. **Low bot activity.** Nimiq has no established MEV infrastructure.
-2. **The prize is thin.** Every 1–4 character name is withheld for auction, so
-   a sniper's maximum reward is a 5+ character name.
+2. **The prize is thin.** Every 1–4 character name is reserved by rule
+   (§4.1), so a sniper's maximum reward is a 5+ character name.
 3. **It defended the wrong threat.** The realistic risk is a scripted bulk
    land-grab in the first hours, and commit–reveal does nothing against that —
    a grabber isn't racing anyone, they're just paying.
@@ -1483,9 +1534,10 @@ NNS1U<name>|<effective_height>
 - **To:** `PROTOCOL_ADDRESS` to *release* the name, any other address to
   *award* it to that address. Value `DUST_VALUE` either way (§5.4)
 - Sender MUST be `ADMIN_ADDRESS`
-- `name` MUST satisfy §4.1 rules 1–5, MUST be in `RESERVED_NAMES` (rule 6
-  inverted), MUST NOT already have been released, and MUST NOT already be the
-  subject of a pending `U`
+- `name` MUST satisfy §4.1 rules 2–5 and the rule 1 ceiling (the floor never
+  binds a `U` — every well-formed short name is reserved by rule, §4.1),
+  MUST be in `RESERVED_NAMES` (rule 6 inverted), MUST NOT already have been
+  released, and MUST NOT already be the subject of a pending `U`
 - `effective_height` ≥ **the height of the block this message lands in** +
   `GOVERNANCE_DELAY`, measured and unretractable exactly as for `P` above
 
@@ -1531,16 +1583,22 @@ a mistake. It is also the all-zero address, which is how §8.1 encodes *no*
 recipient: allowing it would make an award to it and a release commit
 identical bytes.
 
-**A `U` names a name the registry could hold.** `RESERVED_NAMES` covers all
-1–4 character names, which are below `MIN_NAME_LEN` and therefore invalid under
-§4.1 rule 1 as well as reserved under rule 6. Releasing one is a no-op dressed
-as a governance act — the name lands in `AVAILABLE` where every `G` for it
-forfeits `INVALID_NAME` anyway — and *awarding* one is worse: it would put a
-leaf in the checkpoint tree for a name §4.1 says cannot exist, which every
-conforming client rejects before it ever asks a resolver. So a `U` whose name
-fails any of §4.1's rules 1–5 forfeits `INVALID_NAME` (§7.4), and the short
-names stay where §6 `A` expects to find them. Only rule 6 is inverted: a `U`'s
-name must be reserved, which is the whole point of it.
+**Short names are `U` operands like any other reserved name.**
+`RESERVED_NAMES` holds every 1–4 character name satisfying §4.1 rules 2–5 by
+rule, and rule 1's floor binds only while a name is reserved — so a released
+short name is a normal name the next `G` registers at the normal fee, and an
+awarded one is a normal registration from `effective_height`. r17 forfeited
+these as `INVALID_NAME`, on the premise that a short name can never be a
+valid registration; §4.1 no longer says that, and the r17 rule had turned
+"held for later auction" into *lost* — `MIN_NAME_LEN` blocked every `G`, the
+narrowing blocked every `U`, `A` is deferred, so nothing could ever release
+or award one. Awarding a short name is the same designed use as awarding a
+long one: handing `nq` to an exchange so it can run a delegate host is
+handing `binance` to Binance, two characters shorter. What `INVALID_NAME`
+still guards for `U` is rules 2–5 and the length ceiling (§7.4): a name
+failing those is one no client accepts, is on neither membership route, and
+no `U` may create or release it. Only rule 6 is inverted: a `U`'s name must
+be reserved, which is the whole point of it.
 
 **One pending `U` per name.** A second `U` naming a name that already has one
 pending forfeits `UNRESERVE_PENDING` rather than queueing behind it. That rule
@@ -1701,7 +1759,8 @@ the message before the race does.
 - `P` from any sender other than `ADMIN_ADDRESS`, or violating a §10.6 bound
 - `U` from any sender other than `ADMIN_ADDRESS`, with less than
   `GOVERNANCE_DELAY` notice, awarding to `BURN_ADDRESS`, naming a name that
-  fails §4.1 on any rule but the reservation one, naming a name that is not
+  fails §4.1 rules 2–5 or the length ceiling (the floor never binds a `U`,
+  §6 `U`), naming a name that is not
   reserved or has already been released, or naming one that already has a `U`
   pending (§6 `U`). For both `P` and `U`, notice is counted from the
   height of the block the message landed in (§6 `P`), so a message that sat
@@ -1773,8 +1832,8 @@ against a message of a listed type.
 | `INVALID_RECIPIENT` | `U` | Recipient is `BURN_ADDRESS` — the one address a name may not be awarded to (§6 `U`) |
 | `WRONG_SENDER` | `M` `F` | `M` from neither `MARKETPLACE_ADDRESS` nor `TREASURY_ADDRESS`; `F` from other than `TREASURY_ADDRESS` |
 | `INSUFFICIENT_VALUE` | `G` `N` `O` | Value below the fee this message owes: the band fee for the name at this message's height for `G` and `N` (§10.1), the listing fee for `O` (§6 `O`) |
-| `INVALID_NAME` | `G` `U` | Name fails §4.1. For `U`, rules 1–5 only: rule 6 is inverted for it, since a `U`'s name must be *in* `RESERVED_NAMES` |
-| `RESERVED_NAME` | `G` | Name in `RESERVED_NAMES` and not yet removed from it by a fired `U` |
+| `INVALID_NAME` | `G` `U` | Name fails §4.1 rules 2–5 or the rule 1 ceiling. The floor never fires here: a 1–4 character name satisfying rules 2–5 is reserved by rule (§4.1), so a `G` for one takes `RESERVED_NAME` while it is held and is a normal registration once a `U` has released it. Rule 6 is inverted for `U`, since a `U`'s name must be *in* `RESERVED_NAMES` |
+| `RESERVED_NAME` | `G` | Name currently in `RESERVED_NAMES` — on the published list or reserved by rule (§4.1) — and not yet removed from it by a fired `U` |
 | `NAME_IN_GRACE` | `G` | Name exists in `GRACE` |
 | `NAME_NOT_REGISTERED` | `S` `X` `R` `D` `O` | Name absent, expired, or in `GRACE` — these types require `REGISTERED` |
 | `NAME_NOT_FOUND` | `K` `N` | Name has no record at all. Distinct from the row above because `K` and `N` are valid against a name in `GRACE` |

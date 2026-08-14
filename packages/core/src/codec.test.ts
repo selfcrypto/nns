@@ -216,12 +216,17 @@ describe('builders fail loudly where the chain would fail silently', () => {
 
   it('rejects an invalid name for G, which is checkable offline (§7.4)', () => {
     expect(() => encodeRegister(config, { name: 'n1m1q', fee: 1n })).toThrow(/INTERIOR_DIGIT/)
-    expect(() => encodeRegister(config, { name: 'abcd', fee: 1n })).toThrow(/TOO_SHORT/)
+    // A short name failing rules 2–5 is on neither §4.1 membership route and
+    // can never be released, so the builder refuses it outright.
+    expect(() => encodeRegister(config, { name: 'ab-', fee: 1n })).toThrow(/TOO_SHORT/)
   })
 
   it('does not reject a G on reservation alone — released-ness is chain state the builder cannot see', () => {
     const withReserved = testConfig({ reservedNames: ['binance'] })
     expect(() => encodeRegister(withReserved, { name: 'binance', fee: 1n })).not.toThrow()
+    // Well-formed short names are reserved by rule (§4.1) — the same case:
+    // a released `abcd` is a normal name and its G must be encodable.
+    expect(() => encodeRegister(config, { name: 'abcd', fee: 1n })).not.toThrow()
   })
 
   it('does not apply the reserved list to U, which names a reserved name by definition', () => {

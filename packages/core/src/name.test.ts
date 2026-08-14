@@ -18,14 +18,16 @@ describe('validateName — §4.2 table, verbatim', () => {
   })
 
   it.each(['web3', '2fa', 'x2'])(
-    'rejects %s on length, not on the digit rule — the §4.2 table is about §4.2 alone',
+    'rejects %s as reserved, not on the digit rule — the §4.2 table is about §4.2 alone',
     (name) => {
       // §4.2 lists these among its "Valid" examples and the r6 boundary-clause
       // prose names them as the casualties it was written to preserve. All are
-      // under MIN_NAME_LEN, so §4.1 rule 1 rejects them first: 1–4 character
-      // names are withheld for auction. They are digit-rule valid and
+      // under MIN_NAME_LEN and satisfy rules 2–5, so since r18 they are
+      // reserved by rule (§4.1): held at launch, normal names once a `U`
+      // releases them. They are digit-rule valid and (while held)
       // registrable-name invalid, and the table does not say so.
-      expect(reason(name)).toBe('TOO_SHORT')
+      expect(reason(name)).toBe('RESERVED')
+      expect(validateName(name, undefined, new Set([name])).ok).toBe(true)
     },
   )
 
@@ -36,9 +38,21 @@ describe('validateName — §4.2 table, verbatim', () => {
 })
 
 describe('validateName — §4.1 rules, in order', () => {
-  it('rejects below MIN_NAME_LEN and accepts at it', () => {
-    expect(reason('abcd')).toBe('TOO_SHORT')
+  it('holds well-formed names below MIN_NAME_LEN as reserved, and accepts at it', () => {
+    // The floor binds only while a name is reserved (§4.1): a well-formed
+    // short name is a reserved-set member by rule, and a fired U makes it a
+    // normal name.
+    expect(reason('abcd')).toBe('RESERVED')
+    expect(validateName('abcd', undefined, new Set(['abcd'])).ok).toBe(true)
     expect(validateName('abcde').ok).toBe(true)
+  })
+
+  it('keeps TOO_SHORT for short names failing rules 2–5 — never releasable, so the floor claims them', () => {
+    expect(reason('12')).toBe('TOO_SHORT') // no letter
+    expect(reason('ab-')).toBe('TOO_SHORT') // trailing hyphen
+    expect(reason('a0')).toBe('TOO_SHORT') // boundary digit
+    // A fired U cannot exist for these, but even a claimed one changes nothing.
+    expect(validateName('ab-', undefined, new Set(['ab-'])).ok).toBe(false)
   })
 
   it('rejects above MAX_NAME_LEN and accepts at it', () => {

@@ -26,6 +26,7 @@ import {
   governanceBoundViolation,
   reduce,
 } from './reduce.js'
+import { merkleProof, merkleRoot, verifyProof } from './merkle.js'
 import { type NnsState, LAUNCH_PRICES, initialState, lookup, minPrice, resolve } from './state.js'
 import { ADMIN, ALICE, BOB, CAROL, MAINNET_ID, MARKETPLACE, PROTOCOL, TREASURY, testConfig } from './test-fixtures.js'
 
@@ -197,6 +198,15 @@ describe('G — register (§6, §7.4)', () => {
     // Built by hand: the builder refuses to encode this at all.
     const built = { ...encodeRegister(config, { name: 'kikename', fee: FEE }), data: hexOf('NNS1Gn1m1q') }
     expect(step(built, { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'INVALID_NAME' })
+  })
+
+  it('forfeits a held short name as RESERVED_NAME, not INVALID_NAME — reserved by rule (§4.1)', () => {
+    // No list entry exists for `web3`; its membership is its length plus
+    // rules 2–5, so the empty test config still reserves it.
+    expect(step(encodeRegister(config, { name: 'web3', fee: FEE }), { sender: ALICE }).verdict).toEqual({
+      kind: 'FORFEIT',
+      reason: 'RESERVED_NAME',
+    })
   })
 
   it('forfeits a reserved name, and accepts it once a U has released it', () => {
@@ -966,11 +976,61 @@ describe('U — unreserve (§6)', () => {
     expect(stepR(short, { sender: ADMIN }).verdict).toEqual({ kind: 'FORFEIT', reason: 'INVALID_RECIPIENT' })
   })
 
-  it('forfeits a name failing §4.1 rules 1–5 — the short names stay where §6 A expects them', () => {
-    // 1–4 character names are reserved *and* invalid; INVALID_NAME wins, so a
-    // U can neither release one as a no-op nor award a name no client accepts.
-    const built: BuiltTransaction = { ...unreserve(), data: hexOf(`NNS1Uabc|${H}`) }
+  it('forfeits a name failing §4.1 rules 2–5 or the ceiling — but the floor never binds a U', () => {
+    // `ab-` fails rule 4 and is on neither §4.1 membership route, so no U may
+    // release or award it. Built by hand: the builder refuses it too.
+    const built: BuiltTransaction = { ...unreserve(), data: hexOf(`NNS1Uab-|${H}`) }
     expect(stepR(built, { sender: ADMIN }).verdict).toEqual({ kind: 'FORFEIT', reason: 'INVALID_NAME' })
+  })
+
+  it('releases a short name — reserved by rule, no list entry — and a later G registers it (r18)', () => {
+    expect(stepR(encodeUnreserve(reserving, { name: 'web3', effectiveHeight: H }), { sender: ADMIN }).verdict).toEqual(
+      { kind: 'OK', obligations: [] },
+    )
+
+    // Still held until the U fires: a G in the notice window forfeits.
+    expect(
+      stepR(encodeRegister(reserving, { name: 'web3', fee: FEE }), { sender: ALICE, at: LAUNCH + 1 }).verdict,
+    ).toEqual({ kind: 'FORFEIT', reason: 'RESERVED_NAME' })
+
+    state = advanceTo(state, H)
+    expect(state.unreserved.has('web3')).toBe(true)
+
+    // Released, the floor no longer binds (§4.1): a normal registration at
+    // the normal STANDARD-band fee.
+    const result = stepR(encodeRegister(reserving, { name: 'web3', fee: FEE }), { sender: ALICE, at: H })
+    expect(result.verdict.kind).toBe('OK')
+    expect(lookup(state, 'web3')?.owner).toBe(ALICE)
+    expect(resolve(state, 'web3')).toBe(ALICE)
+  })
+
+  it('awards a short name straight to the recipient — the exchange-delegate use case (§6 U)', () => {
+    const award = encodeUnreserve(reserving, { name: 'nq', effectiveHeight: H, recipient: BOB })
+    expect(stepR(award, { sender: ADMIN }).verdict).toEqual({ kind: 'OK', obligations: [] })
+    expect(state.pendingUnreserve.get('nq')).toEqual({ name: 'nq', recipient: BOB, effectiveHeight: H })
+
+    state = advanceTo(state, H)
+    expect(state.unreserved.has('nq')).toBe(true)
+    expect(lookup(state, 'nq')).toEqual({
+      name: 'nq',
+      owner: BOB,
+      target: BOB,
+      expiry: H + CONSTANTS.TERM_LENGTH,
+      status: 'REGISTERED',
+      recovery: null,
+      host: '',
+    })
+    expect(resolve(state, 'nq')).toBe(BOB)
+  })
+
+  it('puts an awarded short name in the checkpoint tree as an ordinary leaf (§8.1)', () => {
+    stepR(encodeUnreserve(reserving, { name: 'nq', effectiveHeight: H, recipient: BOB }), { sender: ADMIN })
+    state = advanceTo(state, H)
+
+    const proof = merkleProof(state, 'nq')
+    expect(proof).not.toBeNull()
+    expect(proof!.record.owner).toBe(BOB)
+    expect(verifyProof(proof!.leaf, proof!.steps, merkleRoot(state))).toBe(true)
   })
 
   it('forfeits a name that is not reserved, or whose U has already fired', () => {

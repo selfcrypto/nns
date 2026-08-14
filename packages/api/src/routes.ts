@@ -21,6 +21,7 @@
 import {
   CONSTANTS,
   formatAddress,
+  isShortReserved,
   logFile,
   minPrice,
   parseQuery,
@@ -105,9 +106,12 @@ function serialiseOffer(offer: ApiOffer): Record<string, unknown> {
 }
 
 export function createRoutes(queries: Queries, options: RouteOptions): RouteHandler {
-  /** Effectively reserved: on the list and not released by a fired `U`. */
+  /**
+   * Effectively reserved: a `RESERVED_NAMES` member — on the list, or a 1–4
+   * character name reserved by rule (§4.1, r18) — not released by a fired `U`.
+   */
   const reserved = (name: string, unreserved: boolean): boolean =>
-    options.reservedNames.has(name) && !unreserved
+    (options.reservedNames.has(name) || isShortReserved(name)) && !unreserved
 
   /** `null` when the base cannot back proofs — no checkpoint, or a snapshot that does not reproduce the root. */
   const contextOf = (base: ProofBase | null): ProofContext | null =>
@@ -117,8 +121,12 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
 
   async function resolveRoute(name: string): Promise<ApiResponse> {
     // No reserved set on purpose: a reserved name awarded by a `U` (§6 `U`)
-    // is registered and must resolve like any other.
-    const parsed = parseQuery(name)
+    // is registered and must resolve like any other. Since r18 short names
+    // are reserved *by rule*, so the same neutrality needs one more step:
+    // passing the candidate as `unreserved` makes reservation invisible to
+    // the structural check, exactly as the omitted list always did.
+    const dot = name.indexOf('.')
+    const parsed = parseQuery(name, undefined, new Set([dot < 0 ? name : name.slice(dot + 1)]))
     if (!parsed.ok) {
       return respond(400, { error: 'INVALID_NAME', reason: parsed.reason, detail: parsed.detail })
     }
@@ -164,9 +172,12 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
 
     const { height, value } = await queries.detail(name)
 
-    // §4.1 order: structure first, the reserved list last — then state.
+    // §4.1 order: structure first, reservation last — then state. RESERVED
+    // is deferred to the state-aware check below: released-ness lives in
+    // state, and since r18 short names are reserved by rule, so the
+    // stateless check alone would hold a released one forever.
     const structural = validateName(name)
-    if (!structural.ok) return no(height, structural.reason)
+    if (!structural.ok && structural.reason !== 'RESERVED') return no(height, structural.reason)
     if (reserved(name, value.unreserved)) return no(height, 'RESERVED')
     if (value.record !== null) {
       return no(height, 'TAKEN', { status: value.record.status, expiry: value.record.expiry })
@@ -186,9 +197,12 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
   }
 
   async function nameRoute(name: string): Promise<ApiResponse> {
-    // Structural check only: reserved names are legitimate subjects here.
+    // Structural check only: reserved names are legitimate subjects here —
+    // short ones included, whose RESERVED comes by rule (§4.1, r18).
     const structural = validateName(name)
-    if (!structural.ok) return respond(400, { error: 'INVALID_NAME', reason: structural.reason })
+    if (!structural.ok && structural.reason !== 'RESERVED') {
+      return respond(400, { error: 'INVALID_NAME', reason: structural.reason })
+    }
 
     const { height, value } = await queries.detail(name)
     const isReserved = reserved(name, value.unreserved)

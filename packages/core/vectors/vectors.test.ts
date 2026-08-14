@@ -51,7 +51,8 @@ describe('vectors/names.json', () => {
 
   it.each(entries(file.cases))('name %s', (_id, testCase: any) => {
     const reserved = new Set<string>(testCase.reserved ?? [])
-    const result = validateName(testCase.name, reserved)
+    const unreserved = new Set<string>(testCase.unreserved ?? [])
+    const result = validateName(testCase.name, reserved, unreserved)
     expect(result.ok).toBe(testCase.valid)
     if (!testCase.valid) expect(result).toEqual({ ok: false, reason: testCase.reason })
   })

@@ -156,7 +156,7 @@ describe('/resolve', () => {
 
   it('rejects invalid names with the §4.1 reason, never touching the database', async () => {
     const handle = routes({})
-    expect(await handle('GET', '/resolve/abcd')).toEqual({
+    expect(await handle('GET', '/resolve/ab-')).toEqual({
       status: 400,
       body: { error: 'INVALID_NAME', reason: 'BAD_NAME', detail: 'TOO_SHORT' },
     })
@@ -166,6 +166,15 @@ describe('/resolve', () => {
   it('resolves a reserved name — a `U` award registers it like any other', async () => {
     const handle = routes({ record: () => Promise.resolve(snap({ ...RECORD, name: 'nimiq' })) }, new Set(['nimiq']))
     expect((await handle('GET', '/resolve/nimiq')).status).toBe(200)
+  })
+
+  it('resolves an awarded short name — reserved by rule, registered like any other (r18)', async () => {
+    const handle = routes({ record: () => Promise.resolve(snap({ ...RECORD, name: 'abcd' })) })
+    expect((await handle('GET', '/resolve/abcd')).status).toBe(200)
+
+    // Unawarded, it simply has no record — 404, not INVALID_NAME.
+    const missing = routes({ record: () => Promise.resolve(snap(null)) })
+    expect((await missing('GET', '/resolve/abcd')).status).toBe(404)
   })
 
   it('refuses dotted queries and points at the parent (§8.6 is client-side)', async () => {
@@ -187,9 +196,23 @@ describe('/available', () => {
 
   it('answers 200 with the §4.1 reason for an invalid name', async () => {
     const handle = routes({ detail: () => Promise.resolve(snap(EMPTY_DETAIL)) })
-    expect(await handle('GET', '/available/abcd')).toEqual({
+    expect(await handle('GET', '/available/ab-')).toEqual({
       status: 200,
-      body: { name: 'abcd', available: false, reason: 'TOO_SHORT', height: HEIGHT },
+      body: { name: 'ab-', available: false, reason: 'TOO_SHORT', height: HEIGHT },
+    })
+  })
+
+  it('holds a short name as RESERVED while unreleased, and available once a U has fired (r18)', async () => {
+    const held = routes({ detail: () => Promise.resolve(snap(EMPTY_DETAIL)) })
+    expect(await held('GET', '/available/abcd')).toEqual({
+      status: 200,
+      body: { name: 'abcd', available: false, reason: 'RESERVED', height: HEIGHT },
+    })
+
+    const released = routes({ detail: () => Promise.resolve(snap({ ...EMPTY_DETAIL, unreserved: true })) })
+    expect(await released('GET', '/available/abcd')).toEqual({
+      status: 200,
+      body: { name: 'abcd', available: true, proof: null, height: HEIGHT },
     })
   })
 

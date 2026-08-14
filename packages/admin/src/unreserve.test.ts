@@ -102,8 +102,18 @@ describe('planUnreserve', () => {
 
   it('rejects an invalid name offline, like every builder (§7.4)', async () => {
     const { rpc, calls } = fakeRpc()
-    await expect(planUnreserve(rpc, config, { ...release, name: 'ab' })).rejects.toThrow(CodecError)
+    // `ab-` fails §4.1 rule 4 and is on neither membership route. A
+    // well-formed short name (`ab`) is a legal U operand since r18 —
+    // reserved by rule, releasable and awardable.
+    await expect(planUnreserve(rpc, config, { ...release, name: 'ab-' })).rejects.toThrow(CodecError)
     expect(calls).toEqual([])
+  })
+
+  it('plans a U for a short name — reserved by rule, no list entry needed (r18)', async () => {
+    const { rpc } = fakeRpc()
+    const plan = await planUnreserve(rpc, config, { ...release, name: 'ab' })
+    expect(plan.kind).toBe('release')
+    expect(plan.params.name).toBe('ab')
   })
 })
 

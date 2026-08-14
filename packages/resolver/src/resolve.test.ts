@@ -302,7 +302,10 @@ describe('resolve', () => {
 
   it('rejects a query that is not a name before touching the network', async () => {
     const resolver = resolverOver({})
-    await expect(resolver.resolve('no')).rejects.toThrow(/not a name/)
+    // `no-` fails §4.1 rule 4. A well-formed short name (`no`) is reserved
+    // by rule (r18) and — awarded by a `U` — resolves like any other, so it
+    // goes to the network rather than failing structurally.
+    await expect(resolver.resolve('no-')).rejects.toThrow(/not a name/)
     await expect(resolver.resolve('a.b.c')).rejects.toThrow(/not a name/)
   })
 })

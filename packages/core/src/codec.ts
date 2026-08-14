@@ -335,10 +335,20 @@ function requireAtLeastMinPrice(what: string, amount: bigint, floor: bigint): vo
   }
 }
 
-/** Names carried in a payload must be syntactically valid and pipe-free. */
-function requireName(name: string, reserved?: ReadonlySet<string>): string {
-  const check = validateName(name, reserved)
-  if (!check.ok) fail(`invalid name ${JSON.stringify(name)}: ${check.reason} (§4.1)`)
+/**
+ * Names carried in a payload must be syntactically valid and pipe-free:
+ * §4.1 rules 2–5 and the length ceiling. `RESERVED` is not a builder error —
+ * whether a name is reserved is chain state the builder cannot see (§4.1's
+ * floor included: a released or awarded short name is a normal name, and
+ * every owner operation must be encodable for it), so reservation is left to
+ * the reducer. TOO_SHORT still fails here: a short name failing rules 2–5 is
+ * on neither membership route and no message may carry it.
+ */
+function requireName(name: string): string {
+  const check = validateName(name)
+  if (!check.ok && check.reason !== 'RESERVED') {
+    fail(`invalid name ${JSON.stringify(name)}: ${check.reason} (§4.1)`)
+  }
   return name
 }
 
@@ -349,7 +359,8 @@ export function encodeRegister(
 ): BuiltTransaction {
   // Reservation is deliberately NOT checked here. `config.reservedNames` is
   // the static published list, but whether a name is *registrable* is chain
-  // state: a fired `U` release makes it AVAILABLE (§7.3), and the builder
+  // state: a fired `U` release makes it AVAILABLE (§7.3) — short names
+  // included, since §4.1's floor lifts with the release — and the builder
   // cannot see `state.unreserved`. Rejecting on the list alone would refuse
   // registrations the reducer accepts. A still-reserved `G` forfeits (§7.4).
   const name = requireName(params.name)
@@ -541,7 +552,8 @@ export function encodeGovernance(
  * client-preventable — this is the client preventing it.
  *
  * The name is validated for syntax but **not** against the reserved set — a
- * `U` names a reserved name by definition.
+ * `U` names a reserved name by definition, short names included: they are
+ * reserved by rule (§4.1), and releasing or awarding them is a designed use.
  */
 export function encodeUnreserve(
   config: NnsConfig,

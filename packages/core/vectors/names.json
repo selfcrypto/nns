@@ -1,31 +1,42 @@
 {
   "vectors": "nns/names",
   "version": 1,
-  "spec": "nns-spec-v1 draft r14, §4.1 and §4.2",
-  "description": "Name validity, including the positional-digit rule and the r6 boundary clause. `reserved` defaults to the empty set when a case does not name one.",
+  "spec": "nns-spec-v1 draft r18, §4.1 and §4.2",
+  "description": "Name validity, including the positional-digit rule and the r6 boundary clause. `reserved` is the published RESERVED_NAMES list and `unreserved` the names released by a fired U; both default to the empty set — the launch state — when a case does not name them. Short names satisfying rules 2-5 are reserved by rule (r18) and need no `reserved` entry.",
   "cases": [
     { "id": "spec_table_layer", "name": "layer", "valid": true, "note": "§4.2 valid column" },
     { "id": "spec_table_bitcoin7", "name": "bitcoin7", "valid": true, "note": "§4.2 valid column" },
     { "id": "spec_table_21kike", "name": "21kike", "valid": true, "note": "§4.2 valid column" },
 
     {
-      "id": "spec_table_web3_is_too_short",
+      "id": "spec_table_web3_is_reserved",
       "name": "web3",
       "valid": false,
-      "reason": "TOO_SHORT",
-      "note": "§4.2 lists web3 as valid, but that table is about the digit rule alone. MIN_NAME_LEN rejects it first: 1-4 character names are withheld for auction (§4.1)."
+      "reason": "RESERVED",
+      "note": "§4.2 lists web3 as valid, but that table is about the digit rule alone. Satisfying rules 2-5 at 1-4 characters, it is reserved by rule (§4.1, r18) — held at launch, a normal name once a U releases it."
     },
-    { "id": "spec_table_2fa_is_too_short", "name": "2fa", "valid": false, "reason": "TOO_SHORT" },
-    { "id": "boundary_prose_x2_is_too_short", "name": "x2", "valid": false, "reason": "TOO_SHORT" },
+    { "id": "spec_table_2fa_is_reserved", "name": "2fa", "valid": false, "reason": "RESERVED" },
+    { "id": "boundary_prose_x2_is_reserved", "name": "x2", "valid": false, "reason": "RESERVED" },
+    {
+      "id": "short_released_by_a_fired_u_is_a_normal_name",
+      "name": "web3",
+      "unreserved": ["web3"],
+      "valid": true,
+      "note": "Rule 1's floor binds only while a name is reserved (§4.1, r18)."
+    },
 
     { "id": "spec_table_n1m1q", "name": "n1m1q", "valid": false, "reason": "INTERIOR_DIGIT" },
     { "id": "spec_table_nimiq0pay", "name": "nimiq0pay", "valid": false, "reason": "INTERIOR_DIGIT" },
     { "id": "spec_table_g00gle", "name": "g00gle", "valid": false, "reason": "INTERIOR_DIGIT" },
     { "id": "spec_table_b1tc0in", "name": "b1tc0in", "valid": false, "reason": "INTERIOR_DIGIT" },
     { "id": "spec_table_1ayer", "name": "1ayer", "valid": false, "reason": "BOUNDARY_DIGIT" },
-    { "id": "spec_table_sud0", "name": "sud0", "valid": false, "reason": "TOO_SHORT", "note": "4 characters, so length claims it before the boundary clause" },
+    { "id": "spec_table_sud0", "name": "sud0", "valid": false, "reason": "TOO_SHORT", "note": "4 characters and fails the boundary clause, so it is on neither §4.1 membership route — never releasable, and length claims it before the specific rule" },
 
-    { "id": "length_min_minus_one", "name": "abcd", "valid": false, "reason": "TOO_SHORT" },
+    { "id": "length_min_minus_one", "name": "abcd", "valid": false, "reason": "RESERVED", "note": "Well-formed at 1-4 characters: reserved by rule (r18), not invalid" },
+    { "id": "short_failing_rules_2_5_no_letter", "name": "12", "valid": false, "reason": "TOO_SHORT" },
+    { "id": "short_failing_rules_2_5_trailing_hyphen", "name": "ab-", "valid": false, "reason": "TOO_SHORT" },
+    { "id": "short_failing_rules_2_5_stays_invalid_even_if_claimed_released", "name": "ab-", "unreserved": ["ab-"], "valid": false, "reason": "TOO_SHORT", "note": "No fired U can exist for a name on neither membership route; a claimed one changes nothing" },
+    { "id": "single_letter_is_reserved_by_rule", "name": "x", "valid": false, "reason": "RESERVED" },
     { "id": "length_min", "name": "abcde", "valid": true },
     { "id": "length_max", "name": "aaaaaaaaaaaaaaaaaaaaaaaa", "valid": true, "note": "24 characters" },
     { "id": "length_max_plus_one", "name": "aaaaaaaaaaaaaaaaaaaaaaaaa", "valid": false, "reason": "TOO_LONG" },
@@ -65,6 +76,7 @@
     },
 
     { "id": "reserved_exact_match", "name": "binance", "reserved": ["binance"], "valid": false, "reason": "RESERVED" },
+    { "id": "reserved_released_by_a_fired_u", "name": "binance", "reserved": ["binance"], "unreserved": ["binance"], "valid": true },
     { "id": "reserved_is_not_a_prefix_match", "name": "binanced", "reserved": ["binance"], "valid": true },
     { "id": "not_reserved_when_list_is_empty", "name": "binance", "valid": true }
   ],

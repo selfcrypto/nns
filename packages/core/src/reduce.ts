@@ -556,12 +556,16 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
     case 'G': {
       if (!addressEquals(tx.recipient, config.treasury)) return keep(forfeit('WRONG_RECIPIENT'))
 
-      // Syntax and reservation are separated so a `U` release is honoured:
-      // config.reservedNames is the published list, state.unreserved the part
-      // already released.
-      const check = validateName(message.name)
-      if (!check.ok) return keep(forfeit('INVALID_NAME'))
-      if (isReserved(state, config, message.name)) return keep(forfeit('RESERVED_NAME'))
+      // §4.1 in full, against chain state: config.reservedNames is the
+      // published list, the by-rule short names are members inside
+      // validateName itself, and state.unreserved is the part already
+      // released. RESERVED is the one reason with its own token — a held
+      // short name forfeits RESERVED_NAME, not INVALID_NAME (§7.4), and a
+      // released one registers normally.
+      const check = validateName(message.name, config.reservedNames, state.unreserved)
+      if (!check.ok) {
+        return keep(forfeit(check.reason === 'RESERVED' ? 'RESERVED_NAME' : 'INVALID_NAME'))
+      }
 
       // Value is checked before availability: underpaying is the client's own
       // fault and belongs in the forfeit column, while losing a race does not.
@@ -860,12 +864,15 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       if (message.effectiveHeight < tx.blockNumber + CONSTANTS.GOVERNANCE_DELAY) {
         return keep(forfeit('INSUFFICIENT_NOTICE'))
       }
-      // §4.1 rules 1–5 only — rule 6 is inverted by the row after: a `U`'s
-      // name must be *in* RESERVED_NAMES. The short names §4.1 rule 1 rejects
-      // are reserved too, and a `U` may not touch them: releasing one is a
-      // no-op, awarding one would put a leaf in the tree for a name every
-      // conforming client rejects.
-      if (!validateName(message.name).ok) return keep(forfeit('INVALID_NAME'))
+      // §4.1 rules 2–5 and the ceiling — rule 6 is inverted by the row
+      // after: a `U`'s name must be *in* RESERVED_NAMES. The floor never
+      // binds a `U`: well-formed short names are reserved by rule (§4.1) and
+      // are exactly what `U` exists to release or award, so RESERVED from
+      // the full check is the expected case, not a failure. TOO_SHORT — a
+      // short name failing rules 2–5, on neither membership route — still
+      // forfeits here.
+      const check = validateName(message.name, config.reservedNames, state.unreserved)
+      if (!check.ok && check.reason !== 'RESERVED') return keep(forfeit('INVALID_NAME'))
       if (!isReserved(state, config, message.name)) return keep(forfeit('NAME_NOT_RESERVED'))
       // One pending U per name — this is what makes the effect at
       // effective_height unconditional rather than racing a sibling (§6 U).

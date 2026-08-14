@@ -52,6 +52,7 @@ export {
 
 export {
   feeBand,
+  isShortReserved,
   isValidName,
   isValidRef,
   parseQuery,

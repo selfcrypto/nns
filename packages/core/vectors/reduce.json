@@ -1,7 +1,7 @@
 {
   "vectors": "nns/reduce",
   "version": 1,
-  "spec": "nns-spec-v1 draft r15, §7.3, §7.4 and §7.5",
+  "spec": "nns-spec-v1 draft r18, §7.3, §7.4 and §7.5",
   "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`) or a bare height advance (`advanceTo`), which is how expiry, timelock maturity and governance activation are driven — none of them is triggered by a message.",
   "addresses": {
     "TREASURY": "NQ82 24C1 X9HD 6GVL 4JAG AVF6 AT3K FA0Q H3UN",
@@ -641,6 +641,51 @@
         }
       ],
       "expect": { "names": { "binance": { "owner": "ALICE" } } }
+    },
+    {
+      "id": "unreserve_releases_a_short_name_reserved_by_rule",
+      "note": "web3 has no reservedNames entry — 1-4 character names satisfying rules 2-5 are RESERVED_NAMES members by rule (§4.1, r18). Released, the floor no longer binds and a G registers it at the normal fee.",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gweb3" },
+          "verdict": { "kind": "FORFEIT", "reason": "RESERVED_NAME" }
+        },
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 1, "sender": "ADMIN", "recipient": "PROTOCOL", "value": "1", "text": "NNS1Uweb3|58043200" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58043200, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gweb3" },
+          "verdict": { "kind": "OK" }
+        }
+      ],
+      "expect": { "names": { "web3": { "owner": "ALICE" } } }
+    },
+    {
+      "id": "unreserve_awards_a_short_name_to_the_recipient",
+      "note": "An awarded short name is REGISTERED at effective_height without passing through AVAILABLE (§6 U, §7.3); the activation runs before the block's transactions, so a prepared G loses the race and is refunded.",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ADMIN", "recipient": "BOB", "value": "1", "text": "NNS1Unq|58043200" },
+          "verdict": { "kind": "OK" }
+        },
+        {
+          "tx": { "blockNumber": 58043200, "txIndex": 0, "sender": "ALICE", "recipient": "TREASURY", "value": "400000000", "text": "NNS1Gnq" },
+          "verdict": { "kind": "REFUND", "reason": "LOST_REGISTRATION_RACE" }
+        }
+      ],
+      "expect": { "names": { "nq": { "owner": "BOB", "target": "BOB", "status": "REGISTERED" } } }
+    },
+    {
+      "id": "unreserve_still_rejects_a_short_name_failing_rules_2_5",
+      "note": "ab- fails rule 4, so it is on neither §4.1 membership route: never reserved, never releasable. The r18 revert widened U to well-formed short names only.",
+      "steps": [
+        {
+          "tx": { "blockNumber": 58000000, "txIndex": 0, "sender": "ADMIN", "recipient": "PROTOCOL", "value": "1", "text": "NNS1Uab-|58043200" },
+          "verdict": { "kind": "FORFEIT", "reason": "INVALID_NAME" }
+        }
+      ],
+      "expect": { "names": {} }
     },
     {
       "id": "a_maturing_transfer_runs_before_the_expiry_it_collides_with",

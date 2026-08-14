@@ -155,11 +155,13 @@ describe('applyBatch', () => {
     const { pipeline: p } = pipeline()
     const result = p.applyBatch(
       initialState(CONFIG),
-      [candidate({ blockNumber: LAUNCH + 10, recipientData: payload('NNS1Gab'), recipient: A })],
+      [candidate({ blockNumber: LAUNCH + 10, recipientData: payload('NNS1Gab-'), recipient: A })],
       LAUNCH + 60,
     )
     expect(result.counts.forfeit).toBe(1)
     expect(result.logRows).toHaveLength(1)
+    // `ab-` fails §4.1 rules 2–5; a well-formed `ab` would be RESERVED_NAME
+    // since r18 — reserved by rule, not invalid.
     expect(result.logRows[0]?.verdict).toBe('INVALID_NAME')
   })
 
