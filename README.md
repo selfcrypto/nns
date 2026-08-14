@@ -43,7 +43,7 @@ so anyone can run them.
    Nimiq chain                Indexer                  Clients
 ┌────────────────┐      ┌────────────────┐      ┌──────────────────┐
 │ NNS1Gkike      │      │  replay rules  │      │ resolve("kike")  │
-│ NNS1Sfoo       │ ───▶ │  §4 validity   │ ───▶ │ + Merkle proof   │
+│ NNS1Sfoo       │ ──>  │  §4 validity   │ ──>  │ + Merkle proof   │
 │ NNS1Xbar       │      │  §7 reducer    │      │ + quorum check   │
 │ (64-byte data) │      │  §8 Merkle     │      │ + anchor check   │
 └────────────────┘      └───────┬────────┘      └──────────────────┘
