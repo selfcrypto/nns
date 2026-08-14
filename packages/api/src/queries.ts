@@ -115,6 +115,24 @@ export interface ProofBase {
   readonly records: ReadonlyMap<string, ApiNameRecord> | null
 }
 
+/**
+ * A lookup of one checkpoint by height, carrying enough to explain a miss.
+ *
+ * Three different failures hide behind "no row at this height" and a client
+ * needs to tell them apart: not reached yet (wait), not retained (ask someone
+ * else), or a gap in the middle (this database is damaged). `retained` is the
+ * range that lets the route decide, and it is read **only on a miss** — the
+ * hit path stays one query.
+ */
+export interface CheckpointLookup {
+  readonly checkpoint: LatestCheckpoint | null
+  /**
+   * Oldest and newest retained checkpoint heights. `null` when the row was
+   * found — nothing needed explaining — or when the table is empty.
+   */
+  readonly retained: { readonly oldest: number; readonly newest: number } | null
+}
+
 /** The §8.2 log through the latest checkpoint — the hash-covered prefix. */
 export interface CheckpointLog {
   readonly checkpointHeight: number
@@ -158,6 +176,8 @@ export interface Queries {
   params(): Promise<Snapshot<ParamsSnapshot>>
   /** `null` while no checkpoint exists yet. */
   latestCheckpoint(): Promise<Snapshot<LatestCheckpoint | null>>
+  /** One checkpoint by exact height, with the retained range when it is absent. */
+  checkpointAt(height: number): Promise<Snapshot<CheckpointLookup>>
   /** `null` while no checkpoint exists yet; see {@link ProofBase} for degraded forms. */
   proofBase(): Promise<Snapshot<ProofBase | null>>
   /** `null` while no checkpoint exists yet. */
@@ -412,6 +432,39 @@ export class PgQueries implements Queries {
     return this.#snapshot(async (client) => {
       const row = await latestCheckpointRow(client)
       return row === null ? null : latestCheckpointOf(row)
+    })
+  }
+
+  /**
+   * One checkpoint by exact height.
+   *
+   * The bounds query runs **only when the row is missing**. On a hit it would
+   * be two full-table aggregates bought for nothing; on a miss it is the
+   * difference between "come back later" and "this server cannot serve you",
+   * which are different instructions to the caller.
+   */
+  async checkpointAt(height: number): Promise<Snapshot<CheckpointLookup>> {
+    return this.#snapshot(async (client) => {
+      const result = await client.query(
+        `SELECT ${CHECKPOINT_COLUMNS} FROM checkpoints WHERE height = $1`,
+        [height],
+      )
+      const row = result.rows[0] as Row | undefined
+      if (row !== undefined) return { checkpoint: latestCheckpointOf(row), retained: null }
+
+      // Sequential, like `detail` — a pg client cannot run queries
+      // concurrently, and issuing them anyway relies on deprecated queueing.
+      const bounds = await client.query(
+        'SELECT min(height) AS oldest, max(height) AS newest FROM checkpoints',
+      )
+      const b = bounds.rows[0] as Row | undefined
+      if (b === undefined || b['oldest'] === null || b['newest'] === null) {
+        return { checkpoint: null, retained: null }
+      }
+      return {
+        checkpoint: null,
+        retained: { oldest: toHeight(b['oldest'], 'oldest'), newest: toHeight(b['newest'], 'newest') },
+      }
     })
   }
 

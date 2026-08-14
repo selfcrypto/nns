@@ -24,6 +24,7 @@
 
 import { CONSTANTS } from '@nns/core'
 
+import { readErrorCode } from './documents.js'
 import { QuorumError, type ResolverReply } from './errors.js'
 import { getJson, type Fetched, type FetchedOk, type HttpFetch, type ResolverEndpoint, join } from './transport.js'
 import { warn, type ResolveWarning } from './warnings.js'
@@ -147,7 +148,10 @@ export async function agree<O extends Observation>(
     witnesses,
     queried: policy.endpoints.length,
     checkpoint: reconcileRoots(witnesses),
-    warnings: rootWarnings(witnesses),
+    // A second round-trip, and only when the heights actually differ: the
+    // ahead resolvers are asked what they had at the behind one's boundary.
+    // This used to be a warning that named the gap; it now closes it.
+    warnings: await reconcileAcrossHeights(policy, witnesses),
   }
 }
 
@@ -161,19 +165,17 @@ function checkpoints<O extends Observation>(witnesses: readonly Witness<O>[]): W
 }
 
 /**
- * The root half of §8.5 #2, and the honest limit on it.
+ * The root half of §8.5 #2, at a single height.
  *
- * Two roots are only comparable **at the same height** — checkpoints are cut
- * every `CHECKPOINT_INTERVAL` blocks and independent resolvers will sit a
- * boundary apart routinely, which is lag, not conflict. Same height and
+ * Two roots are only directly comparable **at the same height** — checkpoints
+ * are cut every `CHECKPOINT_INTERVAL` blocks and independent resolvers will
+ * sit a boundary apart routinely, which is lag, not conflict. Same height and
  * different roots is a conflict, and a hard one: one of these parties is
  * serving a state the other cannot have derived.
  *
- * What this cannot do is compare across heights. Closing that needs a
- * resolver endpoint that serves a checkpoint *by height* so the ahead party
- * can be asked what it had at the behind party's boundary; the API serves
- * only `/checkpoints/latest` today. Until then the mismatch is reported as
- * {@link 'ROOT_HEIGHTS_DIFFER'} rather than passed off as a check that ran.
+ * Different heights are reconciled separately and asynchronously, by
+ * {@link reconcileAcrossHeights} — the ahead party is asked what it had at
+ * the behind party's boundary.
  */
 function reconcileRoots<O extends Observation>(witnesses: readonly Witness<O>[]): CheckpointRef | null {
   const proving = checkpoints(witnesses)
@@ -204,20 +206,112 @@ function reconcileRoots<O extends Observation>(witnesses: readonly Witness<O>[])
   return deepest.observation.checkpoint
 }
 
-function rootWarnings<O extends Observation>(witnesses: readonly Witness<O>[]): ResolveWarning[] {
+/**
+ * §8.5 #2's root half **across** heights, which is the half that used to be
+ * skipped.
+ *
+ * Resolvers a boundary apart is the normal case, not the exceptional one, so
+ * reporting `ROOT_HEIGHTS_DIFFER` and moving on meant the root comparison
+ * almost never ran — the check most likely to catch a divergent operator was
+ * the one most likely to be waived. `GET /checkpoints/{height}` closes it:
+ * the deepest resolvers are asked what they had at the **shallowest** party's
+ * boundary, a height they have already passed, and their `nameRoot` there
+ * must equal the root that party proved against.
+ *
+ * The shallowest height is the target on purpose. It is the only one every
+ * proving resolver has reached, and asking a behind party about a boundary it
+ * has not cut yet would produce `CHECKPOINT_PENDING` — an absence, not a
+ * disagreement — from an honest resolver.
+ *
+ * Three outcomes, and the middle one is the point of the whole exercise:
+ *
+ * - Every ahead resolver confirms → the check ran, no warning.
+ * - Any ahead resolver serves a **different** root at that height → the same
+ *   hard failure as a same-height mismatch. It is not lag: both parties claim
+ *   to have cut that boundary, and they disagree about what was in it.
+ * - An ahead resolver cannot answer — pruned, pending, unreachable, or a body
+ *   that does not parse → `ROOT_HEIGHTS_DIFFER` stands, now carrying *why*.
+ *   An absent checkpoint is never read as agreement.
+ */
+export async function reconcileAcrossHeights<O extends Observation>(
+  policy: QuorumPolicy,
+  witnesses: readonly Witness<O>[],
+): Promise<readonly ResolveWarning[]> {
   const proving = checkpoints(witnesses)
   if (proving.length < 2) return []
 
-  const heights = new Set(proving.map((w) => (w.observation.checkpoint as CheckpointRef).height))
+  const refOf = (w: Witness<O>): CheckpointRef => w.observation.checkpoint as CheckpointRef
+  const heights = new Set(proving.map((w) => refOf(w).height))
   if (heights.size === 1) return []
 
+  // Deepest first, so the last entry is the shallowest — the common boundary.
+  const behind = proving[proving.length - 1] as Witness<O>
+  const target = refOf(behind)
+  const ahead = proving.filter((w) => refOf(w).height > target.height)
+
+  const fetched = await Promise.all(
+    ahead.map((w) => getJson(policy.fetch, join(w.endpoint.url, `checkpoints/${target.height}`), policy.timeoutMs)),
+  )
+
+  const unresolved: string[] = []
+  for (const [index, witness] of ahead.entries()) {
+    const reply = fetched[index] as Fetched
+    if (!reply.ok) {
+      unresolved.push(`${witness.endpoint.name}: unreachable (${reply.reason})`)
+      continue
+    }
+    if (reply.status !== 200) {
+      unresolved.push(`${witness.endpoint.name}: ${readErrorCode(reply.body) ?? `HTTP ${reply.status}`}`)
+      continue
+    }
+    const rootHex = checkpointNameRoot(reply.body)
+    if (rootHex === null) {
+      unresolved.push(`${witness.endpoint.name}: unreadable checkpoint document`)
+      continue
+    }
+    if (rootHex !== target.rootHex) {
+      throw new QuorumError(
+        'QUORUM_ROOT_MISMATCH',
+        `resolvers disagree about checkpoint ${target.height}: it was reached by both, and its roots differ`,
+        [
+          { resolver: behind.endpoint.name, answer: `root ${target.rootHex} at ${target.height}` },
+          {
+            resolver: witness.endpoint.name,
+            answer: `root ${rootHex} at ${target.height} (proved at ${refOf(witness).height})`,
+          },
+        ],
+      )
+    }
+  }
+
+  if (unresolved.length === 0) return []
   return [
     warn(
       'ROOT_HEIGHTS_DIFFER',
-      `resolvers proved against different checkpoints (${[...heights].sort((a, b) => b - a).join(', ')}), ` +
-        'so their roots were not compared to each other',
+      `resolvers proved against different checkpoints (${[...heights].sort((a, b) => b - a).join(', ')}); ` +
+        `comparing them at ${target.height} did not complete — ${unresolved.join('; ')}`,
     ),
   ]
+}
+
+/**
+ * `checkpoint.nameRoot` from a `/checkpoints/{height}` body, as bare
+ * lowercase hex, or `null` if the body is not that shape.
+ *
+ * Read defensively and without `documents.ts`'s throwing readers: a malformed
+ * reply here must degrade to "the comparison did not run", never halt a
+ * resolution that has already agreed on its answer. `nameRoot` is the field
+ * because that is what a §8.3 proof commits to — the same digest
+ * `CheckpointRef.rootHex` holds.
+ */
+function checkpointNameRoot(body: unknown): string | null {
+  if (typeof body !== 'object' || body === null) return null
+  const checkpoint = (body as Record<string, unknown>)['checkpoint']
+  if (typeof checkpoint !== 'object' || checkpoint === null) return null
+  const root = (checkpoint as Record<string, unknown>)['nameRoot']
+  if (typeof root !== 'string') return null
+  const hex = root.startsWith('0x') ? root.slice(2) : root
+  return /^[0-9a-f]{64}$/.test(hex.toLowerCase()) ? hex.toLowerCase() : null
 }
 
 /**

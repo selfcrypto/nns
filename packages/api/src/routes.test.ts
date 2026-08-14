@@ -20,6 +20,7 @@ import { describe, expect, it } from 'vitest'
 import {
   NotSyncedError,
   type ApiNameRecord,
+  type CheckpointLookup,
   type LatestCheckpoint,
   type NameDetail,
   type ProofBase,
@@ -78,6 +79,7 @@ function queriesOf(partial: Partial<Queries>): Queries {
     offers: unstubbed,
     params: unstubbed,
     latestCheckpoint: unstubbed,
+    checkpointAt: unstubbed,
     proofBase: () => Promise.resolve(snap(null)),
     logThroughCheckpoint: unstubbed,
     outstanding: unstubbed,
@@ -558,6 +560,114 @@ describe('/checkpoints/latest', () => {
         height: HEIGHT,
       },
     })
+  })
+})
+
+describe('/checkpoints/{height}', () => {
+  const { base } = treeOf([RECORD])
+  const found = { checkpoint: base.checkpoint, retained: null }
+  const at = (value: CheckpointLookup) => ({ checkpointAt: () => Promise.resolve(snap(value)) })
+
+  it('serves the same six digests as /checkpoints/latest', async () => {
+    // The two endpoints must be byte-identical in shape: a client verifies
+    // against whichever it got, with the same code.
+    const handle = routes({
+      checkpointAt: () => Promise.resolve(snap(found)),
+      latestCheckpoint: () => Promise.resolve(snap(base.checkpoint)),
+    })
+    const byHeight = await handle('GET', `/checkpoints/${CHECKPOINT_HEIGHT}`)
+    const latest = await handle('GET', '/checkpoints/latest')
+    expect(byHeight).toEqual(latest)
+    expect(byHeight.status).toBe(200)
+  })
+
+  it('400s a height that is not a checkpoint boundary — not a 404', async () => {
+    // No checkpoint can ever exist off a boundary, so this is malformed in
+    // the way a fractional height would be. A 404 would invite a client to
+    // retry forever for something that will never appear.
+    const handle = routes(at(found))
+    const response = await handle('GET', `/checkpoints/${CHECKPOINT_HEIGHT + 1}`)
+    expect(response.status).toBe(400)
+    expect(response.body).toMatchObject({
+      error: 'NOT_A_CHECKPOINT_HEIGHT',
+      interval: 720,
+      nearest: { below: CHECKPOINT_HEIGHT, above: CHECKPOINT_HEIGHT + 720 },
+    })
+  })
+
+  it('400s a height that is not a decimal integer', async () => {
+    const handle = routes(at(found))
+    for (const bad of ['abc', '-720', '72.0', '0x2d0', '1e3']) {
+      const response = await handle('GET', `/checkpoints/${bad}`)
+      expect(response.status).toBe(400)
+      expect(response.body).toMatchObject({ error: 'INVALID_HEIGHT' })
+    }
+  })
+
+  it('accepts height 0, which is a multiple of the interval', async () => {
+    const handle = routes(at({ checkpoint: null, retained: { oldest: 720, newest: 1440 } }))
+    // Not a 400: 0 is a boundary. It is simply older than anything retained.
+    expect((await handle('GET', '/checkpoints/0')).status).toBe(410)
+  })
+
+  it('404s CHECKPOINT_PENDING above the newest retained, and says how far', async () => {
+    const handle = routes(at({ checkpoint: null, retained: { oldest: 720, newest: CHECKPOINT_HEIGHT } }))
+    const response = await handle('GET', `/checkpoints/${CHECKPOINT_HEIGHT + 720}`)
+    expect(response.status).toBe(404)
+    expect(response.body).toMatchObject({ error: 'CHECKPOINT_PENDING', latest: CHECKPOINT_HEIGHT })
+  })
+
+  it('410s CHECKPOINT_NOT_RETAINED below the oldest, and says where the range starts', async () => {
+    // 410 Gone: the resource is real, this server does not have it. The
+    // phrasing is "not retained" rather than "pruned" because the API cannot
+    // tell pruning from a database that started at a later LAUNCH_HEIGHT.
+    const handle = routes(at({ checkpoint: null, retained: { oldest: CHECKPOINT_HEIGHT, newest: CHECKPOINT_HEIGHT } }))
+    const response = await handle('GET', `/checkpoints/${CHECKPOINT_HEIGHT - 720}`)
+    expect(response.status).toBe(410)
+    expect(response.body).toMatchObject({ error: 'CHECKPOINT_NOT_RETAINED', oldest: CHECKPOINT_HEIGHT })
+  })
+
+  it('404s CHECKPOINT_MISSING for a gap inside the retained range', async () => {
+    // Should never happen — the indexer writes every boundary — so it gets
+    // its own code to be alerted on, and stays a 404 because retrying will
+    // not help.
+    const handle = routes(
+      at({ checkpoint: null, retained: { oldest: CHECKPOINT_HEIGHT - 1440, newest: CHECKPOINT_HEIGHT + 1440 } }),
+    )
+    const response = await handle('GET', `/checkpoints/${CHECKPOINT_HEIGHT}`)
+    expect(response.status).toBe(404)
+    expect(response.body).toMatchObject({ error: 'CHECKPOINT_MISSING' })
+  })
+
+  it('404s NO_CHECKPOINT when the database holds none at all', async () => {
+    const handle = routes(at({ checkpoint: null, retained: null }))
+    const response = await handle('GET', `/checkpoints/${CHECKPOINT_HEIGHT}`)
+    expect(response.status).toBe(404)
+    expect(response.body).toMatchObject({ error: 'NO_CHECKPOINT' })
+  })
+
+  it('gives the four misses four different codes', async () => {
+    // The point of the endpoint's error design, asserted as one statement:
+    // wait, ask elsewhere, alert, and fix your request are four instructions.
+    const codes = new Set<string>()
+    const cases: readonly [CheckpointLookup, number][] = [
+      [{ checkpoint: null, retained: { oldest: 720, newest: CHECKPOINT_HEIGHT - 720 } }, CHECKPOINT_HEIGHT],
+      [{ checkpoint: null, retained: { oldest: CHECKPOINT_HEIGHT + 720, newest: CHECKPOINT_HEIGHT + 1440 } }, CHECKPOINT_HEIGHT],
+      [{ checkpoint: null, retained: { oldest: 720, newest: CHECKPOINT_HEIGHT + 720 } }, CHECKPOINT_HEIGHT],
+      [{ checkpoint: null, retained: null }, CHECKPOINT_HEIGHT],
+    ]
+    for (const [lookup, height] of cases) {
+      const body = (await routes(at(lookup))('GET', `/checkpoints/${height}`)).body as { error: string }
+      codes.add(body.error)
+    }
+    expect(codes).toEqual(
+      new Set(['CHECKPOINT_PENDING', 'CHECKPOINT_NOT_RETAINED', 'CHECKPOINT_MISSING', 'NO_CHECKPOINT']),
+    )
+  })
+
+  it('is still 503 when the indexer has not initialised the database', async () => {
+    const handle = routes({ checkpointAt: () => Promise.reject(new NotSyncedError('not yet')) })
+    expect((await handle('GET', `/checkpoints/${CHECKPOINT_HEIGHT}`)).status).toBe(503)
   })
 })
 

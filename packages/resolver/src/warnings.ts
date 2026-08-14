@@ -22,9 +22,16 @@ export type WarningCode =
    */
   | 'QUORUM_BELOW_SPEC'
   /**
-   * The agreeing resolvers were at different checkpoint heights, so their
-   * roots could not be compared to each other. Lag, not conflict — but the
-   * root half of §8.5 #2 did not happen, and that is worth saying.
+   * The agreeing resolvers were at different checkpoint heights **and the
+   * cross-height comparison could not complete** — an ahead resolver could
+   * not serve the behind one's boundary (pruned, pending, unreachable, or a
+   * body that did not parse). Lag, not conflict, but the root half of §8.5 #2
+   * did not happen and an absent checkpoint is never read as agreement.
+   *
+   * Differing heights alone no longer earn this: since `/checkpoints/{height}`
+   * exists, the ahead party is asked what it had at the behind one's boundary,
+   * and a successful comparison emits nothing. The `detail` names which
+   * resolver could not answer and why.
    */
   | 'ROOT_HEIGHTS_DIFFER'
   /**

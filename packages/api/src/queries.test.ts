@@ -254,6 +254,50 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     expect(base.value?.records?.size).toBe(2)
   })
 
+  it('serves a checkpoint by exact height, identically to /checkpoints/latest', async () => {
+    // Only one checkpoint exists in this fixture, so the two must agree
+    // exactly — which is the property the anchor publisher relies on when it
+    // asks for the height /log stamped rather than for "latest".
+    const byHeight = await handle('GET', `/checkpoints/${CP_HEIGHT}`)
+    const latest = await handle('GET', '/checkpoints/latest')
+    expect(byHeight.status).toBe(200)
+    expect(byHeight.body).toEqual(latest.body)
+
+    const lookup = await queries.checkpointAt(CP_HEIGHT)
+    expect(lookup.value.checkpoint).toMatchObject({ height: CP_HEIGHT, layout: 3 })
+    // The bounds query does not run on a hit.
+    expect(lookup.value.retained).toBeNull()
+  })
+
+  it('the publisher pairing works over real SQL: /log stamps a height, that height serves', async () => {
+    // The race this endpoint exists to remove. Read /log, take the height it
+    // committed to, ask for that exact checkpoint — no compare-and-retry, and
+    // the log hash in the header is the one the checkpoint row carries.
+    const log = await handle('GET', '/log')
+    const stamped = Number(log.headers?.['x-nns-checkpoint-height'])
+    expect(stamped).toBe(CP_HEIGHT)
+
+    const checkpoint = await handle('GET', `/checkpoints/${stamped}`)
+    expect(checkpoint.status).toBe(200)
+    const served = (checkpoint.body as { checkpoint: { logHash: string; height: number } }).checkpoint
+    expect(served.height).toBe(stamped)
+    expect(served.logHash).toBe(log.headers?.['x-nns-log-hash'])
+  })
+
+  it('distinguishes pending, not-retained and malformed over real SQL', async () => {
+    const pending = await handle('GET', `/checkpoints/${CP_HEIGHT + 720}`)
+    expect(pending.status).toBe(404)
+    expect(pending.body).toMatchObject({ error: 'CHECKPOINT_PENDING', latest: CP_HEIGHT })
+
+    const old = await handle('GET', `/checkpoints/${CP_HEIGHT - 720}`)
+    expect(old.status).toBe(410)
+    expect(old.body).toMatchObject({ error: 'CHECKPOINT_NOT_RETAINED', oldest: CP_HEIGHT })
+
+    const offBoundary = await handle('GET', `/checkpoints/${CP_HEIGHT + 1}`)
+    expect(offBoundary.status).toBe(400)
+    expect(offBoundary.body).toMatchObject({ error: 'NOT_A_CHECKPOINT_HEIGHT' })
+  })
+
   it('a proof fetched over HTTP routes verifies with core alone — the task-02 done-when', async () => {
     const resolved = await handle('GET', '/resolve/alice-example')
     expect(resolved.status).toBe(200)

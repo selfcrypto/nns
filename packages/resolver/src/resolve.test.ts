@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { DelegateError, LookupError, ProofError, QuorumError } from './errors.js'
 import { NnsResolver } from './resolve.js'
-import { CHECKPOINT_HEIGHT, address, availableJson, record, resolveJson } from './test-fixtures.js'
+import { CHECKPOINT_HEIGHT, address, availableJson, record, resolveJson, rootHex } from './test-fixtures.js'
 import type { HttpFetch, ResolverEndpoint } from './transport.js'
 
 // ── A network made of functions ─────────────────────────────────────────────
@@ -27,6 +27,36 @@ function fakeFetch(hosts: Record<string, Host>): HttpFetch {
 }
 
 const serves = (body: unknown, status = 200): Host => () => ({ status, body })
+
+/**
+ * A host that answers `/resolve/...` with `body` and `/checkpoints/{h}` from
+ * `checkpoints` — what a real API does, and what §8.5 #2's cross-height
+ * comparison needs to exist before it can run.
+ */
+const servesWithCheckpoints = (body: unknown, checkpoints: Record<number, Reply>): Host =>
+  (path) => {
+    const match = /^\/checkpoints\/([0-9]+)$/.exec(path)
+    if (match === null) return { status: 200, body }
+    return checkpoints[Number(match[1])] ?? { status: 404, body: { error: 'CHECKPOINT_PENDING' } }
+  }
+
+/** A `/checkpoints/{height}` 200 body, as `packages/api` serves it. */
+const checkpointBody = (height: number, nameRoot: string) => ({
+  status: 200,
+  body: {
+    checkpoint: {
+      height,
+      layout: 3,
+      nameRoot,
+      pricesRoot: `0x${'11'.repeat(32)}`,
+      pendingRoot: `0x${'22'.repeat(32)}`,
+      unreservedRoot: `0x${'33'.repeat(32)}`,
+      logHash: `0x${'44'.repeat(32)}`,
+      commitment: `0x${'55'.repeat(32)}`,
+    },
+    height,
+  },
+})
 
 const A: ResolverEndpoint = { name: 'reference', url: 'https://a.example' }
 const B: ResolverEndpoint = { name: 'community', url: 'https://b.example' }
@@ -110,16 +140,94 @@ describe('resolve', () => {
     expect((error as QuorumError).code).toBe('QUORUM_ROOT_MISMATCH')
   })
 
-  it('warns rather than halts when the resolvers are a checkpoint apart', async () => {
+  it('compares roots across checkpoint heights via /checkpoints/{height}', async () => {
+    // §8.5 #2's root half used to be skipped whenever the resolvers were a
+    // boundary apart — which is the normal case, so the check that catches a
+    // divergent operator almost never ran. The ahead resolver is now asked
+    // what it had at the behind one's boundary.
+    const a = resolveJson(RECORDS, 'kikeee')
+    const b = resolveJson(RECORDS, 'kikeee')
+    ;(b['proof'] as Record<string, unknown>)['nimiq_height'] = CHECKPOINT_HEIGHT - 720
+    const agreed = rootHex(RECORDS)
+
+    const result = await resolverOver({
+      'a.example': servesWithCheckpoints(a, { [CHECKPOINT_HEIGHT - 720]: checkpointBody(CHECKPOINT_HEIGHT - 720, agreed) }),
+      'b.example': serves(b),
+    }).resolve('kikeee')
+
+    expect(result.verification).toBe('PROVEN')
+    // The comparison ran and passed, so the warning is gone entirely.
+    expect(result.warnings.map((w) => w.code)).not.toContain('ROOT_HEIGHTS_DIFFER')
+    expect(result.checkpoint?.height).toBe(CHECKPOINT_HEIGHT)
+  })
+
+  it('halts when the ahead resolver had a different root at the behind one’s boundary', async () => {
+    // Not lag: both parties reached that boundary and disagree about what was
+    // in it. The same hard failure as a same-height mismatch.
     const a = resolveJson(RECORDS, 'kikeee')
     const b = resolveJson(RECORDS, 'kikeee')
     ;(b['proof'] as Record<string, unknown>)['nimiq_height'] = CHECKPOINT_HEIGHT - 720
 
-    const result = await resolverOver({ 'a.example': serves(a), 'b.example': serves(b) }).resolve('kikeee')
+    const error = await resolverOver({
+      'a.example': servesWithCheckpoints(a, {
+        [CHECKPOINT_HEIGHT - 720]: checkpointBody(CHECKPOINT_HEIGHT - 720, `0x${'ab'.repeat(32)}`),
+      }),
+      'b.example': serves(b),
+    })
+      .resolve('kikeee')
+      .catch((e: unknown) => e)
+
+    expect((error as QuorumError).code).toBe('QUORUM_ROOT_MISMATCH')
+    expect((error as QuorumError).message).toContain(String(CHECKPOINT_HEIGHT - 720))
+  })
+
+  it('keeps the warning, with a reason, when the ahead resolver cannot serve that height', async () => {
+    // An absent checkpoint is never read as agreement. 410 means this server
+    // does not retain it — ask another one, do not assume it matched.
+    const a = resolveJson(RECORDS, 'kikeee')
+    const b = resolveJson(RECORDS, 'kikeee')
+    ;(b['proof'] as Record<string, unknown>)['nimiq_height'] = CHECKPOINT_HEIGHT - 720
+
+    const result = await resolverOver({
+      'a.example': servesWithCheckpoints(a, {
+        [CHECKPOINT_HEIGHT - 720]: { status: 410, body: { error: 'CHECKPOINT_NOT_RETAINED' } },
+      }),
+      'b.example': serves(b),
+    }).resolve('kikeee')
+
+    expect(result.verification).toBe('PROVEN')
+    const warning = result.warnings.find((w) => w.code === 'ROOT_HEIGHTS_DIFFER')
+    expect(warning?.detail).toContain('CHECKPOINT_NOT_RETAINED')
+    expect(warning?.detail).toContain('reference')
+  })
+
+  it('keeps the warning when the ahead resolver is unreachable for the second round-trip', async () => {
+    const a = resolveJson(RECORDS, 'kikeee')
+    const b = resolveJson(RECORDS, 'kikeee')
+    ;(b['proof'] as Record<string, unknown>)['nimiq_height'] = CHECKPOINT_HEIGHT - 720
+
+    const result = await resolverOver({
+      'a.example': (path) => (path.startsWith('/checkpoints/') ? 'unreachable' : { status: 200, body: a }),
+      'b.example': serves(b),
+    }).resolve('kikeee')
 
     expect(result.verification).toBe('PROVEN')
     expect(result.warnings.map((w) => w.code)).toContain('ROOT_HEIGHTS_DIFFER')
-    expect(result.checkpoint?.height).toBe(CHECKPOINT_HEIGHT)
+  })
+
+  it('does not make the extra round-trip when the resolvers are at the same height', async () => {
+    // The comparison costs a request per ahead resolver, and the common case
+    // needs none: same height is already compared directly.
+    const body = resolveJson(RECORDS, 'kikeee')
+    const paths: string[] = []
+    const spy = (b: unknown): Host => (path) => {
+      paths.push(path)
+      return { status: 200, body: b }
+    }
+    const result = await resolverOver({ 'a.example': spy(body), 'b.example': spy(body) }).resolve('kikeee')
+
+    expect(result.verification).toBe('PROVEN')
+    expect(paths.some((p) => p.startsWith('/checkpoints/'))).toBe(false)
   })
 
   it('reports pending depth, not proof, when the target changed since the checkpoint', async () => {

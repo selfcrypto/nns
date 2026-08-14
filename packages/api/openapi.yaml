@@ -265,27 +265,76 @@ paths:
             layout of the commitment function that produced them.
           content:
             application/json:
-              schema:
-                type: object
-                required: [checkpoint, height]
-                properties:
-                  checkpoint:
-                    type: object
-                    required: [height, layout, nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash, commitment]
-                    properties:
-                      height: { $ref: '#/components/schemas/Height' }
-                      layout: { type: integer }
-                      nameRoot: { $ref: '#/components/schemas/Digest' }
-                      pricesRoot: { $ref: '#/components/schemas/Digest' }
-                      pendingRoot: { $ref: '#/components/schemas/Digest' }
-                      unreservedRoot:
-                        oneOf: [{ $ref: '#/components/schemas/Digest' }, { type: 'null' }]
-                        description: null on a layout-1 row, whose commitment function had no such digest.
-                      logHash: { $ref: '#/components/schemas/Digest' }
-                      commitment: { $ref: '#/components/schemas/Digest' }
-                  height: { $ref: '#/components/schemas/Height' }
+              schema: { $ref: '#/components/schemas/CheckpointResponse' }
         '404':
           description: NO_CHECKPOINT — none written yet.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
+  /checkpoints/{height}:
+    get:
+      summary: One §8.1 checkpoint by exact height
+      description: >
+        The same body as /checkpoints/latest, for a named boundary. Two callers
+        need it. An anchor publisher must pair the commitment at H with the log
+        snapshot through H: it reads /log, takes the height that response
+        stamped in x-nns-checkpoint-height, and asks for that exact checkpoint —
+        rather than fetch-latest / fetch-log / compare / retry, which loses a
+        race at every boundary and can quietly anchor a mismatched pair. And
+        §8.5 #2's root half needs it, so two resolvers a checkpoint apart can
+        have their roots compared instead of the comparison being skipped.
+
+
+        Four ways to miss, four statuses, because they are four different
+        instructions to the caller: fix the request, wait, ask another server,
+        or alert. They deliberately do not collapse into one 404.
+      parameters:
+        - name: height
+          in: path
+          required: true
+          schema: { type: integer, minimum: 0 }
+          description: >
+            An absolute multiple of CHECKPOINT_INTERVAL (720). Not an offset
+            from LAUNCH_HEIGHT (§8.1).
+      responses:
+        '200':
+          description: The checkpoint at that height. Identical in shape to /checkpoints/latest.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckpointResponse' }
+        '400':
+          description: >
+            INVALID_HEIGHT — not a decimal integer, or out of range.
+            NOT_A_CHECKPOINT_HEIGHT — a well-formed height that is not an
+            absolute multiple of CHECKPOINT_INTERVAL. A client error rather
+            than a 404 of a real thing: no checkpoint can ever exist off a
+            boundary, so retrying will never succeed. Carries `interval` and
+            `nearest: {below, above}`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: >
+            CHECKPOINT_PENDING — a boundary the indexer has not reached yet;
+            carries `latest` so the caller can compute the wait instead of
+            polling blind. CHECKPOINT_MISSING — a boundary inside the retained
+            range with no row, which should never happen and means this
+            database has a gap; a 404 because retrying will not help, but named
+            separately so it can be alerted on. NO_CHECKPOINT — the database
+            holds none at all.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '410':
+          description: >
+            CHECKPOINT_NOT_RETAINED — a boundary older than the oldest this
+            server holds; carries `oldest`. Gone rather than Not Found: the
+            resource is real and this server does not have it, so the caller
+            should ask a server with deeper retention. Phrased "not retained"
+            because the API cannot distinguish a pruned checkpoint from one
+            below this database's LAUNCH_HEIGHT, and should not guess.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -439,13 +488,39 @@ components:
     Status:
       type: string
       enum: [REGISTERED, GRACE]
+    Checkpoint:
+      type: object
+      required: [height, layout, nameRoot, pricesRoot, pendingRoot, unreservedRoot, logHash, commitment]
+      properties:
+        height: { $ref: '#/components/schemas/Height' }
+        layout: { type: integer }
+        nameRoot: { $ref: '#/components/schemas/Digest' }
+        pricesRoot: { $ref: '#/components/schemas/Digest' }
+        pendingRoot: { $ref: '#/components/schemas/Digest' }
+        unreservedRoot:
+          oneOf: [{ $ref: '#/components/schemas/Digest' }, { type: 'null' }]
+          description: null on a layout-1 row, whose commitment function had no such digest.
+        logHash: { $ref: '#/components/schemas/Digest' }
+        commitment:
+          allOf: [{ $ref: '#/components/schemas/Digest' }]
+          description: >
+            The §8.1 checkpoint commitment — the six-component digest, and what
+            §9 anchors. Not nameRoot: an inclusion proof verifies against
+            nameRoot, which is one component of this value (§8.5 #3).
+    CheckpointResponse:
+      type: object
+      description: Shared by /checkpoints/latest and /checkpoints/{height}, so a client verifies either with the same code.
+      required: [checkpoint, height]
+      properties:
+        checkpoint: { $ref: '#/components/schemas/Checkpoint' }
+        height: { $ref: '#/components/schemas/Height' }
     Error:
       type: object
       required: [error]
       properties:
         error:
           type: string
-          description: Stable machine-readable code (NOT_FOUND, IN_GRACE, INVALID_NAME, DOTTED_QUERY, INVALID_ADDRESS, UNKNOWN_ROUTE, METHOD_NOT_ALLOWED, NO_CHECKPOINT, NOT_SYNCED, INTERNAL).
+          description: Stable machine-readable code (NOT_FOUND, IN_GRACE, INVALID_NAME, DOTTED_QUERY, INVALID_ADDRESS, INVALID_HEIGHT, NOT_A_CHECKPOINT_HEIGHT, CHECKPOINT_PENDING, CHECKPOINT_NOT_RETAINED, CHECKPOINT_MISSING, UNKNOWN_ROUTE, METHOD_NOT_ALLOWED, NO_CHECKPOINT, NOT_SYNCED, INTERNAL).
       additionalProperties: true
     NameRecord:
       type: object

@@ -19,6 +19,7 @@
  */
 
 import {
+  CONSTANTS,
   formatAddress,
   logFile,
   minPrice,
@@ -34,6 +35,7 @@ import {
   NotSyncedError,
   type ApiNameRecord,
   type ApiOffer,
+  type LatestCheckpoint,
   type ProofBase,
   type Queries,
 } from './queries.js'
@@ -58,6 +60,25 @@ export interface RouteOptions {
 }
 
 export type RouteHandler = (method: string, url: string) => Promise<ApiResponse>
+
+/**
+ * The six §8.1 digests, wire form. Shared by `/checkpoints/latest` and
+ * `/checkpoints/{height}` so the two can never drift: a client that verifies
+ * against one must be able to verify against the other with the same code,
+ * and two copies of this object literal is exactly how that stops being true.
+ */
+function serialiseCheckpoint(value: LatestCheckpoint): Record<string, unknown> {
+  return {
+    height: value.height,
+    layout: value.layout,
+    nameRoot: `0x${value.nameRoot}`,
+    pricesRoot: `0x${value.pricesRoot}`,
+    pendingRoot: `0x${value.pendingRoot}`,
+    unreservedRoot: value.unreservedRoot === null ? null : `0x${value.unreservedRoot}`,
+    logHash: `0x${value.logHash}`,
+    commitment: `0x${value.commitment}`,
+  }
+}
 
 const respond = (status: number, body: unknown): ApiResponse => ({ status, body })
 
@@ -238,18 +259,96 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
   async function checkpointRoute(): Promise<ApiResponse> {
     const { height, value } = await queries.latestCheckpoint()
     if (value === null) return respond(404, { error: 'NO_CHECKPOINT', height })
-    return respond(200, {
-      checkpoint: {
-        height: value.height,
-        layout: value.layout,
-        nameRoot: `0x${value.nameRoot}`,
-        pricesRoot: `0x${value.pricesRoot}`,
-        pendingRoot: `0x${value.pendingRoot}`,
-        unreservedRoot: value.unreservedRoot === null ? null : `0x${value.unreservedRoot}`,
-        logHash: `0x${value.logHash}`,
-        commitment: `0x${value.commitment}`,
-      },
-      height,
+    return respond(200, { checkpoint: serialiseCheckpoint(value), height })
+  }
+
+  /**
+   * One checkpoint by exact height (§8.1).
+   *
+   * Two callers, one endpoint. The anchor publisher needs a **matched pair** —
+   * the commitment at H and the log snapshot through H must describe the same
+   * instant — and `/log` already stamps the height it served in
+   * `x-nns-checkpoint-height`. So the publisher reads `/log` first and then
+   * asks for that exact checkpoint, instead of fetch-latest / fetch-log /
+   * compare / retry, which loses a race at every boundary and can quietly
+   * anchor a mismatched pair. And §8.5 #2's root half needs it: two resolvers
+   * a checkpoint apart cannot have their roots compared at all today, so the
+   * behind party's height can now be asked of the ahead party.
+   *
+   * **Four outcomes, four statuses**, because they are four different things
+   * to do about it and collapsing them into one 404 tells a client nothing:
+   *
+   * | Case | Status | Code |
+   * |---|---|---|
+   * | Not an absolute multiple of `CHECKPOINT_INTERVAL` | 400 | `NOT_A_CHECKPOINT_HEIGHT` |
+   * | A boundary above the newest retained | 404 | `CHECKPOINT_PENDING` |
+   * | A boundary below the oldest retained | 410 | `CHECKPOINT_NOT_RETAINED` |
+   * | A boundary inside the range, with no row | 404 | `CHECKPOINT_MISSING` |
+   *
+   * The first is a **client error and not a 404 of a real thing**: no
+   * checkpoint can ever exist off a boundary, so the request is malformed in
+   * the same way a fractional block height would be, and answering 404 would
+   * invite a client to retry forever. The second will exist — the response
+   * carries `latest` so the caller can compute the wait rather than poll
+   * blind. The third is `410 Gone` because the resource is real and this
+   * server does not have it; the honest phrasing is *not retained*, since the
+   * API cannot distinguish "pruned" from "before this database's
+   * `LAUNCH_HEIGHT`" and should not guess. The fourth should never happen —
+   * the indexer writes every boundary — and means a gap in the retained
+   * range, so it is 404 rather than 500 (retrying will not help) but names
+   * itself differently so it can be alerted on.
+   */
+  async function checkpointAtRoute(raw: string): Promise<ApiResponse> {
+    if (!/^[0-9]+$/.test(raw)) {
+      return respond(400, { error: 'INVALID_HEIGHT', detail: 'height must be a decimal integer' })
+    }
+    const height = Number(raw)
+    if (!Number.isSafeInteger(height)) {
+      return respond(400, { error: 'INVALID_HEIGHT', detail: 'height is out of range' })
+    }
+    // The interval is `core`'s, never a literal here: a checkpoint schedule
+    // restated in the API is a second implementation of §8.1's boundary rule.
+    const interval = CONSTANTS.CHECKPOINT_INTERVAL
+    if (height % interval !== 0) {
+      return respond(400, {
+        error: 'NOT_A_CHECKPOINT_HEIGHT',
+        detail: `checkpoints are cut at absolute multiples of ${interval} (§8.1); ${height} is not one`,
+        interval,
+        nearest: { below: height - (height % interval), above: height - (height % interval) + interval },
+      })
+    }
+
+    const { height: stateHeight, value } = await queries.checkpointAt(height)
+    if (value.checkpoint !== null) {
+      return respond(200, { checkpoint: serialiseCheckpoint(value.checkpoint), height: stateHeight })
+    }
+
+    const retained = value.retained
+    if (retained === null) {
+      return respond(404, { error: 'NO_CHECKPOINT', detail: 'this database holds no checkpoints yet', height: stateHeight })
+    }
+    if (height > retained.newest) {
+      return respond(404, {
+        error: 'CHECKPOINT_PENDING',
+        detail: `the indexer has not reached ${height} yet`,
+        latest: retained.newest,
+        height: stateHeight,
+      })
+    }
+    if (height < retained.oldest) {
+      return respond(410, {
+        error: 'CHECKPOINT_NOT_RETAINED',
+        detail: `this server retains checkpoints from ${retained.oldest}; ${height} is older`,
+        oldest: retained.oldest,
+        height: stateHeight,
+      })
+    }
+    return respond(404, {
+      error: 'CHECKPOINT_MISSING',
+      detail: `no checkpoint at ${height}, which is inside the retained range — this database has a gap`,
+      oldest: retained.oldest,
+      latest: retained.newest,
+      height: stateHeight,
     })
   }
 
@@ -376,7 +475,9 @@ export function createRoutes(queries: Queries, options: RouteOptions): RouteHand
       }
       if (head === 'offers' && segments.length === 1) return await offersRoute()
       if (head === 'params' && segments.length === 1) return await paramsRoute()
-      if (head === 'checkpoints' && a === 'latest' && segments.length === 2) return await checkpointRoute()
+      if (head === 'checkpoints' && a !== undefined && segments.length === 2) {
+        return a === 'latest' ? await checkpointRoute() : await checkpointAtRoute(a)
+      }
       if (head === 'log' && segments.length === 1) return await logRoute()
       if (head === 'settlements' && segments.length === 1) {
         return await settlementsRoute(searchParams.get('owed_to'))
