@@ -16,18 +16,7 @@
 
 import { CONSTANTS, encodeUnreserve, formatAddress, parseAddress, type Address, type NnsConfig } from '@nns/core'
 
-/**
- * The slice of the RPC surface this command touches. `@nns/indexer`'s
- * `RpcClient` satisfies it structurally; tests satisfy it with a recorder.
- */
-export interface AdminRpc {
-  call<T>(method: string, params?: readonly unknown[]): Promise<T>
-}
-
-/** Wrong argv shape — the caller prints usage and exits 2. */
-export class UsageError extends Error {
-  override readonly name = 'UsageError'
-}
+import { UsageError, noticeInWords, type AdminRpc } from './cli.js'
 
 export interface UnreserveParams {
   readonly name: string
@@ -108,15 +97,11 @@ export async function planUnreserve(
   }
 }
 
-/** Albatross targets one block per second — `GOVERNANCE_DELAY`'s 43,200 blocks read as ~12 h. */
-const BLOCKS_PER_HOUR = 3_600
-
 /** The plan as lines for a human to read *before* deciding to `--send`. */
 export function describePlan(plan: UnreservePlan): string[] {
   const { params, kind, recipient, head } = plan
   const notice = params.effectiveHeight - head
-  const hours = Math.abs(notice) / BLOCKS_PER_HOUR
-  const when = notice >= 0 ? `~${hours.toFixed(1)} h from now` : `~${hours.toFixed(1)} h in the PAST`
+  const when = noticeInWords(params.effectiveHeight, head)
   const lines = [
     `U ${kind}: ${params.name}`,
     kind === 'release'

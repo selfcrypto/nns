@@ -830,7 +830,7 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
       ) {
         return keep(forfeit('TOO_SOON'))
       }
-      if (!withinGovernanceBounds(state.prices, message)) return keep(forfeit('GOVERNANCE_BOUND_VIOLATED'))
+      if (governanceBoundViolation(state.prices, message) !== null) return keep(forfeit('GOVERNANCE_BOUND_VIOLATED'))
 
       const draft = draftOf(state)
       draft.pendingGovernance = {
@@ -891,34 +891,91 @@ function apply(state: NnsState, tx: ChainTransaction, config: NnsConfig, message
   }
 }
 
+/** Which §10.6 row a proposed `P` breaks. Diagnostic, never a log token. */
+export type GovernanceBound =
+  | 'PRICE_BAND'
+  | 'ORDERING'
+  | 'PRICE_MAX_FACTOR'
+  | 'COMMISSION_CEILING'
+  | 'COMMISSION_MAX_STEP'
+
+export interface GovernanceBoundViolation {
+  readonly bound: GovernanceBound
+  /** The row, the numbers, and the limit — for a client to print before sending. */
+  readonly message: string
+}
+
 /**
  * §10.6 bounds, enforced independently by every indexer. This is what makes a
  * compromised admin key "a slow, visible, bounded nuisance rather than a
- * catastrophe".
+ * catastrophe". `null` means every bound holds.
  *
  * Compared against the **active** prices rather than a pending `P`'s: with
  * `PRICE_MIN_INTERVAL` at ~7 d and `GOVERNANCE_DELAY` at ~12 h, a pending
  * change always activates before the next `P` is permitted, so the two
  * readings cannot diverge.
+ *
+ * It reports *which* bound broke rather than a boolean because the reducer is
+ * not the only caller: a `P` that violates one is forfeited on-chain and
+ * cannot be retracted, so the builder of the message has to be able to say
+ * what is wrong with it before it is signed. The verdict token stays the
+ * single `GOVERNANCE_BOUND_VIOLATED` — this subdivision never reaches the log,
+ * so it cannot make two implementations disagree.
  */
-function withinGovernanceBounds(
+export function governanceBoundViolation(
   current: Prices,
   proposed: { feeStandard: bigint; feeLong: bigint; commissionBp: bigint },
-): boolean {
-  const inBand = (fee: bigint): boolean => fee >= CONSTANTS.PRICE_FLOOR && fee <= CONSTANTS.PRICE_CEILING
-  if (!inBand(proposed.feeStandard) || !inBand(proposed.feeLong)) return false
-  if (proposed.feeLong > proposed.feeStandard) return false
+): GovernanceBoundViolation | null {
+  const violation = (bound: GovernanceBound, message: string): GovernanceBoundViolation => ({ bound, message })
+
+  const outOfBand = (label: string, fee: bigint): GovernanceBoundViolation | null =>
+    fee >= CONSTANTS.PRICE_FLOOR && fee <= CONSTANTS.PRICE_CEILING
+      ? null
+      : violation(
+          'PRICE_BAND',
+          `${label} ${fee} is outside PRICE_FLOOR … PRICE_CEILING (${CONSTANTS.PRICE_FLOOR} … ${CONSTANTS.PRICE_CEILING} luna)`,
+        )
+  const standardBand = outOfBand('fee_standard', proposed.feeStandard)
+  if (standardBand !== null) return standardBand
+  const longBand = outOfBand('fee_long', proposed.feeLong)
+  if (longBand !== null) return longBand
+
+  if (proposed.feeLong > proposed.feeStandard) {
+    return violation('ORDERING', `fee_long ${proposed.feeLong} must be <= fee_standard ${proposed.feeStandard}`)
+  }
 
   // At most PRICE_MAX_FACTOR up or down, per band.
-  const withinFactor = (next: bigint, previous: bigint): boolean =>
+  const outOfFactor = (label: string, next: bigint, previous: bigint): GovernanceBoundViolation | null =>
     next <= previous * CONSTANTS.PRICE_MAX_FACTOR && next * CONSTANTS.PRICE_MAX_FACTOR >= previous
-  if (!withinFactor(proposed.feeStandard, current.feeStandard)) return false
-  if (!withinFactor(proposed.feeLong, current.feeLong)) return false
+      ? null
+      : violation(
+          'PRICE_MAX_FACTOR',
+          `${label} ${previous} → ${next} moves by more than PRICE_MAX_FACTOR (${CONSTANTS.PRICE_MAX_FACTOR}×), ` +
+            // The lower end is a ceiling division: the rule is `next × FACTOR >= previous`,
+            // so an odd `previous` permits one luna more than a floor would say.
+            `so it must be within ${(previous + CONSTANTS.PRICE_MAX_FACTOR - 1n) / CONSTANTS.PRICE_MAX_FACTOR} … ${previous * CONSTANTS.PRICE_MAX_FACTOR} luna`,
+        )
+  const standardFactor = outOfFactor('fee_standard', proposed.feeStandard, current.feeStandard)
+  if (standardFactor !== null) return standardFactor
+  const longFactor = outOfFactor('fee_long', proposed.feeLong, current.feeLong)
+  if (longFactor !== null) return longFactor
 
-  if (proposed.commissionBp > CONSTANTS.COMMISSION_CEILING) return false
+  if (proposed.commissionBp > CONSTANTS.COMMISSION_CEILING) {
+    return violation(
+      'COMMISSION_CEILING',
+      `commission_bp ${proposed.commissionBp} is above COMMISSION_CEILING (${CONSTANTS.COMMISSION_CEILING} bp)`,
+    )
+  }
   const step =
     proposed.commissionBp > current.commissionBp
       ? proposed.commissionBp - current.commissionBp
       : current.commissionBp - proposed.commissionBp
-  return step <= CONSTANTS.COMMISSION_MAX_STEP
+  if (step > CONSTANTS.COMMISSION_MAX_STEP) {
+    return violation(
+      'COMMISSION_MAX_STEP',
+      `commission_bp ${current.commissionBp} → ${proposed.commissionBp} moves ${step} bp, ` +
+        `above COMMISSION_MAX_STEP (${CONSTANTS.COMMISSION_MAX_STEP} bp)`,
+    )
+  }
+  return null
 }

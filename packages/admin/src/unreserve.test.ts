@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { AddressError, BURN_ADDRESS, CodecError, CONSTANTS, defineConfig, encodeUnreserve, parseAddress } from '@nns/core'
 
+import { UsageError, type AdminRpc } from './cli.js'
 import {
-  UsageError,
   broadcastUnreserve,
   describePlan,
   parseUnreserveArgs,
   planUnreserve,
-  type AdminRpc,
   type UnreservePlan,
 } from './unreserve.js'
 

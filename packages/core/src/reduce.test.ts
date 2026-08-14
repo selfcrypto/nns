@@ -23,6 +23,7 @@ import {
   type ReduceResult,
   advanceTo,
   commissionOn,
+  governanceBoundViolation,
   reduce,
 } from './reduce.js'
 import { type NnsState, LAUNCH_PRICES, initialState, lookup, minPrice, resolve } from './state.js'
@@ -878,6 +879,50 @@ describe('P — governance (§6, §10.6)', () => {
       steps++
     }
     expect(steps).toBe(12)
+  })
+
+  // The reducer collapses every bound into one verdict token. A client
+  // building a `P` cannot: a violation is forfeited on-chain and cannot be
+  // retracted, so it has to be able to say which bound it broke before
+  // signing. Same function, so the two can never disagree about *whether*.
+  describe('governanceBoundViolation', () => {
+    const launch = LAUNCH_PRICES
+
+    it('answers null when every bound holds', () => {
+      expect(governanceBoundViolation(launch, launch)).toBeNull()
+      expect(
+        governanceBoundViolation(launch, {
+          feeStandard: CONSTANTS.FEE_STANDARD * 2n,
+          feeLong: CONSTANTS.FEE_LONG * 2n,
+          commissionBp: CONSTANTS.COMMISSION_RATE + CONSTANTS.COMMISSION_MAX_STEP,
+        }),
+      ).toBeNull()
+    })
+
+    it.each([
+      ['PRICE_BAND', { feeStandard: 0n, feeLong: 0n }],
+      ['ORDERING', { feeLong: CONSTANTS.FEE_STANDARD, feeStandard: CONSTANTS.FEE_STANDARD / 2n }],
+      ['PRICE_MAX_FACTOR', { feeStandard: CONSTANTS.FEE_STANDARD * 3n }],
+      ['COMMISSION_CEILING', { commissionBp: CONSTANTS.COMMISSION_CEILING + 1n }],
+      ['COMMISSION_MAX_STEP', { commissionBp: CONSTANTS.COMMISSION_RATE + CONSTANTS.COMMISSION_MAX_STEP + 1n }],
+    ])('names %s, and the reducer forfeits the same message', (bound, over) => {
+      const proposed = { ...launch, ...over }
+      expect(governanceBoundViolation(launch, proposed)?.bound).toBe(bound)
+      expect(step(proposal(over), { sender: ADMIN }).verdict).toEqual({
+        kind: 'FORFEIT',
+        reason: 'GOVERNANCE_BOUND_VIOLATED',
+      })
+    })
+
+    it('states the window a price may move within, rounding the lower end up', () => {
+      // The rule is `next × 2 >= previous`, so an odd previous permits one
+      // luna more than a floor division would report.
+      const odd = { ...launch, feeStandard: 400_000_001n }
+      expect(governanceBoundViolation(odd, { ...odd, feeStandard: 200_000_000n })?.message).toContain(
+        '200000001 … 800000002',
+      )
+      expect(governanceBoundViolation(odd, { ...odd, feeStandard: 200_000_001n })).toBeNull()
+    })
   })
 })
 

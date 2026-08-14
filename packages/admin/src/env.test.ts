@@ -43,4 +43,13 @@ describe('loadSettings', () => {
   it('rejects a fractional listing fee — a NIM/luna mix-up', () => {
     expect(() => loadSettings({ ...FULL, NNS_LISTING_FEE: '1.5' })).toThrow(/luna/)
   })
+
+  it('leaves NNS_API_URL unset rather than failing — only p needs it', () => {
+    expect(loadSettings(FULL).apiUrl).toBeUndefined()
+    expect(loadSettings({ ...FULL, NNS_API_URL: 'http://127.0.0.1:8080' }).apiUrl).toBe('http://127.0.0.1:8080')
+  })
+
+  it('rejects an NNS_API_URL that is not a URL, at startup', () => {
+    expect(() => loadSettings({ ...FULL, NNS_API_URL: 'not a url' })).toThrow(/NNS_API_URL/)
+  })
 })

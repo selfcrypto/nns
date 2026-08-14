@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Cold-key CLI for P (governance), U (unreserve) and F (burn attestation). U is implemented; P and F are not yet.",
+  "description": "Cold-key CLI for P (governance), U (unreserve) and F (burn attestation). P and U are implemented; F is not yet.",
   "license": "MIT",
   "files": [
     "dist"

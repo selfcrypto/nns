@@ -24,6 +24,14 @@ export interface AdminSettings {
   readonly rpcUrl: string
   readonly rpcUser: string | undefined
   readonly rpcPassword: string | undefined
+  /**
+   * Base URL of an NNS API. Optional, because only `p` needs it: §10.6's
+   * relative bounds are measured against the active prices and the last `P`'s
+   * height, which no node knows and this process does not hold (`params.ts`).
+   * `u` runs without one, so an unset value is not an error until `p` is asked
+   * for.
+   */
+  readonly apiUrl: string | undefined
 }
 
 export type EnvSource = Readonly<Record<string, string | undefined>>
@@ -112,10 +120,20 @@ export function loadSettings(env: EnvSource = process.env): AdminSettings {
     throw new EnvError(cause instanceof Error ? cause.message : String(cause))
   }
 
+  const apiUrl = read(env, 'NNS_API_URL')
+  if (apiUrl !== undefined) {
+    try {
+      void new URL(apiUrl)
+    } catch {
+      throw new EnvError(`NNS_API_URL is not a valid URL: ${JSON.stringify(apiUrl)}`)
+    }
+  }
+
   return Object.freeze({
     config,
     rpcUrl: url,
     rpcUser: read(env, 'NNS_RPC_USER'),
     rpcPassword: read(env, 'NNS_RPC_PASSWORD'),
+    apiUrl,
   })
 }
