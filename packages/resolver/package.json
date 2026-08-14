@@ -1,0 +1,30 @@
+{
+  "name": "@nns/resolver",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Client-side NNS resolution: resolver quorum, §8.3 proof verification, §8.6 delegation. Browser and Node.",
+  "license": "MIT",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nns/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

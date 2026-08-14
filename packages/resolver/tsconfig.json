@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    // A browser package first, Node second. No `types: ["node"]` anywhere:
+    // nothing here may reach for Buffer, process or fs, and leaving the node
+    // types out is what makes that a compile error rather than a code review.
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/test-fixtures.ts"]
+}
