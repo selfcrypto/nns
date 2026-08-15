@@ -58,6 +58,30 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > vocabulary rule — a token is dropped when the protocol makes it
 > unreachable, kept when only the environment does.
 
+> **Amended within r23, 2026-08-16 — an `M` discharges on an exact
+> four-coordinate match, or not at all.** Prose only; **no bytes move under
+> either reading**, which is precisely the finding. §6 `M` never defined
+> "matching": an `M` references a transaction by `(height, tx_index)`, so
+> by-reference matching was a defensible reading under which an underpaying
+> `M` matches the leg and an implementer must invent what the wrong amount
+> does — full discharge, partial, or nothing. Every reading produces the same
+> `OK` line, and §8.1 deliberately keeps obligations out of the commitment,
+> so two implementations disagreeing about discharge derive byte-identical
+> logs and roots **forever** — unlike the §5.2 fork above, which the first
+> hostile message would have surfaced as a root mismatch. The disagreement
+> lands instead in the derived number the §6 `B` custody argument rests on
+> (*settled vs. owed*) and in the settlement ledger's definition of a
+> confirmed payment. Prose is the only defence there is. Ratified: the
+> reference reducer's rule — discharge requires the reference, `owedBy` =
+> sender, `owedTo` = recipient, and the exact amount; everything else is
+> accepted, `OK`, and discharges nothing, evaluated at the `M`'s own position
+> in canonical order. Partial discharge does not exist (§10.5's rule on the
+> way out — and the amount is a *selector*: two legs of a winning `B` share
+> one reference). The cross-purse `M` — treasury paying a marketplace debt or
+> the reverse — is named as a non-match rather than left between §7.4's
+> sender gate and nothing. "One `M` per settled transaction" is re-labelled
+> operator guidance, since the discharge rule makes a duplicate harmless.
+
 > **Changes in revision 22 — `U` executes on landing, and `GOVERNANCE_DELAY`
 > governs `P` alone.** A notice period protects parties who can act on the
 > warning. A `U` has none. An **award** has no counterparty at all — the name is
@@ -1671,14 +1695,55 @@ NNS1M<height>|<tx_index>
 References the transaction being settled by block height and transaction
 index — the same canonical identity used everywhere else. No effect on name
 state; it exists so *settled vs. owed* is computable from the log, exactly
-like the burn commitment (§10.2). One `M` per settled transaction. The
-operator SHOULD settle only past finalised macro blocks, mirroring
-`FINALITY_RULE`.
+like the burn commitment (§10.2). One `M` per leg is operator guidance
+(SHOULD), not a reducer rule — the discharge rule below makes a duplicate
+harmless. The operator SHOULD settle only past finalised macro blocks,
+mirroring `FINALITY_RULE`.
 
-**An `M` matching no outstanding leg is accepted and changes nothing** — the
-debt it failed to discharge stays standing, which is how "the log makes any
-shortfall permanently visible" actually works. Only an `M` from the wrong
-sender forfeits.
+**Discharge is an exact four-coordinate match, or nothing.** An `M`
+discharges the single outstanding leg agreeing with it on all four of: the
+referenced transaction's `(height, tx_index)`; `owedBy` equal to the `M`'s
+**sender**; `owedTo` equal to the `M`'s **recipient**; and `amount` equal to
+the `M`'s **value, exactly**. "Outstanding" is evaluated at the `M`'s own
+position in canonical order. Everything else is one case — an amount wrong
+in either direction, a leg already discharged, a reference no leg was ever
+created under, the wrong purse: **accepted, `OK`, and discharging nothing.**
+The debt stays standing, which is how "the log makes any shortfall
+permanently visible" actually works. Only an `M` from a sender that is
+neither `MARKETPLACE_ADDRESS` nor `TREASURY_ADDRESS` forfeits
+(`WRONG_SENDER`, §7.4).
+
+**Partial discharge does not exist**, for the reason §10.5 keeps a credit
+ledger off the fee side: the arithmetic is a comparison, not a balance. And
+here it is not merely a simplification — the amount is a *selector*. A
+winning `B` creates two legs under one reference, seller and treasury,
+ordinarily told apart by recipient; the two collapse onto one address the
+day the treasury sells a name it owns, and the exact amount is what still
+distinguishes the legs. A proportional `M` against that reference would
+match nothing well-defined without a leg identifier on the wire.
+
+**The cross-purse case is a non-match, not a forfeit.** An `M` from
+`TREASURY_ADDRESS` against a leg owed by `MARKETPLACE_ADDRESS`, or the
+reverse, passes the sender rule — both are legitimate `M` senders — and then
+fails the `owedBy` coordinate: accepted, `OK`, discharges nothing. A debt is
+discharged only by the purse that owes it. §7.4's `WRONG_SENDER` row gates
+who may send an `M` at all, never which debt a legitimate sender may settle.
+
+**A misfired `M` is the operator's own loss, and it is bounded.** An
+underpayment reaches the owed party and counts for nothing: the leg remains
+outstanding and dischargeable by a correct `M`, and the overshoot when the
+full amount follows is borne by the operator that misfired — visible in the
+log like everything else here. The economic total a party received is still
+computable from the `M` lines by anyone who wants it; what this clause
+defines is the *discharge* number, the one the settlement service acts on.
+
+**Why this clause carries the whole weight.** Obligations are deliberately
+not committed (§8.1), and every `M` above earns the same `OK` line under
+every reading of "matching" — so no root and no log hash ever differs
+between two implementations that disagree about discharge. The disagreement
+surfaces only as two reconcilers reporting different shortfalls from one
+log, which is the exact number the custody argument in §6 `B` rests on. The
+definition above is the agreement; there is no hash behind it.
 
 **Amount owed:**
 

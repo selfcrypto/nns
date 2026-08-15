@@ -1193,6 +1193,253 @@
       }
     },
     {
+      "id": "M_discharges_on_an_exact_match_or_not_at_all",
+      "note": "§6 M as amended within r23: discharge requires the reference, owedBy = sender, owedTo = recipient, and the exact amount — everything else is accepted, OK, and discharges nothing, evaluated at the M's own position. Every M here earns the same OK line whatever it discharged, and §8.1 keeps obligations out of the commitment, so no verdict, root, or log-hash assertion distinguishes a reducer that discharges on the wrong M from this one — the outstanding checks are the only assertion that can, which is why the runner grew the field alongside this scenario. The walk: underpay by one, overpay by one, the cross-purse M (TREASURY paying a MARKETPLACE leg — passes the §7.4 sender gate, fails the owedBy coordinate), each leaving both legs standing; the exact seller M discharging its leg alone, selected by the full match while the commission leg under the same key stands; the duplicate M against the discharged leg, harmless; the exact commission M emptying the key; and an M referencing a transaction that owes nothing. The changed:[] pair states the §8.1 fact directly: seven Ms, seven log lines, not one component moved.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Okikename|100000000"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "100000000",
+            "text": "NNS1Bkikename"
+          },
+          "verdict": {
+            "kind": "OK",
+            "obligations": [
+              {
+                "kind": "SALE_PROCEEDS",
+                "owedBy": "MARKETPLACE",
+                "owedTo": "ALICE",
+                "amount": "97500000"
+              },
+              {
+                "kind": "COMMISSION",
+                "owedBy": "MARKETPLACE",
+                "owedTo": "TREASURY",
+                "amount": "2500000"
+              }
+            ]
+          }
+        },
+        {
+          "check": {
+            "label": "owed",
+            "logLines": 3,
+            "outstanding": {
+              "58842721:0": [
+                {
+                  "kind": "SALE_PROCEEDS",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "ALICE",
+                  "amount": "97500000"
+                },
+                {
+                  "kind": "COMMISSION",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "TREASURY",
+                  "amount": "2500000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842722,
+            "txIndex": 0,
+            "sender": "MARKETPLACE",
+            "recipient": "ALICE",
+            "value": "97499999",
+            "text": "NNS1M58842721|0"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842722,
+            "txIndex": 1,
+            "sender": "MARKETPLACE",
+            "recipient": "ALICE",
+            "value": "97500001",
+            "text": "NNS1M58842721|0"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842722,
+            "txIndex": 2,
+            "sender": "TREASURY",
+            "recipient": "ALICE",
+            "value": "97500000",
+            "text": "NNS1M58842721|0"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "logLines": 6,
+            "outstanding": {
+              "58842721:0": [
+                {
+                  "kind": "SALE_PROCEEDS",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "ALICE",
+                  "amount": "97500000"
+                },
+                {
+                  "kind": "COMMISSION",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "TREASURY",
+                  "amount": "2500000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842723,
+            "txIndex": 0,
+            "sender": "MARKETPLACE",
+            "recipient": "ALICE",
+            "value": "97500000",
+            "text": "NNS1M58842721|0"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "logLines": 7,
+            "outstanding": {
+              "58842721:0": [
+                {
+                  "kind": "COMMISSION",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "TREASURY",
+                  "amount": "2500000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842723,
+            "txIndex": 1,
+            "sender": "MARKETPLACE",
+            "recipient": "ALICE",
+            "value": "97500000",
+            "text": "NNS1M58842721|0"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "logLines": 8,
+            "outstanding": {
+              "58842721:0": [
+                {
+                  "kind": "COMMISSION",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "TREASURY",
+                  "amount": "2500000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842723,
+            "txIndex": 2,
+            "sender": "MARKETPLACE",
+            "recipient": "TREASURY",
+            "value": "2500000",
+            "text": "NNS1M58842721|0"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842723,
+            "txIndex": 3,
+            "sender": "MARKETPLACE",
+            "recipient": "ALICE",
+            "value": "97500000",
+            "text": "NNS1M58842720|0"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "since": "owed",
+            "changed": [],
+            "logLines": 10,
+            "outstanding": {
+              "58842721:0": null
+            },
+            "names": {
+              "kikename": {
+                "owner": "BOB",
+                "target": "BOB"
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "BOB"
+          }
+        },
+        "logLines": 10
+      }
+    },
+    {
       "id": "an_O_below_MIN_PRICE_forfeits",
       "note": "§6 O: the price MUST be ≥ MIN_PRICE, which is FEE_LONG at the message's height — 40000000 luna here. The four rejected prices are the ones a token floor would have admitted: 0 (no B can satisfy it, §5.4 rejects value: 0), 1 (the token floor considered and rejected), REFUND_FLOOR - 1 (a losing bidder would be forfeited, not refunded, contradicting §7.4), and 19 (floor(19 × 5%) = 0, erasing the AUCTION_MIN_INCREMENT rule). The floor itself is accepted: the boundary is inclusive.",
       "steps": [

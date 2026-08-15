@@ -450,6 +450,38 @@ describe('vectors/reduce.json', () => {
             expect(state.unreserved.has(name), `unreserved.${name}`).toBe(want)
           }
         }
+        // The §6 `M` outstanding set, keyed by `refKey` ("height:txIndex").
+        // `null` asserts the key is gone; a list is exhaustive and ordered —
+        // discharge is exact-match-or-nothing (§6 `M`, r23), and this is the
+        // one piece of §8.1-uncommitted state a vector must reach directly:
+        // every `M` earns the same `OK` line whatever it discharged, so no
+        // verdict, root, or log-hash assertion can see the difference.
+        if (step.check.outstanding !== undefined) {
+          for (const [key, want] of Object.entries(step.check.outstanding)) {
+            const legs = state.outstanding.get(key)
+            if (want === null) {
+              expect(legs, `outstanding.${key} should be gone`).toBeUndefined()
+              continue
+            }
+            expect(legs, `outstanding.${key} should be present`).toBeDefined()
+            expect(
+              (legs ?? []).map((leg) => ({
+                kind: leg.kind,
+                owedBy: leg.owedBy,
+                owedTo: leg.owedTo,
+                amount: leg.amount,
+              })),
+              `outstanding.${key}`,
+            ).toEqual(
+              (want as any[]).map((leg: any) => ({
+                kind: leg.kind,
+                owedBy: book[leg.owedBy],
+                owedTo: book[leg.owedTo],
+                amount: BigInt(leg.amount),
+              })),
+            )
+          }
+        }
         // A height-driven effect earns no log line (§7.6 logs only what
         // survives §7.5, and nothing survives that never arrived), so a
         // boundary vector states the count on both sides of the crossing.

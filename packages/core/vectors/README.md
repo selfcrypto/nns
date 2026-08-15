@@ -115,10 +115,16 @@ stretch.
 
 A `check` reads the state at that point. Beyond `names`, `resolves` and
 `prices` it may carry `absent`, `height`, `transfers`, `offers`,
-`pendingGovernance`, `unreserved` and `logLines` (`pendingUnreserve` was one
-until r22 removed the pending `U`); a `null`
+`pendingGovernance`, `unreserved`, `outstanding` and `logLines`
+(`pendingUnreserve` was one until r22 removed the pending `U`); a `null`
 value in any of the pending maps asserts the entry is **gone**, which is what
-a scheduled effect firing actually looks like. Two more fields exist for the
+a scheduled effect firing actually looks like. `outstanding` is keyed by
+`refKey` (`"height:txIndex"`) and each key's leg list is exhaustive and
+ordered; it exists because §6 `M` discharge is the one rule whose outcome no
+verdict, root, or log-hash assertion can see — every `M` earns the same `OK`
+line whatever it discharged, and §8.1 keeps obligations out of the
+commitment — so without this field a discharge vector could not be expressed
+at all. Two more fields exist for the
 boundary scenarios below:
 
 - **`label`** snapshots the four §8.1 component digests — `nameRoot`,
