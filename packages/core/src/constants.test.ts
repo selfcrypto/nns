@@ -10,7 +10,7 @@ describe('CONSTANTS — §3', () => {
 
   it('states every amount in luna, matching the NIM figures §3 prints', () => {
     expect(LUNA_PER_NIM).toBe(100_000n)
-    expect(CONSTANTS.FEE_STANDARD).toBe(400_000_000n) // 4,000 NIM
+    expect(CONSTANTS.FEE_STANDARD).toBe(200_000_000n) // 2,000 NIM
     expect(CONSTANTS.FEE_LONG).toBe(40_000_000n) //       400 NIM
     expect(CONSTANTS.PRICE_FLOOR).toBe(100_000n) //         1 NIM
     expect(CONSTANTS.PRICE_CEILING).toBe(10_000_000_000n) // 100,000 NIM
@@ -54,6 +54,15 @@ describe('CONSTANTS — §3', () => {
     expect(CONSTANTS).not.toHaveProperty('RECOVERY_TIMELOCK')
   })
 
+  it('keeps the grace period shorter than the term it follows (§7.3, §10.4)', () => {
+    // The two move together — r20 shortened both — and a grace period at or
+    // past a full term would let a name sit unresolvable for longer than it
+    // was ever owned, with §10.4's reminder (GRACE_PERIOD × 2) firing before
+    // the registration it warns about.
+    expect(CONSTANTS.GRACE_PERIOD).toBeLessThan(CONSTANTS.TERM_LENGTH)
+    expect(CONSTANTS.GRACE_PERIOD * 2).toBeLessThan(CONSTANTS.TERM_LENGTH)
+  })
+
   it('lets an offer be cancelled well before it auto-expires (§6 O)', () => {
     expect(CONSTANTS.OFFER_IRREVOCABLE).toBeLessThan(CONSTANTS.OFFER_MAX_LIFETIME)
   })
@@ -81,7 +90,7 @@ describe('CONSTANTS — §3', () => {
       DUST_VALUE: 1n,
       REFUND_FLOOR: 10_000n,
       LISTING_FEE: 0n,
-      FEE_STANDARD: 400_000_000n, //         4,000 NIM
+      FEE_STANDARD: 200_000_000n, //         2,000 NIM
       FEE_LONG: 40_000_000n, //                400 NIM
       PRICE_FLOOR: 100_000n, //                  1 NIM
       PRICE_CEILING: 10_000_000_000n, //   100,000 NIM
@@ -94,8 +103,8 @@ describe('CONSTANTS — §3', () => {
       BASIS_POINTS: 10_000n,
       GOVERNANCE_DELAY: 43_200,
       XFER_TIMELOCK: 43_200,
-      TERM_LENGTH: 157_680_000,
-      GRACE_PERIOD: 7_776_000,
+      TERM_LENGTH: 31_536_000,
+      GRACE_PERIOD: 2_592_000,
       OFFER_IRREVOCABLE: 8_640,
       OFFER_MAX_LIFETIME: 1_296_000,
       AUCTION_MIN_INCREMENT_BP: 500n,

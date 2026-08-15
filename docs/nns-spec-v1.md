@@ -14,10 +14,18 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > **Review status.** Everything marked **OPEN** is undecided or unverified.
 > Everything else reflects decisions already taken.
 
-> **Changes in revision 20 — the recovery address is removed.** One message
-> type deleted, one §3 constant gone, and it moves bytes: the §8.1 name leaf
-> loses a 20-byte field, so **every root changes** and `COMMITMENT_LAYOUT`
-> goes to `4`.
+> **Revisions are per day, not per change.** Everything decided on one day is
+> folded into that day's revision, however many separate changes it covers, so
+> a revision number stays something an implementation can claim to implement
+> rather than a changelog id.
+
+> **Changes in revision 20 — the recovery address is removed, and four §3
+> numbers move.** One message type deleted, one §3 constant gone, and it moves
+> bytes: the §8.1 name leaf loses a 20-byte field, so **every root changes** and
+> `COMMITMENT_LAYOUT` goes to `4`. The four constants at the end of this list
+> move no bytes of their own — no layout, no message, no migration — but the
+> reducer computes expiries and fee comparisons from them, so they change every
+> root a second time.
 > - **§6 — `R` is deleted, and with it the recovery address.** The mechanism
 >   did not survive its own threat model. A holder of the owner key — the
 >   party recovery exists to defend against — deletes a pending
@@ -58,6 +66,27 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > - **`R` is removed from the wire, not reserved.** `NNS1R…` now takes
 >   `UNKNOWN_TYPE` and forfeits like any unrecognised type. Nothing has
 >   launched, so there is no deployed client to keep a slot for.
+> - **§3, §10.4 — `TERM_LENGTH` 157,680,000 → 31,536,000 blocks (~5 y → ~1 y).**
+>   At five years nothing expires until 2031: expiry, grace, the fall to
+>   `AVAILABLE` and re-registration would sit unexercised through the entire
+>   formative period. A one-year term runs them in front of real owners inside
+>   the first year. The consequence §10.4 now states rather than deferring:
+>   renewal has one year of runway, so `N` must be reachable in the client and
+>   the §10.4 reminder must fire before the launch cohort comes due.
+> - **§3, §7.3, §10.4 — `GRACE_PERIOD` 7,776,000 → 2,592,000 blocks
+>   (90 d → 30 d)**, paired to the shorter term. Its role is unchanged: a
+>   window to notice a missed renewal in, not a second term. The client
+>   reminder is still `GRACE_PERIOD` × 2 before expiry, now 60 days.
+> - **§3, §10.1 — `FEE_STANDARD` 4,000 → 2,000 NIM (~$1/year at ~$0.0005/NIM).**
+>   Governable as before, and the launch figure only.
+> - **`FEE_LONG` is unchanged at 400 NIM**, and `MIN_PRICE` with it. It is the
+>   anti-spam floor that bounds the log (§8.2), and §10.1's argument for it is
+>   untouched by the standard band moving.
+> - **§10.6 — the ordering bound binds sooner.** The bands are now 5× apart
+>   rather than 10×, so at `PRICE_MAX_FACTOR` 2× a `P` lowering `FEE_STANDARD`
+>   alone reaches `fee_long ≤ fee_standard` on the third cut instead of the
+>   fourth; a `P` carries both prices, so nothing is blocked. The compromised-key
+>   walk to `PRICE_FLOOR` is eleven halvings, not twelve.
 
 > **Changes in revision 19 — the launch freeze, as far as it can go.** Prose
 > only. **No bytes move**: nothing here enters the §8.1 preimage or the §8.2
@@ -908,7 +937,7 @@ NIM figures assume ~$0.0005/NIM.
 | `MAX_LABEL_LEN` | 24 chars | Subdomain label (§4.4) |
 | `MAX_HOST_LEN` | 30 chars | Delegate resolver host (§6 `D`); `resolver.binance.com` is 20 |
 | `MAX_REF_LEN` | 12 chars | Integrator referrer id (§6 `G`) — fits real names (`coinbase` is 8) with room to spare |
-| `FEE_STANDARD` | 4,000 NIM (~$2) | Names of 5–11 characters; governable |
+| `FEE_STANDARD` | 2,000 NIM (~$1) | Names of 5–11 characters; governable |
 | `FEE_LONG` | 400 NIM (~$0.20) | Names of 12+ characters; governable |
 | `BURN_SHARE` | 20% | Of all revenue received, forwarded to `BURN_ADDRESS` |
 | `COMMISSION_RATE` | 250 bp (2.5%) | Marketplace cut on a settled sale; governable |
@@ -920,8 +949,8 @@ NIM figures assume ~$0.0005/NIM.
 | `PRICE_MIN_INTERVAL` | 604,800 blocks (~7 d) | Minimum gap between adjustments — tracks up to ~16× per month |
 | `GOVERNANCE_DELAY` | 43,200 blocks (~12 h) | Minimum notice before a change bites |
 | `XFER_TIMELOCK` | 43,200 blocks (~12 h) | Window in which the owner can cancel their own pending `X` with a `K` (§6). Guards a mistyped recipient, not a thief (§2) |
-| `TERM_LENGTH` | 157,680,000 blocks (~5 y) | See §10.4 |
-| `GRACE_PERIOD` | 7,776,000 blocks (~90 d) | Resolution off, renewal still allowed |
+| `TERM_LENGTH` | 31,536,000 blocks (~1 y) | See §10.4 |
+| `GRACE_PERIOD` | 2,592,000 blocks (~30 d) | Resolution off, renewal still allowed |
 | `OFFER_IRREVOCABLE` | 8,640 blocks (~2.4 h) | Seller cannot cancel |
 | `OFFER_MAX_LIFETIME` | 1,296,000 blocks (~15 d) | Then auto-expires |
 | `CHECKPOINT_INTERVAL` | 720 blocks (~12 min) | Root recomputed and published |
@@ -1656,7 +1685,7 @@ owner.
 **The one forbidden recipient is `BURN_ADDRESS`** (`INVALID_RECIPIENT`, §7.4).
 It has no key, so a name awarded there would be unusable and unrecoverable
 until `TERM_LENGTH` and the grace period ran out — dropping a name down a hole
-for five years is not a power §10.6 grants, and it is not distinguishable from
+for a year is not a power §10.6 grants, and it is not distinguishable from
 a mistake. It is also the all-zero address, which is how §8.1 encodes *no*
 recipient: allowing it would make an award to it and a release commit
 identical bytes.
@@ -1746,7 +1775,7 @@ Inherents and reward transactions MUST be filtered before prefix matching.
 RESERVED ──U to PROTOCOL_ADDRESS───▶ AVAILABLE
 RESERVED ──U to any other address──▶ REGISTERED (awardee)
 
-AVAILABLE ──G──▶ REGISTERED ──expiry──▶ GRACE ──+90d──▶ AVAILABLE
+AVAILABLE ──G──▶ REGISTERED ──expiry──▶ GRACE ──+30d──▶ AVAILABLE
                       │
                       ├──X (after timelock)──▶ REGISTERED (new owner)
                       ├──S──────────────────▶ target changed
@@ -2788,7 +2817,7 @@ is unverifiable, because nobody can know which history to replay.
 | Length | Fee | Rationale |
 |---|---|---|
 | 1–4 | reserved | Auctioned later under a v2 spec |
-| 5–11 | `FEE_STANDARD` — 4,000 NIM (~$2) | The desirable range |
+| 5–11 | `FEE_STANDARD` — 2,000 NIM (~$1) | The desirable range |
 | 12+ | `FEE_LONG` — 400 NIM (~$0.20) | Effectively free to a user; still bounds the log |
 
 **Why not free.** Nobody squats 12-character names, so the usual objection
@@ -2870,19 +2899,31 @@ unspendable balance rather than being subtracted from supply.
 
 ### 10.4 Term length
 
-**Five years, renewable.**
+**One year, renewable**, with a 30-day `GRACE_PERIOD` after it.
 
-The indexer cost of expiry is negligible: one field per name already inside
-the Merkle leaf, the `N` handler, and the `GRACE` check. The expensive part of
-renewals is entirely user-facing — reminders, expiry UI, support — and a term
-this long defers all of it. **No renewal UX ships in v1.**
+**The term is chosen so the mechanism runs.** Expiry, grace, the fall to
+`AVAILABLE` and re-registration are consensus rules that no amount of testing
+exercises the way real traffic does, and at a five-year term nothing would
+have expired until 2031 — the paths would sit unexercised through the whole
+formative period, on a design that is frozen long before that. A one-year term
+puts every one of them in front of real owners inside the first year, while the
+registry is still small enough to act on what they turn up. `GRACE_PERIOD` is
+paired to it: 30 days is a window to notice a missed renewal in, not a second
+term.
 
-**One client requirement survives that deferral.** Silent expiry is the most
-common failure in naming systems, and a five-year term all but guarantees the
-owner has forgotten. Clients MUST surface an approaching expiry in-app,
-prominently, from `GRACE_PERIOD` × 2 before the date. It is a client
-requirement rather than a protocol rule: no indexer validates it, and nothing
-in consensus depends on it.
+The indexer cost of expiry is negligible either way: one field per name already
+inside the Merkle leaf, the `N` handler, and the `GRACE` check. The expensive
+part of renewals is entirely user-facing — reminders, expiry UI, support — and
+a one-year term does not defer it. **Renewal has one year of runway, not five:
+`N` must be reachable in the client, and the reminder below must fire, before
+the first cohort registered at launch comes due.**
+
+**One client requirement is not deferrable at all.** Silent expiry is the most
+common failure in naming systems, and a year is long enough to forget in.
+Clients MUST surface an approaching expiry in-app, prominently, from
+`GRACE_PERIOD` × 2 — 60 days — before the date. It is a client requirement
+rather than a protocol rule: no indexer validates it, and nothing in consensus
+depends on it.
 
 The reason not to remove expiry outright is that it is a one-way door. Expiry
 cannot be added later to names sold as permanent without breaking a promise,
@@ -2927,11 +2968,21 @@ anything in flight.
 | Frequency | at least `PRICE_MIN_INTERVAL` (~7 d) since the last accepted `P` |
 | Notice | `effective_height` ≥ **the height of the block the `P` lands in** + `GOVERNANCE_DELAY` (§6 `P`) |
 
+**The ordering bound binds sooner than it used to.** At 2,000 and 400 NIM the
+two bands are 5× apart, not the 10× of earlier revisions, so with
+`PRICE_MAX_FACTOR` at 2× a `P` that lowers `FEE_STANDARD` alone hits
+`fee_long ≤ fee_standard` on the third cut (2,000 → 1,000 → 500 → 250, and 250
+is below the long band) where it used to take four. Nothing is blocked by
+this — a `P` carries both prices, so the bands can always be walked down
+together — but a governance change that moves one band and leaves the other is
+now three adjustments from `GOVERNANCE_BOUND_VIOLATED` rather than four, and a
+client building a `P` should expect to hit the bound that much earlier.
+
 Because all indexers validate these, a **compromised admin key buys a slow,
 visible, bounded nuisance rather than a catastrophe**. It cannot zero the
 price and let someone drain the namespace, nor set it to infinity to freeze
-the registry. At the r7 bounds, walking from 4,000 NIM to the 1 NIM floor
-takes twelve halvings ≈ twelve weeks of publicly visible `P` messages — long
+the registry. At the r7 bounds, walking from 2,000 NIM to the 1 NIM floor
+takes eleven halvings ≈ eleven weeks of publicly visible `P` messages — long
 before that, the honest response is a spec bump that ignores the rogue key.
 
 The `U` award (§6) widens what a stolen key can reach without changing that

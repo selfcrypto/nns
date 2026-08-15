@@ -126,7 +126,7 @@ export const CONSTANTS = Object.freeze({
 
   // ── Pricing and governance bounds (§10.1, §10.6) ──────────────────────────
   /** Names of 5–11 characters. Governable within the bounds below. */
-  FEE_STANDARD: nim(4_000n),
+  FEE_STANDARD: nim(2_000n),
   /**
    * Names of 12+ characters. Governable within the bounds below.
    *
@@ -165,10 +165,10 @@ export const CONSTANTS = Object.freeze({
    * two blocks with no timelock at all (§6 `B`, §2).
    */
   XFER_TIMELOCK: 43_200,
-  /** ~5 y. */
-  TERM_LENGTH: 157_680_000,
-  /** Resolution off, renewal still allowed. ~90 d. */
-  GRACE_PERIOD: 7_776_000,
+  /** ~1 y. */
+  TERM_LENGTH: 31_536_000,
+  /** Resolution off, renewal still allowed. ~30 d. */
+  GRACE_PERIOD: 2_592_000,
   /** Seller cannot cancel an `O` before this. ~2.4 h. */
   OFFER_IRREVOCABLE: 8_640,
   /** Then the offer auto-expires. ~15 d. */

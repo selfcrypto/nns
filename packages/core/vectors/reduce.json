@@ -1,7 +1,7 @@
 {
   "vectors": "nns/reduce",
   "version": 1,
-  "spec": "nns-spec-v1 draft r18, §7.3, §7.4 and §7.5",
+  "spec": "nns-spec-v1 draft r20, §7.3, §7.4 and §7.5",
   "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`) or a bare height advance (`advanceTo`), which is how expiry, timelock maturity and governance activation are driven — none of them is triggered by a message.",
   "addresses": {
     "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
@@ -17,14 +17,13 @@
     "networkId": 24
   },
   "constants": {
-    "FEE_STANDARD": "400000000",
+    "FEE_STANDARD": "200000000",
     "FEE_LONG": "40000000",
     "MIN_PRICE": "FEE_LONG at the message's height, so 40000000 until a P moves it",
     "REFUND_FLOOR": "10000",
-    "TERM_LENGTH": 157680000,
-    "GRACE_PERIOD": 7776000,
+    "TERM_LENGTH": 31536000,
+    "GRACE_PERIOD": 2592000,
     "XFER_TIMELOCK": 43200,
-    "RECOVERY_TIMELOCK": 259200,
     "GOVERNANCE_DELAY": 43200,
     "OFFER_IRREVOCABLE": 8640,
     "OFFER_MAX_LIFETIME": 1296000
@@ -40,7 +39,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename",
             "executionResult": false
           },
@@ -66,7 +65,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename",
             "isReward": true
           },
@@ -89,7 +88,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename",
             "networkId": 25
           },
@@ -135,7 +134,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -148,7 +147,7 @@
           "kikename": {
             "owner": "ALICE",
             "target": "ALICE",
-            "expiry": 216522725,
+            "expiry": 90378725,
             "status": "REGISTERED",
             "host": ""
           }
@@ -215,7 +214,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gn1m1q"
           },
           "verdict": {
@@ -237,7 +236,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -260,7 +259,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -269,11 +268,11 @@
         },
         {
           "tx": {
-            "blockNumber": 216522721,
+            "blockNumber": 90378721,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -300,7 +299,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -343,7 +342,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -392,7 +391,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -430,7 +429,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -500,7 +499,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -555,7 +554,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -595,7 +594,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -663,7 +662,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -671,7 +670,7 @@
           }
         },
         {
-          "advanceTo": 216522720
+          "advanceTo": 90378720
         },
         {
           "check": {
@@ -686,7 +685,7 @@
           }
         },
         {
-          "advanceTo": 224298720
+          "advanceTo": 92970720
         }
       ],
       "expect": {
@@ -706,7 +705,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -719,7 +718,7 @@
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Nkikename"
           },
           "verdict": {
@@ -731,7 +730,7 @@
         "names": {
           "kikename": {
             "owner": "ALICE",
-            "expiry": 374202720
+            "expiry": 121914720
           }
         }
       }
@@ -745,7 +744,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -798,7 +797,7 @@
           "kikename": {
             "owner": "BOB",
             "target": "BOB",
-            "expiry": 216522720
+            "expiry": 90378720
           }
         },
         "note": "The buyer inherits the name's current expiry, and the two legs sum to the price exactly."
@@ -813,7 +812,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -886,7 +885,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -947,7 +946,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1057,7 +1056,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P400000000|80000000|250|58885920"
+            "text": "NNS1P200000000|80000000|250|58885920"
           },
           "verdict": {
             "kind": "OK"
@@ -1069,7 +1068,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1133,7 +1132,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P800000000|40000000|250|58885920"
+            "text": "NNS1P400000000|40000000|250|58885920"
           },
           "verdict": {
             "kind": "OK"
@@ -1145,7 +1144,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1158,7 +1157,7 @@
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gothername"
           },
           "verdict": {
@@ -1174,7 +1173,7 @@
           }
         },
         "prices": {
-          "feeStandard": "800000000"
+          "feeStandard": "400000000"
         }
       }
     },
@@ -1189,7 +1188,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P800000000|40000000|250|58885920"
+            "text": "NNS1P400000000|40000000|250|58885920"
           },
           "verdict": {
             "kind": "OK"
@@ -1201,7 +1200,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1215,7 +1214,7 @@
             "txIndex": 1,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "800000000",
+            "value": "400000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1230,7 +1229,7 @@
           }
         },
         "prices": {
-          "feeStandard": "800000000"
+          "feeStandard": "400000000"
         }
       }
     },
@@ -1244,7 +1243,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P1200000000|40000000|250|58885920"
+            "text": "NNS1P600000000|40000000|250|58885920"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1254,7 +1253,7 @@
       ],
       "expect": {
         "prices": {
-          "feeStandard": "400000000"
+          "feeStandard": "200000000"
         }
       }
     },
@@ -1268,7 +1267,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P400000000|40000000|250|58885920"
+            "text": "NNS1P200000000|40000000|250|58885920"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1278,7 +1277,7 @@
       ],
       "expect": {
         "prices": {
-          "feeStandard": "400000000"
+          "feeStandard": "200000000"
         }
       }
     },
@@ -1364,7 +1363,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gbinance"
           },
           "verdict": {
@@ -1391,7 +1390,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gbinance"
           },
           "verdict": {
@@ -1405,7 +1404,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gbinance"
           },
           "verdict": {
@@ -1431,7 +1430,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gweb3"
           },
           "verdict": {
@@ -1458,7 +1457,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gweb3"
           },
           "verdict": {
@@ -1497,7 +1496,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gnq"
           },
           "verdict": {
@@ -1549,7 +1548,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "200000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1558,7 +1557,7 @@
         },
         {
           "tx": {
-            "blockNumber": 216479520,
+            "blockNumber": 90335520,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BOB",
@@ -1570,7 +1569,7 @@
           }
         },
         {
-          "advanceTo": 216522720
+          "advanceTo": 90378720
         }
       ],
       "expect": {

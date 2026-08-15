@@ -872,8 +872,8 @@ describe('P — governance (§6, §10.6)', () => {
     expect(step(soon, { sender: ADMIN, at: LAUNCH + 1 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'TOO_SOON' })
   })
 
-  it('bounds a compromised admin key to twelve visible halvings, not a catastrophe', () => {
-    // §10.6: walking 4,000 NIM down to the 1 NIM floor takes twelve halvings,
+  it('bounds a compromised admin key to eleven visible halvings, not a catastrophe', () => {
+    // §10.6: walking 2,000 NIM down to the 1 NIM floor takes eleven halvings,
     // each a publicly visible P separated by PRICE_MIN_INTERVAL.
     let fee = CONSTANTS.FEE_STANDARD
     let steps = 0
@@ -882,7 +882,7 @@ describe('P — governance (§6, §10.6)', () => {
       if (fee < CONSTANTS.PRICE_FLOOR) fee = CONSTANTS.PRICE_FLOOR
       steps++
     }
-    expect(steps).toBe(12)
+    expect(steps).toBe(11)
   })
 
   // The reducer collapses every bound into one verdict token. A client

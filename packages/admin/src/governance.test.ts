@@ -31,7 +31,7 @@ const BALANCE = 1_000_000
 
 /** A change inside every §10.6 bound: +25% standard, +25% long, +50 bp. */
 const params: GovernanceParams = {
-  feeStandard: 500_000_000n,
+  feeStandard: 250_000_000n,
   feeLong: 50_000_000n,
   commissionBp: 300n,
   effectiveHeight: EFFECTIVE,
@@ -219,7 +219,7 @@ describe('describeGovernancePlan', () => {
   it('prints every parameter as a change, the height both ways, and what the bounds were checked against', async () => {
     const lines = describeGovernancePlan(await plan()).join('\n')
     expect(lines).toContain('P governance:')
-    expect(lines).toContain('400000000 luna (4000 NIM) → 500000000 luna (5000 NIM)')
+    expect(lines).toContain('200000000 luna (2000 NIM) → 250000000 luna (2500 NIM)')
     expect(lines).toContain('250 bp → 300 bp')
     expect(lines).toContain(`effective at height ${EFFECTIVE} — head is ${HEAD}`)
     expect(lines).toContain('~13.0 h from now')
