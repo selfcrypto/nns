@@ -49,18 +49,18 @@ export interface ApiPendingTransfer {
   readonly effectiveHeight: number
 }
 
-/** `recipient: null` is a release; an address is an award (§6 `U`, r17). */
-export interface ApiPendingUnreserve {
-  readonly recipient: Address | null
-  readonly effectiveHeight: number
-}
+/*
+ * `ApiPendingUnreserve` lived here through r21, and `NameDetail` carried an
+ * `unreserve` field beside it. r22 made a `U` execute in the block it lands in
+ * (§6 `U`), so there is no pending form to report — what a caller can still ask
+ * about a `U` is `unreserved`, below, which says whether one has fired.
+ */
 
 /** Everything the state knows about one name. */
 export interface NameDetail {
   readonly record: ApiNameRecord | null
   readonly transfer: ApiPendingTransfer | null
   readonly offer: ApiOffer | null
-  readonly unreserve: ApiPendingUnreserve | null
   /** The name's `U` has fired — it is off the reserved list for good. */
   readonly unreserved: boolean
 }
@@ -309,7 +309,7 @@ export class PgQueries implements Queries {
       const names = await client.query(`SELECT ${NAME_COLUMNS} FROM names WHERE name = $1`, [name])
       const pending = await client.query(
         `SELECT kind, effective_height, new_owner,
-                seller, price, opened_height, expiry_height, recipient
+                seller, price, opened_height, expiry_height
            FROM pending WHERE name = $1`,
         [name],
       )
@@ -318,7 +318,6 @@ export class PgQueries implements Queries {
       const record: Row | undefined = names.rows[0]
       let transfer: ApiPendingTransfer | null = null
       let openOffer: ApiOffer | null = null
-      let unreserve: ApiPendingUnreserve | null = null
 
       for (const row of pending.rows as Row[]) {
         switch (text(row, 'kind')) {
@@ -331,12 +330,10 @@ export class PgQueries implements Queries {
           case 'OFFER':
             openOffer = offer({ ...row, name })
             break
-          case 'UNRESERVE':
-            unreserve = {
-              recipient: nullableAddress(row, 'recipient'),
-              effectiveHeight: toHeight(row['effective_height'], 'effective_height'),
-            }
-            break
+          // 'UNRESERVE' falls through to the default deliberately. r22 removed
+          // the pending `U` and migration 007 removed the kind, so a surviving
+          // row means a pre-r22 database being read by a post-r22 API — which
+          // must throw rather than answer from a shape neither side agrees on.
           case 'GOVERNANCE':
             // Keyed on the empty name, so no §4.1-valid name can match it —
             // but this query must not rely on the caller having validated.
@@ -350,7 +347,6 @@ export class PgQueries implements Queries {
         record: record === undefined ? null : nameRecord(record),
         transfer,
         offer: openOffer,
-        unreserve,
         unreserved: unreserved.rows.length > 0,
       }
     })

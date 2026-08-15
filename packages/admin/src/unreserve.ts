@@ -1,5 +1,5 @@
 /**
- * `U` — Unreserve (§6, r17): release a reserved name, or award it.
+ * `U` — Unreserve (§6): release a reserved name, or award it.
  *
  * The contract is `encodeUnreserve`'s, not restated here: an omitted (or
  * null) recipient releases the name — the transaction goes to
@@ -9,26 +9,40 @@
  * broadcasts what it built. If a rule seems to be missing here, it lives in
  * `core` — do not add it here.
  *
- * **Dry-run by default.** A governance message cannot be retracted once it is
- * in a block, so the command always builds and describes the plan, and
- * broadcasts nothing without an explicit `--send`.
+ * **No notice, and no notice checks, since r22.** A `U` takes effect in the
+ * block it lands in; `GOVERNANCE_DELAY` is `P`'s alone. §6 `U` says why: an
+ * award has no counterparty to warn, and a release announced a day ahead hands
+ * a frontrunner a publicly timed starting gun. `noticeChecks` and
+ * `unreserveRefusals` went with the bound.
+ *
+ * **Which makes the dry run the whole of the fat-finger protection.** It was
+ * one of two before — a mistyped name or awardee could at least be seen
+ * on-chain for a day, even though nothing could be done about it — and it is
+ * the only one now. §6 `U` moves that protection here explicitly. So the plan
+ * decodes the payload it actually built rather than echoing the arguments back,
+ * and nothing is broadcast without `--send`.
+ *
+ * **Still missing: a balance precheck.** `planGovernance` reads the balance
+ * (§11.5); this does not. `ADMIN_ADDRESS` has no income, and an unfunded send
+ * fails by *silence* — the RPC accepts the transaction, returns a hash, and it
+ * is never mined. `readBalance` is already in `cli.ts` for exactly this. It is
+ * a three-line change and belongs to whichever session next touches this file.
  */
 
-import { CONSTANTS, encodeUnreserve, formatAddress, parseAddress, type Address, type NnsConfig } from '@nns/core'
-
 import {
-  NOTICE_MARGIN,
-  UsageError,
-  hours,
-  noticeChecks,
-  noticeInWords,
-  type AdminCheck,
-  type AdminRpc,
-} from './cli.js'
+  CONSTANTS,
+  encodeUnreserve,
+  formatAddress,
+  parse,
+  parseAddress,
+  type Address,
+  type NnsConfig,
+} from '@nns/core'
+
+import { UsageError, type AdminRpc } from './cli.js'
 
 export interface UnreserveParams {
   readonly name: string
-  readonly effectiveHeight: number
   /** `null` releases the name; an address awards it (r17). */
   readonly recipient: Address | null
 }
@@ -39,7 +53,7 @@ export interface UnreserveCommand {
   readonly send: boolean
 }
 
-/** What one `U` would do, priced against the current head. */
+/** What one `U` would do, against the current head. */
 export interface UnreservePlan {
   readonly params: UnreserveParams
   readonly kind: 'release' | 'award'
@@ -49,12 +63,6 @@ export interface UnreservePlan {
   readonly value: bigint
   /** Chain head at planning time; doubles as the broadcast's `validityStartHeight`. */
   readonly head: number
-  readonly checks: readonly AdminCheck[]
-}
-
-/** The checks that stop a broadcast. Empty means `--send` adds nothing but the send. */
-export function unreserveRefusals(plan: UnreservePlan): readonly AdminCheck[] {
-  return plan.checks.filter((check) => check.severity === 'refuse')
 }
 
 export interface UnreserveOutcome {
@@ -64,25 +72,27 @@ export interface UnreserveOutcome {
   readonly hash: string
 }
 
-/** `u <name> <effective-height> [recipient] [--send]` — omit the recipient to release. */
+/** `u <name> [recipient] [--send]` — omit the recipient to release. */
 export function parseUnreserveArgs(argv: readonly string[]): UnreserveCommand {
   const flags = argv.filter((arg) => arg.startsWith('-'))
   for (const flag of flags) {
     if (flag !== '--send') throw new UsageError(`unknown flag ${JSON.stringify(flag)} — the only flag is --send`)
   }
-  const [name, height, recipient, ...rest] = argv.filter((arg) => !arg.startsWith('-'))
-  if (name === undefined || height === undefined || rest.length > 0) {
-    throw new UsageError('u takes a name, an effective height, and optionally an awardee address')
+  const [name, recipient, ...rest] = argv.filter((arg) => !arg.startsWith('-'))
+  if (name === undefined || rest.length > 0) {
+    throw new UsageError('u takes a name and optionally an awardee address')
   }
-  if (!/^\d+$/.test(height) || !Number.isSafeInteger(Number(height))) {
-    throw new UsageError(`effective-height must be a non-negative integer, got ${JSON.stringify(height)}`)
+  // An effective height was the second positional through r21. Catching it by
+  // shape rather than letting it be read as an address turns a stale habit
+  // into a usage error instead of a parse failure two lines later.
+  if (recipient !== undefined && /^\d+$/.test(recipient)) {
+    throw new UsageError(
+      `u no longer takes an effective height — a U takes effect in the block it lands in (§6 U, r22). ` +
+        `Got ${JSON.stringify(recipient)} where an awardee address was expected.`,
+    )
   }
   return {
-    params: {
-      name,
-      effectiveHeight: Number(height),
-      recipient: recipient === undefined ? null : parseAddress(recipient),
-    },
+    params: { name, recipient: recipient === undefined ? null : parseAddress(recipient) },
     send: flags.length > 0,
   }
 }
@@ -108,33 +118,40 @@ export async function planUnreserve(
     data: tx.data,
     value: tx.value,
     head,
-    checks: noticeChecks('U', params.effectiveHeight, head),
   }
 }
 
-/** The plan as lines for a human to read *before* deciding to `--send`. */
+/**
+ * The plan as lines for a human to read *before* deciding to `--send`.
+ *
+ * The name is read back out of the built payload rather than out of `params`,
+ * so what is printed is what will be on the wire. With no notice window left,
+ * this readback is the only thing between a typo and a permanently released
+ * name.
+ */
 export function describePlan(plan: UnreservePlan): string[] {
-  const { params, kind, recipient, head } = plan
-  const when = noticeInWords(params.effectiveHeight, head)
-  const lines = [
-    `U ${kind}: ${params.name}`,
+  const decoded = parse(plan.data)
+  if (!decoded.ok || decoded.message.type !== 'U') {
+    throw new Error(`built a U that does not parse back as one: ${plan.data}`)
+  }
+  const { kind, recipient, head } = plan
+  const name = decoded.message.name
+  return [
+    `U ${kind}: ${name}`,
     kind === 'release'
       ? `  to        ${formatAddress(recipient)} (PROTOCOL_ADDRESS — the name becomes AVAILABLE)`
       : `  to        ${formatAddress(recipient)} (awarded the name, full term, no fee)`,
-    `  effective at height ${params.effectiveHeight} — head is ${head}, so ${when}`,
-    `  earliest usable ${head + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN} — GOVERNANCE_DELAY (${CONSTANTS.GOVERNANCE_DELAY}) ` +
-      `plus ${NOTICE_MARGIN} blocks (${hours(NOTICE_MARGIN)}) of landing margin, since notice runs from the block this lands in`,
+    `  payload   ${plan.data} — decoded: name ${JSON.stringify(name)}, no other field`,
+    `  effective on landing: head is ${head}, so this binds in the next block that carries it — ` +
+      'there is no notice window and nothing to cancel (§6 U, r22)',
+    ...(kind === 'award'
+      ? [
+          `  award term ends <landing height> + ${CONSTANTS.TERM_LENGTH}, so at head that is ` +
+            `${head + CONSTANTS.TERM_LENGTH} — the term is half-open, and GRACE begins at the end height (§7.3)`,
+        ]
+      : []),
+    `  IRREVERSIBLE: a U cannot be recalled, and this is the last point it can be stopped.`,
   ]
-  if (kind === 'award') {
-    lines.push(
-      `  award term ends ${params.effectiveHeight + CONSTANTS.TERM_LENGTH} — the term is ` +
-        `[${params.effectiveHeight}, ${params.effectiveHeight + CONSTANTS.TERM_LENGTH}), so GRACE begins at the end height (§7.3)`,
-    )
-  }
-  for (const { severity, message } of plan.checks) {
-    lines.push(`  ${severity === 'refuse' ? 'REFUSED' : 'WARNING'}: ${message}`)
-  }
-  return lines
 }
 
 /**

@@ -50,7 +50,6 @@ const EMPTY_DETAIL: NameDetail = {
   record: null,
   transfer: null,
   offer: null,
-  unreserve: null,
   unreserved: false,
 }
 
@@ -269,7 +268,6 @@ describe('/name', () => {
       record: { ...RECORD, host: 'r.example.com' },
       transfer: { newOwner: B, effectiveHeight: 58_243_200 },
       offer: OFFER,
-      unreserve: null,
       unreserved: false,
     }
     const handle = routes({ detail: () => Promise.resolve(snap(detail)) })
@@ -296,20 +294,23 @@ describe('/name', () => {
             openedHeight: 58_190_000,
             expiryHeight: 59_486_000,
           },
-          unreserve: null,
         },
         height: HEIGHT,
       },
     })
   })
 
-  it('a pending `U` award carries its recipient; a release carries null (r17)', async () => {
-    const award: NameDetail = { ...EMPTY_DETAIL, unreserve: { recipient: C, effectiveHeight: 58_250_000 } }
-    const handle = routes({ detail: () => Promise.resolve(snap(award)) })
+  it('reports a fired `U` as `unreserved`, and offers no pending unreserve at all (r22)', async () => {
+    // Through r21 this route answered `pending.unreserve` with a recipient —
+    // null for a release, an address for an award. r22 removed the pending
+    // form, and the key with it rather than pinning it to null: a null would
+    // read as "no U is scheduled for this name", which is now true of every
+    // name and therefore says nothing.
+    const fired: NameDetail = { ...EMPTY_DETAIL, unreserved: true }
+    const handle = routes({ detail: () => Promise.resolve(snap(fired)) })
     const response = await handle('GET', '/name/nimiq')
-    expect(response.body).toMatchObject({
-      pending: { unreserve: { recipient: formatAddress(C), effectiveHeight: 58_250_000 } },
-    })
+    expect(response.body).toMatchObject({ unreserved: true, reserved: false })
+    expect(Object.keys((response.body as { pending: object }).pending)).toEqual(['transfer', 'offer'])
   })
 })
 

@@ -186,7 +186,6 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
     case 'unreserve':
       return encodeUnreserve({
         name,
-        effectiveHeight: spec.effectiveHeight as number,
         recipient: optionalAddress(book, spec.recipient),
         ...sender,
       })
@@ -237,8 +236,6 @@ export interface VectorCheckpointState {
   transfers?: Array<{ name: string; newOwner: string; effectiveHeight: number }>
   offers?: Array<{ name: string; seller: string; price: string; openedHeight: number; expiryHeight: number }>
   pendingGovernance?: { prices: VectorPrices; effectiveHeight: number } | null
-  /** `recipient: null` is a release; an address is the awardee (§6 `U`, r17). */
-  pendingUnreserve?: Array<{ name: string; recipient: string | null; effectiveHeight: number }>
   /** Names whose `U` has fired (§8.1 tag `0x0A`). Authored unsorted where the case is about ordering. */
   unreserved?: string[]
 }
@@ -272,9 +269,6 @@ export function readCheckpointState(
       raw.pendingGovernance == null
         ? null
         : { prices: readPrices(raw.pendingGovernance.prices), effectiveHeight: raw.pendingGovernance.effectiveHeight },
-    pendingUnreserve: byName(
-      (raw.pendingUnreserve ?? []).map((item) => ({ ...item, recipient: optionalAddress(book, item.recipient) })),
-    ),
     unreserved: new Set(raw.unreserved ?? []),
   })
 }

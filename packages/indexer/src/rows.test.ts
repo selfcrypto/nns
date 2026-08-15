@@ -7,7 +7,6 @@ import {
   type Obligation,
   type Offer,
   type PendingTransfer,
-  type PendingUnreserve,
 } from '@nns/core'
 import { describe, expect, it } from 'vitest'
 
@@ -82,12 +81,6 @@ function populated(): NnsState {
     },
     lastGovernanceHeight: 58_180_000,
     unreserved: new Set(['nimiq', 'wallet']),
-    pendingUnreserve: new Map<string, PendingUnreserve>([
-      // One of each: a null recipient is a release, an address an award
-      // (§6 U, r17). §8.1 commits the distinction, so both must round-trip.
-      ['reserved-one', { name: 'reserved-one', recipient: null, effectiveHeight: 58_260_000 }],
-      ['reserved-two', { name: 'reserved-two', recipient: address(D), effectiveHeight: 58_270_000 }],
-    ]),
     outstanding: new Map<string, Obligation[]>([
       [
         '58190001:3',
@@ -116,7 +109,6 @@ function normalise(state: NnsState): unknown {
     pendingGovernance: state.pendingGovernance,
     lastGovernanceHeight: state.lastGovernanceHeight,
     unreserved: [...state.unreserved].sort(),
-    pendingUnreserve: [...state.pendingUnreserve.entries()].sort(),
     outstanding: [...state.outstanding.entries()].sort(),
     nextDueHeight: state.nextDueHeight,
   }
@@ -135,12 +127,15 @@ describe('round trip', () => {
     expect(restored.nextDueHeight).toBe(Number.POSITIVE_INFINITY)
   })
 
-  it('keeps a pending unreserve whose recipient is null', () => {
-    // The one a naive "NULL means no row" mapping loses: a *release* is a
-    // pending operation with a null payload, not an absent operation (§6 `U`).
-    const restored = stateFromRows(rowsOf(populated()))
-    const release = [...restored.pendingUnreserve.values()].find((item) => item.recipient === null)
-    expect(release).toBeDefined()
+  it('writes no UNRESERVE row, because a U is never pending (r22)', () => {
+    // Through r21 a release round-tripped as a pending row with a NULL
+    // recipient, and the case that mattered was that NULL is a value rather
+    // than an absence. r22 made a U execute in its landing block, so the row
+    // has no state to hold: a U leaves only the `unreserved` set behind, and
+    // that is what `populated()` carries.
+    const rows = rowsOf(populated())
+    expect(rows.pending.map((row) => row.kind)).not.toContain('UNRESERVE')
+    expect(rows.unreserved.sort()).toEqual(['nimiq', 'wallet'])
   })
 
   it('keeps obligation order within one transaction', () => {

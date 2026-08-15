@@ -36,7 +36,6 @@ import {
   type Offer,
   type PendingGovernance,
   type PendingTransfer,
-  type PendingUnreserve,
   type Prices,
   type TxRef,
   isReserved,
@@ -104,7 +103,6 @@ export type ForfeitReason =
   | 'GOVERNANCE_BOUND_VIOLATED'
   | 'INSUFFICIENT_NOTICE'
   | 'NAME_NOT_RESERVED'
-  | 'UNRESERVE_PENDING'
   | 'NOTHING_TO_CANCEL'
   | 'BELOW_REFUND_FLOOR'
   | 'BELOW_MIN_PRICE'
@@ -139,7 +137,6 @@ interface Draft {
   pendingGovernance: PendingGovernance | null
   lastGovernanceHeight: number | null
   unreserved: Set<string>
-  pendingUnreserve: Map<string, PendingUnreserve>
   outstanding: Map<string, readonly Obligation[]>
   nextDueHeight: number
 }
@@ -153,7 +150,6 @@ const draftOf = (state: NnsState): Draft => ({
   pendingGovernance: state.pendingGovernance,
   lastGovernanceHeight: state.lastGovernanceHeight,
   unreserved: new Set(state.unreserved),
-  pendingUnreserve: new Map(state.pendingUnreserve),
   outstanding: new Map(state.outstanding),
   nextDueHeight: state.nextDueHeight,
 })
@@ -171,7 +167,6 @@ function computeNextDue(draft: Draft): number {
     if (height > draft.height && height < next) next = height
   }
   if (draft.pendingGovernance !== null) consider(draft.pendingGovernance.effectiveHeight)
-  for (const item of draft.pendingUnreserve.values()) consider(item.effectiveHeight)
   for (const item of draft.transfers.values()) consider(item.effectiveHeight)
   for (const item of draft.offers.values()) consider(item.expiryHeight)
   for (const record of draft.names.values()) {
@@ -226,9 +221,8 @@ function release(draft: Draft, name: string): void {
 /**
  * Categories of scheduled effect, in the order they fire when several come due
  * at the same height. **This list is §7.3's, in §7.3's order** — governance
- * activation, unreserve activation, maturing `X`, maturing `R`, expiry to
- * `GRACE`, grace release to `AVAILABLE`, offer expiry — with ties inside a
- * category broken bytewise by name.
+ * activation, maturing `X`, expiry to `GRACE`, grace release to `AVAILABLE`,
+ * offer expiry — with ties inside a category broken bytewise by name.
  *
  * The whole batch fires **before that block's transactions**: {@link reduce}
  * calls {@link advanceTo} for `tx.blockNumber` before it parses anything, so a
@@ -247,16 +241,17 @@ function release(draft: Draft, name: string): void {
  * answering for subdomains — not to void a transfer already in flight.
  *
  * Proposed here first, then ratified into §7.3 by spec r15. r20 removed the
- * `RECOVERY` step along with `R` itself; the remaining steps keep their
- * relative order, which is the only thing consensus depends on.
+ * `RECOVERY` step along with `R` itself, and r22 the `UNRESERVE` step along
+ * with the pending `U`; the remaining steps keep their relative order, which is
+ * the only thing consensus depends on. `GOVERNANCE` is now the only
+ * governance effect driven by height at all.
  */
 const ORDER = {
   GOVERNANCE: 0,
-  UNRESERVE: 1,
-  TRANSFER: 2,
-  EXPIRE: 3,
-  RELEASE: 4,
-  OFFER_EXPIRE: 5,
+  TRANSFER: 1,
+  EXPIRE: 2,
+  RELEASE: 3,
+  OFFER_EXPIRE: 4,
 } as const
 
 interface DueEffect {
@@ -283,35 +278,9 @@ function collectDue(draft: Draft, upto: number): DueEffect[] {
     })
   }
 
-  for (const item of draft.pendingUnreserve.values()) {
-    if (item.effectiveHeight > upto) continue
-    due.push({
-      height: item.effectiveHeight,
-      order: ORDER.UNRESERVE,
-      key: item.name,
-      apply: (d) => {
-        const pending = d.pendingUnreserve.get(item.name)
-        if (pending === undefined || pending.effectiveHeight > upto) return
-        d.pendingUnreserve.delete(item.name)
-        d.unreserved.add(item.name)
-        // §7.3: an award additionally creates the REGISTERED record — owner
-        // and target the awardee, full TERM_LENGTH from the effective height,
-        // delegate host unset, nothing pending. A release stops
-        // at the line above and the name is AVAILABLE under the normal rules.
-        if (pending.recipient !== null) {
-          const expiry = pending.effectiveHeight + CONSTANTS.TERM_LENGTH
-          d.names.set(item.name, {
-            name: item.name,
-            owner: pending.recipient,
-            target: pending.recipient,
-            expiry,
-            status: 'REGISTERED',
-            host: '',
-          })
-        }
-      },
-    })
-  }
+  // An unreserve-activation step sat here through r21, second in ORDER. r22
+  // made a `U` execute in its landing block (§6 `U`), so nothing about a
+  // release or an award is ever scheduled and there is no height to fire.
 
   for (const item of draft.transfers.values()) {
     if (item.effectiveHeight > upto) continue
@@ -798,16 +767,16 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
     case 'U': {
       // Since r17 `U` has no recipient *routing* check: the recipient is an
       // operand — PROTOCOL_ADDRESS releases the name, any other address is
-      // awarded it at effective_height — so it gets a row of its own rather
-      // than the §5.3 check that precedes everything else (§7.4).
+      // awarded it — so it gets a row of its own rather than the §5.3 check
+      // that precedes everything else (§7.4).
       if (!addressEquals(tx.sender, CONSTANTS.ADMIN_ADDRESS)) return keep(forfeit('NOT_ADMIN'))
       // The one forbidden recipient. BURN_ADDRESS has no key, and it is the
-      // all-zero address §8.1 uses to encode *no* recipient — permitting it
-      // would make an award to it and a release commit identical bytes (§6 U).
+      // all-zero address §8.1 uses to encode *no* recipient (§6 U).
       if (addressEquals(tx.recipient, BURN_ADDRESS)) return keep(forfeit('INVALID_RECIPIENT'))
-      if (message.effectiveHeight < tx.blockNumber + CONSTANTS.GOVERNANCE_DELAY) {
-        return keep(forfeit('INSUFFICIENT_NOTICE'))
-      }
+      // r22: no notice row. `GOVERNANCE_DELAY` is `P`'s alone — a `U` executes
+      // here, in this block. See §6 `U`: an award has no party to warn, and a
+      // scheduled release warns only a frontrunner.
+      //
       // §4.1 rules 2–5 and the ceiling — rule 6 is inverted by the row
       // after: a `U`'s name must be *in* RESERVED_NAMES. The floor never
       // binds a `U`: well-formed short names are reserved by rule (§4.1) and
@@ -817,18 +786,30 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // forfeits here.
       const check = validateName(message.name, state.unreserved)
       if (!check.ok && check.reason !== 'RESERVED') return keep(forfeit('INVALID_NAME'))
+      // Also what a *second* `U` for the same name earns, since r22: the first
+      // one fired on landing, so the name is already out of RESERVED_NAMES and
+      // there is no pending sibling to collide with. UNRESERVE_PENDING is gone
+      // from the vocabulary rather than merely unused.
       if (!isReserved(state, message.name)) return keep(forfeit('NAME_NOT_RESERVED'))
-      // One pending U per name — this is what makes the effect at
-      // effective_height unconditional rather than racing a sibling (§6 U).
-      if (state.pendingUnreserve.has(message.name)) return keep(forfeit('UNRESERVE_PENDING'))
 
       const draft = draftOf(state)
-      draft.pendingUnreserve.set(message.name, {
-        name: message.name,
-        recipient: addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS) ? null : tx.recipient,
-        effectiveHeight: message.effectiveHeight,
-      })
-      schedule(draft, message.effectiveHeight)
+      draft.unreserved.add(message.name)
+      // §6 `U`: an award additionally creates the REGISTERED record — owner
+      // and target the awardee, a full TERM_LENGTH from this block, delegate
+      // host unset, nothing pending. A release stops at the line above and the
+      // name is AVAILABLE under the normal rules.
+      if (!addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS)) {
+        const expiry = tx.blockNumber + CONSTANTS.TERM_LENGTH
+        draft.names.set(message.name, {
+          name: message.name,
+          owner: tx.recipient,
+          target: tx.recipient,
+          expiry,
+          status: 'REGISTERED',
+          host: '',
+        })
+        schedule(draft, expiry)
+      }
       return { state: freeze(draft), verdict: ok() }
     }
 

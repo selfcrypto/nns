@@ -45,7 +45,8 @@ const TAG = {
   // renumbered one (§8.1).
   PENDING_OFFER: 0x07,
   PENDING_GOVERNANCE: 0x08,
-  PENDING_UNRESERVE: 0x09,
+  // 0x09 was PENDING_UNRESERVE through r21. r22 made a `U` execute on landing;
+  // the tag is retired on the same terms as 0x06 above and must not be reused.
   UNRESERVED: 0x0a,
 } as const
 
@@ -370,21 +371,13 @@ export function pendingCommitment(state: NnsState): Uint8Array {
     )
   }
 
-  // The recipient is what makes a pending `U` a release or an award (§6 `U`),
-  // and it is committed rather than derived (r17): a release commits 20 zero
-  // bytes — the same "unset address" form a clearing `R` uses — and an award
-  // commits the awardee. Zeros are unambiguous only because BURN_ADDRESS is
-  // itself the all-zero address and §7.4 rejects it as an awardee.
-  for (const item of [...state.pendingUnreserve.values()].sort((a, b) => compareNames(a.name, b.name))) {
-    entries.push(
-      concat([
-        u8(TAG.PENDING_UNRESERVE),
-        lengthPrefixed(item.name),
-        item.recipient === null ? ZERO_ADDRESS_BYTES : addressToBytes(item.recipient),
-        u64be(item.effectiveHeight),
-      ]),
-    )
-  }
+  // A fourth category, pending `U`s under tag `0x09`, sat here through r21.
+  // r22 made a `U` execute in its landing block (§6 `U`), so there is nothing
+  // to emit. **This removes no bytes from any reachable preimage**: the
+  // concatenation carries no separators and no entry count, so a category with
+  // no entries contributed nothing even when it existed. Every r21 commitment
+  // over a state with no `U` in flight — which is now every state — keeps its
+  // value, and COMMITMENT_LAYOUT stays 4.
 
   return keccak_256(concat([u8(TAG.PENDING), ...entries]))
 }

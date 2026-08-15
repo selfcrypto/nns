@@ -7,7 +7,6 @@ export {
   type ApiObligation,
   type ApiOffer,
   type ApiPendingTransfer,
-  type ApiPendingUnreserve,
   type BurnAttestation,
   type CheckpointLog,
   type LatestCheckpoint,

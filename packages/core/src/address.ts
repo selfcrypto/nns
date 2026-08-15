@@ -148,7 +148,10 @@ export function formatAddress(address: Address): string {
 
 /**
  * 20 zero bytes — `NQ07 0000 …`, which is both the canonical burn address (§3)
- * and the §8.1 encoding of an unset address, used by a releasing pending `U`.
+ * and the §8.1 encoding of an unset address. The last §8.1 field to use that
+ * form was the pending `U`'s recipient, which r22 removed along with the
+ * pending `U` itself; it stays because `BURN_ADDRESS` is this value and §7.4
+ * has to recognise it (`INVALID_RECIPIENT`, `WRONG_RECIPIENT` for `F`).
  */
 export const ZERO_ADDRESS: Address = addressFromBytes(new Uint8Array(ADDRESS_BYTES))
 

@@ -85,15 +85,20 @@ only; it defaults to empty.
   pending or unreserved set is `keccak256(0x04)` / `keccak256(0x0A)` — the tag
   byte alone.
 
-  **These commitments are r17.** The unreserved set (tag `0x0A`, r16) is the
+  **These commitments are r22.** The unreserved set (tag `0x0A`, r16) is the
   sixth component; an r15 implementation reproduces all four component digests
   and none of the commitments. `one_fired_unreserve` is the pair that shows
   why the component exists — a released name has no leaf and no pending entry,
-  so without `0x0A` it is invisible to the checkpoint. r17 put a 20-byte
-  `recipient` inside the pending-`U` entry (`0x09`): zeros for a release, the
-  awardee for an award. `pending_award_commits_the_awardee` is that pair — an
-  r16 implementation reproduces every case without a pending `U` and diverges
-  on every one that carries one.
+  so without `0x0A` it is invisible to the checkpoint.
+
+  **r22 removed the pending `U` (tag `0x09`), and that moved no bytes.** The
+  pending set concatenates its categories with no separators and no entry
+  count, so a category with no entries contributed nothing even while it
+  existed: every case here whose state was reachable under r21 keeps its r21
+  value byte for byte. The two r17 cases that pinned the recipient inside a
+  pending entry are **deleted** — their state cannot occur — and
+  `every_pending_category` lost its fourth entry, which makes it the one value
+  in this file that moved, and it moved because its state did.
 
 ### `ordering.json` and `reduce.json`
 
@@ -110,7 +115,8 @@ stretch.
 
 A `check` reads the state at that point. Beyond `names`, `resolves` and
 `prices` it may carry `absent`, `height`, `transfers`, `offers`,
-`pendingUnreserve`, `pendingGovernance`, `unreserved` and `logLines`; a `null`
+`pendingGovernance`, `unreserved` and `logLines` (`pendingUnreserve` was one
+until r22 removed the pending `U`); a `null`
 value in any of the pending maps asserts the entry is **gone**, which is what
 a scheduled effect firing actually looks like. Two more fields exist for the
 boundary scenarios below:
@@ -132,7 +138,7 @@ They exist because every other way of observing these effects is blind to a
 one-block error. A checkpoint is only taken every `CHECKPOINT_INTERVAL`
 blocks, so "the root differs across the gap" cannot distinguish `h` from
 `h+1`; and none of these effects earns a §7.4 verdict token, so a replay can
-agree with a second implementation on all 27 tokens, produce matching roots at
+agree with a second implementation on all 26 tokens, produce matching roots at
 every checkpoint, and still fire an effect a block early. Each scenario
 therefore asserts `logLines` on both sides of the crossing as well: **a height
 advance MUST never emit a §8.2 line.**
@@ -142,18 +148,27 @@ advance MUST never emit a §8.2 line.**
 | `boundary_offer_expires_at_OFFER_MAX_LIFETIME` | `opened + OFFER_MAX_LIFETIME` | §6 `O` "auto-expiring at" |
 | `boundary_transfer_matures_at_XFER_TIMELOCK` | `landing + XFER_TIMELOCK` | §6 `X` "Takes effect at" |
 | `boundary_governance_activates_at_effective_height` | `effective_height` | §6 `P` |
-| `boundary_unreserve_releases_at_effective_height` | `effective_height` | §6 `U`, release row |
-| `boundary_unreserve_awards_at_effective_height` | `effective_height` | §6 `U`, award row |
 | `boundary_expiry_grace_and_the_fall_to_available` | `expiry`, then `expiry + GRACE_PERIOD` | §7.3's interval table (r21) |
 | `boundary_renewal_window_closes_with_the_grace_period` | `expiry + GRACE_PERIOD` | same |
 
-Four of these are timed by constants r20 moved — `TERM_LENGTH`,
+Three of these are timed by constants r20 moved — `TERM_LENGTH`,
 `GRACE_PERIOD` and `GOVERNANCE_DELAY` — so what the vectors pin is the
 boundary arithmetic, not the transition.
 
+**There were two more, and r22 removed the effect rather than the vector.**
+`boundary_unreserve_releases_at_effective_height` and its award twin pinned a
+`U` firing at `effective_height`; a `U` now fires in the block it lands in and
+has no height to pin (§6 `U`). Their replacements are named
+`unreserve_release_completes_in_its_landing_block` and
+`unreserve_award_completes_in_its_landing_block`, and they assert the negative
+instead: the whole effect is in the landing block, and advancing a full
+`GOVERNANCE_DELAY` past it moves **no** component. They are deliberately *not*
+named `boundary_*`, so the census above keeps meaning "one per height-driven
+category" rather than quietly counting a vector that no longer pins a height.
+
 ### `checkOrder` — which check runs first
 
-Thirty-six cases in `reduce.json`'s own section, not scenarios. Each is a
+Thirty-five cases in `reduce.json`'s own section, not scenarios. Each is a
 message that satisfies **two** rejection conditions at once: `verdict` is the
 token the earlier check produces, and `insteadOf` is the same probe rebuilt to
 trip only the later one, run against the same pre-state and required to earn
@@ -165,31 +180,33 @@ fixing the order, or is `null`. `insteadOfUnreachable` replaces `insteadOf`
 where the later token cannot be produced at all (only `A`, whose §6 clause
 makes `BELOW_MIN_PRICE` unreachable by construction).
 
-**Sixteen of the thirty-six orderings are fixed by the spec; twenty are
+**Fifteen of the thirty-five orderings are fixed by the spec; twenty are
 implementation choices.** §7.4 fixes `G`'s five-check order ("recipient, name
 syntax, reservation, **value, then availability**"), `REFUND_FLOOR` converting
-a refund into a forfeit, and — since r21 — a `U`'s six ("sender, recipient,
-notice, name syntax, reservation, pending"). §7.5 runs before a message is
+a refund into a forfeit, and — since r21, shortened by r22 — a `U`'s four
+("sender, recipient, name syntax, reservation"). §7.5 runs before a message is
 parsed, and §6 `A` puts its version forfeit ahead of the price floor and behind
 §5.3 routing. Everything else is a bullet list read as an order it never
 claimed to be, and the tokens carried forward as PROVEN-AT-R19 still lean on
 it: `INVALID_HOST`, `NAME_NOT_FOUND`, `BELOW_MIN_PRICE`, `WRONG_SENDER` and
-`MALFORMED_PAYLOAD` sit behind a `pinnedBy: null` row. Four more —
-`INVALID_RECIPIENT`, `INSUFFICIENT_NOTICE`, `NOT_ADMIN` and
-`NAME_NOT_RESERVED` — did until r21 ratified `U`'s order.
+`MALFORMED_PAYLOAD` sit behind a `pinnedBy: null` row. Three more —
+`INVALID_RECIPIENT`, `NOT_ADMIN` and `NAME_NOT_RESERVED` — did until r21
+ratified `U`'s order. `INSUFFICIENT_NOTICE` was a fourth; r22 took it out of
+`U` altogether, so its only remaining ordering is `P`'s, which is still free.
 
 **Two of these were unstated when the vectors were written, and r21 states
 them.** Both are now `pinnedBy` rows rather than free ones, and the vectors are
 the evidence for the clause rather than a substitute for it:
 
-- **`U`'s recipient before its notice.** Through r20 §7.4 listed a `U`'s
+- **`U`'s recipient before the rest of it.** Through r20 §7.4 listed a `U`'s
   forfeits with notice *ahead* of the recipient and never claimed to be an
   order. r21 reorders the bullet and states the order outright — the recipient
   leads because since r17 it is an *operand* choosing release from award (§5.3),
-  so a `U` naming `BURN_ADDRESS` is neither operation and
-  `INSUFFICIENT_NOTICE` would report a defect it does not have.
-  `U_invalid_recipient_beats_insufficient_notice` is the message that tells the
-  two readings apart.
+  so a `U` naming `BURN_ADDRESS` is neither operation, and judging anything else
+  about it reports a defect it does not have. r22 then removed the notice row
+  the recipient used to lead, without touching that reasoning: the pair is now
+  `U_invalid_recipient_beats_invalid_name`, and the recipient leads the name
+  rows instead.
 - **`A`'s routing before its version forfeit.** Through r20 "every `A` forfeits
   `AUCTION_NOT_IN_V1`" was absolute and the §5.3 exception was implicit. r21
   states it: an `A` at the wrong address earns `WRONG_RECIPIENT`, and that is

@@ -225,10 +225,7 @@ describe('G — register (§6, §7.4)', () => {
 
     const release = reduce(
       s,
-      send(encodeUnreserve({ name: 'binance', effectiveHeight: LAUNCH + CONSTANTS.GOVERNANCE_DELAY }), {
-        sender: ADMIN,
-        at: LAUNCH,
-      }),
+      send(encodeUnreserve({ name: 'binance' }), { sender: ADMIN, at: LAUNCH, txIndex: 1 }),
       reservedConfig,
     )
     expect(release.verdict.kind).toBe('OK')
@@ -238,7 +235,8 @@ describe('G — register (§6, §7.4)', () => {
       s,
       send({ ...encodeRegister({ name: 'kikename', fee: FEE }), data: hexOf('NNS1Gbinance') }, {
         sender: ALICE,
-        at: LAUNCH + CONSTANTS.GOVERNANCE_DELAY,
+        at: LAUNCH,
+        txIndex: 2,
       }),
       reservedConfig,
     )
@@ -503,10 +501,11 @@ describe('ordering of effects that come due at the same height', () => {
   })
 
   it('fires every §7.3 category due at one height, in §7.3 order, before that block’s transactions', () => {
-    // One height with all six categories due at once. §7.3 fixes the order —
-    // governance, unreserve, maturing X, expiry, grace release, offer expiry —
-    // and fixes that the whole batch runs *before* the block's own
-    // transactions, which is what the final `G` here checks.
+    // One height with all five categories due at once. §7.3 fixes the order —
+    // governance, maturing X, expiry, grace release, offer expiry — and fixes
+    // that the whole batch runs *before* the block's own transactions, which
+    // is what the final `G` here checks. r22 removed the unreserve step: a `U`
+    // executes in its landing block and schedules nothing.
     const reserving = config
     const at = (height: number): SendOptions => ({ sender: ALICE, at: height })
     /** `step`, but against the reserving config this one test needs. */
@@ -535,10 +534,11 @@ describe('ordering of effects that come due at the same height', () => {
       sender: ALICE,
       at: H - CONSTANTS.OFFER_MAX_LIFETIME,
     })
-    // A U and a P effective at H, and an X and an R maturing there — all four
-    // sent at the same height, since GOVERNANCE_DELAY and XFER_TIMELOCK are equal.
+    // The `U` releasing `binance` is not scheduled at all since r22 — it fires
+    // in its own block, well before H, and its only trace here is that the
+    // final `G` for the name is registrable.
     const notice = H - CONSTANTS.GOVERNANCE_DELAY
-    send1(encodeUnreserve({ name: 'binance', effectiveHeight: H }), { sender: ADMIN, at: notice })
+    send1(encodeUnreserve({ name: 'binance' }), { sender: ADMIN, at: notice })
     send1(
       encodeGovernance({
         feeStandard: FEE * 2n,
@@ -553,13 +553,14 @@ describe('ordering of effects that come due at the same height', () => {
     state = advanceTo(state, H)
 
     expect(state.prices.feeStandard).toBe(FEE * 2n) // governance activated
-    expect(state.unreserved.has('binance')).toBe(true) // unreserve activated
+    expect(state.unreserved.has('binance')).toBe(true) // released back at `notice`
     expect(lookup(state, 'expirename')).toMatchObject({ owner: BOB, status: 'GRACE' }) // X before expiry
     expect(lookup(state, 'gracename')).toBeNull() // grace released
     expect(state.offers.has('offername')).toBe(false) // offer expired
 
-    // …and all of it before H's own transactions: this `G` is only registrable
-    // because the `U` fired first, and only sufficient at the raised fee.
+    // …and all of it before H's own transactions: this `G` is only sufficient
+    // at the raised fee, which is the height-driven governance step landing
+    // ahead of the block body.
     expect(send1(registerBinance(FEE), at(H)).verdict).toEqual({ kind: 'FORFEIT', reason: 'INSUFFICIENT_VALUE' })
     expect(send1(registerBinance(FEE * 2n), at(H)).verdict.kind).toBe('OK')
   })
@@ -942,7 +943,6 @@ describe('P — governance (§6, §10.6)', () => {
 describe('U — unreserve (§6)', () => {
   // `binance` is on the frozen §4.1 published list (§3), not a fixture entry.
   const reserving = config
-  const H = LAUNCH + CONSTANTS.GOVERNANCE_DELAY
 
   /** `step`, but against the config that reserves `binance`. */
   const stepR = (built: BuiltTransaction, options: SendOptions): ReduceResult => {
@@ -952,18 +952,14 @@ describe('U — unreserve (§6)', () => {
   }
 
   const unreserve = (recipient: Address | null = null): BuiltTransaction =>
-    encodeUnreserve({ name: 'binance', effectiveHeight: H, recipient })
+    encodeUnreserve({ name: 'binance', recipient })
 
   beforeEach(() => {
     state = initialState()
   })
 
-  it('forfeits from anyone but ADMIN_ADDRESS, and without notice', () => {
+  it('forfeits from anyone but ADMIN_ADDRESS', () => {
     expect(stepR(unreserve(), { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'NOT_ADMIN' })
-
-    expect(
-      stepR(encodeUnreserve({ name: 'binance', effectiveHeight: LAUNCH + 1 }), { sender: ADMIN }).verdict,
-    ).toEqual({ kind: 'FORFEIT', reason: 'INSUFFICIENT_NOTICE' })
   })
 
   it('forfeits an award to BURN_ADDRESS, in its own row of the §7.4 order', () => {
@@ -971,55 +967,52 @@ describe('U — unreserve (§6)', () => {
     const toBurn: BuiltTransaction = { ...unreserve(), recipient: BURN_ADDRESS }
     // NOT_ADMIN still comes first…
     expect(stepR(toBurn, { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'NOT_ADMIN' })
-    // …then INVALID_RECIPIENT, *before* the notice check: the recipient
-    // decides which of two operations the message even is (§7.4).
-    const short: BuiltTransaction = {
-      ...encodeUnreserve({ name: 'binance', effectiveHeight: LAUNCH + 1 }),
-      recipient: BURN_ADDRESS,
-    }
-    expect(stepR(short, { sender: ADMIN }).verdict).toEqual({ kind: 'FORFEIT', reason: 'INVALID_RECIPIENT' })
+    // …then INVALID_RECIPIENT, *before* the name rows: the recipient decides
+    // which of two operations the message even is (§7.4). r22 removed the
+    // notice row this used to precede; the reason it leads is unchanged.
+    const badName: BuiltTransaction = { ...toBurn, data: hexOf('NNS1Uab-') }
+    expect(stepR(badName, { sender: ADMIN }).verdict).toEqual({ kind: 'FORFEIT', reason: 'INVALID_RECIPIENT' })
   })
 
   it('forfeits a name failing §4.1 rules 2–5 or the ceiling — but the floor never binds a U', () => {
     // `ab-` fails rule 4 and is on neither §4.1 membership route, so no U may
     // release or award it. Built by hand: the builder refuses it too.
-    const built: BuiltTransaction = { ...unreserve(), data: hexOf(`NNS1Uab-|${H}`) }
+    const built: BuiltTransaction = { ...unreserve(), data: hexOf('NNS1Uab-') }
     expect(stepR(built, { sender: ADMIN }).verdict).toEqual({ kind: 'FORFEIT', reason: 'INVALID_NAME' })
   })
 
   it('releases a short name — reserved by rule, no list entry — and a later G registers it (r18)', () => {
-    expect(stepR(encodeUnreserve({ name: 'web3', effectiveHeight: H }), { sender: ADMIN }).verdict).toEqual(
-      { kind: 'OK', obligations: [] },
-    )
+    // r22: the release lands and fires in the same block. A `G` in an earlier
+    // block still sees a reserved name.
+    expect(stepR(encodeRegister({ name: 'web3', fee: FEE }), { sender: ALICE, at: LAUNCH }).verdict).toEqual({
+      kind: 'FORFEIT',
+      reason: 'RESERVED_NAME',
+    })
 
-    // Still held until the U fires: a G in the notice window forfeits.
-    expect(
-      stepR(encodeRegister({ name: 'web3', fee: FEE }), { sender: ALICE, at: LAUNCH + 1 }).verdict,
-    ).toEqual({ kind: 'FORFEIT', reason: 'RESERVED_NAME' })
-
-    state = advanceTo(state, H)
+    expect(stepR(encodeUnreserve({ name: 'web3' }), { sender: ADMIN, at: LAUNCH + 1 }).verdict).toEqual({
+      kind: 'OK',
+      obligations: [],
+    })
     expect(state.unreserved.has('web3')).toBe(true)
 
     // Released, the floor no longer binds (§4.1): a normal registration at
     // the normal STANDARD-band fee.
-    const result = stepR(encodeRegister({ name: 'web3', fee: FEE }), { sender: ALICE, at: H })
+    const result = stepR(encodeRegister({ name: 'web3', fee: FEE }), { sender: ALICE, at: LAUNCH + 2 })
     expect(result.verdict.kind).toBe('OK')
     expect(lookup(state, 'web3')?.owner).toBe(ALICE)
     expect(resolve(state, 'web3')).toBe(ALICE)
   })
 
   it('awards a short name straight to the recipient — the exchange-delegate use case (§6 U)', () => {
-    const award = encodeUnreserve({ name: 'nq', effectiveHeight: H, recipient: BOB })
+    const award = encodeUnreserve({ name: 'nq', recipient: BOB })
     expect(stepR(award, { sender: ADMIN }).verdict).toEqual({ kind: 'OK', obligations: [] })
-    expect(state.pendingUnreserve.get('nq')).toEqual({ name: 'nq', recipient: BOB, effectiveHeight: H })
 
-    state = advanceTo(state, H)
     expect(state.unreserved.has('nq')).toBe(true)
     expect(lookup(state, 'nq')).toEqual({
       name: 'nq',
       owner: BOB,
       target: BOB,
-      expiry: H + CONSTANTS.TERM_LENGTH,
+      expiry: LAUNCH + CONSTANTS.TERM_LENGTH,
       status: 'REGISTERED',
       host: '',
     })
@@ -1027,8 +1020,7 @@ describe('U — unreserve (§6)', () => {
   })
 
   it('puts an awarded short name in the checkpoint tree as an ordinary leaf (§8.1)', () => {
-    stepR(encodeUnreserve({ name: 'nq', effectiveHeight: H, recipient: BOB }), { sender: ADMIN })
-    state = advanceTo(state, H)
+    stepR(encodeUnreserve({ name: 'nq', recipient: BOB }), { sender: ADMIN })
 
     const proof = merkleProof(state, 'nq')
     expect(proof).not.toBeNull()
@@ -1037,71 +1029,80 @@ describe('U — unreserve (§6)', () => {
   })
 
   it('forfeits a name that is not reserved, or whose U has already fired', () => {
-    expect(
-      stepR(encodeUnreserve({ name: 'kikename', effectiveHeight: H }), { sender: ADMIN }).verdict,
-    ).toEqual({ kind: 'FORFEIT', reason: 'NAME_NOT_RESERVED' })
+    expect(stepR(encodeUnreserve({ name: 'kikename' }), { sender: ADMIN }).verdict).toEqual({
+      kind: 'FORFEIT',
+      reason: 'NAME_NOT_RESERVED',
+    })
 
     stepR(unreserve(), { sender: ADMIN })
-    const again = encodeUnreserve({
-      name: 'binance',
-      effectiveHeight: H + CONSTANTS.GOVERNANCE_DELAY,
+    expect(stepR(unreserve(), { sender: ADMIN, at: LAUNCH + 1 }).verdict).toEqual({
+      kind: 'FORFEIT',
+      reason: 'NAME_NOT_RESERVED',
     })
-    expect(stepR(again, { sender: ADMIN, at: H }).verdict).toEqual({ kind: 'FORFEIT', reason: 'NAME_NOT_RESERVED' })
   })
 
-  it('forfeits a second U while one is pending — nothing queues behind a pending U', () => {
-    stepR(unreserve(), { sender: ADMIN })
+  it('gives a second U in the same block NAME_NOT_RESERVED, not UNRESERVE_PENDING (r22)', () => {
+    // Through r21 the first U was *pending* and the second earned
+    // UNRESERVE_PENDING. Executing on landing takes the name out of
+    // RESERVED_NAMES in the first U's own block, so the second one fails the
+    // reservation row like any other U naming a released name — which is why
+    // UNRESERVE_PENDING left the vocabulary rather than merely going unused.
+    expect(stepR(unreserve(), { sender: ADMIN }).verdict).toEqual({ kind: 'OK', obligations: [] })
     expect(stepR(unreserve(BOB), { sender: ADMIN, txIndex: 1 }).verdict).toEqual({
       kind: 'FORFEIT',
-      reason: 'UNRESERVE_PENDING',
+      reason: 'NAME_NOT_RESERVED',
     })
+    // The first U's effect stands: a release, so no leaf.
+    expect(lookup(state, 'binance')).toBeNull()
   })
 
-  it('releases with no recipient recorded, and the name is AVAILABLE at effective_height', () => {
+  it('releases in its own block, with no scheduled effect left behind', () => {
     stepR(unreserve(), { sender: ADMIN })
-    expect(state.pendingUnreserve.get('binance')).toEqual({ name: 'binance', recipient: null, effectiveHeight: H })
-
-    state = advanceTo(state, H)
-    expect(state.pendingUnreserve.has('binance')).toBe(false)
     expect(state.unreserved.has('binance')).toBe(true)
     expect(lookup(state, 'binance')).toBeNull()
+    // Nothing was scheduled: a U leaves no due height of its own.
+    expect(state.nextDueHeight).toBe(Number.POSITIVE_INFINITY)
   })
 
   it('registers a released name with a builder-built G — the builder must not reject on the static list', () => {
     stepR(unreserve(), { sender: ADMIN })
-    state = advanceTo(state, H)
 
     // encodeRegister sees the same config that reserves `binance`; released-ness
     // lives in state.unreserved, which only the reducer can consult.
-    const result = stepR(encodeRegister({ name: 'binance', fee: FEE }), { sender: ALICE, at: H })
+    const result = stepR(encodeRegister({ name: 'binance', fee: FEE }), { sender: ALICE, at: LAUNCH, txIndex: 1 })
     expect(result.verdict.kind).toBe('OK')
     expect(lookup(state, 'binance')?.owner).toBe(ALICE)
     expect(resolve(state, 'binance')).toBe(ALICE)
   })
 
-  it('awards straight to the recipient at effective_height, never through AVAILABLE', () => {
+  it('awards straight to the recipient on landing, never through AVAILABLE', () => {
     expect(stepR(unreserve(BOB), { sender: ADMIN }).verdict).toEqual({ kind: 'OK', obligations: [] })
-    expect(state.pendingUnreserve.get('binance')).toEqual({ name: 'binance', recipient: BOB, effectiveHeight: H })
 
-    state = advanceTo(state, H)
     expect(state.unreserved.has('binance')).toBe(true)
     expect(lookup(state, 'binance')).toEqual({
       name: 'binance',
       owner: BOB,
       target: BOB,
-      expiry: H + CONSTANTS.TERM_LENGTH,
+      expiry: LAUNCH + CONSTANTS.TERM_LENGTH,
       status: 'REGISTERED',
       host: '',
     })
     expect(resolve(state, 'binance')).toBe(BOB)
   })
 
-  it('an award beats every G in the block it takes effect in — a refundable loss (§7.3)', () => {
-    stepR(unreserve(BOB), { sender: ADMIN })
-    // A sniper who saw the U coming, with a G prepared for the exact block: at
-    // H the name is already REGISTERED, so this is a concurrency loss.
-    const g = encodeRegister({ name: 'binance', fee: FEE })
-    expect(stepR(g, { sender: ALICE, at: H }).verdict).toMatchObject({ kind: 'REFUND', reason: 'LOST_REGISTRATION_RACE' })
+  it('an award beats the Gs behind it in its own block, and loses to the ones ahead (§6 U, r22)', () => {
+    // Ahead of the U the name is still reserved…
+    expect(stepR(encodeRegister({ name: 'binance', fee: FEE }), { sender: ALICE, at: LAUNCH }).verdict).toEqual({
+      kind: 'FORFEIT',
+      reason: 'RESERVED_NAME',
+    })
+    stepR(unreserve(BOB), { sender: ADMIN, at: LAUNCH, txIndex: 1 })
+    // …and behind it the name is REGISTERED, so this is a concurrency loss.
+    // Through r21 the award fired in §7.3's height-driven step and beat *every*
+    // G in its block; it now beats the ones behind it.
+    expect(
+      stepR(encodeRegister({ name: 'binance', fee: FEE }), { sender: ALICE, at: LAUNCH, txIndex: 2 }).verdict,
+    ).toMatchObject({ kind: 'REFUND', reason: 'LOST_REGISTRATION_RACE' })
     expect(lookup(state, 'binance')?.owner).toBe(BOB)
   })
 })

@@ -1,7 +1,7 @@
 {
   "vectors": "nns/merkle",
   "version": 1,
-  "spec": "nns-spec-v1 draft r21, §8.1 and §8.3",
+  "spec": "nns-spec-v1 draft r22, §8.1 and §8.3",
   "description": "Checkpoint tree byte layout. `enc` is the §8.1 leaf preimage, `leaf` is keccak256(0x00 ‖ enc), internal nodes are keccak256(0x01 ‖ left ‖ right), odd nodes are promoted unchanged, and an empty tree is 32 zero bytes. All hex is lowercase and unprefixed.",
   "addresses": {
     "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
@@ -240,7 +240,7 @@
     ]
   },
   "checkpoints": {
-    "description": "The §8.1 checkpoint commitment, byte for byte. `state` is the part of the registry §8.1 requires committed — the name tree, the active prices, the pending set and, since r16, the unreserved set — and `logHash` is an input, the §8.2 log hash at this height. `nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` and `commitment` are derived. Two implementations that agree on every other file here and disagree on this one publish checkpoints that never match. These values are r17: a pending `U` entry (tag 0x09) commits a 20-byte recipient — 20 zero bytes for a release, the awardee's 20 for an award. An r16 implementation, which committed no recipient, reproduces every case without a pending `U` and diverges on every one that carries one.",
+    "description": "The §8.1 checkpoint commitment, byte for byte. `state` is the part of the registry §8.1 requires committed — the name tree, the active prices, the pending set and, since r16, the unreserved set — and `logHash` is an input, the §8.2 log hash at this height. `nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` and `commitment` are derived. Two implementations that agree on every other file here and disagree on this one publish checkpoints that never match. These values are r22, which removed the pending `U` (tag 0x09) when a `U` became effective on landing. **That removal moves no bytes**: the pending set concatenates its categories with no separators and no count, so a category with no entries contributed nothing even when it existed. Every case below whose state was reachable under r21 keeps its r21 value; the three that carried a pending `U` pinned a state that can no longer occur, and were re-authored or removed rather than refilled.",
     "tags": {
       "leaf": "0x00",
       "node": "0x01",
@@ -248,10 +248,10 @@
       "prices": "0x03",
       "pending": "0x04",
       "pendingTransfer": "0x05",
-      "pendingRecovery": "0x06",
+      "pendingRecovery": "0x06 — retired (r20), not reused",
       "pendingOffer": "0x07",
       "pendingGovernance": "0x08",
-      "pendingUnreserve": "0x09",
+      "pendingUnreserveRetired": "0x09 — retired (r22), not reused",
       "unreserved": "0x0A"
     },
     "cases": [
@@ -302,7 +302,7 @@
       },
       {
         "id": "every_pending_category",
-        "note": "One of each: a pending X, an open O, a pending P and a pending U. Tag 0x06 (pending R) is retired, not reused (r20). Entries are concatenated by category in §8.1's order and bytewise by name inside a category, then hashed once under 0x04.",
+        "note": "One of each category the pending set still has: a pending X, an open O and a pending P. Tags 0x06 (pending R, r20) and 0x09 (pending U, r22) are retired and not reused. Entries are concatenated by category in §8.1's order and bytewise by name inside a category, then hashed once under 0x04. This case held a fourth entry through r21 and is the only one in this file whose value moved with r22 — because its state moved, not because the encoding did.",
         "state": {
           "height": 58903520,
           "prices": {
@@ -356,21 +356,14 @@
               "commissionBp": "250"
             },
             "effectiveHeight": 58946720
-          },
-          "pendingUnreserve": [
-            {
-              "name": "binance",
-              "recipient": null,
-              "effectiveHeight": 58946720
-            }
-          ]
+          }
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "nameRoot": "c0402efcdcc3f56ab0932454e33b54308000cdce9e7329717f52fd343c86bf05",
         "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
-        "pendingRoot": "657122f60c270b0140ac80d6f2defac4861f0363accc7d1e21fa1d42710ef5c3",
+        "pendingRoot": "12b080187c9ceab6dc404ef90315407e15e62514a6ecf23262a8a20ea3079cef",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "7e16da9811b569e95d031d52da33ebe655a3bc205199e0a4184346517b9587f8"
+        "commitment": "6788ff59411f668b90bb1927c8f6481e12bbfb7c284bc339afb750e255cd10b8"
       },
       {
         "id": "same_names_no_pending_set",
@@ -472,80 +465,6 @@
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "621cc735f00f1996b0c525a38267877ef62abc4d46947768578330547026a95c",
         "commitment": "c26f415a682000946673d437649d1557640bc324ffb4e07d9709d0782b1bb5ba"
-      },
-      {
-        "id": "fired_unreserve_is_not_a_pending_one",
-        "note": "The same name under tag 0x09 rather than 0x0A. A `U` that is still waiting for its effective height and one that has fired are different states, and each has its own component.",
-        "state": {
-          "height": 58903520,
-          "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
-            "commissionBp": "250"
-          },
-          "names": [
-            {
-              "name": "kikename",
-              "owner": "ALICE",
-              "target": "ALICE",
-              "expiry": 90378720,
-              "status": "REGISTERED",
-              "host": ""
-            }
-          ],
-          "pendingUnreserve": [
-            {
-              "name": "binance",
-              "recipient": null,
-              "effectiveHeight": 58946720
-            }
-          ]
-        },
-        "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "sameNameRootAs": "one_fired_unreserve",
-        "differsFrom": "one_fired_unreserve",
-        "nameRoot": "a2e9a943f5fb8e4347193f9ff6ae9a736960a0381a286f7c6e1bcb2f62a48750",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
-        "pendingRoot": "84f91ce9737241860f992d5e1cf8782253fedf691c7de795c91b97d50f24f21e",
-        "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "a97391e15ca6f6abf60126a371faa232947f1862e2fdaacb06996877cfd849a1"
-      },
-      {
-        "id": "pending_award_commits_the_awardee",
-        "note": "The r17 case. Identical to fired_unreserve_is_not_a_pending_one except the pending `U`'s recipient: BOB's 20 bytes rather than the 20 zero bytes of a release. Two indexers that agree a `U` is pending and disagree about who the name goes to must not derive identical checkpoints until it fires — tag 0x0A's hole one revision later, with an owner at stake rather than a status.",
-        "state": {
-          "height": 58903520,
-          "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
-            "commissionBp": "250"
-          },
-          "names": [
-            {
-              "name": "kikename",
-              "owner": "ALICE",
-              "target": "ALICE",
-              "expiry": 90378720,
-              "status": "REGISTERED",
-              "host": ""
-            }
-          ],
-          "pendingUnreserve": [
-            {
-              "name": "binance",
-              "recipient": "BOB",
-              "effectiveHeight": 58946720
-            }
-          ]
-        },
-        "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "sameNameRootAs": "fired_unreserve_is_not_a_pending_one",
-        "differsFrom": "fired_unreserve_is_not_a_pending_one",
-        "nameRoot": "a2e9a943f5fb8e4347193f9ff6ae9a736960a0381a286f7c6e1bcb2f62a48750",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
-        "pendingRoot": "e79c9ca037d2a7218bb43bf517d6e52597555b6295f5cc8fb53253d72d724fef",
-        "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "6de95d48ceb08776b19a2eefc68606540deea904025bbea77b19ad3aa49cb815"
       },
       {
         "id": "unreserved_sorted_bytewise",

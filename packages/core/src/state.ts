@@ -61,21 +61,14 @@ export interface PendingGovernance {
   readonly effectiveHeight: number
 }
 
-/**
- * A `U` awaiting its `effective_height` (§6 `U`).
- *
- * The recipient is what makes it a release or an award, and §8.1 commits it
- * rather than deriving it: `null` is a release (20 zero bytes in the pending
- * entry — the same "unset address" form a clearing `R` uses), an address is
- * the awardee. `BURN_ADDRESS` never appears here — §7.4 rejects it as an
- * awardee (`INVALID_RECIPIENT`) precisely so the all-zero bytes can only ever
- * mean a release.
+/*
+ * `PendingUnreserve` lived here through r21, with a `recipient` and an
+ * `effectiveHeight`, committed under §8.1 tag `0x09`. r22 made a `U` execute in
+ * the block it lands in (§6 `U`), so there is no pending form to hold and the
+ * tag is retired rather than reused — the same treatment r20 gave `0x06`. Do
+ * not reintroduce it without reintroducing the notice window, and read §6 `U`'s
+ * frontrunner argument first.
  */
-export interface PendingUnreserve {
-  readonly name: string
-  readonly recipient: Address | null
-  readonly effectiveHeight: number
-}
 
 /**
  * §3 `MIN_PRICE` — the floor on an `O` price and an `A` reserve (§6 `O`, §6 `A`).
@@ -131,10 +124,12 @@ export interface NnsState {
    * shape of gap. Removing the bound closed it from the other side.
    */
   readonly lastGovernanceHeight: number | null
-  /** Names released from `RESERVED_NAMES` by a `U` that has taken effect. */
+  /**
+   * Names taken out of `RESERVED_NAMES` by a `U` (§6 `U`), released or
+   * awarded alike. A `U` fires in its own block, so this is the whole of what
+   * one leaves behind — there is no pending counterpart.
+   */
   readonly unreserved: ReadonlySet<string>
-  /** `U` messages awaiting their `effective_height`, keyed by name. */
-  readonly pendingUnreserve: ReadonlyMap<string, PendingUnreserve>
   /** Unsettled obligations, keyed by {@link refKey} of the transaction owing them. */
   readonly outstanding: ReadonlyMap<string, readonly Obligation[]>
   /**
@@ -166,7 +161,6 @@ export function initialState(): NnsState {
     pendingGovernance: null,
     lastGovernanceHeight: null,
     unreserved: new Set<string>(),
-    pendingUnreserve: new Map<string, PendingUnreserve>(),
     outstanding: new Map<string, readonly Obligation[]>(),
     nextDueHeight: Number.POSITIVE_INFINITY,
   })

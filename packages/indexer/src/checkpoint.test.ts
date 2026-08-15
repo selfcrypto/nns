@@ -274,40 +274,46 @@ describe('the unreserved set is committed — r16 §8.1, tag 0x0A', () => {
   const base = Object.freeze({ ...initialState(), height: LAUNCH + INTERVAL })
   /** The same name, in the two states the commitment has to tell apart. */
   const released = Object.freeze({ ...base, unreserved: new Set(['nimiq']) })
-  const pending = Object.freeze({
-    ...base,
-    pendingUnreserve: new Map([
-      ['nimiq', { name: 'nimiq', recipient: null, effectiveHeight: LAUNCH + 2 * INTERVAL }],
-    ]),
-  })
   const commit = (state: NnsState) => hex(commitmentFor(state, base.height, logHash([])).commitment)
 
   it('commits differently once a `U` has fired', () => {
     expect(commit(released)).not.toBe(commit(base))
   })
 
-  it('separates a fired `U` from the pending one that precedes it', () => {
-    // 0x09 and 0x0A are two states of the same name: a scheduled release is
-    // not a release, and neither digest may stand in for the other.
-    expect(commit(pending)).not.toBe(commit(released))
-  })
-
-  it('does commit the pending `U` that precedes it', () => {
-    expect(commit(pending)).not.toBe(commit(base))
-  })
-
-  it('separates a pending award from a pending release — r17, tag 0x09', () => {
-    // Same name, same effective height; only the recipient differs. Through
-    // r16 the entry did not commit it, so these two states — one gives the
-    // name away, one merely opens it — derived identical roots until the `U`
-    // fired: tag 0x0A's hole one revision later, with an owner at stake.
-    const awarded = Object.freeze({
-      ...base,
-      pendingUnreserve: new Map([
-        ['nimiq', { name: 'nimiq', recipient: compact(D), effectiveHeight: LAUNCH + 2 * INTERVAL }],
-      ]),
+  it('separates a fired award from a fired release — r22, no pending form left', () => {
+    // Through r21 this pair was *pending*: two states that agreed a `U` was
+    // scheduled and disagreed about who the name went to, separated by the
+    // 20-byte recipient inside tag 0x09. r22 made a `U` execute in its landing
+    // block, so there is no pending form and the disagreement is settled the
+    // moment it exists — by the name tree, since an award writes a leaf and a
+    // release does not, while both join `unreserved` identically.
+    //
+    // The seam this block exists for is unchanged: an indexer that mistook one
+    // for the other must not derive the same commitment.
+    const awarded = withName(released, {
+      name: 'nimiq',
+      owner: compact(D),
+      target: compact(D),
+      expiry: base.height + 31_536_000,
+      status: 'REGISTERED',
+      host: '',
     })
-    expect(commit(awarded)).not.toBe(commit(pending))
+    expect(commit(awarded)).not.toBe(commit(released))
+    // …and `unreserved_root` is *not* what tells them apart: tag 0x0A records
+    // only that the name left RESERVED_NAMES, never who to (§8.1).
+    const componentsOf = (state: NnsState) => commitmentFor(state, base.height, logHash([]))
+    expect(hex(componentsOf(awarded).unreservedRoot)).toBe(hex(componentsOf(released).unreservedRoot))
+    expect(hex(componentsOf(awarded).nameRoot)).not.toBe(hex(componentsOf(released).nameRoot))
+  })
+
+  it('has no pending category a `U` can reach — the pending root is empty either way', () => {
+    // The byte claim r22 rests on, asserted where this package would notice:
+    // a fired `U`, release or award, leaves the pending set exactly as it
+    // found it, so `pending_root` at a checkpoint over such a state is the
+    // empty form. A reducer that resurrected a pending `U` would break this
+    // before it broke any root comparison.
+    const empty = hex(commitmentFor(base, base.height, logHash([])).pendingRoot)
+    expect(hex(commitmentFor(released, base.height, logHash([])).pendingRoot)).toBe(empty)
   })
 
   it('also moves the tree once the released name is registered', () => {

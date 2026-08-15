@@ -89,11 +89,6 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
       [A],
     )
     await pool.query(
-      `INSERT INTO pending (kind, name, effective_height, recipient)
-       VALUES ('UNRESERVE', 'nimiq', 58250000, $1)`,
-      [C],
-    )
-    await pool.query(
       `INSERT INTO pending (kind, name, effective_height, fee_standard, fee_long, commission_bp)
        VALUES ('GOVERNANCE', '', 58243200, '800000000', '80000000', '300')`,
     )
@@ -123,9 +118,9 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
     expect(detail.value.transfer).toBeNull()
     expect(detail.value.unreserved).toBe(false)
 
-    // The pending `U` and the fired one are different tables and both visible.
-    const nimiq = await queries.detail('nimiq')
-    expect(nimiq.value.unreserve).toEqual({ recipient: C, effectiveHeight: 58_250_000 })
+    // A fired `U` is the only kind there is since r22, and `unreserved` is
+    // where it shows: the pending row this used to assert cannot be written
+    // any more (migration 007 dropped the kind).
     expect((await queries.detail('legacy-brand')).value.unreserved).toBe(true)
 
     const owned = await queries.byOwner(A)
@@ -158,7 +153,6 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
       record: null,
       transfer: null,
       offer: null,
-      unreserve: null,
       unreserved: false,
     })
   })

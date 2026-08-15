@@ -2,7 +2,7 @@
  * Admin CLI entry point. Two commands:
  *
  *   p <fee_standard> <fee_long> <commission_bp> <effective-height> [--send]
- *   u <name> <effective-height> [recipient] [--send]
+ *   u <name> [recipient] [--send]
  *
  * Dry-run by default: the plan is always printed, and nothing is broadcast
  * without `--send`. `F` is not implemented yet.
@@ -25,11 +25,10 @@ import {
   describePlan,
   parseUnreserveArgs,
   planUnreserve,
-  unreserveRefusals,
 } from './unreserve.js'
 
 const USAGE = `usage: p <fee_standard> <fee_long> <commission_bp> <effective-height> [--send]
-       u <name> <effective-height> [recipient] [--send]
+       u <name> [recipient] [--send]
 
 p builds a P (§6): the two prices — in luna — and the marketplace commission in
 basis points, all in one message, taking effect at the given height. It checks
@@ -39,12 +38,16 @@ forfeited on-chain.
 
 u builds a U (§6) and prints what it would do: release the reserved name — the
 transaction goes to PROTOCOL_ADDRESS — or, if a recipient address is given,
-award it to that address at the effective height (r17). BURN_ADDRESS is
-refused.
+award it to that address. BURN_ADDRESS is refused.
 
-Both p and u refuse an effective height under GOVERNANCE_DELAY plus a landing
+u takes NO effective height. A U executes in the block it lands in (§6 U,
+r22): there is no notice window, nothing to cancel, and no second chance. The
+dry run below is the only point at which a mistyped name or awardee can be
+caught, so read the decoded payload before passing --send.
+
+p does refuse an effective height under GOVERNANCE_DELAY plus a landing
 margin. Notice is measured from the block the message lands in, not from the
-head it was planned against, so the exact minimum forfeits; each plan prints
+head it was planned against, so the exact minimum forfeits; the plan prints
 the earliest height it will accept.
 
 Both are dry runs; nothing is broadcast without --send. F is not implemented.
@@ -113,17 +116,12 @@ async function runUnreserve(argv: readonly string[]): Promise<number> {
   const rpc = rpcFor(settings)
   const plan = await planUnreserve(rpc, settings.config, params)
   for (const line of describePlan(plan)) console.log(line)
-  // A `U` is as unretractable as a `P` (§6 `U`), so a plan that would forfeit
-  // is refused rather than warned about — through r20 this path only warned,
-  // and `--send` broadcast a certain INSUFFICIENT_NOTICE anyway.
-  const blocking = unreserveRefusals(plan)
-  if (blocking.length > 0) {
-    console.error(
-      `refusing: ${blocking.length} check${blocking.length === 1 ? '' : 's'} failed — nothing was sent, and a U that ` +
-        'lands cannot be retracted.',
-    )
-    return 1
-  }
+  // No refusals left to run: r22 removed `U`'s only bound that could be
+  // checked from here, the notice (§6 `U`). Everything else client-preventable
+  // — a bad name, `BURN_ADDRESS`, a self-award — throws inside the builder, in
+  // `planUnreserve`, before the node hears anything. What remains is the dry
+  // run above and this explicit `--send`, which §6 `U` now names as the whole
+  // of the fat-finger protection.
   if (!send) {
     console.log('dry run — nothing was sent. Pass --send to broadcast.')
     return 0

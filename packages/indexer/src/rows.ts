@@ -27,7 +27,6 @@ import {
   type Offer,
   type PendingGovernance,
   type PendingTransfer,
-  type PendingUnreserve,
   type Prices,
 } from '@nns/core'
 
@@ -88,16 +87,16 @@ export type NameRow = {
 // insert helper without a cast.
 // 'RECOVERY' was a kind through r19. r20 removed `R`; migration 006 drops the
 // column and the rows, so a database that still holds one is a pre-r20 database
-// and must be resynced, not migrated.
-export type PendingKind = 'TRANSFER' | 'OFFER' | 'GOVERNANCE' | 'UNRESERVE'
+// and must be resynced, not migrated. 'UNRESERVE' went the same way in r22,
+// when a `U` became effective on landing and stopped having a pending form;
+// migration 007 drops the kind and the `recipient` column it needed.
+export type PendingKind = 'TRANSFER' | 'OFFER' | 'GOVERNANCE'
 
 export type PendingRow = {
   kind: PendingKind
   name: string
   effective_height: number | null
   new_owner: string | null
-  // UNRESERVE. NULL is meaningful: a release, not an award (§6 U, r17).
-  recipient: string | null
   seller: string | null
   price: string | null
   opened_height: number | null
@@ -150,7 +149,6 @@ export interface StateRows {
 const emptyPending = {
   effective_height: null,
   new_owner: null,
-  recipient: null,
   seller: null,
   price: null,
   opened_height: null,
@@ -204,17 +202,9 @@ export function pendingRows(state: NnsState): PendingRow[] {
       commission_bp: state.pendingGovernance.prices.commissionBp.toString(10),
     })
   }
-  for (const item of state.pendingUnreserve.values()) {
-    rows.push({
-      ...emptyPending,
-      kind: 'UNRESERVE',
-      name: item.name,
-      // NULL is a release; an address is the awardee (§6 U, r17). §8.1
-      // commits this, so losing it across a restart would move the root.
-      recipient: item.recipient,
-      effective_height: item.effectiveHeight,
-    })
-  }
+  // An UNRESERVE row was written here through r21. r22 made a `U` execute in
+  // its landing block (§6 `U`), so nothing about one survives the block and
+  // there is no pending row to write. Migration 007 drops the kind.
   return rows
 }
 
@@ -289,7 +279,6 @@ export function stateFromRows(rows: StateRows): NnsState {
 
   const transfers = new Map<string, PendingTransfer>()
   const offers = new Map<string, Offer>()
-  const pendingUnreserve = new Map<string, PendingUnreserve>()
   let pendingGovernance: PendingGovernance | null = null
 
   for (const row of rows.pending) {
@@ -322,14 +311,11 @@ export function stateFromRows(rows: StateRows): NnsState {
           effectiveHeight: toHeight(required(row.effective_height, 'pending.effective_height'), 'pending.effective_height'),
         }
         break
-      case 'UNRESERVE':
-        pendingUnreserve.set(name, {
-          name,
-          // NULL survives as null: a release is not an award to nobody.
-          recipient: row.recipient === null ? null : toAddress(row.recipient, 'pending.recipient'),
-          effectiveHeight: toHeight(required(row.effective_height, 'pending.effective_height'), 'pending.effective_height'),
-        })
-        break
+      // 'UNRESERVE' is deliberately absent and falls through to the default.
+      // r22 removed the pending `U`, and migration 007 removed the kind from
+      // the CHECK constraint — so a surviving row is a database written by a
+      // pre-r22 indexer, which must fail loudly rather than be read into a
+      // state field that no longer exists.
       default:
         throw new RowError(`pending.kind: ${JSON.stringify(row.kind)} is not a pending kind`)
     }
@@ -371,7 +357,6 @@ export function stateFromRows(rows: StateRows): NnsState {
         ? null
         : toHeight(rows.params.last_governance_height, 'params.last_governance_height'),
     unreserved: new Set(rows.unreserved.map((name) => toText(name, 'unreserved.name'))),
-    pendingUnreserve,
     outstanding: outstanding as ReadonlyMap<string, readonly Obligation[]>,
     nextDueHeight:
       rows.params.next_due_height === null

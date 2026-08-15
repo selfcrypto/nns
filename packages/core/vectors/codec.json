@@ -306,16 +306,15 @@
       },
       {
         "id": "U_unreserve",
-        "text": "NNS1Ubinance|58942720",
-        "data": "4e4e53315562696e616e63657c3538393432373230",
+        "note": "One field since r22: a U executes in the block it lands in, so it carries no effective height. NNS1Ubinance|58942720 — the r21 form — is MALFORMED_PAYLOAD, pinned below.",
+        "text": "NNS1Ubinance",
+        "data": "4e4e53315562696e616e6365",
         "message": {
           "type": "U",
-          "name": "binance",
-          "effectiveHeight": 58942720
+          "name": "binance"
         },
         "build": {
-          "builder": "unreserve",
-          "effectiveHeight": 58942720
+          "builder": "unreserve"
         },
         "recipient": "PROTOCOL",
         "value": "1"
@@ -323,16 +322,14 @@
       {
         "id": "U_award_of_a_short_name",
         "note": "Short names are reserved by rule (§4.1, r18), so the builder accepts them and the recipient operand awards: same payload shape, the recipient decides (§6 U).",
-        "text": "NNS1Unq|58942720",
-        "data": "4e4e5331556e717c3538393432373230",
+        "text": "NNS1Unq",
+        "data": "4e4e5331556e71",
         "message": {
           "type": "U",
-          "name": "nq",
-          "effectiveHeight": 58942720
+          "name": "nq"
         },
         "build": {
           "builder": "unreserve",
-          "effectiveHeight": 58942720,
           "recipient": "BOB"
         },
         "recipient": "BOB",
@@ -575,9 +572,28 @@
         }
       },
       {
-        "id": "U_without_height",
-        "text": "NNS1Ubinance",
-        "data": "4e4e53315562696e616e6365",
+        "id": "U_with_a_height_is_the_retired_r21_form",
+        "note": "Through r21 a U carried `|<effective_height>`. r22 made it execute on landing and removed the field, so the old form now has one field too many. Rejecting it is deliberate: a pre-r22 client's message must fail loudly rather than release a name on a number nothing reads.",
+        "text": "NNS1Ubinance|58942720",
+        "data": "4e4e53315562696e616e63657c3538393432373230",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "U_with_a_trailing_pipe",
+        "text": "NNS1Ubinance|",
+        "data": "4e4e53315562696e616e63657c",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        }
+      },
+      {
+        "id": "empty_name_U",
+        "text": "NNS1U",
+        "data": "4e4e533155",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"

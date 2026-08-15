@@ -1,5 +1,5 @@
 import { keccak_256 } from '@noble/hashes/sha3.js'
-import { bytesToHex } from '@noble/hashes/utils.js'
+import { bytesToHex, concatBytes } from '@noble/hashes/utils.js'
 import { describe, expect, it } from 'vitest'
 import { addressToBytes } from './address.js'
 import { CONSTANTS } from './constants.js'
@@ -16,6 +16,7 @@ import {
   merkleProof,
   merkleRoot,
   pendingCommitment,
+  pricesCommitment,
   sortedRecords,
   unreservedCommitment,
   verifyProof,
@@ -288,7 +289,7 @@ describe('checkpoint — §8.1 final clause', () => {
     expect(bytesEqual(pendingCommitment(withOffer), empty)).toBe(false)
   })
 
-  it('also commits a pending P and a pending U, which §8.1 does not enumerate', () => {
+  it('also commits a pending P, which §8.1 does not enumerate', () => {
     const state = stateWith(record({ name: 'kikename' }))
     const empty = pendingCommitment(state)
 
@@ -300,39 +301,40 @@ describe('checkpoint — §8.1 final clause', () => {
       },
     })
     expect(bytesEqual(pendingCommitment(withGovernance), empty)).toBe(false)
-
-    const withUnreserve = Object.freeze({
-      ...state,
-      pendingUnreserve: new Map([['binance', { name: 'binance', recipient: null, effectiveHeight: 100 }]]),
-    })
-    expect(bytesEqual(pendingCommitment(withUnreserve), empty)).toBe(false)
   })
 
-  it('commits a pending U’s recipient — release and award are different bytes (r17)', () => {
-    // Two indexers agreeing a U is pending and disagreeing about who the name
-    // goes to must not derive identical checkpoints until it fires — the shape
-    // of hole tag 0x0A closed in r16, this time with an owner at stake (§8.1).
-    const state = stateWith(record({ name: 'kikename' }))
-    const pendingTo = (recipient: typeof BOB | null): NnsState =>
-      Object.freeze({
-        ...state,
-        pendingUnreserve: new Map([['binance', { name: 'binance', recipient, effectiveHeight: 100 }]]),
-      })
-    const release = pendingCommitment(pendingTo(null))
-    expect(bytesEqual(pendingCommitment(pendingTo(BOB)), release)).toBe(false)
-    expect(bytesEqual(pendingCommitment(pendingTo(ALICE)), pendingCommitment(pendingTo(BOB)))).toBe(false)
-
-    // The release form is the same 20 zero bytes a clearing R uses — pinned
-    // byte for byte so "no recipient" can never drift to a sentinel address.
-    expect(release).toEqual(
+  it('has exactly three pending categories since r22 — the U category is gone, not empty', () => {
+    // A pending `U` (tag 0x09) was the fourth category through r21. r22 made a
+    // `U` execute in its landing block, so there is no pending form to commit.
+    //
+    // **Removing it moved no bytes**, and this is where that is pinned: the
+    // pending set concatenates entries with no separators and no count, so a
+    // category with no entries contributed nothing even when it existed. A
+    // state with the other three categories populated therefore commits under
+    // r22 exactly what it committed under r21 — pinned here by preimage rather
+    // than by a remembered digest, so the claim does not rest on a copied hash.
+    const state = Object.freeze({
+      ...stateWith(record({ name: 'kikename' })),
+      transfers: new Map([['kikename', { name: 'kikename', newOwner: BOB, effectiveHeight: 100 }]]),
+      pendingGovernance: {
+        prices: { feeStandard: 1n, feeLong: 2n, commissionBp: 3n },
+        effectiveHeight: 200,
+      },
+    })
+    expect(pendingCommitment(state)).toEqual(
       keccak_256(
-        Uint8Array.from([
-          0x04,
-          0x09,
-          7, ...[...'binance'].map((c) => c.charCodeAt(0)),
-          ...new Uint8Array(20),
-          0, 0, 0, 0, 0, 0, 0, 100,
-        ]),
+        concatBytes(
+          Uint8Array.from([
+            0x04,
+            0x05,
+            8, ...[...'kikename'].map((c) => c.charCodeAt(0)),
+          ]),
+          addressToBytes(BOB),
+          Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 100]),
+          Uint8Array.of(0x08),
+          pricesCommitment({ feeStandard: 1n, feeLong: 2n, commissionBp: 3n }),
+          Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 200]),
+        ),
       ),
     )
   })

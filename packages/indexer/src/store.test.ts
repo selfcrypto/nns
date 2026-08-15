@@ -349,29 +349,35 @@ describe.skipIf(URL === undefined)('Store', () => {
     expect(await store.checkpointAt(58_178_880)).toMatchObject({ layout: 1, unreservedRoot: null })
   })
 
-  it('a pending award differs from a pending release in the row and the commitment — r17, tag 0x09', async () => {
-    // Same name, same effective height; only who gets it differs. The
-    // (kind, name) key is identical on both sides, so this is the one pending
-    // change that moves nothing but the `recipient` column (migration 004) —
-    // if the diff or the row dropped it, release → award would write nothing,
-    // survive a restart as a release, and fire as one: an owner lost silently.
-    const unreserve = (recipient: ReturnType<typeof compact> | null) =>
-      new Map([['nimiq', { name: 'nimiq', recipient, effectiveHeight: 58_181_040 }]])
-    const release = Object.freeze({ ...initialState(), pendingUnreserve: unreserve(null) })
-    const award = Object.freeze({ ...release, pendingUnreserve: unreserve(compact(D)) })
+  it('a fired award differs from a fired release in the tables and the commitment — r22', async () => {
+    // The r22 successor to the r17 pending-`U` case. A `U` executes in its
+    // landing block, so there is no pending row and no `recipient` column
+    // (migration 007) — what separates a release from an award afterwards is
+    // that both join `unreserved` while only the award writes a name row.
+    //
+    // Staged through Postgres because that is where it could go wrong: if the
+    // diff wrote the `unreserved` insert and dropped the name row, an award
+    // would survive a restart as a release, and an owner would be lost
+    // silently — the same failure the r17 case guarded, one revision on.
+    const record = {
+      name: 'nimiq',
+      owner: compact(D),
+      target: compact(D),
+      expiry: 58_181_040 + CONSTANTS.TERM_LENGTH,
+      status: 'REGISTERED' as const,
+      host: '',
+    }
+    const release = Object.freeze({ ...initialState(), unreserved: new Set(['nimiq']) })
+    const award = Object.freeze({ ...release, names: new Map([['nimiq', record]]) })
 
-    // §8.1 separates them, and `pending_root` is the component that says how.
+    // §8.1 separates them, and `name_root` is the component that says how:
+    // `unreserved_root` is identical, because tag 0x0A records only that the
+    // name left RESERVED_NAMES, not who to.
     const releaseCp = at(58_179_600, release)
     const awardCp = at(58_180_320, award)
-    expect(hex(awardCp.pendingRoot)).not.toBe(hex(at(58_180_320, release).pendingRoot))
+    expect(hex(awardCp.unreservedRoot)).toBe(hex(at(58_180_320, release).unreservedRoot))
+    expect(hex(awardCp.nameRoot)).not.toBe(hex(at(58_180_320, release).nameRoot))
     expect(hex(awardCp.commitment)).not.toBe(hex(at(58_180_320, release).commitment))
-
-    const storedRecipient = async () => {
-      const result = await pool.query<{ recipient: string | null }>(
-        `SELECT recipient FROM pending WHERE kind = 'UNRESERVE' AND name = 'nimiq'`,
-      )
-      return result.rows[0]?.recipient ?? null
-    }
 
     await store.commitBatch({
       before: initialState(),
@@ -381,7 +387,8 @@ describe.skipIf(URL === undefined)('Store', () => {
       nextBatch: 912_040,
       scannedThrough: 58_179_600,
     })
-    expect(await storedRecipient()).toBeNull()
+    expect((await store.loadState()).names.get('nimiq')).toBeUndefined()
+    expect((await store.loadState()).unreserved.has('nimiq')).toBe(true)
 
     await store.commitBatch({
       before: Object.freeze({ ...release, height: 58_179_600 }),
@@ -391,13 +398,25 @@ describe.skipIf(URL === undefined)('Store', () => {
       nextBatch: 912_041,
       scannedThrough: 58_180_320,
     })
-    expect(await storedRecipient()).toBe(compact(D))
-    expect((await store.loadState()).pendingUnreserve.get('nimiq')?.recipient).toBe(compact(D))
+    const restored = await store.loadState()
+    expect(restored.names.get('nimiq')?.owner).toBe(compact(D))
+    expect(restored.unreserved.has('nimiq')).toBe(true)
     expect(await store.checkpointAt(58_180_320)).toMatchObject({
       layout: COMMITMENT_LAYOUT,
-      pendingRoot: hex(awardCp.pendingRoot),
+      nameRoot: hex(awardCp.nameRoot),
       commitment: hex(awardCp.commitment),
     })
+  })
+
+  it('accepts no UNRESERVE pending row — migration 007 dropped the kind (r22)', async () => {
+    // The schema is where this is pinned, not the mapping: `pendingRows` can
+    // no longer produce the shape, so a row could only arrive from a pre-r22
+    // writer, and that is exactly the case that must fail rather than resume.
+    await expect(
+      pool.query(
+        `INSERT INTO pending (kind, name, effective_height) VALUES ('UNRESERVE', 'nimiq', 58181040)`,
+      ),
+    ).rejects.toThrow(/pending_kind_check/)
   })
 
   it('streams the log back in canonical order, and reproduces the log hash', async () => {

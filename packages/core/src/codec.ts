@@ -69,7 +69,7 @@ export type Message =
       readonly commissionBp: bigint
       readonly effectiveHeight: number
     }
-  | { readonly type: 'U'; readonly name: string; readonly effectiveHeight: number }
+  | { readonly type: 'U'; readonly name: string }
   | { readonly type: 'F' }
 
 export type ParseFailure =
@@ -276,12 +276,14 @@ export function parse(recipientDataHex: string): ParseResult {
     }
 
     case 'U': {
-      const fields = payload.split('|')
-      if (fields.length !== 2) return bad('MALFORMED_PAYLOAD')
-      const [name, effectiveField] = fields as [string, string]
-      const effectiveHeight = parseHeight(effectiveField)
-      if (name.length === 0 || effectiveHeight === null) return bad('MALFORMED_PAYLOAD')
-      return good({ type: 'U', name, effectiveHeight })
+      // One field since r22: a `U` executes in the block it lands in and
+      // carries no height. An r21-format `NNS1U<name>|<effective_height>`
+      // therefore splits into two and is MALFORMED_PAYLOAD — deliberately, so
+      // an old client's message fails loudly rather than releasing a name on
+      // a height nothing reads.
+      if (payload.includes('|')) return bad('MALFORMED_PAYLOAD')
+      if (payload.length === 0) return bad('MALFORMED_PAYLOAD')
+      return good({ type: 'U', name: payload })
     }
 
     case 'F': {
@@ -524,31 +526,32 @@ export function encodeGovernance(
  *
  * The recipient is an operand, not a route (r17): `recipient: null` (or
  * omitted) releases the name — the transaction goes to `PROTOCOL_ADDRESS` and
- * the name is `AVAILABLE` at `effective_height` — while an address **awards**
- * it, `REGISTERED` to that address at `effective_height` with a full term. The
- * payload is identical either way. `BURN_ADDRESS` is refused here because the
- * reducer forfeits it (`INVALID_RECIPIENT`), which §7.4 classes as
- * client-preventable — this is the client preventing it.
+ * the name is `AVAILABLE` — while an address **awards** it, `REGISTERED` to
+ * that address with a full term. The payload is identical either way.
+ * `BURN_ADDRESS` is refused here because the reducer forfeits it
+ * (`INVALID_RECIPIENT`), which §7.4 classes as client-preventable — this is the
+ * client preventing it.
+ *
+ * **No height, since r22.** A `U` takes effect in the block it lands in;
+ * `GOVERNANCE_DELAY` is `P`'s alone. A notice window protects parties who can
+ * act on the warning, and a `U` has none: an award has no counterparty at all,
+ * and the only party a scheduled release warns is a frontrunner, who gets a
+ * publicly timed starting gun out of it. Fat-finger protection moved to
+ * `packages/admin`'s dry run.
  *
  * The name is validated for syntax but **not** against the reserved set — a
  * `U` names a reserved name by definition, short names included: they are
  * reserved by rule (§4.1), and releasing or awarding them is a designed use.
  */
 export function encodeUnreserve(
-  params: { name: string; effectiveHeight: number; recipient?: Address | null } & SenderOption,
+  params: { name: string; recipient?: Address | null } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
   const awardee = params.recipient ?? null
   if (awardee !== null && addressEquals(awardee, BURN_ADDRESS)) {
     fail('a name may not be awarded to BURN_ADDRESS — the message would forfeit INVALID_RECIPIENT (§6 U)')
   }
-  return build(
-    'U',
-    `${name}|${formatHeight(params.effectiveHeight)}`,
-    awardee ?? CONSTANTS.PROTOCOL_ADDRESS,
-    CONSTANTS.DUST_VALUE,
-    params.sender,
-  )
+  return build('U', name, awardee ?? CONSTANTS.PROTOCOL_ADDRESS, CONSTANTS.DUST_VALUE, params.sender)
 }
 
 /**

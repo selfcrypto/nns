@@ -90,7 +90,6 @@ export {
   type Offer,
   type PendingGovernance,
   type PendingTransfer,
-  type PendingUnreserve,
   type Prices,
   type TxRef,
 } from './state.js'

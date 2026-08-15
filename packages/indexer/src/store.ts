@@ -41,7 +41,6 @@ const PENDING_COLUMNS = [
   'name',
   'effective_height',
   'new_owner',
-  'recipient',
   'seller',
   'price',
   'opened_height',

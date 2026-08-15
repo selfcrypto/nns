@@ -103,8 +103,8 @@ describe('every message type round-trips encode → parse', () => {
     ],
     [
       'U',
-      encodeUnreserve({ name: 'binance', effectiveHeight: 58_100_000 }),
-      { type: 'U', name: 'binance', effectiveHeight: 58_100_000 },
+      encodeUnreserve({ name: 'binance' }),
+      { type: 'U', name: 'binance' },
     ],
     ['F', encodeBurn({ amount: 1_000n }), { type: 'F' }],
   ]
@@ -136,7 +136,7 @@ describe('routing and value — §5.3, §5.4', () => {
       encodeDelegate({ name: 'kikename', host: 'x.com' }),
       encodeAuction({ name: 'kikename', reserve: FLOOR, endHeight: 1, minPrice: FLOOR }),
       encodeGovernance({ feeStandard: 1n, feeLong: 1n, commissionBp: 0n, effectiveHeight: 1 }),
-      encodeUnreserve({ name: 'kikename', effectiveHeight: 1 }),
+      encodeUnreserve({ name: 'kikename' }),
     ]) {
       expect(tx.recipient).toBe(PROTOCOL)
       expect(tx.value).toBe(CONSTANTS.DUST_VALUE)
@@ -229,20 +229,20 @@ describe('builders fail loudly where the chain would fail silently', () => {
   })
 
   it('does not apply the reserved list to U, which names a reserved name by definition', () => {
-    expect(() => encodeUnreserve({ name: 'binance', effectiveHeight: 1 })).not.toThrow()
+    expect(() => encodeUnreserve({ name: 'binance' })).not.toThrow()
   })
 
   it('routes a U by its operand: release to the protocol address, award to the awardee (§6 U)', () => {
     // The payload is identical in both cases — the recipient decides.
-    const release = encodeUnreserve({ name: 'binance', effectiveHeight: 1, recipient: null })
-    const award = encodeUnreserve({ name: 'binance', effectiveHeight: 1, recipient: BOB })
+    const release = encodeUnreserve({ name: 'binance', recipient: null })
+    const award = encodeUnreserve({ name: 'binance', recipient: BOB })
     expect(release.recipient).toBe(PROTOCOL)
     expect(award.recipient).toBe(BOB)
     expect(award.data).toBe(release.data)
   })
 
   it('refuses to award to BURN_ADDRESS — the reducer would forfeit INVALID_RECIPIENT', () => {
-    expect(() => encodeUnreserve({ name: 'binance', effectiveHeight: 1, recipient: BURN_ADDRESS })).toThrow(
+    expect(() => encodeUnreserve({ name: 'binance', recipient: BURN_ADDRESS })).toThrow(
       /BURN_ADDRESS/,
     )
   })
@@ -285,7 +285,7 @@ describe('builders fail loudly where the chain would fail silently', () => {
   it('rejects a negative amount or an unsafe height', () => {
     const negative = { feeStandard: -1n, feeLong: 1n, commissionBp: 0n, effectiveHeight: 1 }
     expect(() => encodeGovernance(negative)).toThrow(/must not be negative/)
-    expect(() => encodeUnreserve({ name: 'kikename', effectiveHeight: 1.5 })).toThrow(CodecError)
+    expect(() => encodeGovernance({ ...negative, feeStandard: 1n, effectiveHeight: 1.5 })).toThrow(CodecError)
   })
 })
 
@@ -324,15 +324,25 @@ describe('parse tolerance — §5.2, §7.5', () => {
   })
 
   it('reports MALFORMED_PAYLOAD on the wrong field count', () => {
-    for (const text of ['NNS1Dbinance', 'NNS1Okikename', 'NNS1M58060800', 'NNS1P1|2|3', 'NNS1Ubinance', 'NNS1Fx']) {
+    for (const text of ['NNS1Dbinance', 'NNS1Okikename', 'NNS1M58060800', 'NNS1P1|2|3', 'NNS1Fx']) {
       expect(parse(hex(text))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
     }
+  })
+
+  it('rejects an r21-format U, which carried an effective height (r22)', () => {
+    // A `U` is one field since r22: it executes in the block it lands in, so
+    // there is no height to carry. An old client's message must fail loudly
+    // rather than release a name on a number nothing reads.
+    expect(parse(hex('NNS1Ubinance|58900000'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
+    expect(parse(hex('NNS1Ubinance|'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
+    expect(parsed('NNS1Ubinance')).toEqual({ type: 'U', name: 'binance' })
   })
 
   it('reports MALFORMED_PAYLOAD on an empty name', () => {
     expect(parse(hex('NNS1G'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
     expect(parse(hex('NNS1S'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
     expect(parse(hex('NNS1D|host.com'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
+    expect(parse(hex('NNS1U'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
   })
 
   it('requires canonical decimal — one representation per value', () => {

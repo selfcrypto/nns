@@ -68,7 +68,14 @@ export interface AdminCheck {
  * the very next block. §6 `P` says clients MUST compute it "with margin above
  * `GOVERNANCE_DELAY`, never from the exact minimum"; this is that margin. It
  * is client policy rather than a protocol rule, which is why it lives here and
- * not in `core`, and it is shared by `p` and `u` so the two can never drift.
+ * not in `core`.
+ *
+ * **`p` only since r22.** It was shared with `u` for exactly one day: `u`
+ * checked notice in its own copy, only warned, and broadcast a certain
+ * `INSUFFICIENT_NOTICE` anyway, so the two were merged here — and then r22 took
+ * `U` out of `GOVERNANCE_DELAY` altogether (§6 `U`). The type parameter below
+ * is kept rather than inlined because `f` is not built yet and the shape of the
+ * refusal is the part worth reusing.
  *
  * **Why an hour rather than the measured latency.** Three delays stack between
  * reading the head and landing in a block, and the one that is easy to measure
@@ -94,13 +101,15 @@ export interface AdminCheck {
 export const NOTICE_MARGIN = BLOCKS_PER_HOUR
 
 /**
- * §6 `P`/`U` notice, checked the one way both commands must check it. Empty
- * when the notice clears `GOVERNANCE_DELAY` with the margin.
+ * §6 `P` notice. Empty when the notice clears `GOVERNANCE_DELAY` with the
+ * margin.
  *
  * `type` is the message letter, so the refusal names the clause the operator
- * will be reading.
+ * will be reading. `'U'` is deliberately not one of them: a `U` carries no
+ * height since r22, so there is no notice to check and calling this for one
+ * would be checking a bound that does not exist.
  */
-export function noticeChecks(type: 'P' | 'U', effectiveHeight: number, head: number): AdminCheck[] {
+export function noticeChecks(type: 'P', effectiveHeight: number, head: number): AdminCheck[] {
   const notice = effectiveHeight - head
   const floor = CONSTANTS.GOVERNANCE_DELAY
   if (notice < floor) {

@@ -1,7 +1,7 @@
 {
   "vectors": "nns/reduce",
   "version": 1,
-  "spec": "nns-spec-v1 draft r21, §7.3, §7.4 and §7.5",
+  "spec": "nns-spec-v1 draft r22, §7.3, §7.4 and §7.5",
   "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`), a bare height advance (`advanceTo`), or a `check` against the state at that point. A `check` may also carry `label`, which snapshots the four §8.1 component digests (`nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` — the commitment minus the height and the log hash), and `since` + `changed`, which compares them against an earlier label: every component **not** listed in `changed` MUST be byte-identical. `logLines` is the number of §8.2 lines emitted so far, and a height advance MUST never add one.",
   "addresses": {
     "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
@@ -1405,8 +1405,8 @@
       }
     },
     {
-      "id": "unreserve_releases_a_name_at_its_effective_height",
-      "note": "binance is on the published half of RESERVED_NAMES, a §3 constant since the launch freeze — the scenario overrides no config.",
+      "id": "unreserve_releases_a_name_on_landing",
+      "note": "binance is on the published half of RESERVED_NAMES, a §3 constant since the launch freeze — the scenario overrides no config. r22: the release takes effect in the U's own block, so the three transactions here are decided by position (§5.2). Ahead of the U the name is reserved; behind it, available.",
       "steps": [
         {
           "tx": {
@@ -1429,7 +1429,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Ubinance|58929120"
+            "text": "NNS1Ubinance"
           },
           "verdict": {
             "kind": "OK"
@@ -1437,22 +1437,8 @@
         },
         {
           "tx": {
-            "blockNumber": 58929119,
-            "txIndex": 0,
-            "sender": "ALICE",
-            "recipient": "TREASURY",
-            "value": "200000000",
-            "text": "NNS1Gbinance"
-          },
-          "verdict": {
-            "kind": "FORFEIT",
-            "reason": "RESERVED_NAME"
-          }
-        },
-        {
-          "tx": {
-            "blockNumber": 58929120,
-            "txIndex": 0,
+            "blockNumber": 58842720,
+            "txIndex": 2,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "200000000",
@@ -1496,7 +1482,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Uweb3|58929120"
+            "text": "NNS1Uweb3"
           },
           "verdict": {
             "kind": "OK"
@@ -1504,8 +1490,8 @@
         },
         {
           "tx": {
-            "blockNumber": 58929120,
-            "txIndex": 0,
+            "blockNumber": 58842720,
+            "txIndex": 2,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "200000000",
@@ -1526,7 +1512,7 @@
     },
     {
       "id": "unreserve_awards_a_short_name_to_the_recipient",
-      "note": "An awarded short name is REGISTERED at effective_height without passing through AVAILABLE (§6 U, §7.3); the activation runs before the block's transactions, so a prepared G loses the race and is refunded.",
+      "note": "An awarded short name is REGISTERED without passing through AVAILABLE (§6 U). Since r22 the award fires at the U's own position in the block rather than in a height-driven step ahead of it, so a G behind it loses the race and is refunded — while one ahead of it would have taken RESERVED_NAME instead.",
       "steps": [
         {
           "tx": {
@@ -1535,7 +1521,7 @@
             "sender": "ADMIN",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Unq|58929120"
+            "text": "NNS1Unq"
           },
           "verdict": {
             "kind": "OK"
@@ -1543,8 +1529,8 @@
         },
         {
           "tx": {
-            "blockNumber": 58929120,
-            "txIndex": 0,
+            "blockNumber": 58842720,
+            "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "200000000",
@@ -1577,7 +1563,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Uab-|58929120"
+            "text": "NNS1Uab-"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1904,8 +1890,8 @@
       }
     },
     {
-      "id": "boundary_unreserve_releases_at_effective_height",
-      "note": "§6 `U`, release row: at `effective_height` the name leaves RESERVED_NAMES and is AVAILABLE. This is the r16 hole at its exact height — a released name has no leaf and no pending entry, so the name root is byte-identical across the crossing and only tag 0x0A's unreserved root records that anything happened.",
+      "id": "unreserve_release_completes_in_its_landing_block",
+      "note": "The r22 replacement for boundary_unreserve_releases_at_effective_height. There is no boundary left to pin — a U has no effective height — so what is pinned instead is the negative: the whole effect is in the landing block, and advancing a full GOVERNANCE_DELAY past it moves no component. A released name has no leaf and, since r22, no pending entry either, so tag 0x0A's unreserved root is the only thing recording that the release happened — the r16 hole, at the one height it can still be observed.",
       "steps": [
         {
           "tx": {
@@ -1914,7 +1900,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Ubinance|58929120"
+            "text": "NNS1Ubinance"
           },
           "verdict": {
             "kind": "OK"
@@ -1922,55 +1908,27 @@
         },
         {
           "check": {
-            "label": "pending_u",
+            "label": "released",
             "logLines": 1,
-            "pendingUnreserve": {
-              "binance": {
-                "recipient": null,
-                "effectiveHeight": 58929120
-              }
-            },
+            "height": 58842720,
             "unreserved": {
-              "binance": false
-            }
-          }
-        },
-        {
-          "advanceTo": 58929119,
-          "note": "one block short: binance is still reserved"
-        },
-        {
-          "check": {
-            "since": "pending_u",
-            "changed": [],
-            "logLines": 1,
-            "height": 58929119,
-            "pendingUnreserve": {
-              "binance": {
-                "effectiveHeight": 58929120
-              }
+              "binance": true
             },
-            "unreserved": {
-              "binance": false
-            }
+            "absent": [
+              "binance"
+            ]
           }
         },
         {
           "advanceTo": 58929120,
-          "note": "exactly at effective_height"
+          "note": "a full GOVERNANCE_DELAY later: nothing was scheduled, so nothing fires"
         },
         {
           "check": {
-            "since": "pending_u",
-            "changed": [
-              "pendingRoot",
-              "unreservedRoot"
-            ],
+            "since": "released",
+            "changed": [],
             "logLines": 1,
             "height": 58929120,
-            "pendingUnreserve": {
-              "binance": null
-            },
             "unreserved": {
               "binance": true
             },
@@ -1986,8 +1944,8 @@
       }
     },
     {
-      "id": "boundary_unreserve_awards_at_effective_height",
-      "note": "§6 `U`, award row: at `effective_height` the name becomes REGISTERED with `expiry = effective_height + TERM_LENGTH` — the awardee's term runs from the moment the award binds, not from the block the `U` landed in. Both numbers moved in r20 (GOVERNANCE_DELAY doubled, TERM_LENGTH fell to 31,536,000), so this pins the arithmetic on either side of the effect.",
+      "id": "unreserve_award_completes_in_its_landing_block",
+      "note": "The r22 replacement for boundary_unreserve_awards_at_effective_height. The awardee's term runs from the block the U landed in: expiry = 58842720 + TERM_LENGTH = 90378720. Through r21 it ran from effective_height, which is the arithmetic this case exists to keep honest. Advancing afterwards moves nothing: the award scheduled nothing but its own distant expiry.",
       "steps": [
         {
           "tx": {
@@ -1996,7 +1954,7 @@
             "sender": "ADMIN",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Ubinance|58929120"
+            "text": "NNS1Ubinance"
           },
           "verdict": {
             "kind": "OK"
@@ -2004,65 +1962,9 @@
         },
         {
           "check": {
-            "label": "pending_award",
+            "label": "awarded",
             "logLines": 1,
-            "pendingUnreserve": {
-              "binance": {
-                "recipient": "BOB",
-                "effectiveHeight": 58929120
-              }
-            },
-            "unreserved": {
-              "binance": false
-            },
-            "absent": [
-              "binance"
-            ]
-          }
-        },
-        {
-          "advanceTo": 58929119,
-          "note": "one block short: no leaf yet, and BOB owns nothing"
-        },
-        {
-          "check": {
-            "since": "pending_award",
-            "changed": [],
-            "logLines": 1,
-            "height": 58929119,
-            "pendingUnreserve": {
-              "binance": {
-                "recipient": "BOB"
-              }
-            },
-            "unreserved": {
-              "binance": false
-            },
-            "absent": [
-              "binance"
-            ],
-            "resolves": {
-              "binance": null
-            }
-          }
-        },
-        {
-          "advanceTo": 58929120,
-          "note": "exactly at effective_height"
-        },
-        {
-          "check": {
-            "since": "pending_award",
-            "changed": [
-              "nameRoot",
-              "pendingRoot",
-              "unreservedRoot"
-            ],
-            "logLines": 1,
-            "height": 58929120,
-            "pendingUnreserve": {
-              "binance": null
-            },
+            "height": 58842720,
             "unreserved": {
               "binance": true
             },
@@ -2071,8 +1973,32 @@
                 "owner": "BOB",
                 "target": "BOB",
                 "status": "REGISTERED",
-                "expiry": 90465120,
+                "expiry": 90378720,
                 "host": ""
+              }
+            },
+            "resolves": {
+              "binance": "BOB"
+            }
+          }
+        },
+        {
+          "advanceTo": 58929120,
+          "note": "a full GOVERNANCE_DELAY later: the award was complete on landing"
+        },
+        {
+          "check": {
+            "since": "awarded",
+            "changed": [],
+            "logLines": 1,
+            "height": 58929120,
+            "unreserved": {
+              "binance": true
+            },
+            "names": {
+              "binance": {
+                "owner": "BOB",
+                "expiry": 90378720
               }
             },
             "resolves": {
@@ -2085,7 +2011,7 @@
         "names": {
           "binance": {
             "owner": "BOB",
-            "expiry": 90465120
+            "expiry": 90378720
           }
         },
         "logLines": 1
@@ -2374,6 +2300,44 @@
           "othername": null
         },
         "logLines": 4
+      }
+    },
+    {
+      "id": "an_r21_format_U_is_malformed_and_releases_nothing",
+      "note": "Through r21 a U carried `|<effective_height>`. r22 removed the field, so the old form has one field too many and is rejected in the parse, before the sender check and before any name is touched. The point of the case is the state: binance is still reserved afterwards, and a G for it still forfeits. A reducer that tolerated the extra field would release the name on a number no rule reads.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ubinance|58929120"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "MALFORMED_PAYLOAD"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gbinance"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "RESERVED_NAME"
+          }
+        }
+      ],
+      "expect": {
+        "names": {},
+        "logLines": 2
       }
     }
   ],
@@ -3437,15 +3401,15 @@
       {
         "id": "U_not_admin_beats_invalid_recipient",
         "setup": "empty",
-        "pinnedBy": "§7.4 — \"sender, recipient, notice, name syntax, reservation, pending\" (r21)",
-        "note": "First and second of the six. Authority leads, even for the one recipient a `U` may not name.",
+        "pinnedBy": "§7.4 — \"sender, recipient, name syntax, reservation\" (r22)",
+        "note": "First and second of the four. Authority leads, even for the one recipient a `U` may not name.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "BURN",
           "value": "1",
-          "text": "NNS1Ubinance|58929120"
+          "text": "NNS1Ubinance"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -3462,58 +3426,26 @@
             "sender": "ADMIN",
             "recipient": "BURN",
             "value": "1",
-            "text": "NNS1Ubinance|58929120"
+            "text": "NNS1Ubinance"
           }
         }
       },
       {
-        "id": "U_invalid_recipient_beats_insufficient_notice",
+        "id": "U_invalid_recipient_beats_invalid_name",
         "setup": "empty",
-        "pinnedBy": "§7.4 — \"sender, recipient, notice, name syntax, reservation, pending\" (r21)",
-        "note": "Second and third — the pair r21 was written for. Through r20 §7.4 listed notice *before* the recipient and never claimed to be an order, so this message had two defensible tokens. The recipient leads because since r17 it is an operand rather than a route (§5.3): `PROTOCOL_ADDRESS` releases, anything else awards, so a `U` naming `BURN_ADDRESS` is neither operation and its timing is not what is wrong with it.",
+        "pinnedBy": "§7.4 — \"sender, recipient, name syntax, reservation\" (r22)",
+        "note": "Second and third of the four. r21 pinned the recipient against the notice; r22 removed the notice row, so the recipient now leads the name rows instead. The reason is unchanged and is the whole point of the case: since r17 the recipient is an operand rather than a route (§5.3) — `PROTOCOL_ADDRESS` releases, anything else awards — so a `U` naming `BURN_ADDRESS` is neither a release of a bad name nor an award of one, and judging its name would report a defect that is not the one it has.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,
           "sender": "ADMIN",
           "recipient": "BURN",
           "value": "1",
-          "text": "NNS1Ubinance|58842721"
+          "text": "NNS1Uab-"
         },
         "verdict": {
           "kind": "FORFEIT",
           "reason": "INVALID_RECIPIENT"
-        },
-        "insteadOf": {
-          "verdict": {
-            "kind": "FORFEIT",
-            "reason": "INSUFFICIENT_NOTICE"
-          },
-          "tx": {
-            "blockNumber": 58842720,
-            "txIndex": 0,
-            "sender": "ADMIN",
-            "recipient": "PROTOCOL",
-            "value": "1",
-            "text": "NNS1Ubinance|58842721"
-          }
-        }
-      },
-      {
-        "id": "U_insufficient_notice_beats_invalid_name",
-        "setup": "empty",
-        "pinnedBy": "§7.4 — \"sender, recipient, notice, name syntax, reservation, pending\" (r21)",
-        "note": "Third and fourth. `ab-` is three characters with a trailing hyphen, so it fails §4.1 rules 2–5 and is on neither membership route.",
-        "tx": {
-          "blockNumber": 58842720,
-          "txIndex": 0,
-          "sender": "ADMIN",
-          "recipient": "PROTOCOL",
-          "value": "1",
-          "text": "NNS1Uab-|58842721"
-        },
-        "verdict": {
-          "kind": "FORFEIT",
-          "reason": "INSUFFICIENT_NOTICE"
         },
         "insteadOf": {
           "verdict": {
@@ -3526,22 +3458,22 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Uab-|58929120"
+            "text": "NNS1Uab-"
           }
         }
       },
       {
         "id": "U_invalid_name_beats_name_not_reserved",
         "setup": "empty",
-        "pinnedBy": "§7.4 — \"sender, recipient, notice, name syntax, reservation, pending\" (r21)",
-        "note": "Fourth and fifth, matching the order §7.4 fixes for `G`. Neither `ab-` nor `kikename` is reserved, so the first would earn `NAME_NOT_RESERVED` too under the other reading.",
+        "pinnedBy": "§7.4 — \"sender, recipient, name syntax, reservation\" (r22)",
+        "note": "Third and fourth, matching the order §7.4 fixes for `G`. Neither `ab-` nor `kikename` is reserved, so the first would earn `NAME_NOT_RESERVED` too under the other reading.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,
           "sender": "ADMIN",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Uab-|58929120"
+          "text": "NNS1Uab-"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -3558,7 +3490,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Ukikename|58929120"
+            "text": "NNS1Ukikename"
           }
         }
       },

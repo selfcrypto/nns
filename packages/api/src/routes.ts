@@ -204,7 +204,6 @@ export function createRoutes(queries: Queries): RouteHandler {
       value.record === null &&
       value.transfer === null &&
       value.offer === null &&
-      value.unreserve === null &&
       !isReserved &&
       !value.unreserved
     if (nothingKnown) return respond(404, { error: 'NOT_FOUND', name, height })
@@ -223,14 +222,12 @@ export function createRoutes(queries: Queries): RouteHandler {
                 effectiveHeight: value.transfer.effectiveHeight,
               },
         offer: value.offer === null ? null : serialiseOffer(value.offer),
-        unreserve:
-          value.unreserve === null
-            ? null
-            : {
-                // null releases, an address awards (§6 `U`, r17).
-                recipient: value.unreserve.recipient === null ? null : formatAddress(value.unreserve.recipient),
-                effectiveHeight: value.unreserve.effectiveHeight,
-              },
+        // `unreserve` was a third key here through r21. r22 made a `U` execute
+        // in its landing block (§6 `U`), so nothing about one is ever pending;
+        // the top-level `unreserved` flag above is the whole of what a caller
+        // can learn about a `U` from this route. The key is **removed** rather
+        // than pinned to null: a null would tell a client "no U is scheduled",
+        // which under r22 is not a fact about this name but about every name.
       },
       height,
     })

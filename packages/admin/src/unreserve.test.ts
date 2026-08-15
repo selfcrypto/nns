@@ -1,29 +1,24 @@
 import { describe, expect, it } from 'vitest'
 import { AddressError, BURN_ADDRESS, CodecError, CONSTANTS, defineConfig, encodeUnreserve, parseAddress } from '@nns/core'
 
-import { NOTICE_MARGIN, UsageError, noticeChecks, type AdminRpc } from './cli.js'
+import { UsageError, type AdminRpc } from './cli.js'
 import {
   broadcastUnreserve,
   describePlan,
   parseUnreserveArgs,
   planUnreserve,
-  unreserveRefusals,
   type UnreservePlan,
 } from './unreserve.js'
 
 // Arbitrary valid addresses, same seeds as core's test fixtures (which are
 // deliberately not shipped in its build).
-const TREASURY = CONSTANTS.TREASURY_ADDRESS
 const PROTOCOL = CONSTANTS.PROTOCOL_ADDRESS
 const ADMIN = CONSTANTS.ADMIN_ADDRESS
-const MARKETPLACE = CONSTANTS.MARKETPLACE_ADDRESS
 const BOB = parseAddress('NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK')
 
 const config = defineConfig({ networkId: 24 })
 
 const HEAD = 58_099_950
-/** A comfortable two days of notice — twice GOVERNANCE_DELAY. */
-const EFFECTIVE = HEAD + 2 * CONSTANTS.GOVERNANCE_DELAY
 const HASH = 'c0ffee'.repeat(10) + 'c0ff'
 
 interface RecordedCall {
@@ -51,7 +46,7 @@ function fakeRpc(): { rpc: AdminRpc; calls: RecordedCall[] } {
   return { rpc, calls }
 }
 
-const release = { name: 'binance', effectiveHeight: EFFECTIVE, recipient: null }
+const release = { name: 'binance', recipient: null }
 const award = { ...release, recipient: BOB }
 
 describe('planUnreserve', () => {
@@ -59,7 +54,7 @@ describe('planUnreserve', () => {
     const { rpc, calls } = fakeRpc()
     const plan = await planUnreserve(rpc, config, release)
 
-    const expected = encodeUnreserve({ name: 'binance', effectiveHeight: EFFECTIVE })
+    const expected = encodeUnreserve({ name: 'binance' })
     expect(plan).toEqual({
       params: release,
       kind: 'release',
@@ -67,9 +62,10 @@ describe('planUnreserve', () => {
       data: expected.data,
       value: 1n,
       head: HEAD,
-      // EFFECTIVE is two full GOVERNANCE_DELAYs out, so it clears the margin.
-      checks: [],
     })
+    // No `checks` field: r22 removed the notice, which was the only bound this
+    // command could check from here (§6 `U`).
+    expect(plan).not.toHaveProperty('checks')
     // Planning is read-only: nothing is unlocked, nothing is sent.
     expect(calls.map((c) => c.method)).toEqual(['getBlockNumber'])
   })
@@ -80,6 +76,12 @@ describe('planUnreserve', () => {
     expect(plan.kind).toBe('award')
     expect(plan.recipient).toBe(BOB)
     expect(plan.data).toBe(encodeUnreserve(release).data)
+  })
+
+  it('builds the r22 one-field payload, with no height anywhere in it', async () => {
+    const { rpc } = fakeRpc()
+    const plan = await planUnreserve(rpc, config, release)
+    expect(Buffer.from(plan.data, 'hex').toString('ascii')).toBe('NNS1Ubinance')
   })
 
   it('refuses BURN_ADDRESS before the node hears anything (encodeUnreserve contract)', async () => {
@@ -112,70 +114,62 @@ describe('planUnreserve', () => {
 })
 
 describe('describePlan', () => {
-  const planFor = (effectiveHeight: number, recipient: typeof BOB | null = null): UnreservePlan => ({
-    params: { name: 'binance', effectiveHeight, recipient },
+  const planFor = (recipient: typeof BOB | null = null, name = 'binance'): UnreservePlan => ({
+    params: { name, recipient },
     kind: recipient === null ? 'release' : 'award',
     recipient: recipient ?? PROTOCOL,
-    data: 'irrelevant',
+    data: encodeUnreserve({ name, recipient }).data,
     value: 1n,
     head: HEAD,
-    checks: noticeChecks('U', effectiveHeight, HEAD),
   })
 
-  it('says what a release does, where it goes, and when — absolutely and in hours', () => {
-    const lines = describePlan(planFor(HEAD + 2 * CONSTANTS.GOVERNANCE_DELAY)).join('\n')
+  it('says what a release does, where it goes, and that it binds on landing', () => {
+    const lines = describePlan(planFor()).join('\n')
     expect(lines).toContain('U release: binance')
     expect(lines).toContain('NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8')
     expect(lines).toContain('PROTOCOL_ADDRESS')
-    expect(lines).toContain(`effective at height ${HEAD + 2 * CONSTANTS.GOVERNANCE_DELAY}`)
-    // 86,400 blocks at ~1 block/s is ~24 h.
-    expect(lines).toContain('~48.0 h from now')
-    expect(lines).not.toContain('WARNING')
+    expect(lines).toContain('effective on landing')
+    expect(lines).toContain('no notice window and nothing to cancel')
   })
 
   it('names the awardee on an award', () => {
-    const lines = describePlan(planFor(HEAD + 2 * CONSTANTS.GOVERNANCE_DELAY, BOB)).join('\n')
+    const lines = describePlan(planFor(BOB)).join('\n')
     expect(lines).toContain('U award: binance')
     expect(lines).toContain('NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK')
   })
 
-  it('refuses when the notice is under GOVERNANCE_DELAY — the reducer would forfeit', () => {
-    const plan = planFor(HEAD + CONSTANTS.GOVERNANCE_DELAY - 1)
-    expect(describePlan(plan).join('\n')).toContain('INSUFFICIENT_NOTICE')
-    expect(unreserveRefusals(plan)).toHaveLength(1)
+  it('mentions no effective height, no notice and no margin at all', () => {
+    // The old plan printed four numbers about timing; three of them described
+    // a window that no longer exists. Leaving one behind would tell an
+    // operator they had time they do not have.
+    const lines = describePlan(planFor()).join('\n')
+    for (const stale of ['effective at height', 'earliest usable', 'GOVERNANCE_DELAY', 'landing margin']) {
+      expect(lines).not.toContain(stale)
+    }
   })
 
-  it('is blunt about an effective height already in the past', () => {
-    const plan = planFor(HEAD - 3_600)
-    const lines = describePlan(plan).join('\n')
-    expect(lines).toContain('~1.0 h in the PAST')
-    expect(lines).toContain('INSUFFICIENT_NOTICE')
-    expect(unreserveRefusals(plan)).toHaveLength(1)
+  it('decodes the payload it built rather than echoing the argument back', () => {
+    // With no notice window, this readback is the only thing between a typo
+    // and a permanently released name — so it must come from the bytes.
+    const lines = describePlan(planFor(null, 'nimiq')).join('\n')
+    expect(lines).toContain('4e4e5331556e696d6971') // NNS1Unimiq
+    expect(lines).toContain('decoded: name "nimiq", no other field')
   })
 
-  it('refuses the exact GOVERNANCE_DELAY minimum, which forfeits unless it lands next block', () => {
-    // Notice runs from the landing block, not from the head this was planned
-    // against, so the exact minimum is a coin flip on inclusion latency — and a
-    // lost flip costs another GOVERNANCE_DELAY, unretractably.
-    const plan = planFor(HEAD + CONSTANTS.GOVERNANCE_DELAY)
-    const refused = unreserveRefusals(plan)
-    expect(refused).toHaveLength(1)
-    expect(refused[0]?.message).toContain(String(HEAD + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN))
+  it('says outright that the message cannot be recalled', () => {
+    expect(describePlan(planFor()).join('\n')).toContain('IRREVERSIBLE')
   })
 
-  it('accepts GOVERNANCE_DELAY plus the margin, and prints the earliest height it would take', () => {
-    const plan = planFor(HEAD + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN)
-    expect(unreserveRefusals(plan)).toEqual([])
-    const lines = describePlan(plan).join('\n')
-    expect(lines).toContain(`earliest usable ${HEAD + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN}`)
-    expect(lines).toContain('landing margin')
-    expect(lines).not.toContain('REFUSED')
+  it('states an award’s term from the landing block, half-open per §7.3', () => {
+    const lines = describePlan(planFor(BOB)).join('\n')
+    expect(lines).toContain(String(CONSTANTS.TERM_LENGTH))
+    expect(lines).toContain(String(HEAD + CONSTANTS.TERM_LENGTH))
   })
 
-  it('states an award’s term as the half-open window §7.3 fixes', () => {
-    const effective = HEAD + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN
-    const lines = describePlan(planFor(effective, BOB)).join('\n')
-    expect(lines).toContain(`[${effective}, ${effective + CONSTANTS.TERM_LENGTH})`)
+  it('throws rather than print a plan whose payload is not a U', () => {
+    // The readback is the protection, so it must fail loudly if it cannot be
+    // performed instead of falling back to `params`.
+    expect(() => describePlan({ ...planFor(), data: '4e4e533146' })).toThrow(/does not parse back as one/)
   })
 })
 
@@ -196,29 +190,36 @@ describe('broadcastUnreserve', () => {
 
 describe('parseUnreserveArgs', () => {
   it('is a dry run unless --send is passed, and omitting the recipient means release', () => {
-    expect(parseUnreserveArgs(['binance', '58100000'])).toEqual({
-      params: { name: 'binance', effectiveHeight: 58_100_000, recipient: null },
+    expect(parseUnreserveArgs(['binance'])).toEqual({
+      params: { name: 'binance', recipient: null },
       send: false,
     })
-    expect(parseUnreserveArgs(['binance', '58100000', '--send']).send).toBe(true)
+    expect(parseUnreserveArgs(['binance', '--send']).send).toBe(true)
     // Flag position does not matter.
-    expect(parseUnreserveArgs(['--send', 'binance', '58100000']).send).toBe(true)
+    expect(parseUnreserveArgs(['--send', 'binance']).send).toBe(true)
   })
 
-  it('a third positional argument is the awardee, parsed and checksummed', () => {
-    expect(parseUnreserveArgs(['binance', '58100000', 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK'])).toEqual({
-      params: { name: 'binance', effectiveHeight: 58_100_000, recipient: BOB },
+  it('a second positional argument is the awardee, parsed and checksummed', () => {
+    expect(parseUnreserveArgs(['binance', 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK'])).toEqual({
+      params: { name: 'binance', recipient: BOB },
       send: false,
     })
-    expect(() => parseUnreserveArgs(['binance', '58100000', 'not-an-address'])).toThrow(AddressError)
+    expect(() => parseUnreserveArgs(['binance', 'not-an-address'])).toThrow(AddressError)
   })
 
-  it('rejects a missing, fractional or extra argument, and any flag that is not --send', () => {
-    expect(() => parseUnreserveArgs(['binance'])).toThrow(UsageError)
-    expect(() => parseUnreserveArgs(['binance', '1.5'])).toThrow(UsageError)
-    expect(() => parseUnreserveArgs(['binance', '58100000', 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK', 'extra'])).toThrow(
-      UsageError,
-    )
-    expect(() => parseUnreserveArgs(['binance', '58100000', '--sned'])).toThrow(UsageError)
+  it('names the r21 habit rather than reading a height as an address', () => {
+    // `u binance 58100000` was the whole command through r21. Left to
+    // `parseAddress` it would fail as a malformed address, which says nothing
+    // about why the argument is gone.
+    expect(() => parseUnreserveArgs(['binance', '58100000'])).toThrow(UsageError)
+    expect(() => parseUnreserveArgs(['binance', '58100000'])).toThrow(/no longer takes an effective height/)
+  })
+
+  it('rejects a missing or extra argument, and any flag that is not --send', () => {
+    expect(() => parseUnreserveArgs([])).toThrow(UsageError)
+    expect(() =>
+      parseUnreserveArgs(['binance', 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK', 'extra']),
+    ).toThrow(UsageError)
+    expect(() => parseUnreserveArgs(['binance', '--sned'])).toThrow(UsageError)
   })
 })

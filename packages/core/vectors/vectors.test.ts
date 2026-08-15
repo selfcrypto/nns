@@ -238,16 +238,14 @@ describe('vectors/merkle.json', () => {
       expect(after.commitment).not.toBe(before.commitment)
     })
 
-    it('commits a pending U’s recipient, which is the whole of r17 (tag 0x09)', () => {
-      // Same names, same unreserved set, same log hash — the two differ only
-      // in who the pending `U` hands `binance` to. Through r16 the recipient
-      // was not committed, and these were the same 32 bytes.
-      const release = cases.find((c) => c.id === 'fired_unreserve_is_not_a_pending_one')
-      const award = cases.find((c) => c.id === 'pending_award_commits_the_awardee')
-      expect(award.nameRoot).toBe(release.nameRoot)
-      expect(award.unreservedRoot).toBe(release.unreservedRoot)
-      expect(award.pendingRoot).not.toBe(release.pendingRoot)
-      expect(award.commitment).not.toBe(release.commitment)
+    it('has no pending U anywhere in the file — tag 0x09 is retired, not empty (r22)', () => {
+      // r17's pair of cases pinned the recipient inside a pending `U`; r22
+      // deleted the pending form, so both pinned a state that cannot occur and
+      // both are gone. This is the guard against a later session re-authoring
+      // one from the r17 note and getting a green run out of a state no
+      // reducer can reach.
+      expect(JSON.stringify(cases)).not.toContain('pendingUnreserve')
+      expect(Object.values(file.checkpoints.tags)).not.toContain('0x09')
     })
   })
 
@@ -443,12 +441,6 @@ describe('vectors/reduce.json', () => {
             'expiryHeight',
           ])
         }
-        if (step.check.pendingUnreserve !== undefined) {
-          checkPending('pendingUnreserve', state.pendingUnreserve, step.check.pendingUnreserve, [
-            'recipient',
-            'effectiveHeight',
-          ])
-        }
         if (step.check.pendingGovernance !== undefined) {
           if (step.check.pendingGovernance === null) expect(state.pendingGovernance).toBeNull()
           else expect(state.pendingGovernance?.effectiveHeight).toBe(step.check.pendingGovernance.effectiveHeight)
@@ -592,21 +584,22 @@ describe('vectors/reduce.json', () => {
         B: 3,
         A: 2,
         P: 3,
-        U: 4,
+        U: 3, // r22 removed the notice row, and the pair that ordered it
         F: 1,
       })
     })
 
     it('separates the orderings the spec fixes from the ones it does not', () => {
       // Not a behavioural assertion — a census, so that the balance cannot
-      // shift without somebody noticing. It moved once already: r21 ratified
-      // `U`'s six-check order and `A`'s routing exception, so five rows here
-      // went from `pinnedBy: null` to a clause, and five of the tokens carried
-      // forward as PROVEN-AT-R19 stopped resting on an unstated reading.
+      // shift without somebody noticing. It has moved twice: r21 ratified
+      // `U`'s six-check order and `A`'s routing exception, taking five rows
+      // from `pinnedBy: null` to a clause; r22 then shortened `U`'s order to
+      // four checks, so one of those five pinned rows went away with the
+      // notice it ordered. The free count is untouched by both.
       const cases = section.cases as any[]
       const pinned = cases.filter((c) => c.pinnedBy !== null)
       const free = cases.filter((c) => c.pinnedBy === null)
-      expect(pinned).toHaveLength(16)
+      expect(pinned).toHaveLength(15)
       expect(free).toHaveLength(20)
       for (const testCase of cases) {
         expect(typeof testCase.note, `${testCase.id} needs a note`).toBe('string')
@@ -621,8 +614,16 @@ describe('vectors/reduce.json', () => {
     // The gap these close: every other observation of a height-driven effect
     // is a root taken at a CHECKPOINT_INTERVAL boundary, which cannot tell h
     // from h+1, and none of them earns a verdict token — so a replay can agree
-    // with a second implementation on all 27 tokens and still fire an effect a
+    // with a second implementation on all 26 tokens and still fire an effect a
     // block early. One vector per §7.3 category, each asserting both sides.
+    //
+    // The two `boundary_unreserve_*` vectors left with r22: a `U` executes in
+    // its landing block, so there is no height at which it fires and no
+    // crossing to pin. Their replacements assert the negative instead — that a
+    // `U` schedules nothing — and are named `unreserve_*_completes_in_its_
+    // landing_block` rather than `boundary_*`, so this census keeps meaning
+    // "one per height-driven category" rather than quietly counting a vector
+    // that no longer pins a height.
     const boundary = file.scenarios.filter((s: any) => s.id.startsWith('boundary_'))
     expect(boundary.map((s: any) => s.id).sort()).toEqual([
       'boundary_expiry_grace_and_the_fall_to_available',
@@ -630,8 +631,6 @@ describe('vectors/reduce.json', () => {
       'boundary_offer_expires_at_OFFER_MAX_LIFETIME',
       'boundary_renewal_window_closes_with_the_grace_period',
       'boundary_transfer_matures_at_XFER_TIMELOCK',
-      'boundary_unreserve_awards_at_effective_height',
-      'boundary_unreserve_releases_at_effective_height',
     ])
     // Each one must state the crossing on both sides: a `since` comparison
     // proving nothing moved at h-1, and one proving something moved at h.
@@ -645,6 +644,27 @@ describe('vectors/reduce.json', () => {
       expect(
         comparisons.some((s: any) => (s.check.changed ?? []).length > 0),
         `${scenario.id} must pin an h where something changed`,
+      ).toBe(true)
+    }
+  })
+
+  it('replaces the retired unreserve boundaries with the r22 negative', () => {
+    // A `U` fires on landing, so the assertion is that advancing past it moves
+    // nothing at all. Without these two, removing the boundary vectors would
+    // have left the r22 rule with no vector saying a `U` schedules nothing —
+    // which is exactly the divergence the boundary vectors were written for,
+    // in the other direction.
+    const landing = file.scenarios.filter((s: any) => s.id.endsWith('_completes_in_its_landing_block'))
+    expect(landing.map((s: any) => s.id).sort()).toEqual([
+      'unreserve_award_completes_in_its_landing_block',
+      'unreserve_release_completes_in_its_landing_block',
+    ])
+    for (const scenario of landing) {
+      const comparisons = scenario.steps.filter((s: any) => s.check?.since !== undefined)
+      expect(comparisons.length, `${scenario.id} needs an after-comparison`).toBeGreaterThanOrEqual(1)
+      expect(
+        comparisons.every((s: any) => (s.check.changed ?? []).length === 0),
+        `${scenario.id} must show nothing fires after the landing block`,
       ).toBe(true)
     }
   })
