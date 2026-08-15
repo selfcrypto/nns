@@ -2376,5 +2376,1224 @@
         "logLines": 4
       }
     }
-  ]
+  ],
+  "checkOrder": {
+    "description": "Check precedence. Each case is a message that satisfies **two** rejection conditions at once; `verdict` is the token the earlier check produces and `insteadOf` is the same probe rebuilt to trip only the later one, which MUST earn the other token. Both run against the state left by `setup`, named from `setups`. The pair is the assertion: swap the two checks in a reducer and the first expectation fails, delete the later check and the second does. `pinnedBy` names the clause that fixes the order, or is `null` where the order is an implementation choice with nothing behind it — read those before reordering anything. `insteadOfUnreachable` replaces `insteadOf` where the later token cannot be produced at all.",
+    "setups": {
+      "empty": [],
+      "kikename_to_alice": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          }
+        }
+      ],
+      "offer_open_at_1_nim": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Okikename|100000000"
+          }
+        }
+      ],
+      "one_in_grace_one_registered": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gothername"
+          }
+        },
+        {
+          "advanceTo": 90378720
+        },
+        {
+          "tx": {
+            "blockNumber": 90378720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Nothername"
+          }
+        }
+      ]
+    },
+    "cases": [
+      {
+        "id": "discard_failed_execution_beats_wrong_recipient",
+        "setup": "empty",
+        "pinnedBy": "§7.5",
+        "note": "Albatross puts failed transactions in blocks. §7.5 discards one before the message is parsed, so it earns no log line at all — a reducer that routed first would write a WRONG_RECIPIENT line no other implementation has.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "PROTOCOL",
+          "value": "200000000",
+          "text": "NNS1Gkikename",
+          "executionResult": false
+        },
+        "verdict": {
+          "kind": "IGNORED",
+          "reason": "FAILED_EXECUTION"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "WRONG_RECIPIENT"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          }
+        }
+      },
+      {
+        "id": "discard_wrong_network_beats_every_forfeit",
+        "setup": "empty",
+        "pinnedBy": "§7.5",
+        "note": "The network check is first of all, and is the one §7.5 rule that does not even advance the state's height. This payload would forfeit three different ways on mainnet.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1G0kikename",
+          "networkId": 5
+        },
+        "verdict": {
+          "kind": "IGNORED",
+          "reason": "WRONG_NETWORK"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "WRONG_RECIPIENT"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1G0kikename"
+          }
+        }
+      },
+      {
+        "id": "discard_failed_execution_beats_malformed_payload",
+        "setup": "empty",
+        "pinnedBy": "§7.5",
+        "note": "The same rule against the *parse*, which is the half the routing pair cannot see: a failed transaction carrying a payload that does not parse must still be discarded silently, not logged as MALFORMED_PAYLOAD. §7.5 runs \"before a message is even parsed\".",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1S",
+          "executionResult": false
+        },
+        "verdict": {
+          "kind": "IGNORED",
+          "reason": "FAILED_EXECUTION"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "MALFORMED_PAYLOAD"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1S"
+          }
+        }
+      },
+      {
+        "id": "parse_over_length_beats_unknown_type",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "§7.4 puts an unknown type, an unparseable payload and a 64-byte overrun in one bullet without ordering them, but they are three different tokens. `parse` measures the length before it reads the type letter. Unreachable on mainnet — 65 bytes never lands in a block — so this pair exists only here.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1Zaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "OVER_LENGTH"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "UNKNOWN_TYPE"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Zabc"
+          }
+        }
+      },
+      {
+        "id": "parse_unknown_type_beats_malformed_payload",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "Both payloads are empty after the type letter. The type is read first, so an unknown letter is reported as such rather than as a payload that failed to parse.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1Z"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "UNKNOWN_TYPE"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "MALFORMED_PAYLOAD"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1S"
+          }
+        }
+      },
+      {
+        "id": "parse_beats_every_routing_check",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "A `D` with no pipe does not parse, and it is also at the wrong address. Routing is a §5.3 property of a parsed message, so it cannot precede the parse — but nothing states that, and the two tokens differ.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1Dkikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "WRONG_RECIPIENT"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Dkikename|a.com"
+          }
+        }
+      },
+      {
+        "id": "G_wrong_recipient_beats_invalid_name",
+        "setup": "empty",
+        "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
+        "note": "First and second of the five. The name breaks §4.2 and the message is at the wrong address; routing claims it.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "PROTOCOL",
+          "value": "200000000",
+          "text": "NNS1G0kikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "WRONG_RECIPIENT"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "INVALID_NAME"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1G0kikename"
+          }
+        }
+      },
+      {
+        "id": "G_invalid_name_beats_insufficient_value",
+        "setup": "empty",
+        "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
+        "note": "Second and fourth of the five. A leading digit breaks §4.2, and the message also pays one luna against a 2,000 NIM band.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1G0kikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "INVALID_NAME"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "INSUFFICIENT_VALUE"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Gkikename"
+          }
+        }
+      },
+      {
+        "id": "G_reserved_name_beats_insufficient_value",
+        "setup": "empty",
+        "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
+        "note": "Third and fourth of the five. `binance` is on the published half of RESERVED_NAMES, and the message underpays as well.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1Gbinance"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "RESERVED_NAME"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "INSUFFICIENT_VALUE"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Gkikename"
+          }
+        }
+      },
+      {
+        "id": "G_insufficient_value_beats_lost_registration_race",
+        "setup": "kikename_to_alice",
+        "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
+        "note": "Fourth and fifth — the case §7.4 spells out in words: \"An underfunded `G` for an already-taken name therefore forfeits\". This is the only place the spec puts a forfeit ahead of a refund, and the money goes to different places under the two readings.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1Gkikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "INSUFFICIENT_VALUE"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "LOST_REGISTRATION_RACE"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          }
+        }
+      },
+      {
+        "id": "G_insufficient_value_beats_name_in_grace",
+        "setup": "one_in_grace_one_registered",
+        "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
+        "note": "Fourth and fifth again, on the other branch of availability: a name in GRACE rather than one held by somebody else.",
+        "tx": {
+          "blockNumber": 90378720,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1Gkikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "INSUFFICIENT_VALUE"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_IN_GRACE"
+          },
+          "tx": {
+            "blockNumber": 90378720,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          }
+        }
+      },
+      {
+        "id": "S_name_not_registered_beats_not_owner",
+        "setup": "one_in_grace_one_registered",
+        "pinnedBy": null,
+        "note": "§7.4 lists \"`X`, `S`, `D` on an expired or grace-period name\" and \"`S`, `O`, `D`, `X`, `K` from anyone other than the current owner\" as two bullets, in that order, but a bullet list is not a check order. A stranger's `S` on a grace name trips both.",
+        "tx": {
+          "blockNumber": 90378720,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "CAROL",
+          "value": "1",
+          "text": "NNS1Skikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NAME_NOT_REGISTERED"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOT_OWNER"
+          },
+          "tx": {
+            "blockNumber": 90378720,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Sothername"
+          }
+        }
+      },
+      {
+        "id": "X_name_not_registered_beats_not_owner",
+        "setup": "one_in_grace_one_registered",
+        "pinnedBy": null,
+        "note": "§7.4 lists \"`X`, `S`, `D` on an expired or grace-period name\" and \"`S`, `O`, `D`, `X`, `K` from anyone other than the current owner\" as two bullets, in that order, but a bullet list is not a check order. A stranger's `X` on a grace name trips both.",
+        "tx": {
+          "blockNumber": 90378720,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "CAROL",
+          "value": "1",
+          "text": "NNS1Xkikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NAME_NOT_REGISTERED"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOT_OWNER"
+          },
+          "tx": {
+            "blockNumber": 90378720,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Xothername"
+          }
+        }
+      },
+      {
+        "id": "D_wrong_recipient_beats_name_not_registered",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "`D` is the only message with both a routing check and a tighter payload limit; routing runs first.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1Dothername|a.com"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "WRONG_RECIPIENT"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_REGISTERED"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Dothername|a.com"
+          }
+        }
+      },
+      {
+        "id": "D_name_not_registered_beats_not_owner",
+        "setup": "one_in_grace_one_registered",
+        "pinnedBy": null,
+        "note": "Same unordered pair of §7.4 bullets as `S` and `X`.",
+        "tx": {
+          "blockNumber": 90378720,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Dkikename|a.com"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NAME_NOT_REGISTERED"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOT_OWNER"
+          },
+          "tx": {
+            "blockNumber": 90378720,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Dothername|a.com"
+          }
+        }
+      },
+      {
+        "id": "D_not_owner_beats_invalid_host",
+        "setup": "kikename_to_alice",
+        "pinnedBy": null,
+        "note": "This is the whole of what carries `INVALID_HOST`: the host is validated **last**, after ownership. A reducer that checked the host first would give a stranger's malformed `D` the host token instead, and §7.4 says nothing either way — the two are separate bullets.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Dkikename|http://a.com"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NOT_OWNER"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "INVALID_HOST"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Dkikename|http://a.com"
+          }
+        }
+      },
+      {
+        "id": "K_wrong_recipient_beats_name_not_found",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "Routing before existence: §5.3 sends every `K` to `PROTOCOL_ADDRESS`, and that is read before the registry is consulted at all.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1Kothername"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "WRONG_RECIPIENT"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_FOUND"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Kothername"
+          }
+        }
+      },
+      {
+        "id": "K_name_not_found_beats_not_owner",
+        "setup": "kikename_to_alice",
+        "pinnedBy": null,
+        "note": "Existence before ownership: a stranger's `K` for a name nobody holds reports the name, not the sender.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Kothername"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NAME_NOT_FOUND"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOT_OWNER"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Kkikename"
+          }
+        }
+      },
+      {
+        "id": "K_not_owner_beats_nothing_to_cancel",
+        "setup": "kikename_to_alice",
+        "pinnedBy": null,
+        "note": "Ownership before the thing being cancelled. Nothing is pending on `kikename` in either message; only the sender differs.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Kkikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NOT_OWNER"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOTHING_TO_CANCEL"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Kkikename"
+          }
+        }
+      },
+      {
+        "id": "N_wrong_recipient_beats_name_not_found",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "Routing before existence, as for `K` — but an `N` is fee-bearing, so it goes to the treasury rather than to `PROTOCOL_ADDRESS`.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "PROTOCOL",
+          "value": "200000000",
+          "text": "NNS1Nothername"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "WRONG_RECIPIENT"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_FOUND"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Nothername"
+          }
+        }
+      },
+      {
+        "id": "N_name_not_found_beats_insufficient_value",
+        "setup": "kikename_to_alice",
+        "pinnedBy": null,
+        "note": "`N` puts existence ahead of value. §7.4 fixes that order for `G` and says nothing about `N`, so the consistency is a choice — but a reducer that reversed it would answer an underfunded renewal of a nonexistent name with the value token.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1Nothername"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NAME_NOT_FOUND"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "INSUFFICIENT_VALUE"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Nkikename"
+          }
+        }
+      },
+      {
+        "id": "O_wrong_recipient_beats_not_owner",
+        "setup": "kikename_to_alice",
+        "pinnedBy": null,
+        "note": "Routing before ownership. §5.3 sends an `O` to the treasury, since it is a fee-bearing message even at a `LISTING_FEE` of zero.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Okikename|100000000"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "WRONG_RECIPIENT"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOT_OWNER"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Okikename|100000000"
+          }
+        }
+      },
+      {
+        "id": "O_not_owner_beats_below_min_price",
+        "setup": "kikename_to_alice",
+        "pinnedBy": null,
+        "note": "This is what carries `BELOW_MIN_PRICE`: the floor is checked after ownership. §7.4 pins the floor against the *value carried* — \"The payload is checked before the value carried\" — and says nothing about the sender. That value ordering is unobservable today, since `LISTING_FEE` is 0 and no `O` can underpay, so this pair is the only live precedence the token has.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1Okikename|1"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NOT_OWNER"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "BELOW_MIN_PRICE"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Okikename|1"
+          }
+        }
+      },
+      {
+        "id": "B_wrong_recipient_beats_offer_not_open",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "Routing before the offer lookup. A `B` at the treasury never reaches the marketplace's books, so it forfeits rather than earning a refund.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "TREASURY",
+          "value": "100000000",
+          "text": "NNS1Bkikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "WRONG_RECIPIENT"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "OFFER_NOT_OPEN"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "100000000",
+            "text": "NNS1Bkikename"
+          }
+        }
+      },
+      {
+        "id": "B_below_refund_floor_beats_offer_not_open",
+        "setup": "empty",
+        "pinnedBy": "§7.4 — \"An amount below `REFUND_FLOOR` is forfeited rather than refunded\"",
+        "note": "The floor converts a refund into a forfeit, so it is read after the refund reason is settled and overrides its token. Both sides of the pair are the same message at two values.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "MARKETPLACE",
+          "value": "5000",
+          "text": "NNS1Bkikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "BELOW_REFUND_FLOOR"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "OFFER_NOT_OPEN"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "100000000",
+            "text": "NNS1Bkikename"
+          }
+        }
+      },
+      {
+        "id": "B_below_refund_floor_beats_wrong_price",
+        "setup": "offer_open_at_1_nim",
+        "pinnedBy": "§7.4 — the `REFUND_FLOOR` paragraph",
+        "note": "The other refund arm, against a genuinely open offer.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "MARKETPLACE",
+          "value": "5000",
+          "text": "NNS1Bkikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "BELOW_REFUND_FLOOR"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "WRONG_PRICE"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "99999999",
+            "text": "NNS1Bkikename"
+          }
+        }
+      },
+      {
+        "id": "A_wrong_recipient_beats_auction_not_in_v1",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "§6 `A` says every `A` takes `AUCTION_NOT_IN_V1`, and routing nonetheless runs first — an `A` at the treasury earns `WRONG_RECIPIENT`. Defensible (§5.3 routing precedes every type's own rules) but genuinely unstated, and the clause reads as though it admits no exception.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1Akikename|40000000|59000000"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "WRONG_RECIPIENT"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "AUCTION_NOT_IN_V1"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|40000000|59000000"
+          }
+        }
+      },
+      {
+        "id": "A_auction_not_in_v1_beats_below_min_price",
+        "setup": "empty",
+        "pinnedBy": "§6 `A`",
+        "note": "A reserve of one luna is far below `MIN_PRICE`, and the message still takes the version forfeit: §6 requires *every* `A` to earn this token, so a below-floor one earning `BELOW_MIN_PRICE` would put a different reason in the log than a conforming implementation.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Akikename|1|59000000"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "AUCTION_NOT_IN_V1"
+        },
+        "insteadOfUnreachable": "No `A` reaches the floor check in v1, by §6's own requirement, so `BELOW_MIN_PRICE` is unreachable for `A` rather than merely later."
+      },
+      {
+        "id": "P_wrong_recipient_beats_not_admin",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "Routing before authority. §5.3 puts a `P` at `PROTOCOL_ADDRESS`; the sender is only consulted once the message is at the right address.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1P200000000|40000000|250|58929120"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "WRONG_RECIPIENT"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOT_ADMIN"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P200000000|40000000|250|58929120"
+          }
+        }
+      },
+      {
+        "id": "P_not_admin_beats_insufficient_notice",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "Authority before notice. §7.4's `P` bullet names the sender and the §10.6 bounds, and puts notice in a trailing sentence covering `P` and `U` together — no order anywhere.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1P200000000|40000000|250|58842721"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NOT_ADMIN"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "INSUFFICIENT_NOTICE"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P200000000|40000000|250|58842721"
+          }
+        }
+      },
+      {
+        "id": "P_insufficient_notice_beats_governance_bound_violated",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "Notice before the §10.6 rails. The `fee_standard` here is 200,000 NIM, twice `PRICE_CEILING`, and the notice is one block — a fat-fingered governance message that is also badly timed reports the timing.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ADMIN",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1P20000000000|40000000|250|58842721"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "INSUFFICIENT_NOTICE"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "GOVERNANCE_BOUND_VIOLATED"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P20000000000|40000000|250|58929120"
+          }
+        }
+      },
+      {
+        "id": "U_not_admin_beats_invalid_recipient",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "Authority first, even for the one recipient `U` forbids.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "BURN",
+          "value": "1",
+          "text": "NNS1Ubinance|58929120"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NOT_ADMIN"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "INVALID_RECIPIENT"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BURN",
+            "value": "1",
+            "text": "NNS1Ubinance|58929120"
+          }
+        }
+      },
+      {
+        "id": "U_invalid_recipient_beats_insufficient_notice",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "**This one contradicts §7.4's prose.** The clause lists a `U`'s forfeits as \"from any sender other than `ADMIN_ADDRESS`, with less than `GOVERNANCE_DELAY` notice, awarding to `BURN_ADDRESS`, …\" — notice ahead of the recipient. The reducer checks the recipient first, on the argument that the recipient decides which of two operations the message even is (§6 `U`: `PROTOCOL_ADDRESS` releases, anything else awards). Both are defensible; the list is prose rather than a stated order, and this vector is the only thing standing behind the choice.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ADMIN",
+          "recipient": "BURN",
+          "value": "1",
+          "text": "NNS1Ubinance|58842721"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "INVALID_RECIPIENT"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "INSUFFICIENT_NOTICE"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ubinance|58842721"
+          }
+        }
+      },
+      {
+        "id": "U_insufficient_notice_beats_invalid_name",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "Notice before the name. `ab-` is three characters with a trailing hyphen, so it fails §4.1 rules 2–5 and is on neither membership route.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ADMIN",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Uab-|58842721"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "INSUFFICIENT_NOTICE"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "INVALID_NAME"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Uab-|58929120"
+          }
+        }
+      },
+      {
+        "id": "U_invalid_name_beats_name_not_reserved",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "Name syntax before reservation, matching the order §7.4 fixes for `G`. Neither `ab-` nor `kikename` is reserved, so the first would earn `NAME_NOT_RESERVED` too under the other reading.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ADMIN",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Uab-|58929120"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "INVALID_NAME"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_RESERVED"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ukikename|58929120"
+          }
+        }
+      },
+      {
+        "id": "F_wrong_recipient_beats_wrong_sender",
+        "setup": "empty",
+        "pinnedBy": null,
+        "note": "Routing before authority, the same way `P` does it.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "12345",
+          "text": "NNS1F"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "WRONG_RECIPIENT"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "WRONG_SENDER"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "BURN",
+            "value": "12345",
+            "text": "NNS1F"
+          }
+        }
+      }
+    ]
+  }
 }

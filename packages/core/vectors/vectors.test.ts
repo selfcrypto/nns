@@ -522,6 +522,99 @@ describe('vectors/reduce.json', () => {
     expect(file.scenarios.map((s: any) => s.id)).toContain('failed_G_does_not_register_name')
   })
 
+  // ── checkOrder ────────────────────────────────────────────────────────────
+
+  describe('checkOrder — which check runs first', () => {
+    const section = file.checkOrder
+    const config = readConfig(file.config, book)
+
+    /** Replay a named setup and return the state every probe starts from. */
+    const stateAfter = (name: string): NnsState => {
+      let state = initialState()
+      for (const step of section.setups[name]) {
+        if (step.advanceTo !== undefined) {
+          state = advanceTo(state, step.advanceTo)
+          continue
+        }
+        const result = reduce(state, readTx(step.tx, book, file.config.networkId), config)
+        expect(result.verdict.kind, `setup ${name}`).toBe('OK')
+        state = result.state
+      }
+      return state
+    }
+
+    const verdictOf = (state: NnsState, raw: any) => {
+      const verdict = reduce(state, readTx(raw, book, file.config.networkId), config).verdict
+      return { kind: verdict.kind, reason: (verdict as { reason?: string }).reason }
+    }
+
+    it.each(entries(section.cases))('%s', (_id, testCase: any) => {
+      const before = stateAfter(testCase.setup)
+
+      // The token the earlier check produces.
+      expect(verdictOf(before, testCase.tx)).toEqual({
+        kind: testCase.verdict.kind,
+        reason: testCase.verdict.reason,
+      })
+
+      // …and the same probe rebuilt to trip only the later check, from the
+      // same pre-state. Without this half the case would still pass against a
+      // reducer that had simply deleted the later check, which is the other
+      // way a carried token stops meaning what it meant.
+      if (testCase.insteadOf === undefined) {
+        expect(typeof testCase.insteadOfUnreachable, `${testCase.id} must say why`).toBe('string')
+        return
+      }
+      expect(verdictOf(before, testCase.insteadOf.tx)).toEqual({
+        kind: testCase.insteadOf.verdict.kind,
+        reason: testCase.insteadOf.verdict.reason,
+      })
+    })
+
+    it('covers every ordered pair of checks in every case arm of the reducer', () => {
+      // One entry per message type that has more than one rejection check, so
+      // adding a check to an arm without pinning where it sits fails here.
+      const byType: Record<string, number> = {}
+      for (const testCase of section.cases as any[]) {
+        const type = testCase.id.split('_')[0]
+        byType[type] = (byType[type] ?? 0) + 1
+      }
+      expect(byType).toEqual({
+        discard: 3, // §7.5, before a message is parsed
+        parse: 3, // §5.2 payload, before routing
+        G: 5, // §7.4's fixed five-check order, four adjacent pairs plus grace
+        S: 1,
+        X: 1,
+        D: 3,
+        K: 3,
+        N: 2,
+        O: 2,
+        B: 3,
+        A: 2,
+        P: 3,
+        U: 4,
+        F: 1,
+      })
+    })
+
+    it('separates the orderings the spec fixes from the ones it does not', () => {
+      // Not a behavioural assertion — a census, so that the balance cannot
+      // shift without somebody noticing. Nine of the fifteen tokens carried
+      // forward as PROVEN-AT-R19 rest on a `pinnedBy: null` row.
+      const cases = section.cases as any[]
+      const pinned = cases.filter((c) => c.pinnedBy !== null)
+      const free = cases.filter((c) => c.pinnedBy === null)
+      expect(pinned).toHaveLength(11)
+      expect(free).toHaveLength(25)
+      for (const testCase of cases) {
+        expect(typeof testCase.note, `${testCase.id} needs a note`).toBe('string')
+        expect(testCase.note.length, `${testCase.id} needs a real note`).toBeGreaterThan(40)
+      }
+      // Every §7.4-fixed row must cite the clause, not merely be marked.
+      for (const testCase of pinned) expect(testCase.pinnedBy).toMatch(/§/)
+    })
+  })
+
   it('pins an exact firing height for every height-driven effect in §7.3', () => {
     // The gap these close: every other observation of a height-driven effect
     // is a root taken at a CHECKPOINT_INTERVAL boundary, which cannot tell h

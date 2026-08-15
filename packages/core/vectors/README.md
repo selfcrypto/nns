@@ -151,6 +151,40 @@ Four of these are timed by constants r20 moved — `TERM_LENGTH`,
 `GRACE_PERIOD` and `GOVERNANCE_DELAY` — so what the vectors pin is the
 boundary arithmetic, not the transition.
 
+### `checkOrder` — which check runs first
+
+Thirty-six cases in `reduce.json`'s own section, not scenarios. Each is a
+message that satisfies **two** rejection conditions at once: `verdict` is the
+token the earlier check produces, and `insteadOf` is the same probe rebuilt to
+trip only the later one, run against the same pre-state and required to earn
+the other token. Both halves are the assertion — swap the checks and the first
+expectation fails; delete the later check and the second does.
+
+`setup` names an entry in `checkOrder.setups`. `pinnedBy` names the clause
+fixing the order, or is `null`. `insteadOfUnreachable` replaces `insteadOf`
+where the later token cannot be produced at all (only `A`, whose §6 clause
+makes `BELOW_MIN_PRICE` unreachable by construction).
+
+**Eleven of the thirty-six orderings are fixed by the spec; twenty-five are
+implementation choices.** §7.4 fixes exactly two things — `G`'s five-check
+order ("recipient, name syntax, reservation, **value, then availability**") and
+`REFUND_FLOOR` converting a refund into a forfeit — plus §7.5 running before a
+message is parsed and §6 `A`'s version forfeit outranking the price floor.
+Everything else is a bullet list read as an order it never claimed to be, and
+the tokens carried forward as PROVEN-AT-R19 lean on it heavily: `INVALID_HOST`,
+`NAME_NOT_FOUND`, `BELOW_MIN_PRICE`, `INVALID_RECIPIENT`,
+`INSUFFICIENT_NOTICE`, `NOT_ADMIN`, `NAME_NOT_RESERVED`, `WRONG_SENDER` and
+`MALFORMED_PAYLOAD` all sit behind a `pinnedBy: null` row.
+
+**One of them contradicts the spec's prose.** §7.4 lists a `U`'s forfeits as
+"from any sender other than `ADMIN_ADDRESS`, **with less than
+`GOVERNANCE_DELAY` notice**, **awarding to `BURN_ADDRESS`**, …" — notice ahead
+of the recipient. The reducer checks the recipient first, because the recipient
+decides which of two operations the message even *is* (§6 `U`:
+`PROTOCOL_ADDRESS` releases, anything else awards). A `U` to the burn address
+with short notice is the message that tells them apart, and it is
+`U_invalid_recipient_beats_insufficient_notice`. See `docs/decisions.md`.
+
 **The expiry pair is inferred, not stated.** §6 `G` fixes
 `expiry = block_height + TERM_LENGTH` and §7.3 draws
 `REGISTERED ──expiry──▶ GRACE ──+30d──▶ AVAILABLE`, but no clause says whether
