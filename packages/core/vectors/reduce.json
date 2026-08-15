@@ -1,7 +1,7 @@
 {
   "vectors": "nns/reduce",
   "version": 1,
-  "spec": "nns-spec-v1 draft r22, §7.3, §7.4 and §7.5",
+  "spec": "nns-spec-v1 draft r23, §7.3, §7.4 and §7.5",
   "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`), a bare height advance (`advanceTo`), or a `check` against the state at that point. A `check` may also carry `label`, which snapshots the four §8.1 component digests (`nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` — the commitment minus the height and the log hash), and `since` + `changed`, which compares them against an earlier label: every component **not** listed in `changed` MUST be byte-identical. `logLines` is the number of §8.2 lines emitted so far, and a height advance MUST never add one.",
   "addresses": {
     "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
@@ -123,6 +123,96 @@
       ],
       "expect": {
         "names": {}
+      }
+    },
+    {
+      "id": "the_NNS1_prefix_is_the_ignore_boundary",
+      "note": "§5.2 as amended within r23: data without the prefix is a §7.5 discard — no log line, invisible to the §8.2 hash — and anything prefixed that fails is rejected with a logged verdict. The logLines counts are the whole assertion: an ignore and a forfeit are the same message to a user and opposite facts to a log hash, which is why §5.2 calling both 'ignored' through r22 was a silent fork, not a wording nit. The unknown-type member is mainnet-reachable today for dust — NNS1Q here, and the retired R, which r20 removed without reserving — so a §5.2-literal implementation diverges from this file on the first such message with no verdict mismatch anywhere. The over-length member (65 bytes) cannot land on mainnet while the network cap equals MAX_DATA_BYTES; it is pinned for any deployment where it does not, which is why OVER_LENGTH stays in the vocabulary (§7.4). The label/since pair shows no rejection touched a component: the log lines are the entire effect.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "BOB",
+            "value": "1",
+            "data": "68690a"
+          },
+          "verdict": {
+            "kind": "IGNORED",
+            "reason": "NOT_NNS1"
+          }
+        },
+        {
+          "check": {
+            "label": "clean",
+            "logLines": 0
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Qkikename"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "UNKNOWN_TYPE"
+          }
+        },
+        {
+          "check": {
+            "logLines": 1
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 2,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Rkikename"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "UNKNOWN_TYPE"
+          }
+        },
+        {
+          "check": {
+            "logLines": 2
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 3,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Gaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "OVER_LENGTH"
+          }
+        },
+        {
+          "check": {
+            "since": "clean",
+            "changed": [],
+            "logLines": 3,
+            "absent": ["kikename"]
+          }
+        }
+      ],
+      "expect": {
+        "names": {},
+        "logLines": 3
       }
     },
     {
@@ -3006,8 +3096,8 @@
       {
         "id": "parse_over_length_beats_unknown_type",
         "setup": "empty",
-        "pinnedBy": null,
-        "note": "§7.4 puts an unknown type, an unparseable payload and a 64-byte overrun in one bullet without ordering them, but they are three different tokens. `parse` measures the length before it reads the type letter. Unreachable on mainnet — 65 bytes never lands in a block — so this pair exists only here.",
+        "pinnedBy": "§7.4 — \"hex → `NNS1` prefix → length → type → payload\"; that both are logged verdicts at all is §5.2 (r23)",
+        "note": "§7.4's parse chain reads the length before the type letter, so a payload failing both is OVER_LENGTH. The row was pinnedBy: null until r23: §5.2 called both cases 'ignored', so while that stood, the tokens' very existence — not just their order — was in dispute between two clauses. Unreachable on mainnet — 65 bytes never lands in a block — so this pair exists only here, for deployments whose data cap exceeds the budget.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,
@@ -3038,8 +3128,8 @@
       {
         "id": "parse_unknown_type_beats_malformed_payload",
         "setup": "empty",
-        "pinnedBy": null,
-        "note": "Both payloads are empty after the type letter. The type is read first, so an unknown letter is reported as such rather than as a payload that failed to parse.",
+        "pinnedBy": "§7.4 — \"hex → `NNS1` prefix → length → type → payload\"; that an unknown type is a logged verdict at all is §5.2 (r23)",
+        "note": "Both payloads are empty after the type letter. §7.4's parse chain reads the type before the payload, so an unknown letter is reported as such rather than as a payload that failed to parse. The row was pinnedBy: null until r23 for the same reason as its neighbour: §5.2 said an unknown type is 'ignored', which disputed the token's existence, not merely its position — and this member is mainnet-reachable, so the fork it names was live.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,

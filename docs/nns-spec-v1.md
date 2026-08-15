@@ -33,6 +33,31 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > found, because the way it is found otherwise is two names quietly answering
 > each other's subdomains.
 
+> **Amended within r23, 2026-08-16 — "ignored" is §7.5's word, and the `NNS1`
+> prefix is the boundary.** Prose only; **no bytes move**, because every
+> existing log was produced under the reading being ratified. §5.2 said a
+> message with an unknown type character or an over-length payload is
+> "ignored"; §7.4 forfeits both (`UNKNOWN_TYPE`, `OVER_LENGTH`) and §7.6 +
+> §8.2 log them. An ignore and a forfeit are the same message to a user — no
+> effect on the registry either way — and opposite facts to the log hash, so
+> two implementations reading different clauses derive different roots with
+> no error and no verdict mismatch anywhere. **The reachable member is the
+> dangerous one:** an unknown type lands on mainnet today for dust — any
+> `NNS1` payload with a spare letter, including the `R` that r20 retired to
+> `UNKNOWN_TYPE` — so the fork was live, not latent. Over-length is
+> unreachable while Nimiq's data cap equals the §5.1 budget, which is exactly
+> why no test on this chain would ever have surfaced the contradiction.
+> Ratified: the §7.4/§7.6/§8.2 reading, which the reference implementation
+> and the conformance vectors already took — §8.2 defines the consensus
+> artifact and already gave every `NNS1`-prefixed transaction a line, and
+> §7.5's discard list is closed without a length row. Four edits: §5.2 states
+> the prefix boundary and reserves "ignored" for §7.5 discards; §1's
+> fail-closed principle logs its evidence; §6 `A`'s additivity leans on
+> stated-height activation rather than an ignore that never happens (and
+> would not suffice if it did); and §7.4's `OVER_LENGTH` note carries the
+> vocabulary rule — a token is dropped when the protocol makes it
+> unreachable, kept when only the environment does.
+
 > **Changes in revision 22 — `U` executes on landing, and `GOVERNANCE_DELAY`
 > governs `P` alone.** A notice period protects parties who can act on the
 > warning. A `U` has none. An **award** has no counterparty at all — the name is
@@ -896,8 +921,10 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 4. **Verification must be cheap enough that people actually do it.** This is
    why registration has a price floor at all: the log is the verification
    artifact, and an artifact nobody can afford to download is not a guarantee.
-5. **Fail closed.** Any malformed, ambiguous, or unaffordable message is
-   ignored entirely.
+5. **Fail closed, with evidence.** Any malformed, ambiguous, or unaffordable
+   message is rejected with a logged verdict (§7.4, §8.2): it changes nothing
+   in the registry, and the log shows why. "Ignored" — no log line at all —
+   is reserved for what §7.5 discards before parsing.
 6. **The protocol is not the police.** Where a rule would block many
    legitimate names to catch a rare abuse, it belongs in the interface layer.
 7. **Simplicity is a security property.** Every message type is a surface for
@@ -1252,8 +1279,18 @@ NNS1 <type> <payload>
 - Byte 4: one uppercase type character
 - Bytes 5+: type-specific payload, `|`-delimited where multi-field
 
-Any message not starting with `NNS1`, carrying an unknown type character, or
-exceeding 64 bytes is ignored.
+**The `NNS1` prefix is the boundary between ignored and rejected.** Data not
+starting with `NNS1` is not a message: §7.5 discards it before parsing and it
+earns no log line. A payload that carries the prefix but has an unknown type
+character, or exceeds 64 bytes, is **rejected with a logged verdict**
+(`UNKNOWN_TYPE`, `OVER_LENGTH` — §7.4): it has no effect on the registry, but
+its line enters the log and therefore the §8.2 hash. In this document
+"ignored" means §7.5's discards — invisible to the log — and nothing prefixed
+`NNS1` is ever ignored. Through r22 this paragraph called all three cases
+"ignored", which read as no-log-line for two messages §7.4 logs: opposite
+facts to the log hash, and a silent fork that was *reachable* for the
+unknown-type case — any dust transaction carrying `NNS1` and a spare letter
+lands on mainnet today, and the retired `R` is such a letter since r20.
 
 All fields use text-safe encoding (ASCII plus base64url); raw binary is never
 used, so a message is human-readable in a block explorer.
@@ -1730,10 +1767,20 @@ converts front-running from a producer-only capability into a scripted one
 everyone in advance — price discovery where it is worth having, without
 turning a fixed-price registration into a blind bidding war.
 
-**Deliberately additive.** Unknown message types are ignored (§5.2), so `A`
-can ship after the wire format freezes. It is the one significant feature
-that is not blocked by the freeze deadline, and it is the natural mechanism
-for releasing the withheld 1–4 character names (§4.1).
+**Deliberately additive — by versioning, not by ignoring.** An unknown type
+character is not ignored: it is rejected with a logged `UNKNOWN_TYPE` verdict
+(§5.2, §7.4), so its lines are in the committed hash, and an implementation
+that started honouring a new type would replay the same history to a
+different log and a different state than one that did not. What makes an
+addition safe is the mechanism this clause already uses for activation: a new
+type arrives by spec revision **from a stated height** — below it every
+implementation keeps the `UNKNOWN_TYPE` lines, at and above it every
+implementation honours the type, and no already-derived root moves. `A` is
+the one significant feature taking that path after the wire format freezes,
+and the natural mechanism for releasing the withheld 1–4 character names
+(§4.1). Through r22 this sentence credited §5.2's "ignored", which is not
+what happens to an unknown type — and would not have been sufficient if it
+were, since honouring a new type moves state whatever the log does.
 
 ### `P` — Governance
 
@@ -2193,6 +2240,15 @@ hash, and it never lands in a block (measured; `docs/rpc-reference.md`). The
 token stays in the vocabulary because the budget is the protocol's own rule,
 not a hope about the network's — a deployment with a looser data cap must
 still forfeit here — but no mainnet log can ever contain it.
+
+That is an instance of the rule this vocabulary is maintained under: **a
+token is dropped when the protocol makes it unreachable, and kept when only
+the environment does.** `TOO_SOON` (r20) and `UNRESERVE_PENDING` (r22) went
+because after their revisions no rule on *any* deployment could produce them.
+The 64-byte cap is a measured Nimiq property, not an NNS constant: were a
+Nimiq upgrade to raise it, over-length payloads would start landing in blocks
+the day it activated, and every indexer must already agree on the verdict —
+deleting the token would turn that upgrade into an NNS fork.
 
 **Refund tokens.** Each creates an obligation on the address named, discharged
 by an `M` (§6).

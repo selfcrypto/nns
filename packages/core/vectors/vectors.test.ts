@@ -591,16 +591,20 @@ describe('vectors/reduce.json', () => {
 
     it('separates the orderings the spec fixes from the ones it does not', () => {
       // Not a behavioural assertion — a census, so that the balance cannot
-      // shift without somebody noticing. It has moved twice: r21 ratified
-      // `U`'s six-check order and `A`'s routing exception, taking five rows
-      // from `pinnedBy: null` to a clause; r22 then shortened `U`'s order to
-      // four checks, so one of those five pinned rows went away with the
-      // notice it ordered. The free count is untouched by both.
+      // shift without somebody noticing. It has moved three times: r21
+      // ratified `U`'s six-check order and `A`'s routing exception, taking
+      // five rows from `pinnedBy: null` to a clause; r22 then shortened `U`'s
+      // order to four checks, so one of those five pinned rows went away with
+      // the notice it ordered; and r23's §5.2 amendment moved the two parse
+      // rows — through r22 §5.2 called an unknown type and an over-length
+      // payload "ignored", so the dispute was over the tokens' existence, not
+      // their order, and the rows could not cite a clause both halves of the
+      // spec agreed with.
       const cases = section.cases as any[]
       const pinned = cases.filter((c) => c.pinnedBy !== null)
       const free = cases.filter((c) => c.pinnedBy === null)
-      expect(pinned).toHaveLength(15)
-      expect(free).toHaveLength(20)
+      expect(pinned).toHaveLength(17)
+      expect(free).toHaveLength(18)
       for (const testCase of cases) {
         expect(typeof testCase.note, `${testCase.id} needs a note`).toBe('string')
         expect(testCase.note.length, `${testCase.id} needs a real note`).toBeGreaterThan(40)

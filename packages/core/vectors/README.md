@@ -180,23 +180,25 @@ fixing the order, or is `null`. `insteadOfUnreachable` replaces `insteadOf`
 where the later token cannot be produced at all (only `A`, whose §6 clause
 makes `BELOW_MIN_PRICE` unreachable by construction).
 
-**Fifteen of the thirty-five orderings are fixed by the spec; twenty are
+**Seventeen of the thirty-five orderings are fixed by the spec; eighteen are
 implementation choices.** §7.4 fixes `G`'s five-check order ("recipient, name
 syntax, reservation, **value, then availability**"), `REFUND_FLOOR` converting
-a refund into a forfeit, and — since r21, shortened by r22 — a `U`'s four
-("sender, recipient, name syntax, reservation"). §7.5 runs before a message is
-parsed, and §6 `A` puts its version forfeit ahead of the price floor and behind
-§5.3 routing. Everything else is a bullet list read as an order it never
-claimed to be, and the tokens carried forward as PROVEN-AT-R19 still lean on
-it: `INVALID_HOST`, `NAME_NOT_FOUND`, `BELOW_MIN_PRICE`, `WRONG_SENDER` and
-`MALFORMED_PAYLOAD` sit behind a `pinnedBy: null` row. Three more —
-`INVALID_RECIPIENT`, `NOT_ADMIN` and `NAME_NOT_RESERVED` — did until r21
-ratified `U`'s order. `INSUFFICIENT_NOTICE` was a fourth; r22 took it out of
-`U` altogether, so its only remaining ordering is `P`'s, which is still free.
+a refund into a forfeit, the parse chain ("hex → `NNS1` prefix → length →
+type → payload" — pinning the two `parse_*` rows since r23, below), and —
+since r21, shortened by r22 — a `U`'s four ("sender, recipient, name syntax,
+reservation"). §7.5 runs before a message is parsed, and §6 `A` puts its
+version forfeit ahead of the price floor and behind §5.3 routing. Everything
+else is a bullet list read as an order it never claimed to be, and the tokens
+carried forward as PROVEN-AT-R19 still lean on it: `INVALID_HOST`,
+`NAME_NOT_FOUND`, `BELOW_MIN_PRICE`, `WRONG_SENDER` and `MALFORMED_PAYLOAD`
+sit behind a `pinnedBy: null` row. Three more — `INVALID_RECIPIENT`,
+`NOT_ADMIN` and `NAME_NOT_RESERVED` — did until r21 ratified `U`'s order.
+`INSUFFICIENT_NOTICE` was a fourth; r22 took it out of `U` altogether, so its
+only remaining ordering is `P`'s, which is still free.
 
-**Two of these were unstated when the vectors were written, and r21 states
-them.** Both are now `pinnedBy` rows rather than free ones, and the vectors are
-the evidence for the clause rather than a substitute for it:
+**Three of these were unstated when the vectors were written, and the spec now
+states them.** Each is now a `pinnedBy` row rather than a free one, and the
+vectors are the evidence for the clause rather than a substitute for it:
 
 - **`U`'s recipient before the rest of it.** Through r20 §7.4 listed a `U`'s
   forfeits with notice *ahead* of the recipient and never claimed to be an
@@ -212,10 +214,20 @@ the evidence for the clause rather than a substitute for it:
   states it: an `A` at the wrong address earns `WRONG_RECIPIENT`, and that is
   the only exception — the `MIN_PRICE` floor still sits behind the version
   forfeit. `A_wrong_recipient_beats_auction_not_in_v1` is the pair.
+- **The two `parse_*` rows, since r23's §5.2 amendment.** Through r22 §5.2
+  said an unknown type or an over-length payload is "ignored" while §7.4
+  forfeited both and §8.2 logged them — so what the null marker recorded was
+  a dispute over the tokens' *existence*, not their position: no clause could
+  pin an order between two verdicts one half of the spec said were never
+  written. r23 ratifies the §7.4/§7.6/§8.2 reading (the one these vectors and
+  `core` always took), and the parse chain "hex → `NNS1` prefix → length →
+  type → payload" now pins both rows. The scenario
+  `the_NNS1_prefix_is_the_ignore_boundary` carries the boundary itself: the
+  unknown-type member is mainnet-reachable for dust, so the fork was live.
 
-The expiry pair was the third, and §7.3 now carries an interval table for it —
+The expiry pair was the fourth, and §7.3 now carries an interval table for it —
 `[registration, registration + TERM_LENGTH)` and `[expiry, expiry +
-GRACE_PERIOD)`. See `docs/decisions.md` for all three arguments.
+GRACE_PERIOD)`. See `docs/decisions.md` for the arguments.
 
 ## The readings these vectors pin
 
