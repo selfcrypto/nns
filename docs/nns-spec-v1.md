@@ -1233,7 +1233,7 @@ to the awardee.
 `MARKETPLACE_ADDRESS` to the seller being paid or the buyer being refunded
 (§6).
 
-`S`, `X`, and `R` put the counterparty in the transaction recipient so Nimiq
+`S` and `X` put the counterparty in the transaction recipient so Nimiq
 Pay's native confirmation dialog displays the destination address and its
 identicon before signing, in the wallet's own trusted UI. (`B` lost this
 property in r7 — the buyer's wallet dialog now shows the marketplace address,
@@ -1243,9 +1243,9 @@ The indexer does not rely on this split for discovery; see §7.1.
 ### 5.4 Value
 
 Fee-bearing messages (`G`, `N`, `O`) carry the fee and go to
-`TREASURY_ADDRESS`. Non-fee-bearing messages carry `DUST_VALUE`: `S`, `X` and
-`R` to their counterparty, and `K`, `D`, `A`, `P` plus the two §5.3
-sentinels to `PROTOCOL_ADDRESS`. `F` and `M` carry the amount being moved (§6).
+`TREASURY_ADDRESS`. Non-fee-bearing messages carry `DUST_VALUE`: `S` and `X`
+to their counterparty, and `K`, `D`, `A`, `P` plus the single §5.3
+sentinel to `PROTOCOL_ADDRESS`. `F` and `M` carry the amount being moved (§6).
 
 A `U` carries `DUST_VALUE` under both of its behaviours — to
 `PROTOCOL_ADDRESS` when it releases a name, to the awardee when it awards one.
@@ -1267,7 +1267,8 @@ rule is needed.
 
 Commit–reveal was removed in revision 4. Registration is one transaction; the
 first valid one for a given name wins, in canonical order. This deleted the
-`C` and `R` types, salts, the account-binding hazard, two delay constants, the
+`C` and `R` types — `R` for *reveal*, unrelated to the recovery `R` that
+revision 20 removed — salts, the account-binding hazard, two delay constants, the
 tier declaration field, and four rejection cases.
 
 Note that removing commit–reveal also made **length-based pricing cheap
@@ -1881,7 +1882,7 @@ the message before the race does.
   payload is checked before the value carried, exactly as a `G`'s name
   syntax is: a message whose own payload is unusable is rejected on that
   ground whatever it paid
-- `X`, `S`, `D`, `R` on an expired or grace-period name
+- `X`, `S`, `D` on an expired or grace-period name
 - `D` whose host exceeds `MAX_HOST_LEN` or includes a scheme
 - `P` from any sender other than `ADMIN_ADDRESS`, or violating a §10.6 bound
 - `U` from any sender other than `ADMIN_ADDRESS`, with less than
@@ -2001,7 +2002,7 @@ rather than forfeiting `OVER_LENGTH`, and why an unparseable payload of an
 unknown type is `UNKNOWN_TYPE`, not `MALFORMED_PAYLOAD`.
 
 The recipient check then precedes every other check on the types that have
-one. `S`, `X` and `R` have none: §5.3 routes them to the target address
+one. `S` and `X` have none: §5.3 routes them to the target address
 itself, so any recipient is meaningful. Since r17 `U` has none either, for a
 different reason — its recipient is an operand rather than a route (§5.3), so
 it is checked in a row of its own rather than before everything else. After it,
@@ -2070,7 +2071,7 @@ That is the whole rule.
 
 Deliberately, there is **no anti-spam machinery in v1**. Fee-bearing messages
 (`G`, `N`, `O`) are priced by their own fee, which is what §8.2's growth
-bound rests on. Signalling messages (`K`, `D`, `S`, `X`, `R`) are not priced,
+bound rests on. Signalling messages (`K`, `D`, `S`, `X`) are not priced,
 so someone who owns a name can emit them repeatedly for the cost of the dust
 and the network fee. Registration is the only gate.
 
@@ -2162,7 +2163,7 @@ the log hash and the height into the single value an anchor publishes (§9).
 | `0x03` | the active prices |
 | `0x04` | the pending set |
 | `0x05` | a pending `X` |
-| `0x06` | a pending `R` |
+| `0x06` | *retired* — carried a pending `R` through r19; see below |
 | `0x07` | an open `O` |
 | `0x08` | a pending `P` |
 | `0x09` | a pending `U` |
@@ -3184,7 +3185,7 @@ all**:
 | Address | Sends | Income |
 |---|---|---|
 | `MARKETPLACE_ADDRESS` | `M` settlements and refunds (§6 `M`) | Buyer value in, but a `B` it must refund arrives *with* its own value — a run of forfeits does not fund it |
-| `ADMIN_ADDRESS` | `P`, `U` (§6) | None. Dust from `S`/`X`/`R` that happen to name it, and nothing else |
+| `ADMIN_ADDRESS` | `P`, `U` (§6) | None. Dust from `S`/`X` that happen to name it, and nothing else |
 
 For both, an operator MUST:
 
@@ -3409,13 +3410,13 @@ not in v1.
 
 ### 16.2 Pricing signalling messages
 
-`G`, `N` and `O` are priced by their own fee. `K`, `D`, `S`, `X` and `R` are
+`G`, `N` and `O` are priced by their own fee. `K`, `D`, `S` and `X` are
 not, so a name owner can emit them repeatedly at dust cost. Three mechanisms
 were considered:
 
 - **A `SIGNAL_FEE` in `value`**, for messages addressed to
   `PROTOCOL_ADDRESS`. Works for `K`, `D`, `P` and a releasing `U`. Does
-  **not** work for `S`, `X`, `R` — or, since r17, an awarding `U`: their
+  **not** work for `S`, `X` — or, since r17, an awarding `U`: their
   recipient is the counterparty — usually the user's own other address — so
   the fee would be money moving between one person's pockets, or in the award's
   case a fee paid to the person being given a name.
