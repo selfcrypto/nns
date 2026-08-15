@@ -9,7 +9,6 @@ import {
   encodeDelegate,
   encodeGovernance,
   encodeOffer,
-  encodeRecovery,
   encodeRegister,
   encodeRenew,
   encodeSetTarget,
@@ -174,7 +173,6 @@ describe('G — register (§6, §7.4)', () => {
       target: ALICE,
       expiry: LAUNCH + 5 + CONSTANTS.TERM_LENGTH,
       status: 'REGISTERED',
-      recovery: null,
       host: '',
     })
     expect(resolve(state, 'kikename')).toBe(ALICE)
@@ -351,9 +349,7 @@ describe('X — transfer ownership (§6, §7.3)', () => {
 
   it('resets dependent state on taking effect (§7.3)', () => {
     step(encodeDelegate({ name: 'kikename', host: 'a.com' }), { sender: ALICE })
-    step(encodeRecovery({ name: 'kikename', recovery: CAROL }), { sender: ALICE })
-    state = advanceTo(state, LAUNCH + CONSTANTS.XFER_TIMELOCK)
-    expect(lookup(state, 'kikename')?.recovery).toBe(CAROL)
+    expect(lookup(state, 'kikename')?.host).toBe('a.com')
 
     const listed = encodeOffer({ name: 'kikename', price: FLOOR, minPrice: FLOOR })
     step(listed, { sender: ALICE, at: LAUNCH + 100_000 })
@@ -361,7 +357,7 @@ describe('X — transfer ownership (§6, §7.3)', () => {
     state = advanceTo(state, LAUNCH + 100_000 + CONSTANTS.XFER_TIMELOCK)
 
     const record = lookup(state, 'kikename')
-    expect(record).toMatchObject({ owner: BOB, target: BOB, recovery: null, host: '' })
+    expect(record).toMatchObject({ owner: BOB, target: BOB, host: '' })
     expect(state.offers.has('kikename')).toBe(false)
     expect(state.transfers.has('kikename')).toBe(false)
   })
@@ -377,24 +373,25 @@ describe('X — transfer ownership (§6, §7.3)', () => {
     expect(lookup(state, 'kikename')?.owner).toBe(CAROL)
   })
 
-  it('gives the recovery address the longer RECOVERY_TIMELOCK', () => {
-    step(encodeRecovery({ name: 'kikename', recovery: CAROL }), { sender: ALICE })
-    state = advanceTo(state, LAUNCH + CONSTANTS.XFER_TIMELOCK)
+  it('gives every X the same XFER_TIMELOCK — there is no second, longer path (r20)', () => {
+    // Through r19 an X from a registered recovery address waited
+    // RECOVERY_TIMELOCK instead. Both the mechanism and the constant are gone,
+    // so a non-owner has no path at all rather than a slower one.
+    const at = LAUNCH + 10
+    expect(step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: CAROL, at }).verdict).toEqual({
+      kind: 'FORFEIT',
+      reason: 'NOT_OWNER',
+    })
 
-    const at = LAUNCH + CONSTANTS.XFER_TIMELOCK
-    step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: CAROL, at })
-
+    step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: ALICE, at })
     state = advanceTo(state, at + CONSTANTS.XFER_TIMELOCK)
-    expect(lookup(state, 'kikename')?.owner).toBe(ALICE)
-
-    state = advanceTo(state, at + CONSTANTS.RECOVERY_TIMELOCK)
-    expect(lookup(state, 'kikename')?.owner).toBe(CAROL)
+    expect(lookup(state, 'kikename')?.owner).toBe(BOB)
   })
 
   it('forfeits an X from a stranger', () => {
     expect(step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: BOB }).verdict).toEqual({
       kind: 'FORFEIT',
-      reason: 'NOT_OWNER_OR_RECOVERY',
+      reason: 'NOT_OWNER',
     })
   })
 })
@@ -410,16 +407,19 @@ describe('K — cancel (§6)', () => {
     expect(lookup(state, 'kikename')?.owner).toBe(ALICE)
   })
 
-  it('lets the recovery address veto, which is what the timelock is for', () => {
-    step(encodeRecovery({ name: 'kikename', recovery: CAROL }), { sender: ALICE })
+  it('is owner-only: nobody else can veto (r20)', () => {
+    // Through r19 a registered recovery address could K too. That is the
+    // mechanism r20 removed — the owner key could delete a recovery-initiated
+    // X with a bare K at DUST_VALUE, indefinitely, so the veto was never
+    // usable *against* the key it was meant to defend against.
+    step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: ALICE })
+    expect(step(encodeCancel({ name: 'kikename' }), { sender: CAROL, at: LAUNCH + 1 }).verdict).toEqual({
+      kind: 'FORFEIT',
+      reason: 'NOT_OWNER',
+    })
+
     state = advanceTo(state, LAUNCH + CONSTANTS.XFER_TIMELOCK)
-
-    const at = LAUNCH + CONSTANTS.XFER_TIMELOCK
-    step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: ALICE, at })
-    expect(step(encodeCancel({ name: 'kikename' }), { sender: CAROL, at: at + 1 }).verdict.kind).toBe('OK')
-
-    state = advanceTo(state, at + CONSTANTS.XFER_TIMELOCK)
-    expect(lookup(state, 'kikename')?.owner).toBe(ALICE)
+    expect(lookup(state, 'kikename')?.owner).toBe(BOB)
   })
 
   it('cannot withdraw an offer inside OFFER_IRREVOCABLE, and can after', () => {
@@ -502,21 +502,11 @@ describe('ordering of effects that come due at the same height', () => {
     expect(lookup(state, 'kikename')).toMatchObject({ owner: BOB, status: 'GRACE' })
   })
 
-  it('leaves a recovery address null either way, so that pair cannot fork', () => {
-    registerToAlice()
-    step(encodeRecovery({ name: 'kikename', recovery: CAROL }), { sender: ALICE, at: LAUNCH })
-    step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: ALICE, at: LAUNCH })
-
-    state = advanceTo(state, LAUNCH + CONSTANTS.XFER_TIMELOCK)
-    expect(lookup(state, 'kikename')).toMatchObject({ owner: BOB, recovery: null })
-    expect(state.recoveries.has('kikename')).toBe(false)
-  })
-
   it('fires every §7.3 category due at one height, in §7.3 order, before that block’s transactions', () => {
-    // One height with all seven categories due at once. §7.3 fixes the order —
-    // governance, unreserve, maturing X, maturing R, expiry, grace release,
-    // offer expiry — and fixes that the whole batch runs *before* the block's
-    // own transactions, which is what the final `G` here checks.
+    // One height with all six categories due at once. §7.3 fixes the order —
+    // governance, unreserve, maturing X, expiry, grace release, offer expiry —
+    // and fixes that the whole batch runs *before* the block's own
+    // transactions, which is what the final `G` here checks.
     const reserving = config
     const at = (height: number): SendOptions => ({ sender: ALICE, at: height })
     /** `step`, but against the reserving config this one test needs. */
@@ -559,14 +549,12 @@ describe('ordering of effects that come due at the same height', () => {
       { sender: ADMIN, at: notice },
     )
     send1(encodeTransfer({ name: 'expirename', newOwner: BOB }), at(H - CONSTANTS.XFER_TIMELOCK))
-    send1(encodeRecovery({ name: 'offername', recovery: CAROL }), at(H - CONSTANTS.XFER_TIMELOCK))
 
     state = advanceTo(state, H)
 
     expect(state.prices.feeStandard).toBe(FEE * 2n) // governance activated
     expect(state.unreserved.has('binance')).toBe(true) // unreserve activated
     expect(lookup(state, 'expirename')).toMatchObject({ owner: BOB, status: 'GRACE' }) // X before expiry
-    expect(lookup(state, 'offername')?.recovery).toBe(CAROL) // R matured
     expect(lookup(state, 'gracename')).toBeNull() // grace released
     expect(state.offers.has('offername')).toBe(false) // offer expired
 
@@ -618,7 +606,7 @@ describe('O, B and M — the marketplace (§6)', () => {
   it('moves ownership immediately on a winning B, settlement never gating it', () => {
     const result = step(encodeBuy({ name: 'kikename', price: PRICE }), { sender: BOB, at: LAUNCH + 1 })
     expect(result.verdict.kind).toBe('OK')
-    expect(lookup(state, 'kikename')).toMatchObject({ owner: BOB, target: BOB, recovery: null, host: '' })
+    expect(lookup(state, 'kikename')).toMatchObject({ owner: BOB, target: BOB, host: '' })
     expect(state.offers.has('kikename')).toBe(false)
   })
 
@@ -1024,7 +1012,6 @@ describe('U — unreserve (§6)', () => {
       target: BOB,
       expiry: H + CONSTANTS.TERM_LENGTH,
       status: 'REGISTERED',
-      recovery: null,
       host: '',
     })
     expect(resolve(state, 'nq')).toBe(BOB)
@@ -1095,7 +1082,6 @@ describe('U — unreserve (§6)', () => {
       target: BOB,
       expiry: H + CONSTANTS.TERM_LENGTH,
       status: 'REGISTERED',
-      recovery: null,
       host: '',
     })
     expect(resolve(state, 'binance')).toBe(BOB)

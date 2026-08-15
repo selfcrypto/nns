@@ -43,14 +43,12 @@ const RECORD = {
   target: B,
   expiry: 215_880_000,
   status: 'REGISTERED' as const,
-  recovery: null,
   host: '',
 }
 
 const EMPTY_DETAIL: NameDetail = {
   record: null,
   transfer: null,
-  recovery: null,
   offer: null,
   unreserve: null,
   unreserved: false,
@@ -268,9 +266,8 @@ describe('/name', () => {
 
   it('serialises the record and every pending kind, luna as strings', async () => {
     const detail: NameDetail = {
-      record: { ...RECORD, recovery: C, host: 'r.example.com' },
-      transfer: { newOwner: B, effectiveHeight: 58_243_200, viaRecovery: false },
-      recovery: { recovery: null, effectiveHeight: 58_243_200 },
+      record: { ...RECORD, host: 'r.example.com' },
+      transfer: { newOwner: B, effectiveHeight: 58_243_200 },
       offer: OFFER,
       unreserve: null,
       unreserved: false,
@@ -288,12 +285,10 @@ describe('/name', () => {
           target: formatAddress(B),
           expiry: 215_880_000,
           status: 'REGISTERED',
-          recovery: formatAddress(C),
           host: 'r.example.com',
         },
         pending: {
-          transfer: { newOwner: formatAddress(B), effectiveHeight: 58_243_200, viaRecovery: false },
-          recovery: { recovery: null, effectiveHeight: 58_243_200 },
+          transfer: { newOwner: formatAddress(B), effectiveHeight: 58_243_200 },
           offer: {
             name: 'alice-example',
             seller: formatAddress(A),
@@ -426,7 +421,8 @@ function treeOf(records: readonly ApiNameRecord[]): {
  * The `tasks/02-api.md` "done when", as code: rebuild the leaf from the
  * document's own fields and recombine it with the proof — **core only**, no
  * API code anywhere in the path. This is also why the document must carry
- * `recovery`: without it the preimage below cannot be built.
+ * every §8.1 leaf field, `delegate` included: without them the preimage below
+ * cannot be built.
  */
 function verifiesWithCoreAlone(doc: Record<string, unknown>, rootHex0x: string): boolean {
   const record: NameRecord = {
@@ -435,7 +431,6 @@ function verifiesWithCoreAlone(doc: Record<string, unknown>, rootHex0x: string):
     target: parseAddress(doc['target'] as string),
     expiry: doc['expiry'] as number,
     status: doc['status'] as NameStatus,
-    recovery: doc['recovery'] === null ? null : parseAddress(doc['recovery'] as string),
     host: doc['delegate'] as string,
   }
   const steps: ProofStep[] = (doc['proof'] as { hash: string; side: 'left' | 'right' }[]).map((step) => ({
@@ -447,14 +442,14 @@ function verifiesWithCoreAlone(doc: Record<string, unknown>, rootHex0x: string):
 
 describe('/resolve proof (§8.3)', () => {
   const RECORDS: ApiNameRecord[] = [
-    { ...RECORD, name: 'alice-example', recovery: C },
+    { ...RECORD, name: 'alice-example', host: 'r.example.com' },
     { ...RECORD, name: 'middle-name', owner: B, target: A },
     { ...RECORD, name: 'omega-name', status: 'GRACE' },
   ]
 
   it('serves a document that verifies against the checkpoint root using only core', async () => {
     const { rootHex, stub } = treeOf(RECORDS)
-    const handle = routes({ record: () => Promise.resolve(snap({ ...RECORDS[0]!, host: '' })), ...stub })
+    const handle = routes({ record: () => Promise.resolve(snap(RECORDS[0]!)), ...stub })
 
     const response = await handle('GET', '/resolve/alice-example')
     expect(response.status).toBe(200)
@@ -463,8 +458,7 @@ describe('/resolve proof (§8.3)', () => {
       name: 'alice-example',
       owner: formatAddress(A),
       target: formatAddress(B),
-      recovery: formatAddress(C),
-      delegate: '',
+      delegate: 'r.example.com',
       root: `0x${rootHex}`,
       nimiq_height: CHECKPOINT_HEIGHT,
       anchor: null,
@@ -476,7 +470,9 @@ describe('/resolve proof (§8.3)', () => {
     // Tampering with any served field breaks verification — the proof binds
     // the fields, which is the entire point of rebuilding the leaf.
     expect(verifiesWithCoreAlone({ ...doc, owner: formatAddress(B) }, doc['root'] as string)).toBe(false)
-    expect(verifiesWithCoreAlone({ ...doc, recovery: null }, doc['root'] as string)).toBe(false)
+    // A stripped leaf field must break verification too — `delegate` is the
+    // witness for that rule now that r20 removed `recovery` (§8.3).
+    expect(verifiesWithCoreAlone({ ...doc, delegate: '' }, doc['root'] as string)).toBe(false)
   })
 
   it('is null for a name the checkpoint tree does not hold yet (§8.7: depth pending, not an error)', async () => {

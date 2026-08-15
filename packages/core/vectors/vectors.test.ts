@@ -132,9 +132,9 @@ describe('vectors/codec.json', () => {
     expect(() => build(config, testCase, testCase.name, book)).toThrow()
   })
 
-  it('covers all fourteen §6 message types', () => {
+  it('covers all thirteen §6 message types', () => {
     const covered = new Set(file.roundTrip.cases.map((c: any) => c.message.type))
-    expect([...covered].sort()).toEqual(['A', 'B', 'D', 'F', 'G', 'K', 'M', 'N', 'O', 'P', 'R', 'S', 'U', 'X'])
+    expect([...covered].sort()).toEqual(['A', 'B', 'D', 'F', 'G', 'K', 'M', 'N', 'O', 'P', 'S', 'U', 'X'])
   })
 })
 
@@ -340,7 +340,7 @@ describe('vectors/reduce.json', () => {
       for (const [key, value] of Object.entries(fields)) {
         const actual = (record as unknown as Record<string, unknown>)[key]
         expect(actual, `${name}.${key}`).toEqual(
-          key === 'owner' || key === 'target' || key === 'recovery'
+          key === 'owner' || key === 'target'
             ? value === null
               ? null
               : book[value as string]

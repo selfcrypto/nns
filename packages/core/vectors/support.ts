@@ -15,7 +15,6 @@ import {
   encodeDelegate,
   encodeGovernance,
   encodeOffer,
-  encodeRecovery,
   encodeRegister,
   encodeRenew,
   encodeSetTarget,
@@ -101,7 +100,6 @@ export interface BuildSpec {
   ref?: string
   target?: string | null
   newOwner?: string
-  recovery?: string | null
   host?: string
   price?: string
   /** §3 MIN_PRICE for the case. Defaults to FEE_LONG at launch prices. */
@@ -146,8 +144,6 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
       return encodeSetTarget({ name, target: optionalAddress(book, spec.target), ...sender })
     case 'transfer':
       return encodeTransfer({ name, newOwner: address(book, spec.newOwner as string), ...sender })
-    case 'recovery':
-      return encodeRecovery({ name, recovery: optionalAddress(book, spec.recovery), ...sender })
     case 'delegate':
       return encodeDelegate({ name, host: spec.host as string, ...sender })
     case 'cancel':
@@ -207,7 +203,6 @@ export interface VectorRecord {
   target: string
   expiry: number
   status: 'REGISTERED' | 'GRACE'
-  recovery: string | null
   host: string
 }
 
@@ -217,7 +212,6 @@ export const readRecord = (raw: VectorRecord, book: AddressBook): NameRecord => 
   target: address(book, raw.target),
   expiry: raw.expiry,
   status: raw.status,
-  recovery: optionalAddress(book, raw.recovery),
   host: raw.host,
 })
 
@@ -240,8 +234,7 @@ export interface VectorCheckpointState {
   height: number
   prices: VectorPrices
   names?: VectorRecord[]
-  transfers?: Array<{ name: string; newOwner: string; effectiveHeight: number; viaRecovery: boolean }>
-  recoveries?: Array<{ name: string; recovery: string | null; effectiveHeight: number }>
+  transfers?: Array<{ name: string; newOwner: string; effectiveHeight: number }>
   offers?: Array<{ name: string; seller: string; price: string; openedHeight: number; expiryHeight: number }>
   pendingGovernance?: { prices: VectorPrices; effectiveHeight: number } | null
   /** `recipient: null` is a release; an address is the awardee (§6 `U`, r17). */
@@ -271,9 +264,6 @@ export function readCheckpointState(
     names: byName((raw.names ?? []).map((record) => readRecord(record, book))),
     transfers: byName(
       (raw.transfers ?? []).map((item) => ({ ...item, newOwner: address(book, item.newOwner) })),
-    ),
-    recoveries: byName(
-      (raw.recoveries ?? []).map((item) => ({ ...item, recovery: optionalAddress(book, item.recovery) })),
     ),
     offers: byName(
       (raw.offers ?? []).map((item) => ({ ...item, seller: address(book, item.seller), price: BigInt(item.price) })),

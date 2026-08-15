@@ -31,7 +31,6 @@ export const record = (name: string, overrides: Partial<NameRecord> = {}): NameR
   target: address(2),
   expiry: 215_725_374,
   status: 'REGISTERED',
-  recovery: null,
   host: '',
   ...overrides,
 })
@@ -43,7 +42,7 @@ export const treeOf = (records: readonly NameRecord[]): { names: Map<string, Nam
 const hex0x = (bytes: Uint8Array): string =>
   `0x${[...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('')}`
 
-/** §8.3's leaf fields, verbatim. `delegate` is §8.1's host; `recovery` is `null` when unset. */
+/** §8.3's leaf fields, verbatim. `delegate` is §8.1's host, `''` when unset. */
 function leafJson(proof: MerkleProof): Record<string, unknown> {
   return {
     name: proof.record.name,
@@ -51,7 +50,6 @@ function leafJson(proof: MerkleProof): Record<string, unknown> {
     target: formatAddress(proof.record.target),
     expiry: proof.record.expiry,
     status: proof.record.status,
-    recovery: proof.record.recovery === null ? null : formatAddress(proof.record.recovery),
     delegate: proof.record.host,
     leaf_index: proof.index,
     proof: proof.steps.map((step) => ({ hash: hex0x(step.hash), side: step.side })),

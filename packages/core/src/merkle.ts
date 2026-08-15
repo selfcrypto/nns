@@ -7,7 +7,7 @@
  *
  * ```
  * enc  = len(name):u8 ‖ name ‖ owner:20B ‖ target:20B ‖ expiry:u64-BE
- *        ‖ status:u8 ‖ recovery:20B ‖ len(host):u8 ‖ host
+ *        ‖ status:u8 ‖ len(host):u8 ‖ host
  * leaf = keccak256(0x00 ‖ enc)
  * node = keccak256(0x01 ‖ left ‖ right)
  * ```
@@ -39,7 +39,10 @@ const TAG = {
   PRICES: 0x03,
   PENDING: 0x04,
   PENDING_TRANSFER: 0x05,
-  PENDING_RECOVERY: 0x06,
+  // 0x06 was PENDING_RECOVERY through r19. r20 deleted `R`; the tag is retired
+  // and deliberately **not** reused, so an r19 implementation meeting a 0x06 it
+  // no longer expects fails on a tag it knows rather than misreading a
+  // renumbered one (§8.1).
   PENDING_OFFER: 0x07,
   PENDING_GOVERNANCE: 0x08,
   PENDING_UNRESERVE: 0x09,
@@ -134,8 +137,9 @@ export function compareNames(a: string, b: string): number {
 /**
  * The `enc` of §8.1 — the leaf preimage, before hashing.
  *
- * Addresses are the raw 20-byte form, never the `NQ` string. An unset recovery
- * address is 20 zero bytes; an unset host has length 0.
+ * Addresses are the raw 20-byte form, never the `NQ` string; an unset host has
+ * length 0. Through r19 a `recovery:20B` field sat between `status` and the
+ * host — r20 removed it, which is why every root changed.
  */
 export function encodeLeaf(record: NameRecord): Uint8Array {
   return concat([
@@ -144,7 +148,6 @@ export function encodeLeaf(record: NameRecord): Uint8Array {
     addressToBytes(record.target),
     u64be(record.expiry),
     u8(record.status === 'REGISTERED' ? 0x00 : 0x01),
-    record.recovery === null ? ZERO_ADDRESS_BYTES : addressToBytes(record.recovery),
     lengthPrefixed(record.host),
   ])
 }
@@ -339,18 +342,6 @@ export function pendingCommitment(state: NnsState): Uint8Array {
         u8(TAG.PENDING_TRANSFER),
         lengthPrefixed(item.name),
         addressToBytes(item.newOwner),
-        u64be(item.effectiveHeight),
-        u8(item.viaRecovery ? 1 : 0),
-      ]),
-    )
-  }
-
-  for (const item of [...state.recoveries.values()].sort((a, b) => compareNames(a.name, b.name))) {
-    entries.push(
-      concat([
-        u8(TAG.PENDING_RECOVERY),
-        lengthPrefixed(item.name),
-        item.recovery === null ? ZERO_ADDRESS_BYTES : addressToBytes(item.recovery),
         u64be(item.effectiveHeight),
       ]),
     )

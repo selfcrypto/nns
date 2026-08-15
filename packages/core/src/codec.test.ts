@@ -10,7 +10,6 @@ import {
   encodeDelegate,
   encodeGovernance,
   encodeOffer,
-  encodeRecovery,
   encodeRegister,
   encodeRenew,
   encodeSetTarget,
@@ -62,8 +61,6 @@ describe('every message type round-trips encode → parse', () => {
     ['S', encodeSetTarget({ name: 'kikename', target: BOB }), { type: 'S', name: 'kikename' }],
     ['S reset', encodeSetTarget({ name: 'kikename', target: null }), { type: 'S', name: 'kikename' }],
     ['X', encodeTransfer({ name: 'kikename', newOwner: BOB }), { type: 'X', name: 'kikename' }],
-    ['R', encodeRecovery({ name: 'kikename', recovery: BOB }), { type: 'R', name: 'kikename' }],
-    ['R clear', encodeRecovery({ name: 'kikename', recovery: null }), { type: 'R', name: 'kikename' }],
     [
       'D',
       encodeDelegate({ name: 'binance', host: 'nns.binance.com' }),
@@ -146,17 +143,23 @@ describe('routing and value — §5.3, §5.4', () => {
     }
   })
 
-  it('puts the counterparty in the recipient for S, X and R', () => {
+  it('puts the counterparty in the recipient for S and X', () => {
     expect(encodeSetTarget({ name: 'kikename', target: BOB }).recipient).toBe(BOB)
     expect(encodeTransfer({ name: 'kikename', newOwner: BOB }).recipient).toBe(BOB)
-    expect(encodeRecovery({ name: 'kikename', recovery: BOB }).recipient).toBe(BOB)
   })
 
-  it('uses the protocol address as the §5.3 sentinel for the two unsendable operations', () => {
-    // Resetting a target to the owner's own address, and clearing a recovery
-    // address, are both self-transactions — which Nimiq drops silently.
+  it('uses the protocol address as the §5.3 sentinel for the one unsendable operation', () => {
+    // Resetting a target to the owner's own address is a self-transaction,
+    // which Nimiq drops silently. Clearing a recovery address was the second
+    // such operation until r20 removed `R`.
     expect(encodeSetTarget({ name: 'kikename', target: null }).recipient).toBe(PROTOCOL)
-    expect(encodeRecovery({ name: 'kikename', recovery: null }).recipient).toBe(PROTOCOL)
+  })
+
+  it('parses NNS1R as an unknown type — `R` is removed, not reserved (r20)', () => {
+    // The letter is not held open for a future revision: an `R` built by a
+    // pre-r20 client forfeits UNKNOWN_TYPE rather than being silently ignored.
+    const data = Buffer.from('NNS1Rkikename', 'ascii').toString('hex')
+    expect(parse(data)).toEqual({ ok: false, reason: 'UNKNOWN_TYPE' })
   })
 
   it('sends B to the marketplace carrying the price exactly', () => {

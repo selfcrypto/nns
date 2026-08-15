@@ -34,13 +34,13 @@ describe('inclusion', () => {
   it('verifies a leaf carrying every optional field', () => {
     const records = [
       record('alpha'),
-      record('bravo', { recovery: address(7), host: 'nns.binance.com', status: 'GRACE' }),
+      record('bravo', { host: 'nns.binance.com', status: 'GRACE' }),
       record('charlie'),
     ]
     const document = readInclusionDocument(inclusionJson(records, 'bravo'))
     const proven = verifyInclusion(document, 'bravo')
     expect(proven.host).toBe('nns.binance.com')
-    expect(proven.recovery).toBe(address(7))
+    expect(proven.status).toBe('GRACE')
   })
 
   // Each of these is a field the §8.1 leaf encodes. Changing one and keeping
@@ -52,13 +52,16 @@ describe('inclusion', () => {
     ['target', (json) => void (json['target'] = attacker)],
     ['expiry', (json) => void (json['expiry'] = 1)],
     ['status', (json) => void (json['status'] = 'GRACE')],
-    ['recovery stripped', (json) => void (json['recovery'] = null)],
+    // The stripped-field case: `delegate` inherits the witness `recovery` held
+    // until r20 removed it. A leaf field silently dropped from the document
+    // must break verification, or the document stops binding the record (§8.3).
+    ['delegate stripped', (json) => void (json['delegate'] = null)],
     ['delegate', (json) => void (json['delegate'] = 'evil.example')],
   ]
 
   for (const [field, mutate] of tampered) {
     it(`rejects a proof whose ${field} was altered`, () => {
-      const records = [record('alpha'), record('bravo', { recovery: address(9), host: 'ok.example' }), record('charlie')]
+      const records = [record('alpha'), record('bravo', { host: 'ok.example' }), record('charlie')]
       const json = inclusionJson(records, 'bravo')
       mutate(json)
       expect(() => verifyInclusion(readInclusionDocument(json), 'bravo')).toThrow(ProofError)

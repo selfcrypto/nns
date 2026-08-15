@@ -42,11 +42,11 @@ const hex0x = (bytes: Uint8Array): string => `0x${Buffer.from(bytes).toString('h
 /**
  * One proven leaf: the record fields plus its path, §8.3's names.
  *
- * `recovery` is here although §8.3's r16 example omitted it: the §8.1 leaf
- * *encodes* the recovery address, so a client re-deriving the leaf hash from
- * the document's fields cannot do it without one — and a proof whose leaf the
- * verifier cannot rebuild binds nothing. §8.3 was amended in place to carry
- * every §8.1 leaf field; see `docs/decisions.md`.
+ * The document carries **every field the §8.1 leaf encodes**, because a client
+ * re-derives the leaf hash from these fields and a proof whose leaf the
+ * verifier cannot rebuild binds nothing. `delegate` is the field that
+ * witnesses that rule now — `recovery` carried it until r20 deleted the
+ * recovery address. See `docs/decisions.md`.
  */
 function leafDocument(proof: MerkleProof): Record<string, unknown> {
   return {
@@ -55,7 +55,6 @@ function leafDocument(proof: MerkleProof): Record<string, unknown> {
     target: formatAddress(proof.record.target),
     expiry: proof.record.expiry,
     status: proof.record.status,
-    recovery: proof.record.recovery === null ? null : formatAddress(proof.record.recovery),
     delegate: proof.record.host,
     leaf_index: proof.index,
     proof: proof.steps.map((step) => ({ hash: hex0x(step.hash), side: step.side })),

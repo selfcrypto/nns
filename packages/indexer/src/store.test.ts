@@ -30,7 +30,6 @@ import {
   type NameRecord,
   type NnsState,
   type Obligation,
-  type PendingRecovery,
 } from '@nns/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -114,13 +113,9 @@ function populated(base: NnsState): NnsState {
           target: compact(B),
           expiry: 215_880_000,
           status: 'REGISTERED',
-          recovery: compact(C),
           host: 'resolver.example.com',
         },
       ],
-    ]),
-    recoveries: new Map<string, PendingRecovery>([
-      ['alice-example', { name: 'alice-example', recovery: null, effectiveHeight: 58_250_000 }],
     ]),
     outstanding: new Map<string, Obligation[]>([
       [
@@ -278,7 +273,6 @@ describe.skipIf(URL === undefined)('Store', () => {
             target: compact(A),
             expiry: 215_880_000,
             status: 'REGISTERED',
-            recovery: null,
             host: '',
           },
         ],

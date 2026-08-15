@@ -28,25 +28,14 @@ export interface NameRecord {
   /** Height at which `REGISTERED` becomes `GRACE`. */
   readonly expiry: number
   readonly status: NameStatus
-  /** `null` when unset — §8.1 encodes that as 20 zero bytes. */
-  readonly recovery: Address | null
   /** Delegate resolver host, `''` when none (§6 `D`). */
   readonly host: string
 }
 
-/** An `X` awaiting its timelock (§6 `X`). */
+/** An `X` awaiting its `XFER_TIMELOCK` (§6 `X`). */
 export interface PendingTransfer {
   readonly name: string
   readonly newOwner: Address
-  readonly effectiveHeight: number
-  /** Sent by the recovery address, so it waits `RECOVERY_TIMELOCK`, not `XFER_TIMELOCK`. */
-  readonly viaRecovery: boolean
-}
-
-/** An `R` awaiting its timelock. `recovery: null` is a clearing operation. */
-export interface PendingRecovery {
-  readonly name: string
-  readonly recovery: Address | null
   readonly effectiveHeight: number
 }
 
@@ -127,7 +116,6 @@ export interface NnsState {
   readonly height: number
   readonly names: ReadonlyMap<string, NameRecord>
   readonly transfers: ReadonlyMap<string, PendingTransfer>
-  readonly recoveries: ReadonlyMap<string, PendingRecovery>
   readonly offers: ReadonlyMap<string, Offer>
   readonly prices: Prices
   readonly pendingGovernance: PendingGovernance | null
@@ -163,7 +151,6 @@ export function initialState(): NnsState {
     height: CONSTANTS.LAUNCH_HEIGHT,
     names: new Map<string, NameRecord>(),
     transfers: new Map<string, PendingTransfer>(),
-    recoveries: new Map<string, PendingRecovery>(),
     offers: new Map<string, Offer>(),
     prices: LAUNCH_PRICES,
     pendingGovernance: null,

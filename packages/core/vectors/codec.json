@@ -118,36 +118,6 @@
         "value": "1"
       },
       {
-        "id": "R_set_recovery",
-        "text": "NNS1Rkikename",
-        "data": "4e4e5331526b696b656e616d65",
-        "message": {
-          "type": "R",
-          "name": "kikename"
-        },
-        "build": {
-          "builder": "recovery",
-          "recovery": "BOB"
-        },
-        "recipient": "BOB",
-        "value": "1"
-      },
-      {
-        "id": "R_clear_via_sentinel",
-        "text": "NNS1Rkikename",
-        "data": "4e4e5331526b696b656e616d65",
-        "message": {
-          "type": "R",
-          "name": "kikename"
-        },
-        "build": {
-          "builder": "recovery",
-          "recovery": null
-        },
-        "recipient": "PROTOCOL",
-        "value": "1"
-      },
-      {
         "id": "D_spec_example_28_bytes",
         "text": "NNS1Dbinance|nns.binance.com",
         "data": "4e4e53314462696e616e63657c6e6e732e62696e616e63652e636f6d",
@@ -419,6 +389,16 @@
         "id": "lowercase_type_is_unknown",
         "text": "NNS1gkikename",
         "data": "4e4e5331676b696b656e616d65",
+        "result": {
+          "ok": false,
+          "reason": "UNKNOWN_TYPE"
+        }
+      },
+      {
+        "id": "retired_R_is_unknown",
+        "note": "`R` carried the recovery address through r19. r20 removed it and did NOT reserve the letter: an `R` built by a pre-r20 client parses as an unknown type and forfeits (§6, §7.4).",
+        "text": "NNS1Rkikename",
+        "data": "4e4e5331526b696b656e616d65",
         "result": {
           "ok": false,
           "reason": "UNKNOWN_TYPE"

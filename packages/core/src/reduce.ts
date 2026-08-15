@@ -35,7 +35,6 @@ import {
   type Obligation,
   type Offer,
   type PendingGovernance,
-  type PendingRecovery,
   type PendingTransfer,
   type PendingUnreserve,
   type Prices,
@@ -100,7 +99,6 @@ export type ForfeitReason =
   | 'NAME_NOT_REGISTERED'
   | 'NAME_NOT_FOUND'
   | 'NOT_OWNER'
-  | 'NOT_OWNER_OR_RECOVERY'
   | 'INVALID_HOST'
   | 'NOT_ADMIN'
   | 'GOVERNANCE_BOUND_VIOLATED'
@@ -137,7 +135,6 @@ interface Draft {
   height: number
   names: Map<string, NameRecord>
   transfers: Map<string, PendingTransfer>
-  recoveries: Map<string, PendingRecovery>
   offers: Map<string, Offer>
   prices: Prices
   pendingGovernance: PendingGovernance | null
@@ -152,7 +149,6 @@ const draftOf = (state: NnsState): Draft => ({
   height: state.height,
   names: new Map(state.names),
   transfers: new Map(state.transfers),
-  recoveries: new Map(state.recoveries),
   offers: new Map(state.offers),
   prices: state.prices,
   pendingGovernance: state.pendingGovernance,
@@ -178,7 +174,6 @@ function computeNextDue(draft: Draft): number {
   if (draft.pendingGovernance !== null) consider(draft.pendingGovernance.effectiveHeight)
   for (const item of draft.pendingUnreserve.values()) consider(item.effectiveHeight)
   for (const item of draft.transfers.values()) consider(item.effectiveHeight)
-  for (const item of draft.recoveries.values()) consider(item.effectiveHeight)
   for (const item of draft.offers.values()) consider(item.expiryHeight)
   for (const record of draft.names.values()) {
     if (record.status === 'REGISTERED') consider(record.expiry)
@@ -191,8 +186,8 @@ function computeNextDue(draft: Draft): number {
 
 /**
  * §7.3: on a transfer taking effect (`X` after its timelock, or `B`), owner
- * and target both become the new owner, the delegate host and recovery address
- * are cleared, open offers are cancelled, and any pending `X` or `R` is void.
+ * and target both become the new owner, the delegate host is cleared, open
+ * offers are cancelled, and any pending `X` is void.
  *
  * A clean slate is the safe default — in particular the old target must not
  * keep receiving funds sent to the name — and the new owner reconfigures
@@ -201,23 +196,21 @@ function computeNextDue(draft: Draft): number {
 function applyTransfer(draft: Draft, name: string, newOwner: Address): void {
   const record = draft.names.get(name)
   if (record === undefined) return
-  draft.names.set(name, { ...record, owner: newOwner, target: newOwner, recovery: null, host: '' })
+  draft.names.set(name, { ...record, owner: newOwner, target: newOwner, host: '' })
   draft.transfers.delete(name)
-  draft.recoveries.delete(name)
   draft.offers.delete(name)
 }
 
 /**
  * §7.3 on entering `GRACE`: the delegate host is cleared — a lapsed name
- * cannot keep answering for its subdomains — and open offers and pending
- * `X`/`R` are cancelled.
+ * cannot keep answering for its subdomains — and open offers and any pending
+ * `X` are cancelled.
  */
 function enterGrace(draft: Draft, name: string): void {
   const record = draft.names.get(name)
   if (record === undefined) return
   draft.names.set(name, { ...record, status: 'GRACE', host: '' })
   draft.transfers.delete(name)
-  draft.recoveries.delete(name)
   draft.offers.delete(name)
   schedule(draft, record.expiry + CONSTANTS.GRACE_PERIOD)
 }
@@ -226,7 +219,6 @@ function enterGrace(draft: Draft, name: string): void {
 function release(draft: Draft, name: string): void {
   draft.names.delete(name)
   draft.transfers.delete(name)
-  draft.recoveries.delete(name)
   draft.offers.delete(name)
 }
 
@@ -255,20 +247,17 @@ function release(draft: Draft, name: string): void {
  * expiry came due, and because §7.3's grace reset exists to stop a lapsed name
  * answering for subdomains — not to void a transfer already in flight.
  *
- * (`TRANSFER` against `RECOVERY` looks like it should diverge and does not:
- * whichever runs first, the recovery address ends up `null`, because a
- * transfer both clears it and deletes the pending `R`.)
- *
- * Proposed here first, then ratified into §7.3 by spec r15.
+ * Proposed here first, then ratified into §7.3 by spec r15. r20 removed the
+ * `RECOVERY` step along with `R` itself; the remaining steps keep their
+ * relative order, which is the only thing consensus depends on.
  */
 const ORDER = {
   GOVERNANCE: 0,
   UNRESERVE: 1,
   TRANSFER: 2,
-  RECOVERY: 3,
-  EXPIRE: 4,
-  RELEASE: 5,
-  OFFER_EXPIRE: 6,
+  EXPIRE: 3,
+  RELEASE: 4,
+  OFFER_EXPIRE: 5,
 } as const
 
 interface DueEffect {
@@ -308,7 +297,7 @@ function collectDue(draft: Draft, upto: number): DueEffect[] {
         d.unreserved.add(item.name)
         // §7.3: an award additionally creates the REGISTERED record — owner
         // and target the awardee, full TERM_LENGTH from the effective height,
-        // recovery and delegate host unset, nothing pending. A release stops
+        // delegate host unset, nothing pending. A release stops
         // at the line above and the name is AVAILABLE under the normal rules.
         if (pending.recipient !== null) {
           const expiry = pending.effectiveHeight + CONSTANTS.TERM_LENGTH
@@ -318,7 +307,6 @@ function collectDue(draft: Draft, upto: number): DueEffect[] {
             target: pending.recipient,
             expiry,
             status: 'REGISTERED',
-            recovery: null,
             host: '',
           })
         }
@@ -336,23 +324,6 @@ function collectDue(draft: Draft, upto: number): DueEffect[] {
         const pending = d.transfers.get(item.name)
         if (pending === undefined || pending.effectiveHeight > upto) return
         applyTransfer(d, item.name, pending.newOwner)
-      },
-    })
-  }
-
-  for (const item of draft.recoveries.values()) {
-    if (item.effectiveHeight > upto) continue
-    due.push({
-      height: item.effectiveHeight,
-      order: ORDER.RECOVERY,
-      key: item.name,
-      apply: (d) => {
-        const pending = d.recoveries.get(item.name)
-        if (pending === undefined || pending.effectiveHeight > upto) return
-        d.recoveries.delete(item.name)
-        const record = d.names.get(item.name)
-        if (record === undefined) return
-        d.names.set(item.name, { ...record, recovery: pending.recovery })
       },
     })
   }
@@ -589,7 +560,6 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
         target: tx.sender,
         expiry,
         status: 'REGISTERED',
-        recovery: null,
         host: '',
       })
       schedule(draft, expiry)
@@ -616,12 +586,9 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       const record = state.names.get(message.name)
       if (record === undefined || record.status !== 'REGISTERED') return keep(forfeit('NAME_NOT_REGISTERED'))
 
-      const byOwner = addressEquals(record.owner, tx.sender)
-      const byRecovery = record.recovery !== null && addressEquals(record.recovery, tx.sender)
-      if (!byOwner && !byRecovery) return keep(forfeit('NOT_OWNER_OR_RECOVERY'))
+      if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
 
-      const timelock = byOwner ? CONSTANTS.XFER_TIMELOCK : CONSTANTS.RECOVERY_TIMELOCK
-      const effectiveHeight = tx.blockNumber + timelock
+      const effectiveHeight = tx.blockNumber + CONSTANTS.XFER_TIMELOCK
 
       // A second X supersedes the first and restarts the timelock.
       const draft = draftOf(state)
@@ -629,25 +596,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
         name: message.name,
         newOwner: tx.recipient,
         effectiveHeight,
-        viaRecovery: !byOwner,
       })
-      schedule(draft, effectiveHeight)
-      return { state: freeze(draft), verdict: ok() }
-    }
-
-    // ── R — Set recovery address (§6) ────────────────────────────────────────
-    case 'R': {
-      const record = state.names.get(message.name)
-      if (record === undefined || record.status !== 'REGISTERED') return keep(forfeit('NAME_NOT_REGISTERED'))
-      if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
-
-      // Sending to PROTOCOL_ADDRESS clears the recovery address. The r6
-      // wording named the owner's own address, which the network cannot carry.
-      const recovery = addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS) ? null : tx.recipient
-      const effectiveHeight = tx.blockNumber + CONSTANTS.XFER_TIMELOCK
-
-      const draft = draftOf(state)
-      draft.recoveries.set(message.name, { name: message.name, recovery, effectiveHeight })
       schedule(draft, effectiveHeight)
       return { state: freeze(draft), verdict: ok() }
     }
@@ -671,17 +620,14 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       const record = state.names.get(message.name)
       if (record === undefined) return keep(forfeit('NAME_NOT_FOUND'))
 
-      const byOwner = addressEquals(record.owner, tx.sender)
-      const byRecovery = record.recovery !== null && addressEquals(record.recovery, tx.sender)
-      if (!byOwner && !byRecovery) return keep(forfeit('NOT_OWNER_OR_RECOVERY'))
+      if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
 
-      // §6 K vetoes "a pending X or R, or an O past OFFER_IRREVOCABLE — all
+      // §6 K vetoes "a pending X, or an O past OFFER_IRREVOCABLE — all
       // effective on inclusion". Read as: cancel everything currently
       // cancellable. See docs/decisions.md.
       const draft = draftOf(state)
       let cancelled = false
       if (draft.transfers.delete(message.name)) cancelled = true
-      if (draft.recoveries.delete(message.name)) cancelled = true
       const offer = draft.offers.get(message.name)
       if (offer !== undefined && tx.blockNumber >= offer.openedHeight + CONSTANTS.OFFER_IRREVOCABLE) {
         draft.offers.delete(message.name)

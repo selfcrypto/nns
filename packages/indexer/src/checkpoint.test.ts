@@ -320,7 +320,6 @@ describe('the unreserved set is committed — r16 §8.1, tag 0x0A', () => {
       target: compact(A),
       expiry: LAUNCH + 100_000,
       status: 'REGISTERED',
-      recovery: null,
       host: '',
     }
     expect(commit(withName(base, record))).not.toBe(commit(base))

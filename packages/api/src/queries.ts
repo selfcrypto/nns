@@ -32,7 +32,6 @@ export interface ApiNameRecord {
   readonly target: Address
   readonly expiry: number
   readonly status: NameStatus
-  readonly recovery: Address | null
   readonly host: string
 }
 
@@ -48,13 +47,6 @@ export interface ApiOffer {
 export interface ApiPendingTransfer {
   readonly newOwner: Address
   readonly effectiveHeight: number
-  readonly viaRecovery: boolean
-}
-
-/** `recovery: null` is a clearing operation, not an absent field (§6 `R`). */
-export interface ApiPendingRecovery {
-  readonly recovery: Address | null
-  readonly effectiveHeight: number
 }
 
 /** `recipient: null` is a release; an address is an award (§6 `U`, r17). */
@@ -67,7 +59,6 @@ export interface ApiPendingUnreserve {
 export interface NameDetail {
   readonly record: ApiNameRecord | null
   readonly transfer: ApiPendingTransfer | null
-  readonly recovery: ApiPendingRecovery | null
   readonly offer: ApiOffer | null
   readonly unreserve: ApiPendingUnreserve | null
   /** The name's `U` has fired — it is off the reserved list for good. */
@@ -217,7 +208,6 @@ function nameRecord(row: Row): ApiNameRecord {
     target: address(row, 'target'),
     expiry: toHeight(row['expiry'], 'expiry'),
     status: status(row),
-    recovery: nullableAddress(row, 'recovery'),
     host: text(row, 'host'),
   }
 }
@@ -232,7 +222,7 @@ function offer(row: Row): ApiOffer {
   }
 }
 
-const NAME_COLUMNS = 'name, owner, target, expiry, status, recovery, host'
+const NAME_COLUMNS = 'name, owner, target, expiry, status, host'
 
 const CHECKPOINT_COLUMNS =
   'height, layout, name_root, prices_root, pending_root, unreserved_root, log_hash, commitment'
@@ -318,7 +308,7 @@ export class PgQueries implements Queries {
       // and issuing them anyway relies on deprecated internal queueing.
       const names = await client.query(`SELECT ${NAME_COLUMNS} FROM names WHERE name = $1`, [name])
       const pending = await client.query(
-        `SELECT kind, effective_height, new_owner, via_recovery, recovery,
+        `SELECT kind, effective_height, new_owner,
                 seller, price, opened_height, expiry_height, recipient
            FROM pending WHERE name = $1`,
         [name],
@@ -327,7 +317,6 @@ export class PgQueries implements Queries {
 
       const record: Row | undefined = names.rows[0]
       let transfer: ApiPendingTransfer | null = null
-      let recovery: ApiPendingRecovery | null = null
       let openOffer: ApiOffer | null = null
       let unreserve: ApiPendingUnreserve | null = null
 
@@ -336,13 +325,6 @@ export class PgQueries implements Queries {
           case 'TRANSFER':
             transfer = {
               newOwner: address(row, 'new_owner'),
-              effectiveHeight: toHeight(row['effective_height'], 'effective_height'),
-              viaRecovery: row['via_recovery'] === true,
-            }
-            break
-          case 'RECOVERY':
-            recovery = {
-              recovery: nullableAddress(row, 'recovery'),
               effectiveHeight: toHeight(row['effective_height'], 'effective_height'),
             }
             break
@@ -367,7 +349,6 @@ export class PgQueries implements Queries {
       return {
         record: record === undefined ? null : nameRecord(record),
         transfer,
-        recovery,
         offer: openOffer,
         unreserve,
         unreserved: unreserved.rows.length > 0,

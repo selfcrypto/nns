@@ -26,7 +26,6 @@ import {
   type ObligationKind,
   type Offer,
   type PendingGovernance,
-  type PendingRecovery,
   type PendingTransfer,
   type PendingUnreserve,
   type Prices,
@@ -81,22 +80,22 @@ export type NameRow = {
   target: string
   expiry: number
   status: string
-  recovery: string | null
   host: string
 }
 
 // These are type aliases rather than interfaces on purpose: only an alias
 // gets the implicit index signature that lets a row be passed to the generic
 // insert helper without a cast.
-export type PendingKind = 'TRANSFER' | 'RECOVERY' | 'OFFER' | 'GOVERNANCE' | 'UNRESERVE'
+// 'RECOVERY' was a kind through r19. r20 removed `R`; migration 006 drops the
+// column and the rows, so a database that still holds one is a pre-r20 database
+// and must be resynced, not migrated.
+export type PendingKind = 'TRANSFER' | 'OFFER' | 'GOVERNANCE' | 'UNRESERVE'
 
 export type PendingRow = {
   kind: PendingKind
   name: string
   effective_height: number | null
   new_owner: string | null
-  via_recovery: boolean | null
-  recovery: string | null
   // UNRESERVE. NULL is meaningful: a release, not an award (§6 U, r17).
   recipient: string | null
   seller: string | null
@@ -151,8 +150,6 @@ export interface StateRows {
 const emptyPending = {
   effective_height: null,
   new_owner: null,
-  via_recovery: null,
-  recovery: null,
   recipient: null,
   seller: null,
   price: null,
@@ -170,7 +167,6 @@ export function nameRows(state: NnsState): NameRow[] {
     target: record.target,
     expiry: record.expiry,
     status: record.status,
-    recovery: record.recovery,
     host: record.host,
   }))
 }
@@ -184,17 +180,6 @@ export function pendingRows(state: NnsState): PendingRow[] {
       name: item.name,
       effective_height: item.effectiveHeight,
       new_owner: item.newOwner,
-      via_recovery: item.viaRecovery,
-    })
-  }
-  for (const item of state.recoveries.values()) {
-    rows.push({
-      ...emptyPending,
-      kind: 'RECOVERY',
-      name: item.name,
-      effective_height: item.effectiveHeight,
-      // NULL here is a value, not an absence: it is a clearing `R` (§6 R).
-      recovery: item.recovery,
     })
   }
   for (const item of state.offers.values()) {
@@ -286,7 +271,6 @@ function readName(row: NameRow): NameRecord {
     target: toAddress(row.target, 'names.target'),
     expiry: toHeight(row.expiry, 'names.expiry'),
     status: status satisfies NameStatus,
-    recovery: row.recovery === null ? null : toAddress(row.recovery, 'names.recovery'),
     host: toText(row.host, 'names.host'),
   }
 }
@@ -304,7 +288,6 @@ export function stateFromRows(rows: StateRows): NnsState {
   }
 
   const transfers = new Map<string, PendingTransfer>()
-  const recoveries = new Map<string, PendingRecovery>()
   const offers = new Map<string, Offer>()
   const pendingUnreserve = new Map<string, PendingUnreserve>()
   let pendingGovernance: PendingGovernance | null = null
@@ -316,15 +299,6 @@ export function stateFromRows(rows: StateRows): NnsState {
         transfers.set(name, {
           name,
           newOwner: toAddress(required(row.new_owner, 'pending.new_owner'), 'pending.new_owner'),
-          effectiveHeight: toHeight(required(row.effective_height, 'pending.effective_height'), 'pending.effective_height'),
-          viaRecovery: required(row.via_recovery, 'pending.via_recovery'),
-        })
-        break
-      case 'RECOVERY':
-        recoveries.set(name, {
-          name,
-          // NULL survives as null: a clearing `R` is not an absent row.
-          recovery: row.recovery === null ? null : toAddress(row.recovery, 'pending.recovery'),
           effectiveHeight: toHeight(required(row.effective_height, 'pending.effective_height'), 'pending.effective_height'),
         })
         break
@@ -389,7 +363,6 @@ export function stateFromRows(rows: StateRows): NnsState {
     height: toHeight(rows.params.state_height, 'params.state_height'),
     names,
     transfers,
-    recoveries,
     offers,
     prices,
     pendingGovernance,

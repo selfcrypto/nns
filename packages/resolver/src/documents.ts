@@ -68,13 +68,6 @@ function readAddress(source: unknown, path: string, key: string): Address {
   }
 }
 
-/** `null` is a value here — §8.1 encodes an unset recovery address as 20 zero bytes. */
-function readNullableAddress(source: unknown, path: string, key: string): Address | null {
-  const value = field(source, path, key)
-  if (value === null) return null
-  return readAddress(source, path, key)
-}
-
 function readStatus(source: unknown, path: string, key: string): NameStatus {
   const value = readString(source, path, key)
   if (value !== 'REGISTERED' && value !== 'GRACE') {
@@ -158,7 +151,6 @@ function readLeaf(source: unknown, path: string): ProvenLeaf {
       target: readAddress(source, path, 'target'),
       expiry: readCount(source, path, 'expiry'),
       status: readStatus(source, path, 'status'),
-      recovery: readNullableAddress(source, path, 'recovery'),
       host: delegate ?? '',
     },
     index: readCount(source, path, 'leaf_index'),

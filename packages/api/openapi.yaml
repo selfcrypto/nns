@@ -120,7 +120,7 @@ paths:
         '200':
           description: >
             The record (null when unregistered) plus pending items — transfer,
-            recovery change, open offer, pending unreserve — and the reserved
+            open offer, pending unreserve — and the reserved
             / unreserved flags. Served whenever anything is known, including a
             bare reserved-list entry.
           content:
@@ -142,12 +142,10 @@ paths:
                       - type: 'null'
                   pending:
                     type: object
-                    required: [transfer, recovery, offer, unreserve]
+                    required: [transfer, offer, unreserve]
                     properties:
                       transfer:
                         oneOf: [{ $ref: '#/components/schemas/PendingTransfer' }, { type: 'null' }]
-                      recovery:
-                        oneOf: [{ $ref: '#/components/schemas/PendingRecovery' }, { type: 'null' }]
                       offer:
                         oneOf: [{ $ref: '#/components/schemas/Offer' }, { type: 'null' }]
                       unreserve:
@@ -524,30 +522,19 @@ components:
       additionalProperties: true
     NameRecord:
       type: object
-      required: [name, owner, target, expiry, status, recovery, host]
+      required: [name, owner, target, expiry, status, host]
       properties:
         name: { type: string }
         owner: { $ref: '#/components/schemas/Address' }
         target: { $ref: '#/components/schemas/Address' }
         expiry: { $ref: '#/components/schemas/Height' }
         status: { $ref: '#/components/schemas/Status' }
-        recovery:
-          oneOf: [{ $ref: '#/components/schemas/Address' }, { type: 'null' }]
         host: { type: string }
     PendingTransfer:
       type: object
-      required: [newOwner, effectiveHeight, viaRecovery]
+      required: [newOwner, effectiveHeight]
       properties:
         newOwner: { $ref: '#/components/schemas/Address' }
-        effectiveHeight: { $ref: '#/components/schemas/Height' }
-        viaRecovery: { type: boolean }
-    PendingRecovery:
-      type: object
-      required: [recovery, effectiveHeight]
-      properties:
-        recovery:
-          oneOf: [{ $ref: '#/components/schemas/Address' }, { type: 'null' }]
-          description: null clears the recovery address — a value, not an absence (§6 R).
         effectiveHeight: { $ref: '#/components/schemas/Height' }
     PendingUnreserve:
       type: object
@@ -588,18 +575,16 @@ components:
       type: object
       description: >
         One §8.1 leaf with its path. Carries every field the leaf encodes —
-        recovery included, null when unset — because the verifier re-derives
+        delegate included, '' when unset — because the verifier re-derives
         the leaf hash from these fields; omit one and the proof binds
         nothing (§8.3).
-      required: [name, owner, target, expiry, status, recovery, delegate, leaf_index, proof]
+      required: [name, owner, target, expiry, status, delegate, leaf_index, proof]
       properties:
         name: { type: string }
         owner: { $ref: '#/components/schemas/Address' }
         target: { $ref: '#/components/schemas/Address' }
         expiry: { $ref: '#/components/schemas/Height' }
         status: { $ref: '#/components/schemas/Status' }
-        recovery:
-          oneOf: [{ $ref: '#/components/schemas/Address' }, { type: 'null' }]
         delegate:
           type: string
           description: Delegate resolver host, '' when none. §8.3's name for the record's host field.

@@ -35,14 +35,19 @@ export const BURN_ADDRESS: Address = parseAddress(CONSTANTS.BURN_ADDRESS)
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
-export const MESSAGE_TYPES = ['G', 'S', 'X', 'R', 'D', 'K', 'N', 'O', 'B', 'M', 'A', 'P', 'U', 'F'] as const
+/**
+ * `'R'` is absent deliberately. It carried the recovery address through r19;
+ * r20 removed the mechanism, and the letter is **not** reserved — `NNS1R…`
+ * parses as `UNKNOWN_TYPE` and forfeits like any unrecognised type (§7.4).
+ */
+export const MESSAGE_TYPES = ['G', 'S', 'X', 'D', 'K', 'N', 'O', 'B', 'M', 'A', 'P', 'U', 'F'] as const
 
 export type MessageType = (typeof MESSAGE_TYPES)[number]
 
 /**
  * A parsed message. Payload fields only — the transaction's sender, recipient
- * and value live on the transaction, and the reducer combines the two. `S` and
- * `R` in particular carry no target in their payload: the recipient *is* the
+ * and value live on the transaction, and the reducer combines the two. `S` in
+ * particular carries no target in its payload: the recipient *is* the
  * target, which is what puts the destination address in Nimiq Pay's own
  * confirmation dialog (§5.3).
  */
@@ -50,7 +55,6 @@ export type Message =
   | { readonly type: 'G'; readonly name: string; readonly ref: string | null }
   | { readonly type: 'S'; readonly name: string }
   | { readonly type: 'X'; readonly name: string }
-  | { readonly type: 'R'; readonly name: string }
   | { readonly type: 'D'; readonly name: string; readonly host: string }
   | { readonly type: 'K'; readonly name: string }
   | { readonly type: 'N'; readonly name: string }
@@ -211,7 +215,6 @@ export function parse(recipientDataHex: string): ParseResult {
 
     case 'S':
     case 'X':
-    case 'R':
     case 'K':
     case 'N':
     case 'B': {
@@ -387,19 +390,6 @@ export function encodeTransfer(
 ): BuiltTransaction {
   const name = requireName(params.name)
   return build('X', name, params.newOwner, CONSTANTS.DUST_VALUE, params.sender)
-}
-
-/**
- * `R` — Set recovery address (§6). To the recovery address, or to
- * `PROTOCOL_ADDRESS` to clear it. The r6 wording ("send `R` with the owner's
- * own address as recipient") specified an operation the network cannot carry.
- */
-export function encodeRecovery(
-  params: { name: string; recovery: Address | null } & SenderOption,
-): BuiltTransaction {
-  const name = requireName(params.name)
-  const recipient = params.recovery ?? CONSTANTS.PROTOCOL_ADDRESS
-  return build('R', name, recipient, CONSTANTS.DUST_VALUE, params.sender)
 }
 
 /**

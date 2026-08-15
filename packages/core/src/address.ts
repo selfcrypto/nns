@@ -148,7 +148,7 @@ export function formatAddress(address: Address): string {
 
 /**
  * 20 zero bytes — `NQ07 0000 …`, which is both the canonical burn address (§3)
- * and the §8.1 encoding of an unset recovery address.
+ * and the §8.1 encoding of an unset address, used by a releasing pending `U`.
  */
 export const ZERO_ADDRESS: Address = addressFromBytes(new Uint8Array(ADDRESS_BYTES))
 

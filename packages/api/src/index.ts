@@ -6,7 +6,6 @@ export {
   type ApiNameRecord,
   type ApiObligation,
   type ApiOffer,
-  type ApiPendingRecovery,
   type ApiPendingTransfer,
   type ApiPendingUnreserve,
   type BurnAttestation,

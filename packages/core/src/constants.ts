@@ -157,10 +157,14 @@ export const CONSTANTS = Object.freeze({
   GOVERNANCE_DELAY: 43_200,
 
   // ── Timelocks and terms (§6, §10.4) ───────────────────────────────────────
-  /** Veto window for `X` and `R`. ~12 h. */
+  /**
+   * How long a pending `X` waits, and so the window in which the owner can
+   * cancel their own transfer with a `K` (§6 `X`, §6 `K`). ~12 h.
+   *
+   * Guards a mistyped recipient, not a stolen key: `O` + `B` moves a name in
+   * two blocks with no timelock at all (§6 `B`, §2).
+   */
   XFER_TIMELOCK: 43_200,
-  /** Recovery-address reclaim, for an `X` sent by the recovery address. ~3 d. */
-  RECOVERY_TIMELOCK: 259_200,
   /** ~5 y. */
   TERM_LENGTH: 157_680_000,
   /** Resolution off, renewal still allowed. ~90 d. */

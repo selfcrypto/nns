@@ -83,7 +83,6 @@ function serialiseRecord(record: ApiNameRecord): Record<string, unknown> {
     target: formatAddress(record.target),
     expiry: record.expiry,
     status: record.status,
-    recovery: record.recovery === null ? null : formatAddress(record.recovery),
     host: record.host,
   }
 }
@@ -204,7 +203,6 @@ export function createRoutes(queries: Queries): RouteHandler {
     const nothingKnown =
       value.record === null &&
       value.transfer === null &&
-      value.recovery === null &&
       value.offer === null &&
       value.unreserve === null &&
       !isReserved &&
@@ -223,15 +221,6 @@ export function createRoutes(queries: Queries): RouteHandler {
             : {
                 newOwner: formatAddress(value.transfer.newOwner),
                 effectiveHeight: value.transfer.effectiveHeight,
-                viaRecovery: value.transfer.viaRecovery,
-              },
-        recovery:
-          value.recovery === null
-            ? null
-            : {
-                // null clears the recovery address (§6 `R`) — a value, not an absence.
-                recovery: value.recovery.recovery === null ? null : formatAddress(value.recovery.recovery),
-                effectiveHeight: value.recovery.effectiveHeight,
               },
         offer: value.offer === null ? null : serialiseOffer(value.offer),
         unreserve:

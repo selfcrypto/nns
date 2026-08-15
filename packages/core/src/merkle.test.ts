@@ -21,7 +21,7 @@ import {
   verifyProof,
 } from './merkle.js'
 import { type NameRecord, type NnsState, initialState } from './state.js'
-import { ALICE, BOB, CAROL, testConfig } from './test-fixtures.js'
+import { ALICE, BOB, testConfig } from './test-fixtures.js'
 
 const config = testConfig()
 
@@ -30,7 +30,6 @@ const record = (over: Partial<NameRecord> & { name: string }): NameRecord => ({
   target: ALICE,
   expiry: 215_680_000,
   status: 'REGISTERED',
-  recovery: null,
   host: '',
   ...over,
 })
@@ -43,12 +42,12 @@ const stateWith = (...records: NameRecord[]): NnsState =>
 
 describe('§8.1 leaf byte layout', () => {
   it('lays the fields out exactly as the spec writes them', () => {
-    const r = record({ name: 'kike-one', target: BOB, recovery: CAROL, host: 'nns.x.com', status: 'GRACE' })
+    const r = record({ name: 'kike-one', target: BOB, host: 'nns.x.com', status: 'GRACE' })
     const enc = encodeLeaf(r)
 
     // len(name):u8 ‖ name ‖ owner:20 ‖ target:20 ‖ expiry:u64BE ‖ status:u8
-    //   ‖ recovery:20 ‖ len(host):u8 ‖ host
-    expect(enc).toHaveLength(1 + 8 + 20 + 20 + 8 + 1 + 20 + 1 + 9)
+    //   ‖ len(host):u8 ‖ host
+    expect(enc).toHaveLength(1 + 8 + 20 + 20 + 8 + 1 + 1 + 9)
 
     let at = 0
     expect(enc[at++]).toBe(8)
@@ -57,7 +56,6 @@ describe('§8.1 leaf byte layout', () => {
     expect(enc.slice(at, (at += 20))).toEqual(addressToBytes(BOB))
     expect(enc.slice(at, (at += 8))).toEqual(Uint8Array.from([0, 0, 0, 0, 0x0c, 0xdb, 0x04, 0x00])) // 215,680,000
     expect(enc[at++]).toBe(0x01) // GRACE
-    expect(enc.slice(at, (at += 20))).toEqual(addressToBytes(CAROL))
     expect(enc[at++]).toBe(9)
     expect(enc.slice(at)).toEqual(Uint8Array.from([...'nns.x.com'].map((c) => c.charCodeAt(0))))
   })
@@ -65,11 +63,6 @@ describe('§8.1 leaf byte layout', () => {
   it('writes the expiry big-endian', () => {
     const enc = encodeLeaf(record({ name: 'kikename', expiry: 1 }))
     expect(enc.slice(1 + 8 + 40, 1 + 8 + 40 + 8)).toEqual(Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 1]))
-  })
-
-  it('encodes an unset recovery address as 20 zero bytes', () => {
-    const enc = encodeLeaf(record({ name: 'kikename', recovery: null }))
-    expect(enc.slice(1 + 8 + 40 + 8 + 1, 1 + 8 + 40 + 8 + 1 + 20)).toEqual(new Uint8Array(20))
   })
 
   it('encodes an unset host as a zero length prefix and nothing more', () => {
@@ -103,7 +96,6 @@ describe('§8.1 leaf byte layout', () => {
       'host',
       'name',
       'owner',
-      'recovery',
       'status',
       'target',
     ])
@@ -170,7 +162,6 @@ describe('merkleRoot', () => {
       record({ name: 'kikename', target: BOB }),
       record({ name: 'kikename', expiry: base.expiry + 1 }),
       record({ name: 'kikename', status: 'GRACE' }),
-      record({ name: 'kikename', recovery: BOB }),
       record({ name: 'kikename', host: 'a.com' }),
     ]) {
       expect(bytesEqual(merkleRoot(stateWith(variant)), root)).toBe(false)
@@ -283,7 +274,7 @@ describe('checkpoint — §8.1 final clause', () => {
     const withTransfer = Object.freeze({
       ...state,
       transfers: new Map([
-        ['kikename', { name: 'kikename', newOwner: BOB, effectiveHeight: 100, viaRecovery: false }],
+        ['kikename', { name: 'kikename', newOwner: BOB, effectiveHeight: 100 }],
       ]),
     })
     expect(bytesEqual(pendingCommitment(withTransfer), empty)).toBe(false)

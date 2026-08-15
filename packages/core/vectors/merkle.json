@@ -9,7 +9,7 @@
     "CAROL": "NQ19 KSMT HHEJ TYNF J1GK 40NK LHSL C5P7 P24M"
   },
   "leaves": {
-    "description": "enc = len(name):u8 ‖ name ‖ owner:20B ‖ target:20B ‖ expiry:u64-BE ‖ status:u8 ‖ recovery:20B ‖ len(host):u8 ‖ host",
+    "description": "enc = len(name):u8 ‖ name ‖ owner:20B ‖ target:20B ‖ expiry:u64-BE ‖ status:u8 ‖ len(host):u8 ‖ host",
     "cases": [
       {
         "id": "minimal_registered",
@@ -19,12 +19,11 @@
           "target": "ALICE",
           "expiry": 216522720,
           "status": "REGISTERED",
-          "recovery": null,
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000ce7dfe000000000000000000000000000000000000000000000",
-        "leaf": "95e17106fca8d62192f68f9a4d08fa2cf1405b8cf5a0526d13903035cc516ae0",
-        "note": "Unset recovery is 20 zero bytes; unset host is a zero length prefix and nothing more."
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000ce7dfe00000",
+        "leaf": "976515ee4bdd25bd1078ec7e4de3226bae32ee9ef570e0178edd4d8a432ce6c2",
+        "note": "An unset host is a zero length prefix and nothing more. The r19 recovery field sat between status and the host; r20 removed it."
       },
       {
         "id": "full_grace",
@@ -34,11 +33,10 @@
           "target": "BOB",
           "expiry": 216522720,
           "status": "GRACE",
-          "recovery": "CAROL",
           "host": "nns.x.com"
         },
-        "enc": "086b696b652d6f6e655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c596673000000000ce7dfe0019eabb8c5d2dfecf90613202d3a4754616e7b8895096e6e732e782e636f6d",
-        "leaf": "9b8c18a42c015fc7662eeb59d34d3ee1099fe53636169461dd00b91b1f8e4221",
+        "enc": "086b696b652d6f6e655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c596673000000000ce7dfe001096e6e732e782e636f6d",
+        "leaf": "959f0d8455f7772b3cbca3d947b75fce4ecc0c7b993291c1500be818f7fad8ed",
         "note": "status is 0x01 for GRACE, 0x00 for REGISTERED."
       },
       {
@@ -49,11 +47,10 @@
           "target": "ALICE",
           "expiry": 1,
           "status": "REGISTERED",
-          "recovery": null,
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000100000000000000000000000000000000000000000000",
-        "leaf": "ba6c05ef403f34ce107becd98a12d68e56cd118779076728665971bbd81f9fc4"
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a37445100000000000000010000",
+        "leaf": "dae2082a1ac683b4c52a112d1e464e0a7d50383e71f646b11158bb272f95329e"
       },
       {
         "id": "length_prefixes_prevent_collision_a",
@@ -63,11 +60,10 @@
           "target": "ALICE",
           "expiry": 216522720,
           "status": "REGISTERED",
-          "recovery": null,
           "host": "e"
         },
-        "enc": "076b696b656e616d5a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000ce7dfe00000000000000000000000000000000000000000000165",
-        "leaf": "438e9e9d50911f936d2fa0dad3e81c27897d850a9f14fc48c16fc76b90e96ea0",
+        "enc": "076b696b656e616d5a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000ce7dfe0000165",
+        "leaf": "e66bc4f2effe61c340195ce9486c71cf92c2c5146d21de858db00a5db56f64f7",
         "note": "Paired with the next case. Without length prefixes these two distinct states would share an encoding."
       },
       {
@@ -78,11 +74,10 @@
           "target": "ALICE",
           "expiry": 216522720,
           "status": "REGISTERED",
-          "recovery": null,
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000ce7dfe000000000000000000000000000000000000000000000",
-        "leaf": "95e17106fca8d62192f68f9a4d08fa2cf1405b8cf5a0526d13903035cc516ae0"
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000ce7dfe00000",
+        "leaf": "976515ee4bdd25bd1078ec7e4de3226bae32ee9ef570e0178edd4d8a432ce6c2"
       }
     ]
   },
@@ -93,7 +88,6 @@
       "target": "ALICE",
       "expiry": 216522720,
       "status": "REGISTERED",
-      "recovery": null,
       "host": ""
     },
     "cases": [
@@ -107,7 +101,7 @@
         "names": [
           "kikename"
         ],
-        "root": "95e17106fca8d62192f68f9a4d08fa2cf1405b8cf5a0526d13903035cc516ae0"
+        "root": "976515ee4bdd25bd1078ec7e4de3226bae32ee9ef570e0178edd4d8a432ce6c2"
       },
       {
         "id": "two_leaves",
@@ -115,7 +109,7 @@
           "aaaaaname",
           "bbbbbname"
         ],
-        "root": "f06ea9d4fef6e767d10741eb767ec1f602f4855423038f9ac9e38dbebec0c202"
+        "root": "bbee246aa043e2d1599a4ddbe6e0c3d7d6d67bd8f04e9ed61efdb0cba15bbcf4"
       },
       {
         "id": "three_leaves_odd_promotion",
@@ -124,7 +118,7 @@
           "bbbbbname",
           "cccccname"
         ],
-        "root": "74a0ffa9e6430658712f6309a75d73c9cbb56a0dfdb66f69948b2acb0a7f2d99"
+        "root": "a65bf94fdfa76c01c090f39d53b0e318bb04cec485ee1e38912dea9ff75b8ff2"
       },
       {
         "id": "five_leaves",
@@ -135,7 +129,7 @@
           "dddddname",
           "eeeeename"
         ],
-        "root": "4e9ca6d4d21581e55c5b617e38ac64bc6c9e3bb8cb7ccd36e22253d3db227c2b"
+        "root": "b679a225a473f22fb6a47a40f8d780d11d12f676ce658979d7cb7497dcc12eea"
       },
       {
         "id": "insertion_order_does_not_matter",
@@ -144,7 +138,7 @@
           "aaaaaname",
           "bbbbbname"
         ],
-        "root": "74a0ffa9e6430658712f6309a75d73c9cbb56a0dfdb66f69948b2acb0a7f2d99",
+        "root": "a65bf94fdfa76c01c090f39d53b0e318bb04cec485ee1e38912dea9ff75b8ff2",
         "sameRootAs": "three_leaves_odd_promotion"
       },
       {
@@ -157,7 +151,7 @@
             "status": "GRACE"
           }
         },
-        "root": "63d1c2c8b51b7f2ed3a18a2f09688a2b0214ec1c1919d500ccbfae37cd38c513",
+        "root": "8acf909a586e7ab3548b8689a71a2e7e2ebe604a9961ab4be90e0ec477623ece",
         "note": "This is what makes non-inclusion mean AVAILABLE rather than merely not-REGISTERED (§8.1)."
       }
     ]
@@ -295,21 +289,20 @@
               "target": "ALICE",
               "expiry": 216522720,
               "status": "REGISTERED",
-              "recovery": null,
               "host": ""
             }
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "95e17106fca8d62192f68f9a4d08fa2cf1405b8cf5a0526d13903035cc516ae0",
+        "nameRoot": "976515ee4bdd25bd1078ec7e4de3226bae32ee9ef570e0178edd4d8a432ce6c2",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "036907e6cdb0e9c1d273fdfb4e1d8be3332345d22ffd58a9ab975de900948439"
+        "commitment": "7496cd65e085bc0ae22efc86c1a47421a89bd6d60209bb4f5359513cd9816db9"
       },
       {
         "id": "every_pending_category",
-        "note": "One of each: a pending X, a pending R that clears (recovery null → 20 zero bytes), an open O, a pending P and a pending U. Entries are concatenated by category in §8.1's order and bytewise by name inside a category, then hashed once under 0x04.",
+        "note": "One of each: a pending X, an open O, a pending P and a pending U. Tag 0x06 (pending R) is retired, not reused (r20). Entries are concatenated by category in §8.1's order and bytewise by name inside a category, then hashed once under 0x04.",
         "state": {
           "height": 58903520,
           "prices": {
@@ -324,7 +317,6 @@
               "target": "ALICE",
               "expiry": 216522720,
               "status": "REGISTERED",
-              "recovery": null,
               "host": ""
             },
             {
@@ -333,7 +325,6 @@
               "target": "BOB",
               "expiry": 216522720,
               "status": "GRACE",
-              "recovery": null,
               "host": "nns.binance.com"
             }
           ],
@@ -341,20 +332,11 @@
             {
               "name": "othername",
               "newOwner": "CAROL",
-              "effectiveHeight": 58946720,
-              "viaRecovery": false
+              "effectiveHeight": 58946720
             },
             {
               "name": "kikename",
               "newOwner": "BOB",
-              "effectiveHeight": 58946720,
-              "viaRecovery": true
-            }
-          ],
-          "recoveries": [
-            {
-              "name": "kikename",
-              "recovery": null,
               "effectiveHeight": 58946720
             }
           ],
@@ -384,11 +366,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "72666bcb4ecf49c95696f8d41cf56ad8d8ae445032fc80be951f0975da9871dc",
+        "nameRoot": "65b4f96c76097da4b2388464fec7c4e1b2e6461932815278557edb0642b96cae",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
-        "pendingRoot": "b8c05ee23129a7e4d2785ed9350146feac439b146c75d2628e1e2facf4fc987d",
+        "pendingRoot": "76fc6c5e40be77bd7c0700f20f9865e6e81e04399c4595cccf6c082548b9d249",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "471f9fecf20ded70cb1a546a5678dc06e1096f7a83ab060d307fb84e1bfefa9f"
+        "commitment": "25fb0bb3f3f4882aa76f3809cf052f5020f6e42c1fc3ecea26427d3c806067e9"
       },
       {
         "id": "same_names_no_pending_set",
@@ -407,7 +389,6 @@
               "target": "ALICE",
               "expiry": 216522720,
               "status": "REGISTERED",
-              "recovery": null,
               "host": ""
             },
             {
@@ -416,7 +397,6 @@
               "target": "BOB",
               "expiry": 216522720,
               "status": "GRACE",
-              "recovery": null,
               "host": "nns.binance.com"
             }
           ]
@@ -424,11 +404,11 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "every_pending_category",
         "differsFrom": "every_pending_category",
-        "nameRoot": "72666bcb4ecf49c95696f8d41cf56ad8d8ae445032fc80be951f0975da9871dc",
+        "nameRoot": "65b4f96c76097da4b2388464fec7c4e1b2e6461932815278557edb0642b96cae",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "4bee5fd65106cfee58bb7e1d4cf66a805a752e051431ed46a7c6d278e2fab6cb"
+        "commitment": "f6cefffdf2f1e4d3c419a48b18ce5501298b0107bd566ec2ac30c58db136ff90"
       },
       {
         "id": "prices_moved_by_a_P",
@@ -447,7 +427,6 @@
               "target": "ALICE",
               "expiry": 216522720,
               "status": "REGISTERED",
-              "recovery": null,
               "host": ""
             }
           ]
@@ -455,11 +434,11 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "one_name_nothing_pending",
         "differsFrom": "one_name_nothing_pending",
-        "nameRoot": "95e17106fca8d62192f68f9a4d08fa2cf1405b8cf5a0526d13903035cc516ae0",
+        "nameRoot": "976515ee4bdd25bd1078ec7e4de3226bae32ee9ef570e0178edd4d8a432ce6c2",
         "pricesRoot": "f4976fbebd568fcc96ef7b8f3621873f03a9cab0dd40d2733461ceecc1f52b46",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "567d273e37fb58ce366576d05cf8b2ba3fa900fece4d0be71874a2766fdf894f"
+        "commitment": "3cebd02d04843431fc7195bff5ca55a3339f19c2d0b5fde40ed3fb83d3998178"
       },
       {
         "id": "one_fired_unreserve",
@@ -478,7 +457,6 @@
               "target": "ALICE",
               "expiry": 216522720,
               "status": "REGISTERED",
-              "recovery": null,
               "host": ""
             }
           ],
@@ -489,11 +467,11 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "one_name_nothing_pending",
         "differsFrom": "one_name_nothing_pending",
-        "nameRoot": "95e17106fca8d62192f68f9a4d08fa2cf1405b8cf5a0526d13903035cc516ae0",
+        "nameRoot": "976515ee4bdd25bd1078ec7e4de3226bae32ee9ef570e0178edd4d8a432ce6c2",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "621cc735f00f1996b0c525a38267877ef62abc4d46947768578330547026a95c",
-        "commitment": "c5c11b1bb9ba7dca8475c54baa0ad1ee461555d25f2b1ddd77753d15ae377491"
+        "commitment": "539f8832cc9e2c2a5f921e6c6ffd0b02a21e2282dee54a84c8847f40e9033c58"
       },
       {
         "id": "fired_unreserve_is_not_a_pending_one",
@@ -512,7 +490,6 @@
               "target": "ALICE",
               "expiry": 216522720,
               "status": "REGISTERED",
-              "recovery": null,
               "host": ""
             }
           ],
@@ -527,11 +504,11 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "one_fired_unreserve",
         "differsFrom": "one_fired_unreserve",
-        "nameRoot": "95e17106fca8d62192f68f9a4d08fa2cf1405b8cf5a0526d13903035cc516ae0",
+        "nameRoot": "976515ee4bdd25bd1078ec7e4de3226bae32ee9ef570e0178edd4d8a432ce6c2",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
         "pendingRoot": "84f91ce9737241860f992d5e1cf8782253fedf691c7de795c91b97d50f24f21e",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "94323a15f0e9f338301513ddafddc1afef9ebaae6ff78fb2eb6fae0586e535ae"
+        "commitment": "ce9ec694bd968a3dddaa48a6b57e6b20f6d53a8afe8706102e8791e8cd588b26"
       },
       {
         "id": "pending_award_commits_the_awardee",
@@ -550,7 +527,6 @@
               "target": "ALICE",
               "expiry": 216522720,
               "status": "REGISTERED",
-              "recovery": null,
               "host": ""
             }
           ],
@@ -565,11 +541,11 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "fired_unreserve_is_not_a_pending_one",
         "differsFrom": "fired_unreserve_is_not_a_pending_one",
-        "nameRoot": "95e17106fca8d62192f68f9a4d08fa2cf1405b8cf5a0526d13903035cc516ae0",
+        "nameRoot": "976515ee4bdd25bd1078ec7e4de3226bae32ee9ef570e0178edd4d8a432ce6c2",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
         "pendingRoot": "e79c9ca037d2a7218bb43bf517d6e52597555b6295f5cc8fb53253d72d724fef",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "957785e432a5a4117714d8d47f43cb3e6fda08dec7652b75768fdf5950c5ea51"
+        "commitment": "9bbccc11d885426cf1eee5bc2dd0b98e50fb1bf152d5049c31c9bb4575580cdd"
       },
       {
         "id": "unreserved_sorted_bytewise",
@@ -588,7 +564,6 @@
               "target": "ALICE",
               "expiry": 216522720,
               "status": "REGISTERED",
-              "recovery": null,
               "host": ""
             }
           ],
@@ -599,11 +574,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "95e17106fca8d62192f68f9a4d08fa2cf1405b8cf5a0526d13903035cc516ae0",
+        "nameRoot": "976515ee4bdd25bd1078ec7e4de3226bae32ee9ef570e0178edd4d8a432ce6c2",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "f620900b533d87f4d7405b52a351a27baea463cbd828ec6a7a4c4b388898d763",
-        "commitment": "206a58e4e8d6924f080ee7972edb6e9a8bcbd6310101f2d1b92d92d3cf793c9a"
+        "commitment": "ffc10e37c1048a76959153f39c77ea0000fa85d2a91aceedbfd79d3abd26952b"
       },
       {
         "id": "unreserved_authored_unsorted",
@@ -622,7 +597,6 @@
               "target": "ALICE",
               "expiry": 216522720,
               "status": "REGISTERED",
-              "recovery": null,
               "host": ""
             }
           ],
@@ -634,11 +608,11 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameCommitmentAs": "unreserved_sorted_bytewise",
-        "nameRoot": "95e17106fca8d62192f68f9a4d08fa2cf1405b8cf5a0526d13903035cc516ae0",
+        "nameRoot": "976515ee4bdd25bd1078ec7e4de3226bae32ee9ef570e0178edd4d8a432ce6c2",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "f620900b533d87f4d7405b52a351a27baea463cbd828ec6a7a4c4b388898d763",
-        "commitment": "206a58e4e8d6924f080ee7972edb6e9a8bcbd6310101f2d1b92d92d3cf793c9a"
+        "commitment": "ffc10e37c1048a76959153f39c77ea0000fa85d2a91aceedbfd79d3abd26952b"
       },
       {
         "id": "unreserved_length_prefixes_prevent_collision",
@@ -657,7 +631,6 @@
               "target": "ALICE",
               "expiry": 216522720,
               "status": "REGISTERED",
-              "recovery": null,
               "host": ""
             }
           ],
@@ -668,11 +641,11 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "differsFrom": "unreserved_one_joined_name",
-        "nameRoot": "95e17106fca8d62192f68f9a4d08fa2cf1405b8cf5a0526d13903035cc516ae0",
+        "nameRoot": "976515ee4bdd25bd1078ec7e4de3226bae32ee9ef570e0178edd4d8a432ce6c2",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "55d8faceb22e897e1072e0411f03f6df7d395d44eb12c946ea8a8ac307bf14a7",
-        "commitment": "aab37834ff75d23eeb6c40233f37dd77adc02f3499bfdba12e95ed3271cd83d3"
+        "commitment": "3f20fda0fb858ae356b41736fc26c7ae5ce2caf0bc9d59b77b3a83ed769aad1b"
       },
       {
         "id": "unreserved_one_joined_name",
@@ -690,7 +663,6 @@
               "target": "ALICE",
               "expiry": 216522720,
               "status": "REGISTERED",
-              "recovery": null,
               "host": ""
             }
           ],
@@ -699,11 +671,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "95e17106fca8d62192f68f9a4d08fa2cf1405b8cf5a0526d13903035cc516ae0",
+        "nameRoot": "976515ee4bdd25bd1078ec7e4de3226bae32ee9ef570e0178edd4d8a432ce6c2",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "9613428d03a791759f48f9a8f6be65697e3a041ba059fb4acf677bc16db77086",
-        "commitment": "a8d8d2091eb48bb6e2187251e230b654d73fb221759a0b698ce41899a66f0866"
+        "commitment": "3340cde32de824c51cb246a5d9cfd565d80cff20ce215f71386355702474ac72"
       }
     ]
   }

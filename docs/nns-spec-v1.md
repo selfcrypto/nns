@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 19**
+**Protocol specification, v1 draft — revision 20**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -13,6 +13,51 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 
 > **Review status.** Everything marked **OPEN** is undecided or unverified.
 > Everything else reflects decisions already taken.
+
+> **Changes in revision 20 — the recovery address is removed.** One message
+> type deleted, one §3 constant gone, and it moves bytes: the §8.1 name leaf
+> loses a 20-byte field, so **every root changes** and `COMMITMENT_LAYOUT`
+> goes to `4`.
+> - **§6 — `R` is deleted, and with it the recovery address.** The mechanism
+>   did not survive its own threat model. A holder of the owner key — the
+>   party recovery exists to defend against — deletes a pending
+>   recovery-initiated `X` with a bare `K` at `DUST_VALUE`, indefinitely:
+>   `K` cancels everything currently cancellable and takes no account of who
+>   scheduled it. The thief needs **one** unopposed `XFER_TIMELOCK` window;
+>   the recovery holder must win **every** round for `RECOVERY_TIMELOCK` to
+>   ever complete a reclaim. Worse, a second `X` supersedes the first
+>   regardless of sender, and the owner's replacement matures on the shorter
+>   `XFER_TIMELOCK` — so the thief's transfer lands ~215,940 blocks *before*
+>   the recovery attempt it overwrote. Neither is tunable by moving constants:
+>   any ordering that fixes it must let the recovery address outrank the
+>   owner, which is a strictly worse trust model than having no recovery
+>   address at all. Separately, `O` + `B` moves a name in **two blocks** with
+>   no timelock and clears the recovery field outright (§7.3). A protection
+>   that a careful reading of this document defeats is worse than none,
+>   because it is advertised.
+> - **§2 — a lost owner key is a lost name**, stated plainly, as in ENS. The
+>   `X` timelock stays, but it is now scoped honestly: it protects against a
+>   **mistyped recipient**, not against a thief, since `O` + `B` bypasses it.
+> - **§3 — `RECOVERY_TIMELOCK` is gone.** Every `X` waits `XFER_TIMELOCK`.
+> - **§8.1 — the name leaf drops `recovery:20B`, and the pending-recovery
+>   entry (tag `0x06`) is deleted.** The pending-transfer entry (tag `0x05`)
+>   drops its trailing `via_recovery:u8`, which could only ever be `0x00`
+>   now. Tags are **not renumbered**: `0x06` is retired and left as a hole, so
+>   an implementation written against r19 mismatches loudly on a tag it knows
+>   rather than silently on one it thinks it understands.
+> - **§8.3 — the proof document drops `recovery`.** The rule it was added to
+>   demonstrate in r19 is unchanged and still load-bearing: the document
+>   carries *every* field the §8.1 leaf encodes, and `delegate` is now the
+>   field that witnesses it.
+> - **§7.4 — `NOT_OWNER_OR_RECOVERY` collapses into `NOT_OWNER`.** With one
+>   authorised sender there is nothing for the longer token to distinguish.
+> - **§5.3 — one sentinel operation, not two.** Clearing a recovery address
+>   was the second operation that needed `PROTOCOL_ADDRESS` to dodge the
+>   self-transaction rule; only `S` resetting a target to the owner's own
+>   address remains.
+> - **`R` is removed from the wire, not reserved.** `NNS1R…` now takes
+>   `UNKNOWN_TYPE` and forfeits like any unrecognised type. Nothing has
+>   launched, so there is no deployed client to keep a slot for.
 
 > **Changes in revision 19 — the launch freeze, as far as it can go.** Prose
 > only. **No bytes move**: nothing here enters the §8.1 preimage or the §8.2
@@ -624,7 +669,7 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 - [6.2 Front-running: accepted, and why](#62-front-running-accepted-and-why)
 - Message types — referenced by letter (`§6` + the letter), never by number,
   so inserting a type never renumbers the others:
-  [`G` Register](#g--register) · [`S` Set resolution target](#s--set-resolution-target) · [`X` Transfer ownership](#x--transfer-ownership) · [`R` Set recovery address](#r--set-recovery-address) · [`D` Set delegate resolver](#d--set-delegate-resolver) · [`K` Cancel](#k--cancel) · [`N` Renew](#n--renew) · [`O` Offer](#o--offer) · [`B` Buy](#b--buy) · [`A` Auction](#a--auction) · [`M` Settlement](#m--settlement) · [`P` Governance](#p--governance) · [`U` Unreserve](#u--unreserve) · [`F` Burn attestation](#f--burn-attestation)
+  [`G` Register](#g--register) · [`S` Set resolution target](#s--set-resolution-target) · [`X` Transfer ownership](#x--transfer-ownership) · [`D` Set delegate resolver](#d--set-delegate-resolver) · [`K` Cancel](#k--cancel) · [`N` Renew](#n--renew) · [`O` Offer](#o--offer) · [`B` Buy](#b--buy) · [`A` Auction](#a--auction) · [`M` Settlement](#m--settlement) · [`P` Governance](#p--governance) · [`U` Unreserve](#u--unreserve) · [`F` Burn attestation](#f--burn-attestation)
 
 **[7. Indexer rules](#7-indexer-rules)**
 
@@ -735,8 +780,8 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 | Confusable names (digit/letter) | Digits barred between letters, and `0`/`1` barred at either end — the boundary clause adopted in r6 (§4.2) | Accepted residual: confusions needing neither an interior digit nor a leading/trailing `0`/`1` |
 | Confusable names (multigraph) | Rendering (§4.3), identicons, first-use pinning (§8.5) | Accepted residual |
 | Admin key compromise | Governance bounds enforced by every indexer (§10.6); a `U` award reaches only `RESERVED_NAMES`, never a name with an owner, and carries `GOVERNANCE_DELAY` public notice per name (§6 `U`) | Slow, visible, bounded nuisance — plus reserved names given away one announced `U` at a time until the key is disowned |
-| Owner key compromise | `XFER` timelock with owner veto; recovery address (§6 `R`), itself timelocked against thief installation | Unrecoverable if unnoticed past the timelock and no recovery address is set |
-| Mistyped `XFER` recipient | Same timelock + veto | Permanent if unnoticed |
+| **Owner key compromise** | **None. A lost or stolen owner key is a lost name**, as in ENS | Total and immediate: `O` + `B` moves the name in two blocks (§6 `B`), so not even the `X` timelock delays a thief who reads this document. v1 removed the recovery address rather than advertise a defence the owner key itself defeats (r20) |
+| Mistyped `XFER` recipient | `XFER_TIMELOCK` with owner veto via `K` — this, and not key compromise, is what the timelock is for | Permanent if unnoticed within `XFER_TIMELOCK` |
 | Chain reorganisation | State advances only on macro-block-finalised batches | None |
 | Operator disappears | MIT indexer, one-command run, log published to IPFS and addressed from the anchor (§8.2, §9) | Users must switch resolver endpoints; the log survives only while somebody pins it |
 
@@ -874,8 +919,7 @@ NIM figures assume ~$0.0005/NIM.
 | `PRICE_MAX_FACTOR` | 2× | Maximum change per adjustment, either band |
 | `PRICE_MIN_INTERVAL` | 604,800 blocks (~7 d) | Minimum gap between adjustments — tracks up to ~16× per month |
 | `GOVERNANCE_DELAY` | 43,200 blocks (~12 h) | Minimum notice before a change bites |
-| `XFER_TIMELOCK` | 43,200 blocks (~12 h) | Veto window for `X` and `R` |
-| `RECOVERY_TIMELOCK` | 259,200 blocks (~3 d) | Recovery-address reclaim |
+| `XFER_TIMELOCK` | 43,200 blocks (~12 h) | Window in which the owner can cancel their own pending `X` with a `K` (§6). Guards a mistyped recipient, not a thief (§2) |
 | `TERM_LENGTH` | 157,680,000 blocks (~5 y) | See §10.4 |
 | `GRACE_PERIOD` | 7,776,000 blocks (~90 d) | Resolution off, renewal still allowed |
 | `OFFER_IRREVOCABLE` | 8,640 blocks (~2.4 h) | Seller cannot cancel |
@@ -1086,7 +1130,7 @@ Blocks routinely carry several transactions, so this is not a corner case.
 
 | To `TREASURY_ADDRESS` or `PROTOCOL_ADDRESS` | To the counterparty | To `BURN_ADDRESS` |
 |---|---|---|
-| `G` register, `N` renew, `K` cancel, `O` offer, `D` delegate, `A` auction, `P` governance, `U` unreserve *releasing* a name | `S` set, `X` transfer, `R` recovery, `U` unreserve *awarding* a name | `F` burn attestation |
+| `G` register, `N` renew, `K` cancel, `O` offer, `D` delegate, `A` auction, `P` governance, `U` unreserve *releasing* a name | `S` set, `X` transfer, `U` unreserve *awarding* a name | `F` burn attestation |
 
 **`U` is the only type whose recipient chooses what it does.** For every other
 type the recipient is a route: it says where the message belongs and is checked
@@ -1098,10 +1142,11 @@ row. The single address it may not name is `BURN_ADDRESS`.
 **Sender and recipient must differ.** Nimiq rejects self-transactions, and it
 does so *silently*: the RPC accepts the transaction, returns a hash, and the
 network then drops it — no error is surfaced anywhere. Every message type
-must therefore have a recipient that cannot be the sender. Two operations
-would otherwise be unsendable, and both use `PROTOCOL_ADDRESS` as a sentinel
-recipient: `S` resetting a name's target to the owner's own address, and `R`
-clearing the recovery address (§6).
+must therefore have a recipient that cannot be the sender. One operation
+would otherwise be unsendable, and it uses `PROTOCOL_ADDRESS` as a sentinel
+recipient: `S` resetting a name's target to the owner's own address (§6).
+Through r19 there was a second — `R` clearing the recovery address — which
+went with `R` itself.
 
 The same rule bounds the `U` award for free: a `U` is signed by
 `ADMIN_ADDRESS`, so an award *to* `ADMIN_ADDRESS` is a self-transaction and can
@@ -1279,32 +1324,22 @@ NNS1X<name>
 ```
 
 - **To:** the new owner, value `DUST_VALUE`
-- Sender must be the current owner **or the recovery address** (§6 `R`)
+- Sender must be the current owner
 
-Takes effect at `height + XFER_TIMELOCK` — or `height + RECOVERY_TIMELOCK`
-when sent by the recovery address. Until then the name still resolves as
-before and the current owner retains control. A second `X` supersedes the
+Takes effect at `height + XFER_TIMELOCK`. Until then the name still resolves
+as before and the current owner retains control. A second `X` supersedes the
 first and restarts the timelock. On taking effect the transfer resets the
 name's dependent state (§7.3).
 
-### `R` — Set recovery address
-
-```
-NNS1R<name>
-```
-
-- **To:** the recovery address, value `DUST_VALUE`
-- **To clear the recovery address:** send to `PROTOCOL_ADDRESS`. The r6
-  wording ("send `R` with the owner's own address as recipient") specified an
-  operation the network cannot carry (§5.3)
-- Sender must be the current owner
-
-Takes effect at `height + XFER_TIMELOCK` — whether setting, changing, or
-clearing — and is vetoable via `K` by the current owner or the incumbent
-recovery address. The timelock is what stops a key thief from instantly
-installing their own recovery address or stripping the victim's. The
-recovery address may send `K`, and may initiate `X` under
-`RECOVERY_TIMELOCK`.
+**What the timelock is for.** `XFER_TIMELOCK` is the window in which **the
+owner can cancel their own pending transfer** with a `K` (§6 `K`) — a
+second chance on a *mistyped recipient*, nothing more. It is not a defence
+against a stolen key, and must not be described as one: a thief holding the
+owner key does not need `X` at all, because `O` + `B` moves the name in two
+blocks with no timelock (§6 `B`), and the same key sends the only `K` that
+could stop it. §2 states the consequence plainly — a lost owner key is a lost
+name. r20 removed the recovery address rather than keep a mechanism the owner
+key defeats at dust cost.
 
 ### `D` — Set delegate resolver
 
@@ -1338,9 +1373,9 @@ NNS1K<name>
 ```
 
 - **To:** `PROTOCOL_ADDRESS`, value `DUST_VALUE`
-- Sender must be the current owner or the registered recovery address
+- Sender must be the current owner
 
-Vetoes a pending `X` or `R`, or withdraws an `O` past `OFFER_IRREVOCABLE` —
+Vetoes a pending `X`, or withdraws an `O` past `OFFER_IRREVOCABLE` —
 all effective on inclusion, and **a single `K` cancels everything currently
 cancellable** on the name. A `K` with nothing to cancel forfeits with
 `NOTHING_TO_CANCEL`: the value at stake is `DUST_VALUE`, and the log then
@@ -1590,7 +1625,7 @@ cases; the transaction recipient decides what happens at `effective_height`:
 | Recipient | Effect at `effective_height` |
 |---|---|
 | `PROTOCOL_ADDRESS` | **Release.** `name` leaves `RESERVED_NAMES` and is `AVAILABLE` under the normal rules |
-| Any other address | **Award.** `name` leaves `RESERVED_NAMES` and becomes `REGISTERED` to that address: `owner` and `target` both set to it, `expiry = effective_height + TERM_LENGTH`, no recovery address, no delegate host, nothing pending |
+| Any other address | **Award.** `name` leaves `RESERVED_NAMES` and becomes `REGISTERED` to that address: `owner` and `target` both set to it, `expiry = effective_height + TERM_LENGTH`, no delegate host, nothing pending |
 
 Either way the name joins the unreserved set committed to in every checkpoint
 (§8.1). This is the wire mechanism for the release power in §10.6. *Adding* to
@@ -1734,7 +1769,7 @@ almost every test and then commits a root containing an expired name still
 
 Effects due at one height fire **before that block's transactions**, in a
 fixed order: governance activation, unreserve activation, maturing `X`,
-maturing `R`, expiry to `GRACE`, grace release to `AVAILABLE`, offer
+expiry to `GRACE`, grace release to `AVAILABLE`, offer
 expiry — ties within a category bytewise by name. The order is
 consensus-relevant: a maturing `X` colliding with an expiry genuinely
 diverges (transfer-first hands the name over and then places it in `GRACE`;
@@ -1747,7 +1782,7 @@ in flight.
 order applies a released name and an awarded one alike: the name leaves
 `RESERVED_NAMES` and joins the unreserved set (§8.1), and an award additionally
 creates the `REGISTERED` record — `owner` and `target` the awardee,
-`expiry = effective_height + TERM_LENGTH`, recovery and delegate host unset,
+`expiry = effective_height + TERM_LENGTH`, delegate host unset,
 nothing pending. Ties within the step stay bytewise by name.
 
 Because height-driven effects fire **before that block's transactions**, an
@@ -1760,12 +1795,12 @@ doing the work the award was introduced for.
 
 **Dependent-state resets.** When a transfer takes effect (`X` after its
 timelock, or `B`): `owner` and `target` both become the new owner, the
-delegate host and recovery address are cleared, open offers are cancelled,
-and any pending `X` or `R` is void. A clean slate is the safe default — in
+delegate host is cleared, open offers are cancelled, and any pending `X` is
+void. A clean slate is the safe default — in
 particular, the old target must not keep receiving funds sent to the name —
 and the new owner reconfigures explicitly. On entering `GRACE`: the delegate
 host is cleared (a lapsed name cannot keep answering for its subdomains),
-and open offers and pending `X`/`R` are cancelled. On falling to
+and open offers and any pending `X` are cancelled. On falling to
 `AVAILABLE`, all state for the name is cleared.
 
 ### 7.4 Rejection: forfeit versus refund
@@ -1789,8 +1824,7 @@ the message before the race does.
 - `G` whose name is invalid per §4.1 or reserved — checkable offline
 - `G` for a name in `GRACE` — the status and its end height are provable
   from the checkpoint tree (§8.1), so a correct client prevents it
-- `S`, `O`, `D`, `R` from anyone other than the current owner; `X` from
-  anyone other than the current owner or the recovery address
+- `S`, `O`, `D`, `X`, `K` from anyone other than the current owner
 - `O` whose price is below `MIN_PRICE` (§6 `O`). The floor is `FEE_LONG` as
   in effect at that height, and the active prices are committed to in every
   checkpoint (§8.1), so a correct client can prove it before sending. The
@@ -1878,10 +1912,9 @@ against a message of a listed type.
 | `INVALID_NAME` | `G` `U` | Name fails §4.1 rules 2–5 or the rule 1 ceiling. The floor never fires here: a 1–4 character name satisfying rules 2–5 is reserved by rule (§4.1), so a `G` for one takes `RESERVED_NAME` while it is held and is a normal registration once a `U` has released it. Rule 6 is inverted for `U`, since a `U`'s name must be *in* `RESERVED_NAMES` |
 | `RESERVED_NAME` | `G` | Name currently in `RESERVED_NAMES` — on the published list or reserved by rule (§4.1) — and not yet removed from it by a fired `U` |
 | `NAME_IN_GRACE` | `G` | Name exists in `GRACE` |
-| `NAME_NOT_REGISTERED` | `S` `X` `R` `D` `O` | Name absent, expired, or in `GRACE` — these types require `REGISTERED` |
+| `NAME_NOT_REGISTERED` | `S` `X` `D` `O` | Name absent, expired, or in `GRACE` — these types require `REGISTERED` |
 | `NAME_NOT_FOUND` | `K` `N` | Name has no record at all. Distinct from the row above because `K` and `N` are valid against a name in `GRACE` |
-| `NOT_OWNER` | `S` `R` `D` `O` | Sender is not the current owner |
-| `NOT_OWNER_OR_RECOVERY` | `X` `K` | Sender is neither the current owner nor the recovery address |
+| `NOT_OWNER` | `S` `X` `D` `O` `K` | Sender is not the current owner |
 | `INVALID_HOST` | `D` | Host fails any §6 `D` rule: over `MAX_HOST_LEN`, a character outside the §6 `D` alphabet (which is how a scheme is caught — `:` is not in it), or a leading/trailing/consecutive-character rule. Never `MALFORMED_PAYLOAD` — a bad host still splits into fields per §5.2, so the payload parses and the host is judged as content |
 | `NOT_ADMIN` | `P` `U` | Sender is not `ADMIN_ADDRESS` |
 | `INSUFFICIENT_NOTICE` | `P` `U` | `effective_height` less than `GOVERNANCE_DELAY` above the height of the block the message landed in |
@@ -1889,7 +1922,7 @@ against a message of a listed type.
 | `UNRESERVE_PENDING` | `U` | A `U` for this name is already pending and has not reached its `effective_height` (§6 `U`) |
 | `TOO_SOON` | `P` | Less than `PRICE_MIN_INTERVAL` since the last accepted `P` (§10.6) |
 | `GOVERNANCE_BOUND_VIOLATED` | `P` | A §10.6 bound exceeded, measured against the **active** prices |
-| `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no pending `R`, no `O` past `OFFER_IRREVOCABLE` |
+| `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no `O` past `OFFER_IRREVOCABLE` |
 | `BELOW_MIN_PRICE` | `O` | Price below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
 | `AUCTION_NOT_IN_V1` | `A` | Every `A` that survives the recipient check — it precedes every check on the payload, so a below-reserve `A` takes this token rather than `BELOW_MIN_PRICE` (§6 `A`) |
 | `BELOW_REFUND_FLOOR` | `G` `B` | A message that would otherwise be refundable, carrying less than `REFUND_FLOOR`. The only token that crosses columns |
@@ -1928,10 +1961,10 @@ each type runs its rows in this order:
 | Type | Order |
 |---|---|
 | `G` | `INVALID_NAME`, `RESERVED_NAME`, `INSUFFICIENT_VALUE`, `NAME_IN_GRACE`, `LOST_REGISTRATION_RACE` — as fixed above |
-| `S`, `R` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
+| `S` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
 | `D` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `INVALID_HOST` |
-| `X` | `NAME_NOT_REGISTERED`, `NOT_OWNER_OR_RECOVERY` |
-| `K` | `NAME_NOT_FOUND`, `NOT_OWNER_OR_RECOVERY`, `NOTHING_TO_CANCEL` |
+| `X` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
+| `K` | `NAME_NOT_FOUND`, `NOT_OWNER`, `NOTHING_TO_CANCEL` |
 | `N` | `NAME_NOT_FOUND`, `INSUFFICIENT_VALUE` |
 | `O` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE` |
 | `B` | `OFFER_NOT_OPEN`, `WRONG_PRICE` |
@@ -2024,11 +2057,14 @@ The tree itself:
   right)`. The one-byte domain-separation prefixes prevent a crafted leaf
   from being reinterpreted as an internal node (second-preimage hardening)
 - `enc = len(name):u8 ‖ name ‖ owner:20B ‖ target:20B ‖ expiry:u64-BE ‖
-  status:u8 ‖ recovery:20B ‖ len(host):u8 ‖ host`
+  status:u8 ‖ len(host):u8 ‖ host`
   - `name` and `host` are raw ASCII bytes; every variable-length field is
     length-prefixed, so no two distinct states share an encoding
   - Addresses are the raw 20-byte form, never the `NQ` string; an unset
-    recovery address is 20 zero bytes; an unset host has length 0
+    host has length 0
+  - Through r19 a `recovery:20B` field sat between `status` and the host.
+    r20 deleted the recovery address (§6), so it is gone and **every root
+    changes**; `COMMITMENT_LAYOUT` is `4`
   - `status` is `0x00` for `REGISTERED`, `0x01` for `GRACE`
 - Odd nodes promoted unchanged; empty tree → 32 zero bytes
 
@@ -2047,7 +2083,7 @@ Three things beyond the name tree are consensus-relevant state and MUST be
 committed to in the checkpoint alongside it, or independent replays diverge:
 
 - The **active prices and commission rate** (§10.6).
-- The **pending set** — in-flight `X`/`R`, open offers, **and any pending `P`
+- The **pending set** — in-flight `X`, open offers, **and any pending `P`
   or `U`**, each with its effective or expiry height. A pending `P` decides
   what a later registration costs, and a pending `U` whether a name is
   registrable at all and — since r17 — who ends up owning it; they are as
@@ -2094,14 +2130,13 @@ prices     = keccak256(0x03 ‖ fee_standard:u64-BE ‖ fee_long:u64-BE
 ```
 
 The pending set is one entry per pending item, concatenated **in category
-order** — transfers, recoveries, offers, governance, unreserves — and, inside a
+order** — transfers, offers, governance, unreserves — and, inside a
 category, bytewise-lexicographically by name. There is at most one pending `P`,
 and it is the one entry carrying no name.
 
 ```
 transfer   = 0x05 ‖ len(name):u8 ‖ name ‖ new_owner:20B
-                  ‖ effective_height:u64-BE ‖ via_recovery:u8
-recovery   = 0x06 ‖ len(name):u8 ‖ name ‖ recovery:20B ‖ effective_height:u64-BE
+                  ‖ effective_height:u64-BE
 offer      = 0x07 ‖ len(name):u8 ‖ name ‖ seller:20B ‖ price:u64-BE
                   ‖ opened_height:u64-BE ‖ expiry_height:u64-BE
 governance = 0x08 ‖ prices(proposed):32B ‖ effective_height:u64-BE
@@ -2111,15 +2146,18 @@ unreserve  = 0x09 ‖ len(name):u8 ‖ name ‖ recipient:20B
 pending    = keccak256(0x04 ‖ entry₁ ‖ entry₂ ‖ … ‖ entryₙ)
 ```
 
-`via_recovery` is `0x01` when the `X` came from the recovery address — and so
-waits `RECOVERY_TIMELOCK` rather than `XFER_TIMELOCK` — and `0x00` otherwise. A
-pending `R` that *clears* the recovery address commits 20 zero bytes, exactly as
-an unset one does inside a leaf. The pending `P` entry embeds the 32-byte
-`prices` digest of the **proposed** prices rather than their fields.
+**Tag `0x06` is retired, not reused.** It carried the pending-`R` entry
+through r19; r20 deleted `R` (§6) and the transfer entry lost its trailing
+`via_recovery:u8`, which distinguished the two timelocks and can now only be
+one value. The tag is left as a hole deliberately: an implementation written
+against r19 that meets a `0x06` it no longer expects fails on a tag it knows,
+rather than misreading a renumbered one it thinks it understands. The pending
+`P` entry embeds the 32-byte `prices` digest of the **proposed** prices rather
+than their fields.
 
 **A pending `U`'s `recipient` is what makes it a release or an award** (§6
 `U`), and it is committed rather than derived. A release commits **20 zero
-bytes** — the same "unset address" form a clearing `R` uses — and an award
+bytes** — the "unset address" form — and an award
 commits the awardee's 20 bytes. Without it, two indexers that agree a `U` is
 pending and disagree about who the name goes to derive identical checkpoints
 until it fires, which is the shape of hole tag `0x0A` closed in r16, this time
@@ -2313,7 +2351,6 @@ of overclaim §2.1 exists to avoid.
   "target": "NQ...",
   "expiry": 215725374,
   "status": "REGISTERED",
-  "recovery": null,
   "delegate": "nns.binance.com",
   "root": "0x...",
   "nimiq_height": 58060800,
@@ -2332,13 +2369,17 @@ here: §8.1's odd-node promotion makes the tree shape depend on the leaf
 count, so neither a sibling's side nor the promotion points can be recovered
 from the hashes alone.
 
-The document carries **every field the §8.1 leaf encodes** — `recovery`
-included, `null` when unset — because the client re-derives the leaf hash
+The document carries **every field the §8.1 leaf encodes** — `delegate`
+included, `""` when unset — because the client re-derives the leaf hash
 from these fields and recombines it with the proof (§8.5). Omit one and the
 proof stops binding the record: a verifier that cannot rebuild the preimage
 is verifying a hash it was handed, which proves nothing about the fields
-next to it. (`recovery` was missing from this example through r16 — the
-gap was found when the first verification test tried to rebuild a leaf.)
+next to it. This rule has already been broken once: `recovery` was missing
+from this example through r16, and the gap was found when the first
+verification test tried to rebuild a leaf for a record that had one. That
+field is gone with `R` (r20), but the rule it exposed is not — `delegate`
+now carries it, and an implementation must keep a test that strips a leaf
+field and expects verification to fail.
 
 **Non-inclusion** — needed before a user pays to register — is proven by
 returning the two adjacent leaves that lexicographically bracket the queried
@@ -3130,7 +3171,8 @@ Decisions pending:
     (weaker: same party, but survives a single-host compromise)
 
 (Resolved in r6: the `0`/`1` boundary clause was adopted, and the
-recovery-address mechanism is now the `R` message. Resolved in r7: buyer
+recovery-address mechanism became the `R` message — **undone in r20, which
+removed both**. Resolved in r7: buyer
 races are refunded through `MARKETPLACE_ADDRESS` rather than forfeited, and
 `CANCEL_DELAY` was removed along with the problem it patched. Resolved in
 r8: the marketplace takes a governable commission, carried on-chain by `P`.

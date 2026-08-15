@@ -50,10 +50,8 @@ describe('CONSTANTS — §3', () => {
     expect(CONSTANTS.LONG_NAME_LEN).toBeLessThan(CONSTANTS.MAX_NAME_LEN)
   })
 
-  it('makes the recovery timelock strictly longer than the transfer timelock (§6 R, X)', () => {
-    // The recovery path must give a live owner more time to veto than the
-    // ordinary transfer path, or recovery becomes the faster theft route.
-    expect(CONSTANTS.RECOVERY_TIMELOCK).toBeGreaterThan(CONSTANTS.XFER_TIMELOCK)
+  it('has no recovery timelock — `R` was removed in r20', () => {
+    expect(CONSTANTS).not.toHaveProperty('RECOVERY_TIMELOCK')
   })
 
   it('lets an offer be cancelled well before it auto-expires (§6 O)', () => {
@@ -96,7 +94,6 @@ describe('CONSTANTS — §3', () => {
       BASIS_POINTS: 10_000n,
       GOVERNANCE_DELAY: 43_200,
       XFER_TIMELOCK: 43_200,
-      RECOVERY_TIMELOCK: 259_200,
       TERM_LENGTH: 157_680_000,
       GRACE_PERIOD: 7_776_000,
       OFFER_IRREVOCABLE: 8_640,

@@ -78,10 +78,10 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
       ['400000000', '40000000', '250', 58_150_000, HEIGHT, null],
     )
     await pool.query(
-      `INSERT INTO names (name, owner, target, expiry, status, recovery, host)
-       VALUES ('alice-example', $1, $2, 215880000, 'REGISTERED', $3, 'r.example.com'),
-              ('bob-example', $1, $1, 58190000, 'GRACE', NULL, '')`,
-      [A, B, C],
+      `INSERT INTO names (name, owner, target, expiry, status, host)
+       VALUES ('alice-example', $1, $2, 215880000, 'REGISTERED', 'r.example.com'),
+              ('bob-example', $1, $1, 58190000, 'GRACE', '')`,
+      [A, B],
     )
     await pool.query(
       `INSERT INTO pending (kind, name, seller, price, opened_height, expiry_height)
@@ -107,7 +107,6 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
       target: B,
       expiry: 215_880_000,
       status: 'REGISTERED',
-      recovery: C,
       host: 'r.example.com',
     })
     expect((await queries.record('nobody-here')).value).toBeNull()
@@ -132,7 +131,7 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
     const owned = await queries.byOwner(A)
     expect(owned.value.map((r) => r.name)).toEqual(['alice-example', 'bob-example'])
     expect(owned.value[1]?.status).toBe('GRACE')
-    expect(owned.value[1]?.recovery).toBeNull()
+    expect(owned.value[1]?.host).toBe('')
 
     const offers = await queries.offers()
     expect(offers.value).toHaveLength(1)
@@ -158,7 +157,6 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
     expect(detail.value).toEqual({
       record: null,
       transfer: null,
-      recovery: null,
       offer: null,
       unreserve: null,
       unreserved: false,
@@ -176,7 +174,6 @@ const record = (name: string, over: Partial<ApiNameRecord> = {}): ApiNameRecord 
   target: B,
   expiry: 215_880_000,
   status: 'REGISTERED',
-  recovery: null,
   host: '',
   ...over,
 })
@@ -189,7 +186,6 @@ function docVerifies(doc: Record<string, unknown>, rootHex0x: string): boolean {
     target: parseAddress(doc['target'] as string),
     expiry: doc['expiry'] as number,
     status: doc['status'] as NameStatus,
-    recovery: doc['recovery'] === null ? null : parseAddress(doc['recovery'] as string),
     host: doc['delegate'] as string,
   }
   const steps: ProofStep[] = (doc['proof'] as { hash: string; side: 'left' | 'right' }[]).map((step) => ({
@@ -208,7 +204,7 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     await pool.end()
   })
 
-  const treeRecords = [record('alice-example', { recovery: C, host: 'r.example.com' }), record('zeta-name')]
+  const treeRecords = [record('alice-example', { host: 'r.example.com' }), record('zeta-name')]
   const coveredRows: LogRow[] = [
     {
       block_height: 58_190_000,
@@ -253,19 +249,19 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     const filler = Buffer.alloc(32, 7)
     await pool.query(
       `INSERT INTO checkpoints (height, layout, name_root, prices_root, pending_root, unreserved_root, log_hash, commitment)
-       VALUES ($1, 3, $2, $3, $3, $3, $4, $3)`,
+       VALUES ($1, 4, $2, $3, $3, $3, $4, $3)`,
       [CP_HEIGHT, nameRoot, filler, coveredHash],
     )
     for (const r of treeRecords) {
       await pool.query(
-        `INSERT INTO checkpoint_names (height, name, owner, target, expiry, status, recovery, host)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [CP_HEIGHT, r.name, r.owner, r.target, r.expiry, r.status, r.recovery, r.host],
+        `INSERT INTO checkpoint_names (height, name, owner, target, expiry, status, host)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [CP_HEIGHT, r.name, r.owner, r.target, r.expiry, r.status, r.host],
       )
     }
 
     const latest = await queries.latestCheckpoint()
-    expect(latest.value).toMatchObject({ height: CP_HEIGHT, layout: 3, nameRoot: nameRoot.toString('hex') })
+    expect(latest.value).toMatchObject({ height: CP_HEIGHT, layout: 4, nameRoot: nameRoot.toString('hex') })
 
     const base = await queries.proofBase()
     expect(base.value?.records?.size).toBe(2)
@@ -281,7 +277,7 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     expect(byHeight.body).toEqual(latest.body)
 
     const lookup = await queries.checkpointAt(CP_HEIGHT)
-    expect(lookup.value.checkpoint).toMatchObject({ height: CP_HEIGHT, layout: 3 })
+    expect(lookup.value.checkpoint).toMatchObject({ height: CP_HEIGHT, layout: 4 })
     // The bounds query does not run on a hit.
     expect(lookup.value.retained).toBeNull()
   })
@@ -319,7 +315,7 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     const resolved = await handle('GET', '/resolve/alice-example')
     expect(resolved.status).toBe(200)
     const doc = (resolved.body as { proof: Record<string, unknown> }).proof
-    expect(doc).toMatchObject({ nimiq_height: CP_HEIGHT, recovery: 'NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK' })
+    expect(doc).toMatchObject({ nimiq_height: CP_HEIGHT, delegate: 'r.example.com' })
 
     const checkpointRoute = await handle('GET', '/checkpoints/latest')
     const advertised = (checkpointRoute.body as { checkpoint: { nameRoot: string } }).checkpoint.nameRoot
@@ -355,7 +351,7 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     const filler = Buffer.alloc(32, 9)
     await pool.query(
       `INSERT INTO checkpoints (height, layout, name_root, prices_root, pending_root, unreserved_root, log_hash, commitment)
-       VALUES ($1, 3, $2, $2, $2, $2, $2, $2)`,
+       VALUES ($1, 4, $2, $2, $2, $2, $2, $2)`,
       [CP_HEIGHT + 720, filler],
     )
     const base = await queries.proofBase()

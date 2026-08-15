@@ -6,7 +6,6 @@ import {
   type NnsState,
   type Obligation,
   type Offer,
-  type PendingRecovery,
   type PendingTransfer,
   type PendingUnreserve,
 } from '@nns/core'
@@ -28,9 +27,9 @@ const address = (value: string) => parseAddress(value)
 
 /**
  * A state exercising every field that has to survive a restart — including the
- * three that are easy to lose: a null recovery on a name, a *pending* recovery
- * whose null means "clear this" rather than "absent", and an infinite
- * `nextDueHeight` that has no SQL spelling.
+ * two that are easy to lose: a pending `U` whose null recipient means "release"
+ * rather than "absent", and an infinite `nextDueHeight` that has no SQL
+ * spelling.
  */
 function populated(): NnsState {
   const base = initialState()
@@ -46,7 +45,6 @@ function populated(): NnsState {
           target: address(B),
           expiry: 215_880_000,
           status: 'REGISTERED',
-          recovery: address(C),
           host: 'resolver.example.com',
         },
       ],
@@ -58,17 +56,12 @@ function populated(): NnsState {
           target: address(B),
           expiry: 58_100_000,
           status: 'GRACE',
-          recovery: null,
           host: '',
         },
       ],
     ]),
     transfers: new Map<string, PendingTransfer>([
-      ['alice-example', { name: 'alice-example', newOwner: address(D), effectiveHeight: 58_243_200, viaRecovery: true }],
-    ]),
-    recoveries: new Map<string, PendingRecovery>([
-      // recovery: null is a clearing R — not the absence of a pending R.
-      ['bob-in-grace', { name: 'bob-in-grace', recovery: null, effectiveHeight: 58_250_000 }],
+      ['alice-example', { name: 'alice-example', newOwner: address(D), effectiveHeight: 58_243_200 }],
     ]),
     offers: new Map<string, Offer>([
       [
@@ -118,7 +111,6 @@ function normalise(state: NnsState): unknown {
     height: state.height,
     names: [...state.names.entries()].sort(),
     transfers: [...state.transfers.entries()].sort(),
-    recoveries: [...state.recoveries.entries()].sort(),
     offers: [...state.offers.entries()].sort(),
     prices: state.prices,
     pendingGovernance: state.pendingGovernance,
@@ -143,15 +135,12 @@ describe('round trip', () => {
     expect(restored.nextDueHeight).toBe(Number.POSITIVE_INFINITY)
   })
 
-  it('keeps a pending recovery whose value is null', () => {
-    // The one that a naive "NULL means no row" mapping loses: a clearing R is
-    // a pending operation with a null payload, not an absent operation.
+  it('keeps a pending unreserve whose recipient is null', () => {
+    // The one a naive "NULL means no row" mapping loses: a *release* is a
+    // pending operation with a null payload, not an absent operation (§6 `U`).
     const restored = stateFromRows(rowsOf(populated()))
-    expect(restored.recoveries.get('bob-in-grace')).toEqual({
-      name: 'bob-in-grace',
-      recovery: null,
-      effectiveHeight: 58_250_000,
-    })
+    const release = [...restored.pendingUnreserve.values()].find((item) => item.recipient === null)
+    expect(release).toBeDefined()
   })
 
   it('keeps obligation order within one transaction', () => {

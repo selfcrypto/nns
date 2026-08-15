@@ -98,13 +98,17 @@ export class CheckpointError extends Error {
  *   `0x09`) commits its 20-byte `recipient` — zeros for a release, the
  *   awardee for an award — so every commitment over a state with a pending
  *   `U` changed value.
+ * - `4` — r20: the recovery address is gone. The name leaf lost
+ *   `recovery:20B` and the pending-transfer entry lost `via_recovery:u8`, so
+ *   **every** commitment changed value, not only those over some particular
+ *   pending item. Tag `0x06` (pending `R`) is retired and not reused.
  *
  * Each bump changed the value of commitments the earlier function also
  * produced, so rows at different layouts at the same height are not comparable
  * and their difference is not a divergence. This column exists so that stays
  * legible in the data instead of being a mismatch nobody can explain.
  */
-export const COMMITMENT_LAYOUT = 3
+export const COMMITMENT_LAYOUT = 4
 
 /** A checkpoint, as it goes into the `checkpoints` table. `BYTEA` wants `Buffer`. */
 export type CheckpointRow = {

@@ -150,7 +150,6 @@
             "target": "ALICE",
             "expiry": 216522725,
             "status": "REGISTERED",
-            "recovery": null,
             "host": ""
           }
         },
@@ -423,7 +422,7 @@
     },
     {
       "id": "X_waits_the_timelock_then_resets_dependent_state",
-      "note": "§7.3: owner and target both become the new owner, host and recovery are cleared, offers cancelled, pending X/R void.",
+      "note": "§7.3: owner and target both become the new owner, host cleared, offers cancelled, pending X void.",
       "steps": [
         {
           "tx": {
@@ -487,7 +486,6 @@
           "kikename": {
             "owner": "BOB",
             "target": "BOB",
-            "recovery": null,
             "host": ""
           }
         }
@@ -588,7 +586,8 @@
       }
     },
     {
-      "id": "recovery_transfer_uses_the_longer_timelock",
+      "id": "X_from_a_non_owner_forfeits_NOT_OWNER",
+      "note": "r20 removed `R` and the recovery address. There is no second, slower transfer path: an `X` from anyone but the current owner forfeits NOT_OWNER, and the owner's own `X` matures on XFER_TIMELOCK. Replaces r19's recovery_transfer_uses_the_longer_timelock.",
       "steps": [
         {
           "tx": {
@@ -605,35 +604,24 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
-            "txIndex": 1,
-            "sender": "ALICE",
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "CAROL",
             "recipient": "CAROL",
             "value": "1",
-            "text": "NNS1Rkikename"
+            "text": "NNS1Xkikename"
           },
           "verdict": {
-            "kind": "OK"
-          }
-        },
-        {
-          "advanceTo": 58885920
-        },
-        {
-          "check": {
-            "names": {
-              "kikename": {
-                "recovery": "CAROL"
-              }
-            }
+            "kind": "FORFEIT",
+            "reason": "NOT_OWNER"
           }
         },
         {
           "tx": {
-            "blockNumber": 58885920,
+            "blockNumber": 58842722,
             "txIndex": 0,
-            "sender": "CAROL",
-            "recipient": "CAROL",
+            "sender": "ALICE",
+            "recipient": "BOB",
             "value": "1",
             "text": "NNS1Xkikename"
           },
@@ -642,8 +630,8 @@
           }
         },
         {
-          "advanceTo": 58929120,
-          "note": "XFER_TIMELOCK would have matured here"
+          "advanceTo": 58885921,
+          "note": "one block short of XFER_TIMELOCK from 58842722"
         },
         {
           "check": {
@@ -655,14 +643,13 @@
           }
         },
         {
-          "advanceTo": 59145120
+          "advanceTo": 58885922
         }
       ],
       "expect": {
         "names": {
           "kikename": {
-            "owner": "CAROL",
-            "recovery": null
+            "owner": "BOB"
           }
         }
       }
