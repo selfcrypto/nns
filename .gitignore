@@ -4,5 +4,10 @@ dist/
 .env.*
 # The committed shape of a .env. Carries no values, only names and comments.
 !.env.example
+# Refills the .env files from ~/.nns. Operator-local: it encodes one machine's
+# layout of the secret store, so sharing it shares nothing useful and invites
+# somebody to run it against a store that is not theirs. Untracked 2026-08-15;
+# earlier revisions stay in history if it is ever needed back.
+scripts/restore-env.sh
 *.log
 .DS_Store
