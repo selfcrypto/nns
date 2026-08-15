@@ -30,29 +30,17 @@ import {
 import {
   ADMIN_MIN_BALANCE,
   AdminRefusal,
+  NOTICE_MARGIN,
   UsageError,
   formatLuna,
   hours,
+  noticeChecks,
   noticeInWords,
   readBalance,
+  type AdminCheck,
   type AdminRpc,
 } from './cli.js'
 import type { ActiveParams, ParamsSource } from './params.js'
-
-/**
- * Margin this CLI demands *above* `GOVERNANCE_DELAY`, in blocks (~1 h).
- *
- * Notice is the one §10.6 bound that cannot be checked exactly: the reducer
- * measures it from the block the message *lands in*, and this process only
- * knows the head it planned against. An `effective_height` at exactly
- * `head + GOVERNANCE_DELAY` therefore forfeits unless the message is mined in
- * the very next block — the mempool decides, and it is unretractable either
- * way. §6 `P` says clients MUST compute it "with margin above
- * `GOVERNANCE_DELAY`, never from the exact minimum"; this is that margin, and
- * it is a client policy rather than a protocol rule, which is why it lives
- * here and not in `core`.
- */
-export const NOTICE_MARGIN = 3_600
 
 /**
  * How far behind the node the API may be before the plan says so, in blocks
@@ -84,16 +72,8 @@ export interface GovernanceCommand {
   readonly send: boolean
 }
 
-/**
- * `refuse` blocks the broadcast: the message would be forfeited, or would
- * never be mined. `warn` is printed and does not.
- */
-export type CheckSeverity = 'refuse' | 'warn'
-
-export interface GovernanceCheck {
-  readonly severity: CheckSeverity
-  readonly message: string
-}
+/** The shared shape, aliased so `p`'s callers keep their name for it. */
+export type GovernanceCheck = AdminCheck
 
 /** What one `P` would do, checked against the current head and the live parameters. */
 export interface GovernancePlan {
@@ -227,22 +207,10 @@ function check(
   move('fee_standard', active.prices.feeStandard, params.feeStandard)
   move('fee_long', active.prices.feeLong, params.feeLong)
 
-  // §6 `P` notice, plus the margin the mempool makes necessary.
-  const notice = params.effectiveHeight - head
-  if (notice < CONSTANTS.GOVERNANCE_DELAY) {
-    refuse(
-      `§6 P notice: effective height is ${notice} blocks from head ${head}, under GOVERNANCE_DELAY ` +
-        `(${CONSTANTS.GOVERNANCE_DELAY} blocks, ${hours(CONSTANTS.GOVERNANCE_DELAY)}) — ` +
-        'this forfeits INSUFFICIENT_NOTICE even if it is mined in the next block',
-    )
-  } else if (notice < CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN) {
-    refuse(
-      `§6 P notice: effective height is ${notice} blocks from head ${head}, which clears GOVERNANCE_DELAY by ` +
-        `${notice - CONSTANTS.GOVERNANCE_DELAY} blocks. Notice is measured from the block this lands in, not from ` +
-        `now, so it forfeits if it waits longer than that in the mempool — use at least ` +
-        `${head + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN} (${hours(NOTICE_MARGIN)} of margin)`,
-    )
-  }
+  // §6 `P` notice, plus the margin the landing block makes necessary. Shared
+  // with `u` (`cli.ts`): the same bound is measured the same way for both, and
+  // two copies of it would eventually disagree.
+  checks.push(...noticeChecks('P', params.effectiveHeight, head))
 
   // §11.5 rule 1 — an unfunded sender fails by silence, not by error.
   if (balance < cost) {
@@ -278,6 +246,8 @@ export function describeGovernancePlan(plan: GovernancePlan): string[] {
     change('fee_long', active.prices.feeLong, params.feeLong, formatLuna),
     change('commission', active.prices.commissionBp, params.commissionBp, bp),
     `  effective at height ${params.effectiveHeight} — head is ${head}, so ${noticeInWords(params.effectiveHeight, head)}`,
+    `  earliest usable ${head + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN} — GOVERNANCE_DELAY (${CONSTANTS.GOVERNANCE_DELAY}) ` +
+      `plus ${NOTICE_MARGIN} blocks (${hours(NOTICE_MARGIN)}) of landing margin, since notice runs from the block this lands in`,
     `  to            ${formatAddress(plan.recipient)} (PROTOCOL_ADDRESS), value ${formatLuna(plan.value)}, fee 0`,
     `  from          ${formatAddress(plan.sender)} (ADMIN_ADDRESS), balance ${formatLuna(plan.balance)}`,
     `  checked against ${active.url} at height ${active.height} (${head - active.height} blocks behind head):`,

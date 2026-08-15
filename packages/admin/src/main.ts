@@ -20,7 +20,13 @@ import {
   refusals,
 } from './governance.js'
 import { createParamsSource } from './params.js'
-import { broadcastUnreserve, describePlan, parseUnreserveArgs, planUnreserve } from './unreserve.js'
+import {
+  broadcastUnreserve,
+  describePlan,
+  parseUnreserveArgs,
+  planUnreserve,
+  unreserveRefusals,
+} from './unreserve.js'
 
 const USAGE = `usage: p <fee_standard> <fee_long> <commission_bp> <effective-height> [--send]
        u <name> <effective-height> [recipient] [--send]
@@ -35,6 +41,11 @@ u builds a U (§6) and prints what it would do: release the reserved name — th
 transaction goes to PROTOCOL_ADDRESS — or, if a recipient address is given,
 award it to that address at the effective height (r17). BURN_ADDRESS is
 refused.
+
+Both p and u refuse an effective height under GOVERNANCE_DELAY plus a landing
+margin. Notice is measured from the block the message lands in, not from the
+head it was planned against, so the exact minimum forfeits; each plan prints
+the earliest height it will accept.
 
 Both are dry runs; nothing is broadcast without --send. F is not implemented.
 
@@ -102,6 +113,17 @@ async function runUnreserve(argv: readonly string[]): Promise<number> {
   const rpc = rpcFor(settings)
   const plan = await planUnreserve(rpc, settings.config, params)
   for (const line of describePlan(plan)) console.log(line)
+  // A `U` is as unretractable as a `P` (§6 `U`), so a plan that would forfeit
+  // is refused rather than warned about — through r20 this path only warned,
+  // and `--send` broadcast a certain INSUFFICIENT_NOTICE anyway.
+  const blocking = unreserveRefusals(plan)
+  if (blocking.length > 0) {
+    console.error(
+      `refusing: ${blocking.length} check${blocking.length === 1 ? '' : 's'} failed — nothing was sent, and a U that ` +
+        'lands cannot be retracted.',
+    )
+    return 1
+  }
   if (!send) {
     console.log('dry run — nothing was sent. Pass --send to broadcast.')
     return 0

@@ -16,7 +16,15 @@
 
 import { CONSTANTS, encodeUnreserve, formatAddress, parseAddress, type Address, type NnsConfig } from '@nns/core'
 
-import { UsageError, noticeInWords, type AdminRpc } from './cli.js'
+import {
+  NOTICE_MARGIN,
+  UsageError,
+  hours,
+  noticeChecks,
+  noticeInWords,
+  type AdminCheck,
+  type AdminRpc,
+} from './cli.js'
 
 export interface UnreserveParams {
   readonly name: string
@@ -41,6 +49,12 @@ export interface UnreservePlan {
   readonly value: bigint
   /** Chain head at planning time; doubles as the broadcast's `validityStartHeight`. */
   readonly head: number
+  readonly checks: readonly AdminCheck[]
+}
+
+/** The checks that stop a broadcast. Empty means `--send` adds nothing but the send. */
+export function unreserveRefusals(plan: UnreservePlan): readonly AdminCheck[] {
+  return plan.checks.filter((check) => check.severity === 'refuse')
 }
 
 export interface UnreserveOutcome {
@@ -94,13 +108,13 @@ export async function planUnreserve(
     data: tx.data,
     value: tx.value,
     head,
+    checks: noticeChecks('U', params.effectiveHeight, head),
   }
 }
 
 /** The plan as lines for a human to read *before* deciding to `--send`. */
 export function describePlan(plan: UnreservePlan): string[] {
   const { params, kind, recipient, head } = plan
-  const notice = params.effectiveHeight - head
   const when = noticeInWords(params.effectiveHeight, head)
   const lines = [
     `U ${kind}: ${params.name}`,
@@ -108,12 +122,17 @@ export function describePlan(plan: UnreservePlan): string[] {
       ? `  to        ${formatAddress(recipient)} (PROTOCOL_ADDRESS — the name becomes AVAILABLE)`
       : `  to        ${formatAddress(recipient)} (awarded the name, full term, no fee)`,
     `  effective at height ${params.effectiveHeight} — head is ${head}, so ${when}`,
+    `  earliest usable ${head + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN} — GOVERNANCE_DELAY (${CONSTANTS.GOVERNANCE_DELAY}) ` +
+      `plus ${NOTICE_MARGIN} blocks (${hours(NOTICE_MARGIN)}) of landing margin, since notice runs from the block this lands in`,
   ]
-  if (notice < CONSTANTS.GOVERNANCE_DELAY) {
+  if (kind === 'award') {
     lines.push(
-      `  WARNING: notice is under GOVERNANCE_DELAY (${CONSTANTS.GOVERNANCE_DELAY} blocks, ~12 h) — ` +
-        'the reducer will forfeit INSUFFICIENT_NOTICE (§6 U)',
+      `  award term ends ${params.effectiveHeight + CONSTANTS.TERM_LENGTH} — the term is ` +
+        `[${params.effectiveHeight}, ${params.effectiveHeight + CONSTANTS.TERM_LENGTH}), so GRACE begins at the end height (§7.3)`,
     )
+  }
+  for (const { severity, message } of plan.checks) {
+    lines.push(`  ${severity === 'refuse' ? 'REFUSED' : 'WARNING'}: ${message}`)
   }
   return lines
 }

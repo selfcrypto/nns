@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { CONSTANTS, CodecError, LAUNCH_PRICES, defineConfig, encodeGovernance, parseAddress } from '@nns/core'
 
-import { AdminRefusal, UsageError, type AdminRpc } from './cli.js'
+import { AdminRefusal, NOTICE_MARGIN, UsageError, type AdminRpc } from './cli.js'
 import {
-  NOTICE_MARGIN,
   LARGE_MOVE_FACTOR,
   PARAMS_LAG_LIMIT,
   broadcastGovernance,

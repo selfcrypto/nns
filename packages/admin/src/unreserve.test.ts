@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { AddressError, BURN_ADDRESS, CodecError, CONSTANTS, defineConfig, encodeUnreserve, parseAddress } from '@nns/core'
 
-import { UsageError, type AdminRpc } from './cli.js'
+import { NOTICE_MARGIN, UsageError, noticeChecks, type AdminRpc } from './cli.js'
 import {
   broadcastUnreserve,
   describePlan,
   parseUnreserveArgs,
   planUnreserve,
+  unreserveRefusals,
   type UnreservePlan,
 } from './unreserve.js'
 
@@ -66,6 +67,8 @@ describe('planUnreserve', () => {
       data: expected.data,
       value: 1n,
       head: HEAD,
+      // EFFECTIVE is two full GOVERNANCE_DELAYs out, so it clears the margin.
+      checks: [],
     })
     // Planning is read-only: nothing is unlocked, nothing is sent.
     expect(calls.map((c) => c.method)).toEqual(['getBlockNumber'])
@@ -116,6 +119,7 @@ describe('describePlan', () => {
     data: 'irrelevant',
     value: 1n,
     head: HEAD,
+    checks: noticeChecks('U', effectiveHeight, HEAD),
   })
 
   it('says what a release does, where it goes, and when — absolutely and in hours', () => {
@@ -135,15 +139,43 @@ describe('describePlan', () => {
     expect(lines).toContain('NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK')
   })
 
-  it('warns when the notice is under GOVERNANCE_DELAY — the reducer would forfeit', () => {
-    const lines = describePlan(planFor(HEAD + CONSTANTS.GOVERNANCE_DELAY - 1)).join('\n')
-    expect(lines).toContain('INSUFFICIENT_NOTICE')
+  it('refuses when the notice is under GOVERNANCE_DELAY — the reducer would forfeit', () => {
+    const plan = planFor(HEAD + CONSTANTS.GOVERNANCE_DELAY - 1)
+    expect(describePlan(plan).join('\n')).toContain('INSUFFICIENT_NOTICE')
+    expect(unreserveRefusals(plan)).toHaveLength(1)
   })
 
   it('is blunt about an effective height already in the past', () => {
-    const lines = describePlan(planFor(HEAD - 3_600)).join('\n')
+    const plan = planFor(HEAD - 3_600)
+    const lines = describePlan(plan).join('\n')
     expect(lines).toContain('~1.0 h in the PAST')
     expect(lines).toContain('INSUFFICIENT_NOTICE')
+    expect(unreserveRefusals(plan)).toHaveLength(1)
+  })
+
+  it('refuses the exact GOVERNANCE_DELAY minimum, which forfeits unless it lands next block', () => {
+    // Notice runs from the landing block, not from the head this was planned
+    // against, so the exact minimum is a coin flip on inclusion latency — and a
+    // lost flip costs another GOVERNANCE_DELAY, unretractably.
+    const plan = planFor(HEAD + CONSTANTS.GOVERNANCE_DELAY)
+    const refused = unreserveRefusals(plan)
+    expect(refused).toHaveLength(1)
+    expect(refused[0]?.message).toContain(String(HEAD + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN))
+  })
+
+  it('accepts GOVERNANCE_DELAY plus the margin, and prints the earliest height it would take', () => {
+    const plan = planFor(HEAD + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN)
+    expect(unreserveRefusals(plan)).toEqual([])
+    const lines = describePlan(plan).join('\n')
+    expect(lines).toContain(`earliest usable ${HEAD + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN}`)
+    expect(lines).toContain('landing margin')
+    expect(lines).not.toContain('REFUSED')
+  })
+
+  it('states an award’s term as the half-open window §7.3 fixes', () => {
+    const effective = HEAD + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN
+    const lines = describePlan(planFor(effective, BOB)).join('\n')
+    expect(lines).toContain(`[${effective}, ${effective + CONSTANTS.TERM_LENGTH})`)
   })
 })
 
