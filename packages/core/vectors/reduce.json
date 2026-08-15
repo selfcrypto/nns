@@ -804,6 +804,172 @@
       }
     },
     {
+      "id": "a_winning_B_resets_the_dependent_state",
+      "note": "§7.3's dependent-state resets, on the B path — §2 names O + B as the thief's route, which makes this the reset that matters most. The name goes into the sale carrying the full slate: a delegate host, a pending X to CAROL, and the offer itself. The winning B must clear all three in its own block — in particular the host, or the seller keeps directing every subdomain of a name they no longer own, two OK messages deep and unprovable from outside (§8.6 answers carry no proof). The advance past the voided X's maturity is the second half: void means it never fires, not that it fires into a map that forgot it — an implementation clearing the entry but not the schedule hands the name to CAROL at 58885920 with no message and no verdict. The buyer inherits the current expiry unchanged.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Dkikename|a.com"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 2,
+            "sender": "ALICE",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Xkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 3,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Okikename|100000000"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "logLines": 4,
+            "names": {
+              "kikename": {
+                "owner": "ALICE",
+                "host": "a.com",
+                "expiry": 90378720
+              }
+            },
+            "transfers": {
+              "kikename": {
+                "newOwner": "CAROL",
+                "effectiveHeight": 58885920
+              }
+            },
+            "offers": {
+              "kikename": {
+                "seller": "ALICE",
+                "price": "100000000"
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "100000000",
+            "text": "NNS1Bkikename"
+          },
+          "verdict": {
+            "kind": "OK",
+            "obligations": [
+              {
+                "kind": "SALE_PROCEEDS",
+                "owedBy": "MARKETPLACE",
+                "owedTo": "ALICE",
+                "amount": "97500000"
+              },
+              {
+                "kind": "COMMISSION",
+                "owedBy": "MARKETPLACE",
+                "owedTo": "TREASURY",
+                "amount": "2500000"
+              }
+            ]
+          }
+        },
+        {
+          "check": {
+            "label": "sold",
+            "logLines": 5,
+            "names": {
+              "kikename": {
+                "owner": "BOB",
+                "target": "BOB",
+                "host": "",
+                "status": "REGISTERED",
+                "expiry": 90378720
+              }
+            },
+            "transfers": {
+              "kikename": null
+            },
+            "offers": {
+              "kikename": null
+            },
+            "resolves": {
+              "kikename": "BOB"
+            }
+          }
+        },
+        {
+          "advanceTo": 58885920
+        },
+        {
+          "check": {
+            "since": "sold",
+            "changed": [],
+            "logLines": 5,
+            "names": {
+              "kikename": {
+                "owner": "BOB",
+                "target": "BOB"
+              }
+            },
+            "transfers": {
+              "kikename": null
+            }
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "BOB",
+            "target": "BOB",
+            "host": "",
+            "expiry": 90378720
+          }
+        },
+        "resolves": {
+          "kikename": "BOB"
+        },
+        "logLines": 5
+      }
+    },
+    {
       "id": "the_losing_B_is_refunded_not_forfeited",
       "steps": [
         {
@@ -1333,6 +1499,115 @@
       }
     },
     {
+      "id": "a_rejected_P_leaves_the_pending_one_standing",
+      "note": "§6 `P`: only an *accepted* P replaces the pending one — the superseded change never takes effect *because a replacement did*, not because anything else touched it. One rejected P per remaining §7.4 row (NOT_ADMIN from a stranger, INSUFFICIENT_NOTICE and GOVERNANCE_BOUND_VIOLATED from the admin itself) lands while a change is queued; each forfeits and none disturbs the queue. The label/since pair is the assertion that matters: an implementation that clears the pending entry before validating the newcomer — or replaces first and validates second — moves pendingRoot here, and hands any address on the chain a dust-cost veto over governance. GOVERNANCE_DELAY is the whole of what bounds a hostile P since r20 removed the rate limits, so a permissionless cancel is a denial of governance, not a nuisance. The queued change then activates on schedule with its own numbers: every rejected P proposed 300000000, so the final 400000000 also catches a replace-then-forfeit half-write.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P400000000|40000000|250|58929120"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "label": "queued",
+            "logLines": 1,
+            "pendingGovernance": {
+              "effectiveHeight": 58929120
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P300000000|40000000|250|58929122"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOT_ADMIN"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842722,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P300000000|40000000|250|58929121"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "INSUFFICIENT_NOTICE"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842723,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P300000000|40000000|750|58929124"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "GOVERNANCE_BOUND_VIOLATED"
+          }
+        },
+        {
+          "check": {
+            "since": "queued",
+            "changed": [],
+            "logLines": 4,
+            "pendingGovernance": {
+              "effectiveHeight": 58929120
+            }
+          }
+        },
+        {
+          "advanceTo": 58929119
+        },
+        {
+          "check": {
+            "prices": {
+              "feeStandard": "200000000"
+            }
+          }
+        },
+        {
+          "advanceTo": 58929120
+        },
+        {
+          "check": {
+            "prices": {
+              "feeStandard": "400000000"
+            },
+            "pendingGovernance": null
+          }
+        }
+      ],
+      "expect": {
+        "prices": {
+          "feeStandard": "400000000",
+          "feeLong": "40000000",
+          "commissionBp": 250
+        },
+        "logLines": 4
+      }
+    },
+    {
       "id": "auction_is_not_in_v1",
       "note": "By protocol version, not by omission: an implementation that honoured A would derive a different root, so v1 conformance requires this same forfeit. §6 A gives the reserve the same MIN_PRICE floor as an O price, but no A reaches that check in v1 — a below-floor reserve still answers AUCTION_NOT_IN_V1, because a different reason code here would change the log and therefore the checkpoint (§8.2).",
       "steps": [
@@ -1573,6 +1848,219 @@
       ],
       "expect": {
         "names": {}
+      }
+    },
+    {
+      "id": "a_second_U_cannot_touch_a_name_that_now_has_an_owner",
+      "note": "§10.6's ownership line, end to end: two OK verdicts (a U releases nq, a G registers it to ALICE) and then the guarantee itself — a second U trying to award the same name forfeits NAME_NOT_RESERVED and moves no component. The reservation row must consult the FIRED set (§7.4: 'or a U for it has already fired'), not §4.1 membership: nq is short-reserved *by rule* forever, so an implementation reading reservation as membership alone re-validates the second U and hands ALICE's name to CAROL with verdict OK. The label/since pair pins the negative — the forfeiting U changes nameRoot, pendingRoot, pricesRoot and unreservedRoot not at all.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Unq"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gnq"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "label": "owned",
+            "logLines": 2,
+            "unreserved": {
+              "nq": true
+            },
+            "names": {
+              "nq": {
+                "owner": "ALICE",
+                "target": "ALICE",
+                "status": "REGISTERED",
+                "expiry": 90378720
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Unq"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_RESERVED"
+          }
+        },
+        {
+          "check": {
+            "since": "owned",
+            "changed": [],
+            "logLines": 3,
+            "unreserved": {
+              "nq": true
+            },
+            "names": {
+              "nq": {
+                "owner": "ALICE",
+                "target": "ALICE",
+                "status": "REGISTERED",
+                "expiry": 90378720
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "nq": {
+            "owner": "ALICE"
+          }
+        },
+        "resolves": {
+          "nq": "ALICE"
+        }
+      }
+    },
+    {
+      "id": "the_unreserved_set_survives_the_fall_to_AVAILABLE",
+      "note": "§8.1: a name enters the unreserved set in the block its U lands in and never leaves it — the set records a governance act, not the name's status. §7.3: on the fall to AVAILABLE, all state *for the name* is cleared. The two rules constrain the same name on a code path that runs a full term plus grace after the U, with no message and no verdict — the class that has hidden twice. If the clearing takes the unreserved entry with it, a short name silently re-reserves itself: the closing G would forfeit RESERVED_NAME and the closing U would re-validate and award BOB's-to-be name to CAROL. The exhaustive changed lists across expiry and the fall are the height-driven half of the assertion: nameRoot moves at each crossing and unreservedRoot never does.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Unq"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gnq"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "label": "registered",
+            "logLines": 2,
+            "unreserved": {
+              "nq": true
+            },
+            "names": {
+              "nq": {
+                "owner": "ALICE",
+                "status": "REGISTERED",
+                "expiry": 90378720
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 90378720
+        },
+        {
+          "check": {
+            "since": "registered",
+            "changed": ["nameRoot"],
+            "label": "grace",
+            "logLines": 2,
+            "unreserved": {
+              "nq": true
+            },
+            "names": {
+              "nq": {
+                "status": "GRACE"
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 92970720
+        },
+        {
+          "check": {
+            "since": "grace",
+            "changed": ["nameRoot"],
+            "logLines": 2,
+            "absent": ["nq"],
+            "unreserved": {
+              "nq": true
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 92970721,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Unq"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_RESERVED"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 92970721,
+            "txIndex": 1,
+            "sender": "BOB",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gnq"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "nq": {
+            "owner": "BOB",
+            "target": "BOB",
+            "status": "REGISTERED",
+            "expiry": 124506721
+          }
+        },
+        "resolves": {
+          "nq": "BOB"
+        },
+        "logLines": 4
       }
     },
     {
