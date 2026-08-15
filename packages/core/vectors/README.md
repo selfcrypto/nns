@@ -108,6 +108,61 @@ that only advances state when a transaction arrives will pass most of these
 scenarios and produce a wrong root at any checkpoint taken during a quiet
 stretch.
 
+A `check` reads the state at that point. Beyond `names`, `resolves` and
+`prices` it may carry `absent`, `height`, `transfers`, `offers`,
+`pendingUnreserve`, `pendingGovernance`, `unreserved` and `logLines`; a `null`
+value in any of the pending maps asserts the entry is **gone**, which is what
+a scheduled effect firing actually looks like. Two more fields exist for the
+boundary scenarios below:
+
+- **`label`** snapshots the four §8.1 component digests — `nameRoot`,
+  `pricesRoot`, `pendingRoot`, `unreservedRoot`. That is the commitment minus
+  the height and the log hash, on purpose: `commitmentFrom` binds the height,
+  so two checkpoints a block apart differ whether or not anything happened,
+  and comparing whole commitments would prove nothing about a boundary.
+- **`since`** + **`changed`** compares against an earlier label. `changed` is
+  **exhaustive**: every component not named in it MUST be byte-identical.
+
+### The `boundary_*` scenarios — exact firing heights
+
+Seven scenarios, one per §7.3 height-driven effect, each asserting the
+transition at exactly `h` **and its absence at `h-1`**.
+
+They exist because every other way of observing these effects is blind to a
+one-block error. A checkpoint is only taken every `CHECKPOINT_INTERVAL`
+blocks, so "the root differs across the gap" cannot distinguish `h` from
+`h+1`; and none of these effects earns a §7.4 verdict token, so a replay can
+agree with a second implementation on all 27 tokens, produce matching roots at
+every checkpoint, and still fire an effect a block early. Each scenario
+therefore asserts `logLines` on both sides of the crossing as well: **a height
+advance MUST never emit a §8.2 line.**
+
+| Scenario | Fires at | Stated by |
+|---|---|---|
+| `boundary_offer_expires_at_OFFER_MAX_LIFETIME` | `opened + OFFER_MAX_LIFETIME` | §6 `O` "auto-expiring at" |
+| `boundary_transfer_matures_at_XFER_TIMELOCK` | `landing + XFER_TIMELOCK` | §6 `X` "Takes effect at" |
+| `boundary_governance_activates_at_effective_height` | `effective_height` | §6 `P` |
+| `boundary_unreserve_releases_at_effective_height` | `effective_height` | §6 `U`, release row |
+| `boundary_unreserve_awards_at_effective_height` | `effective_height` | §6 `U`, award row |
+| `boundary_expiry_grace_and_the_fall_to_available` | `expiry`, then `expiry + GRACE_PERIOD` | **inferred — see below** |
+| `boundary_renewal_window_closes_with_the_grace_period` | `expiry + GRACE_PERIOD` | same |
+
+Four of these are timed by constants r20 moved — `TERM_LENGTH`,
+`GRACE_PERIOD` and `GOVERNANCE_DELAY` — so what the vectors pin is the
+boundary arithmetic, not the transition.
+
+**The expiry pair is inferred, not stated.** §6 `G` fixes
+`expiry = block_height + TERM_LENGTH` and §7.3 draws
+`REGISTERED ──expiry──▶ GRACE ──+30d──▶ AVAILABLE`, but no clause says whether
+the arrow fires *at* `expiry` or after it. These vectors take the half-open
+reading — the term is `[registration, expiry-1]`, exactly `TERM_LENGTH`
+blocks, and `GRACE` is `[expiry, expiry+GRACE_PERIOD-1]`, exactly
+`GRACE_PERIOD` — because it is the only one under which those constants are
+the lengths §3 calls them, and because it is the same form §6 `X` and §6 `U`
+state outright with "at". §7.3's own same-height collision case (a maturing
+`X` against an expiry) also presumes both are computed that way. It still
+wants one sentence in §7.3; see `docs/decisions.md`.
+
 ## The readings these vectors pin
 
 Each was found while implementing `core`, argued in `docs/decisions.md`, and

@@ -2,7 +2,7 @@
   "vectors": "nns/reduce",
   "version": 1,
   "spec": "nns-spec-v1 draft r20, §7.3, §7.4 and §7.5",
-  "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`) or a bare height advance (`advanceTo`), which is how expiry, timelock maturity and governance activation are driven — none of them is triggered by a message.",
+  "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`), a bare height advance (`advanceTo`), or a `check` against the state at that point. A `check` may also carry `label`, which snapshots the four §8.1 component digests (`nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` — the commitment minus the height and the log hash), and `since` + `changed`, which compares them against an earlier label: every component **not** listed in `changed` MUST be byte-identical. `logLines` is the number of §8.2 lines emitted so far, and a height advance MUST never add one.",
   "addresses": {
     "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
     "PROTOCOL": "NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8",
@@ -1630,6 +1630,750 @@
             "status": "GRACE"
           }
         }
+      }
+    },
+    {
+      "id": "boundary_offer_expires_at_OFFER_MAX_LIFETIME",
+      "note": "§6 `O`: an offer auto-expires *at* `opened_height + OFFER_MAX_LIFETIME`. The crossing moves the pending root and nothing else — the name tree is identical on both sides — so an indexer that published only a name root could not see it at all, and one that fired a block early would agree with everyone on all 27 §7.4 tokens while committing a different pending root for 1,296,000 blocks.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Okikename|100000000"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "label": "opened",
+            "logLines": 2,
+            "height": 58842720,
+            "offers": {
+              "kikename": {
+                "seller": "ALICE",
+                "price": "100000000",
+                "openedHeight": 58842720,
+                "expiryHeight": 60138720
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 60138719,
+          "note": "one block short: the offer is still open"
+        },
+        {
+          "check": {
+            "since": "opened",
+            "changed": [],
+            "logLines": 2,
+            "height": 60138719,
+            "offers": {
+              "kikename": {
+                "expiryHeight": 60138720
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 60138720,
+          "note": "exactly OFFER_MAX_LIFETIME after it opened"
+        },
+        {
+          "check": {
+            "since": "opened",
+            "changed": [
+              "pendingRoot"
+            ],
+            "logLines": 2,
+            "height": 60138720,
+            "offers": {
+              "kikename": null
+            },
+            "names": {
+              "kikename": {
+                "owner": "ALICE",
+                "status": "REGISTERED"
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "logLines": 2
+      }
+    },
+    {
+      "id": "boundary_transfer_matures_at_XFER_TIMELOCK",
+      "note": "§6 `X`: \"Takes effect at `height + XFER_TIMELOCK`\" — measured from the block the `X` landed in, not from the registration. The timelock is the window in which the owner may still cancel with a `K`, so firing a block early shortens the only protection `X` offers.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Xkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "label": "pending",
+            "logLines": 2,
+            "transfers": {
+              "kikename": {
+                "newOwner": "BOB",
+                "effectiveHeight": 58885921
+              }
+            },
+            "names": {
+              "kikename": {
+                "owner": "ALICE",
+                "target": "ALICE"
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 58885920,
+          "note": "one block short: the owner can still cancel"
+        },
+        {
+          "check": {
+            "since": "pending",
+            "changed": [],
+            "logLines": 2,
+            "height": 58885920,
+            "transfers": {
+              "kikename": {
+                "effectiveHeight": 58885921
+              }
+            },
+            "names": {
+              "kikename": {
+                "owner": "ALICE",
+                "target": "ALICE"
+              }
+            },
+            "resolves": {
+              "kikename": "ALICE"
+            }
+          }
+        },
+        {
+          "advanceTo": 58885921,
+          "note": "exactly XFER_TIMELOCK after the X landed"
+        },
+        {
+          "check": {
+            "since": "pending",
+            "changed": [
+              "nameRoot",
+              "pendingRoot"
+            ],
+            "logLines": 2,
+            "height": 58885921,
+            "transfers": {
+              "kikename": null
+            },
+            "names": {
+              "kikename": {
+                "owner": "BOB",
+                "target": "BOB",
+                "host": ""
+              }
+            },
+            "resolves": {
+              "kikename": "BOB"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "logLines": 2
+      }
+    },
+    {
+      "id": "boundary_governance_activates_at_effective_height",
+      "note": "§6 `P`: the change binds *at* `effective_height`, which MUST be at least the landing block + `GOVERNANCE_DELAY` — 86,400 since r20 doubled it. Pinned here with a bare advance rather than by pricing a `G`, so it holds for a quiet stretch with no traffic at all: the prices root and the pending root move together, one dropping the pending `P` as the other adopts it.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P400000000|40000000|250|58929120"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "label": "pending_p",
+            "logLines": 1,
+            "prices": {
+              "feeStandard": "200000000"
+            },
+            "pendingGovernance": {
+              "effectiveHeight": 58929120
+            }
+          }
+        },
+        {
+          "advanceTo": 58929119,
+          "note": "one block short: the old prices still bind"
+        },
+        {
+          "check": {
+            "since": "pending_p",
+            "changed": [],
+            "logLines": 1,
+            "height": 58929119,
+            "prices": {
+              "feeStandard": "200000000"
+            },
+            "pendingGovernance": {
+              "effectiveHeight": 58929120
+            }
+          }
+        },
+        {
+          "advanceTo": 58929120,
+          "note": "exactly GOVERNANCE_DELAY after the P landed"
+        },
+        {
+          "check": {
+            "since": "pending_p",
+            "changed": [
+              "pricesRoot",
+              "pendingRoot"
+            ],
+            "logLines": 1,
+            "height": 58929120,
+            "prices": {
+              "feeStandard": "400000000"
+            },
+            "pendingGovernance": null
+          }
+        }
+      ],
+      "expect": {
+        "prices": {
+          "feeStandard": "400000000"
+        },
+        "logLines": 1
+      }
+    },
+    {
+      "id": "boundary_unreserve_releases_at_effective_height",
+      "note": "§6 `U`, release row: at `effective_height` the name leaves RESERVED_NAMES and is AVAILABLE. This is the r16 hole at its exact height — a released name has no leaf and no pending entry, so the name root is byte-identical across the crossing and only tag 0x0A's unreserved root records that anything happened.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ubinance|58929120"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "label": "pending_u",
+            "logLines": 1,
+            "pendingUnreserve": {
+              "binance": {
+                "recipient": null,
+                "effectiveHeight": 58929120
+              }
+            },
+            "unreserved": {
+              "binance": false
+            }
+          }
+        },
+        {
+          "advanceTo": 58929119,
+          "note": "one block short: binance is still reserved"
+        },
+        {
+          "check": {
+            "since": "pending_u",
+            "changed": [],
+            "logLines": 1,
+            "height": 58929119,
+            "pendingUnreserve": {
+              "binance": {
+                "effectiveHeight": 58929120
+              }
+            },
+            "unreserved": {
+              "binance": false
+            }
+          }
+        },
+        {
+          "advanceTo": 58929120,
+          "note": "exactly at effective_height"
+        },
+        {
+          "check": {
+            "since": "pending_u",
+            "changed": [
+              "pendingRoot",
+              "unreservedRoot"
+            ],
+            "logLines": 1,
+            "height": 58929120,
+            "pendingUnreserve": {
+              "binance": null
+            },
+            "unreserved": {
+              "binance": true
+            },
+            "absent": [
+              "binance"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "names": {},
+        "logLines": 1
+      }
+    },
+    {
+      "id": "boundary_unreserve_awards_at_effective_height",
+      "note": "§6 `U`, award row: at `effective_height` the name becomes REGISTERED with `expiry = effective_height + TERM_LENGTH` — the awardee's term runs from the moment the award binds, not from the block the `U` landed in. Both numbers moved in r20 (GOVERNANCE_DELAY doubled, TERM_LENGTH fell to 31,536,000), so this pins the arithmetic on either side of the effect.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Ubinance|58929120"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "label": "pending_award",
+            "logLines": 1,
+            "pendingUnreserve": {
+              "binance": {
+                "recipient": "BOB",
+                "effectiveHeight": 58929120
+              }
+            },
+            "unreserved": {
+              "binance": false
+            },
+            "absent": [
+              "binance"
+            ]
+          }
+        },
+        {
+          "advanceTo": 58929119,
+          "note": "one block short: no leaf yet, and BOB owns nothing"
+        },
+        {
+          "check": {
+            "since": "pending_award",
+            "changed": [],
+            "logLines": 1,
+            "height": 58929119,
+            "pendingUnreserve": {
+              "binance": {
+                "recipient": "BOB"
+              }
+            },
+            "unreserved": {
+              "binance": false
+            },
+            "absent": [
+              "binance"
+            ],
+            "resolves": {
+              "binance": null
+            }
+          }
+        },
+        {
+          "advanceTo": 58929120,
+          "note": "exactly at effective_height"
+        },
+        {
+          "check": {
+            "since": "pending_award",
+            "changed": [
+              "nameRoot",
+              "pendingRoot",
+              "unreservedRoot"
+            ],
+            "logLines": 1,
+            "height": 58929120,
+            "pendingUnreserve": {
+              "binance": null
+            },
+            "unreserved": {
+              "binance": true
+            },
+            "names": {
+              "binance": {
+                "owner": "BOB",
+                "target": "BOB",
+                "status": "REGISTERED",
+                "expiry": 90465120,
+                "host": ""
+              }
+            },
+            "resolves": {
+              "binance": "BOB"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "binance": {
+            "owner": "BOB",
+            "expiry": 90465120
+          }
+        },
+        "logLines": 1
+      }
+    },
+    {
+      "id": "boundary_expiry_grace_and_the_fall_to_available",
+      "note": "Both ends of §7.3's REGISTERED → GRACE → AVAILABLE chain, each pinned at its own height. §6 `G` fixes `expiry = block_height + TERM_LENGTH` and §7.3 draws the arrows, but neither says in words whether the arrow fires *at* `expiry` or after it — the reading here is the one that makes TERM_LENGTH a length: the term is [registration, expiry-1], exactly 31,536,000 blocks, and GRACE is [expiry, expiry+GRACE_PERIOD-1], exactly 2,592,000. Same half-open form §6 `X` and §6 `U` state outright with \"at\". Both constants moved in r20, and the delegate host clearing (§7.3) is pinned to the same block as the status change.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Dkikename|a.com"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "label": "registered",
+            "logLines": 2,
+            "names": {
+              "kikename": {
+                "status": "REGISTERED",
+                "expiry": 90378720,
+                "host": "a.com"
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 90378719,
+          "note": "last block of the term"
+        },
+        {
+          "check": {
+            "since": "registered",
+            "changed": [],
+            "logLines": 2,
+            "height": 90378719,
+            "names": {
+              "kikename": {
+                "status": "REGISTERED",
+                "expiry": 90378720,
+                "host": "a.com"
+              }
+            },
+            "resolves": {
+              "kikename": "ALICE"
+            }
+          }
+        },
+        {
+          "advanceTo": 90378720,
+          "note": "exactly TERM_LENGTH after registration"
+        },
+        {
+          "check": {
+            "since": "registered",
+            "changed": [
+              "nameRoot"
+            ],
+            "logLines": 2,
+            "height": 90378720,
+            "names": {
+              "kikename": {
+                "status": "GRACE",
+                "expiry": 90378720,
+                "host": ""
+              }
+            },
+            "resolves": {
+              "kikename": null
+            }
+          }
+        },
+        {
+          "check": {
+            "label": "grace"
+          }
+        },
+        {
+          "advanceTo": 92970719,
+          "note": "last block of the grace period"
+        },
+        {
+          "check": {
+            "since": "grace",
+            "changed": [],
+            "logLines": 2,
+            "height": 92970719,
+            "names": {
+              "kikename": {
+                "status": "GRACE",
+                "expiry": 90378720
+              }
+            },
+            "resolves": {
+              "kikename": null
+            }
+          }
+        },
+        {
+          "advanceTo": 92970720,
+          "note": "exactly GRACE_PERIOD after the expiry"
+        },
+        {
+          "check": {
+            "since": "grace",
+            "changed": [
+              "nameRoot"
+            ],
+            "logLines": 2,
+            "height": 92970720,
+            "absent": [
+              "kikename"
+            ],
+            "resolves": {
+              "kikename": null
+            }
+          }
+        }
+      ],
+      "expect": {
+        "names": {},
+        "resolves": {
+          "kikename": null
+        },
+        "logLines": 2
+      }
+    },
+    {
+      "id": "boundary_renewal_window_closes_with_the_grace_period",
+      "note": "The user-visible consequence of the boundary above, and the one place a single block decides whether a name is recoverable. `kikename` is renewed on the last block of grace and survives; `othername`, identical in every way, is renewed one block later and takes NAME_NOT_FOUND — the release fired before that block's transactions (§7.3), so by the time the `N` is read there is no record to extend. §6 `N` extends from the current expiry, not from the renewal height, which is why the survivor's new expiry is expiry + TERM_LENGTH and not renewal + TERM_LENGTH.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gothername"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "advanceTo": 92970718
+        },
+        {
+          "check": {
+            "label": "two_in_grace",
+            "logLines": 2,
+            "names": {
+              "kikename": {
+                "status": "GRACE"
+              },
+              "othername": {
+                "status": "GRACE"
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 92970719,
+          "note": "one block short of the release: nothing fires"
+        },
+        {
+          "check": {
+            "since": "two_in_grace",
+            "changed": [],
+            "logLines": 2,
+            "height": 92970719,
+            "names": {
+              "kikename": {
+                "status": "GRACE"
+              },
+              "othername": {
+                "status": "GRACE"
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 92970719,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Nkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "label": "renewed",
+            "logLines": 3,
+            "names": {
+              "kikename": {
+                "status": "REGISTERED",
+                "expiry": 121914720
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 92970720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Nothername"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_FOUND"
+          }
+        },
+        {
+          "check": {
+            "since": "renewed",
+            "changed": [
+              "nameRoot"
+            ],
+            "logLines": 4,
+            "height": 92970720,
+            "absent": [
+              "othername"
+            ],
+            "names": {
+              "kikename": {
+                "status": "REGISTERED",
+                "expiry": 121914720
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "ALICE",
+            "status": "REGISTERED",
+            "expiry": 121914720
+          }
+        },
+        "resolves": {
+          "kikename": "ALICE",
+          "othername": null
+        },
+        "logLines": 4
       }
     }
   ]

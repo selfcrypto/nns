@@ -350,9 +350,64 @@ describe('vectors/reduce.json', () => {
     }
   }
 
+  /** An address alias, `null` for none — the shape every pending entry uses. */
+  const maybeAddress = (alias: string | null): unknown => (alias === null ? null : book[alias])
+
+  /**
+   * Assert one entry of a pending map, or its absence. `expected: null` means
+   * the entry is gone — which is how a boundary vector states that a scheduled
+   * effect has fired, since firing is exactly the entry leaving the map.
+   */
+  const checkPending = (
+    label: string,
+    map: ReadonlyMap<string, any>,
+    expected: Record<string, any>,
+    fields: readonly string[],
+  ): void => {
+    for (const [name, want] of Object.entries(expected)) {
+      const entry = map.get(name)
+      if (want === null) {
+        expect(entry, `${label}.${name} should be gone`).toBeUndefined()
+        continue
+      }
+      expect(entry, `${label}.${name} should be present`).toBeDefined()
+      for (const key of fields) {
+        if (want[key] === undefined) continue
+        const value =
+          key === 'newOwner' || key === 'seller' || key === 'recipient'
+            ? maybeAddress(want[key])
+            : key === 'price'
+              ? BigInt(want[key])
+              : want[key]
+        expect(entry[key], `${label}.${name}.${key}`).toEqual(value)
+      }
+    }
+  }
+
+  /**
+   * The four §8.1 component digests, with the height and the log hash left
+   * out.
+   *
+   * Height is excluded deliberately: `commitmentFrom` binds it, so two
+   * checkpoints one block apart differ whether or not any effect fired, and a
+   * comparison against the full commitment would prove nothing about a
+   * boundary. These four are the whole of "the registry, minus the clock", so
+   * a vector that pins which of them moved across `h-1 → h` pins the effect
+   * itself rather than the passage of time.
+   */
+  const COMPONENTS = ['nameRoot', 'pricesRoot', 'pendingRoot', 'unreservedRoot'] as const
+  const componentsOf = (state: NnsState): Record<string, string> => {
+    const derived = checkpoint(state, new Uint8Array(32)) as unknown as Record<string, Uint8Array>
+    return Object.fromEntries(COMPONENTS.map((key) => [key, bytesToHex(derived[key] as Uint8Array)]))
+  }
+
   it.each(entries(file.scenarios))('%s', (_id, scenario: any) => {
     const config = readConfig({ ...file.config, ...(scenario.config ?? {}) }, book)
     let state = initialState()
+    /** §8.2 lines, so a vector can assert a height crossing produced none. */
+    const lines: string[] = []
+    /** Component snapshots taken by `check.label`, compared by `check.since`. */
+    const labels = new Map<string, Record<string, string>>()
 
     for (const step of scenario.steps) {
       if (step.advanceTo !== undefined) {
@@ -361,6 +416,11 @@ describe('vectors/reduce.json', () => {
       }
       if (step.check !== undefined) {
         if (step.check.names !== undefined) checkNames(state, step.check.names)
+        if (step.check.absent !== undefined) {
+          for (const name of step.check.absent as string[]) {
+            expect(lookup(state, name), `${name} should have no leaf`).toBeNull()
+          }
+        }
         if (step.check.resolves !== undefined) {
           for (const [name, target] of Object.entries(step.check.resolves)) {
             expect(resolve(state, name)).toBe(target === null ? null : book[target as string])
@@ -371,12 +431,58 @@ describe('vectors/reduce.json', () => {
             expect((state.prices as unknown as Record<string, bigint>)[key], key).toBe(BigInt(value as string))
           }
         }
+        if (step.check.height !== undefined) expect(state.height).toBe(step.check.height)
+        if (step.check.transfers !== undefined) {
+          checkPending('transfers', state.transfers, step.check.transfers, ['newOwner', 'effectiveHeight'])
+        }
+        if (step.check.offers !== undefined) {
+          checkPending('offers', state.offers, step.check.offers, [
+            'seller',
+            'price',
+            'openedHeight',
+            'expiryHeight',
+          ])
+        }
+        if (step.check.pendingUnreserve !== undefined) {
+          checkPending('pendingUnreserve', state.pendingUnreserve, step.check.pendingUnreserve, [
+            'recipient',
+            'effectiveHeight',
+          ])
+        }
+        if (step.check.pendingGovernance !== undefined) {
+          if (step.check.pendingGovernance === null) expect(state.pendingGovernance).toBeNull()
+          else expect(state.pendingGovernance?.effectiveHeight).toBe(step.check.pendingGovernance.effectiveHeight)
+        }
+        if (step.check.unreserved !== undefined) {
+          for (const [name, want] of Object.entries(step.check.unreserved)) {
+            expect(state.unreserved.has(name), `unreserved.${name}`).toBe(want)
+          }
+        }
+        // A height-driven effect earns no log line (§7.6 logs only what
+        // survives §7.5, and nothing survives that never arrived), so a
+        // boundary vector states the count on both sides of the crossing.
+        if (step.check.logLines !== undefined) expect(lines).toHaveLength(step.check.logLines)
+        if (step.check.since !== undefined) {
+          const before = labels.get(step.check.since)
+          expect(before, `unknown label ${step.check.since}`).toBeDefined()
+          const now = componentsOf(state)
+          const changed = new Set<string>(step.check.changed ?? [])
+          // `changed` is exhaustive: every component not named must be
+          // byte-identical, which is what makes "the transition has not
+          // occurred at h-1" an assertion rather than an absence of one.
+          for (const key of COMPONENTS) {
+            if (changed.has(key)) expect(now[key], `${key} since ${step.check.since}`).not.toBe(before?.[key])
+            else expect(now[key], `${key} since ${step.check.since}`).toBe(before?.[key])
+          }
+        }
+        if (step.check.label !== undefined) labels.set(step.check.label, componentsOf(state))
         continue
       }
 
       const tx = readTx(step.tx, book, file.config.networkId)
       const result = reduce(state, tx, config)
       state = result.state
+      if (result.verdict.kind !== 'IGNORED') lines.push(canonicalLogLine(tx, result.verdict))
       expect(result.verdict.kind, `${scenario.id} step verdict`).toBe(step.verdict.kind)
       if (step.verdict.reason !== undefined) {
         expect((result.verdict as { reason?: string }).reason).toBe(step.verdict.reason)
@@ -409,9 +515,42 @@ describe('vectors/reduce.json', () => {
         expect((state.prices as unknown as Record<string, bigint>)[key]).toBe(BigInt(value as string))
       }
     }
+    if (scenario.expect.logLines !== undefined) expect(lines).toHaveLength(scenario.expect.logLines)
   })
 
   it('includes the named conformance case from §14', () => {
     expect(file.scenarios.map((s: any) => s.id)).toContain('failed_G_does_not_register_name')
+  })
+
+  it('pins an exact firing height for every height-driven effect in §7.3', () => {
+    // The gap these close: every other observation of a height-driven effect
+    // is a root taken at a CHECKPOINT_INTERVAL boundary, which cannot tell h
+    // from h+1, and none of them earns a verdict token — so a replay can agree
+    // with a second implementation on all 27 tokens and still fire an effect a
+    // block early. One vector per §7.3 category, each asserting both sides.
+    const boundary = file.scenarios.filter((s: any) => s.id.startsWith('boundary_'))
+    expect(boundary.map((s: any) => s.id).sort()).toEqual([
+      'boundary_expiry_grace_and_the_fall_to_available',
+      'boundary_governance_activates_at_effective_height',
+      'boundary_offer_expires_at_OFFER_MAX_LIFETIME',
+      'boundary_renewal_window_closes_with_the_grace_period',
+      'boundary_transfer_matures_at_XFER_TIMELOCK',
+      'boundary_unreserve_awards_at_effective_height',
+      'boundary_unreserve_releases_at_effective_height',
+    ])
+    // Each one must state the crossing on both sides: a `since` comparison
+    // proving nothing moved at h-1, and one proving something moved at h.
+    for (const scenario of boundary) {
+      const comparisons = scenario.steps.filter((s: any) => s.check?.since !== undefined)
+      expect(comparisons.length, `${scenario.id} needs both sides`).toBeGreaterThanOrEqual(2)
+      expect(
+        comparisons.some((s: any) => (s.check.changed ?? []).length === 0),
+        `${scenario.id} must pin an h-1 with nothing changed`,
+      ).toBe(true)
+      expect(
+        comparisons.some((s: any) => (s.check.changed ?? []).length > 0),
+        `${scenario.id} must pin an h where something changed`,
+      ).toBe(true)
+    }
   })
 })
