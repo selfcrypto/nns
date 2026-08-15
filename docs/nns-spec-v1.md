@@ -1871,7 +1871,7 @@ state and the height at which it ends.
 
 **Every window is half-open: `[start, end)`.** A constant named as a number of
 blocks is the *length* of the window, so the block at `end` is the first one
-outside it, never the last one inside. Spelled out for the three windows a
+outside it, never the last one inside. Spelled out for the two windows a
 name passes through:
 
 | Window | Blocks | Last block inside | State at `end` |
