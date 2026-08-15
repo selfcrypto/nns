@@ -1,7 +1,7 @@
 {
   "vectors": "nns/reduce",
   "version": 1,
-  "spec": "nns-spec-v1 draft r20, §7.3, §7.4 and §7.5",
+  "spec": "nns-spec-v1 draft r21, §7.3, §7.4 and §7.5",
   "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`), a bare height advance (`advanceTo`), or a `check` against the state at that point. A `check` may also carry `label`, which snapshots the four §8.1 component digests (`nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` — the commitment minus the height and the log hash), and `since` + `changed`, which compares them against an earlier label: every component **not** listed in `changed` MUST be byte-identical. `logLines` is the number of §8.2 lines emitted so far, and a height advance MUST never add one.",
   "addresses": {
     "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
@@ -3290,8 +3290,8 @@
       {
         "id": "A_wrong_recipient_beats_auction_not_in_v1",
         "setup": "empty",
-        "pinnedBy": null,
-        "note": "§6 `A` says every `A` takes `AUCTION_NOT_IN_V1`, and routing nonetheless runs first — an `A` at the treasury earns `WRONG_RECIPIENT`. Defensible (§5.3 routing precedes every type's own rules) but genuinely unstated, and the clause reads as though it admits no exception.",
+        "pinnedBy": "§6 `A` — routing is the one exception to the version forfeit (r21)",
+        "note": "§6 `A` said \"every `A` forfeits AUCTION_NOT_IN_V1\" with no qualification through r20, while §5.3 routing ran first as it does for every type — two readings, two tokens in the log hash. r21 states the exception and confines it to routing: the `MIN_PRICE` floor still sits behind the version forfeit, which is the case below.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,
@@ -3437,8 +3437,8 @@
       {
         "id": "U_not_admin_beats_invalid_recipient",
         "setup": "empty",
-        "pinnedBy": null,
-        "note": "Authority first, even for the one recipient `U` forbids.",
+        "pinnedBy": "§7.4 — \"sender, recipient, notice, name syntax, reservation, pending\" (r21)",
+        "note": "First and second of the six. Authority leads, even for the one recipient a `U` may not name.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,
@@ -3469,8 +3469,8 @@
       {
         "id": "U_invalid_recipient_beats_insufficient_notice",
         "setup": "empty",
-        "pinnedBy": null,
-        "note": "**This one contradicts §7.4's prose.** The clause lists a `U`'s forfeits as \"from any sender other than `ADMIN_ADDRESS`, with less than `GOVERNANCE_DELAY` notice, awarding to `BURN_ADDRESS`, …\" — notice ahead of the recipient. The reducer checks the recipient first, on the argument that the recipient decides which of two operations the message even is (§6 `U`: `PROTOCOL_ADDRESS` releases, anything else awards). Both are defensible; the list is prose rather than a stated order, and this vector is the only thing standing behind the choice.",
+        "pinnedBy": "§7.4 — \"sender, recipient, notice, name syntax, reservation, pending\" (r21)",
+        "note": "Second and third — the pair r21 was written for. Through r20 §7.4 listed notice *before* the recipient and never claimed to be an order, so this message had two defensible tokens. The recipient leads because since r17 it is an operand rather than a route (§5.3): `PROTOCOL_ADDRESS` releases, anything else awards, so a `U` naming `BURN_ADDRESS` is neither operation and its timing is not what is wrong with it.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,
@@ -3501,8 +3501,8 @@
       {
         "id": "U_insufficient_notice_beats_invalid_name",
         "setup": "empty",
-        "pinnedBy": null,
-        "note": "Notice before the name. `ab-` is three characters with a trailing hyphen, so it fails §4.1 rules 2–5 and is on neither membership route.",
+        "pinnedBy": "§7.4 — \"sender, recipient, notice, name syntax, reservation, pending\" (r21)",
+        "note": "Third and fourth. `ab-` is three characters with a trailing hyphen, so it fails §4.1 rules 2–5 and is on neither membership route.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,
@@ -3533,8 +3533,8 @@
       {
         "id": "U_invalid_name_beats_name_not_reserved",
         "setup": "empty",
-        "pinnedBy": null,
-        "note": "Name syntax before reservation, matching the order §7.4 fixes for `G`. Neither `ab-` nor `kikename` is reserved, so the first would earn `NAME_NOT_RESERVED` too under the other reading.",
+        "pinnedBy": "§7.4 — \"sender, recipient, notice, name syntax, reservation, pending\" (r21)",
+        "note": "Fourth and fifth, matching the order §7.4 fixes for `G`. Neither `ab-` nor `kikename` is reserved, so the first would earn `NAME_NOT_RESERVED` too under the other reading.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,

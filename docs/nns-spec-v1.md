@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 20**
+**Protocol specification, v1 draft — revision 21**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -18,6 +18,51 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > folded into that day's revision, however many separate changes it covers, so
 > a revision number stays something an implementation can claim to implement
 > rather than a changelog id.
+
+> **Changes in revision 21 — three unstated readings become stated.** Prose
+> only. **No bytes move**: nothing here enters the §8.1 preimage or the §8.2
+> log hash, no constant changes value, and **every root derived under r20 is
+> unchanged** — an r20 database resumes without a rebuild. What changes is that
+> three things the reference implementation had to decide for itself, and which
+> two honest implementations could have decided differently, are now written
+> down. All three affect a **verdict token or a leaf field**, which §8.2 and
+> §8.1 commit, so each was a silent fork waiting for the right message.
+> - **§7.3 — every window is half-open, `[start, end)`.** A constant named as
+>   a number of blocks is the *length* of its window, so a name registered at
+>   `h` is `REGISTERED` over `h … h + TERM_LENGTH - 1` and is already in
+>   `GRACE` at `expiry`; grace runs `[expiry, expiry + GRACE_PERIOD)` and the
+>   name is `AVAILABLE` at `expiry + GRACE_PERIOD`. Through r20 §6 `G` fixed
+>   the *value* of `expiry` and §7.3 drew the arrows, but nothing said whether
+>   an arrow fired at that height or the block after — a one-block
+>   disagreement about `status` in the §8.1 leaf, and so about every root for
+>   a full block. This is the same "at" §6 `X`, §6 `U` and §6 `O` already
+>   state outright, it is the only reading under which §3's block counts are
+>   the lengths it calls them, and it is what §7.3's own same-height collision
+>   between a maturing `X` and an expiry already presumed.
+> - **§7.4 — a `U`'s check order is fixed, and the recipient leads the
+>   notice.** Sender, recipient, notice, name syntax, reservation, pending.
+>   Through r20 the bullet listed notice before the recipient and never
+>   claimed to be an order at all. The recipient leads because §5.3 already
+>   makes it an *operand* rather than a route — `PROTOCOL_ADDRESS` releases,
+>   anything else awards — so a `U` naming `BURN_ADDRESS` is neither
+>   operation, and `INSUFFICIENT_NOTICE` would describe a defect it does not
+>   have.
+> - **§6 `A` — routing is the one exception to the version forfeit.** An `A`
+>   at any address but `PROTOCOL_ADDRESS` forfeits `WRONG_RECIPIENT`, not
+>   `AUCTION_NOT_IN_V1`. §5.3 routing precedes every type's own rules and `A`
+>   is not carved out; "every `A` forfeits `AUCTION_NOT_IN_V1`" ranges over
+>   the correctly addressed ones. Every other rule in that clause, the
+>   `MIN_PRICE` floor included, still sits *after* the version forfeit.
+>
+> Still open after r21, and deliberately: **§7.4's verdict list does not claim
+> to state a full check order.** Only `G`'s five checks, `REFUND_FLOOR`'s
+> conversion of a refund into a forfeit, §7.5 running before the parse, and now
+> `U` and `A` are fixed by this document. Every other precedence in the
+> reducer — `D`'s host after ownership, `N`'s existence before value, `P`'s
+> notice before the §10.6 bounds, and twenty more — is an implementation
+> choice that `packages/core/vectors/reduce.json`'s `checkOrder` section pins
+> and marks `pinnedBy: null`. Whether the clause should adopt them wholesale is
+> a separate decision and has not been taken.
 
 > **Changes in revision 20 — the recovery address is removed, four §3 numbers
 > move, and governance loses its rate limits.** One message type deleted, one §3 constant gone, and it moves
@@ -959,8 +1004,8 @@ NIM figures assume ~$0.0005/NIM.
 | `PRICE_CEILING` | 100,000 NIM | Governance hard upper bound, either band |
 | `GOVERNANCE_DELAY` | 86,400 blocks (~24 h) | Minimum notice before a change bites — and, since the rate limits were removed, the whole of what bounds a hostile `P` (§10.6) |
 | `XFER_TIMELOCK` | 43,200 blocks (~12 h) | Window in which the owner can cancel their own pending `X` with a `K` (§6). Guards a mistyped recipient, not a thief (§2) |
-| `TERM_LENGTH` | 31,536,000 blocks (~1 y) | See §10.4 |
-| `GRACE_PERIOD` | 2,592,000 blocks (~30 d) | Resolution off, renewal still allowed |
+| `TERM_LENGTH` | 31,536,000 blocks (~1 y) | See §10.4. A *length*: the term is `[registration, registration + TERM_LENGTH)` and the name is in `GRACE` at `expiry` (§7.3) |
+| `GRACE_PERIOD` | 2,592,000 blocks (~30 d) | Resolution off, renewal still allowed. Also a length: `[expiry, expiry + GRACE_PERIOD)`, `AVAILABLE` at the end (§7.3) |
 | `OFFER_IRREVOCABLE` | 8,640 blocks (~2.4 h) | Seller cannot cancel |
 | `OFFER_MAX_LIFETIME` | 1,296,000 blocks (~15 d) | Then auto-expires |
 | `CHECKPOINT_INTERVAL` | 720 blocks (~12 min) | Root recomputed and published |
@@ -1336,7 +1381,9 @@ nothing.
 
 Valid if `name` is valid per §4.1 and `AVAILABLE` at this transaction's
 position in canonical order. On success the name is registered to the sender
-with `target = sender` and `expiry = block_height + TERM_LENGTH`.
+with `target = sender` and `expiry = block_height + TERM_LENGTH`. The term is
+the half-open window `[block_height, expiry)`, so the last block on which the
+name resolves is `expiry - 1` and it is in `GRACE` at `expiry` itself (§7.3).
 
 Ties within a block resolve by ascending transaction index, which is
 already unique within a block. Never by timestamp.
@@ -1578,6 +1625,18 @@ below-floor reserve still forfeits `AUCTION_NOT_IN_V1`, because the reason
 code goes into the log and the log is committed to (§8.2). The floor check
 precedes this one on the version that activates auctions.
 
+**One exception, and only one: routing still runs first.** An `A` sent
+anywhere but `PROTOCOL_ADDRESS` forfeits `WRONG_RECIPIENT`, not
+`AUCTION_NOT_IN_V1`. §5.3 routing precedes every type's own rules for every
+message in the protocol, and `A` is not carved out of that — a message at the
+wrong address has not reached the handler whose version status is in question.
+Read "every `A` forfeits `AUCTION_NOT_IN_V1`" as ranging over the `A`s that
+are correctly addressed; every other rule in this clause, the `MIN_PRICE`
+floor included, sits *after* the version forfeit rather than before it.
+Through r20 the sentence was absolute and the exception was implicit in §5.3,
+which left two defensible readings of a message that puts a different token in
+the log hash.
+
 When active, `A` opens a bidding window instead of settling by ordering.
 Bids reuse `B`, naming the auction rather than an offer, and sit at
 `MARKETPLACE_ADDRESS` exactly as marketplace payments do.
@@ -1810,6 +1869,38 @@ it can still be renewed by the former owner. Grace names remain in the
 checkpoint tree with `status = GRACE` (§8.1), so a client can prove both the
 state and the height at which it ends.
 
+**Every window is half-open: `[start, end)`.** A constant named as a number of
+blocks is the *length* of the window, so the block at `end` is the first one
+outside it, never the last one inside. Spelled out for the three windows a
+name passes through:
+
+| Window | Blocks | Last block inside | State at `end` |
+|---|---|---|---|
+| Term | `[registration, registration + TERM_LENGTH)` | `expiry - 1` | `GRACE` |
+| Grace | `[expiry, expiry + GRACE_PERIOD)` | `expiry + GRACE_PERIOD - 1` | `AVAILABLE` |
+
+So a name registered at height `h` is `REGISTERED` for exactly `TERM_LENGTH`
+blocks, `h … h + TERM_LENGTH - 1`; `expiry` is `h + TERM_LENGTH`, and **at
+`expiry` the name is already in `GRACE`** — that height belongs to the grace
+window, not to the term. Grace runs for exactly `GRACE_PERIOD` blocks and the
+name is `AVAILABLE` at `expiry + GRACE_PERIOD`, which is the first block a `G`
+for it can succeed and the first at which an `N` takes `NAME_NOT_FOUND`
+(§7.3 clears all state on the fall to `AVAILABLE`, so there is no record left
+to renew).
+
+This is the same "at" every scheduled effect in this section uses — §6 `X`
+takes effect *at* `height + XFER_TIMELOCK`, §6 `U` *at* `effective_height`,
+§6 `O` auto-expires *at* `opened_height + OFFER_MAX_LIFETIME` — and it is
+stated here because through r20 it was the one timing the spec left to
+inference. §6 `G` fixed the *value* of `expiry` and the arrows above were
+drawn, but no clause said whether an arrow fired at that height or the block
+after it, which is a one-block disagreement about `status` inside the §8.1
+leaf and therefore about every root for a full block. The half-open form is
+the only one under which §3's block counts are the lengths it calls them, and
+it is what the same-height ordering rule below already presumes: a maturing
+`X` can collide with an expiry only if both are due at a height computed the
+same way.
+
 **Height-driven effects, and their order.** State advances on height as
 well as on messages: expiry, grace release, timelock maturity, and
 governance activation all fire at a height whether or not any transaction
@@ -1885,15 +1976,28 @@ the message before the race does.
 - `X`, `S`, `D` on an expired or grace-period name
 - `D` whose host exceeds `MAX_HOST_LEN` or includes a scheme
 - `P` from any sender other than `ADMIN_ADDRESS`, or violating a §10.6 bound
-- `U` from any sender other than `ADMIN_ADDRESS`, with less than
-  `GOVERNANCE_DELAY` notice, awarding to `BURN_ADDRESS`, naming a name that
+- `U` from any sender other than `ADMIN_ADDRESS`, awarding to `BURN_ADDRESS`,
+  with less than `GOVERNANCE_DELAY` notice, naming a name that
   fails §4.1 rules 2–5 or the length ceiling (the floor never binds a `U`,
   §6 `U`), naming a name that is not
   reserved or has already been released, or naming one that already has a `U`
-  pending (§6 `U`). For both `P` and `U`, notice is counted from the
+  pending (§6 `U`). **That is the check order, and it is fixed:** sender,
+  recipient, notice, name syntax, reservation, pending. For both `P` and `U`,
+  notice is counted from the
   height of the block the message landed in (§6 `P`), so a message that sat
   too long in the mempool takes an `INSUFFICIENT_NOTICE` forfeit even though
   it was correct when it was built — and cannot be withdrawn
+
+  **The recipient is checked before the notice**, which is the one place a
+  `U` departs from the order every other type uses. It follows from §5.3: a
+  `U`'s recipient is an *operand*, not a route — `PROTOCOL_ADDRESS` releases
+  the name and any other address awards it — so a `U` naming `BURN_ADDRESS` is
+  not a badly timed release or a badly timed award. It is neither operation,
+  and reporting its timing would describe a defect it does not have. Through
+  r20 this list read the other way round and no clause said it was an order at
+  all; r21 fixes the order and states why the recipient leads. The distinction
+  is consensus-relevant because both conditions produce a verdict token and
+  §8.2 commits the token into the log hash
 
 **Refundable** — recorded in the log with a `REFUND` verdict. The value sits
 at whichever address received it, which owes the sender a refund discharged

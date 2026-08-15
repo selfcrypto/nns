@@ -144,7 +144,7 @@ advance MUST never emit a §8.2 line.**
 | `boundary_governance_activates_at_effective_height` | `effective_height` | §6 `P` |
 | `boundary_unreserve_releases_at_effective_height` | `effective_height` | §6 `U`, release row |
 | `boundary_unreserve_awards_at_effective_height` | `effective_height` | §6 `U`, award row |
-| `boundary_expiry_grace_and_the_fall_to_available` | `expiry`, then `expiry + GRACE_PERIOD` | **inferred — see below** |
+| `boundary_expiry_grace_and_the_fall_to_available` | `expiry`, then `expiry + GRACE_PERIOD` | §7.3's interval table (r21) |
 | `boundary_renewal_window_closes_with_the_grace_period` | `expiry + GRACE_PERIOD` | same |
 
 Four of these are timed by constants r20 moved — `TERM_LENGTH`,
@@ -165,37 +165,40 @@ fixing the order, or is `null`. `insteadOfUnreachable` replaces `insteadOf`
 where the later token cannot be produced at all (only `A`, whose §6 clause
 makes `BELOW_MIN_PRICE` unreachable by construction).
 
-**Eleven of the thirty-six orderings are fixed by the spec; twenty-five are
-implementation choices.** §7.4 fixes exactly two things — `G`'s five-check
-order ("recipient, name syntax, reservation, **value, then availability**") and
-`REFUND_FLOOR` converting a refund into a forfeit — plus §7.5 running before a
-message is parsed and §6 `A`'s version forfeit outranking the price floor.
-Everything else is a bullet list read as an order it never claimed to be, and
-the tokens carried forward as PROVEN-AT-R19 lean on it heavily: `INVALID_HOST`,
-`NAME_NOT_FOUND`, `BELOW_MIN_PRICE`, `INVALID_RECIPIENT`,
-`INSUFFICIENT_NOTICE`, `NOT_ADMIN`, `NAME_NOT_RESERVED`, `WRONG_SENDER` and
-`MALFORMED_PAYLOAD` all sit behind a `pinnedBy: null` row.
+**Sixteen of the thirty-six orderings are fixed by the spec; twenty are
+implementation choices.** §7.4 fixes `G`'s five-check order ("recipient, name
+syntax, reservation, **value, then availability**"), `REFUND_FLOOR` converting
+a refund into a forfeit, and — since r21 — a `U`'s six ("sender, recipient,
+notice, name syntax, reservation, pending"). §7.5 runs before a message is
+parsed, and §6 `A` puts its version forfeit ahead of the price floor and behind
+§5.3 routing. Everything else is a bullet list read as an order it never
+claimed to be, and the tokens carried forward as PROVEN-AT-R19 still lean on
+it: `INVALID_HOST`, `NAME_NOT_FOUND`, `BELOW_MIN_PRICE`, `WRONG_SENDER` and
+`MALFORMED_PAYLOAD` sit behind a `pinnedBy: null` row. Four more —
+`INVALID_RECIPIENT`, `INSUFFICIENT_NOTICE`, `NOT_ADMIN` and
+`NAME_NOT_RESERVED` — did until r21 ratified `U`'s order.
 
-**One of them contradicts the spec's prose.** §7.4 lists a `U`'s forfeits as
-"from any sender other than `ADMIN_ADDRESS`, **with less than
-`GOVERNANCE_DELAY` notice**, **awarding to `BURN_ADDRESS`**, …" — notice ahead
-of the recipient. The reducer checks the recipient first, because the recipient
-decides which of two operations the message even *is* (§6 `U`:
-`PROTOCOL_ADDRESS` releases, anything else awards). A `U` to the burn address
-with short notice is the message that tells them apart, and it is
-`U_invalid_recipient_beats_insufficient_notice`. See `docs/decisions.md`.
+**Two of these were unstated when the vectors were written, and r21 states
+them.** Both are now `pinnedBy` rows rather than free ones, and the vectors are
+the evidence for the clause rather than a substitute for it:
 
-**The expiry pair is inferred, not stated.** §6 `G` fixes
-`expiry = block_height + TERM_LENGTH` and §7.3 draws
-`REGISTERED ──expiry──▶ GRACE ──+30d──▶ AVAILABLE`, but no clause says whether
-the arrow fires *at* `expiry` or after it. These vectors take the half-open
-reading — the term is `[registration, expiry-1]`, exactly `TERM_LENGTH`
-blocks, and `GRACE` is `[expiry, expiry+GRACE_PERIOD-1]`, exactly
-`GRACE_PERIOD` — because it is the only one under which those constants are
-the lengths §3 calls them, and because it is the same form §6 `X` and §6 `U`
-state outright with "at". §7.3's own same-height collision case (a maturing
-`X` against an expiry) also presumes both are computed that way. It still
-wants one sentence in §7.3; see `docs/decisions.md`.
+- **`U`'s recipient before its notice.** Through r20 §7.4 listed a `U`'s
+  forfeits with notice *ahead* of the recipient and never claimed to be an
+  order. r21 reorders the bullet and states the order outright — the recipient
+  leads because since r17 it is an *operand* choosing release from award (§5.3),
+  so a `U` naming `BURN_ADDRESS` is neither operation and
+  `INSUFFICIENT_NOTICE` would report a defect it does not have.
+  `U_invalid_recipient_beats_insufficient_notice` is the message that tells the
+  two readings apart.
+- **`A`'s routing before its version forfeit.** Through r20 "every `A` forfeits
+  `AUCTION_NOT_IN_V1`" was absolute and the §5.3 exception was implicit. r21
+  states it: an `A` at the wrong address earns `WRONG_RECIPIENT`, and that is
+  the only exception — the `MIN_PRICE` floor still sits behind the version
+  forfeit. `A_wrong_recipient_beats_auction_not_in_v1` is the pair.
+
+The expiry pair was the third, and §7.3 now carries an interval table for it —
+`[registration, registration + TERM_LENGTH)` and `[expiry, expiry +
+GRACE_PERIOD)`. See `docs/decisions.md` for all three arguments.
 
 ## The readings these vectors pin
 

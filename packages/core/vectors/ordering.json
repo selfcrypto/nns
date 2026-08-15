@@ -1,7 +1,7 @@
 {
   "vectors": "nns/ordering",
   "version": 1,
-  "spec": "nns-spec-v1 draft r20, §5.2 and §8.2",
+  "spec": "nns-spec-v1 draft r21, §5.2 and §8.2",
   "description": "Canonical order is (block_number ascending, position in the block body array ascending). The RPC transaction object carries no index, position or ordering field — verified 2026-08-06 against the full object — so every implementation must derive it the same way or roots diverge. Blocks routinely carry several transactions, so this is not a corner case.",
   "addresses": {
     "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",

@@ -599,13 +599,15 @@ describe('vectors/reduce.json', () => {
 
     it('separates the orderings the spec fixes from the ones it does not', () => {
       // Not a behavioural assertion — a census, so that the balance cannot
-      // shift without somebody noticing. Nine of the fifteen tokens carried
-      // forward as PROVEN-AT-R19 rest on a `pinnedBy: null` row.
+      // shift without somebody noticing. It moved once already: r21 ratified
+      // `U`'s six-check order and `A`'s routing exception, so five rows here
+      // went from `pinnedBy: null` to a clause, and five of the tokens carried
+      // forward as PROVEN-AT-R19 stopped resting on an unstated reading.
       const cases = section.cases as any[]
       const pinned = cases.filter((c) => c.pinnedBy !== null)
       const free = cases.filter((c) => c.pinnedBy === null)
-      expect(pinned).toHaveLength(11)
-      expect(free).toHaveLength(25)
+      expect(pinned).toHaveLength(16)
+      expect(free).toHaveLength(20)
       for (const testCase of cases) {
         expect(typeof testCase.note, `${testCase.id} needs a note`).toBe('string')
         expect(testCase.note.length, `${testCase.id} needs a real note`).toBeGreaterThan(40)

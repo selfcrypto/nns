@@ -1,7 +1,7 @@
 {
   "vectors": "nns/merkle",
   "version": 1,
-  "spec": "nns-spec-v1 draft r20, §8.1 and §8.3",
+  "spec": "nns-spec-v1 draft r21, §8.1 and §8.3",
   "description": "Checkpoint tree byte layout. `enc` is the §8.1 leaf preimage, `leaf` is keccak256(0x00 ‖ enc), internal nodes are keccak256(0x01 ‖ left ‖ right), odd nodes are promoted unchanged, and an empty tree is 32 zero bytes. All hex is lowercase and unprefixed.",
   "addresses": {
     "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
