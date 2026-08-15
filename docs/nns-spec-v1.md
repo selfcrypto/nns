@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 22**
+**Protocol specification, v1 draft — revision 23**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -18,6 +18,20 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > folded into that day's revision, however many separate changes it covers, so
 > a revision number stays something an implementation can claim to implement
 > rather than a changelog id.
+
+> **Changes in revision 23 — a delegate cannot tell which name asked.** Prose
+> only, in §8.6. **No bytes move**: no constant changes value, nothing enters
+> the §8.1 preimage or the §8.2 log hash, every root derived under r22 is
+> unchanged, and an r22 database resumes without a rebuild. Nor is it a new
+> rule — it is a consequence of the request shape §8.6 already fixed, written
+> down because it was being discovered per implementation. The §8.6 request
+> carries **only the label**: no parent in the path, no parent in a header, no
+> parent in the reply. So two names delegating to the same bare host share one
+> label namespace, and `shop.a` and `shop.b` are the same question. An owner
+> who wants two names served from one machine uses §6 `D`'s optional short
+> path, which exists for exactly this. Stated in §8.6 rather than left to be
+> found, because the way it is found otherwise is two names quietly answering
+> each other's subdomains.
 
 > **Changes in revision 22 — `U` executes on landing, and `GOVERNANCE_DELAY`
 > governs `P` alone.** A notice period protects parties who can act on the
@@ -2737,6 +2751,18 @@ For a dotted query `label.parent`:
 3. Expected response: `{"address": "NQ...", "ttl": <seconds>}`
 4. Validate that the address is well-formed. Cache for `ttl`, capped at one
    hour by the client.
+
+**The request carries only the label** — there is no `parent` in the path, in a
+header, or in the reply. A delegate host therefore **cannot tell which name a
+query came from**, and this is a property of the request shape rather than of
+any implementation: it holds for every delegate anyone builds. Two names
+delegating to the same bare host share **one** label namespace, so `shop.a` and
+`shop.b` are the same question and get the same answer. An owner serving two
+names from one machine distinguishes them with §6 `D`'s optional short path
+(`host/a`, `host/b`), which is what that path is for. Clients must cache
+delegate answers under `host` **and** `label` for the same reason — never under
+the dotted query, which would let one parent's re-pointing keep serving another
+parent's answers.
 
 **Optional signed responses.** A delegate MAY return
 `{"address": "NQ...", "ttl": <seconds>, "timestamp": <unix>, "sig": "<base64url>"}`

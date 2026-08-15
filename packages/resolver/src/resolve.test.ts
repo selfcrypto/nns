@@ -376,6 +376,7 @@ describe('dotted queries', () => {
 
     expect(error).toBeInstanceOf(DelegateError)
     expect((error as DelegateError).code).toBe('PARENT_NOT_DELEGATING')
+    expect((error as DelegateError).parent?.name).toBe('alpha')
   })
 
   it('fails when the delegate host does not answer', async () => {
@@ -388,6 +389,59 @@ describe('dotted queries', () => {
       .catch((e: unknown) => e)
 
     expect((error as DelegateError).code).toBe('DELEGATE_FAILED')
+  })
+
+  it("keeps the parent's proven resolution on the failure, so a dead host is not a dead registry", async () => {
+    // The half NNS can prove survives the half it cannot. Without this the
+    // caller loses a verified answer it already has, and a third party's
+    // downtime renders as the registry being broken.
+    const error = await resolverOver({
+      'a.example': parent(),
+      'b.example': parent(),
+      'nns.binance.com': () => 'unreachable',
+    })
+      .resolve('kike.binance')
+      .catch((e: unknown) => e)
+
+    const proven = (error as DelegateError).parent
+    expect(proven?.name).toBe('binance')
+    expect(proven?.address).toBe(address(5))
+    expect(proven?.verification).toBe('PROVEN')
+    expect(proven?.host).toBe('nns.binance.com')
+  })
+
+  it("blames the host for a body that is not §8.6's shape, not our own document reader", async () => {
+    // `DOCUMENT_MALFORMED` is what a *resolver* serving a broken §8.3 document
+    // earns. Reusing it here would conflate our infrastructure misbehaving
+    // with a third party's, and would be the one failure at the delegate that
+    // a client could tell apart from the others.
+    const error = await resolverOver({
+      'a.example': parent(),
+      'b.example': parent(),
+      'nns.binance.com': serves({ addr: formatAddress(address(77)), ttl: 300 }),
+    })
+      .resolve('kike.binance')
+      .catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(DelegateError)
+    expect((error as DelegateError).code).toBe('DELEGATE_FAILED')
+    expect((error as DelegateError).parent?.verification).toBe('PROVEN')
+  })
+
+  it('a 404 from the host is the same code as an unreachable one', async () => {
+    const codes = await Promise.all(
+      [serves({ error: 'NO_ANSWER' }, 404), () => 'unreachable' as const].map(async (host) =>
+        (
+          (await resolverOver({ 'a.example': parent(), 'b.example': parent(), 'nns.binance.com': host })
+            .resolve('kike.binance')
+            .catch((e: unknown) => e)) as DelegateError
+        ).code,
+      ),
+    )
+
+    // NNS must never report whether a subdomain exists, and this is where that
+    // becomes true rather than a UI convention.
+    expect(codes).toEqual(['DELEGATE_FAILED', 'DELEGATE_FAILED'])
   })
 
   it('still proves the parent — a bad parent proof halts the delegated query too', async () => {

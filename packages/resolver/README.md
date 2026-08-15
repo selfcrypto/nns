@@ -45,6 +45,7 @@ const nns = createResolver({
   quorum,             // how many must agree. Default 2
   anchors,            // optional second-chain cross-check. See "Anchors"
   timeoutMs,          // per request. Default 5000
+  delegateTimeoutMs,  // for a delegate host. Defaults to timeoutMs, then 5000
   fetch,              // your own fetch. Default: the global one
   onWarning,          // called for every warning, in addition to result.warnings
 })
@@ -230,6 +231,35 @@ does not let an NNS API proxy these for you, because an unverified answer
 served from an endpoint that looks verified is unverifiable by anyone
 downstream.
 
+**When the delegate host fails, you still have the parent.** Every
+`DelegateError` carries `.parent` — the parent's own resolution, proof and all
+— so the failure renders as "`exchange` resolves to NQ…, and the host its owner
+runs did not answer", not as NNS being down. Show it. A third party's cold
+server should never read as a broken registry.
+
+```ts
+try {
+  const result = await resolver.resolve('alice.exchange')
+} catch (error) {
+  if (error instanceof DelegateError) {
+    error.parent // ResolveResult for `exchange`, or null — verified, still worth showing
+  }
+}
+```
+
+**You cannot tell why the host failed, and neither can we.** A 404, a timeout,
+a DNS failure, a 502 and a reply in the wrong shape all arrive as one
+`DELEGATE_FAILED`. That is deliberate: the answer lives in a file on someone
+else's server, so "no such subdomain" is indistinguishable from a removal, a
+typo or a misconfigured host — and NNS is not entitled to claim the first.
+Attribute the failure to the host, never to the subdomain. "exchange's
+resolver did not answer" is honest; "alice.exchange does not exist" is not.
+
+The request carries only the label, so a delegate host cannot tell which name
+asked it. Two names pointing at one bare host therefore share one namespace —
+which is why answers are cached under host and label rather than under the
+dotted query.
+
 ---
 
 ## Anchors: the checkpoint, cross-checked on another chain
@@ -319,7 +349,7 @@ Everything below is a subclass of `ResolverError` and carries a `code`.
 | `ProofError` | `PROOF_INVALID` | A served proof does not hold. Always fatal |
 | `AnchorError` | `CHECKPOINT_BINDING_INVALID`, `ANCHOR_MISMATCH`, `ANCHOR_DIVERGENCE` | See above. Carries `.check` |
 | `DocumentError` | `DOCUMENT_MALFORMED` | A reply is not the shape it must be. `.path` points at the field |
-| `DelegateError` | `PARENT_NOT_DELEGATING`, `DELEGATE_FAILED` | A dotted query whose parent delegates nowhere, or whose host failed |
+| `DelegateError` | `PARENT_NOT_DELEGATING`, `DELEGATE_FAILED` | A dotted query whose parent delegates nowhere, or whose host failed. Carries `.parent`, the parent's own verified resolution — show it |
 | `ConfigurationError` | `CONFIGURATION` | Thrown from the constructor: a policy that cannot enforce itself |
 
 A `QuorumError` or an `AnchorError` in front of a user is the rare event this

@@ -125,7 +125,22 @@ export async function askDelegate(
     )
   }
 
-  const response = readDelegateResponse(fetched.body, `delegate ${host}`)
+  // A malformed body is the host's failure, and must read as one. Left
+  // uncaught it surfaces as `DOCUMENT_MALFORMED` — the same code a *resolver*
+  // serving a broken §8.3 document earns — which conflates our own
+  // infrastructure misbehaving with a third party's, and is the one hole in
+  // the rule that everything at or beyond the host collapses to one outcome.
+  let response: DelegateResponse
+  try {
+    response = readDelegateResponse(fetched.body, `delegate ${host}`)
+  } catch (error) {
+    throw new DelegateError(
+      'DELEGATE_FAILED',
+      `delegate ${host} answered with something that is not §8.6's shape: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    )
+  }
   const ttl = Math.min(response.ttl, MAX_DELEGATE_TTL_SEC)
   cache.set(host, label, response, ttl)
   return { response, ttl }

@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "name": "binance",
+  "defaultTtl": 300,
+  "labels": {
+    "shop": "NQ34 248H 248H 248H 248H 248H 248H 248H 248H",
+    "pay": { "address": "NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2", "ttl": 60 },
+    "tips": "NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK"
+  }
+}

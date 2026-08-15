@@ -22,7 +22,14 @@ export {
   type Verification,
 } from './resolve.js'
 
-export { MAX_DELEGATE_TTL_SEC, type DelegateInfo } from './delegate.js'
+// `askDelegate` and `DelegateCache` are exported for one purpose: a delegate
+// host — `@nns/delegate`, or anyone else's — testing itself against the client
+// that will actually ask it. **App code must call `resolve()` instead.** This
+// function returns an address nothing vouches for and attaches none of the
+// labelling that makes that visible: no `DELEGATED_ANSWER`, no proof of the
+// parent, no host taken from a record anyone verified. `resolve()` is what
+// pairs the unproven half with the proven one.
+export { DelegateCache, MAX_DELEGATE_TTL_SEC, askDelegate, type DelegateInfo } from './delegate.js'
 
 // §8.5 #1 is `@nns/anchor/reader`'s rule, wired here and not restated. What
 // this package adds is §8.5 #3's binding: the anchored commitment is compared
@@ -70,6 +77,7 @@ export {
   ProofError,
   QuorumError,
   ResolverError,
+  type DelegateErrorCode,
   type ResolverErrorCode,
   type ResolverReply,
 } from './errors.js'

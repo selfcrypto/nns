@@ -101,6 +101,7 @@ Nimiq's 64-byte transaction data limit.
 | `packages/api` | Read-only resolver, proofs |
 | `packages/app` | Nimiq Pay mini app |
 | `packages/resolver` | npm package other apps embed |
+| `packages/delegate` | Reference subdomain host, run by a name owner — not by NNS |
 | `packages/settlement` · `anchor` · `admin` | Payouts, anchoring, governance |
 | `tasks/` | One brief per package, naming the spec sections it needs |
 

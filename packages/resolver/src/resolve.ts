@@ -30,7 +30,14 @@ import {
 } from './anchors.js'
 import { DEFAULT_RESOLVERS } from './defaults.js'
 import { DelegateCache, askDelegate, type DelegateInfo } from './delegate.js'
-import { readAvailableResponse, readErrorCode, readResolveResponse, toHex, type ResolveResponse } from './documents.js'
+import {
+  readAvailableResponse,
+  readErrorCode,
+  readResolveResponse,
+  toHex,
+  type DelegateResponse,
+  type ResolveResponse,
+} from './documents.js'
 import { ConfigurationError, DelegateError, LookupError, NameError, ResolverError } from './errors.js'
 import {
   agree,
@@ -141,6 +148,23 @@ export interface ResolverOptions {
   readonly quorum?: number
   readonly fetch?: HttpFetch
   readonly timeoutMs?: number
+  /**
+   * Timeout for the §8.6 delegate request. Defaults to `timeoutMs` when that
+   * is set, and to 5,000 ms otherwise — **the same budget a resolver gets, on
+   * purpose.**
+   *
+   * A shorter one is tempting: a delegate is a third party's box and the user
+   * is looking at a payment screen. But cutting it short reports
+   * `DELEGATE_FAILED` for a host that was working — a distant server doing a
+   * TLS handshake into a cold process can legitimately take three seconds —
+   * and a wrong answer from a working host is worse than a slow one, since the
+   * user retries either way. What keeps a slow delegate from reading as a
+   * broken registry is the labelling, not the clock: the answer is marked
+   * `DELEGATED`, and the parent's on-chain resolution stays visible beside it
+   * (see {@link DelegateError.parent}). The knob is here for a deployment that
+   * knows its own hosts, not as a default worth changing.
+   */
+  readonly delegateTimeoutMs?: number
   /** Called for every warning raised, in addition to the warning riding on the result. */
   readonly onWarning?: (warning: ResolveWarning) => void
   /** Clock for the §8.6 delegate cache. Injectable so cache expiry is testable. */
@@ -189,6 +213,7 @@ export class NnsResolver {
   readonly #anchors: AnchorSettings | null
   readonly #onWarning: ((warning: ResolveWarning) => void) | null
   readonly #cache: DelegateCache
+  readonly #delegateTimeoutMs: number
   readonly #belowSpec: ResolveWarning | null
 
   constructor(options: ResolverOptions) {
@@ -214,6 +239,7 @@ export class NnsResolver {
     }
     this.#onWarning = options.onWarning ?? null
     this.#cache = new DelegateCache(options.now ?? Date.now)
+    this.#delegateTimeoutMs = options.delegateTimeoutMs ?? options.timeoutMs ?? 5_000
     this.#belowSpec = belowSpecWarning(required)
 
     // Loud at construction, not only on results: an app that never renders a
@@ -294,16 +320,24 @@ export class NnsResolver {
       throw new DelegateError(
         'PARENT_NOT_DELEGATING',
         `"${parent}" is registered but designates no delegate host, so "${query}" resolves to nothing (§8.6)`,
+        resolved,
       )
     }
 
-    const { response, ttl } = await askDelegate(
-      this.#policy.fetch,
-      this.#cache,
-      resolved.host,
-      label,
-      this.#policy.timeoutMs,
-    )
+    // Everything from here is the unproven half. When it fails, the proven
+    // half goes onto the error rather than being thrown away with it: the
+    // caller can still show that the parent resolves, and that only the host
+    // its owner designated did not answer. `resolve` keeps throwing — a
+    // success shape whose `address` may be absent would make every caller
+    // null-check the field that was the point of the call.
+    let answer: { readonly response: DelegateResponse; readonly ttl: number }
+    try {
+      answer = await askDelegate(this.#policy.fetch, this.#cache, resolved.host, label, this.#delegateTimeoutMs)
+    } catch (error) {
+      if (error instanceof DelegateError && error.parent === null) throw error.withParent(resolved)
+      throw error
+    }
+    const { response, ttl } = answer
 
     const warnings = [
       ...resolved.warnings.filter((warning) => warning.code !== 'PROOF_PENDING'),

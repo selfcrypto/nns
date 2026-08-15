@@ -14,6 +14,10 @@
 // `import type` for exactly this reason).
 import type { AnchorCheck } from '@nns/anchor/reader'
 
+// Type-only for a second reason as well: `resolve.ts` imports this module, so
+// a runtime import here would close the cycle.
+import type { ResolveResult } from './resolve.js'
+
 export type ResolverErrorCode =
   /** The query is not a valid §4.1 name or §4.4 dotted query. */
   | 'NAME_INVALID'
@@ -172,11 +176,42 @@ export class AnchorError extends ResolverError {
   }
 }
 
+/** The two ways §8.6 delegation fails: before the request, and at or beyond the host. */
+export type DelegateErrorCode = 'PARENT_NOT_DELEGATING' | 'DELEGATE_FAILED'
+
 /** §8.6 delegation failed — at the parent, or at the host. */
 export class DelegateError extends ResolverError {
   override readonly name = 'DelegateError'
+  /**
+   * The parent's own resolution, proven, when the failure happened after it.
+   *
+   * A delegate that times out must not take the on-chain half of the answer
+   * down with it: `binance` resolved, its proof verified, and only the host
+   * the owner designated failed. Without this the caller loses a result it had
+   * already paid for and cannot show the user what NNS does know — which is
+   * how an unreachable third-party host ends up looking like a broken
+   * registry. `null` on the paths where no parent was resolved (a bad host in
+   * the record) and wherever the caller is `askDelegate` directly rather than
+   * `resolve`.
+   *
+   * `import type` — `resolve.ts` imports this file, and the browser-safety
+   * test walks this module's runtime imports.
+   */
+  readonly parent: ResolveResult | null
+  readonly #code: DelegateErrorCode
 
-  constructor(code: 'PARENT_NOT_DELEGATING' | 'DELEGATE_FAILED', message: string) {
+  constructor(code: DelegateErrorCode, message: string, parent: ResolveResult | null = null) {
     super(code, message)
+    this.#code = code
+    this.parent = parent
+  }
+
+  /**
+   * The same failure, carrying the parent's proven resolution. Used where the
+   * parent is known — `resolve` — and not where it is not, which is why
+   * `askDelegate` can throw without one.
+   */
+  withParent(parent: ResolveResult): DelegateError {
+    return new DelegateError(this.#code, this.message, parent)
   }
 }
