@@ -1,7 +1,7 @@
 /**
  * Compile `reserved-names.json` into `src/reserved-names.ts`.
  *
- *   npx tsx scripts/gen-reserved-names.ts        (or: pnpm gen:reserved)
+ *   node scripts/gen-reserved-names.ts           (or: pnpm gen:reserved)
  *
  * The JSON is the authoring format — a clean diff for a reviewer who does not
  * read TypeScript. The generated module is what ships, and it is committed:
