@@ -1,12 +1,14 @@
 /**
  * Where a `P` finds out what it is changing.
  *
- * Three of §10.6's bounds are **relative** — each price may move at most
- * `PRICE_MAX_FACTOR` from the one in effect, the commission at most
- * `COMMISSION_MAX_STEP`, and a `P` at all only `PRICE_MIN_INTERVAL` after the
- * last accepted one. None of them can be checked from the message alone, so
- * the CLI has to read the registry's current state before it can say whether
- * the message it just built would be accepted.
+ * One of §10.6's bounds is **relative** — the commission may move at most
+ * `COMMISSION_MAX_STEP` from the one in effect — and it cannot be checked from
+ * the message alone, so the CLI has to read the registry's current state before
+ * it can say whether the message it just built would be accepted. The two price
+ * rate limits that used to sit beside it (`PRICE_MAX_FACTOR`,
+ * `PRICE_MIN_INTERVAL`) were removed in r20; what is left for the prices is a
+ * range check the message carries its own answer to, plus the `LARGE_MOVE_FACTOR`
+ * warning, which needs the active prices all the same.
  *
  * **The source is the API's `GET /params`**, not the indexer's database and
  * not a node: it already serves exactly these four values — the active prices,

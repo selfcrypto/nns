@@ -849,8 +849,6 @@ describe('P — governance (§6, §10.6)', () => {
   it.each([
     ['below PRICE_FLOOR', { feeStandard: 0n, feeLong: 0n }],
     ['above PRICE_CEILING', { feeStandard: CONSTANTS.PRICE_CEILING + 1n }],
-    ['more than 2x up', { feeStandard: CONSTANTS.FEE_STANDARD * 3n }],
-    ['more than 2x down', { feeStandard: CONSTANTS.FEE_STANDARD / 3n }],
     ['fee_long above fee_standard', { feeLong: CONSTANTS.FEE_STANDARD * 2n }],
     ['commission above the ceiling', { commissionBp: CONSTANTS.COMMISSION_CEILING + 1n }],
     ['commission step above the maximum', { commissionBp: CONSTANTS.COMMISSION_RATE + CONSTANTS.COMMISSION_MAX_STEP + 1n }],
@@ -861,28 +859,30 @@ describe('P — governance (§6, §10.6)', () => {
     })
   })
 
-  it('enforces PRICE_MIN_INTERVAL between accepted changes', () => {
+  it('accepts a second P in the very next block — there is no frequency bound', () => {
+    // PRICE_MIN_INTERVAL is gone (§10.6): a rate limit loose enough to permit
+    // legitimate repricing is loose enough for an attacker to walk through, so
+    // nothing here counts blocks between accepted messages. The pending change
+    // from the first P is simply replaced by the second.
     step(proposal({ feeStandard: CONSTANTS.FEE_STANDARD * 2n }), { sender: ADMIN })
-    const soon = encodeGovernance({
-      feeStandard: CONSTANTS.FEE_STANDARD * 2n,
+    const next = encodeGovernance({
+      feeStandard: CONSTANTS.FEE_STANDARD * 3n,
       feeLong: CONSTANTS.FEE_LONG,
       commissionBp: CONSTANTS.COMMISSION_RATE,
       effectiveHeight: LAUNCH + 1 + CONSTANTS.GOVERNANCE_DELAY,
     })
-    expect(step(soon, { sender: ADMIN, at: LAUNCH + 1 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'TOO_SOON' })
+    expect(step(next, { sender: ADMIN, at: LAUNCH + 1 }).verdict.kind).toBe('OK')
+    expect(state.pendingGovernance?.prices.feeStandard).toBe(CONSTANTS.FEE_STANDARD * 3n)
   })
 
-  it('bounds a compromised admin key to eleven visible halvings, not a catastrophe', () => {
-    // §10.6: walking 2,000 NIM down to the 1 NIM floor takes eleven halvings,
-    // each a publicly visible P separated by PRICE_MIN_INTERVAL.
-    let fee = CONSTANTS.FEE_STANDARD
-    let steps = 0
-    while (fee > CONSTANTS.PRICE_FLOOR) {
-      fee = fee / CONSTANTS.PRICE_MAX_FACTOR
-      if (fee < CONSTANTS.PRICE_FLOOR) fee = CONSTANTS.PRICE_FLOOR
-      steps++
-    }
-    expect(steps).toBe(11)
+  it('lets one P reach the floor, which the rails do not prevent (§10.6)', () => {
+    // The rails are fat-finger protection, not attack protection: PRICE_FLOOR
+    // itself is a legal target in a single message, and the only thing between
+    // a stolen key and that price is GOVERNANCE_DELAY's public notice.
+    expect(
+      step(proposal({ feeStandard: CONSTANTS.PRICE_FLOOR, feeLong: CONSTANTS.PRICE_FLOOR }), { sender: ADMIN })
+        .verdict.kind,
+    ).toBe('OK')
   })
 
   // The reducer collapses every bound into one verdict token. A client
@@ -906,7 +906,6 @@ describe('P — governance (§6, §10.6)', () => {
     it.each([
       ['PRICE_BAND', { feeStandard: 0n, feeLong: 0n }],
       ['ORDERING', { feeLong: CONSTANTS.FEE_STANDARD, feeStandard: CONSTANTS.FEE_STANDARD / 2n }],
-      ['PRICE_MAX_FACTOR', { feeStandard: CONSTANTS.FEE_STANDARD * 3n }],
       ['COMMISSION_CEILING', { commissionBp: CONSTANTS.COMMISSION_CEILING + 1n }],
       ['COMMISSION_MAX_STEP', { commissionBp: CONSTANTS.COMMISSION_RATE + CONSTANTS.COMMISSION_MAX_STEP + 1n }],
     ])('names %s, and the reducer forfeits the same message', (bound, over) => {
@@ -918,14 +917,24 @@ describe('P — governance (§6, §10.6)', () => {
       })
     })
 
-    it('states the window a price may move within, rounding the lower end up', () => {
-      // The rule is `next × 2 >= previous`, so an odd previous permits one
-      // luna more than a floor division would report.
-      const odd = { ...launch, feeStandard: 400_000_001n }
-      expect(governanceBoundViolation(odd, { ...odd, feeStandard: 200_000_000n })?.message).toContain(
-        '200000001 … 800000002',
-      )
-      expect(governanceBoundViolation(odd, { ...odd, feeStandard: 200_000_001n })).toBeNull()
+    it('accepts any price inside the rails, however far it moves in one step', () => {
+      // What is left is a range check, not a rate limit: floor to ceiling in a
+      // single message is a legal P, and the CLI's job is to warn a human
+      // rather than to refuse it (packages/admin).
+      expect(
+        governanceBoundViolation(launch, {
+          feeStandard: CONSTANTS.PRICE_CEILING,
+          feeLong: CONSTANTS.PRICE_FLOOR,
+          commissionBp: CONSTANTS.COMMISSION_RATE,
+        }),
+      ).toBeNull()
+      expect(
+        governanceBoundViolation(launch, {
+          feeStandard: CONSTANTS.PRICE_FLOOR,
+          feeLong: CONSTANTS.PRICE_FLOOR,
+          commissionBp: CONSTANTS.COMMISSION_RATE,
+        }),
+      ).toBeNull()
     })
   })
 })

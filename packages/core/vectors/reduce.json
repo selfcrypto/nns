@@ -24,7 +24,7 @@
     "TERM_LENGTH": 31536000,
     "GRACE_PERIOD": 2592000,
     "XFER_TIMELOCK": 43200,
-    "GOVERNANCE_DELAY": 43200,
+    "GOVERNANCE_DELAY": 86400,
     "OFFER_IRREVOCABLE": 8640,
     "OFFER_MAX_LIFETIME": 1296000
   },
@@ -1056,7 +1056,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P200000000|80000000|250|58885920"
+            "text": "NNS1P200000000|80000000|250|58929120"
           },
           "verdict": {
             "kind": "OK"
@@ -1077,7 +1077,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58885919,
+            "blockNumber": 58929119,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -1090,7 +1090,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58885920,
+            "blockNumber": 58929120,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -1104,7 +1104,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58885920,
+            "blockNumber": 58929120,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -1132,7 +1132,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P400000000|40000000|250|58885920"
+            "text": "NNS1P400000000|40000000|250|58929120"
           },
           "verdict": {
             "kind": "OK"
@@ -1140,7 +1140,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58885919,
+            "blockNumber": 58929119,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -1153,7 +1153,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58885920,
+            "blockNumber": 58929120,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "TREASURY",
@@ -1188,7 +1188,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P400000000|40000000|250|58885920"
+            "text": "NNS1P400000000|40000000|250|58929120"
           },
           "verdict": {
             "kind": "OK"
@@ -1196,7 +1196,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58885920,
+            "blockNumber": 58929120,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -1210,7 +1210,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58885920,
+            "blockNumber": 58929120,
             "txIndex": 1,
             "sender": "BOB",
             "recipient": "TREASURY",
@@ -1234,7 +1234,7 @@
       }
     },
     {
-      "id": "governance_bound_more_than_double",
+      "id": "governance_bound_above_price_ceiling",
       "steps": [
         {
           "tx": {
@@ -1243,7 +1243,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P600000000|40000000|250|58885920"
+            "text": "NNS1P10000000001|40000000|250|58929120"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1255,7 +1255,8 @@
         "prices": {
           "feeStandard": "200000000"
         }
-      }
+      },
+      "note": "PRICE_MAX_FACTOR and PRICE_MIN_INTERVAL were removed (§10.6), so a P may move a band as far as it likes and land in the very next block. What is left is the range check: one luna above PRICE_CEILING forfeits, and the active prices are unchanged."
     },
     {
       "id": "governance_from_a_non_admin_forfeits",
@@ -1267,7 +1268,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P200000000|40000000|250|58885920"
+            "text": "NNS1P200000000|40000000|250|58929120"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1278,6 +1279,56 @@
       "expect": {
         "prices": {
           "feeStandard": "200000000"
+        }
+      }
+    },
+    {
+      "id": "a_second_P_replaces_the_pending_one",
+      "note": "§6 `P`: a P accepted while another is pending replaces it — §8.1 commits at most one pending P, and it is the most recently accepted. Reachable a block apart since r20 removed PRICE_MIN_INTERVAL, so the two readings (queue or replace) would otherwise diverge in pendingRoot immediately and in pricesRoot at the first effective height. An implementation that queues applies 400000000 at 58929120.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P400000000|40000000|250|58929120"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P300000000|40000000|250|58929121"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "advanceTo": 58929120
+        },
+        {
+          "check": {
+            "prices": {
+              "feeStandard": "200000000"
+            }
+          }
+        },
+        {
+          "advanceTo": 58929121
+        }
+      ],
+      "expect": {
+        "prices": {
+          "feeStandard": "300000000"
         }
       }
     },
@@ -1378,7 +1429,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Ubinance|58885920"
+            "text": "NNS1Ubinance|58929120"
           },
           "verdict": {
             "kind": "OK"
@@ -1386,7 +1437,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58885919,
+            "blockNumber": 58929119,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -1400,7 +1451,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58885920,
+            "blockNumber": 58929120,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -1445,7 +1496,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Uweb3|58885920"
+            "text": "NNS1Uweb3|58929120"
           },
           "verdict": {
             "kind": "OK"
@@ -1453,7 +1504,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58885920,
+            "blockNumber": 58929120,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -1484,7 +1535,7 @@
             "sender": "ADMIN",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Unq|58885920"
+            "text": "NNS1Unq|58929120"
           },
           "verdict": {
             "kind": "OK"
@@ -1492,7 +1543,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58885920,
+            "blockNumber": 58929120,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -1526,7 +1577,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Uab-|58885920"
+            "text": "NNS1Uab-|58929120"
           },
           "verdict": {
             "kind": "FORFEIT",

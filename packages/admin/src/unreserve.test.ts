@@ -21,7 +21,7 @@ const BOB = parseAddress('NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK')
 const config = defineConfig({ networkId: 24 })
 
 const HEAD = 58_099_950
-/** A comfortable day of notice — twice GOVERNANCE_DELAY. */
+/** A comfortable two days of notice — twice GOVERNANCE_DELAY. */
 const EFFECTIVE = HEAD + 2 * CONSTANTS.GOVERNANCE_DELAY
 const HASH = 'c0ffee'.repeat(10) + 'c0ff'
 
@@ -125,7 +125,7 @@ describe('describePlan', () => {
     expect(lines).toContain('PROTOCOL_ADDRESS')
     expect(lines).toContain(`effective at height ${HEAD + 2 * CONSTANTS.GOVERNANCE_DELAY}`)
     // 86,400 blocks at ~1 block/s is ~24 h.
-    expect(lines).toContain('~24.0 h from now')
+    expect(lines).toContain('~48.0 h from now')
     expect(lines).not.toContain('WARNING')
   })
 

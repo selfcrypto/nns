@@ -54,6 +54,22 @@ describe('CONSTANTS — §3', () => {
     expect(CONSTANTS).not.toHaveProperty('RECOVERY_TIMELOCK')
   })
 
+  it('has no governance rate limit — both were removed in r20 (§10.6)', () => {
+    // Deleted rather than widened: a limit loose enough to permit legitimate
+    // repricing is loose enough for an attacker to walk through, so the notice
+    // window is what protects and these two only implied otherwise. Pinned so
+    // reintroducing one is a deliberate edit here as well as in reduce.ts.
+    expect(CONSTANTS).not.toHaveProperty('PRICE_MAX_FACTOR')
+    expect(CONSTANTS).not.toHaveProperty('PRICE_MIN_INTERVAL')
+  })
+
+  it('gives a governance change a full day of notice (§10.6)', () => {
+    // The whole of the protection against a hostile P, which is why it is
+    // twice XFER_TIMELOCK rather than equal to it as it was through r19.
+    expect(CONSTANTS.GOVERNANCE_DELAY).toBe(86_400)
+    expect(CONSTANTS.GOVERNANCE_DELAY).toBeGreaterThan(CONSTANTS.XFER_TIMELOCK)
+  })
+
   it('keeps the grace period shorter than the term it follows (§7.3, §10.4)', () => {
     // The two move together — r20 shortened both — and a grace period at or
     // past a full term would let a name sit unresolvable for longer than it
@@ -94,14 +110,12 @@ describe('CONSTANTS — §3', () => {
       FEE_LONG: 40_000_000n, //                400 NIM
       PRICE_FLOOR: 100_000n, //                  1 NIM
       PRICE_CEILING: 10_000_000_000n, //   100,000 NIM
-      PRICE_MAX_FACTOR: 2n,
-      PRICE_MIN_INTERVAL: 604_800,
       COMMISSION_RATE: 250n,
       COMMISSION_CEILING: 1_000n,
       COMMISSION_MAX_STEP: 250n,
       BURN_SHARE_BP: 2_000n,
       BASIS_POINTS: 10_000n,
-      GOVERNANCE_DELAY: 43_200,
+      GOVERNANCE_DELAY: 86_400,
       XFER_TIMELOCK: 43_200,
       TERM_LENGTH: 31_536_000,
       GRACE_PERIOD: 2_592_000,

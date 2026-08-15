@@ -62,6 +62,15 @@ export const NOTICE_MARGIN = 3_600
  */
 export const PARAMS_LAG_LIMIT = 1_000
 
+/**
+ * Above this factor, a price change is only *warned* about — never refused.
+ * Client policy, like {@link NOTICE_MARGIN}, and deliberately not in `core`:
+ * §10.6 has no rate limit at all, so this cannot be a rule anybody enforces.
+ * It is 2× because that is the move a human is most likely to have meant when
+ * they typed one digit too many.
+ */
+export const LARGE_MOVE_FACTOR = 2n
+
 export interface GovernanceParams {
   readonly feeStandard: bigint
   readonly feeLong: bigint
@@ -200,20 +209,23 @@ function check(
     )
   }
 
-  // §10.6 frequency. Measured at inclusion, which is at or after the head this
-  // was planned against — so a `P` that clears the interval now still clears
-  // it when mined, and one that does not may clear it later.
-  if (active.lastGovernanceHeight !== null) {
-    const since = head - active.lastGovernanceHeight
-    if (since < CONSTANTS.PRICE_MIN_INTERVAL) {
-      const wait = CONSTANTS.PRICE_MIN_INTERVAL - since
-      refuse(
-        `§10.6 frequency: the last accepted P was at height ${active.lastGovernanceHeight}, ${since} blocks ago; ` +
-          `PRICE_MIN_INTERVAL is ${CONSTANTS.PRICE_MIN_INTERVAL} blocks, so this forfeits TOO_SOON — ` +
-          `wait ${wait} more blocks (${hours(wait)})`,
+  // A large move is legal and unretractable, so it is warned about rather than
+  // refused. This is the only thing left between a misplaced decimal and a
+  // repriced registry: §10.6 removed PRICE_MAX_FACTOR precisely because a
+  // protocol rate limit cannot both permit real repricing and stop an
+  // attacker, which leaves the fat-finger case to the client.
+  const move = (label: string, from: bigint, to: bigint): void => {
+    if (from === to) return
+    const big = to > from * LARGE_MOVE_FACTOR || to * LARGE_MOVE_FACTOR < from
+    if (big) {
+      warn(
+        `${label} moves ${formatLuna(from)} → ${formatLuna(to)}, more than ${LARGE_MOVE_FACTOR}× — legal since ` +
+          '§10.6 has no rate limit, and unretractable once mined. Check the decimal point',
       )
     }
   }
+  move('fee_standard', active.prices.feeStandard, params.feeStandard)
+  move('fee_long', active.prices.feeLong, params.feeLong)
 
   // §6 `P` notice, plus the margin the mempool makes necessary.
   const notice = params.effectiveHeight - head
@@ -247,7 +259,7 @@ function check(
   if (lag > PARAMS_LAG_LIMIT) {
     warn(
       `the bounds were checked against ${active.url} at height ${active.height}, ${lag} blocks behind the node — ` +
-        'a P accepted since is not reflected in the prices or in the frequency check',
+        'a P accepted since is not reflected in the prices these bounds were checked against',
     )
   }
   return checks

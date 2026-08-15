@@ -19,8 +19,8 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > a revision number stays something an implementation can claim to implement
 > rather than a changelog id.
 
-> **Changes in revision 20 — the recovery address is removed, and four §3
-> numbers move.** One message type deleted, one §3 constant gone, and it moves
+> **Changes in revision 20 — the recovery address is removed, four §3 numbers
+> move, and governance loses its rate limits.** One message type deleted, one §3 constant gone, and it moves
 > bytes: the §8.1 name leaf loses a 20-byte field, so **every root changes** and
 > `COMMITMENT_LAYOUT` goes to `4`. The four constants at the end of this list
 > move no bytes of their own — no layout, no message, no migration — but the
@@ -82,11 +82,23 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > - **`FEE_LONG` is unchanged at 400 NIM**, and `MIN_PRICE` with it. It is the
 >   anti-spam floor that bounds the log (§8.2), and §10.1's argument for it is
 >   untouched by the standard band moving.
-> - **§10.6 — the ordering bound binds sooner.** The bands are now 5× apart
->   rather than 10×, so at `PRICE_MAX_FACTOR` 2× a `P` lowering `FEE_STANDARD`
->   alone reaches `fee_long ≤ fee_standard` on the third cut instead of the
->   fourth; a `P` carries both prices, so nothing is blocked. The compromised-key
->   walk to `PRICE_FLOOR` is eleven halvings, not twelve.
+> - **§3, §10.6 — `PRICE_MAX_FACTOR` and `PRICE_MIN_INTERVAL` are removed
+>   entirely.** A rate limit loose enough not to obstruct legitimate repricing
+>   during NIM volatility is also loose enough for an attacker to walk through:
+>   there is no setting that both protects and permits. What protects is the
+>   notice window — a hostile `P` is public before it bites — and past that, a
+>   fork, since `ADMIN_ADDRESS` is a §3 constant and cannot be rotated in-band.
+>   ENS avoids the whole problem by pricing in USD through an oracle, which a
+>   chain with no smart contracts cannot do; §10.6 now says so rather than
+>   implying the limits stood in for it.
+> - **§3 — `GOVERNANCE_DELAY` 43,200 → 86,400 blocks (~12 h → ~24 h),** because
+>   it is now the whole of the protection rather than one bound among several.
+> - **`PRICE_FLOOR` and `PRICE_CEILING` stay**, restated as fat-finger rails
+>   against a misplaced decimal in an honest `P` — never as attack protection.
+> - **§7.4 — `TOO_SOON` is removed from the vocabulary**, being unreachable
+>   without a frequency bound, and `GOVERNANCE_BOUND_VIOLATED` loses its
+>   price-step arm. The verdict vocabulary is **27 tokens** (`OK`, 23 forfeit,
+>   3 refund), of which `OVER_LENGTH` stays unreachable on mainnet.
 
 > **Changes in revision 19 — the launch freeze, as far as it can go.** Prose
 > only. **No bytes move**: nothing here enters the §8.1 preimage or the §8.2
@@ -808,7 +820,7 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 | **Malicious or compromised delegate resolver** | Not covered by proofs — clients MUST label delegated results differently (§8.5) | A parent can misdirect its own subdomains; scope limited to that parent |
 | Confusable names (digit/letter) | Digits barred between letters, and `0`/`1` barred at either end — the boundary clause adopted in r6 (§4.2) | Accepted residual: confusions needing neither an interior digit nor a leading/trailing `0`/`1` |
 | Confusable names (multigraph) | Rendering (§4.3), identicons, first-use pinning (§8.5) | Accepted residual |
-| Admin key compromise | Governance bounds enforced by every indexer (§10.6); a `U` award reaches only `RESERVED_NAMES`, never a name with an owner, and carries `GOVERNANCE_DELAY` public notice per name (§6 `U`) | Slow, visible, bounded nuisance — plus reserved names given away one announced `U` at a time until the key is disowned |
+| Admin key compromise | **`GOVERNANCE_DELAY`'s ~24 h of public notice, and then a fork.** Every change is on-chain before it bites; the price rails (`PRICE_FLOOR`/`PRICE_CEILING`) are fat-finger protection, not a defence, and there are no rate limits (§10.6). A `U` award reaches only `RESERVED_NAMES`, never a name with an owner | Visible, and reversible only by coordination: `ADMIN_ADDRESS` is a §3 constant, so a stolen key is routed around by a spec revision, not rotated. Within a day it can reprice the registry anywhere inside the rails and give away reserved names one announced `U` at a time |
 | **Owner key compromise** | **None. A lost or stolen owner key is a lost name**, as in ENS | Total and immediate: `O` + `B` moves the name in two blocks (§6 `B`), so not even the `X` timelock delays a thief who reads this document. v1 removed the recovery address rather than advertise a defence the owner key itself defeats (r20) |
 | Mistyped `XFER` recipient | `XFER_TIMELOCK` with owner veto via `K` — this, and not key compromise, is what the timelock is for | Permanent if unnoticed within `XFER_TIMELOCK` |
 | Chain reorganisation | State advances only on macro-block-finalised batches | None |
@@ -943,11 +955,9 @@ NIM figures assume ~$0.0005/NIM.
 | `COMMISSION_RATE` | 250 bp (2.5%) | Marketplace cut on a settled sale; governable |
 | `COMMISSION_CEILING` | 1,000 bp (10%) | Governance hard upper bound |
 | `COMMISSION_MAX_STEP` | 250 bp | Maximum change per adjustment |
-| `PRICE_FLOOR` | 1 NIM | Governance hard lower bound, either band — chosen so a name stays ≤ ~$1 even at $1/NIM |
+| `PRICE_FLOOR` | 1 NIM | Governance hard lower bound, either band — chosen so a name stays ≤ ~$1 even at $1/NIM. A fat-finger rail, not attack protection (§10.6) |
 | `PRICE_CEILING` | 100,000 NIM | Governance hard upper bound, either band |
-| `PRICE_MAX_FACTOR` | 2× | Maximum change per adjustment, either band |
-| `PRICE_MIN_INTERVAL` | 604,800 blocks (~7 d) | Minimum gap between adjustments — tracks up to ~16× per month |
-| `GOVERNANCE_DELAY` | 43,200 blocks (~12 h) | Minimum notice before a change bites |
+| `GOVERNANCE_DELAY` | 86,400 blocks (~24 h) | Minimum notice before a change bites — and, since the rate limits were removed, the whole of what bounds a hostile `P` (§10.6) |
 | `XFER_TIMELOCK` | 43,200 blocks (~12 h) | Window in which the owner can cancel their own pending `X` with a `K` (§6). Guards a mistyped recipient, not a thief (§2) |
 | `TERM_LENGTH` | 31,536,000 blocks (~1 y) | See §10.4 |
 | `GRACE_PERIOD` | 2,592,000 blocks (~30 d) | Resolution off, renewal still allowed |
@@ -1617,6 +1627,17 @@ order or out of sync.
 Bounds and scope in §10.6. Rejected if any bound is violated — every indexer
 enforces them independently.
 
+**A `P` accepted while another is still pending replaces it.** There is at most
+one pending `P` (§8.1), and it is always the most recently accepted one; the
+superseded change never takes effect and earns no further log line. This is the
+same rule §6 `X` states for the other repeatable message, and it is what makes
+§8.1's single-entry pending `P` a consequence rather than an assumption. It
+became reachable in the ordinary case when r20 removed `PRICE_MIN_INTERVAL`:
+two `P`s may now be accepted a block apart, so "the second one queues" and "the
+second one replaces" would otherwise be a live disagreement between two
+implementations at any height. Bounds are still measured against the **active**
+prices, never against a pending `P`'s.
+
 **Notice is measured from inclusion, not from sending.** The indexer sees only
 the block a message landed in; it has no idea when the message was built, and
 two indexers could not agree on it if it did. A governance message therefore
@@ -1626,8 +1647,8 @@ Get this wrong and there is no second attempt at the same message: it takes an
 `INSUFFICIENT_NOTICE` forfeit and stays on-chain permanently. **A governance
 message is unretractable** — there is no `K` for a `P` or a `U`, and nothing
 that has landed can be recalled. Verified on mainnet 2026-08-13: a `P` and a
-`U` built with `head + 10,000` against a `GOVERNANCE_DELAY` of 43,200 both
-forfeited, and both are still there. Clients MUST compute `effective_height`
+`U` built with `head + 10,000` against a `GOVERNANCE_DELAY` of 43,200 — the
+value at the time — both forfeited, and both are still there. Clients MUST compute `effective_height`
 from a fresh head with margin above `GOVERNANCE_DELAY`, never from the exact
 minimum.
 
@@ -1666,7 +1687,7 @@ for.** Releasing a reserved name to `AVAILABLE` and expecting the intended
 holder to register it first is a race, and §6.2 accepts that races go to
 whoever watches the chain hardest. The `U` is the worst possible starting
 position for the honest party: it names the name `GOVERNANCE_DELAY` blocks in
-advance, in public, so a sniper has twelve hours to prepare a `G` for the
+advance, in public, so a sniper has a day to prepare a `G` for the
 exact block. Handing `binance` to Binance therefore has to skip `AVAILABLE`
 entirely — and the alternative, an admin racing on the partner's behalf and
 then transferring, is the same race with an extra `X` and a period where the
@@ -1675,7 +1696,7 @@ admin owns a name it was given to pass on.
 **An award is still bounded by the notice period**, which is where the
 governance argument in §10.6 survives contact with this power. `GOVERNANCE_DELAY`
 is measured from the landing block exactly as for `P`, so an award is visible
-on-chain for twelve hours before it binds, and a rogue admin key hands out
+on-chain for a day before it binds, and a rogue admin key hands out
 reserved names one publicly announced `U` at a time rather than all at once.
 It cannot award to itself at all: that is a self-transaction, dropped silently
 by the network (§5.3). And it can never touch a name anybody already owns —
@@ -1949,7 +1970,6 @@ against a message of a listed type.
 | `INSUFFICIENT_NOTICE` | `P` `U` | `effective_height` less than `GOVERNANCE_DELAY` above the height of the block the message landed in |
 | `NAME_NOT_RESERVED` | `U` | Name is absent from `RESERVED_NAMES`, or a `U` for it has already fired |
 | `UNRESERVE_PENDING` | `U` | A `U` for this name is already pending and has not reached its `effective_height` (§6 `U`) |
-| `TOO_SOON` | `P` | Less than `PRICE_MIN_INTERVAL` since the last accepted `P` (§10.6) |
 | `GOVERNANCE_BOUND_VIOLATED` | `P` | A §10.6 bound exceeded, measured against the **active** prices |
 | `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no `O` past `OFFER_IRREVOCABLE` |
 | `BELOW_MIN_PRICE` | `O` | Price below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
@@ -1999,7 +2019,7 @@ each type runs its rows in this order:
 | `B` | `OFFER_NOT_OPEN`, `WRONG_PRICE` |
 | `M`, `F` | `WRONG_SENDER` |
 | `A` | `AUCTION_NOT_IN_V1` |
-| `P` | `NOT_ADMIN`, `INSUFFICIENT_NOTICE`, `TOO_SOON`, `GOVERNANCE_BOUND_VIOLATED` |
+| `P` | `NOT_ADMIN`, `INSUFFICIENT_NOTICE`, `GOVERNANCE_BOUND_VIOLATED` |
 | `U` | `NOT_ADMIN`, `INVALID_RECIPIENT`, `INSUFFICIENT_NOTICE`, `INVALID_NAME`, `NAME_NOT_RESERVED`, `UNRESERVE_PENDING` |
 
 `BELOW_REFUND_FLOOR` is not a position in that order: it substitutes for
@@ -2962,35 +2982,58 @@ anything in flight.
 |---|---|
 | Sender | must be `ADMIN_ADDRESS` |
 | Either price | within `PRICE_FLOOR` … `PRICE_CEILING` |
-| Change size | at most `PRICE_MAX_FACTOR` (2×) up or down, per band |
 | Ordering | `fee_long` MUST be ≤ `fee_standard` |
 | Commission | 0 … `COMMISSION_CEILING` (10%), moving at most `COMMISSION_MAX_STEP` (250 bp) per adjustment |
-| Frequency | at least `PRICE_MIN_INTERVAL` (~7 d) since the last accepted `P` |
 | Notice | `effective_height` ≥ **the height of the block the `P` lands in** + `GOVERNANCE_DELAY` (§6 `P`) |
 
-**The ordering bound binds sooner than it used to.** At 2,000 and 400 NIM the
-two bands are 5× apart, not the 10× of earlier revisions, so with
-`PRICE_MAX_FACTOR` at 2× a `P` that lowers `FEE_STANDARD` alone hits
-`fee_long ≤ fee_standard` on the third cut (2,000 → 1,000 → 500 → 250, and 250
-is below the long band) where it used to take four. Nothing is blocked by
-this — a `P` carries both prices, so the bands can always be walked down
-together — but a governance change that moves one band and leaves the other is
-now three adjustments from `GOVERNANCE_BOUND_VIOLATED` rather than four, and a
-client building a `P` should expect to hit the bound that much earlier.
+**There is no rate limit, and that is deliberate.** Earlier revisions bounded
+each `P` to `PRICE_MAX_FACTOR` (2×) per adjustment and one accepted `P` per
+`PRICE_MIN_INTERVAL` (~7 d). Both are removed. A rate limit here has to satisfy
+two requirements at once and cannot: **loose enough not to obstruct legitimate
+repricing** — NIM can move an order of magnitude in a quarter, and a registry
+that cannot follow it is priced at $20 or $0.05 for the months the limit takes
+to unwind — **and tight enough to stop an attacker**, who simply walks the
+price down one permitted step at a time and arrives at the same place a few
+weeks later. There is no setting that both protects and permits, so the honest
+move is to stop pretending the limit is a defence and delete it.
 
-Because all indexers validate these, a **compromised admin key buys a slow,
-visible, bounded nuisance rather than a catastrophe**. It cannot zero the
-price and let someone drain the namespace, nor set it to infinity to freeze
-the registry. At the r7 bounds, walking from 2,000 NIM to the 1 NIM floor
-takes eleven halvings ≈ eleven weeks of publicly visible `P` messages — long
-before that, the honest response is a spec bump that ignores the rogue key.
+**What protects is the notice window.** A `P` cannot take effect for
+`GOVERNANCE_DELAY` (~24 h, doubled from ~12 h when the rate limits went), and
+in that window it is a public on-chain fact that every indexer, resolver and
+integrator can see. The response to a hostile `P` is not a bound that softens
+it; it is a **fork** — a spec revision, from a stated height, that ignores the
+rogue key. That is the same remedy the rest of §10.6 already relies on, and it
+is the only one available: `PROTOCOL_ADDRESS` and `ADMIN_ADDRESS` are §3
+constants and cannot be rotated in-band, so a compromised admin key is not a
+key the protocol can retire — it is a key the network has to route around. The
+rate limits bought hours of delay in front of a remedy that takes days to
+coordinate either way; the notice window is the part that was doing the work.
 
-The `U` award (§6) widens what a stolen key can reach without changing that
-conclusion. It can hand out reserved names, one at a time, each announced
-`GOVERNANCE_DELAY` blocks before it takes effect and each rejected outright by
-the same spec bump; it cannot award to itself, and it cannot touch a name that
-has an owner. The reserved list is a finite asset the key can start spending in
-public, not a lever on the registry.
+**Why ENS does not have this problem.** ENS prices in USD and reads the rate
+from an oracle, so its registration fee follows the market without anyone
+sending a governance transaction at all, and the powers that *are* governed can
+be timelocked and multisig'd on-chain. Neither half is available here: NNS has
+**no smart contracts** (§1), so there is no oracle to read, no timelock
+contract to enforce a delay, and no multisig to spread the key — a price is
+whatever the last valid `P` said, and a `P` is one signature from one address.
+The design that removes the need for a rate limit is a design this chain
+cannot host, and a weak imitation of it is worse than its absence, because it
+is quoted as a protection in threat models.
+
+**`PRICE_FLOOR` and `PRICE_CEILING` stay, as fat-finger rails.** They catch a
+misplaced decimal in a legitimate `P` — the failure that is actually likely,
+and unretractable once mined (§6 `P`) — and they keep the parameter space
+inside the range the rest of this document reasons about. They are not offered
+as attack protection: an attacker holding the admin key sets the price to the
+floor in one message, and the floor being 1 NIM rather than 0 changes nothing
+about the response.
+
+The `U` award (§6) is the other thing a stolen key reaches, and the same
+argument covers it. It can hand out reserved names, one at a time, each
+announced `GOVERNANCE_DELAY` blocks before it takes effect and each rejected
+outright by the same fork; it cannot award to itself, and it cannot touch a
+name that has an owner. The reserved list is a finite asset the key can start
+spending in public, not a lever on the registry.
 
 **The bounds themselves are spec constants, not governable.** If NIM's price
 regime shifts so far that even the floor or ceiling is wrong — a sustained
@@ -3243,7 +3286,7 @@ functional on first use, not a prototype.
 
 0. **Encoding test and indexer-node sync — both done** (r13; §5.1, §11)
 1. `G` and resolve
-2. `S`, `X`, and `R` with their timelocks
+2. `S` and `X` with the transfer timelock
 3. NNS log, Merkle roots, proofs, non-inclusion; `P` and `F` alongside
 4. Mini app UI: register, resolve, send-by-name
 5. `D` and delegated resolution, with the verified/delegated UI distinction

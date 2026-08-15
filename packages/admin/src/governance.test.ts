@@ -4,6 +4,7 @@ import { CONSTANTS, CodecError, LAUNCH_PRICES, defineConfig, encodeGovernance, p
 import { AdminRefusal, UsageError, type AdminRpc } from './cli.js'
 import {
   NOTICE_MARGIN,
+  LARGE_MOVE_FACTOR,
   PARAMS_LAG_LIMIT,
   broadcastGovernance,
   describeGovernancePlan,
@@ -118,12 +119,25 @@ describe('planGovernance', () => {
 })
 
 describe('§10.6 bounds — core’s rule, checked before signing', () => {
-  it('refuses a price moving more than PRICE_MAX_FACTOR, and says what the window was', async () => {
-    const built = await plan({ feeStandard: LAUNCH_PRICES.feeStandard * 3n })
+  it('refuses a price above PRICE_CEILING, and says the message cannot be retracted', async () => {
+    const built = await plan({ feeStandard: CONSTANTS.PRICE_CEILING + 1n })
     expect(refusals(built)).toHaveLength(1)
-    expect(messages(built)).toContain('PRICE_MAX_FACTOR')
+    expect(messages(built)).toContain('PRICE_BAND')
     expect(messages(built)).toContain('GOVERNANCE_BOUND_VIOLATED')
     expect(messages(built)).toContain('cannot be retracted')
+  })
+
+  it('warns — and does not refuse — a move larger than LARGE_MOVE_FACTOR', async () => {
+    // §10.6 has no rate limit, so a 3× move is a legal P. The only thing left
+    // between a misplaced decimal and a repriced registry is this warning.
+    const built = await plan({ feeStandard: LAUNCH_PRICES.feeStandard * 3n })
+    expect(refusals(built)).toEqual([])
+    expect(messages(built)).toContain(`more than ${LARGE_MOVE_FACTOR}×`)
+    expect(messages(built)).toContain('Check the decimal point')
+  })
+
+  it('says nothing about a move inside the factor', async () => {
+    expect(await plan({ feeStandard: LAUNCH_PRICES.feeStandard * 2n }).then((b) => b.checks)).toEqual([])
   })
 
   it('refuses fee_long above fee_standard', async () => {
@@ -145,15 +159,10 @@ describe('§10.6 bounds — core’s rule, checked before signing', () => {
     expect(messages(built)).toContain('PRICE_BAND')
   })
 
-  it('refuses a P inside PRICE_MIN_INTERVAL of the last accepted one, and says how long to wait', async () => {
-    const built = await plan({}, { lastGovernanceHeight: HEAD - 100 })
-    expect(messages(built)).toContain('TOO_SOON')
-    expect(messages(built)).toContain(`wait ${CONSTANTS.PRICE_MIN_INTERVAL - 100} more blocks`)
-  })
-
-  it('accepts one exactly PRICE_MIN_INTERVAL later — inclusion is at or after this head', async () => {
-    const built = await plan({}, { lastGovernanceHeight: HEAD - CONSTANTS.PRICE_MIN_INTERVAL })
-    expect(built.checks).toEqual([])
+  it('accepts a P one block after the last accepted one — there is no frequency bound', async () => {
+    // PRICE_MIN_INTERVAL is gone (§10.6). lastGovernanceHeight is still read
+    // and printed, but nothing refuses on it.
+    expect(await plan({}, { lastGovernanceHeight: HEAD - 1 }).then((b) => b.checks)).toEqual([])
   })
 })
 
@@ -222,7 +231,7 @@ describe('describeGovernancePlan', () => {
     expect(lines).toContain('200000000 luna (2000 NIM) → 250000000 luna (2500 NIM)')
     expect(lines).toContain('250 bp → 300 bp')
     expect(lines).toContain(`effective at height ${EFFECTIVE} — head is ${HEAD}`)
-    expect(lines).toContain('~13.0 h from now')
+    expect(lines).toContain('~25.0 h from now')
     expect(lines).toContain('NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8')
     expect(lines).toContain('PROTOCOL_ADDRESS')
     expect(lines).toContain('ADMIN_ADDRESS), balance 1000000 luna (10 NIM)')
@@ -241,12 +250,12 @@ describe('describeGovernancePlan', () => {
     const built = await plan(
       {},
       {
-        lastGovernanceHeight: HEAD - CONSTANTS.PRICE_MIN_INTERVAL,
+        lastGovernanceHeight: HEAD - 604_800,
         pending: { prices: LAUNCH_PRICES, effectiveHeight: HEAD + 1_000 },
       },
     )
     const lines = describeGovernancePlan(built).join('\n')
-    expect(lines).toContain(`last P      height ${HEAD - CONSTANTS.PRICE_MIN_INTERVAL}`)
+    expect(lines).toContain(`last P      height ${HEAD - 604_800}`)
     expect(lines).toContain(`pending`)
     expect(lines).toContain(`at height ${HEAD + 1_000}`)
   })

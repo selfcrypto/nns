@@ -135,14 +135,14 @@ export const CONSTANTS = Object.freeze({
    * `MIN_PRICE` entry here. Use `minPrice(state.prices)` from `state.ts`.
    */
   FEE_LONG: nim(400n),
-  /** Governance hard lower bound, either band. */
+  /**
+   * Governance hard lower bound, either band — a **fat-finger rail, not attack
+   * protection** (§10.6). A key that can set the price to the floor is already
+   * a key the registry has to fork away from.
+   */
   PRICE_FLOOR: nim(1n),
-  /** Governance hard upper bound, either band. */
+  /** Governance hard upper bound, either band. Same rail, other end. */
   PRICE_CEILING: nim(100_000n),
-  /** Maximum change per adjustment, either band. */
-  PRICE_MAX_FACTOR: 2n,
-  /** Minimum gap between accepted `P` messages. ~7 d. */
-  PRICE_MIN_INTERVAL: 604_800,
   /** Marketplace cut on a settled sale, basis points. Governable. */
   COMMISSION_RATE: 250n,
   /** Governance hard upper bound, basis points. */
@@ -153,8 +153,16 @@ export const CONSTANTS = Object.freeze({
   BURN_SHARE_BP: 2_000n,
   /** Denominator for every basis-point figure above. */
   BASIS_POINTS: 10_000n,
-  /** Minimum notice before a governance change bites. ~12 h. */
-  GOVERNANCE_DELAY: 43_200,
+  /**
+   * Minimum notice before a governance change bites. ~24 h.
+   *
+   * **This is the whole of the protection against a hostile `P`**, now that the
+   * rate limits are gone (§10.6): a malicious change is visible on-chain for a
+   * day before it does anything, and the remedy is a coordinated fork, not a
+   * bound. It was 43,200 (~12 h) while `PRICE_MAX_FACTOR` and
+   * `PRICE_MIN_INTERVAL` were expected to do part of that work.
+   */
+  GOVERNANCE_DELAY: 86_400,
 
   // ── Timelocks and terms (§6, §10.4) ───────────────────────────────────────
   /**

@@ -105,7 +105,6 @@ export type ForfeitReason =
   | 'INSUFFICIENT_NOTICE'
   | 'NAME_NOT_RESERVED'
   | 'UNRESERVE_PENDING'
-  | 'TOO_SOON'
   | 'NOTHING_TO_CANCEL'
   | 'BELOW_REFUND_FLOOR'
   | 'BELOW_MIN_PRICE'
@@ -776,12 +775,6 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       if (message.effectiveHeight < tx.blockNumber + CONSTANTS.GOVERNANCE_DELAY) {
         return keep(forfeit('INSUFFICIENT_NOTICE'))
       }
-      if (
-        state.lastGovernanceHeight !== null &&
-        tx.blockNumber - state.lastGovernanceHeight < CONSTANTS.PRICE_MIN_INTERVAL
-      ) {
-        return keep(forfeit('TOO_SOON'))
-      }
       if (governanceBoundViolation(state.prices, message) !== null) return keep(forfeit('GOVERNANCE_BOUND_VIOLATED'))
 
       const draft = draftOf(state)
@@ -793,6 +786,9 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
         },
         effectiveHeight: message.effectiveHeight,
       }
+      // Informational since the frequency bound was removed (§10.6): no rule
+      // reads it, and it is committed nowhere. Kept because "when did
+      // governance last act" is worth answering without replaying the log.
       draft.lastGovernanceHeight = tx.blockNumber
       schedule(draft, message.effectiveHeight)
       return { state: freeze(draft), verdict: ok() }
@@ -850,7 +846,6 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
 export type GovernanceBound =
   | 'PRICE_BAND'
   | 'ORDERING'
-  | 'PRICE_MAX_FACTOR'
   | 'COMMISSION_CEILING'
   | 'COMMISSION_MAX_STEP'
 
@@ -861,14 +856,20 @@ export interface GovernanceBoundViolation {
 }
 
 /**
- * §10.6 bounds, enforced independently by every indexer. This is what makes a
- * compromised admin key "a slow, visible, bounded nuisance rather than a
- * catastrophe". `null` means every bound holds.
+ * §10.6 bounds, enforced independently by every indexer. `null` means every
+ * bound holds.
  *
- * Compared against the **active** prices rather than a pending `P`'s: with
- * `PRICE_MIN_INTERVAL` at ~7 d and `GOVERNANCE_DELAY` at ~12 h, a pending
- * change always activates before the next `P` is permitted, so the two
- * readings cannot diverge.
+ * **These are fat-finger rails, not attack protection** (§10.6). The rate
+ * limits that used to sit here — `PRICE_MAX_FACTOR` and `PRICE_MIN_INTERVAL` —
+ * are gone: a limit loose enough not to obstruct legitimate repricing during
+ * NIM volatility is also loose enough for an attacker to walk through, so what
+ * bounds a hostile `P` is `GOVERNANCE_DELAY`'s notice and, past that, a fork.
+ *
+ * Compared against the **active** prices rather than a pending `P`'s. Two `P`s
+ * may now land inside one `GOVERNANCE_DELAY`, so the second is checked against
+ * prices the first is about to replace — deliberately: the active prices are
+ * the ones every indexer agrees on at that height, and a pending change is not
+ * yet a fact about the registry.
  *
  * It reports *which* bound broke rather than a boolean because the reducer is
  * not the only caller: a `P` that violates one is forfeited on-chain and
@@ -899,21 +900,6 @@ export function governanceBoundViolation(
     return violation('ORDERING', `fee_long ${proposed.feeLong} must be <= fee_standard ${proposed.feeStandard}`)
   }
 
-  // At most PRICE_MAX_FACTOR up or down, per band.
-  const outOfFactor = (label: string, next: bigint, previous: bigint): GovernanceBoundViolation | null =>
-    next <= previous * CONSTANTS.PRICE_MAX_FACTOR && next * CONSTANTS.PRICE_MAX_FACTOR >= previous
-      ? null
-      : violation(
-          'PRICE_MAX_FACTOR',
-          `${label} ${previous} → ${next} moves by more than PRICE_MAX_FACTOR (${CONSTANTS.PRICE_MAX_FACTOR}×), ` +
-            // The lower end is a ceiling division: the rule is `next × FACTOR >= previous`,
-            // so an odd `previous` permits one luna more than a floor would say.
-            `so it must be within ${(previous + CONSTANTS.PRICE_MAX_FACTOR - 1n) / CONSTANTS.PRICE_MAX_FACTOR} … ${previous * CONSTANTS.PRICE_MAX_FACTOR} luna`,
-        )
-  const standardFactor = outOfFactor('fee_standard', proposed.feeStandard, current.feeStandard)
-  if (standardFactor !== null) return standardFactor
-  const longFactor = outOfFactor('fee_long', proposed.feeLong, current.feeLong)
-  if (longFactor !== null) return longFactor
 
   if (proposed.commissionBp > CONSTANTS.COMMISSION_CEILING) {
     return violation(

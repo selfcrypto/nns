@@ -119,7 +119,17 @@ export interface NnsState {
   readonly offers: ReadonlyMap<string, Offer>
   readonly prices: Prices
   readonly pendingGovernance: PendingGovernance | null
-  /** Height of the last accepted `P`, for the `PRICE_MIN_INTERVAL` check. */
+  /**
+   * Height of the last accepted `P`. **Informational, and consensus-irrelevant
+   * since the `PRICE_MIN_INTERVAL` bound was removed** (§10.6): no rule reads
+   * it, §8.1 commits it nowhere, and two indexers disagreeing about it derive
+   * identical roots. It is kept because the API and the admin CLI answer "when
+   * did governance last act" from it, and it is deterministic either way.
+   *
+   * While the frequency bound existed this field was the one consensus input
+   * that decided a verdict without appearing in any commitment — the r16 `0x0A`
+   * shape of gap. Removing the bound closed it from the other side.
+   */
   readonly lastGovernanceHeight: number | null
   /** Names released from `RESERVED_NAMES` by a `U` that has taken effect. */
   readonly unreserved: ReadonlySet<string>

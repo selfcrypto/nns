@@ -366,6 +366,11 @@ describe('vectors/reduce.json', () => {
             expect(resolve(state, name)).toBe(target === null ? null : book[target as string])
           }
         }
+        if (step.check.prices !== undefined) {
+          for (const [key, value] of Object.entries(step.check.prices)) {
+            expect((state.prices as unknown as Record<string, bigint>)[key], key).toBe(BigInt(value as string))
+          }
+        }
         continue
       }
 
