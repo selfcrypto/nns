@@ -92,10 +92,13 @@ compose ──▶ review (in-app) ──▶ Pay sheet (wallet UI) ──▶ conf
   For `S`/`X` the counterparty is the recipient *so that* this sheet shows
   it (§5.3); the review screen says "check the address on the next screen".
 - **Confirm loop**: a returned hash is not confirmation (three silent-drop
-  routes, §5.3). Poll the API (or history, for NC) until the effect
-  appears: "Sent — confirming…" → "Done" with the effect named, or after
-  ~90 s the honest failure: "Not confirmed — the network did not include
-  this transaction." Never "sent ✓" from a hash.
+  routes, §5.3) — and the SDK does not even return one: a send resolves to
+  the **serialized transaction**, or to an `ErrorResponse` *value* when the
+  user declines the sheet (never a throw). Poll the API (or history, for
+  NC) until the effect appears: "Sent — confirming…" → "Done" with the
+  effect named, or after ~90 s the honest failure: "Not confirmed — the
+  network did not include this transaction." Never "sent ✓" from anything
+  the SDK returned.
 
 ## 5. Per-action flow table
 
