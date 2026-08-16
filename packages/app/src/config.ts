@@ -64,13 +64,24 @@ export function appConfig(): AppConfig {
 }
 
 /**
- * The operator-run, CORS-open, read-only RPC endpoint the NC inbox reads
- * history from (docs/app-chat.md §4). Optional: without it the Inbox shows
- * its setup state and nothing else changes.
+ * The operator-run, CORS-open RPC endpoint — read history for the NC inbox
+ * (docs/app-chat.md §4), `getBlockNumber` for a validity start height, and
+ * `sendRawTransaction` to broadcast what the Hub signed. Allowlist exactly
+ * those three upstream. Optional: without it the Inbox shows its setup
+ * state and Hub sends cannot broadcast.
  */
-export function historyEndpoint(): string | null {
-  const raw = import.meta.env['VITE_NNS_HISTORY'] as string | undefined
+export function rpcEndpoint(): string | null {
+  const raw = import.meta.env['VITE_NNS_RPC'] as string | undefined
   if (raw === undefined || raw.trim() === '') return null
-  if (!/^https?:\/\//.test(raw)) throw new ConfigParseError('VITE_NNS_HISTORY must be an http(s) URL')
+  if (!/^https?:\/\//.test(raw)) throw new ConfigParseError('VITE_NNS_RPC must be an http(s) URL')
   return raw
 }
+
+/** The Nimiq Hub the desktop adapter opens popups against. */
+export function hubEndpoint(): string {
+  const raw = import.meta.env['VITE_NNS_HUB_URL'] as string | undefined
+  return raw !== undefined && raw.trim() !== '' ? raw : 'https://hub.nimiq.com'
+}
+
+/** Shown by the Hub in every popup. */
+export const APP_NAME = 'NNS'

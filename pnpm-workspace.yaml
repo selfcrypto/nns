@@ -1,12 +1,22 @@
 packages:
   - 'packages/*'
 
+# All three arrive transitively with @nimiq/hub-api and are refused their
+# postinstall scripts: bufferutil and utf-8-validate are optional native
+# accelerators for ws (a browser bundle never loads them), and es5-ext's
+# script only prints a banner. Nothing here runs code at install time.
+allowBuilds:
+  bufferutil: false
+  es5-ext: false
+  utf-8-validate: false
+
 # One version per dependency across all eight packages. Referenced as
 # "catalog:" in each package.json, so they cannot drift apart.
 catalog:
   # The mini app's whole dependency list, deliberately short (§2.2: every
   # dependency is supply-chain surface in an app whose product is "trust
   # this address"). No router, no data-fetching library, no state manager.
+  '@nimiq/hub-api': ^1.14.0
   '@nimiq/identicons': ^1.6.2
   '@nimiq/mini-app-sdk': ^0.1.0
   '@noble/curves': ^2.3.0

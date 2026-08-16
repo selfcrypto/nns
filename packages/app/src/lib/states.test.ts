@@ -67,22 +67,22 @@ describe('nameView (app-states.md §1)', () => {
 
 describe('actionGates (app-states.md §4)', () => {
   it('register: only on available — grace and reserved carry their own reasons', () => {
-    expect(actionGates({ view: nameView('a', null), viewer: null, head: 0 }).register.enabled).toBe(true)
-    expect(actionGates({ view: nameView('a', info({ reserved: true })), viewer: null, head: 0 }).register.reason).toBe('reserved')
-    expect(actionGates({ view: nameView('a', graceInfo()), viewer: OWNER, head: 950_000 }).register.reason).toBe('in-grace')
-    expect(actionGates({ view: nameView('a', registered()), viewer: OTHER, head: 0 }).register.reason).toBe('taken')
+    expect(actionGates({ view: nameView('a', null), viewers: [], head: 0 }).register.enabled).toBe(true)
+    expect(actionGates({ view: nameView('a', info({ reserved: true })), viewers: [], head: 0 }).register.reason).toBe('reserved')
+    expect(actionGates({ view: nameView('a', graceInfo()), viewers: [OWNER], head: 950_000 }).register.reason).toBe('in-grace')
+    expect(actionGates({ view: nameView('a', registered()), viewers: [OTHER], head: 0 }).register.reason).toBe('taken')
   })
 
   it('S/X/D require REGISTERED and the owner — never grace, never a non-owner', () => {
-    const owned = actionGates({ view: nameView('a', registered()), viewer: OWNER, head: 1_000_000 })
+    const owned = actionGates({ view: nameView('a', registered()), viewers: [OWNER], head: 1_000_000 })
     expect(owned.setTarget.enabled).toBe(true)
     expect(owned.transfer.enabled).toBe(true)
     expect(owned.delegate.enabled).toBe(true)
 
-    const notOwner = actionGates({ view: nameView('a', registered()), viewer: OTHER, head: 1_000_000 })
+    const notOwner = actionGates({ view: nameView('a', registered()), viewers: [OTHER], head: 1_000_000 })
     expect(notOwner.setTarget.reason).toBe('not-owner')
 
-    const inGrace = actionGates({ view: nameView('a', graceInfo()), viewer: OWNER, head: 950_000 })
+    const inGrace = actionGates({ view: nameView('a', graceInfo()), viewers: [OWNER], head: 950_000 })
     expect(inGrace.setTarget.reason).toBe('in-grace')
     expect(inGrace.transfer.reason).toBe('in-grace')
     expect(inGrace.delegate.reason).toBe('in-grace')
@@ -92,15 +92,15 @@ describe('actionGates (app-states.md §4)', () => {
     const pendingTransfer = registered({
       pending: { transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 }, offer: null },
     })
-    const gates = actionGates({ view: nameView('a', pendingTransfer), viewer: OWNER, head: 1_000_000 })
+    const gates = actionGates({ view: nameView('a', pendingTransfer), viewers: [OWNER], head: 1_000_000 })
     expect(gates.setTarget.enabled).toBe(true)
     expect(gates.cancel.enabled).toBe(true)
   })
 
   it('N is for anyone, in term or in grace — gone once the record is', () => {
-    expect(actionGates({ view: nameView('a', registered()), viewer: null, head: 0 }).renew.enabled).toBe(true)
-    expect(actionGates({ view: nameView('a', graceInfo()), viewer: null, head: 950_000 }).renew.enabled).toBe(true)
-    expect(actionGates({ view: nameView('a', null), viewer: OWNER, head: 0 }).renew.reason).toBe('no-record')
+    expect(actionGates({ view: nameView('a', registered()), viewers: [], head: 0 }).renew.enabled).toBe(true)
+    expect(actionGates({ view: nameView('a', graceInfo()), viewers: [], head: 950_000 }).renew.enabled).toBe(true)
+    expect(actionGates({ view: nameView('a', null), viewers: [OWNER], head: 0 }).renew.reason).toBe('no-record')
   })
 
   it('K: the offer is cancellable at exactly openedHeight + OFFER_IRREVOCABLE, not a block before', () => {
@@ -114,16 +114,16 @@ describe('actionGates (app-states.md §4)', () => {
     const boundary = offerCancellableAt(opened)
     expect(boundary).toBe(opened + CONSTANTS.OFFER_IRREVOCABLE)
 
-    const before = actionGates({ view: nameView('a', withOffer), viewer: OWNER, head: boundary - 1 })
+    const before = actionGates({ view: nameView('a', withOffer), viewers: [OWNER], head: boundary - 1 })
     expect(before.cancel.enabled).toBe(false)
     expect(before.cancel.reason).toBe('offer-irrevocable')
 
-    const at = actionGates({ view: nameView('a', withOffer), viewer: OWNER, head: boundary })
+    const at = actionGates({ view: nameView('a', withOffer), viewers: [OWNER], head: boundary })
     expect(at.cancel.enabled).toBe(true)
   })
 
   it('K in grace is nothing-to-cancel — grace entry already cleared the cancellable set', () => {
-    const gates = actionGates({ view: nameView('a', graceInfo()), viewer: OWNER, head: 950_000 })
+    const gates = actionGates({ view: nameView('a', graceInfo()), viewers: [OWNER], head: 950_000 })
     expect(gates.cancel.reason).toBe('nothing-to-cancel')
   })
 
@@ -134,8 +134,8 @@ describe('actionGates (app-states.md §4)', () => {
         offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: 1, expiryHeight: 2_000_000 },
       },
     })
-    expect(actionGates({ view: nameView('a', registered()), viewer: OWNER, head: 0 }).offer.enabled).toBe(true)
-    expect(actionGates({ view: nameView('a', withOffer), viewer: OWNER, head: 0 }).offer.reason).toBe('offer-open')
+    expect(actionGates({ view: nameView('a', registered()), viewers: [OWNER], head: 0 }).offer.enabled).toBe(true)
+    expect(actionGates({ view: nameView('a', withOffer), viewers: [OWNER], head: 0 }).offer.reason).toBe('offer-open')
   })
 
   it('B needs an open, unexpired offer', () => {
@@ -145,14 +145,35 @@ describe('actionGates (app-states.md §4)', () => {
         offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: 1, expiryHeight: 1_500_000 },
       },
     })
-    expect(actionGates({ view: nameView('a', withOffer), viewer: OTHER, head: 1_000_000 }).buy.enabled).toBe(true)
-    expect(actionGates({ view: nameView('a', withOffer), viewer: OTHER, head: 1_500_000 }).buy.reason).toBe('no-offer')
-    expect(actionGates({ view: nameView('a', registered()), viewer: OTHER, head: 0 }).buy.reason).toBe('no-offer')
+    expect(actionGates({ view: nameView('a', withOffer), viewers: [OTHER], head: 1_000_000 }).buy.enabled).toBe(true)
+    expect(actionGates({ view: nameView('a', withOffer), viewers: [OTHER], head: 1_500_000 }).buy.reason).toBe('no-offer')
+    expect(actionGates({ view: nameView('a', registered()), viewers: [OTHER], head: 0 }).buy.reason).toBe('no-offer')
   })
 
   it('no wallet identity closes the owner actions with no-viewer, not not-owner', () => {
-    const gates = actionGates({ view: nameView('a', registered()), viewer: null, head: 0 })
+    const gates = actionGates({ view: nameView('a', registered()), viewers: [], head: 0 })
     expect(gates.setTarget.reason).toBe('no-viewer')
+  })
+
+  it('identity is a set: any address in it owning the record opens the owner actions', () => {
+    const gates = actionGates({ view: nameView('a', registered()), viewers: [OTHER, OWNER], head: 0 })
+    expect(gates.setTarget.enabled).toBe(true)
+    expect(gates.transfer.enabled).toBe(true)
+  })
+})
+
+describe('signerFor — every action knows which address signs', () => {
+  it('owner actions sign with the owning address, wherever it sits in the set', async () => {
+    const { signerFor } = await import('./states')
+    const view = nameView('a', registered())
+    expect(signerFor('setTarget', view, [OTHER, OWNER])).toBe(OWNER)
+    expect(signerFor('setTarget', view, [OTHER])).toBeNull()
+  })
+
+  it('anyone-actions sign with the primary address', async () => {
+    const { signerFor } = await import('./states')
+    expect(signerFor('register', nameView('a', null), [OTHER, OWNER])).toBe(OTHER)
+    expect(signerFor('renew', nameView('a', registered()), [])).toBeNull()
   })
 })
 

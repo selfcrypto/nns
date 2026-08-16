@@ -89,7 +89,7 @@ describe('inbox derivation', () => {
         tx({ hash: 'h4', executionResult: false, timestamp: 2_500 }),
         tx({ hash: 'h5', recipientData: '', timestamp: 2_600 }),
       ],
-      ME,
+      [ME],
     )
     expect(messages.map((message) => message.hash)).toEqual(['h1', 'h2'])
     expect(messages[0]?.direction).toBe('in')
@@ -103,7 +103,7 @@ describe('inbox derivation', () => {
         tx({ hash: 'h1', timestamp: 1_000, recipientData: hex('NC1example|about example') }),
         tx({ hash: 'h2', timestamp: 2_000, recipientData: hex('NC1other-name|about other') }),
       ],
-      ME,
+      [ME],
     )
     const threads = chatThreads(messages)
     expect(threads).toHaveLength(2)

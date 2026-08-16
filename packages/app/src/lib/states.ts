@@ -79,22 +79,27 @@ export function sameAddress(a: string, b: string): boolean {
 
 export interface GateContext {
   readonly view: NameView
-  /** The wallet identity, or null outside Nimiq Pay. */
-  readonly viewer: string | null
+  /**
+   * The wallet identity as a **set of addresses** — Pay supplies a set of
+   * one, Hub grows one per connect, empty means no wallet. Owner actions
+   * are legal when **any** address in the set owns the record; which one
+   * signs is `signerFor`, never an assumption.
+   */
+  readonly viewers: readonly string[]
   /** Chain head as of the data being gated (API responses carry it). */
   readonly head: number
 }
 
-export function actionGates({ view, viewer, head }: GateContext): Record<AppAction, Gate> {
+export function actionGates({ view, viewers, head }: GateContext): Record<AppAction, Gate> {
   const info = view.info
   const registeredRecord = view.kind === 'registered' && info?.record ? info.record : null
   const isOwner =
-    registeredRecord !== null && viewer !== null && sameAddress(registeredRecord.owner, viewer)
+    registeredRecord !== null && viewers.some((viewer) => sameAddress(registeredRecord.owner, viewer))
 
   const ownerGate = (): Gate => {
     if (view.kind === 'grace') return closed('in-grace')
     if (registeredRecord === null) return closed('no-record')
-    if (viewer === null) return closed('no-viewer')
+    if (viewers.length === 0) return closed('no-viewer')
     if (!isOwner) return closed('not-owner')
     return open
   }
@@ -155,6 +160,21 @@ export function actionGates({ view, viewer, head }: GateContext): Record<AppActi
     offer: offer(),
     buy: buy(),
   }
+}
+
+/**
+ * Which address signs an action, from the identity set. Owner-routed
+ * actions must be signed by the owning address — the protocol checks the
+ * sender — so the answer is the record's owner when the set holds it.
+ * Anyone-actions (`G`, `N`, `B`, an NC message) sign with the set's
+ * primary address.
+ */
+export function signerFor(action: AppAction, view: NameView, viewers: readonly string[]): string | null {
+  const anyone = action === 'register' || action === 'renew' || action === 'buy'
+  if (anyone) return viewers[0] ?? null
+  const owner = view.info?.record?.owner
+  if (owner === undefined) return null
+  return viewers.find((viewer) => sameAddress(owner, viewer)) ?? null
 }
 
 // ── Clocks the UI must get right ────────────────────────────────────────────

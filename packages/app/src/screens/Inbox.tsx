@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { chatMessages, chatThreads, type ChatThread } from '../lib/chat'
+import { chatMessages, chatThreads, type ChatThread, type ChatTx } from '../lib/chat'
 import { getOwnedNames } from '../lib/api'
-import { fetchHistory, fetchTransport } from '../lib/history'
-import { historyEndpoint } from '../config'
+import { defaultTransport, fetchHistory } from '../lib/history'
+import { primaryAddress } from '../lib/identity'
 import { approxDate, ellipsizeAddress, formatApproxDate } from '../lib/format'
 import { apiBase } from '../lib/nns'
 import { useAsync } from '../lib/useAsync'
+import type { Wallet } from '../lib/wallet'
 import {
   inboxEmptyLine,
   inboxNoWalletLine,
@@ -19,42 +20,53 @@ import { Composer } from '../components/Composer'
 import { EmptyState, Identicon, NameText, Spinner } from '../components/ui'
 
 /**
- * The NC inbox (docs/app-chat.md §4). Read-only against the operator-run
- * history endpoint; threads keyed (peer, name); threads about names this
- * address owns lead, the rest sit muted below — a message's name field is
- * the sender's claim, so ownership is checked against the API, never taken
- * from the payload.
+ * The NC inbox (docs/app-chat.md §4), across the whole identity set: one
+ * history fetch per address, merged and deduped in `chatMessages`. Threads
+ * keyed (peer, name); ownership checked against the API, never taken from
+ * the payload.
  */
-export function InboxScreen({ viewer }: { viewer: string | null }) {
-  const endpoint = historyEndpoint()
+export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
+  const viewers = wallet?.identity.addresses ?? []
+  const transport = defaultTransport()
   const [openThread, setOpenThread] = useState<string | null>(null)
 
   const data = useAsync(
-    viewer === null || endpoint === null
+    viewers.length === 0 || transport === null
       ? null
       : async () => {
-          const [page, owned] = await Promise.all([
-            fetchHistory(fetchTransport(endpoint), viewer),
-            getOwnedNames(apiBase(), viewer),
+          const [pages, ownedPages] = await Promise.all([
+            Promise.all(viewers.map((address) => fetchHistory(transport, address))),
+            Promise.all(viewers.map((address) => getOwnedNames(apiBase(), address))),
           ])
-          return { page, ownedNames: new Set(owned.names.map((entry) => entry.name)), height: owned.height }
+          const txs: ChatTx[] = pages.flatMap((page) => [...page.txs])
+          const oldestBlock = pages.reduce<number | null>(
+            (oldest, page) =>
+              page.oldestBlock === null ? oldest : oldest === null ? page.oldestBlock : Math.min(oldest, page.oldestBlock),
+            null,
+          )
+          return {
+            txs,
+            oldestBlock,
+            ownedNames: new Set(ownedPages.flatMap((page) => page.names.map((entry) => entry.name))),
+            height: ownedPages[0]?.height ?? 0,
+          }
         },
-    [viewer, endpoint],
+    [viewers.join(' '), transport === null],
   )
 
   const threads = useMemo(
-    () => (data.status === 'done' ? chatThreads(chatMessages(data.value.page.txs, viewer ?? '')) : []),
-    [data, viewer],
+    () => (data.status === 'done' ? chatThreads(chatMessages(data.value.txs, viewers)) : []),
+    [data, viewers],
   )
 
-  if (viewer === null) {
+  if (viewers.length === 0) {
     return (
       <div className="screen">
-        <EmptyState title="Open in Nimiq Pay" body={inboxNoWalletLine()} />
+        <EmptyState title="No wallet connected" body={inboxNoWalletLine()} />
       </div>
     )
   }
-  if (endpoint === null) {
+  if (transport === null) {
     return (
       <div className="screen">
         <EmptyState title="Inbox not set up" body={inboxNotConfiguredLine()} />
@@ -76,7 +88,7 @@ export function InboxScreen({ viewer }: { viewer: string | null }) {
     )
   }
 
-  const { ownedNames, height, page } = data.value
+  const { ownedNames, height, oldestBlock } = data.value
   const mine = threads.filter((thread) => ownedNames.has(thread.name))
   const other = threads.filter((thread) => !ownedNames.has(thread.name))
   const selected = threads.find((thread) => `${thread.peer} ${thread.name}` === openThread) ?? null
@@ -87,7 +99,7 @@ export function InboxScreen({ viewer }: { viewer: string | null }) {
         <button type="button" className="back" onClick={() => setOpenThread(null)}>
           ‹ Inbox
         </button>
-        <ThreadView thread={selected} owned={ownedNames.has(selected.name)} />
+        <ThreadView thread={selected} owned={ownedNames.has(selected.name)} wallet={wallet} />
       </div>
     )
   }
@@ -105,10 +117,8 @@ export function InboxScreen({ viewer }: { viewer: string | null }) {
           <ThreadList threads={other} onOpen={setOpenThread} />
         </details>
       )}
-      {page.oldestBlock !== null && (
-        <p className="note note-info">
-          {inboxWindowLine(formatApproxDate(approxDate(page.oldestBlock, height, Date.now())))}
-        </p>
+      {oldestBlock !== null && (
+        <p className="note note-info">{inboxWindowLine(formatApproxDate(approxDate(oldestBlock, height, Date.now())))}</p>
       )}
     </div>
   )
@@ -139,7 +149,7 @@ function ThreadList({ threads, onOpen }: { threads: readonly ChatThread[]; onOpe
   )
 }
 
-function ThreadView({ thread, owned }: { thread: ChatThread; owned: boolean }) {
+function ThreadView({ thread, owned, wallet }: { thread: ChatThread; owned: boolean; wallet: Wallet | null }) {
   return (
     <div className="thread">
       <div className="thread-head">
@@ -161,7 +171,13 @@ function ThreadView({ thread, owned }: { thread: ChatThread; owned: boolean }) {
           </p>
         ))}
       </div>
-      <Composer name={thread.name} ownName={false} heading="Reply" />
+      <Composer
+        name={thread.name}
+        recipient={thread.peer}
+        wallet={wallet}
+        sender={wallet === null ? null : primaryAddress(wallet.identity)}
+        heading="Reply"
+      />
     </div>
   )
 }

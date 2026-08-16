@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { appConfig, ConfigParseError } from './config'
-import { connectWallet, devAddressOverride } from './lib/sdk'
+import { detectWallet, type Wallet } from './lib/wallet'
+import { connectHubLabel } from './lib/wording'
 import { InboxScreen } from './screens/Inbox'
 import { MyNamesScreen } from './screens/MyNames'
 import { OffersScreen } from './screens/Offers'
@@ -25,20 +26,17 @@ function configProblem(): string | null {
 export function App() {
   const [tab, setTab] = useState<Tab>('search')
   const [seed, setSeed] = useState('')
-  const [viewer, setViewer] = useState<string | null>(null)
+  const [wallet, setWallet] = useState<Wallet | null>(null)
+  // Hub connects mutate the wallet's identity in place; this counter re-renders on them.
+  const [, setIdentityNonce] = useState(0)
 
   const problem = useMemo(configProblem, [])
 
   useEffect(() => {
     if (problem !== null) return
-    const override = devAddressOverride(window.location.search)
-    if (override !== null) {
-      setViewer(override)
-      return
-    }
     let cancelled = false
-    void connectWallet().then((session) => {
-      if (!cancelled && session !== null) setViewer(session.address)
+    void detectWallet(window.localStorage, window.location.search).then((detected) => {
+      if (!cancelled) setWallet(detected)
     })
     return () => {
       cancelled = true
@@ -68,16 +66,28 @@ export function App() {
     setTab('search')
   }
 
+  const connect =
+    wallet?.connect == null
+      ? null
+      : () => {
+          void wallet.connect?.().then(() => setIdentityNonce((value) => value + 1))
+        }
+
   return (
     <div className="frame">
       <header className="masthead">
         <h1 className="wordmark">nns</h1>
         <p className="masthead-sub">names on Nimiq</p>
+        {connect !== null && wallet !== null && wallet.identity.addresses.length === 0 && (
+          <button type="button" className="connect connect-top" onClick={connect}>
+            {connectHubLabel()}
+          </button>
+        )}
       </header>
       <main className="content">
-        {tab === 'search' && <SearchScreen key={seed} viewer={viewer} seed={seed} />}
-        {tab === 'names' && <MyNamesScreen viewer={viewer} onOpen={openName} />}
-        {tab === 'inbox' && <InboxScreen viewer={viewer} />}
+        {tab === 'search' && <SearchScreen key={seed} wallet={wallet} seed={seed} />}
+        {tab === 'names' && <MyNamesScreen wallet={wallet} onOpen={openName} onConnect={connect} />}
+        {tab === 'inbox' && <InboxScreen wallet={wallet} />}
         {tab === 'market' && <OffersScreen onOpen={openName} />}
       </main>
       <nav className="tabbar" aria-label="Sections">

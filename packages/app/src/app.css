@@ -378,6 +378,120 @@ li.note {
   text-align: right;
 }
 
+/* ── Action sheets and the connect button ── */
+
+.action-go {
+  appearance: none;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 14px;
+}
+
+.sheet {
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sheet-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.sheet-title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.sheet-input {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+}
+
+.sheet-input:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.sheet-check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 14px;
+}
+
+.review {
+  margin: 0;
+  padding: 10px 12px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 13.5px;
+}
+
+.sheet-send {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  padding: 11px 0;
+}
+
+.sheet-send:disabled {
+  opacity: 0.45;
+}
+
+.connect {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--card);
+  font: inherit;
+  font-weight: 700;
+  padding: 11px 20px;
+  align-self: center;
+}
+
+.connect-quiet {
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px 16px;
+}
+
+.connect-top {
+  margin-left: auto;
+  font-size: 13px;
+  padding: 7px 14px;
+}
+
 /* ── Lists (my names, market) ── */
 
 .name-list {

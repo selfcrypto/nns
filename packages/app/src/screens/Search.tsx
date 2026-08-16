@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { CONSTANTS, parseQuery } from '@nns/core'
-import { getParams } from '../lib/api'
-import { formatApproxDate, approxDate, lunaToNim } from '../lib/format'
-import { apiBase } from '../lib/nns'
+import { primaryAddress } from '../lib/identity'
+import { formatApproxDate, approxDate } from '../lib/format'
 import { search, type SearchOutcome } from '../lib/search'
-import { actionGates, nameView, registrationFee, sameAddress, type AppAction } from '../lib/states'
+import { actionGates, nameView, signerFor, type AppAction } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
+import type { Wallet } from '../lib/wallet'
 import {
+  ACTION_LABEL,
   GATE_REASON_TEXT,
   alarmBody,
   alarmHeadline,
@@ -14,54 +15,85 @@ import {
   delegateFailedLine,
   graceLine,
   invalidQueryLine,
+  messageOwnerLabel,
   parentNotDelegatingLine,
   reservedLine,
-  sendsDisabledLine,
   unreachableLine,
-  messageOwnerLabel,
 } from '../lib/wording'
-import { AddressRow, FeeChangeNote, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from '../components/result'
+import { AddressRow, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from '../components/result'
+import { ActionSheet } from '../components/ActionSheet'
 import { Composer } from '../components/Composer'
 import { PinCheck } from '../components/PinCheck'
 import { EmptyState, RailCard, Spinner } from '../components/ui'
 
-const ACTION_LABEL: Record<AppAction, string> = {
-  register: 'Register',
-  setTarget: 'Change where it points',
-  transfer: 'Transfer ownership',
-  delegate: 'Set subdomain resolver',
-  cancel: 'Cancel what’s pending',
-  renew: 'Renew',
-  offer: 'Put up for sale',
-  buy: 'Buy',
-}
-
 const DETAIL_ACTIONS: readonly AppAction[] = ['setTarget', 'transfer', 'delegate', 'renew', 'offer', 'cancel', 'buy']
 
-function ActionList({ outcome, viewer }: { outcome: SearchOutcome & { kind: 'resolved' }; viewer: string | null }) {
-  const info = outcome.info
-  if (info?.record === null || info === null) return null
-  const view = nameView(info.name, info)
-  const gates = actionGates({ view, viewer, head: info.height })
+function Actions({
+  actions,
+  name,
+  info,
+  wallet,
+  onChanged,
+}: {
+  actions: readonly AppAction[]
+  name: string
+  info: ReturnType<typeof nameView>['info']
+  wallet: Wallet | null
+  onChanged: () => void
+}) {
+  const [open, setOpen] = useState<AppAction | null>(null)
+  const viewers = wallet?.identity.addresses ?? []
+  const view = nameView(name, info)
+  const gates = actionGates({ view, viewers, head: info?.height ?? 0 })
+
   return (
     <div className="actions">
-      {DETAIL_ACTIONS.map((action) => {
+      {actions.map((action) => {
         const gate = gates[action]
-        if (action === 'buy' && gate.reason === 'no-offer') return null
+        if ((action === 'buy' && gate.reason === 'no-offer') || (action === 'register' && !gate.enabled)) return null
+        const signer = signerFor(action, view, viewers)
+        const usable = gate.enabled && signer !== null && wallet !== null
         return (
-          <div key={action} className="action-row" aria-disabled>
+          <div key={action} className="action-row">
             <span className="action-label">{ACTION_LABEL[action]}</span>
-            <span className="action-state">
-              {gate.enabled ? sendsDisabledLine() : gate.reason !== null ? GATE_REASON_TEXT[gate.reason] : ''}
-            </span>
+            {usable ? (
+              <button type="button" className="action-go" onClick={() => setOpen(open === action ? null : action)}>
+                {open === action ? 'Close' : 'Open'}
+              </button>
+            ) : (
+              <span className="action-state">{gate.reason !== null ? GATE_REASON_TEXT[gate.reason] : GATE_REASON_TEXT['no-viewer']}</span>
+            )}
           </div>
         )
       })}
+      {open !== null && wallet !== null && (
+        <ActionSheet
+          action={open}
+          name={name}
+          info={info}
+          signer={signerFor(open, view, viewers) ?? ''}
+          wallet={wallet}
+          onClose={() => setOpen(null)}
+          onChanged={onChanged}
+        />
+      )}
     </div>
   )
 }
 
-function Outcome({ outcome, viewer, nowMs }: { outcome: SearchOutcome; viewer: string | null; nowMs: number }) {
+function Outcome({
+  outcome,
+  wallet,
+  nowMs,
+  onChanged,
+}: {
+  outcome: SearchOutcome
+  wallet: Wallet | null
+  nowMs: number
+  onChanged: () => void
+}) {
+  const sender = wallet === null ? null : primaryAddress(wallet.identity)
+
   switch (outcome.kind) {
     case 'invalid':
       return <p className="field-error">{invalidQueryLine(outcome.reason, outcome.detail)}</p>
@@ -75,14 +107,11 @@ function Outcome({ outcome, viewer, nowMs }: { outcome: SearchOutcome; viewer: s
           <VerificationLine result={outcome.result} />
           {outcome.info !== null && <Overlays info={outcome.info} nowMs={nowMs} />}
           <WarningNotes warnings={outcome.result.warnings} />
-          <ActionList outcome={outcome} viewer={viewer} />
+          <Actions actions={DETAIL_ACTIONS} name={outcome.info?.name ?? outcome.result.name} info={outcome.info} wallet={wallet} onChanged={onChanged} />
           {outcome.info !== null && outcome.info.record !== null && (
             <details className="message-owner">
               <summary>{messageOwnerLabel()}</summary>
-              <Composer
-                name={outcome.info.name}
-                ownName={viewer !== null && sameAddress(outcome.info.record.owner, viewer)}
-              />
+              <Composer name={outcome.info.name} recipient={outcome.info.record.owner} wallet={wallet} sender={sender} />
             </details>
           )}
         </RailCard>
@@ -110,14 +139,8 @@ function Outcome({ outcome, viewer, nowMs }: { outcome: SearchOutcome; viewer: s
         <RailCard tier={availability.verification === 'PROVEN' ? 'proven' : 'depth'}>
           <TitleName name={outcome.name} />
           <p className="available-line">{availableLine()}</p>
-          <RegistrationFee name={outcome.name} nowMs={nowMs} />
           <WarningNotes warnings={availability.warnings} />
-          <div className="actions">
-            <div className="action-row" aria-disabled>
-              <span className="action-label">{ACTION_LABEL.register}</span>
-              <span className="action-state">{sendsDisabledLine()}</span>
-            </div>
-          </div>
+          <Actions actions={['register']} name={outcome.name} info={outcome.info} wallet={wallet} onChanged={onChanged} />
         </RailCard>
       )
     }
@@ -133,6 +156,7 @@ function Outcome({ outcome, viewer, nowMs }: { outcome: SearchOutcome; viewer: s
         <RailCard tier="plain">
           <TitleName name={outcome.name} />
           <p>{graceLine(until)}</p>
+          <Actions actions={['renew']} name={outcome.name} info={outcome.info} wallet={wallet} onChanged={onChanged} />
         </RailCard>
       )
     }
@@ -188,29 +212,10 @@ function Outcome({ outcome, viewer, nowMs }: { outcome: SearchOutcome; viewer: s
   }
 }
 
-/** The exact §10.5 value a `G` must carry, plus any scheduled change (§1 overlays). */
-function RegistrationFee({ name, nowMs }: { name: string; nowMs: number }) {
-  const params = useAsync(() => getParams(apiBase()), [])
-  if (params.status !== 'done') return null
-  return (
-    <>
-      <p className="fee-line">
-        Registration: <strong>{lunaToNim(registrationFee(name, params.value))} NIM</strong> for a year
-      </p>
-      {params.value.pendingGovernance !== null && (
-        <FeeChangeNote
-          effectiveHeight={params.value.pendingGovernance.effectiveHeight}
-          head={params.value.height}
-          nowMs={nowMs}
-        />
-      )}
-    </>
-  )
-}
-
-export function SearchScreen({ viewer, seed }: { viewer: string | null; seed: string }) {
+export function SearchScreen({ wallet, seed }: { wallet: Wallet | null; seed: string }) {
   const [text, setText] = useState(seed)
   const [submitted, setSubmitted] = useState<string | null>(seed === '' ? null : seed)
+  const [nonce, setNonce] = useState(0)
 
   const fieldError = useMemo(() => {
     const trimmed = text.trim().toLowerCase()
@@ -219,7 +224,7 @@ export function SearchScreen({ viewer, seed }: { viewer: string | null; seed: st
     return parsed.ok ? null : invalidQueryLine(parsed.reason, parsed.detail)
   }, [text, submitted])
 
-  const outcome = useAsync(submitted === null ? null : () => search(submitted), [submitted])
+  const outcome = useAsync(submitted === null ? null : () => search(submitted), [submitted, nonce])
 
   return (
     <div className="screen">
@@ -228,7 +233,10 @@ export function SearchScreen({ viewer, seed }: { viewer: string | null; seed: st
         onSubmit={(event) => {
           event.preventDefault()
           const trimmed = text.trim().toLowerCase()
-          if (trimmed !== '') setSubmitted(trimmed)
+          if (trimmed !== '') {
+            setSubmitted(trimmed)
+            setNonce((value) => value + 1)
+          }
         }}
       >
         <input
@@ -254,7 +262,9 @@ export function SearchScreen({ viewer, seed }: { viewer: string | null; seed: st
       )}
       {outcome.status === 'loading' && <Spinner />}
       {outcome.status === 'error' && <p className="field-error">{unreachableLine()}</p>}
-      {outcome.status === 'done' && <Outcome outcome={outcome.value} viewer={viewer} nowMs={Date.now()} />}
+      {outcome.status === 'done' && (
+        <Outcome outcome={outcome.value} wallet={wallet} nowMs={Date.now()} onChanged={() => setNonce((value) => value + 1)} />
+      )}
     </div>
   )
 }

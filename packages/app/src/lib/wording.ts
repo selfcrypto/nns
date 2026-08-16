@@ -12,7 +12,7 @@
  */
 
 import type { QuorumReport, WarningCode } from '@nns/resolver'
-import type { GateReason } from './states'
+import type { AppAction, GateReason } from './states'
 import type { QueryInvalidReason } from '@nns/core'
 
 // ── Verification lines ──────────────────────────────────────────────────────
@@ -145,7 +145,7 @@ export const GATE_REASON_TEXT: Record<GateReason, string> = {
   reserved: 'Reserved names can’t be registered.',
   'in-grace': 'In grace — only renewal works until it ends.',
   'no-record': 'This name isn’t registered.',
-  'no-viewer': 'Open in Nimiq Pay to act on names.',
+  'no-viewer': 'Connect a wallet to act on names.',
   'not-owner': 'Only the owner can do this.',
   'nothing-to-cancel': 'Nothing is pending on this name.',
   'offer-irrevocable': 'The offer is in its irrevocable window.',
@@ -182,6 +182,44 @@ export const custodialWarning = (): string =>
 
 export const sendsDisabledLine = (): string =>
   'Sending isn’t enabled in this build yet.'
+
+// ── Send flows (docs/app-ux.md §4 — one state machine, one vocabulary) ─────
+
+export const ACTION_LABEL: Record<AppAction, string> = {
+  register: 'Register',
+  setTarget: 'Change where it points',
+  transfer: 'Transfer ownership',
+  delegate: 'Set subdomain resolver',
+  cancel: 'Cancel what’s pending',
+  renew: 'Renew',
+  offer: 'Put up for sale',
+  buy: 'Buy',
+}
+
+export const sendSubmittingLine = (): string => 'Waiting for the wallet…'
+
+export const sendConfirmingLine = (): string => 'Sent — confirming…'
+
+export const sendConfirmedLine = (): string => 'Done.'
+
+export const sendDeclinedLine = (): string => 'Nothing was sent.'
+
+/** Never "sent ✓": the network did not show the effect, and that is all anyone can say. */
+export const sendUnconfirmedLine = (): string =>
+  'Not confirmed — the network did not include this transaction. Check the name again before retrying.'
+
+export const sendNoRpcLine = (): string =>
+  'No RPC endpoint is configured (VITE_NNS_RPC), so nothing can be broadcast.'
+
+export const payProbeGatedLine = (): string =>
+  'Sending from Nimiq Pay waits on the fee test. The desktop app with Nimiq Hub can send today.'
+
+export const connectHubLabel = (): string => 'Connect Nimiq Hub'
+
+export const addAddressLabel = (): string => 'Add another address'
+
+export const buyAcknowledgeLabel = (): string =>
+  'I understand a refund would come from the marketplace operator'
 
 // ── Pinning (§8.5; states doc §2 — mismatch is the alarm tier) ─────────────
 

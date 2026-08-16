@@ -124,6 +124,14 @@ every review screen that pays a resolved name.
 
 ## 7. Order of work when a Pay build ships
 
+**Superseded in part, 2026-08-16: the Hub adapter went first.** Pay stalled
+in store review, and the Nimiq Hub path (desktop web wallet) has no §10.5
+probe question — `signTransaction` exists so apps control `value` and
+`extraData` exactly, the Hub signs, and the app broadcasts through the
+operator RPC endpoint. All eight flows plus NC chat are live on the Hub
+adapter behind the one send machine. What remains gated is **Pay's** send
+path, and for it the list below stands unchanged.
+
 1. Run `docs/miniapp-probe.html` button 3 (does the sheet honour `value`?).
 2. **NC chat send** — immune to the probe's answer (dust; nothing forfeits
    on overpay): enable first, exercise the whole send state machine on the

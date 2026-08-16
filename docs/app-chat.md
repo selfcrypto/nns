@@ -133,13 +133,18 @@ built, not before.)
 
 ## 6. What Pay's stall does and does not block
 
-Sending needs `sendBasicTransactionWithData` — blocked until the post-fork
-Pay build ships, like every send. But **chat is immune to the §10.5 probe
-question** that gates the fee-bearing NNS messages: the value is dust, and
-no rule forfeits an overpay of nothing — if Pay's sheet substitutes its own
-value, the message still lands, the text intact. So the composer ships
-behind the same "sends disabled" gate, and chat is the first send to enable
-when a build arrives, probe answered or not.
+**Since 2026-08-16, chat sends work today through the Nimiq Hub adapter**
+(desktop): the Hub signs the dust transaction with the `NC1` payload as
+`extraData`, the app broadcasts it via the RPC endpoint, and confirmation
+is the transaction found executed (`getTransactionByHash`), keyed on the
+Hub's hash.
 
-The inbox half needs no wallet at all: it is buildable and testable today
-with the `?address=` dev override against the history endpoint.
+On the **Pay** path, sending stays blocked until the post-fork build ships
+— but chat remains immune to the §10.5 probe question that gates Pay's
+fee-bearing NNS messages: the value is dust, and no rule forfeits an
+overpay of nothing. So chat is the first Pay send to enable when a build
+arrives, probe answered or not.
+
+The inbox half needs no wallet at all: it reads across the whole identity
+set, and is testable with the `?address=` dev override against the RPC
+endpoint.

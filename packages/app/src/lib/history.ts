@@ -7,6 +7,7 @@
  */
 
 import type { NimiqProvider } from '@nimiq/mini-app-sdk'
+import { rpcEndpoint } from '../config'
 import type { ChatTx } from './chat'
 
 export class HistoryError extends Error {
@@ -46,6 +47,16 @@ export const fetchTransport =
     // The RPC wraps every result: {data, metadata}. Unwrap or read undefined.
     return (result as Record<string, unknown>)['data']
   }
+
+/**
+ * The configured transport, or null when `VITE_NNS_RPC` is unset. Plain
+ * fetch — right for Hub and desktop dev; the Pay path swaps in
+ * `providerTransport` when its sends unlock.
+ */
+export function defaultTransport(): HistoryTransport | null {
+  const endpoint = rpcEndpoint()
+  return endpoint === null ? null : fetchTransport(endpoint)
+}
 
 export interface HistoryPage {
   readonly txs: readonly ChatTx[]

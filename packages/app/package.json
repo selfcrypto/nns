@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@nimiq/hub-api": "catalog:",
     "@nimiq/identicons": "catalog:",
     "@nimiq/mini-app-sdk": "catalog:",
     "@nns/core": "workspace:*",
