@@ -5,12 +5,25 @@
  *
  * §8.6 fixes one endpoint and one body:
  *
- *     GET https://<host>/nns/v1/resolve/<label>  →  {"address": "NQ…", "ttl": N}
+ *     GET https://<host>/delegated/v1/<parent>/<label>  →  {"address": "NQ…", "ttl": N}
  *
  * and this serves exactly that. The optional signed variant (§16.5) is **not**
  * emitted: `timestamp` and `sig` are a format fixed early so a delegate can opt
  * in without a spec revision, and shipping the fields unsigned — or empty —
  * would invite a client to depend on a claim nothing makes.
+ *
+ * **The path is `/delegated/`, not `/resolve/`, and that is deliberate**
+ * (r23). A resolver's `/resolve/{name}` takes a *name* and answers with a
+ * Merkle proof; this takes a *label* and answers with an assertion nothing
+ * vouches for. The old path — `/nns/v1/resolve/<label>` — read as the former
+ * while being the latter, on a host NNS does not run, and the `/nns/` prefix
+ * implied registry infrastructure that was never there. `delegated` is the
+ * word the client already reports (`verification: 'DELEGATED'`), so the wire
+ * and the result type say the same thing. The `v1` segment stays for the
+ * reason the old one had it: a delegate is a third party's long-lived
+ * deployment that upgrades on nobody's schedule, and a version in the path is
+ * what lets a later shape be a new route rather than a guess about what the
+ * box on the other end speaks.
  *
  * ## What a failure looks like on the wire, and why it can be honest
  *
@@ -34,7 +47,7 @@
  *   adding a label a minute from now must not be shadowed by a cached 404.
  */
 
-import { formatAddress, validateLabel } from '@nns/core'
+import { formatAddress, validateLabel, validateNameSyntax } from '@nns/core'
 
 import type { LabelSource } from './store.js'
 
@@ -112,11 +125,20 @@ export function createRoutes(source: LabelSource, options: RouteOptions = {}): R
       }
     }
 
-    if (rest.length !== 4 || rest[0] !== 'nns' || rest[1] !== 'v1' || rest[2] !== 'resolve') {
+    if (rest.length !== 4 || rest[0] !== 'delegated' || rest[1] !== 'v1') {
       return error(404, 'NOT_FOUND')
     }
 
+    const parent = rest[2] ?? ''
     const label = rest[3] ?? ''
+    // A parent that is not a §4.1 name cannot be one this file answers for, and
+    // cannot have been sent by a conforming client — `parseQuery` rejects it
+    // before a request exists. `validateNameSyntax`, not `validateName`: a
+    // parent may be a short name a fired `U` released, which rule 6 still
+    // rejects.
+    const parentCheck = validateNameSyntax(parent)
+    if (!parentCheck.ok) return error(400, 'BAD_PARENT')
+
     // §4.4 exactly, via core — no case folding and no other normalisation. A
     // label is lowercase by rule, `parseQuery` rejects the rest before a
     // request is ever built, and a delegate inventing a second normalisation
@@ -124,7 +146,16 @@ export function createRoutes(source: LabelSource, options: RouteOptions = {}): R
     const check = validateLabel(label)
     if (!check.ok) return error(400, 'BAD_LABEL')
 
-    const answer = source.current().labels.get(label)
+    const file = source.current()
+    // The gate the parent makes possible. §8.6 permits a delegate to ignore
+    // the parent, and one serving a single name has nothing to disambiguate —
+    // but this file *declares* the name it answers for, so honouring that
+    // declaration is what the field is for. It answers `NO_ANSWER`, never a
+    // distinguishable "wrong parent": a client must not be able to learn which
+    // names a host serves, which is the two-outcomes rule one level up.
+    if (parent !== file.name) return error(404, 'NO_ANSWER')
+
+    const answer = file.labels.get(label)
     if (answer === undefined) return error(404, 'NO_ANSWER')
 
     return {

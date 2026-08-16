@@ -332,7 +332,7 @@ export class NnsResolver {
     // null-check the field that was the point of the call.
     let answer: { readonly response: DelegateResponse; readonly ttl: number }
     try {
-      answer = await askDelegate(this.#policy.fetch, this.#cache, resolved.host, label, this.#delegateTimeoutMs)
+      answer = await askDelegate(this.#policy.fetch, this.#cache, resolved.host, parent, label, this.#delegateTimeoutMs)
     } catch (error) {
       if (error instanceof DelegateError && error.parent === null) throw error.withParent(resolved)
       throw error

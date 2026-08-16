@@ -14,7 +14,7 @@
  *
  * What that rewrite does *not* cover is URL construction from a host recorded
  * on chain — `D` lands, the indexer stores the host, the client builds
- * `https://<host>/nns/v1/resolve/<label>` and fetches it. That step still has
+ * `https://<host>/delegated/v1/<parent>/<label>` and fetches it. That step still has
  * never run end to end; `tasks/10-delegate.md` and the battery runbook say so
  * plainly rather than treating this file as the coverage.
  */
@@ -37,6 +37,9 @@ const expected = (fill: number): string => addressFromBytes(new Uint8Array(20).f
 
 /** The host a `D` would name. Only the origin is rewritten; the path is the client's. */
 const HOST = 'nns.example.com'
+
+/** The parent the request carries since r23, and the name `FILE` declares. */
+const PARENT = 'binance'
 
 const FILE: LabelFile = parseLabelFile({
   version: 1,
@@ -74,13 +77,13 @@ async function delegate(options?: RouteOptions): Promise<HttpFetch> {
   return rewriting(await listen(createServer(createRoutes(source, options))))
 }
 
-const ask = async (fetchImpl: HttpFetch, label: string, host = HOST) =>
-  await askDelegate(fetchImpl, new DelegateCache(), host, label, 5_000)
+const ask = async (fetchImpl: HttpFetch, label: string, host = HOST, parent = PARENT) =>
+  await askDelegate(fetchImpl, new DelegateCache(), host, parent, label, 5_000)
 
-async function failure(fetchImpl: HttpFetch, label: string, host = HOST): Promise<DelegateError> {
+async function failure(fetchImpl: HttpFetch, label: string, host = HOST, parent = PARENT): Promise<DelegateError> {
   let caught: unknown
   try {
-    await ask(fetchImpl, label, host)
+    await ask(fetchImpl, label, host, parent)
   } catch (error) {
     caught = error
   }
@@ -92,7 +95,7 @@ describe('the reference client against the reference host', () => {
   it('resolves a label, at the URL §8.6 fixes', async () => {
     asked.length = 0
     const result = await ask(await delegate(), 'shop')
-    expect(asked).toEqual([`https://${HOST}/nns/v1/resolve/shop`])
+    expect(asked).toEqual([`https://${HOST}/delegated/v1/${PARENT}/shop`])
     expect(result.response.address).toBe(expected(1))
     expect(result.ttl).toBe(300)
   })
@@ -113,7 +116,7 @@ describe('the reference client against the reference host', () => {
     asked.length = 0
     const fetchImpl = await delegate({ basePath: '/binance' })
     const result = await ask(fetchImpl, 'shop', `${HOST}/binance`)
-    expect(asked).toEqual([`https://${HOST}/binance/nns/v1/resolve/shop`])
+    expect(asked).toEqual([`https://${HOST}/binance/delegated/v1/${PARENT}/shop`])
     expect(result.response.address).toBe(expected(1))
   })
 
@@ -121,8 +124,8 @@ describe('the reference client against the reference host', () => {
     const fetchImpl = await delegate()
     const cache = new DelegateCache()
     asked.length = 0
-    await askDelegate(fetchImpl, cache, HOST, 'shop', 5_000)
-    await askDelegate(fetchImpl, cache, HOST, 'shop', 5_000)
+    await askDelegate(fetchImpl, cache, HOST, PARENT, 'shop', 5_000)
+    await askDelegate(fetchImpl, cache, HOST, PARENT, 'shop', 5_000)
     expect(asked).toHaveLength(1)
   })
 })
@@ -177,7 +180,7 @@ describe('every failure is one outcome', () => {
     const port = await listen(server)
     let caught: unknown
     try {
-      await askDelegate(rewriting(port), new DelegateCache(), HOST, 'shop', 50)
+      await askDelegate(rewriting(port), new DelegateCache(), HOST, PARENT, 'shop', 50)
     } catch (error) {
       caught = error
     }

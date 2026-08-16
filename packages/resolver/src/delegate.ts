@@ -19,16 +19,30 @@
  *   naming — but the user has to be told which side of it they are on, which
  *   is why every delegated result carries `DELEGATED_ANSWER`.
  *
+ * The request carries **the parent and the label** (r23):
+ *
+ *     GET https://<host>/delegated/v1/<parent>/<label>
+ *
+ * Through r22 it carried only the label, which made two names delegating to
+ * one bare host a single shared namespace — `shop.a` and `shop.b` were the
+ * same request and one answer served both, silently, with a payment address
+ * as the wrong answer. §6 `D`'s short path was the stated remedy and did not
+ * stretch: `MAX_HOST_LEN` is 30 characters for host and path together, which
+ * fits one exchange on its own domain and fails for a provider serving
+ * customers by name.
+ *
  * §8.6's optional signed response is **not implemented**, and cannot be as
  * specified: the signature is Ed25519 "by the parent's owner key", but the
  * response carries no public key and NNS state holds only the owner's
  * *address* — which is a hash of that key. There is nothing to verify
- * against. v1 requires neither producing nor verifying it, so nothing is lost
- * today; recorded in `docs/decisions.md` as a gap in a format §8.6 fixed
- * early precisely so it could be adopted without a spec revision.
+ * against. r23 added the parent to that payload, which closes a replay
+ * between two names one owner holds, but does **not** make the scheme
+ * implementable — the missing public key is a separate, still-open gap
+ * recorded in `docs/decisions.md`. v1 requires neither producing nor
+ * verifying it, so nothing is lost today.
  */
 
-import { CONSTANTS, validateHost } from '@nns/core'
+import { CONSTANTS, validateHost, validateNameSyntax } from '@nns/core'
 
 import { readDelegateResponse, readErrorCode, type DelegateResponse } from './documents.js'
 import { DelegateError } from './errors.js'
@@ -53,10 +67,15 @@ interface CacheEntry {
 }
 
 /**
- * The §8.6 cache. Keyed by `host` and `label` rather than by the dotted query
- * — two parents pointing at one host are two different questions, and one
- * parent that re-points elsewhere must not keep serving the old host's
- * answers.
+ * The §8.6 cache, keyed by `host`, `parent` and `label` — the same triple the
+ * request carries, so the key is the question.
+ *
+ * Through r22 the key was `host` and `label` alone, because the request was
+ * label-only and two parents on one host were genuinely the same question.
+ * That is what r23 fixed: the parent is now in the request, so two parents on
+ * one host are two questions and must be two entries. The host stays in the
+ * key for the reason it always was — a parent that re-points elsewhere must
+ * not keep serving the old host's answers.
  */
 export class DelegateCache {
   readonly #entries = new Map<string, CacheEntry>()
@@ -66,8 +85,8 @@ export class DelegateCache {
     this.#now = now
   }
 
-  get(host: string, label: string): DelegateResponse | null {
-    const key = `${host}/${label}`
+  get(host: string, parent: string, label: string): DelegateResponse | null {
+    const key = `${host}/${parent}/${label}`
     const entry = this.#entries.get(key)
     if (entry === undefined) return null
     if (entry.expiresAtMs <= this.#now()) {
@@ -77,8 +96,8 @@ export class DelegateCache {
     return entry.response
   }
 
-  set(host: string, label: string, response: DelegateResponse, ttlSec: number): void {
-    this.#entries.set(`${host}/${label}`, { response, expiresAtMs: this.#now() + ttlSec * 1_000 })
+  set(host: string, parent: string, label: string, response: DelegateResponse, ttlSec: number): void {
+    this.#entries.set(`${host}/${parent}/${label}`, { response, expiresAtMs: this.#now() + ttlSec * 1_000 })
   }
 
   clear(): void {
@@ -87,17 +106,31 @@ export class DelegateCache {
 }
 
 /**
- * Ask a delegate host about one label.
+ * Ask a delegate host about one label under one parent.
  *
  * The host is re-validated against §6 `D`'s rules before it goes into a URL.
  * It arrives from a record this package did not author, and a host that
  * smuggled a `/` or a `?` past validation would be choosing the path being
- * requested rather than merely the server answering it.
+ * requested rather than merely the server answering it. The **parent** is
+ * checked for the same reason and not because the caller is doubted: `resolve`
+ * always supplies one `parseQuery` produced, but this function is exported for
+ * delegate implementations to test against, so a parent carrying a `/` would
+ * inject a path segment exactly as a bad host would. `validateNameSyntax` is
+ * the right rule rather than `validateName` — a parent may be a short name a
+ * fired `U` released, which rule 6 would still reject.
+ *
+ * **No fallback to the r22 label-only path.** A client that retried
+ * `/nns/v1/resolve/<label>` on a 404 would keep the shape that made two names
+ * on one host share a namespace reachable forever, and hand anyone able to
+ * force a 404 a downgrade to it. An un-migrated delegate fails loudly instead:
+ * every label under it stops resolving at once, which is a diagnosis rather
+ * than a wrong address.
  */
 export async function askDelegate(
   fetchImpl: HttpFetch,
   cache: DelegateCache,
   host: string,
+  parent: string,
   label: string,
   timeoutMs: number,
 ): Promise<{ readonly response: DelegateResponse; readonly ttl: number }> {
@@ -105,14 +138,18 @@ export async function askDelegate(
   if (!hostCheck.ok || host.length === 0) {
     throw new DelegateError('PARENT_NOT_DELEGATING', `delegate host ${JSON.stringify(host)} is not a valid §6 D host`)
   }
+  const parentCheck = validateNameSyntax(parent)
+  if (!parentCheck.ok) {
+    throw new DelegateError('DELEGATE_FAILED', `parent ${JSON.stringify(parent)} is not a valid §4.1 name: ${parentCheck.reason}`)
+  }
   if (label.length === 0 || label.length > CONSTANTS.MAX_LABEL_LEN) {
     throw new DelegateError('DELEGATE_FAILED', `label ${JSON.stringify(label)} is not a valid §4.4 label`)
   }
 
-  const cached = cache.get(host, label)
+  const cached = cache.get(host, parent, label)
   if (cached !== null) return { response: cached, ttl: cached.ttl }
 
-  const url = `https://${host}/nns/v1/resolve/${encodeURIComponent(label)}`
+  const url = `https://${host}/delegated/v1/${encodeURIComponent(parent)}/${encodeURIComponent(label)}`
   const fetched = await getJson(fetchImpl, url, timeoutMs)
   if (!fetched.ok) {
     throw new DelegateError('DELEGATE_FAILED', `delegate ${host} did not answer: ${fetched.reason}`)
@@ -142,6 +179,6 @@ export async function askDelegate(
     )
   }
   const ttl = Math.min(response.ttl, MAX_DELEGATE_TTL_SEC)
-  cache.set(host, label, response, ttl)
+  cache.set(host, parent, label, response, ttl)
   return { response, ttl }
 }

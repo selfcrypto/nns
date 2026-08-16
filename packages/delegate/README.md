@@ -11,7 +11,7 @@ subdomain, and knows nothing about them.
 ```bash
 cp .env.example .env          # NNS_DELEGATE_LABELS=./labels.json
 pnpm --filter @nns/delegate dev
-curl localhost:8636/nns/v1/resolve/shop
+curl localhost:8636/delegated/v1/binance/shop
 # {"address":"NQ12 3456 …","ttl":300}
 ```
 
@@ -42,33 +42,36 @@ A compromised delegate serves whatever addresses the attacker likes, and no
 part of NNS will notice. Signed responses are a fixed format waiting for a v2
 that requires them.
 
-## One host cannot tell which name asked
-
-A request carries **only the label**:
+## The request tells you which name asked
 
 ```
-GET https://<host>/nns/v1/resolve/<label>
+GET https://<host>/delegated/v1/<parent>/<label>
 ```
 
-There is no parent field anywhere in it — not in the path, not in a header, not
-in the body of the reply. This is a property of the wire format, so it is true
-of every delegate anyone builds, not a limitation of this one.
+The parent is in the path, so two names delegating to the same host have
+**separate** namespaces: `shop.binance` and `shop.nq` are different questions
+and you may answer them differently.
 
-Two consequences:
+- **The `name` in your labels file is a gate.** This server answers only for
+  the name that file declares, and refuses any other parent with the same
+  `404 NO_ANSWER` it gives an unheld label — never a distinguishable error,
+  because a client must not be able to learn which names you serve. Serving two
+  names means two files and two processes (or two `NNS_DELEGATE_BASE_PATH`
+  routes); a stale `name` means nothing resolves, which is the failure you
+  want.
+- **A short `D` path is for mounting, not for separation.** Point one process
+  at `nns.example.com/binance` and another at `nns.example.com/nq` if it suits
+  your deployment — but the namespaces are separate whether or not you do.
 
-- **Two names pointing at one bare host share one namespace.** If `binance` and
-  `nq` both delegate to `nns.example.com`, then `shop.binance` and `shop.nq`
-  are the same question and get the same answer. The `name` field in the labels
-  file documents which name a file is *for*; it cannot be checked against a
-  request, and this server never tries.
-- **Serving two names means serving two paths.** A `D` host may carry a short
-  path, so point `binance` at `nns.example.com/binance` and `nq` at
-  `nns.example.com/nq`, and run one process per path (`NNS_DELEGATE_BASE_PATH`)
-  or put a proxy in front. Anything else and the first name to claim a label
-  wins for both.
+`@nns/resolver` keys its answer cache on host, parent and label — the same
+triple the request carries.
 
-`@nns/resolver` keys its answer cache on host **and** label for the same
-reason — never on the dotted query.
+**This changed in r23, and the old shape is dead.** Through r22 the request was
+`GET https://<host>/nns/v1/resolve/<label>` — the label alone — so a host could
+not tell two parents apart and one answer served both, silently, with a payment
+address as the wrong answer. Clients do **not** fall back to it: if you are
+running an older delegate, every subdomain under it stops resolving until you
+upgrade, which is deliberate.
 
 ## The labels file
 
@@ -110,9 +113,10 @@ startup** is fatal instead, because there is nothing good to fall back to.
 
 | | |
 |---|---|
-| `GET /nns/v1/resolve/{label}` | `200 {"address":"NQ…","ttl":N}` — the answer |
-| | `404 {"error":"NO_ANSWER"}` — no such label here |
+| `GET /delegated/v1/{parent}/{label}` | `200 {"address":"NQ…","ttl":N}` — the answer |
+| | `404 {"error":"NO_ANSWER"}` — no such label here, **or not a parent this file answers for** |
 | | `400 {"error":"BAD_LABEL"}` — not a valid label |
+| | `400 {"error":"BAD_PARENT"}` — not a valid §4.1 name |
 | `GET /healthz` | `{"ok":true,"name":…,"labels":N,"loadedAt":…}` |
 
 Both sit under `NNS_DELEGATE_BASE_PATH` when one is set. Every response carries
@@ -156,7 +160,7 @@ would never send or serve an address the client would reject.
 3. Send the `D`: `packages/admin`, or any wallet, with data
    `NNS1D<name>|<host>`. Name and host together must be ≤ 52 characters, and
    the host is bare — no scheme, lowercase, `a-z 0-9 . - /`.
-4. Check it: `curl https://<host>/nns/v1/resolve/<label>`, then resolve
+4. Check it: `curl https://<host>/delegated/v1/<name>/<label>`, then resolve
    `<label>.<name>` through a client.
 
 An empty host in a later `D` clears the delegation and turns subdomain

@@ -28,9 +28,15 @@ export interface LabelAnswer {
 
 export interface LabelFile {
   /**
-   * The name this file answers for. **Documentation, not a gate** — §8.6's URL
-   * carries only the label, so the server cannot tell which parent asked and
-   * this field can never be checked against a request. See the README.
+   * The name this file answers for, and **the gate** it is checked against
+   * (r23). §8.6's URL carries the parent, so a request naming a different one
+   * is answered `NO_ANSWER` — never a distinguishable error, which would leak
+   * which names a host serves.
+   *
+   * Through r22 this was documentation that could never be a gate, because the
+   * request carried only the label and there was nothing to compare it to.
+   * That is the defect r23 closed: a stale `name` here used to be harmless and
+   * is now load-bearing.
    */
   readonly name: string
   readonly defaultTtl: number

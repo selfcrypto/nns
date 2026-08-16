@@ -19,19 +19,37 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > a revision number stays something an implementation can claim to implement
 > rather than a changelog id.
 
-> **Changes in revision 23 — a delegate cannot tell which name asked.** Prose
-> only, in §8.6. **No bytes move**: no constant changes value, nothing enters
-> the §8.1 preimage or the §8.2 log hash, every root derived under r22 is
-> unchanged, and an r22 database resumes without a rebuild. Nor is it a new
-> rule — it is a consequence of the request shape §8.6 already fixed, written
-> down because it was being discovered per implementation. The §8.6 request
-> carries **only the label**: no parent in the path, no parent in a header, no
-> parent in the reply. So two names delegating to the same bare host share one
-> label namespace, and `shop.a` and `shop.b` are the same question. An owner
-> who wants two names served from one machine uses §6 `D`'s optional short
-> path, which exists for exactly this. Stated in §8.6 rather than left to be
-> found, because the way it is found otherwise is two names quietly answering
-> each other's subdomains.
+> **Changes in revision 23 — the delegate request carries the parent.** §8.6
+> and §16.5, plus a note in §6 `D`. **No bytes move**: no constant changes
+> value, nothing enters the §8.1 preimage or the §8.2 log hash, every root
+> derived under r22 is unchanged, and an r22 database resumes without a
+> rebuild. What changes is off-chain — the HTTP request a client builds *from*
+> the host it read out of a proven record, and the optional response format.
+>
+> The revision opened by writing down a consequence of the r22 request shape:
+> it carried **only the label**, so a delegate could not tell which name asked,
+> and two names delegating to one bare host shared a single label namespace —
+> `shop.a` and `shop.b` were the same question and one answer served both.
+> Stating it made the cost legible rather than defensible. The failure is
+> **silent**, its wrong answer is **a payment address**, and it fires in the
+> expected deployment rather than an exotic one: an exchange with several
+> names, or any host serving several owners. The stated remedy, §6 `D`'s
+> optional short path, does not stretch — `MAX_HOST_LEN` bounds host and path
+> together, which suits one owner on a short domain and fails for a host
+> serving customers by name. Nothing in the document ever argued *for* the
+> label-only shape; it was inherited from an early draft and never defended,
+> so this closes a question rather than reopening one.
+>
+> So the request is now `GET https://<host>/delegated/v1/<parent>/<label>`,
+> the client cache keys on `host`, `parent` and `label`, the optional
+> signature covers the parent — closing a replay between two names **one**
+> owner holds — and the route is named for what it is: `/resolve` on a
+> resolver takes a name and answers with a proof, while this takes a label and
+> answers with an assertion nothing vouches for. **The retired path is not a
+> fallback**: a client that retried it on failure would keep the shared
+> namespace reachable and hand out a downgrade, so an un-migrated delegate
+> stops answering entirely. That break is free exactly once, while no delegate
+> is deployed at a real host.
 
 > **Amended within r23, 2026-08-16 — "ignored" is §7.5's word, and the `NNS1`
 > prefix is the boundary.** Prose only; **no bytes move**, because every
@@ -1572,6 +1590,12 @@ NNS1D<name>|<host>
   MUST NOT exceed **52** characters. `D` is the largest message in the
   protocol; the limit is 58 rather than 64 so it keeps the same margin as
   everything else (§5.1)
+- **What the short path is for.** Mounting several delegates on one machine —
+  one process or one proxy route per path. It is **not** what separates two
+  names sharing a host: since r23 the §8.6 request carries the parent, so the
+  namespaces are separate whether or not a path is used. Through r22 the path
+  was the only remedy for that, and `MAX_HOST_LEN` bounding host and path
+  together is why it was never sufficient
 - **To:** `PROTOCOL_ADDRESS`, value `DUST_VALUE`
 - Sender must be the current owner
 
@@ -2868,28 +2892,51 @@ For a dotted query `label.parent`:
 
 1. Resolve `parent` normally, with proof. If it is not `REGISTERED` or has no
    delegate host, the query fails.
-2. `GET https://<host>/nns/v1/resolve/<label>`
+2. `GET https://<host>/delegated/v1/<parent>/<label>`
 3. Expected response: `{"address": "NQ...", "ttl": <seconds>}`
 4. Validate that the address is well-formed. Cache for `ttl`, capped at one
    hour by the client.
 
-**The request carries only the label** — there is no `parent` in the path, in a
-header, or in the reply. A delegate host therefore **cannot tell which name a
-query came from**, and this is a property of the request shape rather than of
-any implementation: it holds for every delegate anyone builds. Two names
-delegating to the same bare host share **one** label namespace, so `shop.a` and
-`shop.b` are the same question and get the same answer. An owner serving two
-names from one machine distinguishes them with §6 `D`'s optional short path
-(`host/a`, `host/b`), which is what that path is for. Clients must cache
-delegate answers under `host` **and** `label` for the same reason — never under
-the dotted query, which would let one parent's re-pointing keep serving another
-parent's answers.
+**The request carries the parent and the label.** A delegate host is therefore
+able to tell which name a query came from, and two names delegating to the same
+bare host have **separate** label namespaces: `shop.a` and `shop.b` are
+different questions and a host may answer them differently. Clients MUST cache
+delegate answers under `host`, `parent` and `label` together — the same triple
+the request carries. `host` stays in the key because a parent that re-points
+elsewhere must not keep serving the old host's answers.
+
+A delegate **MAY ignore the parent** and serve one flat namespace; a host
+answering for a single name has nothing to disambiguate, and nothing here
+requires per-parent configuration. A delegate that does act on it MUST answer a
+parent it does not serve with the **same** response it gives a label it does not
+hold — a distinguishable "wrong parent" would tell a client which names a host
+serves, which is the same thing §8.5 forbids one level down.
+
+**This shape changed in r23, and the old one is not a fallback.** Through r22
+the request was `GET https://<host>/nns/v1/resolve/<label>` — label only — so a
+host could not tell two parents apart and one answer served both, silently, with
+a payment address as the wrong answer. §6 `D`'s short path was the stated remedy
+and does not stretch far enough: `MAX_HOST_LEN` bounds host and path together,
+which suits one owner on a short domain and fails for a host serving several
+owners. A client MUST NOT retry the retired path when the current one fails:
+that would keep the shared-namespace shape reachable indefinitely and offer a
+downgrade to anyone able to force an error. An un-migrated delegate therefore
+stops answering entirely, which is the intended failure — loud, and never a
+wrong address.
 
 **Optional signed responses.** A delegate MAY return
 `{"address": "NQ...", "ttl": <seconds>, "timestamp": <unix>, "sig": "<base64url>"}`
 where `sig` is an Ed25519 signature by the parent's owner key over the ASCII
-string `label ‖ "\n" ‖ address ‖ "\n" ‖ ttl ‖ "\n" ‖ timestamp`. Clients that
-verify it MUST reject a timestamp older than `ttl`.
+string `parent ‖ "\n" ‖ label ‖ "\n" ‖ address ‖ "\n" ‖ ttl ‖ "\n" ‖ timestamp`.
+Clients that verify it MUST reject a timestamp older than `ttl`.
+
+**The parent is in the signed payload** (r23) for the same reason it is in the
+request. Verification uses the parent's owner key, so an answer signed by one
+owner never verifies for another's name — but where **one owner holds two
+names**, a payload omitting the parent is byte-identical across them and a
+signed answer for a label under the first replays as the same label under the
+second. An exchange holding several names is exactly the party that would turn
+signing on.
 
 v1 requires neither producing nor verifying this, but the format is fixed
 **now** so a delegate can opt in later without a spec revision — and so two
@@ -3826,6 +3873,19 @@ from an absence (§7.4).
 
 The format is already fixed in §8.6 so delegates can opt in without a spec
 revision. v1 requires neither producing nor verifying it.
+
+**Amended in r23:** the signed payload gained the `parent`. Fixing a format
+early is only worth anything if it is also fixed *correctly*, and the omission
+let a signed answer replay between two names one owner holds. It cost nothing
+to change because nothing implements it — no signer, no verifier, no delegate
+emitting the fields — and it would have cost a revision the moment one did.
+
+**A second gap in this format is still open**, and it is why v1 cannot adopt
+the scheme even if it wanted to: the signature is by "the parent's owner key",
+the response carries no public key, and NNS state holds only the owner's
+*address*, which is a hash of that key. There is nothing to verify against.
+Closing it needs either a public key in the response or a key in the record;
+that is a v2 design question, not an omission to patch here.
 
 ### 16.6 Richer records
 
