@@ -1,7 +1,14 @@
 # NNS indexer — Postgres and the indexer, one command:
 #
-#   cp .env.example .env      # fill in NNS_RPC_URL and the OPEN §3 values
+#   cp .env.example .env      # fill in NNS_RPC_URL
 #   docker compose up         # migrates, backfills from LAUNCH_HEIGHT, tails
+#
+# This file is the **development** stack: the indexer and its database, and
+# nothing that faces a network. Deployments live in `deploy/`, one directory
+# per operator role — `deploy/resolver`, `deploy/delegate`, `deploy/service` —
+# each with its own compose file, its own `.env.example` and its own README, so
+# an operator never reads a variable belonging to a role they do not run.
+# `docs/runbooks/operators.md` is the map.
 #
 # Compose reads `.env` from this directory for the `${...}` substitutions below.
 # Nothing is baked into the image: the same image runs against any node and any
@@ -80,7 +87,9 @@ services:
   indexer:
     build:
       context: .
-      dockerfile: packages/indexer/Dockerfile
+      dockerfile: docker/Dockerfile
+      args:
+        PKG: indexer
     depends_on:
       postgres:
         condition: service_healthy
