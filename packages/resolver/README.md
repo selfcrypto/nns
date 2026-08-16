@@ -255,10 +255,10 @@ typo or a misconfigured host — and NNS is not entitled to claim the first.
 Attribute the failure to the host, never to the subdomain. "exchange's
 resolver did not answer" is honest; "alice.exchange does not exist" is not.
 
-The request carries only the label, so a delegate host cannot tell which name
-asked it. Two names pointing at one bare host therefore share one namespace —
-which is why answers are cached under host and label rather than under the
-dotted query.
+The request carries the parent as well as the label (r23), so a host serving
+several names can tell the questions apart: `shop.a` and `shop.b` are
+different requests and may get different answers. Answers are cached under
+host, parent and label together — the same triple the request carries.
 
 ---
 
@@ -344,7 +344,7 @@ Everything below is a subclass of `ResolverError` and carries a `code`.
 | Class | Codes | Why it stops |
 |---|---|---|
 | `NameError` | `NAME_INVALID` | Not a valid name or dotted query. Never hit the network |
-| `LookupError` | `NOT_FOUND`, `IN_GRACE` | The name resolves to nothing. `IN_GRACE` means it expired and is in its 90-day grace period, where resolution is off but the name is not yet free |
+| `LookupError` | `NOT_FOUND`, `IN_GRACE` | The name resolves to nothing. `IN_GRACE` means it expired and is in its 30-day grace period, where resolution is off but the name is not yet free |
 | `QuorumError` | `QUORUM_UNMET`, `QUORUM_DISAGREEMENT`, `QUORUM_ROOT_MISMATCH` | Too few answered, or they said different things. Carries `.replies`, so you can show which party said what |
 | `ProofError` | `PROOF_INVALID` | A served proof does not hold. Always fatal |
 | `AnchorError` | `CHECKPOINT_BINDING_INVALID`, `ANCHOR_MISMATCH`, `ANCHOR_DIVERGENCE` | See above. Carries `.check` |

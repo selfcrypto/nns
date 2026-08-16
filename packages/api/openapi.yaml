@@ -119,10 +119,13 @@ paths:
       responses:
         '200':
           description: >
-            The record (null when unregistered) plus pending items — transfer,
-            open offer, pending unreserve — and the reserved
-            / unreserved flags. Served whenever anything is known, including a
-            bare reserved-list entry.
+            The record (null when unregistered) plus pending items — transfer
+            and open offer — and the reserved / unreserved flags. Served
+            whenever anything is known, including a bare reserved-list entry.
+            The pending object lost its third key, unreserve, in r22: a U
+            executes in the block it lands in, so nothing about one is ever
+            pending, and the top-level unreserved flag is the whole of what
+            this route reports about a U.
           content:
             application/json:
               schema:
@@ -142,14 +145,12 @@ paths:
                       - type: 'null'
                   pending:
                     type: object
-                    required: [transfer, offer, unreserve]
+                    required: [transfer, offer]
                     properties:
                       transfer:
                         oneOf: [{ $ref: '#/components/schemas/PendingTransfer' }, { type: 'null' }]
                       offer:
                         oneOf: [{ $ref: '#/components/schemas/Offer' }, { type: 'null' }]
-                      unreserve:
-                        oneOf: [{ $ref: '#/components/schemas/PendingUnreserve' }, { type: 'null' }]
                   height: { $ref: '#/components/schemas/Height' }
         '400':
           description: INVALID_NAME with the §4.1 reason.
@@ -535,14 +536,6 @@ components:
       required: [newOwner, effectiveHeight]
       properties:
         newOwner: { $ref: '#/components/schemas/Address' }
-        effectiveHeight: { $ref: '#/components/schemas/Height' }
-    PendingUnreserve:
-      type: object
-      required: [recipient, effectiveHeight]
-      properties:
-        recipient:
-          oneOf: [{ $ref: '#/components/schemas/Address' }, { type: 'null' }]
-          description: null releases the name, an address is awarded it (§6 U, r17).
         effectiveHeight: { $ref: '#/components/schemas/Height' }
     Offer:
       type: object
