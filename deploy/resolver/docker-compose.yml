@@ -1,0 +1,118 @@
+# NNS resolver — Postgres, the indexer, and the read-only API.
+#
+#   cp .env.example .env      # point it at your node
+#   docker compose up -d --build
+#
+# What a resolver operator runs: an independent replay of the chain into
+# `name → address`, and an HTTP surface that answers lookups with §8.3 Merkle
+# proofs. Anyone can verify the answers against the committed root — which is
+# the point of there being more than one of these (§8.5's quorum).
+#
+# The three services are one unit: the API is a read-only view of the
+# indexer's database and answers 503 NOT_SYNCED until the indexer has written
+# state. See README.md, and `docs/runbooks/operators.md` for the roles.
+#
+# **Only the API is published**, on loopback by default, for a TLS terminator
+# in front. Postgres and the indexer publish nothing at all: a database on the
+# internet because a default put it there is not a mistake worth leaving
+# available.
+
+name: nns-resolver
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: nns
+      POSTGRES_PASSWORD: ${NNS_POSTGRES_PASSWORD:-nns}
+      POSTGRES_DB: nns
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # No `ports`. Reachable from the two services on this network, and from
+    # `docker compose exec postgres psql -U nns`, and nowhere else.
+    healthcheck:
+      # The indexer's first act is to migrate, so it must not start before the
+      # server accepts connections — `depends_on` alone only waits for the
+      # container, which is ready long before Postgres is.
+      test: ['CMD-SHELL', 'pg_isready -U nns -d nns']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  indexer:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      args:
+        PKG: indexer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # A tail is a long-running process against a node that will be restarted,
+    # go out of consensus, and drop connections. A *configuration* error also
+    # exits (code 2) and will therefore restart-loop — with the same one-line
+    # message each time, which is the intended diagnosis.
+    restart: unless-stopped
+    # SIGTERM aborts the scan between batches; the in-flight batch's commit is
+    # a single transaction, so it either lands or rolls back.
+    stop_grace_period: 30s
+    init: true
+    environment:
+      NNS_DATABASE_URL: postgres://nns:${NNS_POSTGRES_PASSWORD:-nns}@postgres:5432/nns
+      NNS_RPC_URL: ${NNS_RPC_URL:-http://host.docker.internal:6488}
+      NNS_RPC_USER: ${NNS_RPC_USER:-}
+      NNS_RPC_PASSWORD: ${NNS_RPC_PASSWORD:-}
+      # 24 is main-albatross. §7.5 rejects transactions from any other network,
+      # so a node on the wrong one indexes nothing rather than the wrong thing.
+      NNS_NETWORK_ID: ${NNS_NETWORK_ID:-24}
+      NNS_LOG_LEVEL: ${NNS_LOG_LEVEL:-info}
+      NNS_POLL_INTERVAL_MS: ${NNS_POLL_INTERVAL_MS:-15000}
+      NNS_PROGRESS_INTERVAL_MS: ${NNS_PROGRESS_INTERVAL_MS:-60000}
+      NNS_RPC_TIMEOUT_MS: ${NNS_RPC_TIMEOUT_MS:-30000}
+      NNS_RPC_ATTEMPTS: ${NNS_RPC_ATTEMPTS:-4}
+    # Linux does not resolve `host.docker.internal` on its own; harmless where
+    # it is already defined. It is what makes a node on this same host
+    # reachable as `http://host.docker.internal:6488`.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  api:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      args:
+        PKG: api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    environment:
+      NNS_DATABASE_URL: postgres://nns:${NNS_POSTGRES_PASSWORD:-nns}@postgres:5432/nns
+      # In-container bind. What the outside world can reach is `ports` alone.
+      NNS_API_HOST: 0.0.0.0
+      NNS_API_PORT: 8635
+      NNS_LOG_LEVEL: ${NNS_LOG_LEVEL:-info}
+    ports:
+      # Loopback by default, for a TLS terminator on the same host. Clients are
+      # browsers and §8.6 aside, everything they fetch is over HTTPS.
+      - '${NNS_API_PUBLISH:-127.0.0.1:8635}:8635'
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+volumes:
+  # Named, so `docker compose down` keeps the database and a restart resumes
+  # from the stored cursor instead of replaying from LAUNCH_HEIGHT. `down -v`
+  # is the deliberate way to start over — and it is safe: every byte here is
+  # derived from the chain and rebuilds from it.
+  postgres-data:
