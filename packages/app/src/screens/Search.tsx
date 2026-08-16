@@ -22,6 +22,7 @@ import {
 } from '../lib/wording'
 import { AddressRow, FeeChangeNote, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from '../components/result'
 import { Composer } from '../components/Composer'
+import { PinCheck } from '../components/PinCheck'
 import { EmptyState, RailCard, Spinner } from '../components/ui'
 
 const ACTION_LABEL: Record<AppAction, string> = {
@@ -69,6 +70,7 @@ function Outcome({ outcome, viewer, nowMs }: { outcome: SearchOutcome; viewer: s
       return (
         <RailCard tier={tierOf(outcome.result)}>
           <TitleName name={outcome.result.query} />
+          <PinCheck query={outcome.result.query} address={outcome.result.address} />
           <AddressRow address={outcome.result.address} full />
           <VerificationLine result={outcome.result} />
           {outcome.info !== null && <Overlays info={outcome.info} nowMs={nowMs} />}

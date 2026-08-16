@@ -96,11 +96,11 @@ on-chain", which would be false about the address the user is about to pay.
 | `DelegateError` `PARENT_NOT_DELEGATING` | "`<parent>` doesn't delegate subdomains." The parent's own resolution (`.parent`) is verified — show it |
 | `DelegateError` `DELEGATE_FAILED` | **Attribute to the host, never to the subdomain**: "`<parent>`'s resolver did not answer." Show `.parent` — the proven half survives — so the failure renders beside a verified base name, never as NNS being down. *"`label.parent` does not exist" is forbidden wording*: a 404, a timeout, DNS, TLS and a wrong-shaped body all arrive as this one code, and NNS is never entitled to say whether a subdomain exists |
 
-### Pinning states (§8.5 — store not yet built; states fixed now)
+### Pinning states (§8.5 — `lib/pinning.ts` + `PinCheck`)
 
 | State | Treatment |
 |---|---|
-| First use | Pin `name → address` silently. Optionally a quiet "first time you've used this name" note |
+| First use | Pin `query → address` silently — the full query string, so a dotted query pins its delegated answer too. A quiet "first time you've used this name" note |
 | Pin match | Nothing. Silence is the feature |
 | **Pin mismatch** | **Alarm tier, hard stop.** "`<name>` pointed to a different address when you last used it." Show both addresses with both identicons. No payment path proceeds without an explicit, deliberate override — a legitimate `S` by the owner is possible, which is why the override exists, and why it must be effortful |
 

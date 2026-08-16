@@ -183,6 +183,23 @@ export const custodialWarning = (): string =>
 export const sendsDisabledLine = (): string =>
   'Sending isn’t enabled in this build yet.'
 
+// ── Pinning (§8.5; states doc §2 — mismatch is the alarm tier) ─────────────
+
+export const pinFirstUseLine = (): string => 'First time you’ve used this name on this device.'
+
+export const pinMismatchTitle = (): string => 'Stop — this name changed address'
+
+export const pinMismatchBody = (query: string, sinceDate: string): string =>
+  `When you last used ${query} on this device (${sinceDate}), it pointed to a different address. The owner may have repointed it — or someone is redirecting payments. Do not pay until you know which.`
+
+export const pinPreviousLabel = (): string => 'Address you used before'
+
+export const pinCurrentLabel = (): string => 'Address it points to now'
+
+export const pinOverrideLabel = (): string => 'Use the new address anyway'
+
+export const pinOverrideConfirmLabel = (): string => 'Yes — replace what this device remembers'
+
 // ── NC chat (docs/app-chat.md §5 — wording is part of the threat model) ────
 
 export const messageOwnerLabel = (): string => 'Message the owner'

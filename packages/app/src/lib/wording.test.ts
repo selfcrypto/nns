@@ -65,6 +65,17 @@ describe('tones (alarm vocabulary is reserved)', () => {
   })
 })
 
+describe('pinning (the one non-halting state allowed the alarm tier)', () => {
+  it('the mismatch body spends the reserved vocabulary — that is what it is reserved for', async () => {
+    const { pinMismatchBody, pinFirstUseLine } = await import('./wording')
+    expect(pinMismatchBody('example', '8/16/2026').toLowerCase()).toContain('do not pay')
+    // First use is quiet: no alarm words on the everyday state.
+    for (const forbidden of ['warning', 'stop', 'do not pay', 'unverified']) {
+      expect(pinFirstUseLine().toLowerCase()).not.toContain(forbidden)
+    }
+  })
+})
+
 describe('state lines', () => {
   it('grace is neither gone nor free', () => {
     const line = graceLine('≈ Sep 15, 2026').toLowerCase()

@@ -441,6 +441,63 @@ li.note {
   color: var(--ink-soft);
 }
 
+/* ── Pin mismatch: the §8.5 hard stop ── */
+
+.pin-mismatch {
+  margin: 10px 0;
+  padding: 12px 14px;
+  border: 1.5px solid var(--alarm);
+  border-radius: var(--radius);
+  background: var(--alarm-bg);
+}
+
+.pin-mismatch p {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.pin-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.pin-side {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  align-items: center;
+}
+
+.pin-side-label {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-soft);
+  margin-bottom: 3px;
+}
+
+.pin-override {
+  appearance: none;
+  border: 1.5px solid var(--alarm);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--alarm);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 7px 16px;
+}
+
+.pin-override-armed {
+  background: var(--alarm);
+  color: var(--card);
+}
+
 /* ── NC chat: composer, threads, bubbles ── */
 
 .message-owner {
