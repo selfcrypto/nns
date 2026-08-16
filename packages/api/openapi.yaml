@@ -13,6 +13,11 @@
 #   database the API reads.
 # - Proof documents follow spec §8.3 verbatim (snake_case field names there
 #   are the wire format, not this API's style).
+# - Open to any origin: every response carries
+#   `access-control-allow-origin: *`, OPTIONS answers a preflight, and
+#   `x-nns-checkpoint-height` / `x-nns-log-hash` are exposed so a browser can
+#   read them. §8.5 asks a client to compare several independent endpoints,
+#   which in a browser makes all but one of them a cross-origin fetch.
 
 openapi: 3.1.0
 info:
