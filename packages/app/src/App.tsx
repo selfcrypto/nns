@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { appConfig, ConfigParseError } from './config'
 import { connectWallet, devAddressOverride } from './lib/sdk'
+import { InboxScreen } from './screens/Inbox'
 import { MyNamesScreen } from './screens/MyNames'
 import { OffersScreen } from './screens/Offers'
 import { SearchScreen } from './screens/Search'
 
-type Tab = 'search' | 'names' | 'market'
+type Tab = 'search' | 'names' | 'inbox' | 'market'
 
-const TAB_LABEL: Record<Tab, string> = { search: 'Search', names: 'My names', market: 'Market' }
+const TAB_LABEL: Record<Tab, string> = { search: 'Search', names: 'My names', inbox: 'Inbox', market: 'Market' }
 
 function configProblem(): string | null {
   try {
@@ -76,10 +77,11 @@ export function App() {
       <main className="content">
         {tab === 'search' && <SearchScreen key={seed} viewer={viewer} seed={seed} />}
         {tab === 'names' && <MyNamesScreen viewer={viewer} onOpen={openName} />}
+        {tab === 'inbox' && <InboxScreen viewer={viewer} />}
         {tab === 'market' && <OffersScreen onOpen={openName} />}
       </main>
       <nav className="tabbar" aria-label="Sections">
-        {(['search', 'names', 'market'] as const).map((entry) => (
+        {(['search', 'names', 'inbox', 'market'] as const).map((entry) => (
           <button
             key={entry}
             type="button"

@@ -62,3 +62,15 @@ export function appConfig(): AppConfig {
     quorum: parseQuorum(import.meta.env['VITE_NNS_QUORUM'] as string | undefined),
   }
 }
+
+/**
+ * The operator-run, CORS-open, read-only RPC endpoint the NC inbox reads
+ * history from (docs/app-chat.md §4). Optional: without it the Inbox shows
+ * its setup state and nothing else changes.
+ */
+export function historyEndpoint(): string | null {
+  const raw = import.meta.env['VITE_NNS_HISTORY'] as string | undefined
+  if (raw === undefined || raw.trim() === '') return null
+  if (!/^https?:\/\//.test(raw)) throw new ConfigParseError('VITE_NNS_HISTORY must be an http(s) URL')
+  return raw
+}

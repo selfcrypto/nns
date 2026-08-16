@@ -4,7 +4,7 @@ import { getParams } from '../lib/api'
 import { formatApproxDate, approxDate, lunaToNim } from '../lib/format'
 import { apiBase } from '../lib/nns'
 import { search, type SearchOutcome } from '../lib/search'
-import { actionGates, nameView, registrationFee, type AppAction } from '../lib/states'
+import { actionGates, nameView, registrationFee, sameAddress, type AppAction } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
 import {
   GATE_REASON_TEXT,
@@ -18,8 +18,10 @@ import {
   reservedLine,
   sendsDisabledLine,
   unreachableLine,
+  messageOwnerLabel,
 } from '../lib/wording'
 import { AddressRow, FeeChangeNote, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from '../components/result'
+import { Composer } from '../components/Composer'
 import { EmptyState, RailCard, Spinner } from '../components/ui'
 
 const ACTION_LABEL: Record<AppAction, string> = {
@@ -72,6 +74,15 @@ function Outcome({ outcome, viewer, nowMs }: { outcome: SearchOutcome; viewer: s
           {outcome.info !== null && <Overlays info={outcome.info} nowMs={nowMs} />}
           <WarningNotes warnings={outcome.result.warnings} />
           <ActionList outcome={outcome} viewer={viewer} />
+          {outcome.info !== null && outcome.info.record !== null && (
+            <details className="message-owner">
+              <summary>{messageOwnerLabel()}</summary>
+              <Composer
+                name={outcome.info.name}
+                ownName={viewer !== null && sameAddress(outcome.info.record.owner, viewer)}
+              />
+            </details>
+          )}
         </RailCard>
       )
 

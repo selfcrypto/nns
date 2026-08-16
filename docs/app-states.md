@@ -190,6 +190,7 @@ include this transaction", never "sent".
 | **Search** | Every §3 outcome; every §2 verification value, warning tone and halting error; §1 states with overlays |
 | **Name detail** | §1 REGISTERED/GRACE with all overlays; §2 badges; expiry ≈ date; renewal reminder from 60 d; owner actions gated per §4 (visible but disabled states carry the *reason* they are disabled) |
 | **My names** | `/address/{addr}/names` (REGISTERED and GRACE); expiry sort; the 60-day reminder; empty state ("no names yet") and the not-in-Pay state (no wallet identity available) |
+| **Inbox** (NC chat, `docs/app-chat.md`) | Threads keyed (peer, name), owned-name threads first and the rest muted; messages as plain text from an **address**, never a reverse-resolved name; the honest history window ("since ≈ date"); the composer with byte budget, the public-forever notice, and the "this name is yours" refusal; setup states for no wallet / no history endpoint |
 | **Marketplace** | `/offers`; each offer's name, price, seller (with identicon); the custodial nature disclosed on the buy path (§4 `B`) |
 
 Send flows (`G S X D K N O B` confirmations and the post-send confirm loop)

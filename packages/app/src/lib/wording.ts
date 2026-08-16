@@ -182,3 +182,38 @@ export const custodialWarning = (): string =>
 
 export const sendsDisabledLine = (): string =>
   'Sending isn’t enabled in this build yet.'
+
+// ── NC chat (docs/app-chat.md §5 — wording is part of the threat model) ────
+
+export const messageOwnerLabel = (): string => 'Message the owner'
+
+export const chatPublicNotice = (): string =>
+  'Messages are public, permanent, and attached to your address — anyone can read them on-chain, forever.'
+
+export const chatOwnNameLine = (): string =>
+  'This name is yours — a message to yourself can’t be sent.'
+
+export const chatBudgetLine = (used: number, budget: number): string => `${used}/${budget} bytes`
+
+export const CHAT_ENCODE_TEXT: Record<'BAD_NAME' | 'EMPTY_MESSAGE' | 'CONTROL_CHARS' | 'OVER_BUDGET', string> = {
+  BAD_NAME: 'Not a valid name.',
+  EMPTY_MESSAGE: 'Write something first.',
+  CONTROL_CHARS: 'Plain text only — no control characters.',
+  OVER_BUDGET: 'Too long — messages travel in a 64-byte transaction.',
+}
+
+export const inboxWindowLine = (sinceDate: string): string => `Messages since ${sinceDate}.`
+
+export const inboxOtherBucketLabel = (): string => 'Other messages'
+
+export const inboxOtherBucketNote = (): string =>
+  'About names that aren’t yours at this address — the name in a message is the sender’s claim, nothing more.'
+
+export const inboxNoWalletLine = (): string =>
+  'Your inbox is read from your wallet address, and there’s no wallet here.'
+
+export const inboxNotConfiguredLine = (): string =>
+  'No history endpoint configured. Set VITE_NNS_HISTORY to an operator-run read-only RPC URL.'
+
+export const inboxEmptyLine = (): string =>
+  'When someone messages one of your names, it lands here.'
