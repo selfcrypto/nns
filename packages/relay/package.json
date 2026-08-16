@@ -1,0 +1,19 @@
+{
+  "name": "@nns/relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The public RPC relay: four allowlisted node methods behind parse-and-reconstruct, rate limits, and CORS. The only NNS service that holds a node credential.",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run",
+    "start": "node dist/main.js"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
