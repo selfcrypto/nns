@@ -11,7 +11,7 @@
 import { NO_IDENTITY, loadHubAddresses, saveHubAddresses, withAddress, type Identity, type StorageLike } from './identity'
 import { hubChooseAddress, hubSignTransaction } from './hub'
 import { connectWallet, devAddressOverride } from './sdk'
-import type { HistoryTransport } from './history'
+import { isDefiniteRejection, type HistoryTransport } from './history'
 
 export interface SubmitRequest {
   readonly sender: string
@@ -89,7 +89,14 @@ function hubWallet(storage: StorageLike, search: string): Wallet {
       try {
         await transport('sendRawTransaction', [signed.serializedTxHex])
       } catch (error) {
-        return { ok: false, reason: 'failed', detail: error instanceof Error ? error.message : String(error) }
+        // Only a proven rejection is a failure. Anything ambiguous — a 5xx,
+        // a timeout, a dead proxy — may have relayed the transaction, so it
+        // falls through to the confirm loop: a "failed" here invites a
+        // retry, a retry re-signs at a fresh validity height, and that is a
+        // different transaction and a second fee.
+        if (isDefiniteRejection(error)) {
+          return { ok: false, reason: 'failed', detail: error instanceof Error ? error.message : String(error) }
+        }
       }
       return { ok: true, hash: signed.hash, serializedTxHex: signed.serializedTxHex }
     },

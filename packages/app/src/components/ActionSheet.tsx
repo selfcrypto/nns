@@ -17,6 +17,7 @@ import {
   sendDeclinedLine,
   sendNoRpcLine,
   sendSubmittingLine,
+  sendUncheckedLine,
   sendUnconfirmedLine,
 } from '../lib/wording'
 
@@ -187,10 +188,19 @@ export function ActionSheet({
       {progress === 'confirming' && <p className="note note-info">{sendConfirmingLine()}</p>}
 
       {result !== null && (
-        <p className={result.status === 'confirmed' ? 'verify verify-proven' : 'field-error'}>
+        <p
+          className={
+            result.status === 'confirmed'
+              ? 'verify verify-proven'
+              : result.status === 'unchecked'
+                ? 'note note-info'
+                : 'field-error'
+          }
+        >
           {result.status === 'confirmed' && sendConfirmedLine()}
           {result.status === 'declined' && sendDeclinedLine()}
           {result.status === 'unconfirmed' && sendUnconfirmedLine()}
+          {result.status === 'unchecked' && sendUncheckedLine()}
           {result.status === 'blocked' && (result.reason === 'no-rpc' ? sendNoRpcLine() : payProbeGatedLine())}
           {result.status === 'failed' && `Couldn’t send: ${result.detail}`}
         </p>

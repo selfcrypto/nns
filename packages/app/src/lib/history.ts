@@ -12,6 +12,26 @@ import type { ChatTx } from './chat'
 
 export class HistoryError extends Error {
   override readonly name = 'HistoryError'
+  /**
+   * True when the upstream **definitely** did not act on the request: an
+   * HTTP 4xx, or a JSON-RPC error body (the node answered, refusing). A
+   * 5xx, a non-JSON body or a network throw is ambiguous — the request may
+   * have been processed. Broadcast handling turns on this bit: an ambiguous
+   * broadcast must fall through to the confirm loop, never read as failed,
+   * because a retry re-signs at a fresh validity height — a different
+   * transaction and a second fee.
+   */
+  readonly definite: boolean
+
+  constructor(message: string, definite: boolean) {
+    super(message)
+    this.definite = definite
+  }
+}
+
+/** True only when an error proves the upstream did not act on the request. */
+export function isDefiniteRejection(error: unknown): boolean {
+  return error instanceof HistoryError && error.definite
 }
 
 /** Answers a read-only RPC method with the already-unwrapped `result.data`. */
@@ -33,17 +53,27 @@ export const fetchTransport =
       headers: { accept: 'application/json', 'content-type': 'application/json' },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
     })
-    if (response.status !== 200) throw new HistoryError(`history endpoint answered ${response.status}`)
-    const body: unknown = await response.json()
-    if (typeof body !== 'object' || body === null) throw new HistoryError('history endpoint answered non-JSON')
+    if (response.status !== 200) {
+      const definite = response.status >= 400 && response.status < 500
+      throw new HistoryError(`endpoint answered ${response.status}`, definite)
+    }
+    let body: unknown
+    try {
+      body = await response.json()
+    } catch {
+      throw new HistoryError('endpoint answered non-JSON', false)
+    }
+    if (typeof body !== 'object' || body === null) throw new HistoryError('endpoint answered non-JSON', false)
     const record = body as Record<string, unknown>
     const rpcError = record['error']
     if (typeof rpcError === 'object' && rpcError !== null) {
       const { data, message } = rpcError as Record<string, unknown>
-      throw new HistoryError(typeof data === 'string' ? data : typeof message === 'string' ? message : 'rpc error')
+      const text = typeof data === 'string' ? data : typeof message === 'string' ? message : 'rpc error'
+      // The node answered and refused: definite.
+      throw new HistoryError(text, true)
     }
     const result = record['result']
-    if (typeof result !== 'object' || result === null) throw new HistoryError('history endpoint answered no result')
+    if (typeof result !== 'object' || result === null) throw new HistoryError('endpoint answered no result', false)
     // The RPC wraps every result: {data, metadata}. Unwrap or read undefined.
     return (result as Record<string, unknown>)['data']
   }
@@ -66,7 +96,7 @@ export interface HistoryPage {
 
 export async function fetchHistory(transport: HistoryTransport, address: string, max = 500): Promise<HistoryPage> {
   const data = await transport('getTransactionsByAddress', [address, max, null])
-  if (!Array.isArray(data)) throw new HistoryError('history result carried no transaction array')
+  if (!Array.isArray(data)) throw new HistoryError('history result carried no transaction array', false)
 
   const txs: ChatTx[] = []
   let oldestBlock: number | null = null

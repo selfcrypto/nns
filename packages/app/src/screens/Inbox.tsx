@@ -8,13 +8,13 @@ import { apiBase } from '../lib/nns'
 import { useAsync } from '../lib/useAsync'
 import type { Wallet } from '../lib/wallet'
 import {
+  inboxDownLine,
   inboxEmptyLine,
   inboxNoWalletLine,
   inboxNotConfiguredLine,
   inboxOtherBucketLabel,
   inboxOtherBucketNote,
   inboxWindowLine,
-  unreachableLine,
 } from '../lib/wording'
 import { Composer } from '../components/Composer'
 import { EmptyState, Identicon, NameText, Spinner } from '../components/ui'
@@ -81,9 +81,10 @@ export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
     )
   }
   if (data.status === 'error') {
+    // The inbox service, not the resolvers — and nothing is lost.
     return (
       <div className="screen">
-        <p className="field-error">{unreachableLine()}</p>
+        <p className="field-error">{inboxDownLine()}</p>
       </div>
     )
   }

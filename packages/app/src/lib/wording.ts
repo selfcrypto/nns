@@ -208,6 +208,14 @@ export const sendDeclinedLine = (): string => 'Nothing was sent.'
 export const sendUnconfirmedLine = (): string =>
   'Not confirmed — the network did not include this transaction. Check the name again before retrying.'
 
+/**
+ * The checker was down, not the send — a broken checker never reads as a
+ * negative result. No failure claim, no retry prompt: a retry re-signs a
+ * different transaction and can pay a second fee.
+ */
+export const sendUncheckedLine = (): string =>
+  'Sent to the wallet — couldn’t confirm, because the service didn’t answer. It may well have gone through; check again later.'
+
 export const sendNoRpcLine = (): string =>
   'No RPC endpoint is configured (VITE_NNS_RPC), so nothing can be broadcast.'
 
@@ -268,7 +276,11 @@ export const inboxNoWalletLine = (): string =>
   'Your inbox is read from your wallet address, and there’s no wallet here.'
 
 export const inboxNotConfiguredLine = (): string =>
-  'No history endpoint configured. Set VITE_NNS_HISTORY to an operator-run read-only RPC URL.'
+  'No RPC endpoint configured. Set VITE_NNS_RPC to the operator-run relay URL.'
+
+/** Attributed to the inbox service, never to resolvers — and nothing is lost. */
+export const inboxDownLine = (): string =>
+  'Couldn’t load messages — the inbox service didn’t answer. Your messages are on-chain and will appear when it returns.'
 
 export const inboxEmptyLine = (): string =>
   'When someone messages one of your names, it lands here.'

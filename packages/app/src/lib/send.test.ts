@@ -69,6 +69,36 @@ describe('performSend', () => {
     expect(result).toEqual({ status: 'unconfirmed', hash: 'abc' })
   })
 
+  it('polls that never answered end as unchecked, not unconfirmed — the checker was down, not the send', async () => {
+    const result = await performSend({
+      wallet: walletThat({ ok: true, hash: 'abc', serializedTxHex: '00' }),
+      transport: null,
+      request: REQUEST,
+      confirm: { poll: () => Promise.reject(new Error('proxy down')), timeoutMs: 9_000, intervalMs: 3_000 },
+      sleep: instantly,
+    })
+    expect(result).toEqual({ status: 'unchecked', hash: 'abc' })
+  })
+
+  it('one answered poll is enough to make the timeout an honest unconfirmed', async () => {
+    let polls = 0
+    const result = await performSend({
+      wallet: walletThat({ ok: true, hash: 'abc', serializedTxHex: '00' }),
+      transport: null,
+      request: REQUEST,
+      confirm: {
+        poll: () => {
+          polls += 1
+          return polls === 1 ? Promise.resolve(false) : Promise.reject(new Error('proxy died mid-loop'))
+        },
+        timeoutMs: 9_000,
+        intervalMs: 3_000,
+      },
+      sleep: instantly,
+    })
+    expect(result).toEqual({ status: 'unconfirmed', hash: 'abc' })
+  })
+
   it('a flaky poll does not sink a send that later confirms', async () => {
     let polls = 0
     const result = await performSend({

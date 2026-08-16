@@ -76,6 +76,30 @@ describe('pinning (the one non-halting state allowed the alarm tier)', () => {
   })
 })
 
+describe('a broken checker never reads as a negative result (decisions.md)', () => {
+  it('the inbox-down line blames the inbox service, not resolvers, and says nothing is lost', async () => {
+    const { inboxDownLine } = await import('./wording')
+    const line = inboxDownLine().toLowerCase()
+    expect(line).toContain('inbox service')
+    expect(line).toContain('on-chain')
+    expect(line).not.toContain('resolver')
+  })
+
+  it('unchecked never claims what only an answered poll can know', async () => {
+    const { sendUncheckedLine, sendUnconfirmedLine } = await import('./wording')
+    const unchecked = sendUncheckedLine().toLowerCase()
+    // The unconfirmed line's claim — the network did not include it — is
+    // exactly what a dead checker cannot assert.
+    expect(sendUnconfirmedLine().toLowerCase()).toContain('did not include')
+    expect(unchecked).not.toContain('did not include')
+    expect(unchecked).not.toContain('fail')
+    // And it must not prompt a retry: a retry re-signs a different
+    // transaction and can pay a second fee.
+    expect(unchecked).not.toContain('retry')
+    expect(unchecked).not.toContain('try again')
+  })
+})
+
 describe('state lines', () => {
   it('grace is neither gone nor free', () => {
     const line = graceLine('≈ Sep 15, 2026').toLowerCase()
