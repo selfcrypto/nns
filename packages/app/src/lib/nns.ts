@@ -6,15 +6,31 @@
  * The instance is held: it carries the §8.6 delegation cache.
  */
 
-import { createResolver, type NnsResolver } from '@nns/resolver'
+import { createResolver, type HttpFetch, type NnsResolver } from '@nns/resolver'
 import { appConfig, ConfigParseError } from '../config'
+
+/**
+ * Dev-only detour for a local §8.6 delegate. A chain `D` host carries no port
+ * and the client hardcodes `https://`, so a delegate on a loopback port is
+ * unreachable from a dev browser. With `VITE_NNS_DELEGATE_DEV=1` under
+ * `vite dev`, requests to `https://localhost/delegated/…` are rerouted
+ * same-origin, where vite.config.ts proxies `/delegated` to the local
+ * delegate. `import.meta.env.DEV` is compile-time false in a build, so no
+ * production bundle can carry the exception.
+ */
+function delegateDevFetch(): HttpFetch | undefined {
+  if (!import.meta.env.DEV || import.meta.env['VITE_NNS_DELEGATE_DEV'] !== '1') return undefined
+  return (url, init) =>
+    fetch(url.startsWith('https://localhost/delegated/') ? url.slice('https://localhost'.length) : url, init)
+}
 
 let cached: NnsResolver | null = null
 
 export function resolver(): NnsResolver {
   if (cached === null) {
     const { resolvers, quorum } = appConfig()
-    cached = createResolver({ resolvers, quorum })
+    const devFetch = delegateDevFetch()
+    cached = createResolver({ resolvers, quorum, ...(devFetch ? { fetch: devFetch } : {}) })
   }
   return cached
 }

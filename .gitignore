@@ -11,3 +11,6 @@ dist/
 scripts/restore-env.sh
 *.log
 .DS_Store
+
+# An operator's live delegate data (labels.example.json is the template).
+packages/delegate/labels.json
