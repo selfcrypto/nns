@@ -34,15 +34,25 @@ describe('CONSTANTS — §3', () => {
     expect(CONSTANTS.MAX_DELEGATE_MESSAGE_BYTES).toBeLessThan(CONSTANTS.MAX_DATA_BYTES)
   })
 
-  it('leaves every message type room inside the 64-byte budget (§5.1, §6)', () => {
+  it('states the sizes §6 gives its largest messages', () => {
     const prefix = CONSTANTS.PROTOCOL_ID.length + 1 // NNS1 + type character
-    // The sizes §6 states for its largest messages, recomputed from constants.
+    // Literal pins: recomputed from constants, but asserted against the numbers
+    // §6 prints. The *relation* they feed is the test below, kept separate so a
+    // profile that moved one of these still reaches the budget check.
     expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + CONSTANTS.MAX_REF_LEN).toBe(42) // G
     expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + 15).toBe(45) // O
     expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + 15 + 1 + 10).toBe(56) // A
-    for (const size of [42, 45, 56, CONSTANTS.MAX_DELEGATE_MESSAGE_BYTES]) {
-      expect(size).toBeLessThanOrEqual(CONSTANTS.MAX_DATA_BYTES)
-    }
+  })
+
+  it('leaves every message type room inside the 64-byte budget (§5.1, §6)', () => {
+    const prefix = CONSTANTS.PROTOCOL_ID.length + 1
+    const sizes = [
+      prefix + CONSTANTS.MAX_NAME_LEN + 1 + CONSTANTS.MAX_REF_LEN, // G
+      prefix + CONSTANTS.MAX_NAME_LEN + 1 + 15, // O
+      prefix + CONSTANTS.MAX_NAME_LEN + 1 + 15 + 1 + 10, // A
+      CONSTANTS.MAX_DELEGATE_MESSAGE_BYTES, // D
+    ]
+    for (const size of sizes) expect(size).toBeLessThanOrEqual(CONSTANTS.MAX_DATA_BYTES)
   })
 
   it('orders the name-length thresholds as §4.1 and §10.1 require', () => {
@@ -64,9 +74,20 @@ describe('CONSTANTS — §3', () => {
   })
 
   it('gives a governance change a full day of notice (§10.6)', () => {
-    // The whole of the protection against a hostile P, which is why it is
-    // twice XFER_TIMELOCK rather than equal to it as it was through r19.
+    // The whole of the protection against a hostile P.
     expect(CONSTANTS.GOVERNANCE_DELAY).toBe(86_400)
+  })
+
+  it('gives that notice more room than a transfer timelock (§10.6)', () => {
+    // Twice XFER_TIMELOCK rather than equal to it as it was through r19, since
+    // the notice window is no longer one protection among several.
+    //
+    // Split out of the literal pin above deliberately: this is a *relation*,
+    // and behind `toBe(86_400)` it never ran on a compressed-tempo branch —
+    // the literal throws first and takes the relation with it. Every
+    // relational assertion in this file has to survive a profile edit, because
+    // that branch is where the constants are most likely to be wrong.
+    // `scripts/check-tempo-relations.mjs` is the fork-time run of all of them.
     expect(CONSTANTS.GOVERNANCE_DELAY).toBeGreaterThan(CONSTANTS.XFER_TIMELOCK)
   })
 
@@ -232,8 +253,15 @@ describe('CONSTANTS — §3', () => {
     ]
     expect(new Set(CONSTANTS.RESERVED_NAMES)).toEqual(new Set(published))
     expect(CONSTANTS.RESERVED_NAMES).toHaveLength(published.length)
-    expect(new Set(CONSTANTS.RESERVED_NAMES).size).toBe(CONSTANTS.RESERVED_NAMES.length)
     expect(published).toHaveLength(58)
+  })
+
+  it('holds no duplicate entry — membership is a set (§4.1 rule 6)', () => {
+    // Split out of the literal list pin above: a duplicate is what set
+    // comparison alone swallows, and behind that pin this never ran on a tempo
+    // branch — which is exactly the branch that appends throwaway entries to
+    // the list (`tasks/09` §0).
+    expect(new Set(CONSTANTS.RESERVED_NAMES).size).toBe(CONSTANTS.RESERVED_NAMES.length)
   })
 
   it('keeps every published entry registrable, so no entry reserves nothing', () => {
