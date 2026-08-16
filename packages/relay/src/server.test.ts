@@ -77,6 +77,30 @@ describe('the relay end to end', () => {
     expect(calls[0]?.authorization).toBe(`Basic ${Buffer.from('nimiq:hunter2').toString('base64')}`)
   })
 
+  it('sends no credential at all when the upstream has none configured', async () => {
+    // Blank is the documented default for a node without basic auth, and `''`
+    // is not `undefined`: this used to send `Basic Og==` — a credential of
+    // ":" — which a node that validates presented credentials 401s, turning
+    // into a 502 the app reads as a node outage.
+    for (const [user, password] of [
+      ['', ''],
+      ['   ', ''],
+      ['nimiq', ''],
+      ['', 'hunter2'],
+    ] as const) {
+      const { url, calls } = await startRelay({ upstreamUser: user, upstreamPassword: password })
+      const response = await post(url, rpc('getBlockNumber'))
+      expect(response.status).toBe(200)
+      expect(calls[0]?.authorization, `${JSON.stringify(user)}/${JSON.stringify(password)}`).toBeUndefined()
+    }
+  })
+
+  it('trims the credential the way the indexer reads the same two values', async () => {
+    const { url, calls } = await startRelay({ upstreamUser: ' nimiq ', upstreamPassword: ' hunter2 ' })
+    await post(url, rpc('getBlockNumber'))
+    expect(calls[0]?.authorization).toBe(`Basic ${Buffer.from('nimiq:hunter2').toString('base64')}`)
+  })
+
   it('answers -32601 to a method outside the four, and nothing reaches upstream', async () => {
     const { url, calls } = await startRelay()
     const response = await post(url, rpc('unlockAccount', ['NQ...', 'pass', 0]))

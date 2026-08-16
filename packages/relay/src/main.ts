@@ -40,13 +40,22 @@ const flag = (name: string, fallback: boolean): boolean => {
 }
 
 const upstreamUrl = required('NNS_RELAY_UPSTREAM_URL')
-const user = env['NNS_RELAY_UPSTREAM_USER']
-const password = env['NNS_RELAY_UPSTREAM_PASSWORD']
+
+// Blank means "this node has no basic auth", which is a valid configuration
+// and the shipped default; `createRelay` treats blank as absent. Half a
+// credential is not a configuration, though — it is a typo that would send no
+// credential at all and read as a node outage once the node 401s.
+const user = env['NNS_RELAY_UPSTREAM_USER']?.trim() ?? ''
+const password = env['NNS_RELAY_UPSTREAM_PASSWORD']?.trim() ?? ''
+if ((user === '') !== (password === '')) {
+  console.error('NNS_RELAY_UPSTREAM_USER and NNS_RELAY_UPSTREAM_PASSWORD must be set together, or both left blank')
+  process.exit(1)
+}
 
 const server = createRelay({
   upstreamUrl,
-  ...(user === undefined ? {} : { upstreamUser: user }),
-  ...(password === undefined ? {} : { upstreamPassword: password }),
+  ...(user === '' ? {} : { upstreamUser: user }),
+  ...(password === '' ? {} : { upstreamPassword: password }),
   broadcastEnabled: flag('NNS_RELAY_BROADCAST', true),
   trustForwardedFor: flag('NNS_RELAY_TRUST_FORWARDED_FOR', false),
   ...(optionalNumber('NNS_RELAY_READ_PER_MINUTE') === undefined

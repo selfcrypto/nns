@@ -68,9 +68,31 @@ export function createRelay(options: RelayOptions): Server {
     ...nowOption,
   })
 
+  /**
+   * Blank is absent, not empty.
+   *
+   * A node with no credentials configured leaves `NNS_RELAY_UPSTREAM_USER` and
+   * `_PASSWORD` blank in the environment — the documented default — and `''`
+   * is not `undefined`. Without this the relay sends `Basic Og==`, a
+   * credential of `":"`, on every upstream call: a node that ignores it works,
+   * and anything that validates a presented credential 401s the lot, which
+   * the relay maps to 502 and the app reads as a node outage.
+   *
+   * Trimmed, not just emptied, because `packages/indexer/src/env.ts` reads the
+   * same two values that way and a deployment points both at one node — the
+   * same `.env` must not yield two different credentials.
+   */
+  const credential = (value: string | undefined): string | undefined => {
+    const trimmed = value?.trim()
+    return trimmed === undefined || trimmed === '' ? undefined : trimmed
+  }
+
+  const upstreamUser = credential(options.upstreamUser)
+  const upstreamPassword = credential(options.upstreamPassword)
+
   const authHeader =
-    options.upstreamUser !== undefined && options.upstreamPassword !== undefined
-      ? `Basic ${Buffer.from(`${options.upstreamUser}:${options.upstreamPassword}`).toString('base64')}`
+    upstreamUser !== undefined && upstreamPassword !== undefined
+      ? `Basic ${Buffer.from(`${upstreamUser}:${upstreamPassword}`).toString('base64')}`
       : null
 
   let inFlight = 0
