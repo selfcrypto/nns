@@ -1,0 +1,490 @@
+/*
+ * One committed look: a light, cool-porcelain surface for a mobile WebView.
+ * No webfont and no third-party request of any kind — a stylesheet that
+ * fetched a font would add a party who learns every user's IP to an app
+ * whose whole product is fewer parties (§2.2). Names render through
+ * @nns/resolver/rendering.css and land on the platform monospace.
+ *
+ * The signature element is the proof rail: the left edge of every result
+ * card encodes the verification tier. Solid green = proven; dashed slate =
+ * pending depth; dotted indigo = delegated (different, not worse); solid
+ * red = the rare halting failure. It repeats identically across Search,
+ * My names and Market, so it is learned once.
+ */
+
+:root {
+  --ink: #20242f;
+  --ink-soft: #5c6270;
+  --paper: #f4f6f8;
+  --card: #ffffff;
+  --line: #e2e6ec;
+  --proven: #157a5c;
+  --proven-bg: #e7f3ee;
+  --depth: #66708a;
+  --depth-bg: #eef0f4;
+  --delegated: #4e56c9;
+  --delegated-bg: #eceefb;
+  --alarm: #b3261e;
+  --alarm-bg: #f9e9e7;
+  --grace: #8a5a00;
+  --grace-bg: #f7eed9;
+  --accent: #e9b213;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Frame: masthead / content / tab bar, one-handed ── */
+
+.frame {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.masthead {
+  padding: calc(env(safe-area-inset-top, 0px) + 18px) 20px 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.wordmark {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-family: ui-monospace, 'JetBrains Mono', 'IBM Plex Mono', monospace;
+}
+
+.wordmark::after {
+  content: '.';
+  color: var(--accent);
+}
+
+.masthead-sub {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.content {
+  flex: 1;
+  padding: 4px 16px 24px;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.tabbar {
+  position: sticky;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 10px);
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+}
+
+.tab {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 10px 0;
+  border-radius: 999px;
+}
+
+.tab-active {
+  background: var(--ink);
+  color: var(--card);
+}
+
+/* ── Search ── */
+
+.search-form {
+  display: flex;
+  gap: 8px;
+}
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 13px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 17px;
+}
+
+.search-input:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+  border-color: var(--ink);
+}
+
+.search-go {
+  appearance: none;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  padding: 0 18px;
+}
+
+.search-go:disabled {
+  opacity: 0.45;
+}
+
+.field-error {
+  margin: 0;
+  color: var(--alarm);
+  font-size: 14px;
+}
+
+/* ── Cards and the proof rail ── */
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 16px 16px 18px;
+}
+
+.rail {
+  border-left-width: 4px;
+}
+
+.rail-proven {
+  border-left-color: var(--proven);
+  border-left-style: solid;
+}
+
+.rail-depth {
+  border-left-color: var(--depth);
+  border-left-style: dashed;
+}
+
+.rail-delegated {
+  border-left-color: var(--delegated);
+  border-left-style: dotted;
+  border-left-width: 5px;
+}
+
+.rail-alarm {
+  border-left-color: var(--alarm);
+  border-left-style: solid;
+  background: var(--alarm-bg);
+}
+
+.rail-plain {
+  border-left-color: var(--line);
+  border-left-style: solid;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.result-name {
+  margin: 0 0 10px;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+}
+
+.address-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+}
+
+.address {
+  font-size: 13px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.identicon {
+  flex: none;
+  display: inline-block;
+}
+
+.identicon-blank {
+  border-radius: 50%;
+  background: var(--depth-bg);
+}
+
+/* ── Verification lines, badges, notes ── */
+
+.verify {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.verify-proven {
+  color: var(--proven);
+  font-weight: 600;
+}
+
+.verify-depth {
+  color: var(--depth);
+}
+
+.verify-delegated {
+  margin-top: 8px;
+}
+
+.verify-note {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.badge-proven {
+  background: var(--proven-bg);
+  color: var(--proven);
+}
+
+.badge-depth,
+.badge-info {
+  background: var(--depth-bg);
+  color: var(--depth);
+}
+
+.badge-delegated {
+  background: var(--delegated-bg);
+  color: var(--delegated);
+}
+
+.badge-alarm {
+  background: var(--alarm-bg);
+  color: var(--alarm);
+}
+
+.badge-grace,
+.badge-couldnt-check {
+  background: var(--grace-bg);
+  color: var(--grace);
+}
+
+.notes {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+li.note {
+  margin: 0;
+}
+
+.note-alarm {
+  color: var(--alarm);
+}
+
+.alarm-title {
+  margin: 0 0 8px;
+  font-size: 19px;
+  color: var(--alarm);
+}
+
+.available-line {
+  margin: 0;
+  color: var(--proven);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.fee-line {
+  margin: 8px 0 0;
+  font-size: 15px;
+}
+
+/* ── Actions (visible, gated; sends disabled in this build) ── */
+
+.actions {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+
+.action-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.action-row:last-child {
+  border-bottom: none;
+}
+
+.action-label {
+  font-weight: 600;
+}
+
+.action-state {
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+/* ── Lists (my names, market) ── */
+
+.name-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.name-row {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.name-row:focus-visible {
+  outline: 2px solid var(--ink);
+}
+
+.name-row-name {
+  font-size: 17px;
+  font-weight: 700;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
+.name-row-meta,
+.name-row-expiry {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.offer-price {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.offer-seller {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  flex-basis: 100%;
+}
+
+.offer-until {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+/* ── Empty states, spinner ── */
+
+.empty {
+  padding: 40px 12px;
+  text-align: center;
+}
+
+.empty-title {
+  margin: 0 0 6px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.empty-body {
+  margin: 0 auto;
+  max-width: 34ch;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.spinner {
+  display: flex;
+  justify-content: center;
+  padding: 32px;
+}
+
+.spinner span {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid var(--line);
+  border-top-color: var(--ink);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner span {
+    animation: none;
+    border-top-color: var(--line);
+  }
+}

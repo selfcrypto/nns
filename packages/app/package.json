@@ -1,0 +1,30 @@
+{
+  "name": "@nns/app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The Nimiq Pay mini app: search, resolve, register and manage NNS names. Static Vite bundle, independently hostable.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nimiq/identicons": "catalog:",
+    "@nimiq/mini-app-sdk": "catalog:",
+    "@nns/core": "workspace:*",
+    "@nns/resolver": "workspace:*",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

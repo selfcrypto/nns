@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // The wide config: tests and tooling. Node types are allowed here only
+    // for the config files; src stays browser-only via the narrow config,
+    // and tests import from src so they inherit its constraints in practice.
+    "types": ["vite/client", "node"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ],
+  "exclude": []
+}
