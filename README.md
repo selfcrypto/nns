@@ -146,17 +146,36 @@ more to this protocol than any assurance its authors can offer about
 themselves.
 
 ```bash
-cp .env.example .env      # fill in NNS_RPC_URL and the five OPEN §3 values
+cp .env.example .env      # fill in NNS_RPC_URL
 docker compose up
 ```
 
 Postgres comes with it, published on `127.0.0.1:5433` so it does not clash
-with a local server. Compose refuses to start without the OPEN values —
-naming them, one by one — because a placeholder address parses, runs, matches
-nothing, and produces an empty registry with a clean log.
+with a local server. Nothing else needs setting: since the launch freeze every
+§3 value — `LAUNCH_HEIGHT`, the four role addresses, `RESERVED_NAMES`, the `O`
+listing fee — is a constant in `@nns/core`, not configuration, because a value
+an operator can set is a value two indexers can disagree about.
 
 To run it outside a container instead, `packages/indexer/.env.example` is the
 same set of variables pointed at a local database.
+
+## Running one publicly
+
+An indexer answers nobody on its own. Two things are worth deploying, and
+`deploy/` has one directory for each — compose file, `.env.example`, README:
+
+- **A resolver** (`deploy/resolver`) — Postgres, the indexer and the read-only
+  API, with only the API published. This is what §8.5's quorum is made of:
+  clients ask several independent ones and compare, so the protocol stops
+  depending on us exactly to the degree that other people run these.
+- **A delegate** (`deploy/delegate`) — one container and a JSON file, for a
+  name owner who wants `shop.theirname` to resolve. No node, no database, no
+  key.
+
+[`docs/runbooks/operators.md`](docs/runbooks/operators.md) is the map: what
+each role is, what it needs, and the four things that are easy to get wrong.
+`deploy/service` is our own deployment — the same resolver stack plus the RPC
+relay and the mini app.
 
 ## Building and testing
 
