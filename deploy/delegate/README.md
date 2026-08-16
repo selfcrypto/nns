@@ -16,8 +16,9 @@ promise, including why its 404 tells a caller nothing.
 ```bash
 cd deploy/delegate
 cp .env.example .env                                     # every line optional
-cp ../../packages/delegate/labels.example.json labels.json
-$EDITOR labels.json
+mkdir -p labels
+cp ../../packages/delegate/labels.example.json labels/labels.json
+$EDITOR labels/labels.json
 docker compose up -d --build
 curl -s http://127.0.0.1:8636/healthz
 ```
@@ -40,9 +41,14 @@ for that name until it is.
 }
 ```
 
-Mounted read-only. Edit it on the host and the next poll (5 s) picks it up —
-no restart, no downtime, and a file that fails to parse leaves the previous one
-serving rather than serving nothing. `SIGHUP` forces a reload.
+Lives at `labels/labels.json`, with the **directory** mounted read-only — not
+the file, because a single-file bind mount pins the inode, and the atomic save
+most editors do (write a temp file, rename it into place) would swap the inode
+out from under the mount: the host file changes, the container serves the old
+bytes forever, and the healthcheck stays green. With the directory mounted,
+edit the file with anything and the next poll (5 s) picks it up — no restart,
+no downtime, and a file that fails to parse leaves the previous one serving
+rather than serving nothing. `SIGHUP` forces a reload.
 
 ## TLS is mandatory, and it is yours
 

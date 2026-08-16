@@ -14,4 +14,4 @@ scripts/restore-env.sh
 
 # An operator's live delegate data (labels.example.json is the template).
 packages/delegate/labels.json
-deploy/delegate/labels.json
+deploy/delegate/labels/

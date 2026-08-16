@@ -1,7 +1,8 @@
 # NNS delegate — one container, one JSON file, one port.
 #
 #   cp .env.example .env
-#   cp ../../packages/delegate/labels.example.json labels.json   # then edit it
+#   mkdir -p labels
+#   cp ../../packages/delegate/labels.example.json labels/labels.json  # then edit it
 #   docker compose up -d --build
 #
 # A delegate answers `label.yourname` for names **you** own. It reads no chain,
@@ -30,7 +31,7 @@ services:
     environment:
       # In-container path of the mounted file, and an in-container bind. What
       # the outside world can reach is decided by `ports` alone.
-      NNS_DELEGATE_LABELS: /labels.json
+      NNS_DELEGATE_LABELS: /labels/labels.json
       NNS_DELEGATE_HOST: 0.0.0.0
       NNS_DELEGATE_PORT: 8636
       # Blank is absent for all four: the service trims and treats empty as
@@ -41,10 +42,15 @@ services:
       NNS_DELEGATE_RELOAD_SEC: ${NNS_DELEGATE_RELOAD_SEC:-5}
       NNS_LOG_LEVEL: ${NNS_LOG_LEVEL:-info}
     volumes:
-      # Read-only, and reloaded from disk without a restart: edit the file on
-      # the host and the next poll picks it up. A reload that fails to parse
-      # leaves the previous file serving.
-      - ${NNS_DELEGATE_LABELS_FILE:-./labels.json}:/labels.json:ro
+      # The **directory**, not the file. A single-file bind mount pins the
+      # inode, and an editor's atomic save (vim, sed -i — rename into place)
+      # replaces the inode: the host file changes, the container serves the old
+      # bytes forever, and the healthcheck stays green. The store's stat-poll
+      # was built precisely for atomic saves (packages/delegate/src/store.ts),
+      # so the mount must not defeat it. A directory mount resolves the name on
+      # every lookup, and edits — in place or by rename — appear at the next
+      # poll. A reload that fails to parse leaves the previous file serving.
+      - ${NNS_DELEGATE_LABELS_DIR:-./labels}:/labels:ro
     ports:
       # Loopback by default, for a TLS terminator on the same host. Set
       # NNS_DELEGATE_PUBLISH=0.0.0.0:8636 only if something else fronts it.
