@@ -1,6 +1,6 @@
 # Operator roles
 
-Four things can be run, by different kinds of party. Each is a directory under
+Five things can be run, by different kinds of party. Each is a directory under
 `deploy/` with its own compose file, its own `.env.example` and its own README,
 so nobody reads configuration belonging to a role they do not run.
 
@@ -10,13 +10,14 @@ so nobody reads configuration belonging to a role they do not run.
 | **Delegate** — `deploy/delegate` | the delegate | yes | a labels file, and publicly trusted TLS |
 | **The service** — `deploy/service` | the resolver stack + relay + app bundle | app, API, relay | the node's credential, for the relay |
 | **Settlement** — `deploy/settlement` | its own Postgres → ledger → issuer | **nothing** | the two §6 `M` hot keys, and a node it reaches privately |
+| **Anchor** — `deploy/anchor` | kubo → publisher | **nothing** | a funded EVM key, and §8.2's second CID implementation |
 
 Run one, or two, or all of them: they are separate compose projects and do not
 interfere. An exchange that wants `shop.exchange` to work needs only the second
 row — no node, no database, no indexer.
 
-The last row is ours alone and belongs on a **different machine from the third**
-— see "The settlement issuer", below.
+The last two rows are ours alone and belong on a **different machine from the
+third** — both hold keys, and a box terminating TLS is the wrong home for one.
 
 ## What each row is for
 
@@ -34,7 +35,16 @@ relay the app needs. Only this row exists once.
 
 **Settlement** pays what the protocol owes — marketplace payouts, commission
 forwards, and refunds. It is also ours alone, and it holds the system's only
-hot key.
+Nimiq hot key.
+
+**The anchor publisher** writes checkpoint commitments to an EVM chain (§9) so
+past claims cannot be quietly rewritten. It ships with a **kubo node**, because
+§8.2 pins and anchors a log snapshot only when two *independent* CID
+implementations mint the same CID — kubo is one, Filebase the other, and
+`env.ts` refuses to start with a single one configured. One publisher run by
+the operator who also runs the resolver adds timestamping, not independence:
+`ANCHOR_QUORUM` is 2 and the contract is permissionless precisely so a second
+party can anchor without asking anyone.
 
 ## The settlement issuer
 

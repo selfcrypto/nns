@@ -1,0 +1,142 @@
+# The §9 anchor publisher, and the kubo node §8.2 requires beside it.
+#
+#   cp .env.example .env
+#   $EDITOR .env                       # chain, contract, API, Filebase
+#   export NNS_ANCHOR_PUBLISHER_KEY=…  # from your secret store, never .env
+#   docker compose up -d --build
+#
+# **Two independent CID implementations, or nothing gets anchored.** §8.2 does
+# not accept one: the log snapshot is pinned and the anchor broadcast only when
+# implementation A and implementation B mint the *same* CID. `env.ts` refuses
+# to start with one configured, and refuses two URLs that are the same
+# endpoint — but only you can make them genuinely independent implementations,
+# which is why A is a kubo node you run and B defaults to Filebase, a different
+# importer written by different people.
+#
+# That is what `kubo` is doing in this file. It is not a convenience; it is one
+# half of the agreement gate, and there is no deployment of this role without
+# it.
+#
+# **This is a funded-key role.** `deploy/service/README.md` lists the anchor
+# publisher under "Never on this box" beside the settlement issuer and the
+# admin CLI. Like settlement it needs no inbound reachability at all: it reads
+# an NNS API outbound, pins to IPFS outbound, and sends to an EVM chain
+# outbound.
+
+name: nns-anchor
+
+services:
+  # Implementation A. Reachable on this compose network and nowhere else — the
+  # kubo RPC API is unauthenticated and grants full control of the node, so it
+  # is never published to a host port, let alone an interface.
+  kubo:
+    image: ipfs/kubo:v0.39.0
+    # `server` disables local-network peer discovery, which on a VPS only
+    # produces noise and abuse reports.
+    environment:
+      IPFS_PROFILE: server
+    volumes:
+      - kubo-data:/data/ipfs
+    healthcheck:
+      # The publisher's first act is an add against this API, so it must not
+      # start before kubo answers.
+      test: ['CMD-SHELL', 'ipfs --api=/ip4/127.0.0.1/tcp/5001 id > /dev/null 2>&1']
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '5' }
+
+  publisher:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      args:
+        PKG: anchor
+    # The image's CMD is `dist/main.js`, which this package does not have: it
+    # ships three CLIs and the publisher is one of them.
+    #
+    # §9's cadence is **on change with a daily floor**, and the publisher
+    # decides that itself — it anchors when the commitment moved since this
+    # key's last anchor, unconditionally when that anchor is a day old, and
+    # otherwise exits clean saying "unchanged". So this loop is how often it
+    # *looks*, not how often it anchors, and the upstream `.env.example`
+    # recommends every few hours.
+    #
+    # The loop deliberately does not exit on a failed run. Exit 1 is an alert,
+    # and a publisher that stopped on one bad run would stop anchoring
+    # altogether — the failure mode §9 exists to avoid. Watch the logs, or
+    # scrape them: `anchor.run exit=1` is the line that matters.
+    command:
+      - sh
+      - -c
+      - |
+        while :; do
+          node dist/publish-cli.js publish ${NNS_ANCHOR_SEND:---send}
+          echo "anchor.run exit=$$? — next look in ${NNS_ANCHOR_INTERVAL_SECONDS:-14400}s"
+          sleep ${NNS_ANCHOR_INTERVAL_SECONDS:-14400}
+        done
+    depends_on:
+      kubo:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    environment:
+      # ── The anchor chain ──────────────────────────────────────────────────
+      # Nothing is defaulted: a defaulted chain id would agree with a stale RPC
+      # URL, and deploying or anchoring to the wrong network succeeds silently.
+      NNS_ANCHOR_RPC_URL: ${NNS_ANCHOR_RPC_URL:?the anchor chain RPC — 137 is Polygon PoS, 11155111 Sepolia}
+      NNS_ANCHOR_CHAIN_ID: ${NNS_ANCHOR_CHAIN_ID:?must match the RPC above, and is never defaulted}
+      NNS_ANCHOR_CONTRACT_ADDRESS: ${NNS_ANCHOR_CONTRACT_ADDRESS:?an output of `pnpm --filter @nns/anchor deploy`; verified against the committed artifact on every run}
+
+      # The NNS API serving /log and /checkpoints/{height}. Any operator's.
+      NNS_ANCHOR_API_URL: ${NNS_ANCHOR_API_URL:?the NNS API to anchor, e.g. https://resolver.example.com}
+
+      # ── Implementation A: the kubo beside this container ──────────────────
+      # Not 127.0.0.1 — that would be *this* container. The service name is the
+      # address on the compose network.
+      NNS_ANCHOR_IPFS_ADD_URL: http://kubo:5001
+      NNS_ANCHOR_IPFS_ADD_AUTH: ${NNS_ANCHOR_IPFS_ADD_AUTH:-}
+
+      # ── Implementation B: Filebase, a different importer ──────────────────
+      # Set exactly one of Filebase or IPFS_ADD_URL_2; both is refused.
+      NNS_ANCHOR_FILEBASE_BUCKET: ${NNS_ANCHOR_FILEBASE_BUCKET:-}
+      NNS_ANCHOR_FILEBASE_KEY: ${NNS_ANCHOR_FILEBASE_KEY:-}
+      NNS_ANCHOR_FILEBASE_SECRET: ${NNS_ANCHOR_FILEBASE_SECRET:-}
+      NNS_ANCHOR_FILEBASE_ENDPOINT: ${NNS_ANCHOR_FILEBASE_ENDPOINT:-}
+      NNS_ANCHOR_IPFS_ADD_URL_2: ${NNS_ANCHOR_IPFS_ADD_URL_2:-}
+      NNS_ANCHOR_IPFS_ADD_AUTH_2: ${NNS_ANCHOR_IPFS_ADD_AUTH_2:-}
+
+      # ── The publisher key ─────────────────────────────────────────────────
+      # The repo's one hot EVM key, and SHOULD be a multisig signer (§9). Like
+      # settlement's Nimiq keys it is pass-through from the invoking shell with
+      # no default, so a missing key stops `up` rather than starting a
+      # publisher that can plan but never send.
+      #
+      # For a dry-run deployment set NNS_ANCHOR_SEND=--dry-run and supply
+      # ADDRESS instead of KEY: the whole plan runs on a machine that has never
+      # held the key.
+      NNS_ANCHOR_PUBLISHER_KEY: ${NNS_ANCHOR_PUBLISHER_KEY:?64 hex chars; export from your secret store, never .env}
+      NNS_ANCHOR_PUBLISHER_ADDRESS: ${NNS_ANCHOR_PUBLISHER_ADDRESS:-}
+
+      # §11.5 in EVM clothing: refuses to sign when the balance cannot cover one
+      # anchor, warns below this. Size it so topping up is routine.
+      NNS_ANCHOR_MIN_BALANCE_WEI: ${NNS_ANCHOR_MIN_BALANCE_WEI:?wei; 0.1 POL = 100000000000000000}
+
+      # How far back eth_getLogs looks for this publisher's own anchors
+      # (idempotency and gap reporting). Public endpoints with tight range caps
+      # need this lowered — Sepolia's commonly cap at 50,000.
+      NNS_ANCHOR_LOOKBACK_BLOCKS: ${NNS_ANCHOR_LOOKBACK_BLOCKS:-}
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '5' }
+
+volumes:
+  # kubo's repo. Losing it costs re-adding the snapshots, not the anchors —
+  # every anchor already on chain stands, and the CIDs are content-addressed,
+  # so the same bytes mint the same CID from an empty repo. Filebase holds the
+  # pinned copy either way.
+  kubo-data:

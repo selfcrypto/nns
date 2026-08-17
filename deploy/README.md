@@ -1,6 +1,6 @@
 # deploy/
 
-Four things can be run, one directory each. Every directory carries its own
+Five things can be run, one directory each. Every directory carries its own
 compose file, its own `.env.example` and its own README, so an operator never
 reads a variable belonging to a role they do not run.
 
@@ -12,9 +12,10 @@ reads a variable belonging to a role they do not run.
 | Make `shop.myname` resolve, for names I own | [`delegate/`](delegate/) | its HTTP port | a JSON file and publicly trusted TLS |
 | Host the mini app and its RPC proxy | [`service/`](service/) | app, API, relay | the node's credential, for the relay |
 | Pay what the protocol owes — payouts and refunds | [`settlement/`](settlement/) | **nothing** | the two §6 `M` hot keys, and a node it reaches privately |
+| Anchor checkpoint roots to an EVM chain (§9) | [`anchor/`](anchor/) | **nothing** | a funded EVM key, and the bundled kubo — §8.2 needs two independent CID implementations |
 
 They are separate compose projects with separate names and do not interfere;
-run one, two, or all four. An exchange that wants `shop.exchange` to work needs
+run one, two, or all five. An exchange that wants `shop.exchange` to work needs
 only the second row — no node, no database, no indexer.
 
 [`../docs/runbooks/operators.md`](../docs/runbooks/operators.md) is the longer
@@ -94,6 +95,7 @@ Only one of these four holds a key, and it is the one with no public surface:
 | `delegate` | none — holds no chain data at all |
 | `service` | the node's RPC credential, for the relay. No chain key |
 | `settlement` | **both §6 `M` hot keys** |
+| `anchor` | **a funded EVM publisher key** (SHOULD be a multisig signer, §9) |
 
 **`settlement` must not share a machine with `service`.** A box that terminates
 TLS is the wrong home for a hot key, and the issuer needs the node's *wallet*
@@ -102,8 +104,9 @@ reachability: it polls an API outbound and broadcasts `M` transactions that
 every indexer then picks up. The chain is the only channel between the two
 halves — no shared database, no open port.
 
-The admin CLI (cold key) and the anchor publisher (funded key) have no directory
-here at all, for the same reason.
+`anchor` is in the same position as `settlement`: a funded key, no inbound
+reachability, and it must not share a machine with `service`. The admin CLI
+(cold key) has no directory here at all, for the same reason.
 
 ## Backups
 
