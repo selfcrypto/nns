@@ -119,6 +119,24 @@ export const isListedReserved = (name: string): boolean => LISTED_RESERVED.has(n
 export const isReservedName = (name: string): boolean => isListedReserved(name) || isShortReserved(name)
 
 /**
+ * §4.1 rules 2–5 alone — the *shape* of the string, with length ignored in
+ * both directions.
+ *
+ * This exists because `validateNameSyntax` deliberately answers `TOO_SHORT`
+ * for a short name that fails rules 2–5, hiding which rule it failed (see the
+ * comment on that line, and §4.2's `sud0` vector). That is the right answer
+ * for a validity check and the wrong one for a *message* to a user: `??`,
+ * `-ab`, `1234` and `sud0` are not too short, and telling someone a name is
+ * "reserved" when it can never exist is worse than saying nothing. A caller
+ * rendering an explanation asks this for the real reason.
+ *
+ * Never a validity check on its own — it has no floor and no ceiling, so
+ * `validateNameSyntax` or `validateName` is what decides whether a name is
+ * usable.
+ */
+export const validateNameShape = (name: string): NameValidation => checkRules2to5(name)
+
+/**
  * §4.1 rules 1–5: everything that is a property of the string alone, with
  * rule 1's floor left off.
  *

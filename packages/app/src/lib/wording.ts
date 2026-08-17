@@ -13,7 +13,8 @@
 
 import type { QuorumReport, WarningCode } from '@nns/resolver'
 import type { AppAction, GateReason } from './states'
-import type { QueryInvalidReason } from '@nns/core'
+import type { QueryFault } from './search'
+import { CONSTANTS, type LabelInvalidReason, type NameInvalidReason } from '@nns/core'
 
 // ── Verification lines ──────────────────────────────────────────────────────
 
@@ -155,26 +156,81 @@ export const GATE_REASON_TEXT: Record<GateReason, string> = {
 
 // ── Input validation (§4.1 in plain words, field-level) ────────────────────
 
-const NAME_REASON_TEXT: Record<string, string> = {
-  TOO_SHORT: 'Names this short are reserved — 5 characters or more.',
-  TOO_LONG: 'Too long — 24 characters at most.',
+/**
+ * **Typed, and deliberately partial.** `Partial<Record<…>>` so a key that is not
+ * a real `NameInvalidReason` fails to compile — an untyped `Record<string,
+ * string>` here is what let label reasons be rendered with name wording for as
+ * long as they were.
+ *
+ * Two reasons are absent and both absences are load-bearing:
+ *
+ * - **`RESERVED`** — reservation is never a field-level verdict. It is chain
+ *   state a released name leaves behind (§6 `U`), so it reaches the user from
+ *   the server, as the availability card's `reservedLine()`.
+ * - **`TOO_SHORT`** — `queryFault` resolves it to the rule that actually
+ *   failed, because core returns it for any string under the floor that also
+ *   fails rules 2–5. Nothing reaching here can be merely short, so a sentence
+ *   about length would be wrong every time it appeared.
+ */
+const NAME_REASON_TEXT: Partial<Record<NameInvalidReason, string>> = {
+  TOO_LONG: `Too long — ${CONSTANTS.MAX_NAME_LEN} characters at most.`,
   BAD_CHARACTER: 'Only a–z, 0–9 and hyphens.',
   NO_LETTER: 'A name needs at least one letter.',
   LEADING_HYPHEN: 'Can’t start with a hyphen.',
   TRAILING_HYPHEN: 'Can’t end with a hyphen.',
   DOUBLE_HYPHEN: 'No two hyphens in a row.',
   INTERIOR_DIGIT: 'Digits can’t sit inside letters — only lead or trail.',
-  BOUNDARY_DIGIT: 'Digits can only lead or trail, not both.',
-  // No RESERVED: reservation is never a field-level verdict. It is chain
-  // state a released name leaves behind (§6 `U`), so it reaches the user
-  // from the server, as the availability card's reservedLine().
+  // §4.2's r6 boundary clause, which this used to describe as "digits can only
+  // lead or trail, not both" — a rule that does not exist: `2nimiq2`,
+  // `9nimiq9` and `23nimiq45` are all valid. What is barred is `0` and `1` at
+  // either end, closing `nimiq0`/`nimiqo` and `1kike`/`lkike`.
+  BOUNDARY_DIGIT: 'A name can’t start or end with 0 or 1.',
 }
 
-export function invalidQueryLine(reason: QueryInvalidReason, detail: string | null): string {
-  if (reason === 'TOO_MANY_DOTS') return 'One dot at most — name, or label.name.'
-  const base = reason === 'BAD_LABEL' ? 'The part before the dot: ' : ''
-  const explained = detail !== null ? NAME_REASON_TEXT[detail] : undefined
-  return `${base}${explained ?? 'Not a valid name.'}`
+/**
+ * Labels are **not names** and this table exists because sharing the one above
+ * told a user that `.shopper`'s empty label was a reserved five-character name.
+ * §4.4 labels floor at **1** character, need no letter (`1` and `123` are valid
+ * labels), have no positional digit rule and are never reserved — they are not
+ * protocol state at all. Complete, not partial: a new `LabelInvalidReason` must
+ * not compile until it has wording.
+ */
+const LABEL_REASON_TEXT: Record<LabelInvalidReason, string> = {
+  TOO_SHORT: 'The part before the dot can’t be empty.',
+  TOO_LONG: `The part before the dot is too long — ${CONSTANTS.MAX_LABEL_LEN} characters at most.`,
+  BAD_CHARACTER: 'Before the dot: only a–z, 0–9 and hyphens.',
+  LEADING_HYPHEN: 'The part before the dot can’t start with a hyphen.',
+  TRAILING_HYPHEN: 'The part before the dot can’t end with a hyphen.',
+  DOUBLE_HYPHEN: 'Before the dot: no two hyphens in a row.',
+}
+
+/**
+ * Beside the field while a short name is typed, so the rule arrives before the
+ * answer does. A **note, not an error**: it explains why most short names come
+ * back reserved without claiming this one is — a released short name is
+ * ordinary, and the states doc §3 keeps the fired `U` out of user-facing
+ * language, so "deliberately released" is as specific as this gets.
+ */
+export const shortNameNoteLine = (): string =>
+  `Names under ${CONSTANTS.MIN_NAME_LEN} characters are reserved by default — one is only registrable if it has been deliberately released.`
+
+/**
+ * One sentence for a resolved `QueryFault`. The generic fallback is for a reason
+ * with no wording yet — vague, but never a wrong claim about which rule failed.
+ */
+export function queryFaultLine(fault: QueryFault): string {
+  switch (fault.kind) {
+    case 'many-dots':
+      return 'One dot at most — name, or label.name.'
+    case 'dot-shape':
+      return 'Write a subdomain as label.name — for example pay.shopper.'
+    case 'label':
+      return LABEL_REASON_TEXT[fault.reason]
+    case 'name':
+      return NAME_REASON_TEXT[fault.reason] ?? 'Not a valid name.'
+    case 'unspecified':
+      return 'Not a valid name.'
+  }
 }
 
 // ── Buy (§8.5 #10 — wording fixed now, flow blocked on the probe) ──────────

@@ -31,9 +31,16 @@ alarm) is the one visual device and appears identically everywhere.
 
 ## 2. Search — the front door
 
-Input accepts a name or `label.name`; validated as typed (field-level §4.1
-wording); submit resolves. Outcomes are `docs/app-states.md` §3, each a
-card. Beyond what is built today:
+Input accepts a name or `label.name`. **The query runs as typed**, one second
+after typing stops, and the button only skips that wait — so an answer arrives
+without pressing anything, and a name whose fate is chain state (a short name a
+`U` may have released) is never refused by the client to save a round trip.
+
+The one-second settle is not cosmetic. It is what keeps a word typed at speed to
+a single query — each one verifies a Merkle proof, and `/api/` rate-limits
+nothing — and it is also what stops the field hint scolding a half-typed name.
+Hints are computed off the settled value for that reason. Outcomes are
+`docs/app-states.md` §3, each a card. Beyond what is built today:
 
 - **Taken name (resolved card)** gains a **"Message the owner"** row — the
   chat entry point (`docs/app-chat.md`). Opens the composer prefilled with

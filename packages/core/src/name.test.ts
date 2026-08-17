@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CONSTANTS } from './constants.js'
-import { feeBand, parseQuery, validateLabel, validateName } from './name.js'
+import { feeBand, parseQuery, validateLabel, validateName, validateNameShape, validateNameSyntax } from './name.js'
 
 const reason = (name: string): string | null => {
   const result = validateName(name)
@@ -121,6 +121,32 @@ describe('validateName — §4.2 positional digit rule', () => {
     // §4.2 states the main rule first and the boundary clause "additionally",
     // so the order is fixed and vectors depend on it.
     expect(reason('1n1m1')).toBe('INTERIOR_DIGIT')
+  })
+})
+
+describe('validateNameShape — rules 2–5 with no length at all', () => {
+  it('answers the rule a short malformed name broke, where validateNameSyntax says TOO_SHORT', () => {
+    // The reason this export exists: `validateNameSyntax` collapses all of
+    // these to TOO_SHORT (deliberately — §4.2's `sud0` vector), which is right
+    // for validity and useless for telling a user what to fix.
+    expect(validateNameSyntax('sud0')).toEqual({ ok: false, reason: 'TOO_SHORT' })
+    expect(validateNameShape('sud0')).toEqual({ ok: false, reason: 'BOUNDARY_DIGIT' })
+    expect(validateNameShape('l1do')).toEqual({ ok: false, reason: 'INTERIOR_DIGIT' })
+    expect(validateNameShape('??')).toEqual({ ok: false, reason: 'BAD_CHARACTER' })
+    expect(validateNameShape('-ab')).toEqual({ ok: false, reason: 'LEADING_HYPHEN' })
+    expect(validateNameShape('1234')).toEqual({ ok: false, reason: 'NO_LETTER' })
+  })
+
+  it('has no floor and no ceiling — so it is never a validity check on its own', () => {
+    expect(validateNameShape('ab').ok).toBe(true)
+    expect(validateNameShape('a'.repeat(CONSTANTS.MAX_NAME_LEN + 10)).ok).toBe(true)
+    expect(validateNameSyntax('a'.repeat(CONSTANTS.MAX_NAME_LEN + 10))).toEqual({ ok: false, reason: 'TOO_LONG' })
+  })
+
+  it('agrees with validateNameSyntax above the floor', () => {
+    for (const name of ['nimiq', 'nim1q', 'nimiq0', 'na--me', '-bad-', 'nimiq shop']) {
+      expect(validateNameShape(name), name).toEqual(validateNameSyntax(name))
+    }
   })
 })
 

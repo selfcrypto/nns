@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react'
 import { CONSTANTS } from '@nns/core'
 import { primaryAddress } from '../lib/identity'
 import { formatApproxDate, approxDate } from '../lib/format'
-import { parseSearchQuery, search, type SearchOutcome } from '../lib/search'
+import { isShortName, queryFault, search, type SearchOutcome } from '../lib/search'
 import { actionGates, nameView, signerFor, type AppAction } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
+import { useDebounced } from '../lib/useDebounced'
 import type { Wallet } from '../lib/wallet'
 import {
   ACTION_LABEL,
@@ -14,10 +15,11 @@ import {
   availableLine,
   delegateFailedLine,
   graceLine,
-  invalidQueryLine,
   messageOwnerLabel,
   parentNotDelegatingLine,
+  queryFaultLine,
   reservedLine,
+  shortNameNoteLine,
   unreachableLine,
 } from '../lib/wording'
 import { AddressRow, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from '../components/result'
@@ -96,7 +98,7 @@ function Outcome({
 
   switch (outcome.kind) {
     case 'invalid':
-      return <p className="field-error">{invalidQueryLine(outcome.reason, outcome.detail)}</p>
+      return <p className="field-error">{queryFaultLine(outcome.fault)}</p>
 
     case 'resolved':
       return (
@@ -212,20 +214,31 @@ function Outcome({
   }
 }
 
+/**
+ * Long enough that a word typed at speed is one query, not one per character —
+ * `/api/` rate-limits nothing and every query verifies a Merkle proof — and it
+ * is also what stops the hint scolding a half-typed name.
+ */
+const SETTLE_MS = 1_000
+
 export function SearchScreen({ wallet, seed }: { wallet: Wallet | null; seed: string }) {
   const [text, setText] = useState(seed)
-  const [submitted, setSubmitted] = useState<string | null>(seed === '' ? null : seed)
   const [nonce, setNonce] = useState(0)
+  const trimmed = text.trim().toLowerCase()
+  const [query, flushQuery] = useDebounced(trimmed, SETTLE_MS)
 
-  const fieldError = useMemo(() => {
-    const trimmed = text.trim().toLowerCase()
-    if (trimmed === '' || trimmed === submitted) return null
-    // Rule 6 is deliberately not a field-level verdict — see parseSearchQuery.
-    const parsed = parseSearchQuery(trimmed)
-    return parsed.ok ? null : invalidQueryLine(parsed.reason, parsed.detail)
-  }, [text, submitted])
+  // Off `query`, not `text`: a hint about a string still being typed is the
+  // thing that made these hints hated. At most one, and the tone means
+  // something — red is "this can never be a name", grey is "this is a real
+  // name, and here is the rule that governs it".
+  const hint = useMemo((): { readonly tone: 'field-error' | 'note'; readonly text: string } | null => {
+    const fault = queryFault(query)
+    if (fault !== null) return { tone: 'field-error', text: queryFaultLine(fault) }
+    // Stays up once the card lands — it is what explains a Reserved answer.
+    return isShortName(query) ? { tone: 'note', text: shortNameNoteLine() } : null
+  }, [query])
 
-  const outcome = useAsync(submitted === null ? null : () => search(submitted), [submitted, nonce])
+  const outcome = useAsync(query === '' ? null : () => search(query), [query, nonce])
 
   return (
     <div className="screen">
@@ -233,9 +246,9 @@ export function SearchScreen({ wallet, seed }: { wallet: Wallet | null; seed: st
         className="search-form"
         onSubmit={(event) => {
           event.preventDefault()
-          const trimmed = text.trim().toLowerCase()
+          // Explicit intent: don't make them wait out the settle.
           if (trimmed !== '') {
-            setSubmitted(trimmed)
+            flushQuery()
             setNonce((value) => value + 1)
           }
         }}
@@ -252,11 +265,11 @@ export function SearchScreen({ wallet, seed }: { wallet: Wallet | null; seed: st
           onChange={(event) => setText(event.target.value)}
           aria-label="Search names"
         />
-        <button className="search-go" type="submit" disabled={text.trim() === ''}>
-          Look up
+        <button className="search-go" type="submit" disabled={trimmed === ''}>
+          Lookup
         </button>
       </form>
-      {fieldError !== null && <p className="field-error">{fieldError}</p>}
+      {hint !== null && <p className={hint.tone}>{hint.text}</p>}
 
       {outcome.status === 'idle' && (
         <EmptyState title="Every name is an address" body="Look one up to see where it pays, or find a free one to register." />

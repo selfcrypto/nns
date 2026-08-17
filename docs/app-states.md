@@ -109,11 +109,24 @@ on-chain", which would be false about the address the user is about to pay.
 ## 3. Search outcomes
 
 The search field accepts a name or a dotted query; `core.parseQuery` decides
-which, before any network call.
+which. The query itself runs **as typed**, once typing settles; the button only
+skips the wait (app-ux §2).
+
+Field-level messages come from `lib/search.ts`'s `queryFault`, never from core's
+first failing reason code — that code is `TOO_SHORT` for *any* string under the
+floor that also fails rules 2–5, so reading it literally told a user that `??`
+and `sud0` were reserved five-character names. Two tones, and the difference is
+load-bearing: **red** is "this string can never be a name", **grey** is "this is
+a real name, and here is the rule that governs it". Only the second is ever said
+about a name a `U` could open.
 
 | Input | Outcome |
 |---|---|
-| Invalid syntax | Field-level error naming the rule in plain words: too short (< 5 — "names this short are reserved"), too long (> 24), bad character, leading/trailing `-`, consecutive `-`, the §4.2 positional digit rule, more than one dot |
+| Invalid syntax | Field-level error naming the rule that **actually** failed: too long (> 24), bad character, no letter, leading/trailing/double `-`, a digit between letters, `0`/`1` at either end (§4.2's r6 clause — *not* "digits can only lead or trail"), more than one dot |
+| A dot with an empty side (`.`, `.shop`, `shop.`) | Format guidance — `label.name` with an example. Never a rule about the empty half, which is a string the user never typed |
+| Under 5 characters, well formed | **Grey note, not an error**: reserved by default, registrable only if deliberately released. The lookup still runs, because a released short name is an ordinary name (§1) |
+| Under 5 characters, malformed (`sud0`, `l1do`, `??`) | The broken rule, and **never the word "reserved"** — failing rules 2–5 puts a name on neither membership route, so no `U` can free it: verified, the reducer forfeits `INVALID_NAME` and `encodeUnreserve` refuses to build the message |
+| Invalid label (before the dot) | Label wording, which is not name wording: labels floor at **1** character, need no letter, have no digit rule and are never reserved |
 | Valid name | One of §1's states, via `resolve()` (falling back to `available()` on `NOT_FOUND`) plus `/name` for the overlays |
 | Dotted query, parent not registered | The parent's own §1 state, worded about the parent |
 | Dotted query, parent has no host | `PARENT_NOT_DELEGATING` wording |

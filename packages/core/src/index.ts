@@ -61,6 +61,7 @@ export {
   validateHost,
   validateLabel,
   validateName,
+  validateNameShape,
   validateNameSyntax,
   type FeeBand,
   type HostInvalidReason,
