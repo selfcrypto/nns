@@ -390,12 +390,21 @@ export function createRoutes(queries: Queries): RouteHandler {
     // wire constant, like 'REGISTERED'. Rejected lines stay listed: an
     // attestation that forfeited is part of the auditable record (§10.2).
     let burned = 0n
-    for (const line of value) {
+    for (const line of value.attestations) {
       if (line.verdict === 'OK') burned += line.value
     }
+    // §10.2's whole identity in one response: `owed` is `BURN_SHARE` of the
+    // accepted revenue, floored to whole luna — integer division is the only
+    // rounding `bigint` has, and flooring under-states owed, which can only
+    // ever under-burn. Serving `burned` without `owed` (as this route did
+    // until 2026-08-17) made the section's "computable from the log" claim
+    // true only of the half nobody needed to check.
+    const owed = (value.revenue * CONSTANTS.BURN_SHARE_BP) / 10_000n
     return respond(200, {
+      revenue: value.revenue.toString(),
+      owed: owed.toString(),
       burned: burned.toString(),
-      attestations: value.map((line) => ({
+      attestations: value.attestations.map((line) => ({
         height: line.height,
         txIndex: line.txIndex,
         txHash: line.txHash,

@@ -772,12 +772,23 @@ describe('/burn', () => {
       { height: 58_190_060, txIndex: 0, txHash: 'bb22', sender: B, value: 999_999n, verdict: 'WRONG_SENDER' },
       { height: 58_190_120, txIndex: 2, txHash: 'cc33', sender: A, value: 25_000n, verdict: 'OK' },
     ]
-    const handle = routes({ burn: () => Promise.resolve(snap(attestations)) })
+    const handle = routes({ burn: () => Promise.resolve(snap({ attestations, revenue: 0n })) })
     const response = await handle('GET', '/burn')
     expect(response.status).toBe(200)
     const body = response.body as { burned: string; attestations: { verdict: string; value: string }[] }
     expect(body.burned).toBe('125000')
     expect(body.attestations).toHaveLength(3)
     expect(body.attestations[1]).toMatchObject({ verdict: 'WRONG_SENDER', value: '999999' })
+  })
+
+  it('serves both halves of §10.2: owed is BURN_SHARE of accepted revenue, floored to whole luna', async () => {
+    // 1,000,003 luna of revenue → 20% is 200,000.6, floored to 200,000. The
+    // flooring direction matters: owed rounds down, so the ceiling a burn is
+    // checked against can only ever under-burn.
+    const handle = routes({ burn: () => Promise.resolve(snap({ attestations: [], revenue: 1_000_003n })) })
+    const body = (await handle('GET', '/burn')).body as { revenue: string; owed: string; burned: string }
+    expect(body.revenue).toBe('1000003')
+    expect(body.owed).toBe('200000')
+    expect(body.burned).toBe('0')
   })
 })

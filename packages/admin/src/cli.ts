@@ -59,6 +59,15 @@ export interface AdminCheck {
 }
 
 /**
+ * The refusals in a plan's checks — the shared half of every command's
+ * "plan carrying a refusal cannot be broadcast" rule, kept here so a third
+ * severity or a changed meaning of `refuse` is one edit, not three.
+ */
+export function blockingChecks(checks: readonly AdminCheck[]): readonly AdminCheck[] {
+  return checks.filter((check) => check.severity === 'refuse')
+}
+
+/**
  * Margin this CLI demands *above* `GOVERNANCE_DELAY`, in blocks (~1 h).
  *
  * Notice is the one §10.6 bound that cannot be checked exactly. The reducer

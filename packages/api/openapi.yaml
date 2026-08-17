@@ -423,23 +423,40 @@ paths:
 
   /burn:
     get:
-      summary: The burn record (§10.2)
+      summary: The burn record — both halves of §10.2 (revised 2026-08-17)
       description: >
         Every log line addressed to BURN_ADDRESS — F attestations and
-        anything that forfeited trying — with the accepted total. Only
-        tagged transfers enter the log, which is the point of F: an untagged
-        burn is exactly the shortfall this record makes visible. The "owed"
-        side of burned-versus-owed is fee accounting over the log and belongs
-        to the dashboard consuming /log, not to this API.
+        anything that forfeited trying — with the accepted total, the
+        treasury's accepted revenue, and the owed figure BURN_SHARE derives
+        from it. Only tagged transfers enter the log, which is the point of
+        F: an untagged burn is exactly the shortfall this record makes
+        visible. Until 2026-08-17 this route served only the burned half and
+        deferred "owed" to a dashboard that did not exist, which left
+        §10.2's burned-versus-owed identity computable by nobody; both
+        halves now come from one snapshot. The revenue base is §10.2's
+        normative definition since r24 — OK-verdict G/N/O fees plus M
+        commission reaching the treasury; forfeited inflows and stray dust
+        are outside it, and the base is defined over the log rather than the
+        balance, which also holds dust, refund money in flight, and
+        wrongly-sent amounts.
       responses:
         '200':
-          description: Attestations in canonical order, and the accepted sum.
+          description: Attestations in canonical order, and the §10.2 sums.
           content:
             application/json:
               schema:
                 type: object
-                required: [burned, attestations, height]
+                required: [revenue, owed, burned, attestations, height]
                 properties:
+                  revenue:
+                    $ref: '#/components/schemas/Luna'
+                    description: >
+                      Accepted revenue reaching TREASURY_ADDRESS: OK-verdict
+                      G, N, O and M lines with the treasury as recipient.
+                  owed:
+                    $ref: '#/components/schemas/Luna'
+                    description: >
+                      BURN_SHARE (20%) of revenue, floored to whole luna.
                   burned:
                     $ref: '#/components/schemas/Luna'
                     description: Sum of value over lines whose verdict is OK.

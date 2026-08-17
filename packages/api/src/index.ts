@@ -8,6 +8,7 @@ export {
   type ApiOffer,
   type ApiPendingTransfer,
   type BurnAttestation,
+  type BurnReport,
   type CheckpointLog,
   type LatestCheckpoint,
   type NameDetail,

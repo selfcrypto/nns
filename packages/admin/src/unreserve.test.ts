@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { AddressError, BURN_ADDRESS, CodecError, CONSTANTS, defineConfig, encodeUnreserve, parseAddress } from '@nns/core'
 
-import { UsageError, type AdminRpc } from './cli.js'
+import { AdminRefusal, UsageError, type AdminRpc } from './cli.js'
 import {
   broadcastUnreserve,
   describePlan,
@@ -26,7 +26,8 @@ interface RecordedCall {
   readonly params: readonly unknown[]
 }
 
-function fakeRpc(): { rpc: AdminRpc; calls: RecordedCall[] } {
+/** 10 NIM — exactly ADMIN_MIN_BALANCE, so a healthy plan carries no warning. */
+function fakeRpc(balance = 1_000_000): { rpc: AdminRpc; calls: RecordedCall[] } {
   const calls: RecordedCall[] = []
   const rpc: AdminRpc = {
     call<T>(method: string, params: readonly unknown[] = []): Promise<T> {
@@ -36,6 +37,8 @@ function fakeRpc(): { rpc: AdminRpc; calls: RecordedCall[] } {
           return Promise.resolve(true as T)
         case 'getBlockNumber':
           return Promise.resolve(HEAD as T)
+        case 'getAccountByAddress':
+          return Promise.resolve({ balance } as T)
         case 'sendBasicTransactionWithData':
           return Promise.resolve(HASH as T)
         default:
@@ -50,7 +53,7 @@ const release = { name: 'binance', recipient: null }
 const award = { ...release, recipient: BOB }
 
 describe('planUnreserve', () => {
-  it('defaults to release — the transaction goes to PROTOCOL_ADDRESS — and only reads the head', async () => {
+  it('defaults to release — the transaction goes to PROTOCOL_ADDRESS — and reads only head and balance', async () => {
     const { rpc, calls } = fakeRpc()
     const plan = await planUnreserve(rpc, config, release)
 
@@ -62,12 +65,37 @@ describe('planUnreserve', () => {
       data: expected.data,
       value: 1n,
       head: HEAD,
+      balance: 1_000_000n,
+      // §11.5 is the one check left since r22 removed the notice (§6 `U`),
+      // and a funded sender passes it silently.
+      checks: [],
     })
-    // No `checks` field: r22 removed the notice, which was the only bound this
-    // command could check from here (§6 `U`).
-    expect(plan).not.toHaveProperty('checks')
     // Planning is read-only: nothing is unlocked, nothing is sent.
-    expect(calls.map((c) => c.method)).toEqual(['getBlockNumber'])
+    expect(calls.map((c) => c.method)).toEqual(['getBlockNumber', 'getAccountByAddress'])
+  })
+
+  it('refuses an unfunded sender — the silent-drop route §11.5 exists for', async () => {
+    // Balance 0: the RPC would accept the transaction, return a hash, and it
+    // would never be mined. The plan must carry a refusal, and broadcast must
+    // re-check it rather than trust the caller.
+    const { rpc, calls } = fakeRpc(0)
+    const plan = await planUnreserve(rpc, config, release)
+    expect(plan.checks).toHaveLength(1)
+    expect(plan.checks[0]).toMatchObject({ severity: 'refuse' })
+    expect(plan.checks[0]?.message).toContain('§11.5')
+    await expect(broadcastUnreserve(rpc, config, plan)).rejects.toThrow(AdminRefusal)
+    // The refusal reaches the node for nothing beyond the plan's own reads.
+    expect(calls.map((c) => c.method)).toEqual(['getBlockNumber', 'getAccountByAddress'])
+  })
+
+  it('warns under ADMIN_MIN_BALANCE without blocking the send', async () => {
+    // 5 NIM: funded for dust, but §11.5 rule 2 says alerting at zero alerts
+    // after the failure.
+    const { rpc } = fakeRpc(500_000)
+    const plan = await planUnreserve(rpc, config, release)
+    expect(plan.checks).toHaveLength(1)
+    expect(plan.checks[0]).toMatchObject({ severity: 'warn' })
+    await expect(broadcastUnreserve(rpc, config, plan)).resolves.toMatchObject({ hash: HASH })
   })
 
   it('awards to the given recipient with a byte-identical payload', async () => {
@@ -121,6 +149,8 @@ describe('describePlan', () => {
     data: encodeUnreserve({ name, recipient }).data,
     value: 1n,
     head: HEAD,
+    balance: 1_000_000n,
+    checks: [],
   })
 
   it('says what a release does, where it goes, and that it binds on landing', () => {
@@ -180,11 +210,16 @@ describe('broadcastUnreserve', () => {
     const outcome = await broadcastUnreserve(rpc, config, plan)
 
     expect(outcome).toEqual({ kind: 'release', recipient: PROTOCOL, validityStartHeight: HEAD, hash: HASH })
-    expect(calls.map((c) => c.method)).toEqual(['getBlockNumber', 'unlockAccount', 'sendBasicTransactionWithData'])
-    expect(calls[1]?.params).toEqual([ADMIN, null, null])
+    expect(calls.map((c) => c.method)).toEqual([
+      'getBlockNumber',
+      'getAccountByAddress',
+      'unlockAccount',
+      'sendBasicTransactionWithData',
+    ])
+    expect(calls[2]?.params).toEqual([ADMIN, null, null])
     // [wallet, recipient, dataHex, value, fee, validityStartHeight] — value
     // as a number, fee 0.
-    expect(calls[2]?.params).toEqual([ADMIN, PROTOCOL, plan.data, 1, 0, HEAD])
+    expect(calls[3]?.params).toEqual([ADMIN, PROTOCOL, plan.data, 1, 0, HEAD])
   })
 })
 

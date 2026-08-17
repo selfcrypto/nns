@@ -12,7 +12,7 @@
  * "as of block" stamp the RPC's `metadata` gives state reads.
  */
 
-import { BURN_ADDRESS, merkleRoot, parseAddress, type Address, type NameStatus } from '@nns/core'
+import { BURN_ADDRESS, CONSTANTS, merkleRoot, parseAddress, type Address, type NameStatus } from '@nns/core'
 import { logLineFromRow, toHeight, toLuna, type LogRow } from '@nns/indexer'
 import type { Pool, PoolClient } from 'pg'
 
@@ -152,6 +152,36 @@ export interface BurnAttestation {
   readonly verdict: string
 }
 
+/**
+ * Both halves of §10.2's identity, read from one snapshot so they cannot
+ * describe two different instants: the attestations (whose `OK` values sum to
+ * *burned*) and the treasury's net revenue (whose `BURN_SHARE` is *owed*).
+ * Until 2026-08-17 only the attestations were served, which made §10.2's
+ * "burned-versus-owed is computable from the log" a promise with no computer
+ * — an outsider could see what was burned and had nothing to compare it
+ * against.
+ */
+export interface BurnReport {
+  readonly attestations: readonly BurnAttestation[]
+  /**
+   * §10.2's burn base as **r24 defines it**: Σ value of `OK`-verdict lines
+   * whose recipient is `TREASURY_ADDRESS` and whose type is `G`, `N`, `O` or
+   * `M` — accepted registrations, renewals, listing fees, and marketplace
+   * commission (an `M` *to* the treasury is a commission by construction;
+   * refunds run the other way).
+   *
+   * The base is defined over the log, never read off the balance: the
+   * balance also holds stray dust (an `S`/`X` may name the treasury as
+   * counterparty), refund-class money in flight toward its `M`, forfeited
+   * junk, and wrongly-sent amounts — none of it revenue. Review caught the
+   * first cut of this comment citing §10.2's "the treasury's balance *is*
+   * its revenue" as if it were the definition; r24 amended the section to
+   * state the log-computable base normatively and demote that sentence to
+   * the approximation it always was.
+   */
+  readonly revenue: bigint
+}
+
 /** A value plus the state height it was read at. */
 export interface Snapshot<T> {
   readonly height: number
@@ -174,7 +204,7 @@ export interface Queries {
   /** `null` while no checkpoint exists yet. */
   logThroughCheckpoint(): Promise<Snapshot<CheckpointLog | null>>
   outstanding(owedTo: Address | null): Promise<Snapshot<readonly ApiObligation[]>>
-  burn(): Promise<Snapshot<readonly BurnAttestation[]>>
+  burn(): Promise<Snapshot<BurnReport>>
 }
 
 // ── Row mapping ─────────────────────────────────────────────────────────────
@@ -508,7 +538,7 @@ export class PgQueries implements Queries {
     })
   }
 
-  async burn(): Promise<Snapshot<readonly BurnAttestation[]>> {
+  async burn(): Promise<Snapshot<BurnReport>> {
     return this.#snapshot(async (client) => {
       // Only tagged transfers enter the log (§6 `F`) — an untagged burn is
       // exactly the shortfall the dashboard exists to make visible.
@@ -527,7 +557,7 @@ export class PgQueries implements Queries {
           ORDER BY block_height, tx_index`,
         [BURN_ADDRESS],
       )
-      return (result.rows as Row[]).map((row) => ({
+      const attestations = (result.rows as Row[]).map((row) => ({
         height: toHeight(row['block_height'], 'block_height'),
         txIndex: toHeight(row['tx_index'], 'tx_index'),
         txHash: text(row, 'tx_hash'),
@@ -535,6 +565,22 @@ export class PgQueries implements Queries {
         value: toLuna(row['value'], 'value'),
         verdict: text(row, 'verdict'),
       }))
+
+      // The owed half's base (see BurnReport): §10.2's burn base as r24 pins
+      // it — accepted revenue, the four prefixes being `NNS1G` / `NNS1N` /
+      // `NNS1O` / `NNS1M` in the lowercase hex the log stores. Same
+      // transaction as above, so both halves describe one instant. COALESCE,
+      // because SUM over zero rows is NULL and a fresh registry owes
+      // nothing, not an error.
+      const revenue = await client.query(
+        `SELECT COALESCE(SUM(value), 0) AS revenue
+           FROM log WHERE recipient = $1 AND verdict = 'OK'
+            AND (data LIKE '4e4e533147%' OR data LIKE '4e4e53314e%'
+              OR data LIKE '4e4e53314f%' OR data LIKE '4e4e53314d%')`,
+        [CONSTANTS.TREASURY_ADDRESS],
+      )
+      const row = (revenue.rows as Row[])[0]
+      return { attestations, revenue: toLuna(row?.['revenue'], 'revenue') }
     })
   }
 }

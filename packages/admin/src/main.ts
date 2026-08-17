@@ -1,15 +1,25 @@
 /**
- * Admin CLI entry point. Two commands:
+ * Admin CLI entry point. Three commands:
  *
  *   p <fee_standard> <fee_long> <commission_bp> <effective-height> [--send]
  *   u <name> [recipient] [--send]
+ *   f <amount_luna> [--send]
  *
  * Dry-run by default: the plan is always printed, and nothing is broadcast
- * without `--send`. `F` is not implemented yet.
+ * without `--send`.
  */
 
 import { RpcClient } from '@nns/indexer'
 
+import {
+  broadcastBurn,
+  burnRefusals,
+  confirmBurn,
+  createBurnSource,
+  describeBurnPlan,
+  parseBurnArgs,
+  planBurn,
+} from './burn.js'
 import { UsageError } from './cli.js'
 import { loadSettings } from './env.js'
 import {
@@ -25,10 +35,12 @@ import {
   describePlan,
   parseUnreserveArgs,
   planUnreserve,
+  unreserveRefusals,
 } from './unreserve.js'
 
 const USAGE = `usage: p <fee_standard> <fee_long> <commission_bp> <effective-height> [--send]
        u <name> [recipient] [--send]
+       f <amount_luna> [--send]
 
 p builds a P (§6): the two prices — in luna — and the marketplace commission in
 basis points, all in one message, taking effect at the given height. It checks
@@ -50,18 +62,29 @@ margin. Notice is measured from the block the message lands in, not from the
 head it was planned against, so the exact minimum forfeits; the plan prints
 the earliest height it will accept.
 
-Both are dry runs; nothing is broadcast without --send. F is not implemented.
+f builds an F (§6): the treasury's burn commitment, value = the amount, sent
+from TREASURY_ADDRESS to BURN_ADDRESS — an address with no key, so this is
+the most irreversible command here. It reads both halves of §10.2 from
+NNS_API_URL's GET /burn and REFUSES an amount over the outstanding owed
+(owed − burned), an amount over the treasury balance, and a plan whose
+ceiling is provably stale (the node shows an executed F the /burn snapshot
+has not counted). After --send it polls /burn until the attestation appears,
+and reports UNCONFIRMED honestly if it does not — a hash is not confirmation.
+
+All are dry runs; nothing is broadcast without --send.
 
 Settings come from the environment; see packages/admin/.env.example.`
 
 async function run(argv: readonly string[]): Promise<number> {
   const [command, ...rest] = argv
-  if (command !== 'p' && command !== 'u') {
+  if (command !== 'p' && command !== 'u' && command !== 'f') {
     console.error(USAGE)
     return 2
   }
   try {
-    return command === 'p' ? await runGovernance(rest) : await runUnreserve(rest)
+    if (command === 'p') return await runGovernance(rest)
+    if (command === 'u') return await runUnreserve(rest)
+    return await runBurn(rest)
   } catch (error) {
     if (error instanceof UsageError) {
       console.error(error.message)
@@ -116,12 +139,19 @@ async function runUnreserve(argv: readonly string[]): Promise<number> {
   const rpc = rpcFor(settings)
   const plan = await planUnreserve(rpc, settings.config, params)
   for (const line of describePlan(plan)) console.log(line)
-  // No refusals left to run: r22 removed `U`'s only bound that could be
-  // checked from here, the notice (§6 `U`). Everything else client-preventable
-  // — a bad name, `BURN_ADDRESS`, a self-award — throws inside the builder, in
-  // `planUnreserve`, before the node hears anything. What remains is the dry
-  // run above and this explicit `--send`, which §6 `U` now names as the whole
-  // of the fat-finger protection.
+  // The one refusal left is §11.5's (added with `f`, 2026-08-17): r22 removed
+  // the notice, and everything else client-preventable — a bad name,
+  // `BURN_ADDRESS`, a self-award — throws inside the builder, in
+  // `planUnreserve`, before the node hears anything. Past that, what remains
+  // is the dry run above and this explicit `--send`, which §6 `U` names as
+  // the whole of the fat-finger protection.
+  const blocking = unreserveRefusals(plan)
+  if (blocking.length > 0) {
+    console.error(
+      `refusing: ${blocking.length} check${blocking.length === 1 ? '' : 's'} failed — nothing was sent.`,
+    )
+    return 1
+  }
   if (!send) {
     console.log('dry run — nothing was sent. Pass --send to broadcast.')
     return 0
@@ -129,6 +159,58 @@ async function runUnreserve(argv: readonly string[]): Promise<number> {
   const outcome = await broadcastUnreserve(rpc, settings.config, plan)
   console.log(`sent: tx ${outcome.hash} (validityStartHeight ${outcome.validityStartHeight})`)
   return 0
+}
+
+async function runBurn(argv: readonly string[]): Promise<number> {
+  const { params, send } = parseBurnArgs(argv)
+  const settings = loadSettings()
+  if (settings.apiUrl === undefined) {
+    throw new UsageError(
+      'f needs NNS_API_URL: the §10.2 ceiling (owed − burned) comes from GET /burn, and a burn without a ceiling ' +
+        'is a burn nothing checks — see packages/admin/.env.example',
+    )
+  }
+  const rpc = rpcFor(settings)
+  const source = createBurnSource(settings.apiUrl)
+  const plan = await planBurn(rpc, source, settings.config, params)
+  for (const line of describeBurnPlan(plan)) console.log(line)
+  const blocking = burnRefusals(plan)
+  if (blocking.length > 0) {
+    console.error(
+      `refusing: ${blocking.length} check${blocking.length === 1 ? '' : 's'} failed — nothing was sent, and ` +
+        'BURN_ADDRESS gives nothing back.',
+    )
+    return 1
+  }
+  if (!send) {
+    console.log('dry run — nothing was sent. Pass --send to broadcast.')
+    return 0
+  }
+  const outcome = await broadcastBurn(rpc, settings.config, plan)
+  console.log(`sent: tx ${outcome.hash} (validityStartHeight ${outcome.validityStartHeight})`)
+  // §5.3: a returned hash is not confirmation — three silent drop routes.
+  // Confirm by effect at the API, or say plainly that nothing confirmed it.
+  console.log('confirming by effect: polling /burn for this attestation…')
+  // The source's fetch, not a second copy of it — and failure-tolerant by
+  // its contract: this runs after the money has left, and a transient error
+  // must read as "not seen yet", never abort the poll into a stack trace.
+  const confirmed = await confirmBurn(() => source.fetchAttestations(), outcome.hash)
+  if (confirmed) {
+    console.log(`confirmed: the attestation is in the log (tx ${outcome.hash})`)
+    return 0
+  }
+  // The transaction may still sit unmined in the mempool, where neither
+  // /burn nor the node sweep can see it — the sweep reads *executed*
+  // transactions only, and a rerun plans against a new head, so a second f
+  // is a NEW transaction, not a re-broadcast of this one. Both can mine.
+  console.error(
+    `UNCONFIRMED: tx ${outcome.hash} was accepted by the RPC and has not appeared in /burn. That hash is not ` +
+      'confirmation (§5.3) — and this is not a failure report either: the transaction may be unmined in the ' +
+      'mempool, invisible to /burn and to the node sweep alike. DO NOT rerun f yet — a rerun is a new ' +
+      'transaction against a new head, and both can mine. Check the hash at the node (getTransactionByHash) ' +
+      'and /burn; rerun only once this transaction is in the log, or provably expired past its validity window.',
+  )
+  return 1
 }
 
 process.exitCode = await run(process.argv.slice(2))

@@ -22,11 +22,11 @@
  * decodes the payload it actually built rather than echoing the arguments back,
  * and nothing is broadcast without `--send`.
  *
- * **Still missing: a balance precheck.** `planGovernance` reads the balance
- * (§11.5); this does not. `ADMIN_ADDRESS` has no income, and an unfunded send
- * fails by *silence* — the RPC accepts the transaction, returns a hash, and it
- * is never mined. `readBalance` is already in `cli.ts` for exactly this. It is
- * a three-line change and belongs to whichever session next touches this file.
+ * **The §11.5 balance precheck landed with `f` (2026-08-17).** `ADMIN_ADDRESS`
+ * has no income, and an unfunded send fails by *silence* — the RPC accepts the
+ * transaction, returns a hash, and it is never mined. The plan reads the
+ * balance, refuses when it cannot cover the dust this costs, and warns under
+ * `ADMIN_MIN_BALANCE`, exactly as `p` does.
  */
 
 import {
@@ -39,7 +39,16 @@ import {
   type NnsConfig,
 } from '@nns/core'
 
-import { UsageError, type AdminRpc } from './cli.js'
+import {
+  ADMIN_MIN_BALANCE,
+  AdminRefusal,
+  blockingChecks,
+  UsageError,
+  formatLuna,
+  readBalance,
+  type AdminCheck,
+  type AdminRpc,
+} from './cli.js'
 
 export interface UnreserveParams {
   readonly name: string
@@ -63,6 +72,9 @@ export interface UnreservePlan {
   readonly value: bigint
   /** Chain head at planning time; doubles as the broadcast's `validityStartHeight`. */
   readonly head: number
+  /** `ADMIN_ADDRESS`'s balance, in luna (§11.5). */
+  readonly balance: bigint
+  readonly checks: readonly AdminCheck[]
 }
 
 export interface UnreserveOutcome {
@@ -111,6 +123,26 @@ export async function planUnreserve(
 ): Promise<UnreservePlan> {
   const tx = encodeUnreserve({ ...params, sender: CONSTANTS.ADMIN_ADDRESS })
   const head = await rpc.call<number>('getBlockNumber')
+  const balance = await readBalance(rpc, CONSTANTS.ADMIN_ADDRESS)
+
+  // §11.5 — an unfunded sender fails by silence, not by error: the RPC
+  // accepts the transaction, returns a hash, and it is never mined. The same
+  // pair of checks `p` runs, at the same severities.
+  const checks: AdminCheck[] = []
+  if (balance < tx.value) {
+    checks.push({
+      severity: 'refuse',
+      message:
+        `§11.5: sender balance is ${formatLuna(balance)}, below the ${formatLuna(tx.value)} this costs — the RPC ` +
+        'would accept the transaction, return a hash, and it would never be mined',
+    })
+  } else if (balance < ADMIN_MIN_BALANCE) {
+    checks.push({
+      severity: 'warn',
+      message: `§11.5: sender balance is ${formatLuna(balance)}, below the ${formatLuna(ADMIN_MIN_BALANCE)} floor — top it up`,
+    })
+  }
+
   return {
     params,
     kind: params.recipient === null ? 'release' : 'award',
@@ -118,6 +150,8 @@ export async function planUnreserve(
     data: tx.data,
     value: tx.value,
     head,
+    balance,
+    checks,
   }
 }
 
@@ -150,8 +184,15 @@ export function describePlan(plan: UnreservePlan): string[] {
             `${head + CONSTANTS.TERM_LENGTH} — the term is half-open, and GRACE begins at the end height (§7.3)`,
         ]
       : []),
+    `  from      ${formatAddress(CONSTANTS.ADMIN_ADDRESS)} (ADMIN_ADDRESS), balance ${formatLuna(plan.balance)}`,
     `  IRREVERSIBLE: a U cannot be recalled, and this is the last point it can be stopped.`,
+    ...plan.checks.map(({ severity, message }) => `  ${severity === 'refuse' ? 'REFUSED' : 'WARNING'}: ${message}`),
   ]
+}
+
+/** Refusals only — what stands between this plan and a broadcast. */
+export function unreserveRefusals(plan: UnreservePlan): readonly AdminCheck[] {
+  return blockingChecks(plan.checks)
 }
 
 /**
@@ -164,6 +205,13 @@ export async function broadcastUnreserve(
   config: NnsConfig,
   plan: UnreservePlan,
 ): Promise<UnreserveOutcome> {
+  const blocking = unreserveRefusals(plan)
+  if (blocking.length > 0) {
+    throw new AdminRefusal(
+      `refusing to broadcast: ${blocking.length} check${blocking.length === 1 ? '' : 's'} failed — ` +
+        blocking.map((check) => check.message).join('; '),
+    )
+  }
   await rpc.call('unlockAccount', [CONSTANTS.ADMIN_ADDRESS, null, null])
   const hash = await rpc.call<string>('sendBasicTransactionWithData', [
     CONSTANTS.ADMIN_ADDRESS,

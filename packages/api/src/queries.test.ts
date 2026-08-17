@@ -17,6 +17,7 @@
 
 import {
   BURN_ADDRESS,
+  CONSTANTS,
   leafHash,
   logFile,
   logHash,
@@ -381,6 +382,32 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     const body = response.body as { burned: string; attestations: unknown[] }
     expect(body.burned).toBe('100000')
     expect(body.attestations).toHaveLength(2)
+  })
+
+  it('computes the owed half from accepted revenue only — §10.2 as r24 pins it', async () => {
+    // Five lines around the treasury; only the first two are base. An OK G
+    // (counts) and an OK M commission (counts); a refund-class G (excluded —
+    // §7.4 sends that money back, and until its M lands it sits in the
+    // balance without being revenue); an OK S dust that happens to name the
+    // treasury as counterparty (excluded — a counterparty choice, not a
+    // fee); and the refund M *leaving* the treasury (excluded — an outflow).
+    // The balance sees all five, which is exactly why r24 defines the base
+    // over the log and not the balance.
+    // Base 250,000,000 → owed 20% = 50,000,000.
+    await pool.query(
+      `INSERT INTO log (block_height, tx_index, tx_hash, sender, recipient, value, data, verdict)
+       VALUES (58199240, 0, $1, $2, $3, '200000000', '4e4e5331476e616d65746573746161', 'OK'),
+              (58199300, 0, $4, $2, $3, '50000000', '4e4e53314d35383139393030307c30', 'OK'),
+              (58199360, 0, $5, $2, $3, '200000000', '4e4e5331476e616d65746573746161', 'NAME_TAKEN'),
+              (58199420, 0, $6, $2, $3, '1', '4e4e533153746573746e616d65', 'OK'),
+              (58199480, 0, $7, $3, $2, '120000000', '4e4e53314d35383139393336307c30', 'OK')`,
+      ['f1'.repeat(32), A, CONSTANTS.TREASURY_ADDRESS, 'f2'.repeat(32), 'f3'.repeat(32), 'f4'.repeat(32), 'f5'.repeat(32)],
+    )
+    const body = (await handle('GET', '/burn')).body as { revenue: string; owed: string; burned: string }
+    expect(body.revenue).toBe('250000000')
+    expect(body.owed).toBe('50000000')
+    // The attestation sum is untouched by revenue rows.
+    expect(body.burned).toBe('100000')
   })
 
   it('counts only `F`, not everything addressed to BURN_ADDRESS', async () => {

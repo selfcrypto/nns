@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 23**
+**Protocol specification, v1 draft — revision 24**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -18,6 +18,34 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > folded into that day's revision, however many separate changes it covers, so
 > a revision number stays something an implementation can claim to implement
 > rather than a changelog id.
+
+> **Changes in revision 24 — §10.2's burn base is defined over the log, and
+> the balance sentence is demoted to the approximation it always was.** §10.2
+> only. Prose only, **entirely off-chain**: the burn base feeds no consensus
+> rule — no constant changes value, nothing enters the §8.1 preimage or the
+> §8.2 log hash, every r23 root is unchanged, an r23 database resumes.
+>
+> The section claimed "the treasury's balance *is* its revenue — the burn
+> base needs no adjustment", and that was wrong, not merely loose: the
+> balance also holds dust from `S`/`X` messages that name the treasury as
+> counterparty, refund-class money in flight between the §7.4 verdict and
+> the `M` that pays it back, forfeited junk, and wrongly-sent amounts. None
+> of that is revenue, so a base read off the balance and a base computed
+> from the log diverge — and the first implementation to compute the owed
+> half (the `/burn` route, 2026-08-17) had to pick one, which is exactly the
+> silent-divergence setup this document exists to prevent. Found in review
+> of that implementation; the operator's ruling: revenue is computed from
+> the index with settlements in mind, and where the balance sentence
+> disagrees, the sentence is what is wrong.
+>
+> The base is now normative and log-computable: **Σ `value` of `OK`-verdict
+> `G`, `N`, `O` and `M` lines whose recipient is `TREASURY_ADDRESS`**, with
+> `owed = ⌊BURN_SHARE × base⌋`. Commission is counted when its `M` lands (an
+> `M` *to* the treasury is a commission by construction; refunds run the
+> other way and never enter). Forfeited inflows stay outside the base
+> deliberately — the treasury keeps them, but a commitment computed over
+> accidents would make *owed* depend on other people's mistakes; the chosen
+> direction only ever under-obligates, and an operator may always burn more.
 
 > **Changes in revision 23 — the delegate request carries the parent.** §8.6
 > and §16.5, plus a note in §6 `D`. **No bytes move**: no constant changes
@@ -1407,10 +1435,11 @@ money — registration and renewal fees, listing fees, marketplace commission.
 `PROTOCOL_ADDRESS` receives everything that carries only `DUST_VALUE`:
 `K`, `D`, `P`, a releasing `U`, and the two sentinels above.
 
-The split earns its keep three ways. It makes the burn base in §10.2 exact:
-every luna reaching the treasury is revenue, instead of revenue plus an
-unbounded accumulation of signalling dust that must be subtracted before any
-accounting is trustworthy. It gives block explorers one address to label as
+The split earns its keep three ways. It keeps the treasury's traffic close to
+its revenue: without it, §10.2's base would sit under an unbounded
+accumulation of signalling dust, where since r24 the residue is only the
+stray cases §10.2 lists — which is why the base is defined over the log
+rather than read off the balance at all. It gives block explorers one address to label as
 *NNS Protocol*, where all protocol signalling is visible together. And it is
 a better sentinel than the treasury — resolving a name to a donation address
 is at least conceivable, while resolving one to a protocol sink never is, so
@@ -3255,18 +3284,31 @@ Both bands are governable (§10.6), so neither figure is a one-way door.
 
 All fees to `TREASURY_ADDRESS`. **20% is forwarded to `BURN_ADDRESS`.**
 
+**The burn base is defined over the log, not the balance** (r24): it is the
+sum of `value` over `OK`-verdict `G`, `N`, `O` and `M` lines whose recipient
+is `TREASURY_ADDRESS` — accepted registrations, renewals, listing fees, and
+marketplace commission, the commission counted when its `M` lands (an `M`
+*to* the treasury is a commission by construction; refunds run the other way
+and never enter the base). What is owed is `⌊BURN_SHARE × base⌋`, floored to
+whole luna. One rule, one number, computable by any outsider from §8.2's log
+alone.
+
 Because signalling messages go to `PROTOCOL_ADDRESS` instead (§5.3), the
-treasury's balance *is* its revenue — the burn base needs no adjustment and
-no dust subtraction, which is what makes burned-versus-owed checkable from
-the outside.
+treasury's balance *approximates* its revenue — but only approximates it.
+The balance also holds dust from `S`/`X` messages that happen to name the
+treasury as counterparty, refund-class money in flight between its §7.4
+verdict and the `M` that pays it back, forfeited junk, and wrongly-sent
+amounts. None of that is revenue, which is why the base above is the
+normative one; through r23 this section claimed the balance *was* the
+revenue, and the first implementation to compute the owed half had to
+choose. **Forfeited inflows stay outside the base deliberately**: the
+treasury keeps them, but a commitment computed over accidents would make
+*owed* depend on other people's mistakes, and the chosen direction only ever
+under-obligates — an operator may always burn more than owed, never less.
 
 `PROTOCOL_ADDRESS` receives only `DUST_VALUE`, so nothing accumulates there
 worth sweeping. If §16's signalling fee is ever adopted, that changes and the
 inflows burn in full.
-
-The burn base is *all* revenue reaching the treasury — registrations,
-renewals, listing fees, and marketplace commission (§6 `M`). One rule, one
-number, no carve-outs to explain or to audit around.
 
 A transaction has one recipient, so the split cannot happen inside the
 registration. The operator periodically forwards the burn share, tagging each

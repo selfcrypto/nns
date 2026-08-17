@@ -30,6 +30,7 @@ import {
 import {
   ADMIN_MIN_BALANCE,
   AdminRefusal,
+  blockingChecks,
   NOTICE_MARGIN,
   UsageError,
   formatLuna,
@@ -101,7 +102,7 @@ export interface GovernanceOutcome {
 
 /** The checks that stop a broadcast. Empty means `--send` adds nothing but the send. */
 export function refusals(plan: GovernancePlan): readonly GovernanceCheck[] {
-  return plan.checks.filter((check) => check.severity === 'refuse')
+  return blockingChecks(plan.checks)
 }
 
 function amount(raw: string | undefined, label: string): bigint {
