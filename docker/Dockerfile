@@ -31,7 +31,7 @@ ARG PKG
 
 FROM node:24-alpine AS build
 ARG PKG
-RUN test -n "${PKG}" || { echo 'PKG build-arg is required: indexer | api | relay | delegate' >&2; exit 1; }
+RUN test -n "${PKG}" || { echo 'PKG build-arg is required: indexer | api | relay | delegate | settlement' >&2; exit 1; }
 
 # Corepack's future is uncertain across Node majors; a pinned global install is
 # the version-stable way to get the pnpm the lockfile was written by.
