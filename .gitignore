@@ -1,5 +1,10 @@
 node_modules/
 dist/
+# pnpm's content-addressed package cache, when it is configured to live in the
+# repo rather than under ~/.local/share/pnpm. Hundreds of megabytes of upstream
+# tarballs, rebuildable by `pnpm install` — and untracked-but-unignored it is
+# one `git add -A` away from being committed.
+.pnpm-store/
 .env
 .env.*
 # The committed shape of a .env. Carries no values, only names and comments.
