@@ -61,22 +61,20 @@ than a claim.
 ```bash
 cd deploy/anchor
 cp .env.example .env
-$EDITOR .env                                  # chain, contract, API, Filebase
+$EDITOR .env                                  # everything, key included
 
-# Export ONLY the key. Do not source the whole secret file — see below.
-export NNS_ANCHOR_PUBLISHER_KEY="$(grep '^NNS_ANCHOR_PUBLISHER_KEY_1=' ~/.nns/evm-keys.env | cut -d= -f2-)"
-
+chmod 600 .env
 docker compose up -d --build
 docker compose logs -f publisher
 ```
 
-**Export one variable, never the whole file.** Compose gives the *shell
-environment* precedence over the project `.env`, so sourcing a store that
-happens to define `NNS_ANCHOR_*` silently overrides this deployment's values —
-and nothing warns. This cost a real debugging session on 2026-08-17:
-`~/.nns/evm-keys.env` carries `NNS_ANCHOR_LOOKBACK_BLOCKS=5000`, sourcing it
-overrode the `45000` in `.env`, and the publisher then could not see its own
-prior anchors. Extract the single value you need.
+**Do not source a secret store into the shell before `up`.** Compose gives the
+shell environment precedence over the project `.env`, so a store that happens
+to define `NNS_ANCHOR_*` silently overrides this deployment — and nothing
+warns. That cost a real debugging session on 2026-08-17: `~/.nns/evm-keys.env`
+carries `NNS_ANCHOR_LOOKBACK_BLOCKS=5000`, sourcing it overrode the `45000` in
+`.env`, and the publisher could then not see its own prior anchors. Put the
+values in `.env` and start with a bare `docker compose up -d`.
 
 **The cadence is the publisher's decision, not the schedule's.** §9 anchors on
 change with a daily floor: it publishes when the commitment moved since this

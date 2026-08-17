@@ -108,6 +108,29 @@ halves — no shared database, no open port.
 reachability, and it must not share a machine with `service`. The admin CLI
 (cold key) has no directory here at all, for the same reason.
 
+## Secrets
+
+**Every value a role needs, including its keys, goes in that role's `.env`.**
+`cp .env.example .env`, fill it in, `chmod 600`, and `docker compose up -d`.
+There is no shell ritual, and there deliberately isn't one:
+
+- A deployment that needs an export before every `up` fails to start after a
+  reboot, a rebuild, or a colleague.
+- **Compose gives the shell environment precedence over `.env`.** Sourcing a
+  secret store that happens to define the same variable names silently
+  overrides the deployment, and nothing warns. This has already cost one live
+  debugging session.
+
+`.env` is gitignored everywhere. Two things worth knowing rather than
+discovering: Docker records a container's environment in its on-disk config, so
+`docker inspect` exposes these regardless of where they came from — a file
+changes ergonomics, not runtime exposure. And for keys you cannot roll, a
+systemd unit with `LoadCredential` beats compose.
+
+Keys are still declared `${VAR:?}` in the compose files, so a *missing* one
+stops `up` with a message naming it rather than starting a service that runs
+happily and does nothing.
+
 ## Backups
 
 **There is exactly one thing here worth backing up: the settlement ledger.**
