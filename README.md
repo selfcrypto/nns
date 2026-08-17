@@ -104,7 +104,7 @@ is a lost name, as in ENS.
 | `docs/history/` | Revision narratives, the session journal, battery records |
 | `docs/runbooks/` | `operators.md` (the role map) and `testing.md` (the mainnet battery) |
 | **`packages/`** | **Ten packages — [`packages/README.md`](packages/README.md) explains each one and how they stack** |
-| `deploy/` | One directory per operator role: `resolver`, `delegate`, `service`, `settlement` |
+| **`deploy/`** | **One directory per operator role — [`deploy/README.md`](deploy/README.md) picks the right one and covers what they share** |
 | `tasks/` | One brief per package, naming the spec sections it needs |
 
 A pnpm workspace: TypeScript strict throughout, one Vitest run across every

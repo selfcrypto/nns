@@ -1,0 +1,133 @@
+# deploy/
+
+Four things can be run, one directory each. Every directory carries its own
+compose file, its own `.env.example` and its own README, so an operator never
+reads a variable belonging to a role they do not run.
+
+**Start by picking a row.** Then read only that directory's README.
+
+| I want to… | Run | Reachable from outside | Needs |
+|---|---|---|---|
+| Serve the registry, so clients can verify it against someone other than us | [`resolver/`](resolver/) | its API | a Nimiq **history** node covering `LAUNCH_HEIGHT` |
+| Make `shop.myname` resolve, for names I own | [`delegate/`](delegate/) | its HTTP port | a JSON file and publicly trusted TLS |
+| Host the mini app and its RPC proxy | [`service/`](service/) | app, API, relay | the node's credential, for the relay |
+| Pay what the protocol owes — payouts and refunds | [`settlement/`](settlement/) | **nothing** | the two §6 `M` hot keys, and a node it reaches privately |
+
+They are separate compose projects with separate names and do not interfere;
+run one, two, or all four. An exchange that wants `shop.exchange` to work needs
+only the second row — no node, no database, no indexer.
+
+[`../docs/runbooks/operators.md`](../docs/runbooks/operators.md) is the longer
+version: what each role *is*, and the things that are easy to get wrong.
+
+## The root `docker-compose.yml` is not a deployment
+
+The compose file at the repository root is the **development** stack — the
+indexer and its database, and nothing that faces a network. If you are
+deploying, you are in the right directory now; use one of the four above.
+
+## What every role shares
+
+**One image recipe.** All services build from `docker/Dockerfile`, parameterised
+by a `PKG` build arg (`indexer | api | relay | delegate | settlement`). The
+build context is the **repository root**, so clone the whole repo — not just
+`deploy/`. Everything compiles inside the image: the host needs Docker and
+nothing else, no Node, no pnpm.
+
+**Everything publishes on loopback.** Defaults are `127.0.0.1`, because these
+services speak plain HTTP and expect a TLS terminator in front:
+
+| Role | Port | What |
+|---|---|---|
+| `resolver` | 8635 | the API |
+| `service` | 8635 | the API, standalone |
+| `service` | 8080 | the app, with `/api/` and `/rpc` behind it |
+| `delegate` | 8636 | the delegate |
+| `settlement` | 5434 | its Postgres, for `psql` and backups only |
+
+Widen one only if you know what fronts it. `service`'s 8080 in particular must
+not be widened: the relay trusts `X-Forwarded-For` there, so a client that can
+reach it directly chooses its own rate-limit bucket.
+
+**No TLS terminator ships with this.** Deliberately — bundling one means owning
+failure modes we do not control, in roles whose appeal is that they are small.
+Recipes for Caddy, nginx + certbot, a tunnel, and panels like Plesk are in
+[`delegate/README.md`](delegate/README.md) and apply to the others unchanged,
+with only the port differing.
+
+**Add no CORS headers, and strip none.** The API sends
+`access-control-allow-origin: *` itself and exposes the two §8.2 verification
+headers. An endpoint a browser cannot read answers `curl` perfectly while being
+invisible to every client that tries to use it.
+
+**Nothing is baked into an image.** The same image runs against any node and any
+deployment. Since the launch freeze every §3 value — `LAUNCH_HEIGHT`, the four
+role addresses, `RESERVED_NAMES`, the listing fee — is a constant in
+`@nns/core` with no environment variable at all, because a value an operator can
+set is a value two operators can disagree about.
+
+## The node, for the two roles that need one
+
+`resolver` and `service` need a Nimiq **history** node whose retention covers
+`LAUNCH_HEIGHT`. `settlement` needs a node too, but any node it can reach
+privately — it signs rather than replays. A `delegate` needs none.
+
+This is the one prerequisite that cannot be corrected afterwards, and its
+failure is the quietest in the system: a node brought up by state sync, or one
+that has pruned, answers a batch below its horizon with `[]` — exactly what it
+answers for a genuinely empty batch. An indexer pointed at one would scan the
+whole backfill, match nothing, and **report success with an empty registry**,
+reproducibly, so a second indexer would agree with it.
+
+The indexer refuses to start rather than do that, naming the earliest block the
+node actually holds. **That refusal is the good outcome.** Get a node with the
+history; [`resolver/README.md`](resolver/README.md) explains why raising the
+start height is the wrong response to it.
+
+## Keys, and where they may not be
+
+Only one of these four holds a key, and it is the one with no public surface:
+
+| Role | Key |
+|---|---|
+| `resolver` | none — spends nothing, signs nothing |
+| `delegate` | none — holds no chain data at all |
+| `service` | the node's RPC credential, for the relay. No chain key |
+| `settlement` | **both §6 `M` hot keys** |
+
+**`settlement` must not share a machine with `service`.** A box that terminates
+TLS is the wrong home for a hot key, and the issuer needs the node's *wallet*
+methods, which the relay deliberately does not allowlist. It needs no inbound
+reachability: it polls an API outbound and broadcasts `M` transactions that
+every indexer then picks up. The chain is the only channel between the two
+halves — no shared database, no open port.
+
+The admin CLI (cold key) and the anchor publisher (funded key) have no directory
+here at all, for the same reason.
+
+## Backups
+
+**There is exactly one thing here worth backing up: the settlement ledger.**
+
+Everything else is derived. The indexer's Postgres rebuilds from
+`LAUNCH_HEIGHT`; the app bundle rebuilds from the repo; a delegate is one JSON
+file and a `docker compose up`. `docker compose down -v` is a supported, if
+slow, repair for a resolver.
+
+The ledger records payments that have already left a hot key and cannot be
+rebuilt from anywhere. `down -v` on `settlement/` is never routine.
+
+## Two cases where a rebuild is required, not optional
+
+- **A revision changed the rules or the §3 constants.** Roots derived under the
+  old rules are not comparable with roots derived under the new ones, and
+  `configFingerprint` covers configuration, not rules — so **nothing refuses the
+  resume for you**. Release notes say when this applies.
+- **The node was resynced.** If its retention no longer covers `LAUNCH_HEIGHT`,
+  the indexer refuses to start. Fix the node, not the height.
+
+## Verify from outside
+
+Whatever you run, check it from a host that is not the one serving it. A
+certificate only your browser trusts, and a port only your LAN can reach, both
+look perfect from the machine that serves them.
