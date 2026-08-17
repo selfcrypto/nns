@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { CONSTANTS, parse } from '@nns/core'
-import { ActionInputError, prepareAction, type ActionInputs } from './actions'
+import { CONSTANTS, LUNA_PER_NIM, parse } from '@nns/core'
+import { ActionInputError, parseNimAmount, prepareAction, type ActionInputs } from './actions'
 import type { ApiParams, NameInfo } from './api'
 
 const OWNER = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
@@ -87,5 +87,27 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
   it('a malformed price never reaches an encoder', () => {
     expect(() => prepare({ action: 'offer', priceNim: '1,5' })).toThrow(ActionInputError)
     expect(() => prepare({ action: 'offer', priceNim: '' })).toThrow(ActionInputError)
+  })
+})
+
+/**
+ * One parser for NIM decimals, shared by the `O` price and the Pay amount —
+ * two would be two chances to disagree about how much money a user meant.
+ */
+describe('parseNimAmount', () => {
+  it('takes integers and up to five decimals, exactly', () => {
+    expect(parseNimAmount('450')).toBe(450n * LUNA_PER_NIM)
+    expect(parseNimAmount('1.5')).toBe(LUNA_PER_NIM + LUNA_PER_NIM / 2n)
+    expect(parseNimAmount('0.00001')).toBe(1n)
+    expect(parseNimAmount(' 2 ')).toBe(2n * LUNA_PER_NIM)
+  })
+
+  it('refuses what is not an amount, and says which field', () => {
+    // Six decimals is below luna: silently rounding it would move money the
+    // user did not mean to move.
+    for (const bad of ['1.234567', 'abc', '-1', '', '1,5', '1.', '.5', '1e3']) {
+      expect(() => parseNimAmount(bad), bad).toThrow(ActionInputError)
+    }
+    expect(() => parseNimAmount('abc', 'Amount')).toThrow(/^Amount must be/)
   })
 })

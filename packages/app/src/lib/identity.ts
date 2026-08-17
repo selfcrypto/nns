@@ -72,3 +72,13 @@ export function saveHubAddresses(storage: StorageLike, addresses: readonly strin
     // Best-effort, like every per-device store here.
   }
 }
+
+/**
+ * Forget the set, so the next connect can choose a different address. Written
+ * as an empty list rather than removed: `StorageLike` is deliberately the two
+ * methods this module needs, and `loadHubAddresses` reads `[]` back as no
+ * addresses either way.
+ */
+export function clearHubAddresses(storage: StorageLike): void {
+  saveHubAddresses(storage, [])
+}

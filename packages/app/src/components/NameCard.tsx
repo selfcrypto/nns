@@ -1,11 +1,19 @@
-import { useMemo, useState } from 'react'
+/**
+ * One rendering of a name, shared by **Buy** and **My names**, because the two
+ * screens show the same card and must not drift into two.
+ *
+ * What differs between them is only which actions the card offers, and that is
+ * a prop: discovery offers acquisition (`register`, `buy`), management offers
+ * the owner set. Legality is not decided here — `actionGates` and `signerFor`
+ * still say what is possible; this says what the screen is *for*.
+ */
+
+import { useState } from 'react'
 import { CONSTANTS } from '@nns/core'
 import { primaryAddress } from '../lib/identity'
-import { formatApproxDate, approxDate } from '../lib/format'
-import { isShortName, queryFault, search, type SearchOutcome } from '../lib/search'
-import { actionGates, nameView, signerFor, type AppAction } from '../lib/states'
-import { useAsync } from '../lib/useAsync'
-import { useDebounced } from '../lib/useDebounced'
+import { approxDate, formatApproxDate } from '../lib/format'
+import type { SearchOutcome } from '../lib/search'
+import { actionGates, nameView, sameAddress, signerFor, type AppAction } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import {
   ACTION_LABEL,
@@ -15,20 +23,25 @@ import {
   availableLine,
   delegateFailedLine,
   graceLine,
+  manageOwnNameLabel,
   messageOwnerLabel,
+  ownNameLine,
   parentNotDelegatingLine,
   queryFaultLine,
   reservedLine,
-  shortNameNoteLine,
   unreachableLine,
 } from '../lib/wording'
-import { AddressRow, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from '../components/result'
-import { ActionSheet } from '../components/ActionSheet'
-import { Composer } from '../components/Composer'
-import { PinCheck } from '../components/PinCheck'
-import { EmptyState, RailCard, Spinner } from '../components/ui'
+import { AddressRow, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from './result'
+import { ActionSheet } from './ActionSheet'
+import { Composer } from './Composer'
+import { PinCheck } from './PinCheck'
+import { RailCard } from './ui'
 
-const DETAIL_ACTIONS: readonly AppAction[] = ['setTarget', 'transfer', 'delegate', 'renew', 'offer', 'cancel', 'buy']
+/** Discovery: what someone who does not own the name can do with it. */
+export const ACQUIRE_ACTIONS: readonly AppAction[] = ['register', 'buy']
+
+/** Management: the owner's six, which live in My names and nowhere else. */
+export const OWNER_ACTIONS: readonly AppAction[] = ['setTarget', 'transfer', 'delegate', 'renew', 'offer', 'cancel']
 
 function Actions({
   actions,
@@ -83,24 +96,44 @@ function Actions({
   )
 }
 
-function Outcome({
+/** True when one of the viewer's addresses owns the name the outcome carries. */
+export function ownedByViewer(outcome: SearchOutcome, viewers: readonly string[]): boolean {
+  const owner = outcome.kind === 'resolved' || outcome.kind === 'availability' || outcome.kind === 'grace' ? outcome.info?.record?.owner ?? null : null
+  return owner !== null && viewers.some((address) => sameAddress(address, owner))
+}
+
+export function NameCard({
   outcome,
   wallet,
   nowMs,
+  actions,
   onChanged,
+  onManage,
 }: {
   outcome: SearchOutcome
   wallet: Wallet | null
   nowMs: number
+  actions: readonly AppAction[]
   onChanged: () => void
+  /**
+   * Buy passes this: a name the viewer already owns gets a handoff to My names
+   * instead of the owner toolbox. Managing what you own is a different job from
+   * acquiring something, and a discovery screen offering to transfer your name
+   * is the confusion this replaces. Null in My names, which *is* the
+   * destination.
+   */
+  onManage: ((name: string) => void) | null
 }) {
   const sender = wallet === null ? null : primaryAddress(wallet.identity)
+  const viewers = wallet?.identity.addresses ?? []
 
   switch (outcome.kind) {
     case 'invalid':
       return <p className="field-error">{queryFaultLine(outcome.fault)}</p>
 
-    case 'resolved':
+    case 'resolved': {
+      const name = outcome.info?.name ?? outcome.result.name
+      const mine = onManage !== null && ownedByViewer(outcome, viewers)
       return (
         <RailCard tier={tierOf(outcome.result)}>
           <TitleName name={outcome.result.query} />
@@ -109,8 +142,17 @@ function Outcome({
           <VerificationLine result={outcome.result} />
           {outcome.info !== null && <Overlays info={outcome.info} nowMs={nowMs} />}
           <WarningNotes warnings={outcome.result.warnings} />
-          <Actions actions={DETAIL_ACTIONS} name={outcome.info?.name ?? outcome.result.name} info={outcome.info} wallet={wallet} onChanged={onChanged} />
-          {outcome.info !== null && outcome.info.record !== null && (
+          {mine ? (
+            <div className="own-name">
+              <p className="own-name-line">{ownNameLine()}</p>
+              <button type="button" className="action-go" onClick={() => onManage(name)}>
+                {manageOwnNameLabel()}
+              </button>
+            </div>
+          ) : (
+            <Actions actions={actions} name={name} info={outcome.info} wallet={wallet} onChanged={onChanged} />
+          )}
+          {outcome.info !== null && outcome.info.record !== null && !mine && (
             <details className="message-owner">
               <summary>{messageOwnerLabel()}</summary>
               <Composer name={outcome.info.name} recipient={outcome.info.record.owner} wallet={wallet} sender={sender} />
@@ -118,6 +160,7 @@ function Outcome({
           )}
         </RailCard>
       )
+    }
 
     case 'availability': {
       const { availability } = outcome
@@ -142,7 +185,7 @@ function Outcome({
           <TitleName name={outcome.name} />
           <p className="available-line">{availableLine()}</p>
           <WarningNotes warnings={availability.warnings} />
-          <Actions actions={['register']} name={outcome.name} info={outcome.info} wallet={wallet} onChanged={onChanged} />
+          <Actions actions={actions} name={outcome.name} info={outcome.info} wallet={wallet} onChanged={onChanged} />
         </RailCard>
       )
     }
@@ -154,11 +197,21 @@ function Outcome({
         record !== null && height !== null
           ? formatApproxDate(approxDate(record.expiry + CONSTANTS.GRACE_PERIOD, height, nowMs))
           : 'its grace period ends'
+      const mine = onManage !== null && ownedByViewer(outcome, viewers)
       return (
         <RailCard tier="plain">
           <TitleName name={outcome.name} />
           <p>{graceLine(until)}</p>
-          <Actions actions={['renew']} name={outcome.name} info={outcome.info} wallet={wallet} onChanged={onChanged} />
+          {mine ? (
+            <div className="own-name">
+              <p className="own-name-line">{ownNameLine()}</p>
+              <button type="button" className="action-go" onClick={() => onManage(outcome.name)}>
+                {manageOwnNameLabel()}
+              </button>
+            </div>
+          ) : (
+            <Actions actions={actions} name={outcome.name} info={outcome.info} wallet={wallet} onChanged={onChanged} />
+          )}
         </RailCard>
       )
     }
@@ -212,73 +265,4 @@ function Outcome({
         </RailCard>
       )
   }
-}
-
-/**
- * Long enough that a word typed at speed is one query, not one per character —
- * `/api/` rate-limits nothing and every query verifies a Merkle proof — and it
- * is also what stops the hint scolding a half-typed name.
- */
-const SETTLE_MS = 1_000
-
-export function SearchScreen({ wallet, seed }: { wallet: Wallet | null; seed: string }) {
-  const [text, setText] = useState(seed)
-  const [nonce, setNonce] = useState(0)
-  const trimmed = text.trim().toLowerCase()
-  const [query, flushQuery] = useDebounced(trimmed, SETTLE_MS)
-
-  // Off `query`, not `text`: a hint about a string still being typed is the
-  // thing that made these hints hated. At most one, and the tone means
-  // something — red is "this can never be a name", grey is "this is a real
-  // name, and here is the rule that governs it".
-  const hint = useMemo((): { readonly tone: 'field-error' | 'note'; readonly text: string } | null => {
-    const fault = queryFault(query)
-    if (fault !== null) return { tone: 'field-error', text: queryFaultLine(fault) }
-    // Stays up once the card lands — it is what explains a Reserved answer.
-    return isShortName(query) ? { tone: 'note', text: shortNameNoteLine() } : null
-  }, [query])
-
-  const outcome = useAsync(query === '' ? null : () => search(query), [query, nonce])
-
-  return (
-    <div className="screen">
-      <form
-        className="search-form"
-        onSubmit={(event) => {
-          event.preventDefault()
-          // Explicit intent: don't make them wait out the settle.
-          if (trimmed !== '') {
-            flushQuery()
-            setNonce((value) => value + 1)
-          }
-        }}
-      >
-        <input
-          className="search-input nns-name"
-          type="text"
-          inputMode="text"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          placeholder="name, or label.name"
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          aria-label="Search names"
-        />
-        <button className="search-go" type="submit" disabled={trimmed === ''}>
-          Lookup
-        </button>
-      </form>
-      {hint !== null && <p className={hint.tone}>{hint.text}</p>}
-
-      {outcome.status === 'idle' && (
-        <EmptyState title="Every name is an address" body="Look one up to see where it pays, or find a free one to register." />
-      )}
-      {outcome.status === 'loading' && <Spinner />}
-      {outcome.status === 'error' && <p className="field-error">{unreachableLine()}</p>}
-      {outcome.status === 'done' && (
-        <Outcome outcome={outcome.value} wallet={wallet} nowMs={Date.now()} onChanged={() => setNonce((value) => value + 1)} />
-      )}
-    </div>
-  )
 }

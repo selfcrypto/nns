@@ -51,11 +51,18 @@ export class ActionInputError extends Error {
   override readonly name = 'ActionInputError'
 }
 
-const parseNimPrice = (text: string): bigint => {
+/**
+ * A NIM decimal to `bigint` luna — five decimals, the whole precision there is.
+ * Exported because the Pay screen takes an amount too, and two parsers for one
+ * notation is how they come to disagree.
+ */
+export const parseNimAmount = (text: string, what = 'Price'): bigint => {
   const match = /^([0-9]+)(?:\.([0-9]{1,5}))?$/.exec(text.trim())
-  if (match === null || match[1] === undefined) throw new ActionInputError('Price must be a NIM amount, like 450 or 1.5')
+  if (match === null || match[1] === undefined) throw new ActionInputError(`${what} must be a NIM amount, like 450 or 1.5`)
   return BigInt(match[1]) * LUNA_PER_NIM + BigInt((match[2] ?? '').padEnd(5, '0'))
 }
+
+const parseNimPrice = (text: string): bigint => parseNimAmount(text)
 
 const requireAddress = (input: string, what: string): string => {
   const parsed = tryParseAddress(input)

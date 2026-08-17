@@ -280,9 +280,44 @@ export const sendNoRpcLine = (): string =>
 export const payProbeGatedLine = (): string =>
   'Sending from Nimiq Pay waits on the fee test. The desktop app with Nimiq Hub can send today.'
 
-export const connectHubLabel = (): string => 'Connect Nimiq Hub'
+/**
+ * Names no wallet: the app runs against Hub and Pay behind one seam, and a
+ * button that names one of them is wrong in the other. Which wallet answers is
+ * `detectWallet`'s business, not the label's.
+ */
+export const connectWalletLabel = (): string => 'Connect Wallet'
 
 export const addAddressLabel = (): string => 'Add another address'
+
+export const disconnectLabel = (): string => 'Disconnect'
+
+// ── Buy → My names handoff (docs/app-ux.md §2) ─────────────────────────────
+
+export const ownNameLine = (): string => 'You own this name.'
+
+export const manageOwnNameLabel = (): string => 'Manage it'
+
+export const backToNamesLabel = (): string => '‹ My names'
+
+// ── Pay (docs/app-ux.md §4) ────────────────────────────────────────────────
+
+export const payToLabel = (): string => 'Paying'
+
+export const payFromLabel = (): string => 'From'
+
+export const payAmountLabel = (): string => 'Amount in NIM'
+
+export const payButtonLabel = (nim: string | null): string => (nim === null ? 'Pay' : `Pay ${nim} NIM`)
+
+/** The network rejects a zero value outright (§5.4) — say so before the wallet opens. */
+export const payZeroLine = (): string => 'Enter an amount above zero.'
+
+/**
+ * Nimiq drops a self-transaction *silently* — the RPC accepts it and answers
+ * with a hash — so this is the only place it can be reported.
+ */
+export const paySelfLine = (): string =>
+  'This name points at your own address. Nimiq drops a payment to yourself, so nothing would arrive.'
 
 export const buyAcknowledgeLabel = (): string =>
   'I understand a refund would come from the marketplace operator'

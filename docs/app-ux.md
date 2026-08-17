@@ -19,17 +19,20 @@ nothing more than two taps deep.
 │         screen             │  one screen at a time, vertical scroll
 │                            │
 ├────────────────────────────┤
-│ Search  My names  Inbox  Market │  tab bar, thumb row
+│ Buy  Pay  My names  Inbox  Market │  tab bar, thumb row
 └────────────────────────────┘
 ```
 
-Four tabs. No hamburger, no settings screen in v1 — the app has no
+Five tabs, and the first two are named for jobs rather than mechanisms: **Buy**
+is discovery and acquisition, **Pay** sends NIM to a name. Management of what you
+already own is **My names** and lives nowhere else — a name you own is never
+handled from Buy (§2). No hamburger, no settings screen in v1 — the app has no
 user-configurable state except the client-side hidden-senders list (managed
 inline from a thread). The proof rail (card left edge:
 solid green proven · dashed slate depth · dotted indigo delegated · red
 alarm) is the one visual device and appears identically everywhere.
 
-## 2. Search — the front door
+## 2. Buy — the front door
 
 Input accepts a name or `label.name`. **The query runs as typed**, one second
 after typing stops, and the button only skips that wait — so an answer arrives
@@ -42,19 +45,34 @@ nothing — and it is also what stops the field hint scolding a half-typed name.
 Hints are computed off the settled value for that reason. Outcomes are
 `docs/app-states.md` §3, each a card. Beyond what is built today:
 
+**Buy offers acquisition only** — `register` and `buy`. A name one of the
+viewer's addresses owns gets "You own this name." and a **Manage it** button that
+hands off to My names, because acquiring and managing are different jobs and a
+screen called Buy offering to transfer your own name away is a contradiction. The
+owner's six (`setTarget`, `transfer`, `delegate`, `renew`, `offer`, `cancel`) are
+not rendered here at all. Legality is unchanged: `actionGates` and `signerFor`
+still decide what is possible — this decides what the screen is *for*.
+
 - **Taken name (resolved card)** gains a **"Message the owner"** row — the
   chat entry point (`docs/app-chat.md`). Opens the composer prefilled with
-  the name; refused with "this name is yours" when the viewer owns it.
+  the name; not offered when the viewer owns it, which is the handoff instead.
 - **Available name** card's Register row becomes the `G` flow (§5) when
   sends enable.
-- Owner actions on a name the viewer owns lead to their flows (§5); each
-  row disabled with its gate reason otherwise, exactly as now.
 
-## 3. My names / Inbox / Market
+## 3. My names / Pay / Inbox / Market
 
 **My names**: rows sorted soonest-expiry first; urgency badges (renew-due
-from 60 days, grace with grace-end date). Row → the name's detail card in
-Search. When sends enable, a *Renew* shortcut rides on due/grace rows.
+from 60 days, grace with grace-end date). **Row → that name's card in place**,
+with a back link to the list — it does not change tab, because this is where
+management happens. The card is the same component Buy renders
+(`components/NameCard.tsx`), given the owner action list instead of the
+acquisition one. When sends enable, a *Renew* shortcut rides on due/grace rows.
+
+Identity lives at the foot of this screen and in the masthead: **Connect Wallet**
+(naming no single wallet — which one answers is `detectWallet`'s business), *Add
+another address*, and **Disconnect**, which forgets the persisted set so a
+different address can be chosen. Without it there was no way back to a first-run
+state, which is what prompted adding it.
 
 **Inbox** (new tab): thread list → thread → composer.
 
@@ -77,6 +95,35 @@ Search. When sends enable, a *Renew* shortcut rides on due/grace rows.
 **Market**: offer rows (name, price, seller identicon+address, expiry).
 Row → detail card. *Buy* enters the `B` flow (§5); until then the custodial
 disclosure rides on the listing, as now.
+
+### Pay — one payment to a name
+
+Type a name, it resolves on the same settle as Buy, enter an amount in NIM, the
+wallet signs. Nothing else: no NNS message, no registry effect.
+
+```
+name → resolve() → pin check → amount → wallet signs → confirm by tx hash
+```
+
+Four things are specific to it, and three are refusals:
+
+- **The address comes from `search()`**, so `resolver().resolve()` remains the
+  only producer of an address in the app. Every non-resolved outcome renders the
+  shared card, which already words reserved, available, grace, delegate failure
+  and alarm — none of which is payable.
+- **A pin mismatch stops the button** until the user overrides it. §8.5 requires
+  the check on any screen paying a resolved address and CLAUDE.md requires a hard
+  stop when a known mapping changes; `pinMismatchBody` already says "do not pay
+  until you know which", so the button must honour it. `PinCheck` reports this
+  through `onBlocking`.
+- **Sender ≠ recipient**, checked here because a payment is the one send that
+  never passes through `core`'s `build()`, which enforces it for all eight
+  actions. Nimiq accepts a self-transaction at the RPC, answers with a hash, and
+  the network drops it — so this screen is the only place it can be reported.
+- **Value > 0**, for the same reason: the network rejects a zero value outright.
+
+Confirmation is `getTransactionByHash`, as for chat, because a payment leaves no
+registry effect to poll for. Nimiq Pay stays probe-gated (§10.5); Hub sends today.
 
 ## 4. The one send state machine
 

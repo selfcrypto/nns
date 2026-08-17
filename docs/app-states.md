@@ -106,7 +106,7 @@ on-chain", which would be false about the address the user is about to pay.
 
 ---
 
-## 3. Search outcomes
+## 3. Buy outcomes (the search field)
 
 The search field accepts a name or a dotted query; `core.parseQuery` decides
 which. The query itself runs **as typed**, once typing settles; the button only
@@ -128,6 +128,7 @@ about a name a `U` could open.
 | Under 5 characters, malformed (`sud0`, `l1do`, `??`) | The broken rule, and **never the word "reserved"** — failing rules 2–5 puts a name on neither membership route, so no `U` can free it: verified, the reducer forfeits `INVALID_NAME` and `encodeUnreserve` refuses to build the message |
 | Invalid label (before the dot) | Label wording, which is not name wording: labels floor at **1** character, need no letter, have no digit rule and are never reserved |
 | Valid name | One of §1's states, via `resolve()` (falling back to `available()` on `NOT_FOUND`) plus `/name` for the overlays |
+| Valid name **the viewer owns** | "You own this name." and a *Manage it* handoff to My names — never the owner actions. Buy offers `register` and `buy`; the owner's six live in My names alone (app-ux §2) |
 | Dotted query, parent not registered | The parent's own §1 state, worded about the parent |
 | Dotted query, parent has no host | `PARENT_NOT_DELEGATING` wording |
 | Dotted query, host answered | `DELEGATED` result, §2 treatment |
@@ -200,12 +201,31 @@ include this transaction", never "sent".
 
 | Screen | Must render |
 |---|---|
-| **Search** | Every §3 outcome; every §2 verification value, warning tone and halting error; §1 states with overlays |
-| **Name detail** | §1 REGISTERED/GRACE with all overlays; §2 badges; expiry ≈ date; renewal reminder from 60 d; owner actions gated per §4 (visible but disabled states carry the *reason* they are disabled) |
-| **My names** | `/address/{addr}/names` (REGISTERED and GRACE); expiry sort; the 60-day reminder; empty state ("no names yet") and the not-in-Pay state (no wallet identity available) |
+| **Buy** | Every §3 outcome; every §2 verification value, warning tone and halting error; §1 states with overlays. Acquisition actions only — a name the viewer owns is the handoff, not the toolbox |
+| **Name detail** (in My names; one component, shared with Buy) | §1 REGISTERED/GRACE with all overlays; §2 badges; expiry ≈ date; renewal reminder from 60 d; owner actions gated per §4 (visible but disabled states carry the *reason* they are disabled) |
+| **My names** | `/address/{addr}/names` (REGISTERED and GRACE); expiry sort; the 60-day reminder; empty state ("no names yet") and the no-wallet state; a row opens that name's detail **in place**; Connect Wallet / Add another address / Disconnect |
+| **Pay** | §7 |
 | **Inbox** (NC chat, `docs/app-chat.md`) | Threads keyed (peer, name), owned-name threads first and the rest muted; messages as plain text from an **address**, never a reverse-resolved name; the honest history window ("since ≈ date"); the composer with byte budget, the public-forever notice, and the "this name is yours" refusal; setup states for no wallet / no history endpoint |
 | **Marketplace** | `/offers`; each offer's name, price, seller (with identicon); the custodial nature disclosed on the buy path (§4 `B`) |
 
 Send flows (`G S X D K N O B` confirmations and the post-send confirm loop)
 are specified by §4 and §5 but blocked on the value/fee probe — see
 `packages/app/CLAUDE.md`, "Open".
+
+## 7. Pay states (app-ux §3)
+
+Paying is the one send that never passes through `core`'s `build()`, so two of
+its refusals exist nowhere else in the app and both failures are silent on-chain.
+
+| State | Wording / behaviour |
+|---|---|
+| Nothing typed | "Pay a name" empty state |
+| Resolving | spinner; the query settles first, as in Buy |
+| Not a resolvable name | the §3 card for whatever it is — reserved, available, in grace, delegate failure, alarm. None is payable, and no amount field is shown |
+| Resolved | the name, the pin check, the address, an amount field, and a Pay button that names the amount |
+| **Pin mismatch** | the §2 alarm card, **and the Pay button is disabled** until the two-step override is taken. "Do not pay until you know which" is the existing wording; the button has to mean it |
+| Amount not a NIM decimal | the field's own reason (five decimals is the floor — below luna) |
+| Amount zero | "Enter an amount above zero." The network rejects a zero value outright (§5.4) |
+| The name points at the payer | refused before the wallet opens: Nimiq accepts a self-transaction at the RPC, returns a hash, and drops it — nothing downstream would ever report it |
+| Sending | the §4 send machine's lines, unchanged; confirmation is the transaction by hash, since a payment leaves no registry effect |
+| Nimiq Pay | probe-gated (§10.5): `payProbeGatedLine()`. Hub sends today |

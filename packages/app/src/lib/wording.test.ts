@@ -9,7 +9,9 @@ import {
   alarmBody,
   delegateFailedLine,
   graceLine,
+  connectWalletLabel,
   parentNotDelegatingLine,
+  paySelfLine,
   queryFaultLine,
   shortNameNoteLine,
   verifiedByLine,
@@ -155,5 +157,23 @@ describe('field wording says which rule broke, and says it truthfully', () => {
       // Every label line says which half of the query it is about.
       expect(line, reason).toContain('dot')
     }
+  })
+})
+
+describe('the wallet seam shows through in wording as little as in code', () => {
+  it('the connect label names no single wallet', () => {
+    const label = connectWalletLabel()
+    expect(label).toBe('Connect Wallet')
+    // The app runs against Hub and Pay behind one seam; naming one is wrong in
+    // the other, and which answers is detectWallet's business.
+    expect(label).not.toMatch(/hub|pay|nimiq/i)
+  })
+
+  it('the self-payment refusal says nothing would arrive, not that it is disallowed', () => {
+    // Nimiq accepts a self-transaction at the RPC and drops it on the network,
+    // so the honest claim is about the outcome, not about permission.
+    const line = paySelfLine().toLowerCase()
+    expect(line).toContain('your own address')
+    expect(line).toMatch(/nothing would arrive|drops/)
   })
 })

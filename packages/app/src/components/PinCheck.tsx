@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { checkAndPin, overridePin, pinStore, type PinVerdict } from '../lib/pinning'
 import { useAsync } from '../lib/useAsync'
 import {
@@ -16,13 +16,35 @@ import { Identicon } from './ui'
  * The §8.5 pin check, run on every resolved answer shown (states doc §2).
  * Match and unchecked render nothing — silence is the feature. The override
  * is deliberately two-step: one tap to reveal the real button, one to act.
+ *
+ * `onBlocking` exists for screens that must *act* on a mismatch rather than
+ * only show it: CLAUDE.md's rule is a hard stop when a known mapping changes,
+ * and `pinMismatchBody` tells the user "do not pay until you know which" — so
+ * the Pay screen disables its button while this is true. It reports `false`
+ * again once the user overrides, which is the two-step above having been taken
+ * deliberately.
  */
-export function PinCheck({ query, address }: { query: string; address: string }) {
+export function PinCheck({
+  query,
+  address,
+  onBlocking,
+}: {
+  query: string
+  address: string
+  onBlocking?: (blocking: boolean) => void
+}) {
   const [overridden, setOverridden] = useState(false)
   const verdict = useAsync<PinVerdict>(
     overridden ? null : () => checkAndPin(pinStore(), query, address, Date.now()),
     [query, address, overridden],
   )
+
+  const blocking = !overridden && verdict.status === 'done' && verdict.value.kind === 'mismatch'
+  useEffect(() => {
+    onBlocking?.(blocking)
+    // The callback is the caller's setState; depending on it would loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocking])
 
   if (overridden || verdict.status !== 'done') return null
 

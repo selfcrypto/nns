@@ -1,15 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
 import { appConfig, ConfigParseError } from './config'
 import { detectWallet, type Wallet } from './lib/wallet'
-import { connectHubLabel } from './lib/wording'
+import { connectWalletLabel, disconnectLabel } from './lib/wording'
+import { BuyScreen } from './screens/Buy'
 import { InboxScreen } from './screens/Inbox'
 import { MyNamesScreen } from './screens/MyNames'
 import { OffersScreen } from './screens/Offers'
-import { SearchScreen } from './screens/Search'
+import { PayScreen } from './screens/Pay'
 
-type Tab = 'search' | 'names' | 'inbox' | 'market'
+/**
+ * `buy` rather than `search`: the tab is named for the job, and the code says
+ * the same thing the UI does. Discovery is Buy, management is My names — a name
+ * you own is never handled from Buy (docs/app-ux.md §2).
+ */
+type Tab = 'buy' | 'pay' | 'names' | 'inbox' | 'market'
 
-const TAB_LABEL: Record<Tab, string> = { search: 'Search', names: 'My names', inbox: 'Inbox', market: 'Market' }
+const TABS: readonly Tab[] = ['buy', 'pay', 'names', 'inbox', 'market']
+
+const TAB_LABEL: Record<Tab, string> = {
+  buy: 'Buy',
+  pay: 'Pay',
+  names: 'My names',
+  inbox: 'Inbox',
+  market: 'Market',
+}
 
 function configProblem(): string | null {
   try {
@@ -24,8 +38,10 @@ function configProblem(): string | null {
 }
 
 export function App() {
-  const [tab, setTab] = useState<Tab>('search')
+  const [tab, setTab] = useState<Tab>('buy')
   const [seed, setSeed] = useState('')
+  /** A name Buy handed to My names to manage, cleared when My names is done with it. */
+  const [manage, setManage] = useState<string | null>(null)
   const [wallet, setWallet] = useState<Wallet | null>(null)
   // Hub connects mutate the wallet's identity in place; this counter re-renders on them.
   const [, setIdentityNonce] = useState(0)
@@ -61,9 +77,16 @@ export function App() {
     )
   }
 
+  /** Market → a name's card, which is discovery: Buy. */
   const openName = (name: string) => {
     setSeed(name)
-    setTab('search')
+    setTab('buy')
+  }
+
+  /** Buy → "Manage it": management lives in My names, so go there. */
+  const manageName = (name: string) => {
+    setManage(name)
+    setTab('names')
   }
 
   const connect =
@@ -73,6 +96,15 @@ export function App() {
           void wallet.connect?.().then(() => setIdentityNonce((value) => value + 1))
         }
 
+  const disconnect =
+    wallet?.disconnect == null || wallet.identity.addresses.length === 0
+      ? null
+      : () => {
+          wallet.disconnect?.()
+          setManage(null)
+          setIdentityNonce((value) => value + 1)
+        }
+
   return (
     <div className="frame">
       <header className="masthead">
@@ -80,18 +112,32 @@ export function App() {
         <p className="masthead-sub">names on Nimiq</p>
         {connect !== null && wallet !== null && wallet.identity.addresses.length === 0 && (
           <button type="button" className="connect connect-top" onClick={connect}>
-            {connectHubLabel()}
+            {connectWalletLabel()}
+          </button>
+        )}
+        {disconnect !== null && (
+          <button type="button" className="connect connect-quiet connect-top" onClick={disconnect}>
+            {disconnectLabel()}
           </button>
         )}
       </header>
       <main className="content">
-        {tab === 'search' && <SearchScreen key={seed} wallet={wallet} seed={seed} />}
-        {tab === 'names' && <MyNamesScreen wallet={wallet} onOpen={openName} onConnect={connect} />}
+        {tab === 'buy' && <BuyScreen key={seed} wallet={wallet} seed={seed} onManage={manageName} />}
+        {tab === 'pay' && <PayScreen wallet={wallet} />}
+        {tab === 'names' && (
+          <MyNamesScreen
+            wallet={wallet}
+            manage={manage}
+            onManageHandled={() => setManage(null)}
+            onConnect={connect}
+            onDisconnect={disconnect}
+          />
+        )}
         {tab === 'inbox' && <InboxScreen wallet={wallet} />}
         {tab === 'market' && <OffersScreen onOpen={openName} />}
       </main>
       <nav className="tabbar" aria-label="Sections">
-        {(['search', 'names', 'inbox', 'market'] as const).map((entry) => (
+        {TABS.map((entry) => (
           <button
             key={entry}
             type="button"

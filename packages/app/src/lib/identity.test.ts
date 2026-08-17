@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { loadHubAddresses, saveHubAddresses, withAddress, type StorageLike } from './identity'
+import { clearHubAddresses, loadHubAddresses, saveHubAddresses, withAddress, type StorageLike } from './identity'
 
 const A = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
 const B = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
@@ -41,5 +41,22 @@ describe('hub persistence', () => {
     expect(loadHubAddresses(storage)).toEqual([])
     storage.data.set('nns.hub.addresses', JSON.stringify([A, 42, 'junk', A.toLowerCase()]))
     expect(loadHubAddresses(storage)).toEqual([A])
+  })
+})
+
+describe('disconnect (so a different address can be chosen)', () => {
+  it('forgets the whole set, and loads back as empty', () => {
+    const storage = memoryStorage()
+    saveHubAddresses(storage, [A, B])
+    expect(loadHubAddresses(storage)).toEqual([A, B])
+    clearHubAddresses(storage)
+    expect(loadHubAddresses(storage)).toEqual([])
+  })
+
+  it('leaves a store that can be written to again — disconnect is not a teardown', () => {
+    const storage = memoryStorage()
+    clearHubAddresses(storage)
+    saveHubAddresses(storage, withAddress(loadHubAddresses(storage), B))
+    expect(loadHubAddresses(storage)).toEqual([B])
   })
 })

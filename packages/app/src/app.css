@@ -8,7 +8,7 @@
  * The signature element is the proof rail: the left edge of every result
  * card encodes the verification tier. Solid green = proven; dashed slate =
  * pending depth; dotted indigo = delegated (different, not worse); solid
- * red = the rare halting failure. It repeats identically across Search,
+ * red = the rare halting failure. It repeats identically across Buy, Pay,
  * My names and Market, so it is learned once.
  */
 
@@ -100,8 +100,10 @@ body {
   position: sticky;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  /* Five sections since Pay joined; the labels are short enough to hold at
+     this width in portrait, which is why the tab text is not truncated. */
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
   padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 10px);
   background: var(--paper);
   border-top: 1px solid var(--line);
@@ -827,4 +829,96 @@ li.note {
     animation: none;
     border-top-color: var(--line);
   }
+}
+
+/* ── Buy → My names handoff, and My names' in-place detail ── */
+
+.own-name {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.own-name-line {
+  margin: 0;
+  font-weight: 600;
+}
+
+.back-link {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 0;
+  align-self: flex-start;
+  cursor: pointer;
+}
+
+.identity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ── Pay ── */
+
+.pay-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.pay-to {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.pay-amount,
+.pay-from {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.pay-input,
+.pay-select {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  padding: 12px 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.pay-go {
+  appearance: none;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  padding: 14px 18px;
+}
+
+.pay-go:disabled {
+  opacity: 0.45;
 }

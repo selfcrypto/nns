@@ -1,11 +1,28 @@
+/**
+ * **My names** — the management screen. The list of what the identity set owns,
+ * and, when a row is tapped, that name's card **in place**: repointing a name
+ * you own never routes through a screen called Buy (docs/app-ux.md §3).
+ */
+
+import { useState } from 'react'
 import { CONSTANTS } from '@nns/core'
 import { getOwnedNames, type OwnedName } from '../lib/api'
 import { approxDate, formatApproxDate } from '../lib/format'
 import { apiBase } from '../lib/nns'
+import { search } from '../lib/search'
 import { renewalUrgency } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
-import { addAddressLabel, connectHubLabel, graceBadge, renewDueLine, unreachableLine } from '../lib/wording'
+import {
+  addAddressLabel,
+  backToNamesLabel,
+  connectWalletLabel,
+  disconnectLabel,
+  graceBadge,
+  renewDueLine,
+  unreachableLine,
+} from '../lib/wording'
 import type { Wallet } from '../lib/wallet'
+import { NameCard, OWNER_ACTIONS } from '../components/NameCard'
 import { Badge, EmptyState, NameText, Spinner } from '../components/ui'
 
 /** "My names" is the union across the identity set (a name belongs to exactly one owner, so no dedupe). */
@@ -17,17 +34,79 @@ async function unionOwned(viewers: readonly string[]): Promise<{ names: readonly
   return { names, height: pages[0]?.height ?? 0 }
 }
 
+/** The selected name's card, fed exactly as Buy feeds it — one card, two screens. */
+function Detail({
+  name,
+  wallet,
+  onBack,
+  onChanged,
+}: {
+  name: string
+  wallet: Wallet | null
+  onBack: () => void
+  onChanged: () => void
+}) {
+  const [nonce, setNonce] = useState(0)
+  const outcome = useAsync(() => search(name), [name, nonce])
+
+  return (
+    <div className="screen">
+      <button type="button" className="back-link" onClick={onBack}>
+        {backToNamesLabel()}
+      </button>
+      {(outcome.status === 'loading' || outcome.status === 'idle') && <Spinner />}
+      {outcome.status === 'error' && <p className="field-error">{unreachableLine()}</p>}
+      {outcome.status === 'done' && (
+        <NameCard
+          outcome={outcome.value}
+          wallet={wallet}
+          nowMs={Date.now()}
+          actions={OWNER_ACTIONS}
+          onChanged={() => {
+            setNonce((value) => value + 1)
+            onChanged()
+          }}
+          // Already the destination: no handoff to offer.
+          onManage={null}
+        />
+      )}
+    </div>
+  )
+}
+
 export function MyNamesScreen({
   wallet,
-  onOpen,
+  manage,
+  onManageHandled,
   onConnect,
+  onDisconnect,
 }: {
   wallet: Wallet | null
-  onOpen: (name: string) => void
+  /** A name Buy handed over; opens straight into its detail. */
+  manage: string | null
+  onManageHandled: () => void
   onConnect: (() => void) | null
+  onDisconnect: (() => void) | null
 }) {
+  const [selected, setSelected] = useState<string | null>(null)
+  const [listNonce, setListNonce] = useState(0)
   const viewers = wallet?.identity.addresses ?? []
-  const owned = useAsync(viewers.length === 0 ? null : () => unionOwned(viewers), [viewers.join(' ')])
+  const owned = useAsync(viewers.length === 0 ? null : () => unionOwned(viewers), [viewers.join(' '), listNonce])
+
+  const open = manage ?? selected
+  if (open !== null) {
+    return (
+      <Detail
+        name={open}
+        wallet={wallet}
+        onBack={() => {
+          setSelected(null)
+          onManageHandled()
+        }}
+        onChanged={() => setListNonce((value) => value + 1)}
+      />
+    )
+  }
 
   if (viewers.length === 0) {
     return (
@@ -38,7 +117,7 @@ export function MyNamesScreen({
         />
         {onConnect !== null && (
           <button type="button" className="connect" onClick={onConnect}>
-            {connectHubLabel()}
+            {connectWalletLabel()}
           </button>
         )}
       </div>
@@ -65,7 +144,7 @@ export function MyNamesScreen({
   return (
     <div className="screen">
       {names.length === 0 ? (
-        <EmptyState title="No names yet" body="Find a free name in Search — it points at your address the moment it’s registered." />
+        <EmptyState title="No names yet" body="Find a free name in Buy — it points at your address the moment it’s registered." />
       ) : (
         <ul className="name-list">
           {names.map((ownedName) => {
@@ -74,7 +153,7 @@ export function MyNamesScreen({
             const graceEnd = formatApproxDate(approxDate(ownedName.expiry + CONSTANTS.GRACE_PERIOD, height, nowMs))
             return (
               <li key={ownedName.name}>
-                <button type="button" className="name-row" onClick={() => onOpen(ownedName.name)}>
+                <button type="button" className="name-row" onClick={() => setSelected(ownedName.name)}>
                   <span className="name-row-name">
                     <NameText>{ownedName.name}</NameText>
                   </span>
@@ -93,11 +172,18 @@ export function MyNamesScreen({
           })}
         </ul>
       )}
-      {onConnect !== null && (
-        <button type="button" className="connect connect-quiet" onClick={onConnect}>
-          {addAddressLabel()}
-        </button>
-      )}
+      <div className="identity-actions">
+        {onConnect !== null && (
+          <button type="button" className="connect connect-quiet" onClick={onConnect}>
+            {addAddressLabel()}
+          </button>
+        )}
+        {onDisconnect !== null && (
+          <button type="button" className="connect connect-quiet" onClick={onDisconnect}>
+            {disconnectLabel()}
+          </button>
+        )}
+      </div>
     </div>
   )
 }

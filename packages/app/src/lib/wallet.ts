@@ -8,7 +8,15 @@
  * §10.5 probe and answers `probe-gated` until it runs on a post-fork build.
  */
 
-import { NO_IDENTITY, loadHubAddresses, saveHubAddresses, withAddress, type Identity, type StorageLike } from './identity'
+import {
+  NO_IDENTITY,
+  clearHubAddresses,
+  loadHubAddresses,
+  saveHubAddresses,
+  withAddress,
+  type Identity,
+  type StorageLike,
+} from './identity'
 import { hubChooseAddress, hubSignTransaction } from './hub'
 import { connectWallet, devAddressOverride } from './sdk'
 import { isDefiniteRejection, type HistoryTransport } from './history'
@@ -28,6 +36,12 @@ export interface Wallet {
   readonly identity: Identity
   /** Hub only: one popup, one more address in the set. Null elsewhere. */
   readonly connect: (() => Promise<Identity>) | null
+  /**
+   * Hub only: forget the set, so a different address can be chosen. Null on the
+   * Pay path, where identity is the host's and there is nothing to disconnect
+   * from.
+   */
+  readonly disconnect: (() => Identity) | null
   readonly submit: (request: SubmitRequest, transport: HistoryTransport | null) => Promise<SubmitOutcome>
 }
 
@@ -37,6 +51,7 @@ export async function detectWallet(storage: StorageLike, search: string): Promis
     return {
       identity: { kind: 'pay', addresses: [paySession.address] },
       connect: null,
+      disconnect: null,
       // Every fee-bearing Pay send is a §10.5 forfeit if the sheet
       // substitutes its own value; nothing sends from Pay until the probe
       // answers (packages/app/CLAUDE.md, "Open").
@@ -65,6 +80,15 @@ function hubWallet(storage: StorageLike, search: string): Wallet {
         addresses = withAddress(addresses, chosen)
         saveHubAddresses(storage, addresses)
       }
+      return identity()
+    },
+
+    disconnect: () => {
+      addresses = []
+      clearHubAddresses(storage)
+      // Dev-only wrinkle: `devAddressOverride` reads an address out of the URL
+      // and `detectWallet` re-adds it, so a disconnect does not survive a
+      // reload while that query parameter is present. Dev path only.
       return identity()
     },
 
