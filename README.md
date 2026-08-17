@@ -4,9 +4,9 @@
 
 ### Human-readable names on Nimiq. No smart contracts.
 
-[![Spec](https://img.shields.io/badge/spec-v1%20draft%20r15-0582CA?style=flat-square)](docs/nns-spec-v1.md)
-[![Status](https://img.shields.io/badge/status-core%20%2B%20indexer%20built-EC991C?style=flat-square)](docs/status.md)
-[![Tests](https://img.shields.io/badge/tests-614-1F2348?style=flat-square)](#building-and-testing)
+[![Spec](https://img.shields.io/badge/spec-v1%20draft%20r24-0582CA?style=flat-square)](docs/nns-spec-v1.md)
+[![Status](https://img.shields.io/badge/status-all%20packages%20built-EC991C?style=flat-square)](docs/status.md)
+[![Tests](https://img.shields.io/badge/tests-1526-1F2348?style=flat-square)](#building-and-testing)
 [![License](https://img.shields.io/badge/license-MIT-1F2348?style=flat-square)](LICENSE)
 [![Nimiq](https://img.shields.io/badge/chain-Nimiq%20Albatross-0582CA?style=flat-square)](https://nimiq.com)
 
@@ -83,10 +83,15 @@ Nimiq's 64-byte transaction data limit.
 
 | | | | |
 |---|---|---|---|
-| `G` register | `S` set target | `X` transfer | `R` recovery |
-| `D` delegate | `K` cancel | `N` renew | `O` offer |
-| `B` buy | `A` auction | `M` settlement | `P` governance |
-| `U` unreserve | `F` burn attestation | | |
+| `G` register | `S` set target | `X` transfer | `D` delegate |
+| `K` cancel | `N` renew | `O` offer | `B` buy |
+| `A` auction | `M` settlement | `P` governance | `U` unreserve |
+| `F` burn attestation | | | |
+
+Thirteen types. There is no recovery message: `R` was removed in r24's
+predecessor r20, because every version of it the owner key could cancel was
+theatre, and every version it could not outranked the owner. A lost owner key
+is a lost name, as in ENS.
 
 ## Repository
 
@@ -96,44 +101,43 @@ Nimiq's 64-byte transaction data limit.
 | `docs/rpc-reference.md` | What Nimiq's RPC actually does, measured not assumed |
 | `docs/decisions.md` | Every reading taken where the spec was silent, with the argument |
 | `docs/status.md` | What is built, what is next. Where a new session starts |
-| `packages/core` | Rules: encoding, validation, reducer, Merkle. Pure |
-| `packages/indexer` | RPC tail → reducer → Postgres → checkpoints |
-| `packages/api` | Read-only resolver, proofs |
-| `packages/app` | Nimiq Pay mini app |
-| `packages/resolver` | npm package other apps embed |
-| `packages/delegate` | Reference subdomain host, run by a name owner — not by NNS |
-| `packages/settlement` · `anchor` · `admin` | Payouts, anchoring, governance |
+| `docs/history/` | Revision narratives, the session journal, battery records |
+| `docs/runbooks/` | `operators.md` (the role map) and `testing.md` (the mainnet battery) |
+| **`packages/`** | **Ten packages — [`packages/README.md`](packages/README.md) explains each one and how they stack** |
+| `deploy/` | One directory per operator role: `resolver`, `delegate`, `service`, `settlement` |
 | `tasks/` | One brief per package, naming the spec sections it needs |
 
 A pnpm workspace: TypeScript strict throughout, one Vitest run across every
-package, dependency versions pinned once in the workspace catalog.
+package, dependency versions pinned once in the workspace catalog. Amounts are
+`bigint` luna; heights are `number`.
 
 ## Status
 
-**In development.** The wire format is settled and empirically verified against
-mainnet. Two of the eight packages are built.
+**Pre-launch.** All ten packages are built and conform to spec r24. The wire
+format is settled and empirically verified against mainnet. 1,526 tests pass
+with a database attached, none skipped.
 
-| Package | |
-|---|---|
-| `core` | **Complete**, conforming to spec r15. 469 tests, conformance vectors shipped |
-| `indexer` | **Complete** — scan, reduce, Postgres, checkpoints, container, heartbeat. 145 tests |
-| `api` · `app` · `resolver` · `settlement` · `anchor` · `admin` | Not started |
+What remains before a mainnet launch is deployment and one irreversible input,
+not code: completing `RESERVED_NAMES`, a full mainnet battery, and a second
+freeze that pins `LAUNCH_HEIGHT` to a future height and regenerates the four §3
+role addresses. [`docs/status.md`](docs/status.md) carries that checklist and is
+where a new session starts; [§12](docs/nns-spec-v1.md) is what remains undecided
+in the protocol itself.
 
-`core` is the reference implementation, and writing it was how the spec got
-to r15: it surfaced **nine places where two conforming implementations would
-have derived different roots** — same-height effect order, the log's `<data>`
-field, the checkpoint layout byte for byte, six more. All nine are now pinned
-in the spec and held by a vector. The argument for each is in
-[`docs/decisions.md`](docs/decisions.md); that this list exists at all is the
-best evidence available that the design is being taken seriously.
+`core` is the reference implementation, and writing it is how the spec got past
+r15: it surfaced **ten places where two conforming implementations would have
+derived different roots** — same-height effect order, the log's `<data>` field,
+the checkpoint layout byte for byte, seven more. All ten are pinned in the spec
+and held by a vector, and twenty further check-order choices stay deliberately
+unratified, pinned only by `packages/core/vectors/reduce.json`. The argument for
+each is in [`docs/decisions.md`](docs/decisions.md); that this list exists at all
+is the best evidence available that the design is being taken seriously.
 
-The indexer has been run against the mainnet node: ~9,000 batches replayed to
-head, reproducing probe transactions at their canonical body positions. Its
-acceptance test — two full replays from an empty database producing
-byte-identical checkpoint roots — is the next thing outstanding.
-
-[`docs/status.md`](docs/status.md) has the detail, and
-[§12](docs/nns-spec-v1.md) what remains undecided in the protocol itself.
+Spec revisions are numbered and narrated: `docs/history/revisions.md` has the
+r15 → r24 story, and is explicit about which ones moved bytes — those required
+every database derived under the old rules to be rebuilt, because
+`configFingerprint` covers configuration and not rules, so nothing refuses the
+resume for you.
 
 Names are `[a-z0-9-]`, 5–24 characters, with a positional digit rule that
 removes the `n1m1q` / `nimiq` class of impersonation entirely.
@@ -161,8 +165,9 @@ same set of variables pointed at a local database.
 
 ## Running one publicly
 
-An indexer answers nobody on its own. Two things are worth deploying, and
-`deploy/` has one directory for each — compose file, `.env.example`, README:
+An indexer answers nobody on its own. `deploy/` has one directory per operator
+role — compose file, `.env.example`, README — so nobody reads configuration
+belonging to a role they do not run:
 
 - **A resolver** (`deploy/resolver`) — Postgres, the indexer and the read-only
   API, with only the API published. This is what §8.5's quorum is made of:
@@ -171,23 +176,42 @@ An indexer answers nobody on its own. Two things are worth deploying, and
 - **A delegate** (`deploy/delegate`) — one container and a JSON file, for a
   name owner who wants `shop.theirname` to resolve. No node, no database, no
   key.
+- **The service** (`deploy/service`) — our own deployment: the resolver stack
+  plus the RPC relay the mini app needs and the app bundle itself.
+- **Settlement** (`deploy/settlement`) — pays what the protocol owes. Holds the
+  system's only hot key, needs no inbound reachability, and must not share a
+  machine with the service.
 
-[`docs/runbooks/operators.md`](docs/runbooks/operators.md) is the map: what
-each role is, what it needs, and the four things that are easy to get wrong.
-`deploy/service` is our own deployment — the same resolver stack plus the RPC
-relay and the mini app.
+[`docs/runbooks/operators.md`](docs/runbooks/operators.md) is the map: what each
+role is, what it needs, and the things that are easy to get wrong — starting
+with the fact that a delegate is not a resolver, and that "resolver" names both
+a server (`packages/api`) and the client library that queries several of them
+(`packages/resolver`).
 
 ## Building and testing
 
 ```bash
 pnpm install
-pnpm test         # one Vitest run over every package — 614 tests
+pnpm test         # one Vitest run over every package — 1,526 tests
 pnpm typecheck    # strict, and wider than the build: tests and tooling too
 pnpm build
 ```
 
-Nine of those tests are the indexer's pure-SQL ones; they skip unless
-`NNS_TEST_DATABASE_URL` points at a Postgres.
+**All three, before calling anything done.** The build config is narrow (`src/`
+only) and typecheck is wide, so a build can be broken while typecheck is green
+— a broken `core` build survived several commits exactly that way.
+
+45 of those tests are gated on a database — the SQL seam, the migrations, the
+§8.1/§8.2 persistence rules, the settlement ledger's idempotency — and skip
+unless `NNS_TEST_DATABASE_URL` points at a Postgres. Give them one:
+
+```bash
+docker compose up -d postgres
+NNS_TEST_DATABASE_URL=postgres://nns:nns@127.0.0.1:5433/some_throwaway pnpm test
+```
+
+Each suite drops its own schema on arrival, so point it at a throwaway database
+— never one holding a replay you would rather not rebuild.
 
 ## Contributing
 
