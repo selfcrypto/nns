@@ -18,6 +18,9 @@
  *   at (§8.7's first clock — what the answer is true *as of*).
  */
 
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 import {
   CONSTANTS,
   formatAddress,
@@ -75,6 +78,53 @@ function serialiseCheckpoint(value: LatestCheckpoint): Record<string, unknown> {
 }
 
 const respond = (status: number, body: unknown): ApiResponse => ({ status, body })
+
+/**
+ * Every path this API serves, in one place.
+ *
+ * Two consumers, which is the point: the `UNKNOWN_ROUTE` body names them, so a
+ * caller who guessed wrong is told what exists instead of being left to read
+ * source; and `routes.test.ts` compares this list against `openapi.yaml`'s
+ * `paths` and fails on any difference. A published contract that has quietly
+ * stopped matching the server is worse than no published contract, and a
+ * hand-maintained spec drifts the moment a route is added without one.
+ *
+ * Templated segments use OpenAPI's `{name}` form so the two lists compare
+ * directly.
+ */
+export const ROUTES = Object.freeze([
+  '/available/{name}',
+  '/address/{addr}/names',
+  '/burn',
+  '/checkpoints/latest',
+  '/checkpoints/{height}',
+  '/log',
+  '/name/{name}',
+  '/offers',
+  '/openapi.yaml',
+  '/params',
+  '/resolve/{name}',
+  '/settlements',
+])
+
+/**
+ * The OpenAPI document, read from the package rather than embedded.
+ *
+ * `../openapi.yaml` resolves the same from `src/` under Vitest and from
+ * `dist/` in the container, which is why the path is built from
+ * `import.meta.url` rather than `process.cwd()`. `openapi.yaml` is in the
+ * package's `files`, so it ships.
+ *
+ * Read once and cached: it is static, and re-reading it per request would make
+ * a documentation endpoint the only route that touches the disk on a hot path.
+ * A read failure is a packaging error, so it throws and surfaces as a 500
+ * rather than being reported as a missing route — the spec is not optional.
+ */
+let openapiDocument: Buffer | undefined
+function openapiBytes(): Buffer {
+  openapiDocument ??= readFileSync(fileURLToPath(new URL('../openapi.yaml', import.meta.url)))
+  return openapiDocument
+}
 
 function serialiseRecord(record: ApiNameRecord): Record<string, unknown> {
   return {
@@ -487,7 +537,22 @@ export function createRoutes(queries: Queries): RouteHandler {
         return await settlementsRoute(searchParams.get('owed_to'))
       }
       if (head === 'burn' && segments.length === 1) return await burnRoute()
-      return respond(404, { error: 'UNKNOWN_ROUTE' })
+      // Static, needs no snapshot, and deliberately answers before the
+      // NOT_SYNCED gate every other route sits behind: the contract is true
+      // whether or not the indexer has written state yet, and an integrator
+      // reading it during a backfill should not be told the service is down.
+      if (head === 'openapi.yaml' && segments.length === 1) {
+        return {
+          status: 200,
+          body: openapiBytes(),
+          contentType: 'application/yaml; charset=utf-8',
+        }
+      }
+      // Name what exists. REST has no discovery mechanism of its own — no
+      // introspection as in GraphQL, and OPTIONS reports methods rather than
+      // paths — so the 404 is the only place a caller who guessed wrong is
+      // already looking.
+      return respond(404, { error: 'UNKNOWN_ROUTE', routes: ROUTES, spec: '/openapi.yaml' })
     } catch (error) {
       if (error instanceof NotSyncedError) {
         return respond(503, { error: 'NOT_SYNCED', detail: error.message })

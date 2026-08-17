@@ -4,6 +4,9 @@
  * its own gated test in `queries.test.ts`.
  */
 
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
 import {
   formatAddress,
   leafHash,
@@ -27,7 +30,7 @@ import {
   type Queries,
   type Snapshot,
 } from './queries.js'
-import { createRoutes, type RouteHandler } from './routes.js'
+import { ROUTES, createRoutes, type RouteHandler } from './routes.js'
 
 const A = parseAddress('NQ34 248H 248H 248H 248H 248H 248H 248H 248H')
 const B = parseAddress('NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2')
@@ -95,8 +98,14 @@ function routes(partial: Partial<Queries>): RouteHandler {
 describe('routing', () => {
   it('answers 404 for an unknown route and 405 for a write method', async () => {
     const handle = routes({})
-    expect(await handle('GET', '/nope')).toEqual({ status: 404, body: { error: 'UNKNOWN_ROUTE' } })
-    expect(await handle('GET', '/resolve/a/b')).toEqual({ status: 404, body: { error: 'UNKNOWN_ROUTE' } })
+    // The 404 body carries the route table and the spec's path — see the
+    // `discovery` suite. Asserted by status and error here so that adding a
+    // route does not fail this test for the wrong reason.
+    for (const url of ['/nope', '/resolve/a/b']) {
+      const response = await handle('GET', url)
+      expect(response.status).toBe(404)
+      expect((response.body as { error: string }).error).toBe('UNKNOWN_ROUTE')
+    }
     expect((await handle('POST', '/params')).status).toBe(405)
     expect((await handle('DELETE', '/name/alice-example')).status).toBe(405)
   })
@@ -790,5 +799,52 @@ describe('/burn', () => {
     expect(body.revenue).toBe('1000003')
     expect(body.owed).toBe('200000')
     expect(body.burned).toBe('0')
+  })
+})
+
+describe('discovery', () => {
+  it('serves the OpenAPI document as YAML, with no snapshot and no 503 gate', async () => {
+    // The stub throws NotSyncedError on every query, so a route that reached
+    // for a snapshot would 503 here. This one must not: the contract is true
+    // during a backfill, and an integrator reading it should not be told the
+    // service is down.
+    const handle = createRoutes(
+      new Proxy({} as Queries, {
+        get: () => () => Promise.reject(new NotSyncedError('no state yet')),
+      }),
+    )
+    const response = await handle('GET', '/openapi.yaml')
+    expect(response.status).toBe(200)
+    expect(response.contentType).toBe('application/yaml; charset=utf-8')
+    const text = Buffer.from(response.body as Uint8Array).toString('utf8')
+    expect(text).toContain('openapi: 3.1.0')
+    expect(text).toContain('title: NNS resolver API')
+  })
+
+  it('names the routes in UNKNOWN_ROUTE — REST has no discovery of its own', async () => {
+    const handle = routes({})
+    const response = await handle('GET', '/')
+    expect(response.status).toBe(404)
+    const body = response.body as { error: string; routes: string[]; spec: string }
+    expect(body.error).toBe('UNKNOWN_ROUTE')
+    expect(body.spec).toBe('/openapi.yaml')
+    expect(body.routes).toContain('/resolve/{name}')
+    expect(body.routes).toContain('/openapi.yaml')
+  })
+
+  it('ROUTES and openapi.yaml describe the same surface, exactly', () => {
+    // The published contract and the server must not drift. A hand-maintained
+    // spec stops matching the moment a route is added without one, and a
+    // contract that has quietly stopped being true is worse than none — an
+    // integrator generates a client from it and the failure lands on them.
+    const spec = readFileSync(fileURLToPath(new URL('../openapi.yaml', import.meta.url)), 'utf8')
+    const paths = spec
+      .slice(spec.indexOf('\npaths:'), spec.indexOf('\ncomponents:'))
+      .split('\n')
+      .filter((line) => /^ {2}\/\S*:$/.test(line))
+      .map((line) => line.trim().replace(/:$/, ''))
+
+    expect(paths.length).toBeGreaterThan(0)
+    expect([...paths].sort()).toEqual([...ROUTES].sort())
   })
 })

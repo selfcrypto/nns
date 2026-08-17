@@ -6,7 +6,7 @@
 
 [![Spec](https://img.shields.io/badge/spec-v1%20draft%20r24-0582CA?style=flat-square)](docs/nns-spec-v1.md)
 [![Status](https://img.shields.io/badge/status-all%20packages%20built-EC991C?style=flat-square)](docs/status.md)
-[![Tests](https://img.shields.io/badge/tests-1526-1F2348?style=flat-square)](#building-and-testing)
+[![Tests](https://img.shields.io/badge/tests-1529-1F2348?style=flat-square)](#building-and-testing)
 [![License](https://img.shields.io/badge/license-MIT-1F2348?style=flat-square)](LICENSE)
 [![Nimiq](https://img.shields.io/badge/chain-Nimiq%20Albatross-0582CA?style=flat-square)](https://nimiq.com)
 
@@ -192,7 +192,7 @@ a server (`packages/api`) and the client library that queries several of them
 
 ```bash
 pnpm install
-pnpm test         # one Vitest run over every package — 1,526 tests
+pnpm test         # one Vitest run over every package — 1,529 tests
 pnpm typecheck    # strict, and wider than the build: tests and tooling too
 pnpm build
 ```

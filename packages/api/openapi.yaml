@@ -475,6 +475,33 @@ paths:
                   height: { $ref: '#/components/schemas/Height' }
         '503': { $ref: '#/components/responses/NotSynced' }
 
+  /openapi.yaml:
+    get:
+      summary: This document
+      description: >
+        The API's own contract, served so an integrator can generate a client
+        without cloning the repository. REST has no discovery mechanism of its
+        own — unlike GraphQL introspection, and OPTIONS reports methods rather
+        than paths — so publishing this is what makes the surface
+        machine-readable. §8.5 asks clients to query several independent
+        resolvers, so every operator serves the same contract at the same
+        path.
+
+        The one route with no `503`: it is static, needs no database snapshot,
+        and is true whether or not the indexer has written state yet. An
+        integrator reading the contract during a backfill should not be told
+        the service is down.
+
+        `routes.test.ts` compares the `paths` here against the server's route
+        table and fails on any difference, so this document cannot quietly
+        stop matching the server it describes.
+      responses:
+        '200':
+          description: This OpenAPI document.
+          content:
+            application/yaml:
+              schema: { type: string }
+
 components:
   parameters:
     name:
