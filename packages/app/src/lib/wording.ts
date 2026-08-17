@@ -165,7 +165,9 @@ const NAME_REASON_TEXT: Record<string, string> = {
   DOUBLE_HYPHEN: 'No two hyphens in a row.',
   INTERIOR_DIGIT: 'Digits can’t sit inside letters — only lead or trail.',
   BOUNDARY_DIGIT: 'Digits can only lead or trail, not both.',
-  RESERVED: 'This name is reserved.',
+  // No RESERVED: reservation is never a field-level verdict. It is chain
+  // state a released name leaves behind (§6 `U`), so it reaches the user
+  // from the server, as the availability card's reservedLine().
 }
 
 export function invalidQueryLine(reason: QueryInvalidReason, detail: string | null): string {

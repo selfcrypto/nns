@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import { CONSTANTS, parseQuery } from '@nns/core'
+import { CONSTANTS } from '@nns/core'
 import { primaryAddress } from '../lib/identity'
 import { formatApproxDate, approxDate } from '../lib/format'
-import { search, type SearchOutcome } from '../lib/search'
+import { parseSearchQuery, search, type SearchOutcome } from '../lib/search'
 import { actionGates, nameView, signerFor, type AppAction } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
 import type { Wallet } from '../lib/wallet'
@@ -220,7 +220,8 @@ export function SearchScreen({ wallet, seed }: { wallet: Wallet | null; seed: st
   const fieldError = useMemo(() => {
     const trimmed = text.trim().toLowerCase()
     if (trimmed === '' || trimmed === submitted) return null
-    const parsed = parseQuery(trimmed)
+    // Rule 6 is deliberately not a field-level verdict — see parseSearchQuery.
+    const parsed = parseSearchQuery(trimmed)
     return parsed.ok ? null : invalidQueryLine(parsed.reason, parsed.detail)
   }, [text, submitted])
 

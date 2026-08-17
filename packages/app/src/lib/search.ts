@@ -4,7 +4,7 @@
  * come from `resolver()`; `/name` rides along for the overlays.
  */
 
-import { parseQuery, type QueryInvalidReason } from '@nns/core'
+import { parseQuery, type QueryInvalidReason, type QueryParse } from '@nns/core'
 import {
   AnchorError,
   DelegateError,
@@ -29,6 +29,25 @@ export type SearchOutcome =
   | { readonly kind: 'alarm'; readonly code: string; readonly message: string }
   | { readonly kind: 'unreachable'; readonly code: string; readonly message: string }
 
+/**
+ * §4.1 syntax for a typed query, with **rule 6 neutralised**. Reservation is
+ * chain state, not a property of the string: a name released by a `U` (§6
+ * `U`) — and since r18 an awarded short name — is an ordinary name that must
+ * be searchable, resolvable and registrable. A browser cannot know
+ * `state.unreserved`, so this does what the API's `/resolve` and
+ * `@nns/resolver` both do: pass the candidate itself (the parent, for a
+ * dotted query) as `unreserved`, which covers both membership routes in one
+ * move. Whether the name is *still* held is the server's answer, and arrives
+ * as `available.reason === 'RESERVED'`.
+ *
+ * Rules 1–5 stay client-side, `TOO_SHORT` included: a short name failing
+ * rules 2–5 is on neither membership route, so nothing can ever release it.
+ */
+export function parseSearchQuery(query: string): QueryParse {
+  const dot = query.indexOf('.')
+  return parseQuery(query, new Set([dot < 0 ? query : query.slice(dot + 1)]))
+}
+
 /** The name info is an overlay, never the answer — its failure must not sink a verified resolution. */
 const infoOrNull = async (name: string): Promise<NameInfo | null> => {
   try {
@@ -40,7 +59,7 @@ const infoOrNull = async (name: string): Promise<NameInfo | null> => {
 
 export async function search(rawQuery: string): Promise<SearchOutcome> {
   const query = rawQuery.trim().toLowerCase()
-  const parsed = parseQuery(query)
+  const parsed = parseSearchQuery(query)
   if (!parsed.ok) return { kind: 'invalid', reason: parsed.reason, detail: parsed.detail }
 
   const plainName = parsed.query.kind === 'name' ? parsed.query.name : null
