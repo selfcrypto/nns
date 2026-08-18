@@ -105,7 +105,7 @@ stay compatible with.
 
 ```
 {"level":"error","msg":"delegate.labels.rejected","key":"names.binance.pay",
- "error":"labels.pay: not a Nimiq address: …","serving":"previous"}
+ "error":"names.binance.pay: not a Nimiq address: …","serving":"previous"}
 ```
 
 Serving the rest and skipping the bad line would take one subdomain out of
