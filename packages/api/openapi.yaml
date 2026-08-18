@@ -371,6 +371,70 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
         '503': { $ref: '#/components/responses/NotSynced' }
 
+  /log/decoded:
+    get:
+      summary: The §8.2 log with its data field rendered as text
+      description: >
+        A reading aid, NOT the artifact. §8.2 makes `data` lowercase hex so a
+        malformed but NNS1-prefixed payload cannot forge a log line by carrying
+        a space or a newline; the cost is that every legitimate line is
+        unreadable. This serves the same lines decoded, while GET /log keeps
+        serving the bytes the checkpoint commits to.
+
+
+        Deliberately JSON rather than text, and deliberately without the
+        x-nns-log-hash header, so it cannot be mistaken for the canonical file
+        or hashed by accident. Each entry carries `data` unchanged beside
+        `message`, so a reader can verify the rendering rather than trust it.
+
+
+        `message` renders bytes outside printable ASCII as %xx, and % itself as
+        %25. `type` is the §6 message letter, or null when the payload does not
+        parse — in which case `parseFailure` names the §5.2 reason.
+      responses:
+        '200':
+          description: The log through the latest checkpoint, decoded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [canonical, entries, height]
+                properties:
+                  canonical:
+                    type: object
+                    description: Where the artifact this is derived from lives.
+                    required: [path, checkpointHeight, logHash, note]
+                    properties:
+                      path: { type: string }
+                      checkpointHeight: { type: integer }
+                      logHash: { type: string }
+                      note: { type: string }
+                  entries:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        [blockHeight, txIndex, txHash, sender, recipient, value, verdict, data, message, type, parseFailure]
+                      properties:
+                        blockHeight: { type: integer }
+                        txIndex: { type: integer }
+                        txHash: { type: string }
+                        sender: { type: string }
+                        recipient: { type: string }
+                        value: { type: string, description: Luna, decimal string. }
+                        verdict: { type: string }
+                        data: { type: string, description: The canonical §8.2 hex, unchanged. }
+                        message: { type: string, nullable: true, description: Decoded payload; %xx for non-printable bytes. }
+                        type: { type: string, nullable: true, description: §6 message letter, or null when unparseable. }
+                        parseFailure: { type: string, nullable: true }
+                  height: { type: integer }
+        '404':
+          description: NO_CHECKPOINT — none written yet.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
   /settlements:
     get:
       summary: Outstanding settlement obligations

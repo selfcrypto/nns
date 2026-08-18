@@ -729,6 +729,92 @@ describe('/log', () => {
   })
 })
 
+describe('GET /log/decoded', () => {
+  // NNS1Dnimiq|delegated.nimiqnames.com — a real line from the deployment.
+  const D_HEX =
+    '4e4e5331446e696d69717c64656c6567617465642e6e696d69716e616d65732e636f6d'
+  // Compact form, as §8.2 writes them: the spacing would break a
+  // space-separated format.
+  const NQ_A = A.replace(/ /g, '')
+  const NQ_B = B.replace(/ /g, '')
+  const lines = [`59185480 0 8576 ${NQ_A} ${NQ_B} 1 ${D_HEX} OK`]
+
+  const decoded = (over: string[] = lines) =>
+    routes({
+      logThroughCheckpoint: () =>
+        Promise.resolve(snap({ checkpointHeight: CHECKPOINT_HEIGHT, logHash: '44'.repeat(32), lines: over })),
+    })
+
+  it('renders the payload as text, which is the whole point', async () => {
+    const response = await decoded()('GET', '/log/decoded')
+    expect(response.status).toBe(200)
+    const entry = (response.body as { entries: Record<string, unknown>[] }).entries[0]
+    expect(entry).toMatchObject({
+      blockHeight: 59_185_480,
+      txIndex: 0,
+      message: 'NNS1Dnimiq|delegated.nimiqnames.com',
+      type: 'D',
+      parseFailure: null,
+      verdict: 'OK',
+    })
+  })
+
+  it('carries the canonical hex beside the rendering, so it can be checked not trusted', async () => {
+    const response = await decoded()('GET', '/log/decoded')
+    const entry = (response.body as { entries: Record<string, unknown>[] }).entries[0]
+    expect(entry?.['data']).toBe(D_HEX)
+  })
+
+  it('cannot be mistaken for the canonical artifact', async () => {
+    // Hashing this by accident would produce a wrong answer confidently, so it
+    // is JSON rather than text and carries no x-nns-log-hash header.
+    const response = await decoded()('GET', '/log/decoded')
+    expect(response.contentType).toBeUndefined()
+    expect(response.headers?.['x-nns-log-hash']).toBeUndefined()
+    expect((response.body as { canonical: Record<string, unknown> }).canonical).toMatchObject({
+      path: '/log',
+      logHash: `0x${'44'.repeat(32)}`,
+    })
+  })
+
+  it('escapes a payload that would otherwise forge a line', async () => {
+    // §8.2's reason for hex in the first place: a malformed but NNS1-prefixed
+    // payload can carry a newline. Rendered, it must not survive as one.
+    const injection = Buffer.from('NNS1G\n99999999 0 forged', 'ascii').toString('hex')
+    const response = await decoded([`59185481 0 aa11 ${NQ_A} ${NQ_B} 1 ${injection} OK`])('GET', '/log/decoded')
+    const entry = (response.body as { entries: Record<string, unknown>[] }).entries[0]
+    expect(entry?.['message']).toBe('NNS1G%0a99999999 0 forged')
+    expect(String(entry?.['message'])).not.toContain('\n')
+  })
+
+  it('names the failure for a payload that does not parse, rather than dropping the line', async () => {
+    const garbage = Buffer.from('NNS1Z', 'ascii').toString('hex')
+    const response = await decoded([`59185482 0 bb22 ${NQ_A} ${NQ_B} 1 ${garbage} OK`])('GET', '/log/decoded')
+    const entry = (response.body as { entries: Record<string, unknown>[] }).entries[0]
+    expect(entry).toMatchObject({ type: null, parseFailure: 'UNKNOWN_TYPE', message: 'NNS1Z' })
+  })
+
+  it('spaces addresses for display, as every other route does', async () => {
+    const response = await decoded()('GET', '/log/decoded')
+    const entry = (response.body as { entries: Record<string, unknown>[] }).entries[0]
+    expect(entry?.['sender']).toBe(formatAddress(A))
+  })
+
+  it('falls back to the log\'s own bytes for an address that does not parse', async () => {
+    // A line is a line even when something in it is wrong; the view must show
+    // what the log holds rather than drop the entry or throw.
+    const bad = 'NQ340000000000000000000000000000000000'
+    const response = await decoded([`59185483 0 cc33 ${bad} ${NQ_B} 1 ${D_HEX} OK`])('GET', '/log/decoded')
+    const entry = (response.body as { entries: Record<string, unknown>[] }).entries[0]
+    expect(entry?.['sender']).toBe(bad)
+  })
+
+  it('404s while no checkpoint exists', async () => {
+    const handle = routes({ logThroughCheckpoint: () => Promise.resolve(snap(null)) })
+    expect((await handle('GET', '/log/decoded')).status).toBe(404)
+  })
+})
+
 describe('/settlements', () => {
   const OBLIGATION = {
     refHeight: 58_190_001,

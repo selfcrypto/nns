@@ -27,6 +27,8 @@ import {
   isReservedName,
   logFile,
   minPrice,
+  parse,
+  parseLogLine,
   parseQuery,
   tryParseAddress,
   validateNameSyntax,
@@ -80,6 +82,35 @@ function serialiseCheckpoint(value: LatestCheckpoint): Record<string, unknown> {
 const respond = (status: number, body: unknown): ApiResponse => ({ status, body })
 
 /**
+ * A log payload as readable text, for `/log/decoded` only.
+ *
+ * Bytes outside printable ASCII become `%xx`, and `%` itself becomes `%25`, so
+ * the rendering is unambiguous and a malformed payload cannot smuggle a
+ * newline into anything downstream. Every legitimate NNS payload is drawn from
+ * `a-z 0-9 | . - /` and survives untouched, which is the entire point:
+ * `NNS1Dnimiq|delegated.nimiqnames.com` rather than `4e4e5331446e696d…`.
+ *
+ * Lossy in neither direction, but it is **not** the canonical encoding — §8.2
+ * commits to the hex, and `data` is carried beside this so a reader can check
+ * the rendering rather than trust it.
+ */
+function renderPayload(hex: string): string | null {
+  if (hex.length % 2 !== 0 || !/^[0-9a-f]*$/i.test(hex)) return null
+  let out = ''
+  for (let i = 0; i < hex.length; i += 2) {
+    const byte = Number.parseInt(hex.slice(i, i + 2), 16)
+    out += byte < 0x20 || byte > 0x7e || byte === 0x25 ? `%${byte.toString(16).padStart(2, '0')}` : String.fromCharCode(byte)
+  }
+  return out
+}
+
+/** Spaced for display where the address parses; the log's own bytes otherwise. */
+const displayAddress = (compact: string): string => {
+  const parsed = tryParseAddress(compact)
+  return parsed === null ? compact : formatAddress(parsed)
+}
+
+/**
  * Every path this API serves, in one place.
  *
  * Two consumers, which is the point: the `UNKNOWN_ROUTE` body names them, so a
@@ -99,6 +130,7 @@ export const ROUTES = Object.freeze([
   '/checkpoints/latest',
   '/checkpoints/{height}',
   '/log',
+  '/log/decoded',
   '/name/{name}',
   '/offers',
   '/openapi.yaml',
@@ -414,6 +446,61 @@ export function createRoutes(queries: Queries): RouteHandler {
     }
   }
 
+  /**
+   * The §8.2 log with its `data` field rendered as text — **a reading aid, not
+   * the artifact.**
+   *
+   * §8.2 makes `data` lowercase hex so that a malformed but `NNS1`-prefixed
+   * payload cannot forge a log line: nothing stops such a payload holding a
+   * space or a newline, and written raw it would inject a whole line and
+   * change the committed hash. That defence is right and the canonical bytes
+   * keep it. What it costs is that every *legitimate* line is unreadable —
+   * `4e4e5331446e696d69717c...` rather than `NNS1Dnimiq|delegated…` — and the
+   * log is the artifact third parties are supposed to replay and audit.
+   *
+   * So this serves the same lines decoded, and `/log` keeps serving the bytes.
+   * Two rules keep them from being confused, because hashing this by mistake
+   * would produce a wrong answer confidently:
+   *
+   * - **JSON, not text.** It cannot be diffed against the canonical file or
+   *   fed to keccak256 without noticing.
+   * - **No `x-nns-log-hash` header**, and a `canonical` pointer in the body
+   *   naming `/log` as the thing the checkpoint commits to.
+   *
+   * `data` is carried through unchanged beside the rendering, so a reader can
+   * verify the decoding rather than trust it.
+   */
+  async function logDecodedRoute(): Promise<ApiResponse> {
+    const { value } = await queries.logThroughCheckpoint()
+    if (value === null) return respond(404, { error: 'NO_CHECKPOINT' })
+    return respond(200, {
+      canonical: {
+        path: '/log',
+        checkpointHeight: value.checkpointHeight,
+        logHash: `0x${value.logHash}`,
+        note: 'GET /log is the artifact the checkpoint commits to. This view is derived and is not hashed.',
+      },
+      entries: value.lines.map((line) => {
+        const field = parseLogLine(line)
+        const parsed = parse(field.data)
+        return {
+          blockHeight: field.blockHeight,
+          txIndex: field.txIndex,
+          txHash: field.txHash,
+          sender: displayAddress(field.sender),
+          recipient: displayAddress(field.recipient),
+          value: field.value.toString(),
+          verdict: field.verdict,
+          data: field.data,
+          message: renderPayload(field.data),
+          type: parsed.ok ? parsed.message.type : null,
+          parseFailure: parsed.ok ? null : parsed.reason,
+        }
+      }),
+      height: value.checkpointHeight,
+    })
+  }
+
   async function settlementsRoute(owedTo: string | null): Promise<ApiResponse> {
     let filter: Address | null = null
     if (owedTo !== null) {
@@ -533,6 +620,7 @@ export function createRoutes(queries: Queries): RouteHandler {
         return a === 'latest' ? await checkpointRoute() : await checkpointAtRoute(a)
       }
       if (head === 'log' && segments.length === 1) return await logRoute()
+      if (head === 'log' && a === 'decoded' && segments.length === 2) return await logDecodedRoute()
       if (head === 'settlements' && segments.length === 1) {
         return await settlementsRoute(searchParams.get('owed_to'))
       }
