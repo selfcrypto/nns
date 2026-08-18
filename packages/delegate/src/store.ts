@@ -20,7 +20,7 @@
 
 import { stat, readFile } from 'node:fs/promises'
 
-import { readLabelFile, LabelFileError, type LabelFile } from './labels.js'
+import { countLabels, readLabelFile, LabelFileError, type LabelFile } from './labels.js'
 import type { Logger } from './logger.js'
 
 /** What the routes read. An interface so they can be tested without a file. */
@@ -122,8 +122,8 @@ export class LabelStore implements LabelSource {
       this.#loadedAt = this.#now()
       this.#options.logger.info('delegate.labels.loaded', {
         path: this.#options.path,
-        name: file.name,
-        labels: file.labels.size,
+        names: [...file.names.keys()].join(','),
+        labels: countLabels(file),
       })
       return true
     } catch (error) {
@@ -145,7 +145,7 @@ export class LabelStore implements LabelSource {
       key: error instanceof LabelFileError ? error.key : null,
       error: error instanceof Error ? error.message : String(error),
       serving: 'previous',
-      labels: this.#file.labels.size,
+      labels: countLabels(this.#file),
     })
   }
 }

@@ -18,17 +18,17 @@ export interface DelegateSettings {
   /** Path to the labels file. */
   readonly labelsPath: string
   /**
-   * The name this host is expected to answer for, when the operator states it.
-   * Cross-checked against the file's own `name` at boot and **used for nothing
-   * else** — §8.6's URL carries no parent, so no request can be checked
-   * against it.
+   * The names this host is expected to answer for, when the operator states
+   * them — comma-separated. Cross-checked against the file's own `names` at
+   * boot and **used for nothing else**: the file is the gate, and this only
+   * catches a misdeployed file before it answers with another owner's
+   * addresses. Listing a subset is fine; the check is presence, not equality,
+   * so a host serving customers need not restate its whole roster in `.env`.
    */
-  readonly name: string | null
+  readonly names: readonly string[]
   /** TCP bind. Loopback by default; containers set 0.0.0.0 explicitly. */
   readonly host: string
   readonly port: number
-  /** `''`, or a prefix with a leading and no trailing slash. */
-  readonly basePath: string
   readonly defaultTtl: number
   readonly reloadSec: number
   readonly logLevel: LogLevel
@@ -59,25 +59,18 @@ function integer(env: EnvSource, key: string, fallback: number, min: number, max
   return value
 }
 
-/**
- * A `D` host may carry a short path (`nns.binance.com/binance`), which is how
- * one host answers for two names — §8.6's URL has no parent field, so two
- * names pointing at one bare host share one namespace. The prefix is validated
- * against the same character set §6 `D` allows, so a path this server can be
- * mounted at is always a path a `D` can name.
- */
-function basePath(env: EnvSource): string {
-  const raw = read(env, 'NNS_DELEGATE_BASE_PATH')
-  if (raw === undefined) return ''
-  const parts = raw.split('/').filter((part) => part !== '')
-  for (const part of parts) {
-    if (!/^[a-z0-9][a-z0-9-]*$/.test(part)) {
-      throw new EnvError(
-        `NNS_DELEGATE_BASE_PATH segments must be lowercase a-z, 0-9 and -, not starting with -, got ${JSON.stringify(raw)}`,
-      )
-    }
+/** `NNS_DELEGATE_NAME`, comma-separated. Empty when the operator states none. */
+function nameList(env: EnvSource): readonly string[] {
+  const raw = read(env, 'NNS_DELEGATE_NAME')
+  if (raw === undefined) return []
+  const names = raw
+    .split(',')
+    .map((name) => name.trim())
+    .filter((name) => name !== '')
+  if (names.length === 0) {
+    throw new EnvError('NNS_DELEGATE_NAME must list at least one name when set, or be left unset')
   }
-  return parts.length === 0 ? '' : `/${parts.join('/')}`
+  return names
 }
 
 export function loadSettings(env: EnvSource = process.env): DelegateSettings {
@@ -88,10 +81,9 @@ export function loadSettings(env: EnvSource = process.env): DelegateSettings {
 
   return Object.freeze({
     labelsPath: required(env, 'NNS_DELEGATE_LABELS'),
-    name: read(env, 'NNS_DELEGATE_NAME') ?? null,
+    names: nameList(env),
     host: read(env, 'NNS_DELEGATE_HOST') ?? '127.0.0.1',
     port: integer(env, 'NNS_DELEGATE_PORT', 8636, 1, 65_535),
-    basePath: basePath(env),
     defaultTtl: integer(env, 'NNS_DELEGATE_DEFAULT_TTL', DEFAULT_TTL_SEC, 1, MAX_TTL_SEC),
     reloadSec: integer(env, 'NNS_DELEGATE_RELOAD_SEC', 5, 1, 3_600),
     logLevel: level,

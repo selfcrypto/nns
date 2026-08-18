@@ -11,7 +11,7 @@ subdomain, and knows nothing about them.
 ```bash
 cp .env.example .env          # NNS_DELEGATE_LABELS=./labels.json
 pnpm --filter @nns/delegate dev
-curl localhost:8636/delegated/v1/binance/shop
+curl localhost:8636/delegated/binance/shop
 # {"address":"NQ12 3456 …","ttl":300}
 ```
 
@@ -45,23 +45,25 @@ that requires them.
 ## The request tells you which name asked
 
 ```
-GET https://<host>/delegated/v1/<parent>/<label>
+GET https://<host>/delegated/<parent>/<label>
 ```
 
 The parent is in the path, so two names delegating to the same host have
 **separate** namespaces: `shop.binance` and `shop.nq` are different questions
 and you may answer them differently.
 
-- **The `name` in your labels file is a gate.** This server answers only for
-  the name that file declares, and refuses any other parent with the same
-  `404 NO_ANSWER` it gives an unheld label — never a distinguishable error,
-  because a client must not be able to learn which names you serve. Serving two
-  names means two files and two processes (or two `NNS_DELEGATE_BASE_PATH`
-  routes); a stale `name` means nothing resolves, which is the failure you
-  want.
+- **One file serves every name you own.** The labels file is `name → label →
+  address`, so a single process answers for every name whose `D` points here.
+  That is what the parent in the request is for; you do not need a container,
+  a port or a proxy route per name.
+- **The `names` in your file are the gate.** A request naming a name the file
+  does not carry gets the same `404 NO_ANSWER` as an unheld label — never a
+  distinguishable error, because a client must not be able to learn which
+  names you serve. `/healthz` reports counts for the same reason.
 - **A short `D` path is for mounting, not for separation.** Point one process
   at `nns.example.com/binance` and another at `nns.example.com/nq` if it suits
-  your deployment — but the namespaces are separate whether or not you do.
+  your deployment — but the namespaces are separate whether or not you do, and
+  a bare host leaves more of `MAX_HOST_LEN`'s 30 characters for the name.
 
 `@nns/resolver` keys its answer cache on host, parent and label — the same
 triple the request carries.
@@ -77,25 +79,32 @@ upgrade, which is deliberate.
 
 ```json
 {
-  "version": 1,
-  "name": "binance",
   "defaultTtl": 300,
-  "labels": {
-    "shop": "NQ12 3456 789A BCDE FGHJ KLMN PQRS TUVX YZ01",
-    "pay": { "address": "NQ98 7654 321Z YXVU TSRQ PNML KJHG FEDC BA98", "ttl": 60 }
+  "names": {
+    "binance": {
+      "shop": "NQ12 3456 789A BCDE FGHJ KLMN PQRS TUVX YZ01",
+      "pay": { "address": "NQ98 7654 321Z YXVU TSRQ PNML KJHG FEDC BA98", "ttl": 60 }
+    },
+    "kraken": {
+      "shop": "NQ12 3456 789A BCDE FGHJ KLMN PQRS TUVX YZ01"
+    }
   }
 }
 ```
 
-A bare string is the address. The object form is for a label that wants a `ttl`
-of its own; everything else takes `defaultTtl`. Labels are lowercase `a-z`,
-`0-9` and `-`, up to 24 characters — the same rule the client applies before it
-ever builds a request, checked here with the same code.
+One entry per name you own, and a bare string is the address. The object form
+is for a label that wants a `ttl` of its own; everything else takes
+`defaultTtl`. Names and labels are both lowercase `a-z`, `0-9` and `-` — labels
+up to 24 characters, the same rule the client applies before it ever builds a
+request, checked here with the same code.
+
+There is no `version` field: this is a draft protocol with nothing deployed to
+stay compatible with.
 
 **A bad entry rejects the whole file, and the error names the key:**
 
 ```
-{"level":"error","msg":"delegate.labels.rejected","key":"labels.pay",
+{"level":"error","msg":"delegate.labels.rejected","key":"names.binance.pay",
  "error":"labels.pay: not a Nimiq address: …","serving":"previous"}
 ```
 
@@ -113,13 +122,13 @@ startup** is fatal instead, because there is nothing good to fall back to.
 
 | | |
 |---|---|
-| `GET /delegated/v1/{parent}/{label}` | `200 {"address":"NQ…","ttl":N}` — the answer |
+| `GET /delegated/{parent}/{label}` | `200 {"address":"NQ…","ttl":N}` — the answer |
 | | `404 {"error":"NO_ANSWER"}` — no such label here, **or not a parent this file answers for** |
 | | `400 {"error":"BAD_LABEL"}` — not a valid label |
 | | `400 {"error":"BAD_PARENT"}` — not a valid §4.1 name |
-| `GET /healthz` | `{"ok":true,"name":…,"labels":N,"loadedAt":…}` |
+| `GET /healthz` | `{"ok":true,"names":N,"labels":N,"loadedAt":…}` — counts, never the names |
 
-Both sit under `NNS_DELEGATE_BASE_PATH` when one is set. Every response carries
+Both answer under whatever path the server is mounted at. Every response carries
 `access-control-allow-origin: *` — clients are browser mini apps, and a
 delegate without CORS fails in a browser while passing every test you run with
 curl. Answers carry `cache-control: public, max-age=<ttl>`; everything else is
@@ -133,16 +142,44 @@ actually knows.
 
 There is no bulk listing endpoint, deliberately. Nothing in the client uses one,
 and it would turn "the owner serves what it likes" into an enumeration surface.
+`/healthz` is held to the same rule: it reports how many names and labels are
+loaded and never which, because it answers on the same public host as the
+lookups do.
+
+## Subdomain, path, or both — and nothing to configure
+
+The server never reads the `Host` header, and it is never told what path it is
+mounted at. It finds the fixed `delegated` segment and ignores everything
+before it, so all of these are one request:
+
+```
+/delegated/alice/shop
+/alice/delegated/alice/shop
+/some/deep/mount/delegated/alice/shop
+```
+
+Publish it on a subdomain, under a path, or both at once — it answers either
+way with no setting to match. A §6 `D` host may carry a short path
+(`nns.example.com/alice`), and because the client builds the URL from the
+recorded host, that prefix arrives here where no proxy could strip it.
+
+**A path says where the delegate listens. It never says which name is being
+asked about** — names come from your labels file and from the parent segment
+in the request, and §6 `D` agrees: the short path mounts several *processes*
+and "is not what separates two names sharing a host". So adding a customer is
+an edit to the JSON and nothing else.
+
+The prefix is not an access boundary and never was. Routing between two
+containers happens at your proxy, which is the layer that can enforce it.
 
 ## Configuration
 
 | Variable | Default | |
 |---|---|---|
 | `NNS_DELEGATE_LABELS` | *required* | Path to the labels file |
-| `NNS_DELEGATE_NAME` | — | Cross-checked against the file's `name` at boot |
+| `NNS_DELEGATE_NAME` | — | Comma-separated; each must be present in the file at boot |
 | `NNS_DELEGATE_HOST` | `127.0.0.1` | Bind address; containers set `0.0.0.0` |
 | `NNS_DELEGATE_PORT` | `8636` | |
-| `NNS_DELEGATE_BASE_PATH` | *(none)* | Prefix, for one host serving several names |
 | `NNS_DELEGATE_DEFAULT_TTL` | `300` | Used when the file states none |
 | `NNS_DELEGATE_RELOAD_SEC` | `5` | File poll interval |
 | `NNS_LOG_LEVEL` | `info` | |
@@ -160,7 +197,7 @@ would never send or serve an address the client would reject.
 3. Send the `D`: `packages/admin`, or any wallet, with data
    `NNS1D<name>|<host>`. Name and host together must be ≤ 52 characters, and
    the host is bare — no scheme, lowercase, `a-z 0-9 . - /`.
-4. Check it: `curl https://<host>/delegated/v1/<name>/<label>`, then resolve
+4. Check it: `curl https://<host>/delegated/<name>/<label>`, then resolve
    `<label>.<name>` through a client.
 
 An empty host in a later `D` clears the delegation and turns subdomain

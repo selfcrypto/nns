@@ -34,10 +34,9 @@ services:
       NNS_DELEGATE_LABELS: /labels/labels.json
       NNS_DELEGATE_HOST: 0.0.0.0
       NNS_DELEGATE_PORT: 8636
-      # Blank is absent for all four: the service trims and treats empty as
+      # Blank is absent for all three: the service trims and treats empty as
       # unset, so an unfilled line in `.env` is the default, never a value.
       NNS_DELEGATE_NAME: ${NNS_DELEGATE_NAME:-}
-      NNS_DELEGATE_BASE_PATH: ${NNS_DELEGATE_BASE_PATH:-}
       NNS_DELEGATE_DEFAULT_TTL: ${NNS_DELEGATE_DEFAULT_TTL:-300}
       NNS_DELEGATE_RELOAD_SEC: ${NNS_DELEGATE_RELOAD_SEC:-5}
       NNS_LOG_LEVEL: ${NNS_LOG_LEVEL:-info}
@@ -56,13 +55,12 @@ services:
       # NNS_DELEGATE_PUBLISH=0.0.0.0:8636 only if something else fronts it.
       - '${NNS_DELEGATE_PUBLISH:-127.0.0.1:8636}:8636'
     healthcheck:
-      # `/healthz` sits under the base path when one is set, so the probe has
-      # to carry it too — a check that ignores the prefix cannot say which of
-      # two delegates behind one proxy answered. Compose substitutes this from
-      # `.env` when the file is read, before the container ever sees it.
+      # No prefix to carry: the server answers `/healthz` under whatever path
+      # it is mounted at, and is never told what that is. The probe reaches it
+      # inside the container, where there is no proxy in front anyway.
       test:
         - CMD-SHELL
-        - wget -q -O /dev/null "http://127.0.0.1:8636${NNS_DELEGATE_BASE_PATH:-}/healthz"
+        - wget -q -O /dev/null "http://127.0.0.1:8636/healthz"
       interval: 30s
       timeout: 5s
       retries: 3

@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 24**
+**Protocol specification, v1 draft — revision 25**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -18,6 +18,39 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > folded into that day's revision, however many separate changes it covers, so
 > a revision number stays something an implementation can claim to implement
 > rather than a changelog id.
+
+> **Changes in revision 25 — the delegate endpoint loses its `v1` segment.**
+> §8.6 only, and §6 `D`'s note on the short path. **Entirely off-chain and
+> outside consensus**: no constant changes value, no reducer rule moves,
+> nothing enters the §8.1 preimage or the §8.2 log hash, every r24 root is
+> unchanged and an r24 database resumes. What changes is one URL:
+>
+>     r24:  GET https://<host>/delegated/v1/<parent>/<label>
+>     r25:  GET https://<host>/delegated/<parent>/<label>
+>
+> The `v1` was there so a later shape could be a new route rather than a
+> guess about what the box on the other end speaks — a real argument for a
+> third party's long-lived deployment, and the reason the segment survived
+> r23's rewrite of the path. It does not apply yet. Nothing is deployed that
+> a version marker would protect, v1 of the protocol is still a draft, and a
+> compatibility affordance carried through a development phase is one carried
+> forever. **The question is deliberately reopened at the launch freeze**
+> (`tasks/08-launch-freeze.md`): the day a delegate is a third party's
+> long-lived deployment is the day the argument for versioning the endpoint
+> becomes the argument it was written to be.
+>
+> **As with r23, there is no fallback in either direction.** A client MUST
+> NOT retry the versioned path on a 404, and a delegate MUST NOT serve both:
+> two live shapes is the shared-namespace failure of r22 in a new costume,
+> and a downgrade on error is a downgrade anyone able to force an error can
+> take. An un-migrated delegate stops answering, loudly, which is a diagnosis
+> rather than a wrong payment address.
+>
+> **The reference host now serves many names from one file**, which is what
+> r23's parent segment was for and what §6 `D`'s short path is explicitly not
+> for. That is an implementation change, not a protocol one — §8.6 has
+> permitted it since r23 — but the note under §6 `D` is sharpened so the
+> short path is not read as the mechanism for two names sharing a host.
 
 > **Changes in revision 24 — §10.2's burn base is defined over the log, and
 > the balance sentence is demoted to the approximation it always was.** §10.2
@@ -1619,12 +1652,14 @@ NNS1D<name>|<host>
   MUST NOT exceed **52** characters. `D` is the largest message in the
   protocol; the limit is 58 rather than 64 so it keeps the same margin as
   everything else (§5.1)
-- **What the short path is for.** Mounting several delegates on one machine —
-  one process or one proxy route per path. It is **not** what separates two
-  names sharing a host: since r23 the §8.6 request carries the parent, so the
-  namespaces are separate whether or not a path is used. Through r22 the path
-  was the only remedy for that, and `MAX_HOST_LEN` bounding host and path
-  together is why it was never sufficient
+- **What the short path is for.** Mounting several delegate **processes** on
+  one machine — one proxy route per process. It is **not** what separates two
+  names sharing a host, and it is not needed to serve several names: since r23
+  the §8.6 request carries the parent, so one process can hold every name
+  pointing at it and the namespaces are separate whether or not a path is
+  used. Through r22 the path was the only remedy, and `MAX_HOST_LEN` bounding
+  host and path together is why it was never sufficient — a bare host is the
+  normal case, and a path costs budget a longer name may need
 - **To:** `PROTOCOL_ADDRESS`, value `DUST_VALUE`
 - Sender must be the current owner
 
@@ -2921,7 +2956,7 @@ For a dotted query `label.parent`:
 
 1. Resolve `parent` normally, with proof. If it is not `REGISTERED` or has no
    delegate host, the query fails.
-2. `GET https://<host>/delegated/v1/<parent>/<label>`
+2. `GET https://<host>/delegated/<parent>/<label>`
 3. Expected response: `{"address": "NQ...", "ttl": <seconds>}`
 4. Validate that the address is well-formed. Cache for `ttl`, capped at one
    hour by the client.
@@ -2952,6 +2987,12 @@ that would keep the shared-namespace shape reachable indefinitely and offer a
 downgrade to anyone able to force an error. An un-migrated delegate therefore
 stops answering entirely, which is the intended failure — loud, and never a
 wrong address.
+
+**r25 removed the `v1` segment**, and the same rule governs it: one shape,
+tried once, no fallback in either direction and no delegate serving both. The
+reasoning is in the revision note; the short version is that nothing is
+deployed yet that a version marker would protect, and the question is reopened
+at the launch freeze rather than settled forever.
 
 **Optional signed responses.** A delegate MAY return
 `{"address": "NQ...", "ttl": <seconds>, "timestamp": <unix>, "sig": "<base64url>"}`

@@ -21,7 +21,7 @@
  *
  * The request carries **the parent and the label** (r23):
  *
- *     GET https://<host>/delegated/v1/<parent>/<label>
+ *     GET https://<host>/delegated/<parent>/<label>
  *
  * Through r22 it carried only the label, which made two names delegating to
  * one bare host a single shared namespace — `shop.a` and `shop.b` were the
@@ -119,12 +119,13 @@ export class DelegateCache {
  * the right rule rather than `validateName` — a parent may be a short name a
  * fired `U` released, which rule 6 would still reject.
  *
- * **No fallback to the r22 label-only path.** A client that retried
+ * **No fallback to any earlier path.** A client that retried the r22
  * `/nns/v1/resolve/<label>` on a 404 would keep the shape that made two names
  * on one host share a namespace reachable forever, and hand anyone able to
- * force a 404 a downgrade to it. An un-migrated delegate fails loudly instead:
- * every label under it stops resolving at once, which is a diagnosis rather
- * than a wrong address.
+ * force a 404 a downgrade to it. The same holds for r24's
+ * `/delegated/v1/<parent>/<label>`, whose `v1` r25 removed: one shape, tried
+ * once. An un-migrated delegate fails loudly instead — every label under it
+ * stops resolving at once, which is a diagnosis rather than a wrong address.
  */
 export async function askDelegate(
   fetchImpl: HttpFetch,
@@ -149,7 +150,7 @@ export async function askDelegate(
   const cached = cache.get(host, parent, label)
   if (cached !== null) return { response: cached, ttl: cached.ttl }
 
-  const url = `https://${host}/delegated/v1/${encodeURIComponent(parent)}/${encodeURIComponent(label)}`
+  const url = `https://${host}/delegated/${encodeURIComponent(parent)}/${encodeURIComponent(label)}`
   const fetched = await getJson(fetchImpl, url, timeoutMs)
   if (!fetched.ok) {
     throw new DelegateError('DELEGATE_FAILED', `delegate ${host} did not answer: ${fetched.reason}`)

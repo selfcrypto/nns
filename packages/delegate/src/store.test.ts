@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { addressFromBytes, formatAddress } from '@nns/core'
 
-import { LabelFileError } from './labels.js'
+import { LabelFileError, type NameLabels } from './labels.js'
 import { createLogger, type LogLevel } from './logger.js'
 import { LabelStore } from './store.js'
 
@@ -37,11 +37,12 @@ const write = async (content: unknown, mtime: number): Promise<void> => {
 }
 
 const file = (labels: Record<string, unknown>): Record<string, unknown> => ({
-  version: 1,
-  name: 'binance',
   defaultTtl: 300,
-  labels,
+  names: { binance: labels },
 })
+
+/** The store holds the whole file; these tests only ever exercise one name. */
+const labelsOf = (store: LabelStore): NameLabels => store.current().names.get('binance') ?? new Map()
 
 const open = async (): Promise<LabelStore> =>
   await LabelStore.open({ path, fallbackTtl: 300, reloadSec: 60, logger: logger() })
@@ -59,7 +60,7 @@ describe('boot', () => {
   it('serves the file it read', async () => {
     await write(file({ shop: addr(1) }), 1_000_000)
     const store = await open()
-    expect(store.current().labels.get('shop')?.address).toBe(addressFromBytes(new Uint8Array(20).fill(1)))
+    expect(labelsOf(store).get('shop')?.address).toBe(addressFromBytes(new Uint8Array(20).fill(1)))
   })
 
   it('is fatal on an invalid file, and names the key', async () => {
@@ -68,7 +69,7 @@ describe('boot', () => {
     // that is merely empty.
     await write(file({ shop: 'NQ99 nope' }), 1_000_000)
     await expect(open()).rejects.toThrow(LabelFileError)
-    await expect(open()).rejects.toThrow(/labels\.shop/)
+    await expect(open()).rejects.toThrow(/names\.binance\.shop/)
   })
 
   it('is fatal when the file is missing', async () => {
@@ -83,7 +84,7 @@ describe('reload', () => {
 
     await write(file({ shop: addr(1), pay: addr(2) }), 2_000_000)
     expect(await store.poll()).toBe(true)
-    expect(store.current().labels.get('pay')?.address).toBe(addressFromBytes(new Uint8Array(20).fill(2)))
+    expect(labelsOf(store).get('pay')?.address).toBe(addressFromBytes(new Uint8Array(20).fill(2)))
     expect(lines.at(-1)).toMatchObject({ msg: 'delegate.labels.loaded', labels: 2 })
   })
 
@@ -102,11 +103,11 @@ describe('reload', () => {
     expect(await store.poll()).toBe(false)
 
     // An owner's typo must not take their subdomains down.
-    expect(store.current().labels.size).toBe(2)
-    expect(store.current().labels.get('pay')?.address).toBe(addressFromBytes(new Uint8Array(20).fill(2)))
+    expect(labelsOf(store).size).toBe(2)
+    expect(labelsOf(store).get('pay')?.address).toBe(addressFromBytes(new Uint8Array(20).fill(2)))
 
     const failure = lines.at(-1)
-    expect(failure).toMatchObject({ level: 'error', msg: 'delegate.labels.rejected', key: 'labels.pay' })
+    expect(failure).toMatchObject({ level: 'error', msg: 'delegate.labels.rejected', key: 'names.binance.pay' })
     expect(failure?.error).toContain('not a Nimiq address')
   })
 
@@ -119,7 +120,7 @@ describe('reload', () => {
 
     await write(file({ shop: addr(3) }), 3_000_000)
     expect(await store.poll()).toBe(true)
-    expect(store.current().labels.get('shop')?.address).toBe(addressFromBytes(new Uint8Array(20).fill(3)))
+    expect(labelsOf(store).get('shop')?.address).toBe(addressFromBytes(new Uint8Array(20).fill(3)))
   })
 
   it('survives the file disappearing', async () => {
@@ -127,7 +128,7 @@ describe('reload', () => {
     const store = await open()
     await rm(path)
     expect(await store.poll()).toBe(false)
-    expect(store.current().labels.size).toBe(1)
+    expect(labelsOf(store).size).toBe(1)
     expect(lines.at(-1)).toMatchObject({ level: 'error', msg: 'delegate.labels.rejected' })
   })
 
@@ -138,7 +139,7 @@ describe('reload', () => {
     await write(file({ shop: addr(4) }), 1_000_000)
     expect(await store.poll()).toBe(false)
     expect(await store.reload()).toBe(true)
-    expect(store.current().labels.get('shop')?.address).toBe(addressFromBytes(new Uint8Array(20).fill(4)))
+    expect(labelsOf(store).get('shop')?.address).toBe(addressFromBytes(new Uint8Array(20).fill(4)))
   })
 
   it('advances loadedAt only when the file actually changed', async () => {

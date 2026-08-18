@@ -12,7 +12,7 @@
  */
 
 import { EnvError, loadSettings, type DelegateSettings } from './env.js'
-import { LabelFileError } from './labels.js'
+import { countLabels, LabelFileError } from './labels.js'
 import { createLogger } from './logger.js'
 import { createRoutes } from './routes.js'
 import { createServer } from './server.js'
@@ -53,24 +53,28 @@ async function main(): Promise<void> {
   }
 
   const file = store.current()
-  if (settings.name !== null && settings.name !== file.name) {
+  // Presence, not equality: a host serving customers should not have to
+  // restate its whole roster in `.env`. What this catches is the file that
+  // belongs to a different deployment, before it answers with another owner's
+  // addresses.
+  const missing = settings.names.filter((name) => !file.names.has(name))
+  if (missing.length > 0) {
     process.stderr.write(
-      `labels: NNS_DELEGATE_NAME is ${settings.name} but ${settings.labelsPath} answers for ${file.name}\n`,
+      `labels: NNS_DELEGATE_NAME lists ${missing.join(', ')}, which ${settings.labelsPath} does not answer for\n`,
     )
     process.exitCode = 2
     return
   }
 
   store.start()
-  const server = createServer(createRoutes(store, { basePath: settings.basePath }), logger)
+  const server = createServer(createRoutes(store), logger)
 
   server.listen(settings.port, settings.host, () => {
     logger.info('delegate.start', {
       host: settings.host,
       port: settings.port,
-      basePath: settings.basePath,
-      name: file.name,
-      labels: file.labels.size,
+      names: [...file.names.keys()].join(','),
+      labels: countLabels(file),
       path: settings.labelsPath,
     })
   })

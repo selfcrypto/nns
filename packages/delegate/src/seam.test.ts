@@ -14,7 +14,7 @@
  *
  * What that rewrite does *not* cover is URL construction from a host recorded
  * on chain — `D` lands, the indexer stores the host, the client builds
- * `https://<host>/delegated/v1/<parent>/<label>` and fetches it. That step still has
+ * `https://<host>/delegated/<parent>/<label>` and fetches it. That step still has
  * never run end to end; `tasks/10-delegate.md` and the battery runbook say so
  * plainly rather than treating this file as the coverage.
  */
@@ -38,14 +38,17 @@ const expected = (fill: number): string => addressFromBytes(new Uint8Array(20).f
 /** The host a `D` would name. Only the origin is rewritten; the path is the client's. */
 const HOST = 'nns.example.com'
 
-/** The parent the request carries since r23, and the name `FILE` declares. */
+/** The parent the request carries since r23, and one of the names `FILE` serves. */
 const PARENT = 'binance'
+/** A second name on the same host — the arrangement r25 made the normal one. */
+const OTHER = 'kraken'
 
 const FILE: LabelFile = parseLabelFile({
-  version: 1,
-  name: 'binance',
   defaultTtl: 300,
-  labels: { shop: addr(1), pay: { address: addr(2), ttl: 60 }, forever: { address: addr(3), ttl: 86_400 } },
+  names: {
+    binance: { shop: addr(1), pay: { address: addr(2), ttl: 60 }, forever: { address: addr(3), ttl: 86_400 } },
+    kraken: { shop: addr(4) },
+  },
 })
 
 const source: LabelSource = { current: () => FILE, loadedAt: () => 0 }
@@ -95,7 +98,7 @@ describe('the reference client against the reference host', () => {
   it('resolves a label, at the URL §8.6 fixes', async () => {
     asked.length = 0
     const result = await ask(await delegate(), 'shop')
-    expect(asked).toEqual([`https://${HOST}/delegated/v1/${PARENT}/shop`])
+    expect(asked).toEqual([`https://${HOST}/delegated/${PARENT}/shop`])
     expect(result.response.address).toBe(expected(1))
     expect(result.ttl).toBe(300)
   })
@@ -113,10 +116,13 @@ describe('the reference client against the reference host', () => {
   })
 
   it('reaches a host mounted under a path, as a §6 D host may name', async () => {
+    // Nothing is configured on the server side: the prefix comes from the `D`
+    // host, arrives in the URL the client builds, and is ignored as the
+    // location it is.
     asked.length = 0
-    const fetchImpl = await delegate({ basePath: '/binance' })
+    const fetchImpl = await delegate()
     const result = await ask(fetchImpl, 'shop', `${HOST}/binance`)
-    expect(asked).toEqual([`https://${HOST}/binance/delegated/v1/${PARENT}/shop`])
+    expect(asked).toEqual([`https://${HOST}/binance/delegated/${PARENT}/shop`])
     expect(result.response.address).toBe(expected(1))
   })
 
@@ -127,6 +133,39 @@ describe('the reference client against the reference host', () => {
     await askDelegate(fetchImpl, cache, HOST, PARENT, 'shop', 5_000)
     await askDelegate(fetchImpl, cache, HOST, PARENT, 'shop', 5_000)
     expect(asked).toHaveLength(1)
+  })
+})
+
+describe('two names, one host — the arrangement r23 enabled and r25 made ordinary', () => {
+  it('serves each name its own address from a single process', async () => {
+    const fetchImpl = await delegate()
+    expect((await ask(fetchImpl, 'shop', HOST, PARENT)).response.address).toBe(expected(1))
+    expect((await ask(fetchImpl, 'shop', HOST, OTHER)).response.address).toBe(expected(4))
+  })
+
+  it('keeps the client cache separate per parent, so one answer never serves the other', async () => {
+    // The r22 defect end to end: one bare host, two names, `shop` meaning two
+    // different payment addresses. Through r22 the second lookup returned the
+    // first's answer — from the request shape *and* from a cache keyed on
+    // host and label alone.
+    const fetchImpl = await delegate()
+    const cache = new DelegateCache()
+    const first = await askDelegate(fetchImpl, cache, HOST, PARENT, 'shop', 5_000)
+    const second = await askDelegate(fetchImpl, cache, HOST, OTHER, 'shop', 5_000)
+    expect(first.response.address).toBe(expected(1))
+    expect(second.response.address).toBe(expected(4))
+  })
+
+  it('reports a label held by the other name as the one failure code', async () => {
+    // `pay` exists on this host, under `binance`. Asked under `kraken` it must
+    // be indistinguishable from a host that is simply down.
+    const fetchImpl = await delegate()
+    expect((await failure(fetchImpl, 'pay', HOST, OTHER)).code).toBe('DELEGATE_FAILED')
+  })
+
+  it('reports a name the host does not serve at all as the same code', async () => {
+    const fetchImpl = await delegate()
+    expect((await failure(fetchImpl, 'shop', HOST, 'coinbase')).code).toBe('DELEGATE_FAILED')
   })
 })
 

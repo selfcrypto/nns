@@ -6,16 +6,26 @@
  * authority for everything below the dot, and a JSON file is what an owner
  * actually edits.
  *
+ * **One file serves many names.** §8.6's request carries the parent, so a
+ * single process can answer for every name pointing at this host — which is
+ * what r23 put the parent in the request for, and what §6 `D` means when it
+ * says the short path "is **not** what separates two names sharing a host".
+ * The file is therefore `name → label → address`, and the alternative — one
+ * process, one port and one proxy route per name — is what that shape exists
+ * to avoid.
+ *
  * **A bad entry rejects the whole file, and the error names the key.** Both
  * halves matter. Skipping the bad entry and serving the rest would take one
  * subdomain out of service with no error anywhere the owner looks — the exact
  * silent failure this project keeps finding. Rejecting without naming the key
  * hands an owner with a hundred labels a file and a shrug.
  *
- * Label syntax is `core`'s `validateLabel` (§4.4) and addresses are `core`'s
- * `parseAddress`, not local regexes. A delegate that accepted a label the
- * client will never send, or served an address the client rejects as
- * malformed, is a divergence bought for nothing.
+ * Name syntax is `core`'s `validateNameSyntax` (§4.1 rules 1–5), label syntax
+ * is `validateLabel` (§4.4) and addresses are `parseAddress`, not local
+ * regexes. A delegate that accepted a label the client will never send, or
+ * served an address the client rejects as malformed, is a divergence bought
+ * for nothing. `validateNameSyntax` rather than `validateName`: a parent may
+ * be a short name a fired `U` released, which rule 6 still rejects.
  */
 
 import { parseAddress, validateLabel, validateNameSyntax, type Address } from '@nns/core'
@@ -26,21 +36,18 @@ export interface LabelAnswer {
   readonly ttl: number
 }
 
+/** One name's labels. */
+export type NameLabels = ReadonlyMap<string, LabelAnswer>
+
 export interface LabelFile {
-  /**
-   * The name this file answers for, and **the gate** it is checked against
-   * (r23). §8.6's URL carries the parent, so a request naming a different one
-   * is answered `NO_ANSWER` — never a distinguishable error, which would leak
-   * which names a host serves.
-   *
-   * Through r22 this was documentation that could never be a gate, because the
-   * request carried only the label and there was nothing to compare it to.
-   * That is the defect r23 closed: a stale `name` here used to be harmless and
-   * is now load-bearing.
-   */
-  readonly name: string
   readonly defaultTtl: number
-  readonly labels: ReadonlyMap<string, LabelAnswer>
+  /**
+   * The names this host answers for, and **the gate** each request is checked
+   * against (r23). A request naming a name absent here is answered
+   * `NO_ANSWER` — never a distinguishable error, which would leak which names
+   * a host serves.
+   */
+  readonly names: ReadonlyMap<string, NameLabels>
 }
 
 /**
@@ -56,7 +63,7 @@ export const DEFAULT_TTL_SEC = 300
 /** A file that cannot be served, with the key that made it so. */
 export class LabelFileError extends Error {
   override readonly name = 'LabelFileError'
-  /** `labels.shop`, `defaultTtl`, … — or `null` when the fault is the file itself. */
+  /** `names.binance.shop`, `defaultTtl`, … — or `null` when the fault is the file itself. */
   readonly key: string | null
 
   constructor(key: string | null, detail: string) {
@@ -65,7 +72,18 @@ export class LabelFileError extends Error {
   }
 }
 
-const TOP_LEVEL = new Set(['version', 'name', 'defaultTtl', 'labels'])
+/**
+ * Top-level keys are a closed set, and that is what lets `names` stay as a
+ * wrapper rather than hoisting names to the top level. Hoisted, every
+ * unrecognised key would silently *become a name*: a `defaulttl` typo would
+ * parse as a name nobody ever queries, with no error anywhere the owner looks.
+ * The one extra word buys the error.
+ *
+ * `defaultTtl` cannot collide with a name or a label for a reason worth
+ * stating: both are `a-z`, `0-9`, `-` only (§4.1 rule 2, §4.4), so any key
+ * carrying an uppercase letter is unreachable as either.
+ */
+const TOP_LEVEL = new Set(['defaultTtl', 'names'])
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -110,6 +128,20 @@ function readAnswer(value: unknown, key: string, defaultTtl: number): LabelAnswe
   return { address, ttl }
 }
 
+function readNameLabels(raw: unknown, nameKey: string, defaultTtl: number): NameLabels {
+  if (!isObject(raw)) {
+    throw new LabelFileError(nameKey, `must be an object of label → address, got ${JSON.stringify(raw)}`)
+  }
+  const labels = new Map<string, LabelAnswer>()
+  for (const [label, value] of Object.entries(raw)) {
+    const key = `${nameKey}.${label}`
+    const check = validateLabel(label)
+    if (!check.ok) throw new LabelFileError(key, `not a valid §4.4 label: ${check.reason}`)
+    labels.set(label, readAnswer(value, key, defaultTtl))
+  }
+  return labels
+}
+
 /**
  * Validate a parsed JSON document into a servable {@link LabelFile}.
  *
@@ -121,39 +153,26 @@ export function parseLabelFile(raw: unknown, fallbackTtl: number = DEFAULT_TTL_S
 
   for (const key of Object.keys(raw)) {
     if (!TOP_LEVEL.has(key)) {
-      throw new LabelFileError(key, 'unknown top-level key — expected version, name, defaultTtl, labels')
+      throw new LabelFileError(key, 'unknown top-level key — expected defaultTtl, names')
     }
-  }
-
-  if (raw['version'] !== 1) {
-    throw new LabelFileError('version', `must be 1, got ${JSON.stringify(raw['version'])}`)
-  }
-
-  const name = raw['name']
-  if (typeof name !== 'string') {
-    throw new LabelFileError('name', `must be the name this file answers for, got ${JSON.stringify(name)}`)
-  }
-  const nameCheck = validateNameSyntax(name)
-  if (!nameCheck.ok) {
-    throw new LabelFileError('name', `not a valid §4.1 name: ${nameCheck.reason}`)
   }
 
   const defaultTtl = raw['defaultTtl'] === undefined ? fallbackTtl : readTtl(raw['defaultTtl'], 'defaultTtl')
 
-  const labelsRaw = raw['labels']
-  if (!isObject(labelsRaw)) {
-    throw new LabelFileError('labels', 'must be an object of label → address')
+  const namesRaw = raw['names']
+  if (!isObject(namesRaw)) {
+    throw new LabelFileError('names', 'must be an object of name → labels')
   }
 
-  const labels = new Map<string, LabelAnswer>()
-  for (const [label, value] of Object.entries(labelsRaw)) {
-    const key = `labels.${label}`
-    const check = validateLabel(label)
-    if (!check.ok) throw new LabelFileError(key, `not a valid §4.4 label: ${check.reason}`)
-    labels.set(label, readAnswer(value, key, defaultTtl))
+  const names = new Map<string, NameLabels>()
+  for (const [name, labelsRaw] of Object.entries(namesRaw)) {
+    const nameKey = `names.${name}`
+    const check = validateNameSyntax(name)
+    if (!check.ok) throw new LabelFileError(nameKey, `not a valid §4.1 name: ${check.reason}`)
+    names.set(name, readNameLabels(labelsRaw, nameKey, defaultTtl))
   }
 
-  return Object.freeze({ name, defaultTtl, labels })
+  return Object.freeze({ defaultTtl, names })
 }
 
 /** Parse the file's bytes. A JSON syntax error is a file-level fault, so it carries no key. */
@@ -165,4 +184,15 @@ export function readLabelFile(text: string, fallbackTtl: number = DEFAULT_TTL_SE
     throw new LabelFileError(null, `not valid JSON: ${error instanceof Error ? error.message : String(error)}`)
   }
   return parseLabelFile(raw, fallbackTtl)
+}
+
+/**
+ * Total labels across every name — the only figure `/healthz` reports about
+ * the file's contents, because the names themselves are not the operator's to
+ * publish (see `routes.ts`).
+ */
+export function countLabels(file: LabelFile): number {
+  let total = 0
+  for (const labels of file.names.values()) total += labels.size
+  return total
 }

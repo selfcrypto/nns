@@ -15,6 +15,7 @@ export { createRoutes, type DelegateResponse, type RouteHandler, type RouteOptio
 export { createServer } from './server.js'
 export { LabelStore, type LabelSource, type StoreOptions } from './store.js'
 export {
+  countLabels,
   parseLabelFile,
   readLabelFile,
   LabelFileError,
@@ -22,6 +23,7 @@ export {
   MAX_TTL_SEC,
   type LabelAnswer,
   type LabelFile,
+  type NameLabels,
 } from './labels.js'
 export { createLogger, isLogLevel, type Logger, type LogFields, type LoggerOptions, type LogLevel } from './logger.js'
 export { EnvError, loadSettings, type DelegateSettings, type EnvSource } from './env.js'

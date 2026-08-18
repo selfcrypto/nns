@@ -31,12 +31,15 @@ for that name until it is.
 
 ```json
 {
-  "version": 1,
-  "name": "alice",
   "defaultTtl": 300,
-  "labels": {
-    "shop": "NQ34 248H 248H 248H 248H 248H 248H 248H 248H",
-    "pay": { "address": "NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2", "ttl": 60 }
+  "names": {
+    "alice": {
+      "shop": "NQ34 248H 248H 248H 248H 248H 248H 248H 248H",
+      "pay": { "address": "NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2", "ttl": 60 }
+    },
+    "bob": {
+      "shop": "NQ60 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK 6CRK"
+    }
   }
 }
 ```
@@ -101,7 +104,7 @@ your browser trusts, or a port only your LAN can reach, both look fine from the
 machine that serves them:
 
 ```bash
-curl -s https://nns.example.com/delegated/v1/alice/shop
+curl -s https://nns.example.com/delegated/alice/shop
 # {"address":"NQ34 …","ttl":300}
 ```
 
@@ -127,9 +130,11 @@ docker compose exec delegate kill -HUP 1     # force a labels reload
 docker compose up -d --build                 # after a git pull
 ```
 
-`/healthz` reports the loaded file: `{"ok":true,"name":…,"labels":N,"loadedAt":…}`.
-It sits under `NNS_DELEGATE_BASE_PATH` when one is set, so two delegates behind
-one certificate stay distinguishable.
+`/healthz` reports the loaded file: `{"ok":true,"names":N,"labels":N,"loadedAt":…}`
+— counts, never which names, because it answers on the same public host as the
+lookups and a roster of the names you serve is not the caller's business. It
+answers under whatever path the container is mounted at, so it needs no more
+configuration than the lookups do. The names are in the boot log.
 
 What to watch: **the labels file is the whole product**. There is no backup
 worth taking that is not a copy of that file, and there is nothing to rebuild —

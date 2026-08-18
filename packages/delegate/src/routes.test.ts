@@ -14,17 +14,20 @@ const source = (file: LabelFile, loadedAt = 1_700_000_000_000): LabelSource => (
 })
 
 const FILE = parseLabelFile({
-  version: 1,
-  name: 'binance',
   defaultTtl: 300,
-  labels: { shop: addr(1), pay: { address: addr(2), ttl: 60 } },
+  names: {
+    binance: { shop: addr(1), pay: { address: addr(2), ttl: 60 } },
+    // A second name on the same host, so every check below runs against a
+    // file that actually has a roster to keep separate.
+    kraken: { shop: addr(7) },
+  },
 })
 
 const routes = (options?: RouteOptions) => createRoutes(source(FILE), options)
 
-describe('GET /delegated/v1/{parent}/{label}', () => {
+describe('GET /delegated/{parent}/{label}', () => {
   it('answers §8.6 step 3 exactly — address and ttl, nothing else', () => {
-    const response = routes()('GET', '/delegated/v1/binance/shop')
+    const response = routes()('GET', '/delegated/binance/shop')
     expect(response.status).toBe(200)
     expect(response.body).toEqual({ address: addr(1), ttl: 300 })
     // Not the §16.5 signed variant: no timestamp, no sig, not even empty.
@@ -32,13 +35,13 @@ describe('GET /delegated/v1/{parent}/{label}', () => {
   })
 
   it("carries the label's own ttl into the body and the cache header", () => {
-    const response = routes()('GET', '/delegated/v1/binance/pay')
+    const response = routes()('GET', '/delegated/binance/pay')
     expect(response.body).toEqual({ address: addr(2), ttl: 60 })
     expect(response.headers['cache-control']).toBe('public, max-age=60')
   })
 
   it('answers a label it does not hold with 404 NO_ANSWER, uncacheable', () => {
-    const response = routes()('GET', '/delegated/v1/binance/nope')
+    const response = routes()('GET', '/delegated/binance/nope')
     expect(response.status).toBe(404)
     expect(response.body).toEqual({ error: 'NO_ANSWER' })
     // An owner adding this label a minute from now must not be shadowed.
@@ -47,27 +50,33 @@ describe('GET /delegated/v1/{parent}/{label}', () => {
 
   it('rejects a label that is not §4.4 syntax, with no case folding of its own', () => {
     for (const label of ['SHOP', '-shop', 'shop-', 'a--b', 'x'.repeat(25)]) {
-      const response = routes()('GET', `/delegated/v1/binance/${label}`)
+      const response = routes()('GET', `/delegated/binance/${label}`)
       expect(response.status, label).toBe(400)
       expect(response.body).toEqual({ error: 'BAD_LABEL' })
     }
   })
 
   it('decodes a percent-escaped label, and rejects a malformed escape', () => {
-    expect(routes()('GET', '/delegated/v1/binance/%73hop').body).toEqual({ address: addr(1), ttl: 300 })
-    expect(routes()('GET', '/delegated/v1/binance/%zz').status).toBe(400)
+    expect(routes()('GET', '/delegated/binance/%73hop').body).toEqual({ address: addr(1), ttl: 300 })
+    expect(routes()('GET', '/delegated/binance/%zz').status).toBe(400)
   })
 
   it('ignores a query string', () => {
-    expect(routes()('GET', '/delegated/v1/binance/shop?t=1').status).toBe(200)
+    expect(routes()('GET', '/delegated/binance/shop?t=1').status).toBe(200)
   })
 
   it('does not answer a deeper or shorter path', () => {
-    expect(routes()('GET', '/delegated/v1/binance/shop/extra').status).toBe(404)
-    expect(routes()('GET', '/delegated/v1/binance/').status).toBe(404)
-    expect(routes()('GET', '/delegated/v2/binance/shop').status).toBe(404)
-    expect(routes()('GET', '/delegated/binance/shop').status).toBe(404)
+    expect(routes()('GET', '/delegated/binance/shop/extra').status).toBe(404)
+    expect(routes()('GET', '/delegated/binance/').status).toBe(404)
+    expect(routes()('GET', '/delegated/binance').status).toBe(404)
     expect(routes()('GET', '/resolve/shop').status).toBe(404)
+  })
+
+  it('does not answer the retired r24 versioned path', () => {
+    // r25 removed the `v1` segment. As with the r22 path below, there is no
+    // fallback in either direction: a client speaking the old shape gets
+    // nothing rather than an answer, which is a diagnosis instead of a guess.
+    expect(routes()('GET', '/delegated/v1/binance/shop').status).toBe(404)
   })
 
   it('does not answer the retired r22 label-only path', () => {
@@ -82,7 +91,7 @@ describe('GET /delegated/v1/{parent}/{label}', () => {
 
 describe('the parent segment, which is what r23 added', () => {
   it('answers for the name the file declares', () => {
-    expect(routes()('GET', '/delegated/v1/binance/shop').status).toBe(200)
+    expect(routes()('GET', '/delegated/binance/shop').status).toBe(200)
   })
 
   it('refuses a parent this file does not answer for — with NO_ANSWER, not a distinguishable error', () => {
@@ -90,8 +99,8 @@ describe('the parent segment, which is what r23 added', () => {
     // from the one above, so a second name delegating to this host was served
     // binance's addresses. It must not be distinguishable from an unheld label
     // either, or a client could learn which names a host serves.
-    const wrongParent = routes()('GET', '/delegated/v1/kraken/shop')
-    const unheldLabel = routes()('GET', '/delegated/v1/binance/nope')
+    const wrongParent = routes()('GET', '/delegated/coinbase/shop')
+    const unheldLabel = routes()('GET', '/delegated/binance/nope')
     expect(wrongParent.status).toBe(404)
     expect(wrongParent.body).toEqual({ error: 'NO_ANSWER' })
     expect(wrongParent.body).toEqual(unheldLabel.body)
@@ -100,7 +109,7 @@ describe('the parent segment, which is what r23 added', () => {
 
   it('rejects a parent that is not §4.1 syntax', () => {
     for (const parent of ['BINANCE', '-binance', 'binance-', 'a--b', 'x'.repeat(25), '12345']) {
-      const response = routes()('GET', `/delegated/v1/${parent}/shop`)
+      const response = routes()('GET', `/delegated/${parent}/shop`)
       expect(response.status, parent).toBe(400)
       expect(response.body, parent).toEqual({ error: 'BAD_PARENT' })
     }
@@ -109,61 +118,126 @@ describe('the parent segment, which is what r23 added', () => {
   it('accepts a short parent a fired U released — validateNameSyntax, not validateName', () => {
     // `nq` is reserved by rule (§4.1, r18) and `validateName` would reject it,
     // but a fired `U` makes it an ordinary name a delegate may answer for.
-    const file = parseLabelFile({ version: 1, name: 'nq', defaultTtl: 300, labels: { shop: addr(1) } })
-    expect(createRoutes(source(file))('GET', '/delegated/v1/nq/shop').status).toBe(200)
+    const file = parseLabelFile({ defaultTtl: 300, names: { nq: { shop: addr(1) } } })
+    expect(createRoutes(source(file))('GET', '/delegated/nq/shop').status).toBe(200)
+  })
+})
+
+describe('one host, many names — what r25 made the normal case', () => {
+  it('answers each name from its own namespace, in one process', () => {
+    expect(routes()('GET', '/delegated/binance/shop').body).toEqual({ address: addr(1), ttl: 300 })
+    expect(routes()('GET', '/delegated/kraken/shop').body).toEqual({ address: addr(7), ttl: 300 })
+  })
+
+  it('does not leak a label across names', () => {
+    // `pay` exists under binance only. Answering it for kraken is the r22
+    // defect — one flat namespace behind a bare host, with a payment address
+    // as the wrong answer.
+    expect(routes()('GET', '/delegated/binance/pay').status).toBe(200)
+    expect(routes()('GET', '/delegated/kraken/pay').status).toBe(404)
+  })
+
+  it('makes an unserved name and an unheld label the same answer, byte for byte', () => {
+    // With a roster in one file this stops being theoretical: the host knows
+    // which names it serves, and a caller must not be able to find out.
+    const unservedName = routes()('GET', '/delegated/coinbase/shop')
+    const unheldLabel = routes()('GET', '/delegated/binance/nope')
+    const wrongName = routes()('GET', '/delegated/kraken/pay')
+    expect(unservedName).toEqual(unheldLabel)
+    expect(wrongName).toEqual(unheldLabel)
   })
 })
 
 describe('CORS and methods', () => {
   it('allows any origin — a delegate exists to be asked by anyone', () => {
     // Without this the whole flow fails in a browser and passes every test.
-    for (const url of ['/delegated/v1/binance/shop', '/delegated/v1/binance/nope', '/healthz', '/nowhere']) {
+    for (const url of ['/delegated/binance/shop', '/delegated/binance/nope', '/healthz', '/nowhere']) {
       expect(routes()('GET', url).headers['access-control-allow-origin'], url).toBe('*')
     }
   })
 
   it('answers preflight with 204 and no body', () => {
-    const response = routes()('OPTIONS', '/delegated/v1/binance/shop')
+    const response = routes()('OPTIONS', '/delegated/binance/shop')
     expect(response.status).toBe(204)
     expect(response.body).toBeNull()
     expect(response.headers['access-control-allow-methods']).toBe('GET, HEAD, OPTIONS')
   })
 
   it('refuses a write method and says what it allows', () => {
-    const response = routes()('POST', '/delegated/v1/binance/shop')
+    const response = routes()('POST', '/delegated/binance/shop')
     expect(response.status).toBe(405)
     expect(response.headers['allow']).toBe('GET, HEAD, OPTIONS')
   })
 })
 
-describe('base path', () => {
-  it('serves under a prefix a §6 D host may name', () => {
-    const handle = routes({ basePath: '/binance' })
-    expect(handle('GET', '/binance/delegated/v1/binance/shop').status).toBe(200)
-    // Unprefixed is not this delegate's namespace.
-    expect(handle('GET', '/delegated/v1/binance/shop').status).toBe(404)
+describe('where the server is mounted is not its business', () => {
+  it('answers under any prefix, with nothing configured', () => {
+    // A §6 `D` host may carry a short path, and the client builds the URL from
+    // the recorded host, so the prefix arrives here and no proxy can strip it.
+    // It says where the delegate listens, never which name is asked about.
+    for (const url of [
+      '/delegated/binance/shop',
+      '/alice/delegated/binance/shop',
+      '/some/deep/mount/delegated/binance/shop',
+    ]) {
+      expect(routes()('GET', url).body, url).toEqual({ address: addr(1), ttl: 300 })
+    }
   })
 
-  it('puts healthz under the prefix too, so two delegates behind one proxy are distinguishable', () => {
-    const handle = routes({ basePath: '/binance' })
-    expect(handle('GET', '/binance/healthz').status).toBe(200)
-    expect(handle('GET', '/healthz').status).toBe(404)
+  it('takes the parent from the request, never from the prefix', () => {
+    // The prefix cannot add to, contradict or stand in for the parent —
+    // `/kraken/…` asking for `binance` is still a `binance` lookup.
+    expect(routes()('GET', '/kraken/delegated/binance/shop').body).toEqual({ address: addr(1), ttl: 300 })
+    expect(routes()('GET', '/binance/delegated/kraken/shop').body).toEqual({ address: addr(7), ttl: 300 })
+  })
+
+  it('resolves a name spelled `delegated`, which the scan must not confuse', () => {
+    const file = parseLabelFile({ names: { delegated: { shop: addr(5) } } })
+    const handle = createRoutes(source(file))
+    expect(handle('GET', '/delegated/delegated/shop').body).toEqual({ address: addr(5), ttl: 300 })
+    expect(handle('GET', '/delegated/delegated/delegated/shop').body).toEqual({ address: addr(5), ttl: 300 })
+  })
+
+  it('does not answer a path with the wrong number of trailing segments', () => {
+    expect(routes()('GET', '/delegated/binance/shop/extra').status).toBe(404)
+    expect(routes()('GET', '/delegated/binance').status).toBe(404)
+    expect(routes()('GET', '/resolve/shop').status).toBe(404)
   })
 })
 
 describe('GET /healthz', () => {
-  it('reports the file being served', () => {
+  it('answers under any prefix too', () => {
+    expect(routes()('GET', '/healthz').status).toBe(200)
+    expect(routes()('GET', '/alice/healthz').status).toBe(200)
+    expect(routes()('GET', '/some/deep/mount/healthz').status).toBe(200)
+  })
+
+  it('never shadows a label called healthz, because the lookup is tried first', () => {
+    // `healthz` is a valid §4.4 label, so an owner may hold `healthz.binance`.
+    // Matching the probe first would answer that lookup with a health body —
+    // a wrong address, silently.
+    const file = parseLabelFile({ names: { binance: { healthz: addr(6) } } })
+    const handle = createRoutes(source(file))
+    expect(handle('GET', '/delegated/binance/healthz').body).toEqual({ address: addr(6), ttl: 300 })
+  })
+
+  it('reports counts, and never the names themselves', () => {
     const response = createRoutes(source(FILE, 1_700_000_000_000))('GET', '/healthz')
     expect(response.status).toBe(200)
-    expect(response.body).toEqual({ ok: true, name: 'binance', labels: 2, loadedAt: 1_700_000_000 })
+    expect(response.body).toEqual({ ok: true, names: 2, labels: 3, loadedAt: 1_700_000_000 })
     expect(response.headers['cache-control']).toBe('no-store')
+    // The roster is not the caller's. A public vhost serves this endpoint, and
+    // listing parents here would be the bulk listing endpoint CLAUDE.md
+    // forbids — the same property the NO_ANSWER collapse protects.
+    expect(JSON.stringify(response.body)).not.toContain('binance')
+    expect(JSON.stringify(response.body)).not.toContain('kraken')
   })
 
   it('reads the current file on every request, not a snapshot taken at construction', () => {
     let file = FILE
     const handle = createRoutes({ current: () => file, loadedAt: () => 0 })
-    file = parseLabelFile({ version: 1, name: 'binance', labels: { shop: addr(9) } })
-    expect(handle('GET', '/delegated/v1/binance/shop').body).toEqual({ address: addr(9), ttl: 300 })
-    expect(handle('GET', '/healthz').body).toMatchObject({ labels: 1 })
+    file = parseLabelFile({ names: { binance: { shop: addr(9) } } })
+    expect(handle('GET', '/delegated/binance/shop').body).toEqual({ address: addr(9), ttl: 300 })
+    expect(handle('GET', '/healthz').body).toMatchObject({ names: 1, labels: 1 })
   })
 })

@@ -10,18 +10,26 @@ import { createResolver, type HttpFetch, type NnsResolver } from '@nns/resolver'
 import { appConfig, ConfigParseError } from '../config'
 
 /**
- * Dev-only detour for a local §8.6 delegate. A chain `D` host carries no port
+ * Dev-only detour to a local §8.6 delegate. A chain `D` host carries no port
  * and the client hardcodes `https://`, so a delegate on a loopback port is
  * unreachable from a dev browser. With `VITE_NNS_DELEGATE_DEV=1` under
- * `vite dev`, requests to `https://localhost/delegated/…` are rerouted
- * same-origin, where vite.config.ts proxies `/delegated` to the local
- * delegate. `import.meta.env.DEV` is compile-time false in a build, so no
- * production bundle can carry the exception.
+ * `vite dev`, **any** delegate request is rerouted same-origin, where
+ * vite.config.ts proxies `/delegated` to the local delegate.
+ *
+ * **It rewrites whatever host the `D` names, not `localhost` alone**, and that
+ * is the point. Matching only `localhost` meant the way to test a delegate was
+ * to record `localhost` in a real `D` — which points every other visitor at
+ * their own machine and takes the name's subdomains down for everyone. Now the
+ * `D` holds the real public host permanently and this flag decides which
+ * server answers it locally: unset, the dev browser reaches the public
+ * delegate like anyone else; set, it reaches yours.
+ *
+ * `import.meta.env.DEV` is compile-time false in a build, so no production
+ * bundle can carry the exception.
  */
 function delegateDevFetch(): HttpFetch | undefined {
   if (!import.meta.env.DEV || import.meta.env['VITE_NNS_DELEGATE_DEV'] !== '1') return undefined
-  return (url, init) =>
-    fetch(url.startsWith('https://localhost/delegated/') ? url.slice('https://localhost'.length) : url, init)
+  return (url, init) => fetch(url.replace(/^https:\/\/[^/]+(?=\/delegated\/)/, ''), init)
 }
 
 let cached: NnsResolver | null = null
