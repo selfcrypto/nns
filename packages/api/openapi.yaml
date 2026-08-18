@@ -391,10 +391,32 @@ paths:
         `message` renders bytes outside printable ASCII as %xx, and % itself as
         %25. `type` is the §6 message letter, or null when the payload does not
         parse — in which case `parseFailure` names the §5.2 reason.
+
+
+        `?format=text` serves the same lines as an aligned table for reading in
+        a browser. It opens with `#` comment lines naming /log and its
+        keccak256: no §8.2 line can begin with `#` — every one begins with a
+        decimal height — so the text view cannot be parsed as a log or hashed
+        into a match, which matters because /log is text/plain as well.
+      parameters:
+        - name: format
+          in: query
+          required: false
+          schema: { type: string, enum: [json, text], default: json }
+          description: >
+            json (default) for machines, text for an aligned human-readable
+            table. Any other value is a 400 UNKNOWN_FORMAT rather than a silent
+            fallback to json.
       responses:
         '200':
-          description: The log through the latest checkpoint, decoded.
+          description: >
+            The log through the latest checkpoint, decoded. JSON by default;
+            text/plain when format=text.
           content:
+            text/plain:
+              schema:
+                type: string
+                description: Aligned table, preceded by # comment lines naming the canonical artifact.
             application/json:
               schema:
                 type: object

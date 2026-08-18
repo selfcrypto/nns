@@ -104,6 +104,58 @@ function renderPayload(hex: string): string | null {
   return out
 }
 
+interface DecodedEntry {
+  readonly blockHeight: number
+  readonly txIndex: number
+  readonly verdict: string
+  readonly message: string | null
+  readonly type: string | null
+}
+
+/**
+ * The decoded log as an aligned table, for a person with a browser.
+ *
+ * **The preamble is a safety device, not decoration.** `/log` is `text/plain`
+ * too, so of the two views this is the one genuinely easy to mistake for the
+ * artifact — saved, hashed, and believed. Every §8.2 line begins with a decimal
+ * height, so a leading `#` cannot appear in one: this file can neither be
+ * parsed as a log nor hash to anything that matches, and the first line says
+ * why in words. The canonical hash is printed so a reader can go and check the
+ * real thing rather than take this one on trust.
+ *
+ * Returned as bytes rather than a string because `server.ts` JSON-stringifies
+ * anything that is not a `Uint8Array` — a string body would arrive quoted, with
+ * its newlines escaped.
+ */
+function decodedTable(entries: readonly DecodedEntry[], checkpointHeight: number, logHash: string): Uint8Array {
+  // Widths from the data, so the table stays tight instead of padded out to
+  // MAX_DATA_BYTES for a log whose messages are mostly short.
+  const width = (pick: (entry: DecodedEntry) => string, header: string): number =>
+    entries.reduce((widest, entry) => Math.max(widest, pick(entry).length), header.length)
+
+  const height = (entry: DecodedEntry): string => String(entry.blockHeight)
+  const index = (entry: DecodedEntry): string => String(entry.txIndex)
+  const message = (entry: DecodedEntry): string => entry.message ?? '(undecodable)'
+
+  const wHeight = width(height, 'height')
+  const wIndex = width(index, 'ix')
+  const wMessage = width(message, 'message')
+
+  const lines = [
+    '# NNS log, DECODED — a derived view, NOT the §8.2 artifact.',
+    `# Canonical bytes: /log   checkpoint ${checkpointHeight}   keccak256 0x${logHash}`,
+    '#',
+    `# ${'height'.padEnd(wHeight)}  ${'ix'.padStart(wIndex)}  type  ${'message'.padEnd(wMessage)}  verdict`,
+  ]
+  for (const entry of entries) {
+    lines.push(
+      `  ${height(entry).padEnd(wHeight)}  ${index(entry).padStart(wIndex)}  ` +
+        `${(entry.type ?? '?').padEnd(4)}  ${message(entry).padEnd(wMessage)}  ${entry.verdict}`,
+    )
+  }
+  return Buffer.from(`${lines.join('\n')}\n`, 'utf8')
+}
+
 /** Spaced for display where the address parses; the log's own bytes otherwise. */
 const displayAddress = (compact: string): string => {
   const parsed = tryParseAddress(compact)
@@ -470,9 +522,42 @@ export function createRoutes(queries: Queries): RouteHandler {
    * `data` is carried through unchanged beside the rendering, so a reader can
    * verify the decoding rather than trust it.
    */
-  async function logDecodedRoute(): Promise<ApiResponse> {
+  async function logDecodedRoute(format: string | null): Promise<ApiResponse> {
+    if (format !== null && format !== 'json' && format !== 'text') {
+      // Named rather than ignored: silently serving JSON to a caller who asked
+      // for something else is how a typo becomes "the text view is broken".
+      return respond(400, { error: 'UNKNOWN_FORMAT', accepted: ['json', 'text'] })
+    }
     const { value } = await queries.logThroughCheckpoint()
     if (value === null) return respond(404, { error: 'NO_CHECKPOINT' })
+
+    // One decode, both renderings — two loops is how the views drift.
+    const entries = value.lines.map((line) => {
+      const field = parseLogLine(line)
+      const parsed = parse(field.data)
+      return {
+        blockHeight: field.blockHeight,
+        txIndex: field.txIndex,
+        txHash: field.txHash,
+        sender: displayAddress(field.sender),
+        recipient: displayAddress(field.recipient),
+        value: field.value.toString(),
+        verdict: field.verdict,
+        data: field.data,
+        message: renderPayload(field.data),
+        type: parsed.ok ? parsed.message.type : null,
+        parseFailure: parsed.ok ? null : parsed.reason,
+      }
+    })
+
+    if (format === 'text') {
+      return {
+        status: 200,
+        body: decodedTable(entries, value.checkpointHeight, value.logHash),
+        contentType: 'text/plain; charset=utf-8',
+      }
+    }
+
     return respond(200, {
       canonical: {
         path: '/log',
@@ -480,23 +565,7 @@ export function createRoutes(queries: Queries): RouteHandler {
         logHash: `0x${value.logHash}`,
         note: 'GET /log is the artifact the checkpoint commits to. This view is derived and is not hashed.',
       },
-      entries: value.lines.map((line) => {
-        const field = parseLogLine(line)
-        const parsed = parse(field.data)
-        return {
-          blockHeight: field.blockHeight,
-          txIndex: field.txIndex,
-          txHash: field.txHash,
-          sender: displayAddress(field.sender),
-          recipient: displayAddress(field.recipient),
-          value: field.value.toString(),
-          verdict: field.verdict,
-          data: field.data,
-          message: renderPayload(field.data),
-          type: parsed.ok ? parsed.message.type : null,
-          parseFailure: parsed.ok ? null : parsed.reason,
-        }
-      }),
+      entries,
       height: value.checkpointHeight,
     })
   }
@@ -620,7 +689,9 @@ export function createRoutes(queries: Queries): RouteHandler {
         return a === 'latest' ? await checkpointRoute() : await checkpointAtRoute(a)
       }
       if (head === 'log' && segments.length === 1) return await logRoute()
-      if (head === 'log' && a === 'decoded' && segments.length === 2) return await logDecodedRoute()
+      if (head === 'log' && a === 'decoded' && segments.length === 2) {
+        return await logDecodedRoute(searchParams.get('format'))
+      }
       if (head === 'settlements' && segments.length === 1) {
         return await settlementsRoute(searchParams.get('owed_to'))
       }

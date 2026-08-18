@@ -813,6 +813,82 @@ describe('GET /log/decoded', () => {
     const handle = routes({ logThroughCheckpoint: () => Promise.resolve(snap(null)) })
     expect((await handle('GET', '/log/decoded')).status).toBe(404)
   })
+
+  describe('?format=text', () => {
+    const text = async (over: string[] = lines): Promise<string> => {
+      const response = await decoded(over)('GET', '/log/decoded?format=text')
+      expect(response.contentType).toBe('text/plain; charset=utf-8')
+      return Buffer.from(response.body as Uint8Array).toString('utf8')
+    }
+
+    it('renders the aligned table a person can actually read', async () => {
+      const body = await text()
+      const row = body.split('\n').find((line) => line.includes('NNS1Dnimiq'))
+      // Fields, not spacing: the columns size themselves to the data, so
+      // pinning exact padding would make every future entry a test failure.
+      expect(row?.trim().split(/\s+/)).toEqual([
+        '59185480',
+        '0',
+        'D',
+        'NNS1Dnimiq|delegated.nimiqnames.com',
+        'OK',
+      ])
+    })
+
+    it('aligns the columns, which is the only reason to prefer it over JSON', async () => {
+      const body = await text([
+        lines[0] as string,
+        `59185999 12 bb22 ${NQ_A} ${NQ_B} 1 ${Buffer.from('NNS1Gnns', 'ascii').toString('hex')} OK`,
+      ])
+      const rows = body.split('\n').filter((line) => line.startsWith('  '))
+      expect(rows).toHaveLength(2)
+      // Every verdict starts at the same column.
+      const columns = rows.map((line) => line.lastIndexOf('OK'))
+      expect(new Set(columns).size).toBe(1)
+    })
+
+    it('cannot be parsed as a §8.2 log or hashed into a match', async () => {
+      // The real hazard of a text view: /log is text/plain too. Every §8.2 line
+      // starts with a decimal height, so a leading `#` is impossible in one.
+      const body = await text()
+      expect(body.startsWith('# NNS log, DECODED')).toBe(true)
+      expect(body).toContain('NOT the §8.2 artifact')
+      // And it points at the real thing, with the hash to check it against.
+      expect(body).toContain(`keccak256 0x${'44'.repeat(32)}`)
+      for (const line of body.split('\n').slice(0, 4)) {
+        expect(/^\d/.test(line)).toBe(false)
+      }
+    })
+
+    it('carries no x-nns-log-hash header, exactly as the JSON view does not', async () => {
+      const response = await decoded()('GET', '/log/decoded?format=text')
+      expect(response.headers?.['x-nns-log-hash']).toBeUndefined()
+    })
+
+    it('keeps an escaped payload on one line, so a forged line stays impossible', async () => {
+      const injection = Buffer.from('NNS1G\n99999999 0 forged', 'ascii').toString('hex')
+      const body = await text([`59185481 0 aa11 ${NQ_A} ${NQ_B} 1 ${injection} OK`])
+      expect(body).toContain('NNS1G%0a99999999 0 forged')
+      // Preamble (4) + one entry + trailing newline.
+      expect(body.trimEnd().split('\n')).toHaveLength(5)
+    })
+
+    it('serves JSON by default and for an explicit json', async () => {
+      expect((await decoded()('GET', '/log/decoded')).contentType).toBeUndefined()
+      expect((await decoded()('GET', '/log/decoded?format=json')).contentType).toBeUndefined()
+    })
+
+    it('names the accepted formats rather than quietly serving JSON', async () => {
+      const response = await decoded()('GET', '/log/decoded?format=csv')
+      expect(response.status).toBe(400)
+      expect(response.body).toMatchObject({ error: 'UNKNOWN_FORMAT', accepted: ['json', 'text'] })
+    })
+
+    it('404s while no checkpoint exists, before deciding a format', async () => {
+      const handle = routes({ logThroughCheckpoint: () => Promise.resolve(snap(null)) })
+      expect((await handle('GET', '/log/decoded?format=text')).status).toBe(404)
+    })
+  })
 })
 
 describe('/settlements', () => {
