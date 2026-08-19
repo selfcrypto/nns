@@ -14,10 +14,12 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > **Review status.** Everything marked **OPEN** is undecided or unverified.
 > Everything else reflects decisions already taken.
 
-> **Revisions are per day, not per change.** Everything decided on one day is
-> folded into that day's revision, however many separate changes it covers, so
-> a revision number stays something an implementation can claim to implement
-> rather than a changelog id.
+> **Revisions are per week, not per change.** Everything decided within the
+> same week is folded into that week's open revision, however many separate
+> changes it covers and however many days apart they fall, so a revision number
+> stays something an implementation can claim to implement rather than a
+> changelog id. A change that touches a section an open revision already
+> touches goes into that revision's note — it does not open a new one.
 
 > **Changes in revision 25 — the delegate endpoint keeps neither its `v1`
 > segment nor its prefix.** §8.6 only, and §6 `D`'s note on the short path.
