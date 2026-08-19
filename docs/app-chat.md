@@ -105,7 +105,8 @@ same JSON-RPC to the same URL.
 
 Inbox pipeline, entirely client-side:
 
-1. Fetch history for the Pay address (descending; page by `startAt`).
+1. Fetch history for the Pay address: **one call, 500 transactions,
+   descending**. There is no `startAt` paging loop — see the window note below.
 2. Keep `executionResult: true`, data starting `NC1`, well-formed payload.
 3. Direction from `from`/`to`; the conversation key is the **peer address**.
 4. Order by `timestamp`.
@@ -125,11 +126,19 @@ single incoming message it is true of, the bucket became a real
 **hide-by-sender** list, and the subject name is announced inside the
 conversation — once, and again wherever it changes.
 
-**The window is honest.** A node below its history horizon answers `[]`
-exactly like an empty history (the indexer's own trap, §2 of the RPC
-reference), and one call caps at 500 transactions. The inbox states "since
-≈ <date>" from the deepest transaction it actually saw, never "no messages"
-as if that were provable.
+**The window is honest, and it is one page deep.** A node below its history
+horizon answers `[]` exactly like an empty history (the indexer's own trap, §2
+of the RPC reference), and one call caps at 500 transactions. The inbox states
+"since ≈ <date>" from the deepest transaction it actually saw, never "no
+messages" as if that were provable.
+
+Those 500 are *all* transactions — payments, rewards, NNS messages — so on a
+busy address chat can be pushed out of the window entirely. **The fix is
+`tasks/11-nc-index.md`, not a paging loop.** An index of `NC1` rows answers by
+address and cursor, so 500 rows means 500 *messages* rather than 500 mixed
+transactions, and the read stops being a full-history scan that discards
+around 99% of what it transfers. Paging the raw history would spend more relay
+calls on every inbox open to postpone the same limit.
 
 ## 5. Threat model and required wording
 
