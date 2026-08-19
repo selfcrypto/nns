@@ -360,10 +360,21 @@ export const CHAT_ENCODE_TEXT: Record<'BAD_NAME' | 'EMPTY_MESSAGE' | 'CONTROL_CH
 
 export const inboxWindowLine = (sinceDate: string): string => `Messages since ${sinceDate}.`
 
-export const inboxOtherBucketLabel = (): string => 'Other messages'
+/**
+ * Said on an **incoming** message whose subject name is not one of yours.
+ * It replaced a whole collapsed “Other messages” bucket, which applied the
+ * same test to conversations you started yourself — filing your own outgoing
+ * messages under a spoofing warning. The doubt is per message and only ever
+ * about what someone else claimed.
+ */
+export const notYourNameLine = (): string =>
+  'This names a name that isn’t yours at this address — the name in a message is the sender’s claim, nothing more.'
 
-export const inboxOtherBucketNote = (): string =>
-  'About names that aren’t yours at this address — the name in a message is the sender’s claim, nothing more.'
+export const hiddenSendersLabel = (count: number): string => `Hidden (${count})`
+
+export const hideSenderAction = (): string => 'Hide sender'
+
+export const unhideSenderAction = (): string => 'Unhide'
 
 export const inboxNoWalletLine = (): string =>
   'Your inbox is read from your wallet address, and there’s no wallet here.'
@@ -377,3 +388,14 @@ export const inboxDownLine = (): string =>
 
 export const inboxEmptyLine = (): string =>
   'When someone messages one of your names, it lands here.'
+
+/** The overflow when an address holds more names than a header shows. */
+export const peerMoreNamesLine = (more: number): string => `+${more} more`
+
+/**
+ * Why the names above an address can be trusted, said once per thread. The
+ * distinction is the whole point: the name a message is *about* is the
+ * sender's claim, the names beside their address are the registry's answer.
+ */
+export const peerNamesHint = (): string =>
+  'Names shown above an address are looked up in the registry, not taken from the message.'

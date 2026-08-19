@@ -48,10 +48,16 @@ Transaction fields:
 - **Data:** the payload above, hex-encoded (the RPC accepts nothing else)
 
 The name is in the payload because one owner address usually holds several
-names — all registered from the same Pay account — and the name is what
-threads the conversation. A received `NC1` naming a name the recipient does
-not own at that address is kept but marked, not trusted: the payload is
+names — all registered from the same Pay account — so the message has to say
+which one it is about. It is the message's **subject**, not its thread key:
+conversations group by peer (§4). A received `NC1` naming a name the recipient
+does not own at that address is kept but marked, not trusted: the payload is
 sender-asserted.
+
+**The sender's own name is deliberately not in the payload.** It would spend
+scarce bytes on a claim anyone could forge, and it is unnecessary: the
+transaction carries the sender's address, and the names that address holds are
+a registry lookup away (§5).
 
 ## 3. Owner, not target
 
@@ -101,12 +107,23 @@ Inbox pipeline, entirely client-side:
 
 1. Fetch history for the Pay address (descending; page by `startAt`).
 2. Keep `executionResult: true`, data starting `NC1`, well-formed payload.
-3. Direction from `from`/`to`; thread key is **(peer address, name)**.
+3. Direction from `from`/`to`; the conversation key is the **peer address**.
 4. Order by `timestamp`.
-5. Split: threads about names this address currently owns (the inbox), and
-   the rest under a collapsed "other" bucket — a message naming a name that
-   was never yours at this address is noise or spoofing, shown muted, never
-   dropped silently.
+5. Mark, per **incoming** message, whether its name is one this address owns.
+   A message naming a name that was never yours is noise or spoofing, shown
+   muted, never dropped silently.
+
+**One conversation per person, and the name lives inside it.** Until
+2026-08-19 the key was (peer, name) and the list was split into names you own
+and a collapsed "other" bucket. Both were wrong in the same way: the test
+"is this name mine?" assumes an incoming message, so a conversation the reader
+*started* — messaging the owner of a name that is by definition not theirs —
+was filed under a spoofing warning, and the same person appeared once per name
+they were written about. The split was never a spam filter either: spam naming
+a name you do own always landed in the main list. So the doubt moved onto the
+single incoming message it is true of, the bucket became a real
+**hide-by-sender** list, and the subject name is announced inside the
+conversation — once, and again wherever it changes.
 
 **The window is honest.** A node below its history horizon answers `[]`
 exactly like an empty history (the indexer's own trap, §2 of the RPC
@@ -120,9 +137,9 @@ as if that were provable.
 |---|---|
 | **Everything is public, forever** | The composer says so before the first send, plainly: on-chain, unencrypted, permanent, attached to your address. Not fine print |
 | **Phishing text in a payments app** | Messages render as plain text, full stop. No linkification, no markdown, no address auto-detection. A message asking you to pay somewhere is just text — and the reply path is the only in-app action a message can offer |
-| **Spam at dust cost** | Client-side hide-by-sender (local list, no global machinery). The owned/other split above keeps unsolicited noise out of the main inbox |
-| **Spoofed name field** | The payload's name is sender-asserted; the inbox verifies ownership against `/address/{addr}/names` before a thread counts as "about your name" |
-| **Impersonation of the app's voice** | A message is always shown as from an address (identicon + spaced form), never as from a name — reverse-resolving the sender would present an unverified claim as identity |
+| **Spam at dust cost** | Client-side hide-by-sender: a device-local address list (`packages/app/src/lib/hidden.ts`), no global machinery. Hidden conversations collapse into a `Hidden (n)` disclosure rather than vanishing — a reader can always see what they silenced |
+| **Spoofed name field** | The payload's name is sender-asserted; the inbox verifies it against `/address/{addr}/names` and marks any incoming message naming a name this address does not own |
+| **Impersonation of the app's voice** | A message is never rendered with the app's own chrome, and the sender's **address is always shown** — identicon plus spaced form, in the list and in the header. Beside it the app shows the names that address **holds**, reverse-resolved from `/address/{addr}/names`. This row said the opposite until 2026-08-19, on the grounds that reverse resolution "presents an unverified claim as identity"; that conflated the payload's name field, which is a claim, with an owner → names lookup, which is a registry fact. Without it a recipient cannot tell who wrote to them at all. Only `REGISTERED` names are shown — a name in `GRACE` has stopped resolving |
 
 **Encryption is a v2 note, not a v1 gap to paper over.** NNS state holds
 only the owner's address — a hash of the key — so there is nothing to

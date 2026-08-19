@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   CHAT_MAX_BYTES,
   chatByteBudget,
+  chatConversations,
   chatMessages,
-  chatThreads,
   encodeChatPayload,
   messageBytes,
   parseChatPayload,
+  peerIdentity,
+  subjectBreaks,
   type ChatTx,
 } from './chat'
 
@@ -97,7 +99,7 @@ describe('inbox derivation', () => {
     expect(messages[1]?.peer).toBe(PEER)
   })
 
-  it('threads key on peer AND name — one owner address holds many names', () => {
+  it('is one conversation per peer, whatever names the messages are about', () => {
     const messages = chatMessages(
       [
         tx({ hash: 'h1', timestamp: 1_000, recipientData: hex('NC1example|about example') }),
@@ -105,9 +107,64 @@ describe('inbox derivation', () => {
       ],
       [ME],
     )
-    const threads = chatThreads(messages)
-    expect(threads).toHaveLength(2)
-    expect(threads[0]?.name).toBe('other-name')
-    expect(threads[1]?.name).toBe('example')
+    const conversations = chatConversations(messages)
+    expect(conversations).toHaveLength(1)
+    expect(conversations[0]?.peer).toBe(PEER)
+    expect(conversations[0]?.messages).toHaveLength(2)
+    // A reply continues the newest subject, not the one the thread opened on.
+    expect(conversations[0]?.lastName).toBe('other-name')
+  })
+
+  it('orders conversations newest first', () => {
+    const other = 'NQ55 5555 5555 5555 5555 5555 5555 5555 5555'
+    const messages = chatMessages(
+      [
+        tx({ hash: 'h1', timestamp: 1_000 }),
+        tx({ hash: 'h2', timestamp: 5_000, from: other, recipientData: hex('NC1example|later') }),
+      ],
+      [ME],
+    )
+    expect(chatConversations(messages).map((one) => one.peer)).toEqual([other, PEER])
+  })
+
+  it('announces the subject once, and again only when it changes', () => {
+    const messages = chatMessages(
+      [
+        tx({ hash: 'h1', timestamp: 1_000, recipientData: hex('NC1example|first') }),
+        tx({ hash: 'h2', timestamp: 2_000, recipientData: hex('NC1example|same subject') }),
+        tx({ hash: 'h3', timestamp: 3_000, recipientData: hex('NC1other-name|new subject') }),
+      ],
+      [ME],
+    )
+    expect(subjectBreaks(messages).map((entry) => entry.showSubject)).toEqual([true, false, true])
+  })
+})
+
+describe('peer identity', () => {
+  it('shows live names shortest first and counts the overflow', () => {
+    const identity = peerIdentity(
+      [
+        { name: 'longer-name', status: 'REGISTERED' },
+        { name: 'kike', status: 'REGISTERED' },
+        { name: 'rico', status: 'REGISTERED' },
+        { name: 'abc', status: 'REGISTERED' },
+      ],
+      2,
+    )
+    expect(identity.shown).toEqual(['abc', 'kike'])
+    expect(identity.more).toBe(2)
+  })
+
+  it('leaves out a name in GRACE — it has stopped resolving', () => {
+    const identity = peerIdentity([
+      { name: 'lapsed', status: 'GRACE' },
+      { name: 'held', status: 'REGISTERED' },
+    ])
+    expect(identity.shown).toEqual(['held'])
+    expect(identity.more).toBe(0)
+  })
+
+  it('answers empty for an address holding nothing, so the UI falls back to the address', () => {
+    expect(peerIdentity([])).toEqual({ shown: [], more: 0 })
   })
 })

@@ -29,6 +29,10 @@
   --grace: #8a5a00;
   --grace-bg: #f7eed9;
   --accent: #e9b213;
+  /* Own chat bubbles. Green and grey are spoken for: the proof rail spends
+     them on 'proven' and 'pending depth', and one colour may mean one thing. */
+  --accent-bg: #fdf4d8;
+  --accent-line: #f0dda3;
   --radius: 14px;
 }
 
@@ -738,6 +742,29 @@ li.note {
   margin: 0;
 }
 
+.thread-head-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.peer-sep,
+.peer-more {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.peer-more {
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+.thread-time {
+  flex: 0 0 auto;
+  align-self: flex-start;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
 .bubbles {
   display: flex;
   flex-direction: column;
@@ -765,8 +792,28 @@ li.note {
 
 .bubble-out {
   align-self: flex-end;
-  background: var(--depth-bg);
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-line);
   border-bottom-right-radius: 4px;
+}
+
+.bubble-group {
+  display: flex;
+  flex-direction: column;
+}
+
+/* "about <name>", drawn once per subject rather than once per message. */
+.subject-break {
+  align-self: center;
+  margin: 8px 0 4px;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.bubble-note {
+  align-self: flex-start;
+  max-width: 82%;
+  margin-top: 2px;
 }
 
 .bubble-time {
@@ -776,7 +823,11 @@ li.note {
   color: var(--ink-soft);
 }
 
-.other-bucket summary {
+.hidden-bucket {
+  margin-top: 18px;
+}
+
+.hidden-bucket summary {
   cursor: pointer;
   font-size: 14px;
   font-weight: 600;

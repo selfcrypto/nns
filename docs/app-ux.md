@@ -76,15 +76,21 @@ state, which is what prompted adding it.
 
 **Inbox** (new tab): thread list → thread → composer.
 
-- Thread list: one row per (peer, name) — peer identicon, peer address
-  (spaced, ellipsized), the name (mono), last message preview (plain text),
-  timestamp. Owned-name threads first; "other messages" (name not owned at
-  this address) collapsed below, muted. Footer states the honest window:
-  "messages since ≈ <date>".
-- Thread: bubbles by direction, timestamps, the name pinned in the header
-  beside the peer. Sender is always an **address with identicon**, never a
-  reverse-resolved name (app-chat §5). Per-thread action: hide sender
-  (local).
+- Conversation list: **one row per peer** — identicon, the names that address
+  holds (reverse-resolved from `/address/{addr}/names`, `REGISTERED` only,
+  shortest first, overflow as "+N more"), the address beneath, last message
+  preview (plain text), date. No buckets. Hidden senders collapse into
+  "Hidden (n)" at the foot. Footer states the honest window: "messages since
+  ≈ <date>".
+- Conversation: bubbles by direction — theirs left on card white, yours right
+  on the accent tint (never the proof rail's green or grey, which mean
+  "proven" and "pending depth" everywhere else). The subject is announced
+  inside the conversation as "about <name>", once and again wherever it
+  changes; a reply carries the newest subject. The header is the peer's names
+  **over their own address**, never the subject name — that pairing reads as
+  "this address is that name" and was exactly the bug the redesign fixed. An
+  incoming message whose name is not one of yours carries a muted note; an
+  outgoing one never does. Per-conversation action: hide sender (local).
 - Composer: byte counter counting **UTF-8 bytes** against
   `64 − 4 − len(name)`; the public-forever notice on first use; send
   disabled behind the same gate as every send.
