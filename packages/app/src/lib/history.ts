@@ -8,7 +8,7 @@
 
 import type { NimiqProvider } from '@nimiq/mini-app-sdk'
 import { rpcEndpoint } from '../config'
-import type { ChatTx } from './chat'
+import type { ChatTx } from '@nns/chat'
 
 export class HistoryError extends Error {
   override readonly name = 'HistoryError'

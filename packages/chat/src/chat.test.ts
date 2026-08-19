@@ -10,7 +10,7 @@ import {
   peerIdentity,
   subjectBreaks,
   type ChatTx,
-} from './chat'
+} from './index.js'
 
 const ME = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
 const PEER = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'

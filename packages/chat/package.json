@@ -1,0 +1,30 @@
+{
+  "name": "@nns/chat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The NC message convention (docs/app-chat.md): wire format and inbox derivation. Not protocol — nothing here reaches core's state, the log or any root.",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@nns/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CHAT_DUST_LUNA, chatByteBudget, encodeChatPayload, messageBytes } from '../lib/chat'
+import { CHAT_DUST_LUNA, chatByteBudget, encodeChatPayload, messageBytes } from '@nns/chat'
 import { defaultTransport } from '../lib/history'
 import { performSend, type SendResult } from '../lib/send'
 import { sameAddress } from '../lib/states'

@@ -15,6 +15,7 @@
     "@nimiq/hub-api": "catalog:",
     "@nimiq/identicons": "catalog:",
     "@nimiq/mini-app-sdk": "catalog:",
+    "@nns/chat": "workspace:*",
     "@nns/core": "workspace:*",
     "@nns/resolver": "workspace:*",
     "react": "catalog:",

@@ -77,6 +77,22 @@ export function rpcEndpoint(): string | null {
   return raw
 }
 
+/**
+ * The optional NC chat index (`tasks/11-nc-index.md`). When set, the Inbox
+ * reads messages from it instead of pulling each address's whole transaction
+ * history from the node — the same messages, without shipping the ~99% that
+ * are not chat, and without the 500-transaction window that pull carries.
+ *
+ * Unset is a supported deployment, not a degraded one: the Inbox falls back to
+ * `VITE_NNS_RPC`. An operator runs the index or does not.
+ */
+export function chatEndpoint(): string | null {
+  const raw = import.meta.env['VITE_NNS_CHAT'] as string | undefined
+  if (raw === undefined || raw.trim() === '') return null
+  if (!/^https?:\/\//.test(raw)) throw new ConfigParseError('VITE_NNS_CHAT must be an http(s) URL')
+  return raw.replace(/\/+$/, '')
+}
+
 /** The Nimiq Hub the desktop adapter opens popups against. */
 export function hubEndpoint(): string {
   const raw = import.meta.env['VITE_NNS_HUB_URL'] as string | undefined

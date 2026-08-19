@@ -133,12 +133,20 @@ of the RPC reference), and one call caps at 500 transactions. The inbox states
 messages" as if that were provable.
 
 Those 500 are *all* transactions — payments, rewards, NNS messages — so on a
-busy address chat can be pushed out of the window entirely. **The fix is
-`tasks/11-nc-index.md`, not a paging loop.** An index of `NC1` rows answers by
-address and cursor, so 500 rows means 500 *messages* rather than 500 mixed
-transactions, and the read stops being a full-history scan that discards
-around 99% of what it transfers. Paging the raw history would spend more relay
+busy address chat can be pushed out of the window entirely. **The fix is an
+index, not a paging loop**: paging the raw history would spend more relay
 calls on every inbox open to postpone the same limit.
+
+**That index exists: `packages/chat-index`** (built 2026-08-20,
+`tasks/11-nc-index.md`). It walks batches, keeps the `NC1` rows, and serves
+them by address, so a page is 500 *messages* rather than 500 mixed
+transactions. When `VITE_NNS_CHAT` is set the Inbox reads it; unset, the
+fallback above is what runs, and both paths hand the app the payload exactly
+as it appeared on chain — the client parses with `@nns/chat` either way and
+never trusts a server's parse. The service is **independent of the protocol's
+code**: its own scan, database and RPC client, importing nothing from the
+indexer, the API or `core`. It states the window it was built with, for the
+same reason this section states one.
 
 ## 5. Threat model and required wording
 

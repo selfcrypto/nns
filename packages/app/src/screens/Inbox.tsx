@@ -7,8 +7,10 @@ import {
   type ChatConversation,
   type ChatTx,
   type PeerName,
-} from '../lib/chat'
+} from '@nns/chat'
 import { getOwnedNames } from '../lib/api'
+import { chatEndpoint } from '../config'
+import { fetchChatIndex, type ChatIndexPage } from '../lib/chatIndex'
 import { hideSender, loadHiddenSenders, unhideSender } from '../lib/hidden'
 import { defaultTransport, fetchHistory } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
@@ -50,21 +52,36 @@ import { EmptyState, Identicon, NameText, Spinner } from '../components/ui'
 export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
   const viewers = wallet?.identity.addresses ?? []
   const transport = defaultTransport()
+  // The index when an operator runs one, the chain when nobody does. Both
+  // answer the same shape, and both hand back payloads this app parses itself.
+  const index = chatEndpoint()
+  const source = index !== null ? 'index' : transport !== null ? 'chain' : null
   const [openPeer, setOpenPeer] = useState<string | null>(null)
   const [hidden, setHidden] = useState<readonly string[]>(() => loadHiddenSenders(localStorage))
 
   const data = useAsync(
-    viewers.length === 0 || transport === null
+    viewers.length === 0 || source === null
       ? null
       : async () => {
           const [pages, ownedPages] = await Promise.all([
-            Promise.all(viewers.map((address) => fetchHistory(transport, address))),
+            Promise.all(
+              viewers.map(async (address): Promise<ChatIndexPage> => {
+                if (index !== null) return fetchChatIndex(index, address)
+                // A raw history pull declares no window: what it saw is all it
+                // can claim, and `oldestBlock` already carries that.
+                return { ...(await fetchHistory(transport!, address)), startHeight: null }
+              }),
+            ),
             Promise.all(viewers.map((address) => getOwnedNames(apiBase(), address))),
           ])
           const txs: ChatTx[] = pages.flatMap((page) => [...page.txs])
+          // The index states the window it was built with; a raw history pull
+          // can only report the deepest row it happened to see.
           const oldestBlock = pages.reduce<number | null>(
-            (oldest, page) =>
-              page.oldestBlock === null ? oldest : oldest === null ? page.oldestBlock : Math.min(oldest, page.oldestBlock),
+            (oldest, page) => {
+              const claim = page.startHeight ?? page.oldestBlock
+              return claim === null ? oldest : oldest === null ? claim : Math.min(oldest, claim)
+            },
             null,
           )
           return {
@@ -106,7 +123,7 @@ export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
       </div>
     )
   }
-  if (transport === null) {
+  if (source === null) {
     return (
       <div className="screen">
         <EmptyState title="Inbox not set up" body={inboxNotConfiguredLine()} />

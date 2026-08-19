@@ -9,7 +9,7 @@ implementations of a rule is two chances to diverge, and divergence here is
 silent: different roots, no error, and the first symptom is a mismatch in
 somebody's client. That is the failure mode the whole design exists to prevent.
 
-## The ten
+## The twelve
 
 | Package | Does | Holds a key | Talks to |
 |---|---|---|---|
@@ -23,9 +23,18 @@ somebody's client. That is the failure mode the whole design exists to prevent.
 | **`settlement`** | Watches obligations and issues `M` — payouts, commission, refunds | **two hot keys** | any NNS API, node (wallet) |
 | **`anchor`** | The §9 EVM contract, its publisher, and a browser-safe reader | funded EVM key | an EVM chain, IPFS |
 | **`admin`** | Cold-key CLI for `P` (governance), `U` (unreserve), `F` (burn attestation) | **cold key** (in the node's wallet) | node, an NNS API |
+| **`chat`** | The NC message convention (`docs/app-chat.md`): wire format, inbox derivation. **Not protocol** | no | **nothing** — pure |
+| **`chat-index`** | Optional: indexes NC messages and serves them by address, so the Inbox is a lookup rather than a full-history pull | no | node (read), its own Postgres |
 
 Only three packages can spend anything, and they are deliberately the three you
 would never deploy on a public box: `settlement`, `anchor`, `admin`.
+
+**The last two are not part of the protocol and must never become part of it.**
+NC chat is a client convention: a dust transaction whose data starts `NC1`,
+which every NNS indexer ignores because §7.5 makes `NNS1` the ignore boundary.
+`chat-index` imports nothing from `indexer`, `api` or `core`, edits nothing in
+them, and keeps its own disposable database — stop it, delete it, or never
+deploy it, and the registry is unchanged.
 
 ## How they stack
 

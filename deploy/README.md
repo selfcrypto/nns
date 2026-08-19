@@ -21,6 +21,30 @@ only the second row — no node, no database, no indexer.
 [`../docs/runbooks/operators.md`](../docs/runbooks/operators.md) is the longer
 version: what each role *is*, and the things that are easy to get wrong.
 
+## A sixth, optional thing: the NC chat index
+
+`packages/chat-index` indexes the NC chat messages of `docs/app-chat.md` and
+serves them by address, so the app's Inbox is a lookup rather than a
+500-transaction history pull per address. It is **not a role** in the sense
+above and has no kit here: no compose file, no directory. Its shape is
+`packages/chat-index/.env.example`, and it needs a node it can read and a
+Postgres of its own.
+
+Three things an operator should know before running it:
+
+- **It is optional in the strict sense.** The app falls back to reading the
+  chain through the relay when `VITE_NNS_CHAT` is unset. Nothing about the
+  registry, the log or any root depends on it, and it cannot affect them —
+  it shares no code and no database with the protocol's services.
+- **It costs a second pass over the same batches** the `resolver` role's
+  indexer already walks. That duplication is deliberate: chat code inside the
+  loop that produces roots is the coupling the convention exists to avoid.
+- **You become the host of a queryable message corpus.** The messages are
+  public on chain either way, but an index turns "each user pulls their own
+  history" into "anyone can ask this service what an address said". Its
+  database is disposable — every row is rebuildable from the chain — so
+  retention is genuinely your call.
+
 ## The root `docker-compose.yml` is not a deployment
 
 The compose file at the repository root is the **development** stack — the

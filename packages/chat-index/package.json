@@ -1,0 +1,25 @@
+{
+  "name": "@nns/chat-index",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Indexes NC chat messages (docs/app-chat.md) from the chain and serves them by address. Independent of the protocol: no core state, no reducer, no log, no root, and it never touches @nns/indexer.",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run",
+    "start": "node dist/main.js",
+    "dev": "node --env-file=.env dist/main.js"
+  },
+  "dependencies": {
+    "@nns/chat": "workspace:*",
+    "pg": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
