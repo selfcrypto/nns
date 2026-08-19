@@ -5,29 +5,30 @@
  *
  * §8.6 fixes one endpoint and one body:
  *
- *     GET https://<host>/delegated/<parent>/<label>  →  {"address": "NQ…", "ttl": N}
+ *     GET https://<host>/<parent>/<label>  →  {"address": "NQ…", "ttl": N}
  *
  * and this serves exactly that. The optional signed variant (§16.5) is **not**
  * emitted: `timestamp` and `sig` are a format fixed early so a delegate can opt
  * in without a spec revision, and shipping the fields unsigned — or empty —
  * would invite a client to depend on a claim nothing makes.
  *
- * **The path is `/delegated/`, not `/resolve/`, and that is deliberate**
- * (r23). A resolver's `/resolve/{name}` takes a *name* and answers with a
- * Merkle proof; this takes a *label* and answers with an assertion nothing
- * vouches for. The old path — `/nns/v1/resolve/<label>` — read as the former
- * while being the latter, on a host NNS does not run, and the `/nns/` prefix
- * implied registry infrastructure that was never there. `delegated` is the
- * word the client already reports (`verification: 'DELEGATED'`), so the wire
- * and the result type say the same thing.
+ * **The protocol reserves no prefix of its own (r25).** Through r24 the request
+ * carried a fixed `delegated/v1` — r23's replacement for `/nns/v1/resolve/` —
+ * and r25 dropped both segments for one reason: nothing is deployed that a
+ * marker protects, and what the marker cost was the one arrangement the
+ * registry API gets for free. `api.example.com/resolve/alice`
+ * and `example.com/api/resolve/alice` are the same service mounted two ways,
+ * because the word naming the *service* and the word naming the *route* are
+ * different ones. A delegate had a single word doing both jobs and the path
+ * held it unconditionally, so an operator who named the host after the service
+ * got it twice: `delegated.example.com/delegated/alice/shop`.
  *
- * **The `v1` segment is gone (r25).** It was there so a later shape could be a
- * new route rather than a guess about what the box on the other end speaks —
- * a real argument for a third party's long-lived deployment, and one to
- * revisit at the launch freeze. It does not apply yet: nothing is deployed
- * that a version number would protect, and carrying a compatibility marker
- * through a development phase means carrying it forever. There is one shape,
- * and a client that gets a 404 has found a host that does not serve the name.
+ * The word is now the operator's, placed once, wherever it reads:
+ *
+ *     D = nns.example.com          →  https://nns.example.com/alice/shop
+ *     D = example.com/delegated    →  https://example.com/delegated/alice/shop
+ *
+ * Nothing here needs to know which was chosen, which is the next comment.
  *
  * ## One host, many names
  *
@@ -117,12 +118,13 @@ function segments(url: string): readonly string[] | null {
  * ## Where this server sits is not this server's business
  *
  * It never reads the `Host` header, and it is **not told what path it is
- * mounted at**. It finds the fixed `delegated` segment and ignores everything
- * before it, so all of these are the same request:
+ * mounted at**. **The last two segments are the parent and the label**, and
+ * whatever precedes them is where this server sits, so all of these are the
+ * same request:
  *
+ *     /alice/shop
  *     /delegated/alice/shop
- *     /alice/delegated/alice/shop
- *     /some/deep/mount/delegated/alice/shop
+ *     /some/deep/mount/alice/shop
  *
  * §6 `D` lets a host carry a short path, and that prefix arrives here because
  * the client builds the URL from the recorded host — no proxy can strip what
@@ -140,9 +142,22 @@ function segments(url: string): readonly string[] | null {
  * containers happens at the proxy, which is the layer that can enforce it;
  * this server refusing an unexpected prefix only ever bought the illusion.
  *
- * Requiring **exactly three** segments from `delegated` — itself, the parent
- * and the label — keeps the scan unambiguous where a mount or a name is
- * spelled `delegated` too.
+ * Counting from the **end** is what survives r25's removal of the marker: a
+ * prefix can be any depth and the two segments that matter are always the last
+ * two, so a proxy that strips the mount and one that does not reach the same
+ * answer — and a `D` short path, which no proxy *can* strip because the client
+ * builds the URL from it, needs no configuration here either.
+ *
+ * ## `/healthz` is the whole path, or it is not the probe
+ *
+ * A lookup is always two segments, so a **one**-segment request can never be
+ * one, and that is the entire disambiguation — the marker used to be. It has
+ * to fall this way round: `healthz` is a perfectly valid §4.4 label, an owner
+ * may hold `healthz.alice`, and answering that lookup with a health body is a
+ * wrong address returned silently, which is the failure this package exists to
+ * avoid. Under a mount the proxy does not strip, `<prefix>/healthz` is
+ * therefore read as a lookup and answers 404; probe the container directly, as
+ * the compose healthcheck does, or the mount root behind a proxy that strips.
  */
 export function createRoutes(source: LabelSource, _options: RouteOptions = {}): RouteHandler {
   return (method: string, url: string): DelegateResponse => {
@@ -158,36 +173,30 @@ export function createRoutes(source: LabelSource, _options: RouteOptions = {}): 
 
     if (method === 'OPTIONS') return { status: 204, body: null, headers: { ...CORS, 'cache-control': 'no-store' } }
 
-    // The last three segments, and only if the first of them is the marker.
-    // Anything before is where this server is mounted and is not ours to check.
-    //
-    // **This is tried before `/healthz`, and the order is load-bearing.**
-    // `healthz` is a perfectly valid §4.4 label, so an owner may hold
-    // `healthz.alice`; matching the probe first would answer that lookup with
-    // a health body — a wrong address, silently, which is the failure mode
-    // this package exists to avoid.
-    const start = parts.length - 3
-    if (start < 0 || parts[start] !== 'delegated') {
-      // `/healthz` under whatever prefix the deployment sits at, for the same
-      // reason the lookup is: the probe should not have to know either.
-      if (parts.length >= 1 && parts[parts.length - 1] === 'healthz') {
-        const file = source.current()
-        return {
-          status: 200,
-          // Counts, never the roster. `CLAUDE.md` forbids a bulk listing
-          // endpoint, and naming the served names here would be one —
-          // reachable through the same public vhost that serves the answers.
-          // The boot log names them, and logs are the operator's side of the
-          // wire.
-          body: { ok: true, names: file.names.size, labels: countLabels(file), loadedAt: Math.floor(source.loadedAt() / 1_000) },
-          headers: { ...CORS, 'cache-control': 'no-store' },
-        }
+    // The probe, and only as the whole path. One segment is never a lookup —
+    // a lookup carries a parent and a label — so this cannot shadow one, which
+    // it would the moment it were allowed to match under a prefix: `healthz`
+    // is a valid §4.4 label and `healthz.alice` is a name an owner may hold.
+    if (parts.length === 1 && parts[0] === 'healthz') {
+      const file = source.current()
+      return {
+        status: 200,
+        // Counts, never the roster. `CLAUDE.md` forbids a bulk listing
+        // endpoint, and naming the served names here would be one — reachable
+        // through the same public vhost that serves the answers. The boot log
+        // names them, and logs are the operator's side of the wire.
+        body: { ok: true, names: file.names.size, labels: countLabels(file), loadedAt: Math.floor(source.loadedAt() / 1_000) },
+        headers: { ...CORS, 'cache-control': 'no-store' },
       }
-      return error(404, 'NOT_FOUND')
     }
 
-    const parent = parts[start + 1] ?? ''
-    const label = parts[start + 2] ?? ''
+    // The last two segments. Anything before them is where this server is
+    // mounted and is not ours to check.
+    const start = parts.length - 2
+    if (start < 0) return error(404, 'NOT_FOUND')
+
+    const parent = parts[start] ?? ''
+    const label = parts[start + 1] ?? ''
     // A parent that is not a §4.1 name cannot be one this file answers for, and
     // cannot have been sent by a conforming client — `parseQuery` rejects it
     // before a request exists. `validateNameSyntax`, not `validateName`: a

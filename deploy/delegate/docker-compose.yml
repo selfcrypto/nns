@@ -55,9 +55,11 @@ services:
       # NNS_DELEGATE_PUBLISH=0.0.0.0:8636 only if something else fronts it.
       - '${NNS_DELEGATE_PUBLISH:-127.0.0.1:8636}:8636'
     healthcheck:
-      # No prefix to carry: the server answers `/healthz` under whatever path
-      # it is mounted at, and is never told what that is. The probe reaches it
-      # inside the container, where there is no proxy in front anyway.
+      # Inside the container, where there is no proxy in front and the path is
+      # therefore the whole path — which is what `/healthz` has to be to be the
+      # probe at all. A lookup is two segments, so one segment is the only
+      # thing that cannot be one; behind a mount your proxy does not strip,
+      # `<mount>/healthz` reads as a lookup and 404s. See README.md.
       test:
         - CMD-SHELL
         - wget -q -O /dev/null "http://127.0.0.1:8636/healthz"

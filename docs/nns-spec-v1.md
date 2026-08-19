@@ -19,14 +19,15 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > a revision number stays something an implementation can claim to implement
 > rather than a changelog id.
 
-> **Changes in revision 25 — the delegate endpoint loses its `v1` segment.**
-> §8.6 only, and §6 `D`'s note on the short path. **Entirely off-chain and
-> outside consensus**: no constant changes value, no reducer rule moves,
-> nothing enters the §8.1 preimage or the §8.2 log hash, every r24 root is
-> unchanged and an r24 database resumes. What changes is one URL:
+> **Changes in revision 25 — the delegate endpoint keeps neither its `v1`
+> segment nor its prefix.** §8.6 only, and §6 `D`'s note on the short path.
+> **Entirely off-chain and outside consensus**: no constant changes value, no
+> reducer rule moves, nothing enters the §8.1 preimage or the §8.2 log hash,
+> every r24 root is unchanged and an r24 database resumes. What changes is one
+> URL:
 >
 >     r24:  GET https://<host>/delegated/v1/<parent>/<label>
->     r25:  GET https://<host>/delegated/<parent>/<label>
+>     r25:  GET https://<host>/<parent>/<label>
 >
 > The `v1` was there so a later shape could be a new route rather than a
 > guess about what the box on the other end speaks — a real argument for a
@@ -39,12 +40,43 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > long-lived deployment is the day the argument for versioning the endpoint
 > becomes the argument it was written to be.
 >
-> **As with r23, there is no fallback in either direction.** A client MUST
-> NOT retry the versioned path on a 404, and a delegate MUST NOT serve both:
-> two live shapes is the shared-namespace failure of r22 in a new costume,
-> and a downgrade on error is a downgrade anyone able to force an error can
-> take. An un-migrated delegate stops answering, loudly, which is a diagnosis
-> rather than a wrong payment address.
+> **The `delegated` segment went with it, and for a plainer reason: it was
+> never the protocol's to spend.** It was r23's replacement for
+> `/nns/v1/resolve/`, and it did say on the wire what the client reports in
+> `verification: 'DELEGATED'`. What it also did was own a path segment on a
+> host NNS does not run. The registry API is mounted either at
+> `api.example.com/resolve/alice` or at `example.com/api/resolve/alice`,
+> operator's choice, because the word naming the **service** and the word
+> naming the **route** are different words. A delegate had one word doing both
+> jobs and the client appended it unconditionally, so an operator who named the
+> host after the service got it twice — which is what
+> `delegated.example.com/delegated/alice/shop` is. The word is now theirs to
+> place once, in the host or in §6 `D`'s short path, or to leave out.
+>
+> **There is no fallback in either direction, and the rule is unchanged from
+> r23.** A client MUST NOT retry a retired path on a 404, and a delegate MUST
+> NOT serve two request shapes: that is the shared-namespace failure of r22 in
+> a new costume, and a downgrade on error is one anyone able to force an error
+> can take. An un-migrated delegate stops answering, loudly, which is a
+> diagnosis rather than a wrong payment address.
+>
+> **What that rule does not cover, and the difference matters.** r22 → r23
+> changed *what the request carried*, so an un-migrated party answered the
+> wrong question. Dropping `delegated/v1` changes only where the request is
+> addressed; the (parent, label) pair is identical. A delegate reads the two of
+> them as the **last two segments** of the path and ignores whatever precedes
+> them — which is how it has tolerated §6 `D`'s short path all along — so an
+> r24 URL arrives as that same lookup under a mount spelled `delegated/v1` and
+> is answered. That is one shape reached two ways, not two shapes served. The
+> break that stays loud is r22's label-only path, which carries no parent at
+> all, and an r25 client against an r24 delegate still scanning for a marker.
+>
+> **`/healthz` is now the whole path or it is not the probe.** With no marker
+> to separate them, a one-segment request is the only thing that cannot be a
+> lookup, and the ambiguity has to fall that way: `healthz` is a valid §4.4
+> label, an owner may hold `healthz.alice`, and answering that lookup with a
+> health body is a wrong address returned silently. Behind a mount a proxy does
+> not strip, the probe reads as a lookup and 404s.
 >
 > **The reference host now serves many names from one file**, which is what
 > r23's parent segment was for and what §6 `D`'s short path is explicitly not
@@ -1659,7 +1691,10 @@ NNS1D<name>|<host>
   pointing at it and the namespaces are separate whether or not a path is
   used. Through r22 the path was the only remedy, and `MAX_HOST_LEN` bounding
   host and path together is why it was never sufficient — a bare host is the
-  normal case, and a path costs budget a longer name may need
+  normal case, and a path costs budget a longer name may need. Since r25 it is
+  also the only place a word like `delegated` can appear in the URL: §8.6
+  supplies no segment of its own, so `example.com/delegated` and
+  `delegated.example.com` are the two ways to say it and both say it once
 - **To:** `PROTOCOL_ADDRESS`, value `DUST_VALUE`
 - Sender must be the current owner
 
@@ -2956,7 +2991,7 @@ For a dotted query `label.parent`:
 
 1. Resolve `parent` normally, with proof. If it is not `REGISTERED` or has no
    delegate host, the query fails.
-2. `GET https://<host>/delegated/<parent>/<label>`
+2. `GET https://<host>/<parent>/<label>`
 3. Expected response: `{"address": "NQ...", "ttl": <seconds>}`
 4. Validate that the address is well-formed. Cache for `ttl`, capped at one
    hour by the client.
@@ -2988,11 +3023,24 @@ downgrade to anyone able to force an error. An un-migrated delegate therefore
 stops answering entirely, which is the intended failure — loud, and never a
 wrong address.
 
-**r25 removed the `v1` segment**, and the same rule governs it: one shape,
-tried once, no fallback in either direction and no delegate serving both. The
-reasoning is in the revision note; the short version is that nothing is
-deployed yet that a version marker would protect, and the question is reopened
-at the launch freeze rather than settled forever.
+**r25 removed the `v1` segment and the `delegated` segment that carried it**,
+and the same rule governs both: one shape, tried once, no fallback in either
+direction and no delegate serving two shapes. The reasoning is in the revision
+note; the short version is that nothing is deployed yet that a version marker
+would protect — reopened at the launch freeze rather than settled forever — and
+that a path segment the protocol owns is a naming decision taken away from the
+operator, and taken twice over from the one who names the host after the
+service.
+
+**The request is addressed to the host, and the whole path is the host's.**
+A delegate MUST read the parent and the label as the **last two segments** of
+the request path and MUST ignore anything before them, because §6 `D`'s short
+path arrives in the URL the client builds from the record and no proxy can
+strip what is part of the address. A delegate MUST NOT require, and MUST NOT
+be configured with, the prefix it is mounted under: the prefix says where the
+delegate listens, never which name is being asked about. One consequence is
+deliberate — an r24 URL is this same lookup under a mount spelled
+`delegated/v1`, and is answered as one.
 
 **Optional signed responses.** A delegate MAY return
 `{"address": "NQ...", "ttl": <seconds>, "timestamp": <unix>, "sig": "<base64url>"}`

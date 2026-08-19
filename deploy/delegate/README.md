@@ -99,12 +99,28 @@ issue the Let's Encrypt certificate, and point one `location /` proxy rule at
 mode** → *Additional nginx directives*; if it refuses the block as a duplicate
 `location "/"`, proxy mode is still on.
 
+**On a host you already serve** — a delegate does not need a hostname of its
+own. Pick a path, mount it, and put that path in the `D`:
+
+```nginx
+location /delegated/ {
+    proxy_pass http://127.0.0.1:8636;
+    proxy_set_header Host $host;
+}
+```
+
+with `D` = `example.com/delegated`. **No `rewrite`, unlike the registry API's
+`/api/`** (`deploy/service/nginx.conf`): the prefix is part of the address the
+client builds out of the `D`, so no proxy *could* strip it, and the container
+does not need it stripped — it reads the parent and the label as the last two
+segments and ignores the mount.
+
 Whatever you use, verify from **outside** the host — a certificate that only
 your browser trusts, or a port only your LAN can reach, both look fine from the
 machine that serves them:
 
 ```bash
-curl -s https://nns.example.com/delegated/alice/shop
+curl -s https://nns.example.com/alice/shop
 # {"address":"NQ34 …","ttl":300}
 ```
 
@@ -115,9 +131,25 @@ Only after the URL above answers:
 1. Hold the owner key of the name.
 2. Send `NNS1D<name>|<host>` from the owner address (`packages/admin`, or any
    wallet that can set transaction data). The host is bare and lowercase:
-   `nns.example.com`, or `nns.example.com/alice` if this host serves several
-   names. **Name and host together are capped at 52 characters.**
+   `nns.example.com`. **Name and host together are capped at 52 characters.**
+   A short path is permitted and says *where the delegate listens* — it is
+   **not** how two names share a host (§6 `D`), which the parent segment in the
+   request has covered since r23, and it spends budget a longer name may need.
 3. Resolve `shop.alice` in a client and check the address it shows.
+
+**The URL is the `D` and nothing else** — §8.6 is `https://<host>/<parent>/<label>`
+and the client appends no segment of its own (r25). So the word `delegated`, if
+you want it in the URL at all, goes wherever you put it and appears once:
+
+```
+D = nns.example.com          →  https://nns.example.com/alice/shop
+D = example.com/delegated    →  https://example.com/delegated/alice/shop
+```
+
+That is the registry API's arrangement — `api.example.com/resolve/alice` or
+`example.com/api/resolve/alice`, operator's choice — and through r24 a delegate
+could not have it: the client appended `delegated/v1` unconditionally, so
+naming the host after the service produced it twice.
 
 A later `D` with an empty host clears the delegation and turns subdomain
 resolution off for the name.

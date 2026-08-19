@@ -13,8 +13,14 @@ import { appConfig, ConfigParseError } from '../config'
  * Dev-only detour to a local §8.6 delegate. A chain `D` host carries no port
  * and the client hardcodes `https://`, so a delegate on a loopback port is
  * unreachable from a dev browser. With `VITE_NNS_DELEGATE_DEV=1` under
- * `vite dev`, **any** delegate request is rerouted same-origin, where
- * vite.config.ts proxies `/delegated` to the local delegate.
+ * `vite dev`, **any** delegate request is rerouted same-origin under
+ * `/nns-delegate`, which vite.config.ts proxies to the local delegate.
+ *
+ * **The prefix is this file's, not the protocol's** (r25). §8.6's request is
+ * `/<parent>/<label>` and swapping the origin alone would leave `/alice/shop`
+ * colliding with the dev server's own paths, so the detour supplies a prefix
+ * to route on — and does not have to strip it again, because the delegate
+ * reads the last two segments and ignores whatever mount precedes them.
  *
  * **It rewrites whatever host the `D` names, not `localhost` alone**, and that
  * is the point. Matching only `localhost` meant the way to test a delegate was
@@ -29,7 +35,7 @@ import { appConfig, ConfigParseError } from '../config'
  */
 function delegateDevFetch(): HttpFetch | undefined {
   if (!import.meta.env.DEV || import.meta.env['VITE_NNS_DELEGATE_DEV'] !== '1') return undefined
-  return (url, init) => fetch(url.replace(/^https:\/\/[^/]+(?=\/delegated\/)/, ''), init)
+  return (url, init) => fetch(url.replace(/^https:\/\/[^/]+\//, '/nns-delegate/'), init)
 }
 
 let cached: NnsResolver | null = null

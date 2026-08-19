@@ -21,7 +21,7 @@
  *
  * The request carries **the parent and the label** (r23):
  *
- *     GET https://<host>/delegated/<parent>/<label>
+ *     GET https://<host>/<parent>/<label>
  *
  * Through r22 it carried only the label, which made two names delegating to
  * one bare host a single shared namespace — `shop.a` and `shop.b` were the
@@ -123,9 +123,17 @@ export class DelegateCache {
  * `/nns/v1/resolve/<label>` on a 404 would keep the shape that made two names
  * on one host share a namespace reachable forever, and hand anyone able to
  * force a 404 a downgrade to it. The same holds for r24's
- * `/delegated/v1/<parent>/<label>`, whose `v1` r25 removed: one shape, tried
+ * `/delegated/v1/<parent>/<label>`, which r25 dropped entire: one shape, tried
  * once. An un-migrated delegate fails loudly instead — every label under it
  * stops resolving at once, which is a diagnosis rather than a wrong address.
+ *
+ * **Nothing is appended before the parent (r25).** The path is the host's,
+ * end to end: an operator who wants the word `delegated` in the URL puts it in
+ * the `D` — as a subdomain or as §6's short path — and one who does not, does
+ * not. Appending it here made that choice for them and then made it twice,
+ * since the obvious host to record is the one named after the service:
+ * `delegated.example.com/delegated/alice/shop`. The registry API never had the
+ * problem because `api` names its host and `resolve` names its route.
  */
 export async function askDelegate(
   fetchImpl: HttpFetch,
@@ -150,7 +158,7 @@ export async function askDelegate(
   const cached = cache.get(host, parent, label)
   if (cached !== null) return { response: cached, ttl: cached.ttl }
 
-  const url = `https://${host}/delegated/${encodeURIComponent(parent)}/${encodeURIComponent(label)}`
+  const url = `https://${host}/${encodeURIComponent(parent)}/${encodeURIComponent(label)}`
   const fetched = await getJson(fetchImpl, url, timeoutMs)
   if (!fetched.ok) {
     throw new DelegateError('DELEGATE_FAILED', `delegate ${host} did not answer: ${fetched.reason}`)

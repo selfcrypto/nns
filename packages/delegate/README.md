@@ -11,7 +11,7 @@ subdomain, and knows nothing about them.
 ```bash
 cp .env.example .env          # NNS_DELEGATE_LABELS=./labels.json
 pnpm --filter @nns/delegate dev
-curl localhost:8636/delegated/binance/shop
+curl localhost:8636/binance/shop
 # {"address":"NQ12 3456 …","ttl":300}
 ```
 
@@ -45,7 +45,7 @@ that requires them.
 ## The request tells you which name asked
 
 ```
-GET https://<host>/delegated/<parent>/<label>
+GET https://<host>/<parent>/<label>
 ```
 
 The parent is in the path, so two names delegating to the same host have
@@ -122,13 +122,14 @@ startup** is fatal instead, because there is nothing good to fall back to.
 
 | | |
 |---|---|
-| `GET /delegated/{parent}/{label}` | `200 {"address":"NQ…","ttl":N}` — the answer |
+| `GET /{parent}/{label}` | `200 {"address":"NQ…","ttl":N}` — the answer |
 | | `404 {"error":"NO_ANSWER"}` — no such label here, **or not a parent this file answers for** |
 | | `400 {"error":"BAD_LABEL"}` — not a valid label |
 | | `400 {"error":"BAD_PARENT"}` — not a valid §4.1 name |
 | `GET /healthz` | `{"ok":true,"names":N,"labels":N,"loadedAt":…}` — counts, never the names |
 
-Both answer under whatever path the server is mounted at. Every response carries
+The lookup answers under whatever path the server is mounted at; `/healthz` is
+the whole path or it is not the probe (below). Every response carries
 `access-control-allow-origin: *` — clients are browser mini apps, and a
 delegate without CORS fails in a browser while passing every test you run with
 curl. Answers carry `cache-control: public, max-age=<ttl>`; everything else is
@@ -149,18 +150,18 @@ lookups do.
 ## Subdomain, path, or both — and nothing to configure
 
 The server never reads the `Host` header, and it is never told what path it is
-mounted at. It finds the fixed `delegated` segment and ignores everything
-before it, so all of these are one request:
+mounted at. **The last two segments are the parent and the label**, and
+everything before them is where it sits, so all of these are one request:
 
 ```
+/alice/shop
 /delegated/alice/shop
-/alice/delegated/alice/shop
-/some/deep/mount/delegated/alice/shop
+/some/deep/mount/alice/shop
 ```
 
 Publish it on a subdomain, under a path, or both at once — it answers either
 way with no setting to match. A §6 `D` host may carry a short path
-(`nns.example.com/alice`), and because the client builds the URL from the
+(`nns.example.com/labels`), and because the client builds the URL from the
 recorded host, that prefix arrives here where no proxy could strip it.
 
 **A path says where the delegate listens. It never says which name is being
@@ -171,6 +172,37 @@ an edit to the JSON and nothing else.
 
 The prefix is not an access boundary and never was. Routing between two
 containers happens at your proxy, which is the layer that can enforce it.
+
+**Which is why §8.6 stopped supplying a prefix of its own (r25).** Through r24
+the client appended a fixed `delegated/v1`, so the one word both named the
+service and owned a path segment, and an operator who named the host after the
+service got it twice — `delegated.example.com/delegated/alice/shop`. The
+registry API never reads that way because its two words differ: `api` names the
+host, `resolve` names the route. Now the word is yours to place once:
+
+```
+D = nns.example.com          →  https://nns.example.com/alice/shop
+D = example.com/delegated    →  https://example.com/delegated/alice/shop
+```
+
+An r24 client still gets a correct answer here — its `/delegated/v1/…` is
+simply a mount this server was told nothing about, and the parent and label it
+carries are the same two. That is one shape reached two ways, not two shapes
+served; the break runs the other way, where an r25 client meets an r24 delegate
+still scanning for a marker and gets nothing at all.
+
+### `/healthz` is the whole path, or it is not the probe
+
+A lookup is always two segments, so a one-segment request is the only thing
+that cannot be one — and with no marker left, that is the whole
+disambiguation. It has to fall this way: `healthz` is a valid §4.4 label, an
+owner may hold `healthz.alice`, and answering that lookup with a health body is
+a wrong address served silently.
+
+The cost is that behind a mount your proxy does not strip, `/<mount>/healthz`
+is two segments and reads as a lookup for the label `healthz` under a parent
+named after the mount — a 404. Probe the container directly, as the compose
+healthcheck does, or the mount root behind a proxy that strips.
 
 ## Configuration
 
@@ -197,7 +229,7 @@ would never send or serve an address the client would reject.
 3. Send the `D`: `packages/admin`, or any wallet, with data
    `NNS1D<name>|<host>`. Name and host together must be ≤ 52 characters, and
    the host is bare — no scheme, lowercase, `a-z 0-9 . - /`.
-4. Check it: `curl https://<host>/delegated/<name>/<label>`, then resolve
+4. Check it: `curl https://<host>/<name>/<label>`, then resolve
    `<label>.<name>` through a client.
 
 An empty host in a later `D` clears the delegation and turns subdomain

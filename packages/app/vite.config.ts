@@ -16,9 +16,11 @@ export default defineConfig({
         target: 'http://127.0.0.1:8635',
         rewrite: (path) => path.replace(/^\/nns-api/, ''),
       },
-      // Dev-only §8.6 detour (see src/lib/nns.ts): a D record naming
-      // `localhost` resolves against the local delegate on its real port.
-      '/delegated': { target: 'http://127.0.0.1:8636' },
+      // Dev-only §8.6 detour (see src/lib/nns.ts): whatever host a D names
+      // resolves against the local delegate on its real port. No `rewrite` —
+      // the delegate takes the last two segments of the path and ignores the
+      // mount, so this prefix reaches it harmlessly.
+      '/nns-delegate': { target: 'http://127.0.0.1:8636' },
     },
   },
 })

@@ -14,7 +14,7 @@
  *
  * What that rewrite does *not* cover is URL construction from a host recorded
  * on chain — `D` lands, the indexer stores the host, the client builds
- * `https://<host>/delegated/<parent>/<label>` and fetches it. That step still has
+ * `https://<host>/<parent>/<label>` and fetches it. That step still has
  * never run end to end; `tasks/10-delegate.md` and the battery runbook say so
  * plainly rather than treating this file as the coverage.
  */
@@ -98,7 +98,7 @@ describe('the reference client against the reference host', () => {
   it('resolves a label, at the URL §8.6 fixes', async () => {
     asked.length = 0
     const result = await ask(await delegate(), 'shop')
-    expect(asked).toEqual([`https://${HOST}/delegated/${PARENT}/shop`])
+    expect(asked).toEqual([`https://${HOST}/${PARENT}/shop`])
     expect(result.response.address).toBe(expected(1))
     expect(result.ttl).toBe(300)
   })
@@ -122,7 +122,7 @@ describe('the reference client against the reference host', () => {
     asked.length = 0
     const fetchImpl = await delegate()
     const result = await ask(fetchImpl, 'shop', `${HOST}/binance`)
-    expect(asked).toEqual([`https://${HOST}/binance/delegated/${PARENT}/shop`])
+    expect(asked).toEqual([`https://${HOST}/binance/${PARENT}/shop`])
     expect(result.response.address).toBe(expected(1))
   })
 
