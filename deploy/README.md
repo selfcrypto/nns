@@ -23,12 +23,11 @@ version: what each role *is*, and the things that are easy to get wrong.
 
 ## A sixth, optional thing: the NC chat index
 
-`packages/chat-index` indexes the NC chat messages of `docs/app-chat.md` and
-serves them by address, so the app's Inbox is a lookup rather than a
-500-transaction history pull per address. It is **not a role** in the sense
-above and has no kit here: no compose file, no directory. Its shape is
-`packages/chat-index/.env.example`, and it needs a node it can read and a
-Postgres of its own.
+[`chat/`](chat/) indexes the NC chat messages of `docs/app-chat.md` and serves
+them by address, so the app's Inbox is one small request per address rather
+than a 500-transaction history pull. It is **not a role** in the sense above —
+it serves no protocol data, holds no key, and an operator running only it is
+not serving NNS — which is why it sits below the table rather than in it.
 
 Three things an operator should know before running it:
 

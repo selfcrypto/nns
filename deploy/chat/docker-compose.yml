@@ -1,0 +1,66 @@
+# The NC chat index — optional, and independent of everything else here.
+#
+#   cp .env.example .env
+#   docker compose up -d --build
+#
+# It reads a node and writes its own Postgres. It holds no key, serves no
+# protocol data, and shares no database with the registry: stop it, delete its
+# volume, or never run it at all, and the names, the log and every root are
+# exactly as they were. The app falls back to reading the chain.
+#
+# Not part of the five roles in ../README.md on purpose. A resolver operator
+# does not need it, and an operator who runs *only* this is not serving NNS.
+
+name: nns-chat
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: nns
+      POSTGRES_PASSWORD: ${NNS_CHAT_POSTGRES_PASSWORD:-nns}
+      POSTGRES_DB: nns_chat
+    volumes:
+      - chat-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nns -d nns_chat']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  chat-index:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      args:
+        PKG: chat-index
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    environment:
+      NNS_CHAT_DATABASE_URL: postgres://nns:${NNS_CHAT_POSTGRES_PASSWORD:-nns}@postgres:5432/nns_chat
+      NNS_CHAT_RPC_URL: ${NNS_CHAT_RPC_URL:?set the node URL in .env}
+      NNS_CHAT_RPC_USER: ${NNS_CHAT_RPC_USER:-}
+      NNS_CHAT_RPC_PASSWORD: ${NNS_CHAT_RPC_PASSWORD:-}
+      # Required, and fixed for the life of the database — see .env.example.
+      NNS_CHAT_START_HEIGHT: ${NNS_CHAT_START_HEIGHT:?set the start height in .env}
+      NNS_CHAT_NETWORK_ID: ${NNS_CHAT_NETWORK_ID:-24}
+      NNS_CHAT_POLL_INTERVAL_MS: ${NNS_CHAT_POLL_INTERVAL_MS:-30000}
+      NNS_CHAT_PORT: 8637
+      NNS_CHAT_MAX_PAGE: ${NNS_CHAT_MAX_PAGE:-500}
+      NNS_CHAT_LOG_LEVEL: ${NNS_CHAT_LOG_LEVEL:-info}
+    # Loopback by default: this speaks plain HTTP and belongs behind the same
+    # TLS terminator as everything else. The app calls it from a browser, so it
+    # needs a public hostname — the README has the vhost.
+    ports:
+      - '${NNS_CHAT_PUBLISH:-127.0.0.1:8637}:8637'
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '5' }
+
+volumes:
+  chat-data:
