@@ -158,6 +158,9 @@ importers:
       '@nimiq/mini-app-sdk':
         specifier: 'catalog:'
         version: 0.1.0
+      '@nns/chat':
+        specifier: workspace:*
+        version: link:../chat
       '@nns/core':
         specifier: workspace:*
         version: link:../core
@@ -186,6 +189,44 @@ importers:
       vite:
         specifier: 'catalog:'
         version: 8.2.1(@types/node@26.2.0)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@26.2.0))
+
+  packages/chat:
+    dependencies:
+      '@nns/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@26.2.0))
+
+  packages/chat-index:
+    dependencies:
+      '@nns/chat':
+        specifier: workspace:*
+        version: link:../chat
+      pg:
+        specifier: 'catalog:'
+        version: 8.23.0
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      '@types/pg':
+        specifier: 'catalog:'
+        version: 8.21.0
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
       vitest:
         specifier: 'catalog:'
         version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@26.2.0))
