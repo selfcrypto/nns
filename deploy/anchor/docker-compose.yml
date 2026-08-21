@@ -1,9 +1,8 @@
 # The §9 anchor publisher, and the kubo node §8.2 requires beside it.
 #
 #   cp .env.example .env
-#   $EDITOR .env                       # chain, contract, API, Filebase
-#   export NNS_ANCHOR_PUBLISHER_KEY=…  # from your secret store, never .env
-#   docker compose up -d --build
+#   $EDITOR .env    # chain, contract, API, Filebase — and the publisher key:
+#   docker compose up -d --build       # chmod 600, per ../README.md, Secrets
 #
 # **Two independent CID implementations, or nothing gets anchored.** §8.2 does
 # not accept one: the log snapshot is pinned and the anchor broadcast only when
@@ -130,7 +129,7 @@ services:
       # For a dry-run deployment set NNS_ANCHOR_SEND=--dry-run and supply
       # ADDRESS instead of KEY: the whole plan runs on a machine that has never
       # held the key.
-      NNS_ANCHOR_PUBLISHER_KEY: ${NNS_ANCHOR_PUBLISHER_KEY:?64 hex chars; export from your secret store, never .env}
+      NNS_ANCHOR_PUBLISHER_KEY: ${NNS_ANCHOR_PUBLISHER_KEY:?64 hex chars, in this role's mode-600 .env (../README.md, Secrets)}
       NNS_ANCHOR_PUBLISHER_ADDRESS: ${NNS_ANCHOR_PUBLISHER_ADDRESS:-}
 
       # §11.5 in EVM clothing: refuses to sign when the balance cannot cover one

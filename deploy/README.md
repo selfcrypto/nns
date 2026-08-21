@@ -44,6 +44,16 @@ Three things an operator should know before running it:
   database is disposable — every row is rebuildable from the chain — so
   retention is genuinely your call.
 
+## One box, one command
+
+[`vps/`](vps/) is the owner's tool, not a role: it composes every stack one
+box runs — including the keyed roles the table above deliberately keeps off
+the public machine — validates each role's `.env` against its own compose
+file, and moves the non-regenerable state between boxes (`bundle`/`restore`).
+If you are an operator, it is not for you; pick a row above. The
+key-separation rule below still stands, and running everything on one box is
+the explicit trade that kit's README owns up to.
+
 ## The root `docker-compose.yml` is not a deployment
 
 The compose file at the repository root is the **development** stack — the
@@ -73,11 +83,14 @@ Widen one only if you know what fronts it. `service`'s 8080 in particular must
 not be widened: the relay trusts `X-Forwarded-For` there, so a client that can
 reach it directly chooses its own rate-limit bucket.
 
-**No TLS terminator ships with this.** Deliberately — bundling one means owning
+**No role bundles a TLS terminator.** Deliberately — bundling one means owning
 failure modes we do not control, in roles whose appeal is that they are small.
 Recipes for Caddy, nginx + certbot, a tunnel, and panels like Plesk are in
 [`delegate/README.md`](delegate/README.md) and apply to the others unchanged,
-with only the port differing.
+with only the port differing. For the one case where nothing fronts the box at
+all, [`edge/`](edge/) is a self-contained nginx that issues its own
+certificates — optional, separate, and skipped entirely when you already have
+a terminator.
 
 **Add no CORS headers, and strip none.** The API sends
 `access-control-allow-origin: *` itself and exposes the two §8.2 verification
