@@ -105,6 +105,18 @@
 <button id="btn-send-hex" class="alt" disabled>Send B · data as hex</button>
 <pre id="out-send">not run</pre>
 
+<div class="q">4 · Can the app choose which address signs?</div>
+<div class="warn">
+  The SDK forwards the params object to Nimiq Pay <b>verbatim</b> — it filters
+  nothing — so an undeclared key reaches the native handler. Whether the
+  handler honours it is the question. Sends 1 luna with four candidate key
+  names at once; the chain says which address actually signed.
+</div>
+<label>Address you want to sign (defaults to listAccounts()[0])</label>
+<input id="forced" placeholder="NQ… " autocapitalize="off" autocorrect="off" spellcheck="false">
+<button id="btn-send-forced" disabled>Send C · with a forced sender</button>
+<pre id="out-forced">not run</pre>
+
 <script type="module">
 const $ = (id) => document.getElementById(id);
 const show = (el, v) => { $(el).textContent = typeof v === 'string' ? v : JSON.stringify(v, null, 2); };
@@ -189,6 +201,7 @@ $('btn-init').onclick = async () => {
     $('btn-info').disabled = false;
     $('btn-send-text').disabled = false;
     $('btn-send-hex').disabled = false;
+    $('btn-send-forced').disabled = false;
   }
 };
 
@@ -355,6 +368,83 @@ async function probeSend(encoding) {
 
 $('btn-send-text').onclick = () => probeSend('text');
 $('btn-send-hex').onclick = () => probeSend('hex');
+
+/**
+ * Step 4. The wallet chose its own signer on every send so far — the funded
+ * account, which is not `listAccounts()[0]`. No send method declares a sender
+ * parameter, but `provider.js` forwards `params` to the native side untouched
+ * (`sendBasicTransactionWithData(e){ …{method, params: e} }`), so an
+ * undeclared key is not filtered out by the SDK. Only Nimiq Pay itself can
+ * refuse it.
+ *
+ * Four plausible spellings go in one transaction, because each attempt costs
+ * real NIM and one send answers "is this possible at all". If the answer is
+ * yes, narrowing to the single key that worked is the cheap follow-up.
+ */
+$('btn-send-forced').onclick = async () => {
+  $('btn-send-forced').disabled = true;
+  const lines = [];
+  const log = (s) => { lines.push(s); show('out-forced', lines.join('\n')); };
+  try {
+    const recipient = compact($('to').value);
+    if (!/^NQ[0-9A-Z]{34}$/.test(recipient)) { log('Fill in the recipient in step 3 first.'); return; }
+    if (!account) {
+      const accounts = await nimiq.listAccounts().catch(() => null);
+      account = Array.isArray(accounts) ? accounts[0] ?? null : null;
+    }
+    if (!account) { log('No account — run step 2 first.'); return; }
+    const wanted = compact($('forced').value) || compact(account);
+    if (wanted === recipient) { log('The forced sender is the recipient. Pick another.'); return; }
+
+    const nonce = [...crypto.getRandomValues(new Uint8Array(2))]
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+    const marker = `PROBE-SENDER-${nonce}`;
+    const keys = ['sender', 'from', 'senderAddress', 'fromAddress'];
+    const params = { recipient, value: 1, fee: 0, data: marker };
+    for (const k of keys) params[k] = wanted;
+
+    let since;
+    try { since = await rpc('getBlockNumber', []); }
+    catch (e) { log('Relay unreachable, so nothing could be verified: ' + e.message); return; }
+
+    log(`asking to sign as  ${wanted}`);
+    log(`extra keys sent    ${keys.join(', ')}`);
+    log(`marker             ${marker}`);
+    log('\nConfirm the sheet. Watch whether it names the address you asked for.\n');
+
+    const result = await nimiq.sendBasicTransactionWithData(params);
+    const err = asError(result);
+    if (err) {
+      log(`REJECTED — ${err.type}: ${err.message}`);
+      log('\nA rejection is still an answer: if it names one of the extra keys,');
+      log('the handler reads them and this is a validation problem, not a wall.');
+      log('Re-run sending one key at a time to find which.');
+      return;
+    }
+    log(`returned  ${typeof result === 'string' ? result : JSON.stringify(result)}`);
+    log('\nReading it back from the chain…');
+
+    const tx = await awaitOnChain(recipient, since, log);
+    if (!tx) { log('\nNOT ON CHAIN within 3 minutes — inconclusive.'); return; }
+
+    log('\n── ON CHAIN ─────────────────────────────');
+    log(`from            ${tx.from}  (type ${tx.fromType})`);
+    log(`asked for       ${wanted}`);
+    log(`recipientData   ${fromHex(tx.recipientData)}`);
+    log('\n── VERDICT ──────────────────────────────');
+    if (compact(tx.from) === wanted) {
+      log('SIGNER HONOURED — the wallet signed as asked. Narrow down which of the');
+      log(`four keys did it (${keys.join(', ')}) and the app can pin its signer.`);
+    } else {
+      log('SIGNER IGNORED — the wallet signed with its own choice and said nothing.');
+      log('The app cannot pick a signer on this path; §8.1\'s note stands.');
+    }
+  } catch (e) {
+    log('\nTHREW: ' + (e?.message ?? String(e)));
+  } finally {
+    $('btn-send-forced').disabled = false;
+  }
+};
 </script>
 </body>
 </html>
