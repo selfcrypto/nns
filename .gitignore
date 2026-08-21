@@ -20,3 +20,8 @@ scripts/restore-env.sh
 # An operator's live delegate data (labels.example.json is the template).
 packages/delegate/labels.json
 deploy/delegate/labels/
+
+# Per-machine Claude Code settings. `claude plugin marketplace add
+# ./.claude/marketplace --scope local` writes an absolute path here, so it is
+# one operator's checkout location and useless in anybody else's.
+.claude/settings.local.json
