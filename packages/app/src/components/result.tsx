@@ -1,6 +1,6 @@
 import type { ResolveResult, ResolveWarning } from '@nns/resolver'
 import type { NameInfo } from '../lib/api'
-import { ellipsizeAddress, formatApproxDate, approxDate, lunaToNim } from '../lib/format'
+import { displayAddress, ellipsizeAddress, formatApproxDate, approxDate, lunaToNim } from '../lib/format'
 import {
   RENDERED_ELSEWHERE,
   WARNING_TEXT,
@@ -63,7 +63,7 @@ export function AddressRow({ address, full = false }: { address: string; full?: 
   return (
     <div className="address-row">
       <Identicon address={address} />
-      <span className="address nns-name">{full ? address : ellipsizeAddress(address)}</span>
+      <span className="address nns-name">{full ? displayAddress(address) : ellipsizeAddress(address)}</span>
     </div>
   )
 }

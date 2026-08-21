@@ -1,4 +1,4 @@
-import { LUNA_PER_NIM } from '@nns/core'
+import { formatAddress, LUNA_PER_NIM, tryParseAddress } from '@nns/core'
 
 /** Integer luna → NIM display string, trailing zeros trimmed. */
 export function lunaToNim(luna: bigint): string {
@@ -30,9 +30,27 @@ export function blocksApprox(blocks: number): string {
   return `~${Math.max(1, Math.round(blocks / 60))} min`
 }
 
+/**
+ * The conventional spaced form, whatever spelling arrived.
+ *
+ * Addresses reach the UI two ways and they do not agree: `@nns/resolver`
+ * returns the branded compact 36 characters, the API serves the spaced groups
+ * of four. Everything on screen wants the spaced one — it is what the wallet,
+ * the Hub and the explorer show, `ellipsizeAddress` below silently no-ops on
+ * anything else, and an identicon is a *hash of the string it is handed*, so
+ * the two spellings of one address draw two different pictures and only the
+ * spaced one matches every other Nimiq surface.
+ *
+ * Unparsable input is returned untouched: display code never rejects.
+ */
+export function displayAddress(input: string): string {
+  const parsed = tryParseAddress(input)
+  return parsed === null ? input : formatAddress(parsed)
+}
+
 /** Spaced Nimiq address shortened for list rows. Full form belongs anywhere money moves. */
 export function ellipsizeAddress(address: string): string {
-  const parts = address.split(' ')
+  const parts = displayAddress(address).split(' ')
   if (parts.length !== 9) return address
   return `${parts[0]} ${parts[1]} … ${parts[8]}`
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { approxDate, blocksApprox, ellipsizeAddress, formatApproxDate, lunaToNim } from './format'
+import { approxDate, blocksApprox, displayAddress, ellipsizeAddress, formatApproxDate, lunaToNim } from './format'
 
 describe('lunaToNim', () => {
   it('renders whole NIM without decimals and fractions trimmed', () => {
@@ -33,5 +33,25 @@ describe('ellipsizeAddress', () => {
 
   it('leaves anything unexpected alone', () => {
     expect(ellipsizeAddress('nq34248h')).toBe('nq34248h')
+  })
+})
+
+describe('displayAddress', () => {
+  const spaced = 'NQ51 Q243 EF29 MTA3 LV3U F0JG LLP9 3SGP YXBF'
+
+  it('spaces the compact form @nns/resolver returns', () => {
+    expect(displayAddress('NQ51Q243EF29MTA3LV3UF0JGLLP93SGPYXBF')).toBe(spaced)
+  })
+
+  it('leaves the API form alone', () => {
+    expect(displayAddress(spaced)).toBe(spaced)
+  })
+
+  it('returns anything unparsable untouched', () => {
+    expect(displayAddress('not an address')).toBe('not an address')
+  })
+
+  it('lets ellipsizeAddress shorten a compact address', () => {
+    expect(ellipsizeAddress('NQ51Q243EF29MTA3LV3UF0JGLLP93SGPYXBF')).toBe('NQ51 Q243 … YXBF')
   })
 })
