@@ -88,7 +88,7 @@ const respond = (status: number, body: unknown): ApiResponse => ({ status, body 
  * the rendering is unambiguous and a malformed payload cannot smuggle a
  * newline into anything downstream. Every legitimate NNS payload is drawn from
  * `a-z 0-9 | . - /` and survives untouched, which is the entire point:
- * `NNS1Dnimiq|delegated.nimiqnames.com` rather than `4e4e5331446e696d…`.
+ * `NNS1Dalice|delegated.example.com` rather than `4e4e53314461…`.
  *
  * Lossy in neither direction, but it is **not** the canonical encoding — §8.2
  * commits to the hex, and `data` is carried beside this so a reader can check

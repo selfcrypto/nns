@@ -22,6 +22,23 @@ describe('parseResolverList', () => {
     expect(() => parseResolverList('nope')).toThrow(ConfigParseError)
     expect(() => parseResolverList('[{"name":"A","url":"ftp://x"}]')).toThrow(ConfigParseError)
   })
+
+  // The whole point of the relative form: `deploy/service`'s nginx serves the
+  // API on the bundle's own origin, so one image runs on any hostname.
+  it('accepts a same-origin path, so no hostname is baked into the bundle', () => {
+    expect(parseResolverList('[{"name":"This deployment","url":"/api"}]')).toEqual([
+      { name: 'This deployment', url: '/api' },
+    ])
+    expect(parseResolverList('[{"name":"Root","url":"/"}]')).toEqual([{ name: 'Root', url: '/' }])
+  })
+
+  it('refuses a protocol-relative URL — it reads as same-origin and is not', () => {
+    expect(() => parseResolverList('[{"name":"A","url":"//evil.example/api"}]')).toThrow(ConfigParseError)
+  })
+
+  it('still refuses a bare path with no leading slash — relative to the current page, not the origin', () => {
+    expect(() => parseResolverList('[{"name":"A","url":"api"}]')).toThrow(ConfigParseError)
+  })
 })
 
 describe('parseQuorum', () => {

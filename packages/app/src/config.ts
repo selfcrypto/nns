@@ -21,6 +21,31 @@ export class ConfigParseError extends Error {
   override readonly name = 'ConfigParseError'
 }
 
+/**
+ * An endpoint this bundle may talk to: an absolute `http(s)` URL, or a
+ * **root-relative path** meaning "the origin that served this bundle".
+ *
+ * The relative form is what makes the image domain-agnostic. `deploy/service`'s
+ * nginx already serves `/api/` and `/rpc` on the same origin as the bundle, so
+ * requiring an absolute URL here was the only thing forcing an operator's
+ * hostname into a build arg — and therefore a separate image per domain. With
+ * `/api`, one `web` image runs on any hostname and a domain change needs no
+ * rebuild. Every consumer concatenates and hands the result to `fetch`
+ * (`api.ts`'s `request`, `chatIndex.ts`, `history.ts`'s `fetchTransport`,
+ * `@nns/resolver`'s `join`), all of which resolve a relative URL against the
+ * document — so nothing downstream has to change.
+ *
+ * `//host/path` is **rejected**. A protocol-relative URL reads as same-origin
+ * and is not: it is an absolute cross-origin request wearing a leading slash,
+ * which is exactly the confusion this predicate exists to prevent.
+ */
+function isEndpointUrl(url: string): boolean {
+  return /^https?:\/\//.test(url) || /^\/(?!\/)/.test(url)
+}
+
+/** How the three messages below describe an acceptable value. */
+const URL_SHAPE = 'an http(s) URL or a same-origin path like /api'
+
 export function parseResolverList(raw: string | undefined): readonly ResolverEndpoint[] {
   if (raw === undefined || raw.trim() === '') return []
   let parsed: unknown
@@ -40,8 +65,8 @@ export function parseResolverList(raw: string | undefined): readonly ResolverEnd
     if (typeof name !== 'string' || name.trim() === '') {
       throw new ConfigParseError(`VITE_NNS_RESOLVERS[${index}].name must be a non-empty string — the name is what disagreement reports show, not decoration`)
     }
-    if (typeof url !== 'string' || !/^https?:\/\//.test(url)) {
-      throw new ConfigParseError(`VITE_NNS_RESOLVERS[${index}].url must be an http(s) URL`)
+    if (typeof url !== 'string' || !isEndpointUrl(url)) {
+      throw new ConfigParseError(`VITE_NNS_RESOLVERS[${index}].url must be ${URL_SHAPE}`)
     }
     return { name, url }
   })
@@ -73,7 +98,7 @@ export function appConfig(): AppConfig {
 export function rpcEndpoint(): string | null {
   const raw = import.meta.env['VITE_NNS_RPC'] as string | undefined
   if (raw === undefined || raw.trim() === '') return null
-  if (!/^https?:\/\//.test(raw)) throw new ConfigParseError('VITE_NNS_RPC must be an http(s) URL')
+  if (!isEndpointUrl(raw)) throw new ConfigParseError(`VITE_NNS_RPC must be ${URL_SHAPE}`)
   return raw
 }
 
@@ -89,7 +114,7 @@ export function rpcEndpoint(): string | null {
 export function chatEndpoint(): string | null {
   const raw = import.meta.env['VITE_NNS_CHAT'] as string | undefined
   if (raw === undefined || raw.trim() === '') return null
-  if (!/^https?:\/\//.test(raw)) throw new ConfigParseError('VITE_NNS_CHAT must be an http(s) URL')
+  if (!isEndpointUrl(raw)) throw new ConfigParseError(`VITE_NNS_CHAT must be ${URL_SHAPE}`)
   return raw.replace(/\/+$/, '')
 }
 

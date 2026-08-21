@@ -116,3 +116,35 @@ describe('luna amounts', () => {
     expect(params.pendingGovernance?.effectiveHeight).toBe(99)
   })
 })
+
+// A same-origin base (`VITE_NNS_RESOLVERS[].url = "/api"`) is what lets one
+// `web` image run on any hostname — `config.ts`'s `isEndpointUrl`. It only
+// works because `request` concatenates: anything here that reached for
+// `new URL(base)` would throw on a relative base instead of resolving it
+// against the document, which is a failure no absolute-URL test would catch.
+describe('a same-origin base', () => {
+  const capturing = (seen: string[]): JsonFetch => {
+    return (url) => {
+      seen.push(url)
+      return Promise.resolve({ status: 200, body: nameBody })
+    }
+  }
+
+  it('builds a root-relative request path, with no origin invented', async () => {
+    const seen: string[] = []
+    await getNameInfo('/api', 'example', capturing(seen))
+    expect(seen).toEqual(['/api/name/example'])
+  })
+
+  it('treats a bare "/" as the origin root', async () => {
+    const seen: string[] = []
+    await getNameInfo('/', 'example', capturing(seen))
+    expect(seen).toEqual(['/name/example'])
+  })
+
+  it('still joins an absolute base the same way', async () => {
+    const seen: string[] = []
+    await getNameInfo('https://api.example.com', 'example', capturing(seen))
+    expect(seen).toEqual(['https://api.example.com/name/example'])
+  })
+})
