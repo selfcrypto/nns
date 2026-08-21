@@ -4,6 +4,44 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NNS SDK probe</title>
+<!--
+  The §10.5 probe. One question gates every Pay send:
+
+      does the confirmation sheet honour an app-supplied `value` and `fee`,
+      or substitute its own tier picker?
+
+  A substituted `value` turns every G, N and B into a forfeit, so nothing
+  sends from Pay until this page has been run on a shipped build.
+
+  Three rules this page is built around — the first two are why the previous
+  version could not answer anything:
+
+  1. **Wallet failures are a VALUE, not a throw.** Every wallet method returns
+     `T | ErrorResponse`. The old probe wrapped each attempt in try/catch and
+     `break`ed on the first that did not throw — which is all of them. It
+     reported ACCEPTED for a declined sheet and never reached its second
+     encoding. Every result here is shape-checked for `error` instead.
+  2. **The chain is the verdict.** Not the sheet, not the returned string. The
+     sheet can display your fee and the wallet can still sign another; the
+     return value is the serialized transaction, and a serialized transaction
+     is not a landed one. So each send is read back through the operator relay
+     (`getTransactionsByAddress`, same origin, `/rpc`) and the verdict is
+     computed from `value` / `fee` / `recipientData` as the network recorded
+     them. Same confirm-by-effect discipline as `lib/send.ts`.
+  3. **One send per press, encoding chosen explicitly.** Which is the second
+     open question: `data` on the wallet plane is hex or utf-8 text, and
+     nobody knows which. The app carries hex (`SubmitRequest.dataHex`); if Pay
+     encodes that string again the payload on chain is garbage. A loop that
+     stops at the first non-throw can never tell the two apart.
+
+  Heights come from the relay, never from `provider.getBlockNumber()` — those
+  are two planes answered by two nodes (rpc-reference §8) and this page
+  compares a height against `blockNumber` from our own node.
+
+  The payload is deliberately NOT an NNS message: it starts `PROBE-`, so
+  §7.5's ignore boundary keeps it out of every indexer. This probe registers
+  nothing and forfeits nothing. It does spend real NIM.
+-->
 <style>
   :root { color-scheme: light dark; }
   body { font: 15px/1.45 -apple-system, system-ui, sans-serif; margin: 0; padding: 16px 14px 48px; }
@@ -19,35 +57,57 @@
   input { width: 100%; padding: 9px; margin: 4px 0 10px; font-size: 14px;
           border: 1px solid rgba(127,127,127,.4); border-radius: 8px; background: transparent;
           color: inherit; box-sizing: border-box; }
-  .q { font-weight: 600; margin-top: 20px; }
+  .q { font-weight: 600; margin-top: 22px; }
+  .warn { background: rgba(200,120,0,.14); border-radius: 8px; padding: 10px; font-size: 13px; margin: 12px 0; }
 </style>
 </head>
 <body>
 
 <h1>NNS · Nimiq Pay SDK probe</h1>
-<p class="sub">Answers: can a mini app set <b>value</b>, <b>fee</b> and <b>data</b>?</p>
+<p class="sub">Answers: does the sheet honour <b>value</b> and <b>fee</b>, and is <b>data</b> hex or text?</p>
 
 <button id="btn-init">1 · Init &amp; enumerate SDK</button>
 <pre id="out-init">not run</pre>
 
-<button id="btn-info" class="alt" disabled>2 · Accounts / consensus / height</button>
+<button id="btn-info" class="alt" disabled>2 · Account / consensus / heights</button>
 <pre id="out-info">not run</pre>
 
 <div class="q">3 · Send test</div>
-<label>Recipient (an address you control)</label>
+<div class="warn">
+  Spends real NIM. The recipient must be an address you control and
+  <b>must not be your Pay account</b> — the network silently drops a
+  self-transaction, which would look exactly like a wallet that ignored the
+  send.
+</div>
+
+<label>Recipient (an address you control, not this account)</label>
 <input id="to" placeholder="NQ… " autocapitalize="off" autocorrect="off" spellcheck="false">
-<label>Value (luna) — 1 luna = 0.00001 NIM</label>
-<input id="value" value="1" inputmode="numeric">
-<label>Fee (luna) — the question: is this honoured?</label>
-<input id="fee" value="2000000" inputmode="numeric">
-<label>Data (plain text; the probe also tries hex)</label>
-<input id="data" value="NNS1Stestname" autocapitalize="off" autocorrect="off" spellcheck="false">
-<button id="btn-send" disabled>Request transaction</button>
+<label>Value (luna) — 1 NIM = 100 000 luna. Deliberately unround.</label>
+<input id="value" value="12345" inputmode="numeric">
+<label>Fee (luna) — the question: is this honoured, or replaced by a tier?</label>
+<input id="fee" value="4321" inputmode="numeric">
+
+<button id="btn-send-text" disabled>Send A · data as plain text</button>
+<button id="btn-send-hex" class="alt" disabled>Send B · data as hex</button>
 <pre id="out-send">not run</pre>
 
 <script type="module">
 const $ = (id) => document.getElementById(id);
 const show = (el, v) => { $(el).textContent = typeof v === 'string' ? v : JSON.stringify(v, null, 2); };
+
+const enc = new TextEncoder();
+const toHex = (s) => [...enc.encode(s)].map(b => b.toString(16).padStart(2, '0')).join('');
+const fromHex = (h) => {
+  if (typeof h !== 'string' || h.length % 2 !== 0 || /[^0-9a-fA-F]/.test(h)) return null;
+  const bytes = new Uint8Array(h.length / 2);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { return null; }
+};
+const compact = (a) => String(a ?? '').replace(/\s+/g, '').toUpperCase();
+
+/** A wallet method answers `T | ErrorResponse`. This is the whole difference. */
+const asError = (r) =>
+  (r && typeof r === 'object' && 'error' in r) ? (r.error ?? { type: 'unknown', message: '' }) : null;
 
 /** Every callable name on an object and its prototype chain. */
 function surface(obj) {
@@ -63,19 +123,38 @@ function surface(obj) {
   return [...names].sort();
 }
 
+// ── The operator relay, same origin as this page. Four allowlisted methods;
+//    two of them are all this needs. Never the wallet plane: `getBlockNumber`
+//    exists on both and answers from different nodes.
+const RPC = new URL('/rpc', location.href).href;
+
+async function rpc(method, params) {
+  const res = await fetch(RPC, {
+    method: 'POST',
+    headers: { accept: 'application/json', 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+  });
+  if (res.status !== 200) throw new Error(`relay answered ${res.status}`);
+  const body = await res.json();
+  if (body.error) throw new Error(body.error.data ?? body.error.message ?? 'rpc error');
+  // The RPC wraps every result: {data, metadata}.
+  return body.result?.data;
+}
+
 let nimiq = null;
+let account = null;
 
 $('btn-init').onclick = async () => {
   const lines = [];
   try {
-    // documented entry point
     const mod = await import('https://esm.sh/@nimiq/mini-app-sdk');
     lines.push('SDK module loaded. exports: ' + Object.keys(mod).join(', '));
     nimiq = await mod.init();
-    lines.push('\ninit() resolved.\n\nSDK SURFACE:\n  ' + surface(nimiq).join('\n  '));
+    lines.push('\ninit() resolved.');
+    lines.push('sendBasicTransactionWithData: ' + typeof nimiq.sendBasicTransactionWithData);
+    lines.push('\nSDK SURFACE:\n  ' + surface(nimiq).join('\n  '));
   } catch (e) {
     lines.push('SDK import/init failed: ' + e.message);
-    // fall back to whatever Nimiq Pay injected directly
     const keys = Object.keys(window).filter(k => /nimiq|pay|provider|ethereum/i.test(k));
     lines.push('\ninjected globals matching nimiq/pay/provider: ' + (keys.join(', ') || 'none'));
     for (const k of keys) {
@@ -83,58 +162,165 @@ $('btn-init').onclick = async () => {
     }
     if (window.nimiq) nimiq = window.nimiq;
   }
+
+  // Worth knowing on its own: the workspace pins ^0.1.0, and a PoS-2.0 fix
+  // may have shipped a newer SDK we are not building against.
+  try {
+    const meta = await (await fetch('https://registry.npmjs.org/@nimiq/mini-app-sdk')).json();
+    lines.push(`\nnpm latest: ${meta['dist-tags']?.latest} (workspace catalog pins ^0.1.0)`);
+  } catch { lines.push('\nnpm registry unreachable (not a problem)'); }
+
   show('out-init', lines.join('\n'));
-  if (nimiq) { $('btn-info').disabled = false; $('btn-send').disabled = false; }
+  if (nimiq) {
+    $('btn-info').disabled = false;
+    $('btn-send-text').disabled = false;
+    $('btn-send-hex').disabled = false;
+  }
 };
 
 $('btn-info').onclick = async () => {
   const out = {};
   for (const m of ['listAccounts', 'isConsensusEstablished', 'getBlockNumber']) {
-    try { out[m] = await nimiq[m](); } catch (e) { out[m] = 'ERR ' + e.message; }
+    try {
+      const r = await nimiq[m]();
+      const err = asError(r);
+      out[`wallet.${m}`] = err ? `ERROR ${err.type}: ${err.message}` : r;
+    } catch (e) { out[`wallet.${m}`] = 'THREW ' + e.message; }
   }
+  const accounts = await nimiq.listAccounts().catch(() => null);
+  account = Array.isArray(accounts) ? accounts[0] ?? null : null;
+  out.account = account;
+
+  // The other plane, and the one every verdict below is read from.
+  try { out['relay.getBlockNumber'] = await rpc('getBlockNumber', []); }
+  catch (e) { out['relay.getBlockNumber'] = 'ERR ' + e.message; }
+  out['relay.url'] = RPC;
+
   show('out-info', out);
 };
 
-$('btn-send').onclick = async () => {
-  const recipient = $('to').value.replace(/\s+/g, '');
-  const value = Number($('value').value);
-  const fee = Number($('fee').value);
-  const text = $('data').value;
-  const hex = [...new TextEncoder().encode(text)]
-    .map(b => b.toString(16).padStart(2, '0')).join('');
-
-  // Candidate method names, in order of likelihood. The first that exists wins.
-  const candidates = ['sendTransaction', 'requestTransaction', 'sendBasicTransactionWithData',
-                      'sendBasicTransaction', 'checkout', 'requestPayment', 'pay', 'signTransaction'];
-  const method = candidates.find(m => typeof nimiq?.[m] === 'function');
-
-  if (!method) {
-    show('out-send', 'No send-like method found. Surface was:\n  ' + surface(nimiq).join('\n  '));
-    return;
+/** Poll our own node until the sent transaction lands. */
+async function awaitOnChain(recipient, sinceHeight, log) {
+  const deadline = Date.now() + 180_000;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 4000));
+    let txs;
+    try { txs = await rpc('getTransactionsByAddress', [account, 20, null]); }
+    catch (e) { log(`  … lookup failed: ${e.message}`); continue; }
+    if (!Array.isArray(txs)) { log('  … lookup returned no array'); continue; }
+    const hit = txs
+      .filter(t => compact(t.to) === recipient && t.blockNumber >= sinceHeight - 2)
+      .sort((a, b) => b.blockNumber - a.blockNumber)[0];
+    if (hit) return hit;
+    log(`  … not on chain yet (${Math.round((deadline - Date.now()) / 1000)}s left)`);
   }
+  return null;
+}
 
-  const log = [`using nimiq.${method}()`];
+async function probeSend(encoding) {
+  $('btn-send-text').disabled = true;
+  $('btn-send-hex').disabled = true;
+  const lines = [];
+  const log = (s) => { lines.push(s); show('out-send', lines.join('\n')); };
 
-  // Try an options object first (most likely), then positional.
-  const attempts = [
-    ['object / plain data', [{ recipient, value, fee, data: text }]],
-    ['object / hex data',   [{ recipient, value, fee, data: hex }]],
-    ['object / extraData',  [{ recipient, value, fee, extraData: text }]],
-    ['positional',          [recipient, value, fee, text]],
-  ];
+  try {
+    const recipient = compact($('to').value);
+    const value = Number($('value').value);
+    const fee = Number($('fee').value);
 
-  for (const [label, args] of attempts) {
-    try {
-      const res = await nimiq[method](...args);
-      log.push(`\n${label} → ACCEPTED\n` + JSON.stringify(res, null, 2));
-      log.push('\nCheck the confirmation dialog: did it show YOUR fee, or its own tiers?');
-      break;
-    } catch (e) {
-      log.push(`\n${label} → ${e.message}`);
+    if (!account) {
+      const accounts = await nimiq.listAccounts().catch(() => null);
+      account = Array.isArray(accounts) ? accounts[0] ?? null : null;
     }
+    if (!account) { log('No account — run step 2 first.'); return; }
+    if (!/^NQ[0-9A-Z]{34}$/.test(recipient)) { log('Recipient does not look like an address.'); return; }
+    if (recipient === compact(account)) {
+      log('Recipient is this Pay account. A self-transaction is accepted by the RPC and');
+      log('silently dropped by the network — it would read as a wallet that ignored the send.');
+      return;
+    }
+    if (!Number.isInteger(value) || value <= 0) { log('Value must be a positive integer (luna).'); return; }
+    if (!Number.isInteger(fee) || fee < 0) { log('Fee must be a non-negative integer (luna).'); return; }
+
+    // A per-send marker, so a verdict is never read off an earlier attempt.
+    const nonce = [...crypto.getRandomValues(new Uint8Array(2))]
+      .map(b => b.toString(16).padStart(2, '0')).join('');
+    const marker = `PROBE-${encoding.toUpperCase()}-${nonce}`;
+    const data = encoding === 'hex' ? toHex(marker) : marker;
+
+    let since;
+    try { since = await rpc('getBlockNumber', []); }
+    catch (e) { log('Relay unreachable, so nothing could be verified: ' + e.message); return; }
+
+    log(`marker      ${marker}`);
+    log(`data sent   ${encoding} → "${data}"`);
+    log(`requested   value=${value} luna  fee=${fee} luna  to=${recipient}`);
+    log(`height now  ${since}`);
+    log('\nConfirm the sheet on the device. Note what it shows for amount and fee.\n');
+
+    const result = await nimiq.sendBasicTransactionWithData({ recipient, value, fee, data });
+
+    const err = asError(result);
+    if (err) {
+      log(`REJECTED — the wallet returned an error value (not a throw):`);
+      log(`  type:    ${err.type}`);
+      log(`  message: ${err.message}`);
+      if (encoding === 'text') log('\nIf this says the data is invalid, the wallet plane wants HEX — run Send B.');
+      else log('\nIf this says the data is invalid, the wallet plane wants TEXT — run Send A.');
+      return;
+    }
+    log(`returned    ${typeof result === 'string' ? `serialized tx, ${result.length / 2} bytes` : JSON.stringify(result)}`);
+    if (typeof result === 'string') log(`            ${result}`);
+    log('\nA serialized transaction is not a landed one. Reading it back from the chain…');
+
+    const tx = await awaitOnChain(recipient, since, log);
+    if (!tx) {
+      log('\nNOT ON CHAIN within 3 minutes. Either it was never broadcast, or it was');
+      log('dropped. Note that this is itself an answer worth recording.');
+      return;
+    }
+
+    const onChainText = fromHex(tx.recipientData);
+    log('\n── ON CHAIN ─────────────────────────────');
+    log(`hash            ${tx.hash}`);
+    log(`block           ${tx.blockNumber}`);
+    log(`executionResult ${tx.executionResult}`);
+    log(`value           ${tx.value} luna`);
+    log(`fee             ${tx.fee} luna`);
+    log(`recipientData   ${tx.recipientData}`);
+    log(`  decoded utf-8 ${onChainText === null ? '(not valid utf-8)' : `"${onChainText}"`}`);
+
+    log('\n── VERDICT ──────────────────────────────');
+    log(tx.value === value
+      ? `VALUE HONOURED — asked ${value}, chain has ${value}.`
+      : `VALUE SUBSTITUTED — asked ${value}, chain has ${tx.value}. Pay sends are unusable for G/N/B.`);
+    log(tx.fee === fee
+      ? `FEE HONOURED — asked ${fee}, chain has ${fee}.`
+      : `FEE SUBSTITUTED — asked ${fee}, chain has ${tx.fee}. Survivable; NNS never prices a fee.`);
+
+    if (onChainText === marker) {
+      log(encoding === 'text'
+        ? 'DATA: the wallet takes PLAIN TEXT and utf-8 encodes it. The app must decode its dataHex before sending.'
+        : 'DATA: the wallet takes HEX and passes it through. The app can send dataHex unchanged.');
+    } else if (onChainText === data) {
+      log('DATA: the wallet utf-8 encoded the string it was given — so it takes PLAIN TEXT,');
+      log('      and a hex payload would land on chain as the ASCII of its own hex digits.');
+    } else {
+      log(`DATA: neither encoding matched. Sent "${data}", chain decodes to ${onChainText === null ? 'non-utf-8' : `"${onChainText}"`}.`);
+    }
+    if (tx.executionResult === false) {
+      log('\nexecutionResult is FALSE — the transaction is in a block and did not execute.');
+    }
+  } catch (e) {
+    log('\nTHREW (unexpected — wallet failures are values): ' + (e?.message ?? String(e)));
+  } finally {
+    $('btn-send-text').disabled = false;
+    $('btn-send-hex').disabled = false;
   }
-  show('out-send', log.join('\n'));
-};
+}
+
+$('btn-send-text').onclick = () => probeSend('text');
+$('btn-send-hex').onclick = () => probeSend('hex');
 </script>
 </body>
 </html>
