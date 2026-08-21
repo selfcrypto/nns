@@ -88,13 +88,28 @@ describe('a broken checker never reads as a negative result (decisions.md)', () 
     expect(line).not.toContain('resolver')
   })
 
-  it('unchecked never claims what only an answered poll can know', async () => {
-    const { sendUncheckedLine, sendUnconfirmedLine } = await import('./wording')
+  it('no ending claims the network refused a transaction — not even unconfirmed', async () => {
+    const { sendUncheckedLine, sendUnconfirmedLine, sendSettlingLine } = await import('./wording')
     const unchecked = sendUncheckedLine().toLowerCase()
-    // The unconfirmed line's claim — the network did not include it — is
-    // exactly what a dead checker cannot assert.
-    expect(sendUnconfirmedLine().toLowerCase()).toContain('did not include')
-    expect(unchecked).not.toContain('did not include')
+    const unconfirmed = sendUnconfirmedLine().toLowerCase()
+
+    // This assertion used to require the opposite — that `unconfirmed` say
+    // "the network did not include this transaction" — and so pinned the bug
+    // in place: the app said exactly that about a registration that was
+    // already registered and already listed in "My names" (Kike,
+    // 2026-08-21). The app never observes the network refusing anything. It
+    // observes an effect not yet visible, which is a claim about our own
+    // indexer, and a transaction not found on chain, which can still be in
+    // flight. Neither entitles it to speak for the network.
+    for (const line of [unconfirmed, unchecked]) {
+      expect(line).not.toContain('did not include')
+      expect(line).not.toContain('refused')
+      expect(line).not.toContain('rejected')
+    }
+    // And the on-chain-but-not-yet-indexed ending is not a failure at all.
+    const settling = sendSettlingLine().toLowerCase()
+    expect(settling).toContain('confirmed on chain')
+    expect(settling).not.toContain('fail')
     expect(unchecked).not.toContain('fail')
     // And it must not prompt a retry: a retry re-signs a different
     // transaction and can pay a second fee.

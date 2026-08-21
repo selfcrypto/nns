@@ -16,6 +16,8 @@ import {
   sendDeclinedLine,
   sendNoRpcLine,
   sendSubmittingLine,
+  sendRejectedLine,
+  sendSettlingLine,
   sendUncheckedLine,
   sendUnconfirmedLine,
 } from '../lib/wording'
@@ -191,13 +193,15 @@ export function ActionSheet({
           className={
             result.status === 'confirmed'
               ? 'verify verify-proven'
-              : result.status === 'unchecked'
+              : result.status === 'unchecked' || result.status === 'settling'
                 ? 'note note-info'
                 : 'field-error'
           }
         >
           {result.status === 'confirmed' && sendConfirmedLine()}
           {result.status === 'declined' && sendDeclinedLine()}
+          {result.status === 'settling' && sendSettlingLine()}
+          {result.status === 'rejected' && sendRejectedLine()}
           {result.status === 'unconfirmed' && sendUnconfirmedLine()}
           {result.status === 'unchecked' && sendUncheckedLine()}
           {result.status === 'blocked' && sendNoRpcLine()}

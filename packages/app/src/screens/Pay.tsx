@@ -37,6 +37,8 @@ import {
   sendDeclinedLine,
   sendNoRpcLine,
   sendSubmittingLine,
+  sendRejectedLine,
+  sendSettlingLine,
   sendUncheckedLine,
   sendUnconfirmedLine,
   unreachableLine,
@@ -194,14 +196,16 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
               className={
                 result.status === 'confirmed'
                   ? 'verify verify-proven'
-                  : result.status === 'unchecked'
+                  : result.status === 'unchecked' || result.status === 'settling'
                     ? 'note note-info'
                     : 'field-error'
               }
             >
               {result.status === 'confirmed' && sendConfirmedLine()}
               {result.status === 'declined' && sendDeclinedLine()}
-              {result.status === 'unconfirmed' && sendUnconfirmedLine()}
+              {result.status === 'settling' && sendSettlingLine()}
+          {result.status === 'rejected' && sendRejectedLine()}
+          {result.status === 'unconfirmed' && sendUnconfirmedLine()}
               {result.status === 'unchecked' && sendUncheckedLine()}
               {result.status === 'blocked' && sendNoRpcLine()}
               {result.status === 'failed' && `Couldn’t send: ${result.detail}`}

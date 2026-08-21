@@ -15,7 +15,21 @@ export type SendResult =
   | { readonly status: 'confirmed' }
   | { readonly status: 'declined' }
   | { readonly status: 'blocked'; readonly reason: 'no-rpc' }
-  /** Polls answered, the effect never showed: the network did not include it — sayable. */
+  /**
+   * The transaction is in a block and executed; the effect is not visible at
+   * the API yet. **Not a failure, and the common outcome for a registry
+   * effect** — the indexer scans by batch, so visibility sawtooths by a full
+   * batch (measured 2026-08-21: the API's height advances in exact 60-block
+   * steps, so up to ~60 s) on top of its poll interval.
+   */
+  | { readonly status: 'settling'; readonly hash: string | null }
+  /** In a block, and did not execute. Included, so a retry is a second fee. */
+  | { readonly status: 'rejected'; readonly hash: string | null }
+  /**
+   * Polls answered, the effect never showed, and the transaction is not on
+   * chain either. The strongest negative this app is entitled to — and still
+   * not "the network refused it", because a transaction can be in flight.
+   */
   | { readonly status: 'unconfirmed'; readonly hash: string | null }
   /**
    * No poll ever answered: the checker was down, not the send. A broken
@@ -61,7 +75,14 @@ export async function performSend(options: {
   }
 
   options.onPhase?.('confirming')
-  const timeoutMs = confirm.timeoutMs ?? 90_000
+  // 90 s could not cover a registry effect and was losing the race routinely.
+  // The indexer scans by batch, so the API trails the chain by up to a full
+  // batch — measured 2026-08-21, its height advancing in exact 60-block
+  // steps — and that is on top of the scan's own poll interval. A
+  // registration landing just after a batch boundary needs most of three
+  // minutes before it can possibly be visible. Overshooting costs a longer
+  // spinner; undershooting told a user their paid registration had failed.
+  const timeoutMs = confirm.timeoutMs ?? 210_000
   const intervalMs = confirm.intervalMs ?? 3_000
   const rounds = Math.max(1, Math.floor(timeoutMs / intervalMs))
   let anyPollAnswered = false
@@ -75,11 +96,47 @@ export async function performSend(options: {
     }
     await sleep(intervalMs)
   }
-  // Two different truths at timeout. Polls that answered "not yet" all the
-  // way down mean the network did not show the effect — unconfirmed. Polls
-  // that never answered mean the *checker* was down, and a broken checker
-  // never reads as a negative result.
-  return anyPollAnswered
-    ? { status: 'unconfirmed', hash: submitted.hash }
-    : { status: 'unchecked', hash: submitted.hash }
+  // A broken checker never reads as a negative result — and neither does a
+  // *lagging* one, which is the same rule and the one this loop used to
+  // break. Polls answering "not yet" is a statement about what our indexer
+  // can see, never about what the network did, so before concluding
+  // anything negative, ask the chain directly. It answered a registration
+  // as "the network did not include this transaction" while the name was
+  // already registered and visible in "My names" (Kike, 2026-08-21).
+  if (!anyPollAnswered) return { status: 'unchecked', hash: submitted.hash }
+  switch (await inspectOnChain(transport, submitted.hash)) {
+    case 'executed':
+      return { status: 'settling', hash: submitted.hash }
+    case 'failed':
+      return { status: 'rejected', hash: submitted.hash }
+    case 'absent':
+      return { status: 'unconfirmed', hash: submitted.hash }
+    case 'unknown':
+      return { status: 'unchecked', hash: submitted.hash }
+  }
+}
+
+/**
+ * What the chain says about a hash, asked only once the effect poll has run
+ * out. `getTransactionByHash` is one of the relay's four allowed methods, and
+ * it sees a transaction as soon as it is in a block — long before the
+ * batch-scanning indexer puts the effect behind the API.
+ */
+async function inspectOnChain(
+  transport: HistoryTransport | null,
+  hash: string | null,
+): Promise<'executed' | 'failed' | 'absent' | 'unknown'> {
+  if (transport === null || hash === null) return 'unknown'
+  let tx: unknown
+  try {
+    tx = await transport('getTransactionByHash', [hash])
+  } catch {
+    // The node could not be asked. That is not evidence of anything.
+    return 'unknown'
+  }
+  if (typeof tx !== 'object' || tx === null) return 'absent'
+  const executed = (tx as Record<string, unknown>)['executionResult']
+  if (executed === true) return 'executed'
+  if (executed === false) return 'failed'
+  return 'unknown'
 }

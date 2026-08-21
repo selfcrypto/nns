@@ -263,8 +263,35 @@ export const sendConfirmedLine = (): string => 'Done.'
 export const sendDeclinedLine = (): string => 'Nothing was sent.'
 
 /** Never "sent ✓": the network did not show the effect, and that is all anyone can say. */
+/**
+ * The strongest negative the app is entitled to, and weaker than it used to
+ * be. It claimed "the network did not include this transaction" on evidence
+ * that only concerned our own indexer's visibility — and said it about a
+ * registration that was already registered (Kike, 2026-08-21). The send
+ * machine now asks the chain before reaching this line at all, so by the time
+ * it shows, the transaction was not found in a block either. Even then it is
+ * "hasn't appeared", never "was refused": a transaction can still be in
+ * flight, and a retry re-signs a different one and pays a second fee.
+ */
 export const sendUnconfirmedLine = (): string =>
-  'Not confirmed — the network did not include this transaction. Check the name again before retrying.'
+  'Not confirmed — this transaction hasn’t appeared on chain. It may still arrive; check the name again before retrying.'
+
+/**
+ * On chain and executed, with the effect not yet visible at the API. The
+ * common ending for a registry effect rather than an exceptional one: the
+ * indexer scans by batch, so the API can be up to a full batch behind the
+ * chain. Says nothing went wrong, because nothing did.
+ */
+export const sendSettlingLine = (): string =>
+  'Sent and confirmed on chain — the registry is still catching up. It should show within a minute or two; no need to send again.'
+
+/**
+ * In a block, and it did not execute. The one case where the transaction is
+ * definitely spent and definitely ineffective, so it must not read like
+ * either of the "check again" outcomes.
+ */
+export const sendRejectedLine = (): string =>
+  'This transaction was included but did not execute. Nothing changed, and the fee is spent — check the name before trying again.'
 
 /**
  * The checker was down, not the send — a broken checker never reads as a

@@ -60,12 +60,25 @@ describe('performSend', () => {
   it('an effect that never appears is unconfirmed with the hash — never "failed", never "sent"', async () => {
     const result = await performSend({
       wallet: walletThat({ ok: true, hash: 'abc', serializedTxHex: '00' }),
-      transport: null,
+      // The chain is asked, and does not have it either — which is what
+      // entitles this ending to be negative at all.
+      transport: () => Promise.resolve(null),
       request: REQUEST,
       confirm: { poll: () => Promise.resolve(false), timeoutMs: 9_000, intervalMs: 3_000 },
       sleep: instantly,
     })
     expect(result).toEqual({ status: 'unconfirmed', hash: 'abc' })
+  })
+
+  it('no transport is unchecked, not unconfirmed — nothing can be asked', async () => {
+    const result = await performSend({
+      wallet: walletThat({ ok: true, hash: 'abc', serializedTxHex: '00' }),
+      transport: null,
+      request: REQUEST,
+      confirm: { poll: () => Promise.resolve(false), timeoutMs: 9_000, intervalMs: 3_000 },
+      sleep: instantly,
+    })
+    expect(result).toEqual({ status: 'unchecked', hash: 'abc' })
   })
 
   it('polls that never answered end as unchecked, not unconfirmed — the checker was down, not the send', async () => {
@@ -83,7 +96,7 @@ describe('performSend', () => {
     let polls = 0
     const result = await performSend({
       wallet: walletThat({ ok: true, hash: 'abc', serializedTxHex: '00' }),
-      transport: null,
+      transport: () => Promise.resolve(null),
       request: REQUEST,
       confirm: {
         poll: () => {
@@ -117,4 +130,56 @@ describe('performSend', () => {
     })
     expect(result).toEqual({ status: 'confirmed' })
   })
+
+  it('asks the chain before calling anything unconfirmed — a lagging checker is not a negative', async () => {
+    // The registry effect never appears (the indexer is a batch behind), but
+    // the transaction is in a block and executed. That is `settling`, and it
+    // must not read as a failure: the real registration this reproduces was
+    // already live in "My names" while the app said the network refused it.
+    const result = await performSend({
+      wallet: walletThat({ ok: true, hash: 'abc', serializedTxHex: null }),
+      transport: (method) =>
+        method === 'getTransactionByHash'
+          ? Promise.resolve({ executionResult: true })
+          : Promise.resolve(null),
+      request: REQUEST,
+      confirm: { poll: () => Promise.resolve(false), timeoutMs: 30, intervalMs: 10 },
+      sleep: instantly,
+    })
+    expect(result).toEqual({ status: 'settling', hash: 'abc' })
+  })
+
+  it('reports a transaction that was included but did not execute as rejected', async () => {
+    const result = await performSend({
+      wallet: walletThat({ ok: true, hash: 'abc', serializedTxHex: null }),
+      transport: () => Promise.resolve({ executionResult: false }),
+      request: REQUEST,
+      confirm: { poll: () => Promise.resolve(false), timeoutMs: 30, intervalMs: 10 },
+      sleep: instantly,
+    })
+    expect(result).toEqual({ status: 'rejected', hash: 'abc' })
+  })
+
+  it('only says unconfirmed when the chain does not have it either', async () => {
+    const result = await performSend({
+      wallet: walletThat({ ok: true, hash: 'abc', serializedTxHex: null }),
+      transport: () => Promise.resolve(null),
+      request: REQUEST,
+      confirm: { poll: () => Promise.resolve(false), timeoutMs: 30, intervalMs: 10 },
+      sleep: instantly,
+    })
+    expect(result).toEqual({ status: 'unconfirmed', hash: 'abc' })
+  })
+
+  it('a chain lookup that throws is unchecked, never a negative result', async () => {
+    const result = await performSend({
+      wallet: walletThat({ ok: true, hash: 'abc', serializedTxHex: null }),
+      transport: () => Promise.reject(new Error('relay down')),
+      request: REQUEST,
+      confirm: { poll: () => Promise.resolve(false), timeoutMs: 30, intervalMs: 10 },
+      sleep: instantly,
+    })
+    expect(result).toEqual({ status: 'unchecked', hash: 'abc' })
+  })
+
 })

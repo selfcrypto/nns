@@ -154,13 +154,33 @@ compose ──▶ review (in-app) ──▶ Pay sheet (wallet UI) ──▶ conf
   For `S`/`X` the counterparty is the recipient *so that* this sheet shows
   it (§5.3); the review screen says "check the address on the next screen".
 - **Confirm loop**: a returned hash is not confirmation (three silent-drop
-  routes, §5.3) — and the SDK does not even return one: a send resolves to
-  the **serialized transaction**, or to an `ErrorResponse` *value* when the
-  user declines the sheet (never a throw). Poll the API (or history, for
-  NC) until the effect appears: "Sent — confirming…" → "Done" with the
-  effect named, or after ~90 s the honest failure: "Not confirmed — the
-  network did not include this transaction." Never "sent ✓" from anything
-  the SDK returned.
+  routes, §5.3). What the SDK returns is a 32-byte **hash** — measured
+  2026-08-21; the declarations say "serialized transaction" and are wrong —
+  or an `ErrorResponse` *value* when the user declines the sheet (never a
+  throw). Poll the API (or history, for NC) until the effect appears:
+  "Sent — confirming…" → "Done" with the effect named. Never "sent ✓" from
+  anything the wallet returned.
+
+  **Running out of poll rounds is not a failure, and must never be phrased
+  as one.** The API is served by a batch-scanning indexer, so a registry
+  effect becomes visible up to a full batch behind the chain — measured
+  2026-08-21, the API's height advances in exact 60-block steps, ~60 s, on
+  top of the scan's own poll interval. The window is therefore ~210 s, and
+  when it runs out the machine **asks the chain** (`getTransactionByHash`,
+  one of the relay's four methods) before saying anything negative:
+
+  | On chain | Ending | What it says |
+  |---|---|---|
+  | included, executed | `settling` | Confirmed on chain, the registry is catching up. Not a failure |
+  | included, did not execute | `rejected` | Included and ineffective; the fee is spent |
+  | not found | `unconfirmed` | Hasn't appeared — it may still arrive |
+  | could not ask | `unchecked` | Couldn't check; says nothing about the send |
+
+  The old ending said "the network did not include this transaction" on
+  nothing but an unanswered effect poll, and said it about a registration
+  that was already registered and already listed in "My names". The app
+  never observes the network refusing anything — a lagging checker is not a
+  negative result any more than a broken one is.
 
 ## 5. Per-action flow table
 
