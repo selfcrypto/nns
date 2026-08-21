@@ -78,7 +78,8 @@
 <body>
 
 <h1>NNS · Nimiq Pay SDK probe</h1>
-<p class="sub">Answers: does the sheet honour <b>value</b> and <b>fee</b>, and is <b>data</b> hex or text?</p>
+<p class="sub">Answers: does the sheet honour <b>value</b> and <b>fee</b>, and is <b>data</b> hex or text?<br>
+session <b id="session-id">…</b> — every pane is also posted to <code>/probe-log</code> when the operator has it installed.</p>
 
 <button id="btn-init">1 · Init &amp; enumerate SDK</button>
 <pre id="out-init">not run</pre>
@@ -120,6 +121,26 @@
 <script type="module">
 const $ = (id) => document.getElementById(id);
 const show = (el, v) => { $(el).textContent = typeof v === 'string' ? v : JSON.stringify(v, null, 2); };
+
+/**
+ * Report a finished pane to the box (`scripts/probe-host.sh install`), so the
+ * numbers arrive as text rather than as a photograph of a phone. Entirely
+ * best-effort: the sink is ephemeral and often absent, and the probe must
+ * behave identically either way — so every failure here is swallowed.
+ */
+const SESSION = [...crypto.getRandomValues(new Uint8Array(3))]
+  .map(b => b.toString(16).padStart(2, '0')).join('');
+$('session-id') && ($('session-id').textContent = SESSION);
+const report = (step, text) => {
+  try {
+    fetch('/probe-log', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ session: SESSION, step, text: String(text) }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {}
+};
 
 const enc = new TextEncoder();
 const toHex = (s) => [...enc.encode(s)].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -197,6 +218,7 @@ $('btn-init').onclick = async () => {
   } catch { lines.push('\nnpm registry unreachable (not a problem)'); }
 
   show('out-init', lines.join('\n'));
+  report('1 · init & enumerate', lines.join('\n'));
   if (nimiq) {
     $('btn-info').disabled = false;
     $('btn-send-text').disabled = false;
@@ -228,6 +250,7 @@ $('btn-info').onclick = async () => {
   out['relay.url'] = RPC;
 
   show('out-info', out);
+  report('2 · account / consensus / heights', JSON.stringify(out, null, 2));
 };
 
 /**
@@ -361,6 +384,7 @@ async function probeSend(encoding) {
   } catch (e) {
     log('\nTHREW (unexpected — wallet failures are values): ' + (e?.message ?? String(e)));
   } finally {
+    report(`3 · send (${encoding})`, lines.join('\n'));
     $('btn-send-text').disabled = false;
     $('btn-send-hex').disabled = false;
   }
@@ -442,6 +466,7 @@ $('btn-send-forced').onclick = async () => {
   } catch (e) {
     log('\nTHREW: ' + (e?.message ?? String(e)));
   } finally {
+    report('4 · forced sender', lines.join('\n'));
     $('btn-send-forced').disabled = false;
   }
 };
