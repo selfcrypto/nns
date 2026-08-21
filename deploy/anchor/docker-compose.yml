@@ -70,13 +70,24 @@ services:
     # and a publisher that stopped on one bad run would stop anchoring
     # altogether — the failure mode §9 exists to avoid. Watch the logs, or
     # scrape them: `anchor.run exit=1` is the line that matters.
+    #
+    # "Watch the logs" is not a monitoring strategy, and this container once
+    # sat "Up" for three days while every run failed on a dead hostname. So
+    # the loop carries a dead-man switch: when NNS_ANCHOR_PUSH_URL is set, a
+    # run that exits 0 — anchored *or* legitimately unchanged — pings it, and
+    # a monitor (deploy/monitor) alerts when the pings stop. Only success
+    # pings; a failing run cannot keep the switch alive by mistake.
     command:
       - sh
       - -c
       - |
         while :; do
           node dist/publish-cli.js publish ${NNS_ANCHOR_SEND:---send}
-          echo "anchor.run exit=$$? — next look in ${NNS_ANCHOR_INTERVAL_SECONDS:-14400}s"
+          rc=$$?
+          if [ "$$rc" -eq 0 ] && [ -n "$$NNS_ANCHOR_PUSH_URL" ]; then
+            wget -q -T 15 -O /dev/null "$$NNS_ANCHOR_PUSH_URL" || echo "anchor.push failed — heartbeat not delivered"
+          fi
+          echo "anchor.run exit=$$rc — next look in ${NNS_ANCHOR_INTERVAL_SECONDS:-14400}s"
           sleep ${NNS_ANCHOR_INTERVAL_SECONDS:-14400}
         done
     depends_on:
@@ -130,6 +141,12 @@ services:
       # (idempotency and gap reporting). Public endpoints with tight range caps
       # need this lowered — Sepolia's commonly cap at 50,000.
       NNS_ANCHOR_LOOKBACK_BLOCKS: ${NNS_ANCHOR_LOOKBACK_BLOCKS:-}
+
+      # The dead-man switch above. An Uptime Kuma push URL — deploy/monitor's
+      # provisioner prints the exact line, reachable as http://kuma:3001/…
+      # over the shared network its push-net.yml overlay joins. Optional:
+      # empty means no ping and no monitoring, which is where you started.
+      NNS_ANCHOR_PUSH_URL: ${NNS_ANCHOR_PUSH_URL:-}
     logging:
       driver: json-file
       options: { max-size: '10m', max-file: '5' }

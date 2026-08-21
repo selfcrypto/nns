@@ -180,3 +180,9 @@ rebuilt from anywhere. `down -v` on `settlement/` is never routine.
 Whatever you run, check it from a host that is not the one serving it. A
 certificate only your browser trusts, and a port only your LAN can reach, both
 look perfect from the machine that serves them.
+
+[`monitor/`](monitor/) is that check made continuous: an optional Uptime Kuma
+that probes the public URLs every minute and — the part no HTTP probe can do —
+holds a dead-man switch for the anchor publisher, whose failures otherwise
+look exactly like an idle container. Like everything optional here, NNS
+neither knows nor cares whether it runs.
