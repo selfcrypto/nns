@@ -277,9 +277,6 @@ export const sendUncheckedLine = (): string =>
 export const sendNoRpcLine = (): string =>
   'No RPC endpoint is configured (VITE_NNS_RPC), so nothing can be broadcast.'
 
-export const payProbeGatedLine = (): string =>
-  'Sending from Nimiq Pay waits on the fee test. The desktop app with Nimiq Hub can send today.'
-
 /**
  * Names no wallet: the app runs against Hub and Pay behind one seam, and a
  * button that names one of them is wrong in the other. Which wallet answers is

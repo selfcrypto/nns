@@ -129,7 +129,9 @@ Four things are specific to it, and three are refusals:
 - **Value > 0**, for the same reason: the network rejects a zero value outright.
 
 Confirmation is `getTransactionByHash`, as for chat, because a payment leaves no
-registry effect to poll for. Nimiq Pay stays probe-gated (§10.5); Hub sends today.
+registry effect to poll for — and both adapters can now reach it: Pay returns a
+32-byte hash to poll with, Hub a hash from the signature it broadcasts. The
+§10.5 gate came off on 2026-08-21 (`docs/rpc-reference.md` §8.1).
 
 ## 4. The one send state machine
 

@@ -46,17 +46,15 @@ describe('performSend', () => {
     expect(result).toEqual({ status: 'declined' })
   })
 
-  it('probe-gated and no-rpc are blocked, not failures', async () => {
-    for (const reason of ['probe-gated', 'no-rpc'] as const) {
-      const result = await performSend({
-        wallet: walletThat({ ok: false, reason }),
-        transport: null,
-        request: REQUEST,
-        confirm: { poll: () => Promise.resolve(true) },
-        sleep: instantly,
-      })
-      expect(result).toEqual({ status: 'blocked', reason })
-    }
+  it('no-rpc is blocked, not a failure', async () => {
+    const result = await performSend({
+      wallet: walletThat({ ok: false, reason: 'no-rpc' }),
+      transport: null,
+      request: REQUEST,
+      confirm: { poll: () => Promise.resolve(true) },
+      sleep: instantly,
+    })
+    expect(result).toEqual({ status: 'blocked', reason: 'no-rpc' })
   })
 
   it('an effect that never appears is unconfirmed with the hash — never "failed", never "sent"', async () => {

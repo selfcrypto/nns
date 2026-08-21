@@ -1,11 +1,22 @@
 /**
- * The adapter seam of the two-adapter intent, now live. One `Wallet` shape;
- * Pay and Hub differ only in connect, signing and identity — everything
- * above this module is shared.
+ * The adapter seam of the two-adapter intent, now live on both halves. One
+ * `Wallet` shape; Pay and Hub differ only in connect, signing and identity —
+ * everything above this module is shared.
  *
  * Sends: the Hub path signs (`hub.ts`) and broadcasts through the operator
- * RPC endpoint (`sendRawTransaction`); the Pay path stays gated behind the
- * §10.5 probe and answers `probe-gated` until it runs on a post-fork build.
+ * RPC endpoint (`sendRawTransaction`). The Pay path sends through the wallet
+ * itself (`sdk.ts`), which both signs and broadcasts — so it needs no
+ * transport and works with none configured.
+ *
+ * The §10.5 gate came off on 2026-08-21: the probe ran on a post-fork build
+ * and the confirmation sheet honoured an app-supplied `value` and `fee`
+ * exactly. What the same run found instead is the constraint this file now
+ * carries — **Pay chooses which address signs, and there is no sender
+ * parameter to overrule it.** So the Pay identity is the whole set
+ * `listAccounts()` reports rather than its first entry, and an owner action
+ * the wallet signs with the wrong set member is caught where every other
+ * silent failure is: the effect never appears and `performSend` says
+ * `unconfirmed`.
  */
 
 import {
@@ -18,7 +29,7 @@ import {
   type StorageLike,
 } from './identity'
 import { hubChooseAddress, hubSignTransaction } from './hub'
-import { connectWallet, devAddressOverride } from './sdk'
+import { connectWallet, devAddressOverride, paySendTransaction } from './sdk'
 import { isDefiniteRejection, type HistoryTransport } from './history'
 
 export interface SubmitRequest {
@@ -30,7 +41,7 @@ export interface SubmitRequest {
 
 export type SubmitOutcome =
   | { readonly ok: true; readonly hash: string | null; readonly serializedTxHex: string | null }
-  | { readonly ok: false; readonly reason: 'declined' | 'probe-gated' | 'no-rpc' | 'failed'; readonly detail?: string }
+  | { readonly ok: false; readonly reason: 'declined' | 'no-rpc' | 'failed'; readonly detail?: string }
 
 export interface Wallet {
   readonly identity: Identity
@@ -47,18 +58,43 @@ export interface Wallet {
 
 export async function detectWallet(storage: StorageLike, search: string): Promise<Wallet> {
   const paySession = await connectWallet()
-  if (paySession !== null) {
-    return {
-      identity: { kind: 'pay', addresses: [paySession.address] },
-      connect: null,
-      disconnect: null,
-      // Every fee-bearing Pay send is a §10.5 forfeit if the sheet
-      // substitutes its own value; nothing sends from Pay until the probe
-      // answers (packages/app/CLAUDE.md, "Open").
-      submit: () => Promise.resolve({ ok: false, reason: 'probe-gated' }),
-    }
-  }
+  if (paySession !== null) return payWallet(paySession)
   return hubWallet(storage, search)
+}
+
+function payWallet(session: Awaited<ReturnType<typeof connectWallet>> & object): Wallet {
+  // Canonical spaced form, like every other address entering the set: the
+  // identicon bug of 2026-08-21 was one spelling meeting another.
+  let addresses: readonly string[] = []
+  for (const address of session.addresses) addresses = withAddress(addresses, address)
+
+  return {
+    // Nothing to connect to and nothing to disconnect from: the host's
+    // accounts are the identity, with no prompt and no persistence.
+    identity: { kind: 'pay', addresses },
+    connect: null,
+    disconnect: null,
+
+    // No transport: the wallet signs and broadcasts in one call, so a Pay
+    // send works with no RPC endpoint configured. The confirm loop above
+    // still needs one for the chat flows, and asks for it itself.
+    submit: async (request) => {
+      const sent = await paySendTransaction(session.provider, {
+        recipient: request.recipient,
+        valueLuna: request.value,
+        dataHex: request.dataHex,
+      })
+      if (!sent.ok) {
+        return sent.declined
+          ? { ok: false, reason: 'declined' }
+          : { ok: false, reason: 'failed', detail: sent.detail }
+      }
+      // A 32-byte hash, despite the declarations calling it the serialized
+      // transaction (probed). It is passed on for polls that can key on a
+      // hash and is never treated as confirmation — §5.3.
+      return { ok: true, hash: sent.hash, serializedTxHex: null }
+    },
+  }
 }
 
 function hubWallet(storage: StorageLike, search: string): Wallet {

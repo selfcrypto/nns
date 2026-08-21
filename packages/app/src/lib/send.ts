@@ -14,7 +14,7 @@ export type SendPhase = 'submitting' | 'confirming'
 export type SendResult =
   | { readonly status: 'confirmed' }
   | { readonly status: 'declined' }
-  | { readonly status: 'blocked'; readonly reason: 'probe-gated' | 'no-rpc' }
+  | { readonly status: 'blocked'; readonly reason: 'no-rpc' }
   /** Polls answered, the effect never showed: the network did not include it — sayable. */
   | { readonly status: 'unconfirmed'; readonly hash: string | null }
   /**
@@ -54,7 +54,7 @@ export async function performSend(options: {
   const submitted = await wallet.submit(request, transport)
   if (!submitted.ok) {
     if (submitted.reason === 'declined') return { status: 'declined' }
-    if (submitted.reason === 'probe-gated' || submitted.reason === 'no-rpc') {
+    if (submitted.reason === 'no-rpc') {
       return { status: 'blocked', reason: submitted.reason }
     }
     return { status: 'failed', detail: submitted.detail ?? 'the wallet could not submit' }

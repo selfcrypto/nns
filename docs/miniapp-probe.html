@@ -5,38 +5,52 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>NNS SDK probe</title>
 <!--
-  The §10.5 probe. One question gates every Pay send:
+  The §10.5 probe — ANSWERED on 2026-08-21, against a post-fork Nimiq Pay
+  build on a real device. Kept runnable, because these are native-side
+  behaviours that a Pay release can change under us and the declarations do
+  not describe.
 
-      does the confirmation sheet honour an app-supplied `value` and `fee`,
-      or substitute its own tier picker?
+  What it asked, and what the chain said:
 
-  A substituted `value` turns every G, N and B into a forfeit, so nothing
-  sends from Pay until this page has been run on a shipped build.
+    value / fee — HONOURED, exactly. Asked 12345 luna and 4321 luna; 12345
+      and 4321 landed, on both sends. Nothing was substituted, no tier picker
+      overruled the app, so §10.5 payment exactness holds and G/N/B are safe
+      to send from Pay. This is the gate that came off.
+    data — PLAIN TEXT, utf-8 encoded by the wallet. Send A passed the 15-char
+      text and 15 bytes landed; Send B passed the 28-char hex of a 14-byte
+      message and 28 bytes landed, decoding to the literal hex digits. The
+      app must hand the wallet decoded text, never its `dataHex`.
+    the return value — a 32-BYTE HASH, not "the serialized transaction" the
+      declarations promise.
+    listAccounts() — TWO addresses, not the one recorded on 2026-08-13. And
+      the wallet signed from the SECOND one. There is no sender parameter on
+      any send method, so the wallet chooses and the app cannot overrule it.
 
-  Three rules this page is built around — the first two are why the previous
-  version could not answer anything:
+  Three rules this page is built around — the first two are why the version
+  before 2026-08-21 could not answer anything:
 
   1. **Wallet failures are a VALUE, not a throw.** Every wallet method returns
      `T | ErrorResponse`. The old probe wrapped each attempt in try/catch and
      `break`ed on the first that did not throw — which is all of them. It
      reported ACCEPTED for a declined sheet and never reached its second
      encoding. Every result here is shape-checked for `error` instead.
-  2. **The chain is the verdict.** Not the sheet, not the returned string. The
-     sheet can display your fee and the wallet can still sign another; the
-     return value is the serialized transaction, and a serialized transaction
-     is not a landed one. So each send is read back through the operator relay
-     (`getTransactionsByAddress`, same origin, `/rpc`) and the verdict is
-     computed from `value` / `fee` / `recipientData` as the network recorded
-     them. Same confirm-by-effect discipline as `lib/send.ts`.
-  3. **One send per press, encoding chosen explicitly.** Which is the second
-     open question: `data` on the wallet plane is hex or utf-8 text, and
-     nobody knows which. The app carries hex (`SubmitRequest.dataHex`); if Pay
-     encodes that string again the payload on chain is garbage. A loop that
-     stops at the first non-throw can never tell the two apart.
+  2. **The chain is the verdict.** Not the sheet, not the returned value. The
+     sheet can display your fee while the wallet signs another, and what comes
+     back is not a landed transaction. So each send is read back through the
+     operator relay (`getTransactionsByAddress`, same origin, `/rpc`) and the
+     verdict is computed from `value` / `fee` / `recipientData` as the network
+     recorded them. Same confirm-by-effect discipline as `lib/send.ts`.
+     Read back on the RECIPIENT's history: that method indexes senders and
+     recipients only, not `relatedAddresses`, and the recipient is the one
+     party this page knows — the wallet picks its own sender. Polling the Pay
+     account instead is what made the first run report NOT ON CHAIN for two
+     transactions that were already in blocks.
+  3. **One send per press, encoding chosen explicitly.** A loop that stops at
+     the first non-throw can never tell text from hex apart.
 
   Heights come from the relay, never from `provider.getBlockNumber()` — those
-  are two planes answered by two nodes (rpc-reference §8) and this page
-  compares a height against `blockNumber` from our own node.
+  are two planes answered by two nodes (rpc-reference §8), and the run
+  measured the wallet's node four blocks ahead of ours at the same moment.
 
   The payload is deliberately NOT an NNS message: it starts `PROBE-`, so
   §7.5's ignore boundary keeps it out of every indexer. This probe registers
@@ -190,6 +204,10 @@ $('btn-info').onclick = async () => {
   const accounts = await nimiq.listAccounts().catch(() => null);
   account = Array.isArray(accounts) ? accounts[0] ?? null : null;
   out.account = account;
+  out.accountCount = Array.isArray(accounts) ? accounts.length : 0;
+  // Recorded as "exactly one" on 2026-08-13 and observed as two on
+  // 2026-08-21. The app takes the whole set for that reason.
+  if (out.accountCount > 1) out.note = 'listAccounts() returned more than one address — the wallet chooses which signs';
 
   // The other plane, and the one every verdict below is read from.
   try { out['relay.getBlockNumber'] = await rpc('getBlockNumber', []); }
@@ -199,17 +217,30 @@ $('btn-info').onclick = async () => {
   show('out-info', out);
 };
 
-/** Poll our own node until the sent transaction lands. */
+/**
+ * Poll our own node until the sent transaction lands — on the RECIPIENT's
+ * history, never the sender's.
+ *
+ * `getTransactionsByAddress` indexes by sender and recipient only. It does
+ * **not** index `relatedAddresses`, which is what the first run of this page
+ * assumed: the probe transaction listed the Pay account in its
+ * `relatedAddresses` and the query on that account did not return it, so the
+ * page reported NOT ON CHAIN for two transactions that were both already in
+ * blocks. The recipient is the one party this page knows for certain — the
+ * wallet picks its own sender.
+ */
 async function awaitOnChain(recipient, sinceHeight, log) {
   const deadline = Date.now() + 180_000;
   while (Date.now() < deadline) {
     await new Promise(r => setTimeout(r, 4000));
     let txs;
-    try { txs = await rpc('getTransactionsByAddress', [account, 20, null]); }
+    try { txs = await rpc('getTransactionsByAddress', [recipient, 20, null]); }
     catch (e) { log(`  … lookup failed: ${e.message}`); continue; }
     if (!Array.isArray(txs)) { log('  … lookup returned no array'); continue; }
     const hit = txs
       .filter(t => compact(t.to) === recipient && t.blockNumber >= sinceHeight - 2)
+      // The wallet chooses which of its addresses signs; whichever it was is
+      // reported, not assumed.
       .sort((a, b) => b.blockNumber - a.blockNumber)[0];
     if (hit) return hit;
     log(`  … not on chain yet (${Math.round((deadline - Date.now()) / 1000)}s left)`);
@@ -283,6 +314,9 @@ async function probeSend(encoding) {
     const onChainText = fromHex(tx.recipientData);
     log('\n── ON CHAIN ─────────────────────────────');
     log(`hash            ${tx.hash}`);
+    log(`from            ${tx.from}  (type ${tx.fromType})`);
+    log(`  this account  ${account}`);
+    log(`  → ${compact(tx.from) === compact(account) ? 'the wallet signed with listAccounts()[0]' : 'the wallet signed with a DIFFERENT address than listAccounts()[0]'}`);
     log(`block           ${tx.blockNumber}`);
     log(`executionResult ${tx.executionResult}`);
     log(`value           ${tx.value} luna`);

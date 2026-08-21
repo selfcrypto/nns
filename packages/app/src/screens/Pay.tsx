@@ -32,7 +32,6 @@ import {
   paySelfLine,
   payToLabel,
   payZeroLine,
-  payProbeGatedLine,
   sendConfirmedLine,
   sendConfirmingLine,
   sendDeclinedLine,
@@ -204,7 +203,7 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
               {result.status === 'declined' && sendDeclinedLine()}
               {result.status === 'unconfirmed' && sendUnconfirmedLine()}
               {result.status === 'unchecked' && sendUncheckedLine()}
-              {result.status === 'blocked' && (result.reason === 'no-rpc' ? sendNoRpcLine() : payProbeGatedLine())}
+              {result.status === 'blocked' && sendNoRpcLine()}
               {result.status === 'failed' && `Couldn’t send: ${result.detail}`}
             </p>
           )}
