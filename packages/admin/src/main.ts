@@ -30,6 +30,7 @@ import {
   refusals,
 } from './governance.js'
 import { createParamsSource } from './params.js'
+import { createReservationSource } from './reservation.js'
 import {
   broadcastUnreserve,
   describePlan,
@@ -56,6 +57,10 @@ u takes NO effective height. A U executes in the block it lands in (§6 U,
 r22): there is no notice window, nothing to cancel, and no second chance. The
 dry run below is the only point at which a mistyped name or awardee can be
 caught, so read the decoded payload before passing --send.
+
+u REFUSES a name that is not currently reserved, reading GET /available/{name}
+from NNS_API_URL: a U for a name that is registered, in grace, already
+released, or never on the list is mined and forfeited as NAME_NOT_RESERVED.
 
 p does refuse an effective height under GOVERNANCE_DELAY plus a landing
 margin. Notice is measured from the block the message lands in, not from the
@@ -136,8 +141,14 @@ async function runGovernance(argv: readonly string[]): Promise<number> {
 async function runUnreserve(argv: readonly string[]): Promise<number> {
   const { params, send } = parseUnreserveArgs(argv)
   const settings = loadSettings()
+  if (settings.apiUrl === undefined) {
+    throw new UsageError(
+      'u needs NNS_API_URL: whether the name is still RESERVED is chain state (§6 U forfeits NAME_NOT_RESERVED ' +
+        'otherwise), and GET /available/{name} is the only thing that answers it — see packages/admin/.env.example',
+    )
+  }
   const rpc = rpcFor(settings)
-  const plan = await planUnreserve(rpc, settings.config, params)
+  const plan = await planUnreserve(rpc, createReservationSource(settings.apiUrl), settings.config, params)
   for (const line of describePlan(plan)) console.log(line)
   // The one refusal left is §11.5's (added with `f`, 2026-08-17): r22 removed
   // the notice, and everything else client-preventable — a bad name,

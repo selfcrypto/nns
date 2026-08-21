@@ -22,6 +22,18 @@
  * decodes the payload it actually built rather than echoing the arguments back,
  * and nothing is broadcast without `--send`.
  *
+ * **The reservation precheck landed on 2026-08-21, after a `U` forfeited.**
+ * `u nimiq` printed a clean plan and the broadcast forfeited
+ * `NAME_NOT_RESERVED` in block 59478946. The plan was built entirely from the
+ * message — `encodeUnreserve` validates the name's shape, and nothing read
+ * what the name currently *is*. The reducer's `U` case has two rows the
+ * message cannot answer: `validateName` (§4.1) and `isReserved(state, name)`,
+ * which is `isReservedName(name) && !state.unreserved.has(name)`. The first
+ * half is a `core` constant and free; the second is chain state, and this
+ * process holds none — so `u` now reads `GET /available/{name}` the way `p`
+ * reads `/params`, and `NNS_API_URL` is required rather than optional. See
+ * `reservation.ts`.
+ *
  * **The §11.5 balance precheck landed with `f` (2026-08-17).** `ADMIN_ADDRESS`
  * has no income, and an unfunded send fails by *silence* — the RPC accepts the
  * transaction, returns a hash, and it is never mined. The plan reads the
@@ -33,6 +45,7 @@ import {
   CONSTANTS,
   encodeUnreserve,
   formatAddress,
+  isReservedName,
   parse,
   parseAddress,
   type Address,
@@ -49,6 +62,13 @@ import {
   type AdminCheck,
   type AdminRpc,
 } from './cli.js'
+import {
+  describeAvailability,
+  isReservedNow,
+  RESERVATION_LAG_LIMIT,
+  type NameAvailability,
+  type ReservationSource,
+} from './reservation.js'
 
 export interface UnreserveParams {
   readonly name: string
@@ -74,6 +94,8 @@ export interface UnreservePlan {
   readonly head: number
   /** `ADMIN_ADDRESS`'s balance, in luna (§11.5). */
   readonly balance: bigint
+  /** What the name currently is, and the height that was read at. */
+  readonly availability: NameAvailability
   readonly checks: readonly AdminCheck[]
 }
 
@@ -118,17 +140,54 @@ export function parseUnreserveArgs(argv: readonly string[]): UnreserveCommand {
  */
 export async function planUnreserve(
   rpc: AdminRpc,
+  source: ReservationSource,
   config: NnsConfig,
   params: UnreserveParams,
 ): Promise<UnreservePlan> {
   const tx = encodeUnreserve({ ...params, sender: CONSTANTS.ADMIN_ADDRESS })
   const head = await rpc.call<number>('getBlockNumber')
   const balance = await readBalance(rpc, CONSTANTS.ADMIN_ADDRESS)
+  const availability = await source.fetchAvailability(params.name)
+
+  const checks: AdminCheck[] = []
+
+  // The reducer's second row, which the message cannot answer about itself:
+  // `isReserved(state, name)`. Both halves are refusals rather than warnings
+  // because neither is a judgement call — a `U` for a name that is not
+  // RESERVED *is* `NAME_NOT_RESERVED`, mined and forfeited, with no state the
+  // chain could be in that would make it land.
+  if (!isReservedName(params.name)) {
+    // The state-independent half, and the one worth naming separately: no
+    // chain state can rescue it, so this is not a "check again later".
+    checks.push({
+      severity: 'refuse',
+      message:
+        `${JSON.stringify(params.name)} is not a reserved name — it is neither on RESERVED_NAMES nor short-reserved ` +
+        'by §4.1, so this U forfeits NAME_NOT_RESERVED whatever the chain state is (§6 U). Nothing to release.',
+    })
+  } else if (!isReservedNow(availability)) {
+    checks.push({
+      severity: 'refuse',
+      message:
+        `${JSON.stringify(params.name)} is on the reserved list but is no longer RESERVED: ` +
+        `${availability.url} reads it as ${describeAvailability(availability)} at height ${availability.height}. ` +
+        'A U already fired for it, so this one forfeits NAME_NOT_RESERVED (§6 U, r22).',
+    })
+  }
+
+  const lag = head - availability.height
+  if (lag > RESERVATION_LAG_LIMIT) {
+    checks.push({
+      severity: 'warn',
+      message:
+        `the reservation was read from ${availability.url} at height ${availability.height}, ${lag} blocks behind ` +
+        'the node — a U accepted since is not reflected in it',
+    })
+  }
 
   // §11.5 — an unfunded sender fails by silence, not by error: the RPC
   // accepts the transaction, returns a hash, and it is never mined. The same
   // pair of checks `p` runs, at the same severities.
-  const checks: AdminCheck[] = []
   if (balance < tx.value) {
     checks.push({
       severity: 'refuse',
@@ -151,6 +210,7 @@ export async function planUnreserve(
     value: tx.value,
     head,
     balance,
+    availability,
     checks,
   }
 }
@@ -168,10 +228,15 @@ export function describePlan(plan: UnreservePlan): string[] {
   if (!decoded.ok || decoded.message.type !== 'U') {
     throw new Error(`built a U that does not parse back as one: ${plan.data}`)
   }
-  const { kind, recipient, head } = plan
+  const { kind, recipient, head, availability } = plan
   const name = decoded.message.name
   return [
     `U ${kind}: ${name}`,
+    // First line after the verb, because it is the row that decides whether
+    // this message lands at all — and the one a plan built from the message
+    // alone could not show (2026-08-21).
+    `  state     ${describeAvailability(availability)} — read from ${availability.url} at height ` +
+      `${availability.height} (${head - availability.height} blocks behind head)`,
     kind === 'release'
       ? `  to        ${formatAddress(recipient)} (PROTOCOL_ADDRESS — the name becomes AVAILABLE)`
       : `  to        ${formatAddress(recipient)} (awarded the name, full term, no fee)`,

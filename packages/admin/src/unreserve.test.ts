@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { AddressError, BURN_ADDRESS, CodecError, CONSTANTS, defineConfig, encodeUnreserve, parseAddress } from '@nns/core'
 
 import { AdminRefusal, UsageError, type AdminRpc } from './cli.js'
+import type { NameAvailability, ReservationSource } from './reservation.js'
 import {
   broadcastUnreserve,
   describePlan,
   parseUnreserveArgs,
   planUnreserve,
+  unreserveRefusals,
   type UnreservePlan,
 } from './unreserve.js'
 
@@ -49,13 +51,56 @@ function fakeRpc(balance = 1_000_000): { rpc: AdminRpc; calls: RecordedCall[] } 
   return { rpc, calls }
 }
 
+const API = 'https://api.example/available/binance'
+
+/**
+ * `/available/{name}` as a `U` needs it. The default is the one state in
+ * which a `U` lands: on the list, not yet released by a fired `U`.
+ */
+function fakeReservation(overrides: Partial<NameAvailability> = {}): ReservationSource {
+  return {
+    fetchAvailability(name: string): Promise<NameAvailability> {
+      return Promise.resolve(
+        Object.freeze({
+          name,
+          available: false,
+          reason: 'RESERVED',
+          status: null,
+          expiry: null,
+          height: HEAD,
+          url: API,
+          ...overrides,
+        }),
+      )
+    },
+  }
+}
+
+/** What the API said about `nimiq` on 2026-08-21, the day the U forfeited. */
+const TAKEN: Partial<NameAvailability> = {
+  available: false,
+  reason: 'TAKEN',
+  status: 'REGISTERED',
+  expiry: 59_765_881,
+}
+
+const RESERVED: NameAvailability = Object.freeze({
+  name: 'binance',
+  available: false,
+  reason: 'RESERVED',
+  status: null,
+  expiry: null,
+  height: HEAD,
+  url: API,
+})
+
 const release = { name: 'binance', recipient: null }
 const award = { ...release, recipient: BOB }
 
 describe('planUnreserve', () => {
   it('defaults to release — the transaction goes to PROTOCOL_ADDRESS — and reads only head and balance', async () => {
     const { rpc, calls } = fakeRpc()
-    const plan = await planUnreserve(rpc, config, release)
+    const plan = await planUnreserve(rpc, fakeReservation(), config, release)
 
     const expected = encodeUnreserve({ name: 'binance' })
     expect(plan).toEqual({
@@ -66,8 +111,9 @@ describe('planUnreserve', () => {
       value: 1n,
       head: HEAD,
       balance: 1_000_000n,
-      // §11.5 is the one check left since r22 removed the notice (§6 `U`),
-      // and a funded sender passes it silently.
+      availability: RESERVED,
+      // §11.5 and the reservation are the two checks a `U` carries, and a
+      // funded sender releasing a still-reserved name passes both silently.
       checks: [],
     })
     // Planning is read-only: nothing is unlocked, nothing is sent.
@@ -79,7 +125,7 @@ describe('planUnreserve', () => {
     // would never be mined. The plan must carry a refusal, and broadcast must
     // re-check it rather than trust the caller.
     const { rpc, calls } = fakeRpc(0)
-    const plan = await planUnreserve(rpc, config, release)
+    const plan = await planUnreserve(rpc, fakeReservation(), config, release)
     expect(plan.checks).toHaveLength(1)
     expect(plan.checks[0]).toMatchObject({ severity: 'refuse' })
     expect(plan.checks[0]?.message).toContain('§11.5')
@@ -92,7 +138,7 @@ describe('planUnreserve', () => {
     // 5 NIM: funded for dust, but §11.5 rule 2 says alerting at zero alerts
     // after the failure.
     const { rpc } = fakeRpc(500_000)
-    const plan = await planUnreserve(rpc, config, release)
+    const plan = await planUnreserve(rpc, fakeReservation(), config, release)
     expect(plan.checks).toHaveLength(1)
     expect(plan.checks[0]).toMatchObject({ severity: 'warn' })
     await expect(broadcastUnreserve(rpc, config, plan)).resolves.toMatchObject({ hash: HASH })
@@ -100,7 +146,7 @@ describe('planUnreserve', () => {
 
   it('awards to the given recipient with a byte-identical payload', async () => {
     const { rpc } = fakeRpc()
-    const plan = await planUnreserve(rpc, config, award)
+    const plan = await planUnreserve(rpc, fakeReservation(), config, award)
     expect(plan.kind).toBe('award')
     expect(plan.recipient).toBe(BOB)
     expect(plan.data).toBe(encodeUnreserve(release).data)
@@ -108,19 +154,19 @@ describe('planUnreserve', () => {
 
   it('builds the r22 one-field payload, with no height anywhere in it', async () => {
     const { rpc } = fakeRpc()
-    const plan = await planUnreserve(rpc, config, release)
+    const plan = await planUnreserve(rpc, fakeReservation(), config, release)
     expect(Buffer.from(plan.data, 'hex').toString('ascii')).toBe('NNS1Ubinance')
   })
 
   it('refuses BURN_ADDRESS before the node hears anything (encodeUnreserve contract)', async () => {
     const { rpc, calls } = fakeRpc()
-    await expect(planUnreserve(rpc, config, { ...release, recipient: BURN_ADDRESS })).rejects.toThrow(CodecError)
+    await expect(planUnreserve(rpc, fakeReservation(), config, { ...release, recipient: BURN_ADDRESS })).rejects.toThrow(CodecError)
     expect(calls).toEqual([])
   })
 
   it('refuses an award to the admin address — a silent self-transaction (§5.3)', async () => {
     const { rpc, calls } = fakeRpc()
-    await expect(planUnreserve(rpc, config, { ...release, recipient: ADMIN })).rejects.toThrow(/self-transactions/)
+    await expect(planUnreserve(rpc, fakeReservation(), config, { ...release, recipient: ADMIN })).rejects.toThrow(/self-transactions/)
     expect(calls).toEqual([])
   })
 
@@ -129,13 +175,74 @@ describe('planUnreserve', () => {
     // `ab-` fails §4.1 rule 4 and is on neither membership route. A
     // well-formed short name (`ab`) is a legal U operand since r18 —
     // reserved by rule, releasable and awardable.
-    await expect(planUnreserve(rpc, config, { ...release, name: 'ab-' })).rejects.toThrow(CodecError)
+    await expect(planUnreserve(rpc, fakeReservation(), config, { ...release, name: 'ab-' })).rejects.toThrow(CodecError)
     expect(calls).toEqual([])
+  })
+
+  // ── The reservation rows (2026-08-21) ────────────────────────────────────
+  // `u nimiq` printed a clean plan and forfeited NAME_NOT_RESERVED in block
+  // 59478946. The message cannot answer `isReserved(state, name)` about
+  // itself; these are the checks that read it.
+
+  it('refuses a name that is registered to somebody — the nimiq case, measured', async () => {
+    const { rpc, calls } = fakeRpc()
+    const plan = await planUnreserve(rpc, fakeReservation(TAKEN), config, release)
+    const refusals = unreserveRefusals(plan)
+    expect(refusals).toHaveLength(1)
+    expect(refusals[0]?.message).toContain('no longer RESERVED')
+    expect(refusals[0]?.message).toContain('REGISTERED to somebody')
+    expect(refusals[0]?.message).toContain('NAME_NOT_RESERVED')
+    // And it never reaches the node with it.
+    await expect(broadcastUnreserve(rpc, config, plan)).rejects.toThrow(AdminRefusal)
+    expect(calls.map((c) => c.method)).toEqual(['getBlockNumber', 'getAccountByAddress'])
+  })
+
+  it('refuses a name in GRACE — renewable, hence still taken', async () => {
+    const { rpc } = fakeRpc()
+    const plan = await planUnreserve(rpc, fakeReservation({ ...TAKEN, status: 'GRACE' }), config, release)
+    expect(unreserveRefusals(plan)[0]?.message).toContain('GRACE')
+  })
+
+  it('refuses a name a fired U already released — AVAILABLE, nothing left to release', async () => {
+    const { rpc } = fakeRpc()
+    const plan = await planUnreserve(rpc, fakeReservation({ available: true, reason: null }), config, release)
+    expect(unreserveRefusals(plan)[0]?.message).toContain('nothing left to release')
+  })
+
+  it('refuses a name that was never reserved, without needing the chain state', async () => {
+    // `probe-name` is neither on RESERVED_NAMES nor short-reserved, so no
+    // state the chain could be in makes this U land — and the refusal says
+    // so rather than reading as "try again later".
+    const { rpc } = fakeRpc()
+    const plan = await planUnreserve(rpc, fakeReservation({ available: true, reason: null }), config, {
+      ...release,
+      name: 'probe-name',
+    })
+    const refusals = unreserveRefusals(plan)
+    expect(refusals).toHaveLength(1)
+    expect(refusals[0]?.message).toContain('whatever the chain state is')
+  })
+
+  it('carries exactly one reservation refusal, never both halves at once', async () => {
+    // A name off the list is also not RESERVED at the API, and two refusals
+    // for one cause reads as two problems.
+    const { rpc } = fakeRpc()
+    const plan = await planUnreserve(rpc, fakeReservation(TAKEN), config, { ...release, name: 'probe-name' })
+    expect(unreserveRefusals(plan)).toHaveLength(1)
+  })
+
+  it('warns, without refusing, when the reservation was read far behind the head', async () => {
+    const { rpc } = fakeRpc()
+    const plan = await planUnreserve(rpc, fakeReservation({ height: HEAD - 5_000 }), config, release)
+    expect(unreserveRefusals(plan)).toHaveLength(0)
+    expect(plan.checks).toHaveLength(1)
+    expect(plan.checks[0]).toMatchObject({ severity: 'warn' })
+    expect(plan.checks[0]?.message).toContain('5000 blocks behind')
   })
 
   it('plans a U for a short name — reserved by rule, no list entry needed (r18)', async () => {
     const { rpc } = fakeRpc()
-    const plan = await planUnreserve(rpc, config, { ...release, name: 'ab' })
+    const plan = await planUnreserve(rpc, fakeReservation(), config, { ...release, name: 'ab' })
     expect(plan.kind).toBe('release')
     expect(plan.params.name).toBe('ab')
   })
@@ -150,6 +257,7 @@ describe('describePlan', () => {
     value: 1n,
     head: HEAD,
     balance: 1_000_000n,
+    availability: { ...RESERVED, name },
     checks: [],
   })
 
@@ -186,6 +294,15 @@ describe('describePlan', () => {
     expect(lines).toContain('decoded: name "nimiq", no other field')
   })
 
+  it('prints the state it checked and how stale that reading was', () => {
+    // The row that decides whether the message lands at all, and the one a
+    // plan built from the message alone could not show.
+    const lines = describePlan(planFor()).join('\n')
+    expect(lines).toContain('state     RESERVED')
+    expect(lines).toContain(API)
+    expect(lines).toContain('0 blocks behind head')
+  })
+
   it('says outright that the message cannot be recalled', () => {
     expect(describePlan(planFor()).join('\n')).toContain('IRREVERSIBLE')
   })
@@ -206,7 +323,7 @@ describe('describePlan', () => {
 describe('broadcastUnreserve', () => {
   it('unlocks by address, then sends with the probed parameter order and the plan head', async () => {
     const { rpc, calls } = fakeRpc()
-    const plan = await planUnreserve(rpc, config, release)
+    const plan = await planUnreserve(rpc, fakeReservation(), config, release)
     const outcome = await broadcastUnreserve(rpc, config, plan)
 
     expect(outcome).toEqual({ kind: 'release', recipient: PROTOCOL, validityStartHeight: HEAD, hash: HASH })
