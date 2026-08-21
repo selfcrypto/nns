@@ -29,7 +29,7 @@ import {
   type StorageLike,
 } from './identity'
 import { hubChooseAddress, hubSignTransaction } from './hub'
-import { connectWallet, devAddressOverride, paySendTransaction } from './sdk'
+import { connectWallet, devAddressOverride, paySendTransaction, type WalletSession } from './sdk'
 import { isDefiniteRejection, type HistoryTransport } from './history'
 
 export interface SubmitRequest {
@@ -62,7 +62,7 @@ export async function detectWallet(storage: StorageLike, search: string): Promis
   return hubWallet(storage, search)
 }
 
-function payWallet(session: Awaited<ReturnType<typeof connectWallet>> & object): Wallet {
+function payWallet(session: WalletSession): Wallet {
   // Canonical spaced form, like every other address entering the set: the
   // identicon bug of 2026-08-21 was one spelling meeting another.
   let addresses: readonly string[] = []
