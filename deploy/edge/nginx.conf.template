@@ -1,0 +1,156 @@
+# NNS edge — TLS termination for a machine with nothing else in front.
+#
+# **You probably do not need this.** Every NNS service already speaks plain
+# HTTP on loopback and expects a terminator it does not own. If you run Plesk,
+# cPanel, an existing nginx, Cloudflare, or a tunnel, you have one: point a
+# hostname at the port and skip this directory entirely. See ../README.md.
+#
+# This is for the other case — a bare host dedicated to NNS — where the only
+# thing missing is a certificate and a hostname-to-port map. nginx issues and
+# renews the certificates itself (ngx_http_acme_module, in the stock image);
+# what it cannot know is your hostnames, which come from `.env`.
+#
+# Delete the server blocks for roles you do not run. A hostname nginx is told
+# to certify but nobody points DNS at is a renewal that fails forever.
+
+load_module modules/ngx_http_acme_module.so;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    access_log /dev/stdout;
+    error_log  /dev/stderr info;
+
+    server_tokens off;
+
+    # The ACME client resolves the CA's hostname itself, so nginx needs a
+    # resolver in the main http context or issuance fails with "resolver is
+    # not configured". With network_mode: host this is the host's stub.
+    resolver ${NNS_EDGE_RESOLVER_ADDR} ipv6=off valid=30s;
+
+    acme_issuer letsencrypt {
+        uri        ${NNS_EDGE_ACME_URI};
+        # Certificates and the account key. **Must be a named volume** — on an
+        # ephemeral filesystem every container recreate re-registers and
+        # re-issues, which is how a deployment walks into Let's Encrypt's
+        # rate limits without doing anything obviously wrong.
+        state_path /var/lib/nginx/acme;
+        accept_terms_of_service;
+    }
+
+    acme_shared_zone zone=acme:1M;
+
+    # Optional vhosts arrive as compose overlays that mount a second
+    # *.conf.template beside this one (see status.yml). A glob with zero
+    # matches is legal nginx, so running without any overlay changes nothing.
+    include /etc/nginx/vhost-*.conf;
+
+    # ── :80 — ACME http-01, and nothing else ────────────────────────────────
+    # The challenge is answered by the module before this location is reached.
+    # Everything else is redirected: the app, the API and the delegate are all
+    # https-only, and §8.6 in particular hardcodes the scheme, so a delegate
+    # reachable over plain HTTP is one no client will ever use.
+    server {
+        listen 80 default_server;
+        server_name _;
+
+        # For the container healthcheck only: answered before the redirect,
+        # because following the redirect from inside the container means
+        # busybox wget verifying a certificate against 127.0.0.1 — a check
+        # that fails exactly when TLS starts working.
+        location = /healthz {
+            return 200;
+        }
+
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    # ── The mini app, with /api/ and /rpc behind its own nginx ───────────────
+    server {
+        listen 443 ssl default_server;
+        http2 on;
+        server_name ${NNS_EDGE_APP_HOST};
+
+        acme_certificate letsencrypt;
+        ssl_certificate     $acme_certificate;
+        ssl_certificate_key $acme_certificate_key;
+
+        # Bodies larger than this reach nothing useful: the relay caps raw
+        # transactions at 1 KB and any body at 16 KB, and the API takes none.
+        client_max_body_size 32k;
+
+        location / {
+            proxy_pass http://127.0.0.1:8080;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto https;
+            # **SET, never append.** The relay runs with
+            # NNS_RELAY_TRUST_FORWARDED_FOR=1 behind a proxy and keys its rate
+            # limiter on the FIRST entry. Appending would leave a
+            # client-supplied value in front of the real one, handing every
+            # caller a bucket of their own. `web`'s nginx appends after this
+            # point, which is safe, because the first entry is still what we saw.
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_read_timeout 30s;
+        }
+    }
+
+    # ── The resolver API, standalone ────────────────────────────────────────
+    # Published in its own right as well as under the app's /api/, because at
+    # launch it is the quorum's only member and must keep answering when the
+    # app's edge is down.
+    #
+    # Add no CORS headers and strip none: the API sends
+    # access-control-allow-origin: * itself and exposes the two §8.2
+    # verification headers. An endpoint a browser cannot read answers curl
+    # perfectly while being invisible to every client.
+    server {
+        listen 443 ssl;
+        http2 on;
+        server_name ${NNS_EDGE_RESOLVER_HOST};
+
+        acme_certificate letsencrypt;
+        ssl_certificate     $acme_certificate;
+        ssl_certificate_key $acme_certificate_key;
+
+        location / {
+            proxy_pass http://127.0.0.1:8635;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_read_timeout 30s;
+        }
+    }
+
+    # ── The §8.6 delegate ───────────────────────────────────────────────────
+    # Run as a name owner, not as registry infrastructure: it proves nothing
+    # and joins no quorum. There is no path to route and none to strip — the
+    # server finds the fixed `delegated` segment itself, so a `D` host may name
+    # this bare hostname or any path under it.
+    server {
+        listen 443 ssl;
+        http2 on;
+        server_name ${NNS_EDGE_DELEGATE_HOST};
+
+        acme_certificate letsencrypt;
+        ssl_certificate     $acme_certificate;
+        ssl_certificate_key $acme_certificate_key;
+
+        location / {
+            proxy_pass http://127.0.0.1:8636;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_read_timeout 30s;
+        }
+    }
+}

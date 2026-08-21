@@ -1,0 +1,73 @@
+# NNS edge — one nginx, TLS for a host with nothing else in front.
+#
+#   cp .env.example .env    # your three hostnames
+#   docker compose up -d
+#
+# Optional. Every NNS service speaks plain HTTP on loopback and expects a
+# terminator it does not own; if you already have one, point it at the ports
+# and ignore this directory. ../README.md has the decision table.
+
+name: nns-edge
+
+services:
+  edge:
+    image: nginx:1-alpine
+    restart: unless-stopped
+    init: true
+
+    # The services publish on 127.0.0.1, and they are three *separate* compose
+    # projects — `deploy/README.md` keeps them that way so an operator can run
+    # one without the others. Host networking is what lets one edge reach all
+    # of them without joining three networks, and it is also how the systemd
+    # nginx or Caddy it replaces reached them. Linux only: elsewhere, publish
+    # 80 and 443 and point the upstreams at host.docker.internal instead.
+    network_mode: host
+
+    environment:
+      NNS_EDGE_APP_HOST: ${NNS_EDGE_APP_HOST:?set your app hostname in .env}
+      NNS_EDGE_RESOLVER_HOST: ${NNS_EDGE_RESOLVER_HOST:?set your resolver hostname in .env}
+      NNS_EDGE_DELEGATE_HOST: ${NNS_EDGE_DELEGATE_HOST:?set your delegate hostname in .env}
+      # The host's stub resolver, because network_mode is host. nginx needs one
+      # in the http context or ACME fails with "resolver is not configured".
+      NNS_EDGE_RESOLVER_ADDR: ${NNS_EDGE_RESOLVER_ADDR:-127.0.0.53}
+      # Point at Let's Encrypt **staging** to rehearse without spending the
+      # production rate limit. Staging certificates are not trusted by
+      # browsers — that is the point; it proves issuance, not trust.
+      NNS_EDGE_ACME_URI: ${NNS_EDGE_ACME_URI:-https://acme-v02.api.letsencrypt.org/directory}
+      # The stock entrypoint renders /etc/nginx/templates/*.template through
+      # envsubst. Sending the output to /etc/nginx rather than conf.d/ is what
+      # lets the template carry `load_module`, which is a main-context
+      # directive the stock nginx.conf has no line for.
+      NGINX_ENVSUBST_OUTPUT_DIR: /etc/nginx
+
+    volumes:
+      - ./nginx.conf.template:/etc/nginx/templates/nginx.conf.template:ro
+      # **The certificates and the ACME account key.** A named volume, not a
+      # bind and never nothing: `state_path` on an ephemeral filesystem means
+      # every recreate re-registers the account and re-issues every
+      # certificate. Let's Encrypt allows 5 duplicate certificates per week,
+      # so a few restarts on a bad afternoon is a week with no HTTPS — and the
+      # failure arrives as an expired certificate, not as a message about
+      # restarts.
+      - acme-state:/var/lib/nginx/acme
+
+    healthcheck:
+      # Plain HTTP on loopback: this proves nginx is up and answering, without
+      # depending on a certificate that may still be being issued. /healthz is
+      # the one :80 path that is not redirected to https — busybox wget cannot
+      # be told to stop at a redirect, and following it means verifying a
+      # certificate against 127.0.0.1.
+      test: ['CMD-SHELL', 'wget -q -O /dev/null http://127.0.0.1:80/healthz']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+volumes:
+  acme-state:
