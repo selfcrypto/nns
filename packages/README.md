@@ -90,6 +90,7 @@ Most people run one or two. `deploy/` has a directory per role — compose file,
 |---|---|---|
 | Serve the registry, independently verifiable | `deploy/resolver` | `indexer`, `api` |
 | Make `shop.yourname` resolve | `deploy/delegate` | `delegate` |
+| Both of those, on one box | `deploy/collaborator` | `indexer`, `api`, `delegate` |
 | Host the app and its RPC proxy | `deploy/service` | + `relay`, `app` |
 | Pay what the protocol owes | `deploy/settlement` | `settlement` |
 

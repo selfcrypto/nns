@@ -176,6 +176,10 @@ belonging to a role they do not run:
 - **A delegate** (`deploy/delegate`) — one container and a JSON file, for a
   name owner who wants `shop.theirname` to resolve. No node, no database, no
   key.
+- **Both, on one box** (`deploy/collaborator`) — the two above in one compose
+  project, one `.env` and one `up`. Everything a third party can run; it merges
+  nothing, and the resolver's proofs and the delegate's unproven answers stay
+  as different as they were.
 - **The service** (`deploy/service`) — our own deployment: the resolver stack
   plus the RPC relay the mini app needs and the app bundle itself.
 - **Settlement** (`deploy/settlement`) — pays what the protocol owes. Holds the

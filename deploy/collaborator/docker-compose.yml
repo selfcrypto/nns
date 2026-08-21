@@ -1,0 +1,192 @@
+# NNS collaborator — everything a third party can run, on one box.
+#
+#   cp .env.example .env      # point it at your node
+#   mkdir -p labels
+#   cp ../../packages/delegate/labels.example.json labels/labels.json  # then edit it
+#   docker compose up -d --build
+#
+# This is `deploy/resolver` (Postgres, indexer, API) and `deploy/delegate` (one
+# container, one JSON file) in a single compose project, with one `.env` and
+# one `up`. Nothing else fits here: the relay and the app bundle are the
+# service's (`deploy/service`), and settlement and anchor hold keys.
+#
+# **It is not a role, and it does not merge the two.** They stay what they
+# were: the resolver replays the chain and proves its answers, the delegate
+# asserts your own subdomains and proves nothing, and a client that trusts the
+# second the way it trusts the first has been misled — by us, if this file
+# implied they were one thing. They share a box, a build and an `.env`, and
+# nothing else: no data, no port, no code path. Run the two directories
+# separately instead whenever you want them to fail separately.
+#
+# **Every service below is a verbatim copy**, and has to stay one: `docker
+# compose config` here renders each of the four identically to the same service
+# in ../resolver and ../delegate, modulo the project name. That equality is the
+# only thing keeping a third copy of the resolver stack honest — a change to
+# either source role belongs here in the same commit, and the rendered configs
+# are how you check it.
+#
+# **Two ports publish, both on loopback**, for a TLS terminator in front —
+# the API on 8635 and the delegate on 8636, exactly as the two roles publish
+# them alone. Postgres and the indexer publish nothing at all.
+#
+# Do not run this alongside `deploy/resolver` or `deploy/delegate` on the same
+# host: separate projects, but the same two ports.
+
+name: nns-collaborator
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: nns
+      POSTGRES_PASSWORD: ${NNS_POSTGRES_PASSWORD:-nns}
+      POSTGRES_DB: nns
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    # No `ports`. Reachable from the two services on this network, and from
+    # `docker compose exec postgres psql -U nns`, and nowhere else.
+    healthcheck:
+      # The indexer's first act is to migrate, so it must not start before the
+      # server accepts connections — `depends_on` alone only waits for the
+      # container, which is ready long before Postgres is.
+      test: ['CMD-SHELL', 'pg_isready -U nns -d nns']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  indexer:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      args:
+        PKG: indexer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # A tail is a long-running process against a node that will be restarted,
+    # go out of consensus, and drop connections. A *configuration* error also
+    # exits (code 2) and will therefore restart-loop — with the same one-line
+    # message each time, which is the intended diagnosis.
+    restart: unless-stopped
+    # SIGTERM aborts the scan between batches; the in-flight batch's commit is
+    # a single transaction, so it either lands or rolls back.
+    stop_grace_period: 30s
+    init: true
+    environment:
+      NNS_DATABASE_URL: postgres://nns:${NNS_POSTGRES_PASSWORD:-nns}@postgres:5432/nns
+      NNS_RPC_URL: ${NNS_RPC_URL:-http://host.docker.internal:6488}
+      NNS_RPC_USER: ${NNS_RPC_USER:-}
+      NNS_RPC_PASSWORD: ${NNS_RPC_PASSWORD:-}
+      # 24 is main-albatross. §7.5 rejects transactions from any other network,
+      # so a node on the wrong one indexes nothing rather than the wrong thing.
+      NNS_NETWORK_ID: ${NNS_NETWORK_ID:-24}
+      NNS_LOG_LEVEL: ${NNS_LOG_LEVEL:-info}
+      NNS_POLL_INTERVAL_MS: ${NNS_POLL_INTERVAL_MS:-15000}
+      NNS_PROGRESS_INTERVAL_MS: ${NNS_PROGRESS_INTERVAL_MS:-60000}
+      NNS_RPC_TIMEOUT_MS: ${NNS_RPC_TIMEOUT_MS:-30000}
+      NNS_RPC_ATTEMPTS: ${NNS_RPC_ATTEMPTS:-4}
+    # Linux does not resolve `host.docker.internal` on its own; harmless where
+    # it is already defined. It is what makes a node on this same host
+    # reachable as `http://host.docker.internal:6488`.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  api:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      args:
+        PKG: api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    environment:
+      NNS_DATABASE_URL: postgres://nns:${NNS_POSTGRES_PASSWORD:-nns}@postgres:5432/nns
+      # In-container bind. What the outside world can reach is `ports` alone.
+      NNS_API_HOST: 0.0.0.0
+      NNS_API_PORT: 8635
+      NNS_LOG_LEVEL: ${NNS_LOG_LEVEL:-info}
+    ports:
+      # Loopback by default, for a TLS terminator on the same host. Clients are
+      # browsers and §8.6 aside, everything they fetch is over HTTPS.
+      - '${NNS_API_PUBLISH:-127.0.0.1:8635}:8635'
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+  delegate:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      args:
+        PKG: delegate
+    # No `depends_on`. The delegate reads a JSON file and answers HTTP: it does
+    # not touch Postgres, the indexer or the API, and it must keep answering
+    # through a resync that leaves the other three degraded for hours.
+    restart: unless-stopped
+    init: true
+    environment:
+      # In-container path of the mounted file, and an in-container bind. What
+      # the outside world can reach is decided by `ports` alone.
+      NNS_DELEGATE_LABELS: /labels/labels.json
+      NNS_DELEGATE_HOST: 0.0.0.0
+      NNS_DELEGATE_PORT: 8636
+      # Blank is absent for all three: the service trims and treats empty as
+      # unset, so an unfilled line in `.env` is the default, never a value.
+      NNS_DELEGATE_NAME: ${NNS_DELEGATE_NAME:-}
+      NNS_DELEGATE_DEFAULT_TTL: ${NNS_DELEGATE_DEFAULT_TTL:-300}
+      NNS_DELEGATE_RELOAD_SEC: ${NNS_DELEGATE_RELOAD_SEC:-5}
+      NNS_LOG_LEVEL: ${NNS_LOG_LEVEL:-info}
+    volumes:
+      # The **directory**, not the file. A single-file bind mount pins the
+      # inode, and an editor's atomic save (vim, sed -i — rename into place)
+      # replaces the inode: the host file changes, the container serves the old
+      # bytes forever, and the healthcheck stays green. The store's stat-poll
+      # was built precisely for atomic saves (packages/delegate/src/store.ts),
+      # so the mount must not defeat it. A directory mount resolves the name on
+      # every lookup, and edits — in place or by rename — appear at the next
+      # poll. A reload that fails to parse leaves the previous file serving.
+      - ${NNS_DELEGATE_LABELS_DIR:-./labels}:/labels:ro
+    ports:
+      # Loopback by default, for the same terminator the API sits behind — on a
+      # different hostname, because §8.6's `D` is a bare host and the client
+      # builds `https://<host>/<parent>/<label>` on 443.
+      - '${NNS_DELEGATE_PUBLISH:-127.0.0.1:8636}:8636'
+    healthcheck:
+      # Inside the container, where there is no proxy in front and the path is
+      # therefore the whole path — which is what `/healthz` has to be to be the
+      # probe at all. A lookup is two segments, so one segment is the only
+      # thing that cannot be one; behind a mount your proxy does not strip,
+      # `<mount>/healthz` reads as a lookup and 404s. See README.md.
+      test:
+        - CMD-SHELL
+        - wget -q -O /dev/null "http://127.0.0.1:8636/healthz"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '5'
+
+volumes:
+  # Named, so `docker compose down` keeps the database and a restart resumes
+  # from the stored cursor instead of replaying from LAUNCH_HEIGHT. `down -v`
+  # is the deliberate way to start over — and it is safe: every byte here is
+  # derived from the chain and rebuilds from it. The delegate's labels file is
+  # a bind mount on the host and is untouched by `down -v`; it is also the one
+  # thing in this directory with no copy anywhere else.
+  postgres-data:

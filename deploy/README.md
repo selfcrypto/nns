@@ -21,7 +21,22 @@ only the second row — no node, no database, no indexer.
 [`../docs/runbooks/operators.md`](../docs/runbooks/operators.md) is the longer
 version: what each role *is*, and the things that are easy to get wrong.
 
-## A sixth, optional thing: the NC chat index
+## The first two rows on one box
+
+[`collaborator/`](collaborator/) is everything a third party can run, in one
+compose project: Postgres, the indexer and the API, with a delegate beside
+them. Same images, same variables, same two ports — one `.env` and one
+`docker compose up` instead of two. It holds no key and needs the same history
+node the `resolver` row does.
+
+It is a convenience, not a sixth role, and it merges nothing: the resolver
+proves its answers against the committed root and the delegate proves nothing,
+which is the distinction clients render differently and a shared box does not
+soften. Run the two directories separately when you want them to **fail**
+separately — and never both ways on one host, where 8635 and 8636 are wanted
+twice.
+
+## An optional extra: the NC chat index
 
 [`chat/`](chat/) indexes the NC chat messages of `docs/app-chat.md` and serves
 them by address, so the app's Inbox is one small request per address rather
@@ -58,7 +73,7 @@ the explicit trade that kit's README owns up to.
 
 The compose file at the repository root is the **development** stack — the
 indexer and its database, and nothing that faces a network. If you are
-deploying, you are in the right directory now; use one of the four above.
+deploying, you are in the right directory now; use one of the rows above.
 
 ## What every role shares
 
@@ -74,6 +89,7 @@ services speak plain HTTP and expect a TLS terminator in front:
 | Role | Port | What |
 |---|---|---|
 | `resolver` | 8635 | the API |
+| `collaborator` | 8635 / 8636 | the API and the delegate, on one box |
 | `service` | 8635 | the API, standalone |
 | `service` | 8080 | the app, with `/api/` and `/rpc` behind it |
 | `delegate` | 8636 | the delegate |
@@ -103,11 +119,12 @@ role addresses, `RESERVED_NAMES`, the listing fee — is a constant in
 `@nns/core` with no environment variable at all, because a value an operator can
 set is a value two operators can disagree about.
 
-## The node, for the two roles that need one
+## The node, for the roles that need one
 
-`resolver` and `service` need a Nimiq **history** node whose retention covers
-`LAUNCH_HEIGHT`. `settlement` needs a node too, but any node it can reach
-privately — it signs rather than replays. A `delegate` needs none.
+`resolver`, `collaborator` and `service` all run the indexer, so all three need
+a Nimiq **history** node whose retention covers `LAUNCH_HEIGHT`. `settlement`
+needs a node too, but any node it can reach privately — it signs rather than
+replays. A `delegate` needs none.
 
 This is the one prerequisite that cannot be corrected afterwards, and its
 failure is the quietest in the system: a node brought up by state sync, or one
@@ -123,12 +140,13 @@ start height is the wrong response to it.
 
 ## Keys, and where they may not be
 
-Only one of these four holds a key, and it is the one with no public surface:
+The two that hold a spending key are the two with no public surface:
 
 | Role | Key |
 |---|---|
 | `resolver` | none — spends nothing, signs nothing |
 | `delegate` | none — holds no chain data at all |
+| `collaborator` | none — it is those two rows on one box |
 | `service` | the node's RPC credential, for the relay. No chain key |
 | `settlement` | **both §6 `M` hot keys** |
 | `anchor` | **a funded EVM publisher key** (SHOULD be a multisig signer, §9) |

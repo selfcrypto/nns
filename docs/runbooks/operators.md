@@ -19,6 +19,14 @@ row — no node, no database, no indexer.
 The last two rows are ours alone and belong on a **different machine from the
 third** — both hold keys, and a box terminating TLS is the wrong home for one.
 
+The first two rows are also the two a third party can run, and
+`deploy/collaborator` is both of them in one compose project: one `.env`, one
+`up`, the same four containers on the same two ports. It is a convenience, not
+a sixth row — the resolver still proves its answers and the delegate still
+proves nothing. Use the separate directories when you want the two to fail
+separately; do not run both arrangements on one host, where they want the same
+ports.
+
 ## What each row is for
 
 A **resolver** is the registry itself: an independent replay of the chain into
@@ -79,7 +87,9 @@ that have already left a hot key.
 **A delegate is not a resolver.** Different operator, different data, different
 trust position — one proves on-chain facts, the other asserts subdomains with
 no proof. A delegate needs no indexer and joins no quorum, and calling it a
-"delegated resolver" invites exactly that mix-up.
+"delegated resolver" invites exactly that mix-up. One operator running both on
+one box (`deploy/collaborator`) does not soften any of it: same machine, same
+`.env`, still two different claims about what the answer is worth.
 
 **"Resolver" names two things in this repo.** `packages/api` is the *server*
 that answers `/resolve/{name}` — running one is what the table above means.
@@ -94,7 +104,7 @@ It is the base layer of the resolver stack, not a deployment choice.
 cannot call an authenticated node with no CORS headers: it holds the node's
 credential and forwards four allowlisted methods. No partner needs it, and
 bundling it would hand them a credential-holding proxy they have no use for.
-Nothing else in the table holds a key of any kind.
+Nothing a partner can run holds a key of any kind.
 
 ## The node
 
