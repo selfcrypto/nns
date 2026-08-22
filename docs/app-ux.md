@@ -15,13 +15,11 @@ nothing more than two taps deep.
 ┌────────────────────────────┐
 │ ······ host chrome ······· │  --chrome-top (env only; 0 where the host insets)
 ├────────────────────────────┤
-│ nns.  names on Nimiq       │  masthead — wordmark only, carries no controls
-├────────────────────────────┤
+│ nns.  names…   ◉ NQ52 … KF8N ▾ │  masthead — wordmark, and the connector
+├────────────────────────────┤     in the corner: the only connect UI
 │                            │
 │         screen             │  one screen at a time, vertical scroll
 │                            │
-├────────────────────────────┤
-│ ◉ NQ52 A3NY … KF8N   Disconnect │  identity row — the only connect UI
 ├────────────────────────────┤
 │ Buy/Search Pay My Names Inbox Market │  tab bar, thumb row
 ├────────────────────────────┤
@@ -29,10 +27,13 @@ nothing more than two taps deep.
 └────────────────────────────┘
 ```
 
-**Nothing interactive goes in the top strip.** The frame is `min-height: 100dvh`
-with `--chrome-top` / `--chrome-bottom` as padding and a tab bar sticky to
-`bottom: var(--chrome-bottom)`; `lib/chrome.ts` computes both and argues the
-numbers. Two earlier attempts to reason about that WebView from a desktop got
+**The connector is the one interactive thing in the top strip**, and it is
+there because the strip is finally trustworthy: `--chrome-top` was a bogus
+48 px reserve, then a grey band, before a device screenshot settled it at
+`env(safe-area-inset-top)` outside Pay and **0** inside it. The frame is
+`min-height: 100svh` with `--chrome-top` / `--chrome-bottom` as padding and a
+tab bar sticky to `bottom: var(--chrome-bottom)`; `lib/chrome.ts` computes both
+and argues the numbers. Two earlier attempts to reason about that WebView from a desktop got
 both ends wrong in opposite directions — a `position: fixed; inset: 0` frame
 pushed the tab bar *further* off the bottom, because a fixed element's
 containing block is the layout viewport and Pay reports it taller than `100dvh`
@@ -84,13 +85,18 @@ management happens. The card is the same component Buy renders
 (`components/NameCard.tsx`), given the owner action list instead of the
 acquisition one. When sends enable, a *Renew* shortcut rides on due/grace rows.
 
-Identity does **not** live on this screen. It is one row above the tab bar
-(`components/IdentityBar.tsx`), on every tab: the acting address with its
-identicon, **Disconnect** beside it, and — tapping the address — the rest of the
-set plus *Add another address* on the Hub. It was in the masthead and at the
-foot of this screen at once, which is two copies of one control; it is at the
-bottom now because that is the row a thumb reaches and it is nowhere near a
-host's chrome (Kike, 2026-08-22).
+Identity does **not** live on this screen. It is one control
+(`components/IdentityBar.tsx`), on every tab, in the masthead's right corner:
+the acting address with its identicon, and — tapping it — the rest of the set,
+*Add another address* on the Hub, and **Disconnect**. It was in the masthead
+and at the foot of this screen at once, which is two copies of one control, and
+that is what stopped; where the surviving copy sits is its `placement` prop.
+It spent one build above the tab bar, on the argument that the top strip was
+the part of the screen we had been wrong about three times — and moved back to
+the corner once the chrome reserves were measured rather than reasoned about
+(Kike, 2026-08-22). In the corner the collapsed control is the address alone:
+there is room for one thing up there, and the address is the one that has to
+stay legible.
 
 **Both adapters connect and disconnect.** The Pay path shipped with neither, on
 the reasoning that the host's account set is unconditional. What that produced

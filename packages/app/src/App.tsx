@@ -150,6 +150,14 @@ export function App() {
       <header className="masthead">
         <h1 className="wordmark">nns</h1>
         <p className="masthead-sub">names on Nimiq</p>
+        <IdentityBar
+          placement="top"
+          wallet={wallet}
+          onConnect={connect}
+          onDisconnect={disconnect}
+          expanded={identityOpen}
+          onToggle={() => setIdentityOpen((open) => !open)}
+        />
       </header>
       <main className="content">
         {diagnostic && <ChromeDiagnostic wallet={wallet} />}
@@ -161,13 +169,6 @@ export function App() {
         {tab === 'inbox' && <InboxScreen wallet={wallet} />}
         {tab === 'market' && <OffersScreen onOpen={openName} />}
       </main>
-      <IdentityBar
-        wallet={wallet}
-        onConnect={connect}
-        onDisconnect={disconnect}
-        expanded={identityOpen}
-        onToggle={() => setIdentityOpen((open) => !open)}
-      />
       <nav className="tabbar" aria-label="Sections">
         {TABS.map((entry) => (
           <button
