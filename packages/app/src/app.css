@@ -104,13 +104,13 @@ body {
 }
 
 /*
- * Inside Nimiq Pay the host's own bar already names the app, and a second
- * wordmark under it is the grey strip in Kike's screenshot. `data-host` is
- * stamped by `lib/chrome.ts` before the first paint, so this costs no flash.
+ * The masthead stays in Pay. It was hidden there for one build, on the
+ * reasoning that Pay's own bar already names the app — but the wordmark was
+ * never the problem (the grey strip was a bogus top reserve, since removed),
+ * and a search field welded to the top edge of the WebView reads as broken
+ * chrome rather than as a clean start (Kike, 2026-08-22). It carries no
+ * controls now, so nothing is at risk up here either way.
  */
-:root[data-host='pay'] .masthead {
-  display: none;
-}
 
 .wordmark {
   margin: 0;

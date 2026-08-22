@@ -24,11 +24,30 @@
  */
 
 /**
- * Android's navigation bar is 48dp, and the host consumes the window insets, so
- * `env(safe-area-inset-bottom)` cannot say so. A floor, not a sum: there is one
- * bar down there, and a host that reports it honestly reports all of it.
+ * The bottom reserve inside Pay: **two** things, not one, which is why 48 was
+ * not enough and why the tab bar kept landing under the navigation buttons
+ * through three attempts.
+ *
+ *   - Android's navigation bar is **48dp**, drawn over the page, with
+ *     `env(safe-area-inset-bottom)` reading 0 underneath it because the host
+ *     consumed the window insets.
+ *   - Pay's in-app browser hands the page a viewport **taller than what it
+ *     shows**. Measured off a device screenshot (2026-08-22, 360 CSS px wide):
+ *     the tab bar's top sat at ~781 CSS px down a screen 803 tall, with the
+ *     page starting 97 px below the top of it — putting the frame's bottom
+ *     edge roughly **74 px past** the visible area. That is the slack the page
+ *     scrolls by, and it is why a `position: fixed` frame was *worse*: a fixed
+ *     element's containing block is that taller viewport.
+ *
+ * 48 + 74, rounded up for margin. It is a floor, not a sum with `env()`: one
+ * bar is down there, and a host that reports it honestly reports all of it.
+ *
+ * **This is measured, not derived from anything the host told us** — the SDK
+ * exposes no geometry at all. If it is wrong on another device it will show as
+ * a dead band above the tab bar; `?chrome=0,<n>` retunes it in a reload and
+ * `?diag=1` prints the numbers behind it.
  */
-export const PAY_NAV_MIN = 48
+export const PAY_NAV_MIN = 120
 
 export interface Insets {
   readonly top: number

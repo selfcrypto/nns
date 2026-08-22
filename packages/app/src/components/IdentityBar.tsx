@@ -23,7 +23,6 @@ import {
   disconnectLabel,
   moreAddressesLabel,
   payConnectLabel,
-  payDisconnectNote,
   walletCheckingLine,
 } from '../lib/wording'
 import { Identicon } from './ui'
@@ -108,7 +107,6 @@ export function IdentityBar({
               {addAddressLabel()}
             </button>
           )}
-          {row.host === 'pay' && <p className="identity-note">{payDisconnectNote()}</p>}
         </div>
       )}
     </div>

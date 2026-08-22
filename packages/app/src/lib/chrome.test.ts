@@ -47,7 +47,7 @@ describe('chromeInsets', () => {
     // Three device screenshots: the page begins below the status bar *and*
     // below Pay's own bar, already clear of both, while `env()` still reports
     // the status bar. Honouring it is a strip of nothing.
-    expect(chromeInsets({ pay: true, safeArea, override: null })).toEqual({ top: 0, bottom: 48 })
+    expect(chromeInsets({ pay: true, safeArea, override: null })).toEqual({ top: 0, bottom: PAY_NAV_MIN })
   })
 
   it('floors the bottom when the host consumed the window insets', () => {
@@ -60,7 +60,7 @@ describe('chromeInsets', () => {
   })
 
   it('never shrinks a bottom the host did report', () => {
-    expect(chromeInsets({ pay: true, safeArea: { top: 47, bottom: 96 }, override: null }).bottom).toBe(96)
+    expect(chromeInsets({ pay: true, safeArea: { top: 47, bottom: 999 }, override: null }).bottom).toBe(999)
   })
 
   it('lets the override win, so the numbers are measurable on a device', () => {

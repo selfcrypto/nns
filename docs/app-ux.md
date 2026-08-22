@@ -15,7 +15,7 @@ nothing more than two taps deep.
 ┌────────────────────────────┐
 │ ······ host chrome ······· │  --chrome-top (env only; 0 where the host insets)
 ├────────────────────────────┤
-│ nns.  names on Nimiq       │  masthead — HIDDEN inside Pay, whose bar names us
+│ nns.  names on Nimiq       │  masthead — wordmark only, carries no controls
 ├────────────────────────────┤
 │                            │
 │         screen             │  one screen at a time, vertical scroll

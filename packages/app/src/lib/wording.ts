@@ -317,11 +317,12 @@ export const disconnectLabel = (): string => 'Disconnect'
 
 /**
  * Pay hands its account set over with no prompt and offers no revocation, so
- * the app's own disconnect is device-local and the label may not imply more.
+ * the app's disconnect is device-local. That was spelled out under the row as
+ * a sentence, and it read as a warning about something that had gone wrong
+ * (Kike, 2026-08-22) — a caveat nobody asked for, attached to a button whose
+ * behaviour is obvious from pressing it. The label carries what it needs to.
  */
 export const payConnectLabel = (): string => 'Connect Nimiq Pay'
-
-export const payDisconnectNote = (): string => 'Stops this app using your Nimiq Pay account on this device.'
 
 /** The identity row while `detectWallet` is still deciding — never nothing. */
 export const walletCheckingLine = (): string => 'Checking wallet…'
