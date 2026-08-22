@@ -34,6 +34,10 @@
   --accent-bg: #fdf4d8;
   --accent-line: #f0dda3;
   --radius: 14px;
+  /* Space the host has already spent at each edge. `lib/chrome.ts` overwrites
+     both before the first render; these are what a plain browser gets. */
+  --chrome-top: env(safe-area-inset-top, 0px);
+  --chrome-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 * {
@@ -44,6 +48,12 @@ html,
 body {
   margin: 0;
   padding: 0;
+  height: 100%;
+  /* The document itself never scrolls — see `.frame`. Without this the WebView
+     still offers a rubber-band drag, which reads as the app sliding out from
+     under the host's bar. */
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
@@ -57,14 +67,32 @@ body {
 
 /* ── Frame: masthead / content / tab bar, one-handed ── */
 
+/*
+ * The frame is pinned to the WebView, not sized in viewport units, and it is
+ * the *content* that scrolls rather than the document.
+ *
+ * `min-height: 100dvh` plus a document-level scroll is what mini-app cycle I
+ * reported as three separate bugs and is really one: the frame was as tall as
+ * the whole WebView while the visible part was smaller, so the page had a
+ * little slack to scroll, the masthead slid up under Nimiq Pay's bar (taking
+ * Connect Wallet and Disconnect with it), and the tab bar — sticky to the
+ * bottom of a document taller than the screen — sat behind the system
+ * navigation buttons. `position: fixed` with `inset: 0` cannot do any of that:
+ * it is exactly the WebView, whatever `dvh` reports, and there is no document
+ * scroll left to drift.
+ */
 .frame {
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  overflow: hidden;
+  padding-top: var(--chrome-top);
+  padding-bottom: var(--chrome-bottom);
 }
 
 .masthead {
-  padding: calc(env(safe-area-inset-top, 0px) + 18px) 20px 10px;
+  padding: 14px 20px 10px;
   display: flex;
   align-items: baseline;
   gap: 10px;
@@ -87,10 +115,23 @@ body {
   margin: 0;
   color: var(--ink-soft);
   font-size: 13px;
+  /* The tagline yields, the button does not: at 320 px the row was wrapping
+     "Connect Wallet" onto two lines to keep three words of decoration whole. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .content {
   flex: 1;
+  /* The only scroller in the app. `min-height: 0` because a flex item's default
+     `auto` floor is its content height, which would push the tab bar off the
+     bottom of a fixed frame instead of scrolling. */
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 4px 16px 24px;
 }
 
@@ -101,27 +142,34 @@ body {
 }
 
 .tabbar {
-  position: sticky;
-  bottom: 0;
-  display: grid;
-  /* Five sections since Pay joined; the labels are short enough to hold at
-     this width in portrait, which is why the tab text is not truncated. */
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
-  padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 10px);
+  /* Nothing sticky: the frame does not scroll, so the last row of a column
+     layout is already the bottom of the screen — and above `--chrome-bottom`,
+     which is where the system navigation buttons are. */
+  flex: none;
+  display: flex;
+  /* Shrink-to-fit rather than five equal columns. "Buy/Search" is three times
+     the width of "Pay" and equal columns would either truncate it or force
+     every label down to its size. */
+  gap: 2px;
+  padding: 8px 8px 10px;
   background: var(--paper);
   border-top: 1px solid var(--line);
 }
 
 .tab {
   appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
   border: 1px solid transparent;
   background: transparent;
   color: var(--ink-soft);
   font: inherit;
-  font-size: 15px;
+  /* Five labels on one thumb row, the longest ten characters: the size has to
+     follow the screen or a 320 px phone truncates. */
+  font-size: clamp(11px, 3.1vw, 15px);
   font-weight: 600;
-  padding: 10px 0;
+  white-space: nowrap;
+  padding: 10px 6px;
   border-radius: 999px;
 }
 
@@ -494,6 +542,8 @@ li.note {
 
 .connect-top {
   margin-left: auto;
+  flex: none;
+  white-space: nowrap;
   font-size: 13px;
   padding: 7px 14px;
 }

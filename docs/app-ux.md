@@ -13,20 +13,33 @@ nothing more than two taps deep.
 
 ```
 ┌────────────────────────────┐
+│ ······ host chrome ······· │  --chrome-top: reserved, never drawn into
+├────────────────────────────┤
 │ nns.  names on Nimiq       │  masthead (wordmark; no menu hidden behind it)
 ├────────────────────────────┤
 │                            │
-│         screen             │  one screen at a time, vertical scroll
+│         screen             │  one screen at a time, the app's only scroller
 │                            │
 ├────────────────────────────┤
-│ Buy  Pay  My names  Inbox  Market │  tab bar, thumb row
+│ Buy/Search Pay My Names Inbox Market │  tab bar, thumb row
+├────────────────────────────┤
+│ ······ host chrome ······· │  --chrome-bottom
 └────────────────────────────┘
 ```
 
-Five tabs, and the first two are named for jobs rather than mechanisms: **Buy**
-is discovery and acquisition, **Pay** sends NIM to a name. Management of what you
-already own is **My names** and lives nowhere else — a name you own is never
-handled from Buy (§2). No hamburger, no settings screen in v1 — the app has no
+**The frame is the WebView, and the frame never scrolls.** It is
+`position: fixed; inset: 0` with `--chrome-top` / `--chrome-bottom` as padding,
+and the screen area is the one element with `overflow-y: auto`. Sizing it in
+viewport units instead made it taller than the visible area inside Nimiq Pay,
+which gave the document a little slack to scroll: the masthead drifted up under
+Pay's own bar — taking Connect Wallet and Disconnect with it — and the tab bar
+ended up behind the Android navigation buttons. The two custom properties come
+from `lib/chrome.ts`, which is also where the numbers behind them are argued.
+
+Five tabs, and the first two are named for jobs rather than mechanisms:
+**Buy/Search** is discovery and acquisition, **Pay** sends NIM to a name.
+Management of what you already own is **My Names** and lives nowhere else — a
+name you own is never handled from Buy (§2). No hamburger, no settings screen in v1 — the app has no
 user-configurable state except the client-side hidden-senders list (managed
 inline from a thread). The proof rail (card left edge:
 solid green proven · dashed slate depth · dotted indigo delegated · red

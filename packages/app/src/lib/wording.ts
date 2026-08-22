@@ -321,7 +321,7 @@ export const ownNameLine = (): string => 'You own this name.'
 
 export const manageOwnNameLabel = (): string => 'Manage it'
 
-export const backToNamesLabel = (): string => '‹ My names'
+export const backToNamesLabel = (): string => '‹ My Names'
 
 // ── Pay (docs/app-ux.md §4) ────────────────────────────────────────────────
 

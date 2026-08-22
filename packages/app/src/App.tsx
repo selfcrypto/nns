@@ -18,9 +18,12 @@ type Tab = 'buy' | 'pay' | 'names' | 'inbox' | 'market'
 const TABS: readonly Tab[] = ['buy', 'pay', 'names', 'inbox', 'market']
 
 const TAB_LABEL: Record<Tab, string> = {
-  buy: 'Buy',
+  // "Buy/Search" rather than "Buy": the tab is still named for the job, but the
+  // job people arrive with is looking a name up, and a tab called Buy reads as
+  // a shop you have to enter before you may ask a question.
+  buy: 'Buy/Search',
   pay: 'Pay',
-  names: 'My names',
+  names: 'My Names',
   inbox: 'Inbox',
   market: 'Market',
 }
