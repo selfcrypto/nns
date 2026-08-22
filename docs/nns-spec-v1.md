@@ -2192,10 +2192,51 @@ Inherents and reward transactions MUST be filtered before prefix matching.
    ascending position in the block body array (§5.2 — there is no index
    field on the RPC object).
 2b. Discard everything §7.5 excludes **before** applying any rule.
+2c. Derive each surviving transaction's **effective sender** (below) before
+   any rule reads the sender.
 3. Advance state only through the last **finalised macro block**.
 4. Persist state plus a cursor so restarts resume rather than resync. In
    steady state only the most recent batch is read, so tailing works against a
    pruning node; history is required only for bootstrap and rebuilds.
+
+**Attribution — the effective sender.** Wherever §6 and §7 speak of a
+transaction's *sender*, they mean the **effective sender**: the sending
+account, unless that account is an HTLC (Nimiq account type 2) and the
+transaction's proof is one of the two shapes pinned here — then it is the
+address of the **contract-sender signature** the proof carries.
+
+| Proof discriminant | Total length | Effective sender |
+|---|---|---|
+| `0x01` EarlyResolve | 197 bytes | the second signature proof's key |
+| `0x02` TimeoutResolve | 99 bytes | the only signature proof's key |
+
+A signature proof here is exactly 98 bytes: `0x00` (Ed25519, no flags), a
+32-byte public key, `0x00` (empty Merkle path), a 64-byte signature. The
+address is `blake2b-256(pk)[0..20]`, the §4/§8.1 derivation. **Any other
+byte shape — RegularTransfer, WebAuthn/ES256 signature proofs, non-empty
+Merkle paths, length mismatches — attributes to the account**, exactly as
+before this rule existed; the parse MUST never fail a message. Signatures
+are not re-verified: an invalid proof never reaches a block, so inclusion is
+the verification.
+
+Why the rule exists: "owner = the sending account" silently assumes accounts
+and keys are the same thing. Nimiq Pay is the live counterexample — it holds
+its spendable balance in an HTLC it destroys routinely (an emptied contract
+is pruned, and the pruned address has no key and never can), while every
+spend from that contract carries the signature of the user's persistent
+wallet, the contract sender. Attributing to that key makes ownership survive
+the contract. It is derivable from the transaction alone — an account lookup
+would not replay once the contract is pruned — so any implementation reaches
+the same answer from the same wire facts.
+
+Consequences, stated so no implementation guesses:
+
+- Refund obligations (§7.4) are owed to the **effective** sender. A refund
+  paid to a pruned contract's address is burned.
+- The log line's `sender` field records the effective sender (§8.2).
+- A message whose effective sender equals its recipient is possible — the
+  network's self-transaction rule binds accounts, not keys — and is subject
+  to no additional rule.
 
 ### 7.3 Name state machine
 
@@ -2752,6 +2793,13 @@ load-bearing for one type rather than only informative: a `U`'s recipient is
 what decides whether it released a name or awarded it, and to whom (§6 `U`).
 It was already in the line, so replaying an award needs nothing the log did
 not already carry.
+
+Since r25 the `sender` field records the **effective sender** (§7.2), not
+necessarily the sending account. Tier 1 replays the log, and the log does not
+carry the transaction proof — a line recording the raw contract account would
+replay to a different owner, and therefore a different root, than the chain
+produces. The sending account stays recoverable through `tx_hash` for anyone
+who wants the chain-level fact.
 
 The log is small — 100k messages at ~140 bytes is under 15 MB — and it is what
 makes verification cheap. **This is why no registration band is free:** at

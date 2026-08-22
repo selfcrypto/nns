@@ -11,7 +11,10 @@
     "BURN": "NQ07 0000 0000 0000 0000 0000 0000 0000 0000",
     "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
     "BOB": "NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK",
-    "CAROL": "NQ19 KSMT HHEJ TYNF J1GK 40NK LHSL C5P7 P24M"
+    "CAROL": "NQ19 KSMT HHEJ TYNF J1GK 40NK LHSL C5P7 P24M",
+    "PAY_LOCAL": "NQ88 XL24 NHPU MYVX 67AC TXLX NQX1 R471 EGM9",
+    "PAY_HTLC_1": "NQ89 R3HN 70XQ 2E5A L4YS CV2Q UL5J 84TX 8L8H",
+    "PAY_HTLC_2": "NQ70 T4QS RKSL TGQT S7F5 B53K G67D FRUX X09J"
   },
   "config": {
     "networkId": 24
@@ -206,7 +209,9 @@
             "since": "clean",
             "changed": [],
             "logLines": 3,
-            "absent": ["kikename"]
+            "absent": [
+              "kikename"
+            ]
           }
         }
       ],
@@ -2330,7 +2335,9 @@
         {
           "check": {
             "since": "registered",
-            "changed": ["nameRoot"],
+            "changed": [
+              "nameRoot"
+            ],
             "label": "grace",
             "logLines": 2,
             "unreserved": {
@@ -2349,9 +2356,13 @@
         {
           "check": {
             "since": "grace",
-            "changed": ["nameRoot"],
+            "changed": [
+              "nameRoot"
+            ],
             "logLines": 2,
-            "absent": ["nq"],
+            "absent": [
+              "nq"
+            ],
             "unreserved": {
               "nq": true
             }
@@ -3163,6 +3174,137 @@
       "expect": {
         "names": {},
         "logLines": 2
+      }
+    },
+    {
+      "id": "attribution_G_from_htlc_registers_to_the_authorizing_key",
+      "note": "§7.2 attribution, with the real mainnet proof (block 59,516,314): an EarlyResolve carries the co-signer's signature first and the contract sender's second, and the second is the owner. PAY_LOCAL is the address of the public key inside that proof.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842730,
+            "txIndex": 0,
+            "sender": "PAY_HTLC_1",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gpayname",
+            "senderType": 2,
+            "proof": "010091b21f4b100273bd7034f6369c29d1f7ba72dba7de6720ad3cd8b8191621891300668acc228bf8ad0a832757b1e92b549e07f775937c2b4d2818d555943bef1c8421728d8f7bd4695d85fb3b626b541dcb0e3fbd791357d8720596c3b89547f506009e1ffbdc365402365800270b0b68904e51514e8bb05e48cd5e7310ba1412f6a2008525da9a0f4d04539a1a606df4b39307eeec06df1cf2e2c3d65030bcf4f675967425e34eb68cee64d3b7e9c6ea935ddc1ffa110565ead6a92aaf912d7fb1fb03"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "resolves": {
+              "payname": "PAY_LOCAL"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "payname": {
+            "owner": "PAY_LOCAL",
+            "target": "PAY_LOCAL"
+          }
+        }
+      }
+    },
+    {
+      "id": "attribution_survives_the_contract_being_replaced",
+      "note": "The rule's purpose. Contract 1 registers, is destroyed, and the owner acts through contract 2 — same authorizing key, so the S succeeds. Without attribution the S is NOT_OWNER and the name is orphaned, which is what happened on mainnet to a name registered through Nimiq Pay (2026-08-21).",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842730,
+            "txIndex": 0,
+            "sender": "PAY_HTLC_1",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gpayname",
+            "senderType": 2,
+            "proof": "010091b21f4b100273bd7034f6369c29d1f7ba72dba7de6720ad3cd8b8191621891300668acc228bf8ad0a832757b1e92b549e07f775937c2b4d2818d555943bef1c8421728d8f7bd4695d85fb3b626b541dcb0e3fbd791357d8720596c3b89547f506009e1ffbdc365402365800270b0b68904e51514e8bb05e48cd5e7310ba1412f6a2008525da9a0f4d04539a1a606df4b39307eeec06df1cf2e2c3d65030bcf4f675967425e34eb68cee64d3b7e9c6ea935ddc1ffa110565ead6a92aaf912d7fb1fb03"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842740,
+            "txIndex": 0,
+            "sender": "PAY_HTLC_2",
+            "recipient": "ALICE",
+            "value": "1",
+            "text": "NNS1Spayname",
+            "senderType": 2,
+            "proof": "010091b21f4b100273bd7034f6369c29d1f7ba72dba7de6720ad3cd8b8191621891300668acc228bf8ad0a832757b1e92b549e07f775937c2b4d2818d555943bef1c8421728d8f7bd4695d85fb3b626b541dcb0e3fbd791357d8720596c3b89547f506009e1ffbdc365402365800270b0b68904e51514e8bb05e48cd5e7310ba1412f6a2008525da9a0f4d04539a1a606df4b39307eeec06df1cf2e2c3d65030bcf4f675967425e34eb68cee64d3b7e9c6ea935ddc1ffa110565ead6a92aaf912d7fb1fb03"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "resolves": {
+              "payname": "ALICE"
+            }
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "payname": {
+            "owner": "PAY_LOCAL",
+            "target": "ALICE"
+          }
+        }
+      }
+    },
+    {
+      "id": "attribution_falls_back_to_the_account_on_any_other_proof_shape",
+      "note": "§7.2: only the two pinned shapes attribute. A truncated proof, a RegularTransfer, or an absent proof leaves the account as the sender — so this S from a different contract with no usable proof is NOT_OWNER, exactly the pre-r25 behaviour.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842730,
+            "txIndex": 0,
+            "sender": "PAY_HTLC_1",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gpayname",
+            "senderType": 2,
+            "proof": "010091b21f4b100273bd7034f6369c29d1f7ba72dba7de6720ad3cd8b8191621891300668acc228bf8ad0a832757b1e92b549e07f775937c2b4d2818d555943bef1c8421728d8f7bd4695d85fb3b626b541dcb0e3fbd791357d8720596c3b89547f506009e1ffbdc365402365800270b0b68904e51514e8bb05e48cd5e7310ba1412f6a2008525da9a0f4d04539a1a606df4b39307eeec06df1cf2e2c3d65030bcf4f675967425e34eb68cee64d3b7e9c6ea935ddc1ffa110565ead6a92aaf912d7fb1fb03"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842740,
+            "txIndex": 0,
+            "sender": "PAY_HTLC_2",
+            "recipient": "ALICE",
+            "value": "1",
+            "text": "NNS1Spayname",
+            "senderType": 2,
+            "proof": "010091b21f4b100273bd7034f6369c29d1f7ba72dba7de6720ad3cd8b8191621891300668acc228bf8ad0a832757b1e92b549e07f775937c2b4d2818d555943bef1c8421728d8f7bd4695d85fb3b626b541dcb0e3fbd791357d8720596c3b89547f506009e1ffbdc365402365800270b0b68904e51514e8bb05e48cd5e7310ba1412f6a2008525da9a0f4d04539a1a606df4b39307eeec06df1cf2e2c3d65030bcf4f675967425e34eb68cee64d3b7e9c6ea935ddc1ffa110565ead6a92aaf912d7fb1fb"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOT_OWNER"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "payname": {
+            "owner": "PAY_LOCAL"
+          }
+        }
       }
     }
   ],

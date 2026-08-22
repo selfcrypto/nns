@@ -15,6 +15,9 @@
 
 export { CONSTANTS, LUNA_PER_NIM } from './constants.js'
 
+// §7.2's effective sender (r25): ownership follows the authorizing key.
+export { effectiveSender, htlcAuthorizer, SENDER_TYPE_HTLC } from './attribution.js'
+
 export {
   ADDRESS_BYTES,
   AddressError,

@@ -52,6 +52,14 @@ export interface NnsCandidate {
   readonly networkId: number
   readonly executionResult: boolean
   readonly timestamp: number
+  /**
+   * §7.2 attribution (r25): the sender's account type and the transaction
+   * proof, passed through so core can attribute an HTLC-sent message to its
+   * authorizing key. Optional because an RPC shape may omit them — absence
+   * degrades to account attribution, never to an error.
+   */
+  readonly senderType?: number
+  readonly proof?: string
 }
 
 // A type alias rather than an interface: only aliases get the implicit index
@@ -385,6 +393,8 @@ function toCandidate(tx: RpcTransaction, txIndex: number): NnsCandidate {
     networkId: tx.networkId,
     executionResult: tx.executionResult,
     timestamp: tx.timestamp,
+    ...(tx.fromType !== undefined ? { senderType: tx.fromType } : {}),
+    ...(tx.proof !== undefined ? { proof: tx.proof } : {}),
   }
 }
 

@@ -51,8 +51,10 @@
 
 import {
   CONSTANTS,
+  addressEquals,
   advanceTo,
   canonicalLogLine,
+  effectiveSender,
   parseAddress,
   reduce,
   type ChainTransaction,
@@ -189,6 +191,8 @@ export function toChainTransaction(candidate: NnsCandidate): ChainTransaction {
     recipientData: candidate.recipientData,
     executionResult: candidate.executionResult,
     networkId: candidate.networkId,
+    ...(candidate.senderType !== undefined ? { senderType: candidate.senderType } : {}),
+    ...(candidate.proof !== undefined ? { proof: candidate.proof } : {}),
   }
 }
 
@@ -292,7 +296,15 @@ export class Pipeline {
       // Boundaries at or below this transaction's height fire before it (§7.3).
       current = advanceThroughBoundaries(current, candidate.blockNumber, onBoundary, this.lastBoundary)
 
-      const tx = toChainTransaction(candidate)
+      // §7.2 attribution, applied once and fed to both consumers: the reducer
+      // (which would derive the same substitution itself — this keeps it
+      // explicit) and the log row. §8.2's `sender` field carries the
+      // *effective* sender, because Tier 1 replays the log and the log does
+      // not carry the proof — a line recording the raw account would replay
+      // to a different owner and therefore a different root.
+      const mapped = toChainTransaction(candidate)
+      const attributed = effectiveSender(mapped)
+      const tx = addressEquals(attributed, mapped.sender) ? mapped : { ...mapped, sender: attributed }
       const result = reduce(current, tx, this.config)
       current = result.state
 

@@ -1,4 +1,4 @@
-import { CONSTANTS, defineConfig, initialState } from '@nns/core'
+import { CONSTANTS, defineConfig, formatAddress, initialState } from '@nns/core'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -229,6 +229,61 @@ describe('applyBatch', () => {
     expect(state.height).toBe(together.state.height)
     expect([...state.names.keys()].sort()).toEqual([...together.state.names.keys()].sort())
     expect(rows).toEqual(together.logRows)
+  })
+})
+
+describe('§7.2 attribution reaches the log as well as the state', () => {
+  // Real mainnet proof, block 59,516,314: EarlyResolve, co-signer's signature
+  // first, the contract sender's — the Local wallet NQ88… — second.
+  const EARLY_RESOLVE =
+    '010091b21f4b100273bd7034f6369c29d1f7ba72dba7de6720ad3cd8b8191621891300668acc228bf8ad0a832757b1e92b549e07f775937c2b4d2818d555943bef1c8421728d8f7bd4695d85fb3b626b541dcb0e3fbd791357d8720596c3b89547f506009e1ffbdc365402365800270b0b68904e51514e8bb05e48cd5e7310ba1412f6a2008525da9a0f4d04539a1a606df4b39307eeec06df1cf2e2c3d65030bcf4f675967425e34eb68cee64d3b7e9c6ea935ddc1ffa110565ead6a92aaf912d7fb1fb03'
+  const HTLC = 'NQ89 R3HN 70XQ 2E5A L4YS CV2Q UL5J 84TX 8L8H'
+  const LOCAL_COMPACT = 'NQ88XL24NHPUMYVX67ACTXLXNQX1R471EGM9'
+
+  it('an HTLC-sent G registers to the authorizing key, and the log line says so', () => {
+    // §8.2: the sender field carries the *effective* sender, because Tier 1
+    // replays the log and the log does not carry the proof. A line recording
+    // the raw contract account would replay to a different owner and
+    // therefore a different root — the exact divergence §8.2 exists to
+    // prevent.
+    const { pipeline: p } = pipeline()
+    const result = p.applyBatch(
+      initialState(),
+      [
+        candidate({
+          blockNumber: LAUNCH + 10,
+          sender: HTLC,
+          senderType: 2,
+          proof: EARLY_RESOLVE,
+          recipientData: payload('NNS1Gtestname'),
+          value: CONSTANTS.FEE_STANDARD,
+          recipient: A,
+        }),
+      ],
+      LAUNCH + 60,
+    )
+    expect(result.logRows).toHaveLength(1)
+    expect(result.logRows[0]?.verdict).toBe('OK')
+    expect(result.logRows[0]?.sender).toBe(LOCAL_COMPACT)
+    const record = result.state.names.get('testname')
+    expect(record !== undefined && formatAddress(record.owner).replace(/ /g, '')).toBe(LOCAL_COMPACT)
+  })
+
+  it('a basic-account sender is untouched — attribution is a no-op outside HTLCs', () => {
+    const { pipeline: p } = pipeline()
+    const result = p.applyBatch(
+      initialState(),
+      [
+        candidate({
+          blockNumber: LAUNCH + 10,
+          recipientData: payload('NNS1Gtestname'),
+          value: CONSTANTS.FEE_STANDARD,
+          recipient: A,
+        }),
+      ],
+      LAUNCH + 60,
+    )
+    expect(result.logRows[0]?.sender).toBe('NQ64VFXQTPAS5Q7SADEX072SCR2MQCQ48P8M')
   })
 })
 

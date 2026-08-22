@@ -25,6 +25,7 @@
  */
 
 import { type Address, addressEquals } from './address.js'
+import { effectiveSender } from './attribution.js'
 import { BURN_ADDRESS, type Message, parse } from './codec.js'
 import type { NnsConfig } from './config.js'
 import { CONSTANTS } from './constants.js'
@@ -71,6 +72,13 @@ export interface ChainTransaction {
   readonly networkId: number
   /** Reward transactions and inherents, which must not be counted in ordering. */
   readonly isReward?: boolean
+  /**
+   * §7.2 attribution (r25): the RPC's `fromType`, and the transaction proof,
+   * hex. Absent fields mean account attribution — every non-contract caller
+   * is unchanged, and an unrecognised proof shape behaves the same way.
+   */
+  readonly senderType?: number
+  readonly proof?: string
 }
 
 // ── Verdicts ────────────────────────────────────────────────────────────────
@@ -478,7 +486,17 @@ export function reduce(state: NnsState, tx: ChainTransaction, config: NnsConfig)
     }
   }
 
-  const verdictAndState = apply(advanced, tx, result.message)
+  // §7.2 step 2c: attribute the message to the key that authorized the
+  // spend, not the account it left from (attribution.ts has the argument).
+  // One substitution here and every owner check, WRONG_SENDER check and
+  // refund payee downstream uses the attributed address without knowing the
+  // rule exists. Callers that pre-substitute (the pipeline does, so §8.2's
+  // log line carries the effective sender) pass through unchanged — the
+  // derivation is idempotent.
+  const attributed = effectiveSender(tx)
+  const attributedTx = addressEquals(attributed, tx.sender) ? tx : { ...tx, sender: attributed }
+
+  const verdictAndState = apply(advanced, attributedTx, result.message)
   const obligations =
     verdictAndState.verdict.kind === 'OK' || verdictAndState.verdict.kind === 'REFUND'
       ? verdictAndState.verdict.obligations

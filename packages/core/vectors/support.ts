@@ -76,6 +76,9 @@ export interface VectorTx {
   executionResult?: boolean
   isReward?: boolean
   networkId?: number
+  /** §7.2 attribution (r25): the sender's Nimiq account type and the tx proof, hex. */
+  senderType?: number
+  proof?: string
 }
 
 export function readTx(raw: VectorTx, book: AddressBook, defaultNetworkId: number): ChainTransaction {
@@ -91,6 +94,8 @@ export function readTx(raw: VectorTx, book: AddressBook, defaultNetworkId: numbe
     executionResult: raw.executionResult ?? true,
     networkId: raw.networkId ?? defaultNetworkId,
     ...(raw.isReward === undefined ? {} : { isReward: raw.isReward }),
+    ...(raw.senderType === undefined ? {} : { senderType: raw.senderType }),
+    ...(raw.proof === undefined ? {} : { proof: raw.proof }),
   }
 }
 
