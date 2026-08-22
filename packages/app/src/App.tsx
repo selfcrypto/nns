@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { appConfig, ConfigParseError } from './config'
+import { describeChrome } from './lib/chrome'
 import { detectWallet, type Wallet } from './lib/wallet'
 import { connectWalletLabel, disconnectLabel } from './lib/wording'
 import { BuyScreen } from './screens/Buy'
@@ -28,6 +29,27 @@ const TAB_LABEL: Record<Tab, string> = {
   market: 'Market',
 }
 
+/**
+ * `?diag=1` — the host readout. Nimiq Pay's WebView takes no console and no
+ * remote debugger, so the only way facts about it reach a developer is on the
+ * screen of the person holding the phone. Rendered at the top of the content
+ * area, which is inside both reserved insets, so it stays visible even when the
+ * numbers around it are wrong. Absent otherwise; it costs nothing to ship.
+ */
+function ChromeDiagnostic() {
+  const facts = useMemo(() => describeChrome(), [])
+  return (
+    <dl className="diag">
+      {Object.entries(facts).map(([key, value]) => (
+        <div key={key}>
+          <dt>{key}</dt>
+          <dd>{value}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
 function configProblem(): string | null {
   try {
     const { resolvers } = appConfig()
@@ -50,6 +72,7 @@ export function App() {
   const [, setIdentityNonce] = useState(0)
 
   const problem = useMemo(configProblem, [])
+  const diagnostic = useMemo(() => new URLSearchParams(window.location.search).get('diag') === '1', [])
 
   useEffect(() => {
     if (problem !== null) return
@@ -125,6 +148,7 @@ export function App() {
         )}
       </header>
       <main className="content">
+        {diagnostic && <ChromeDiagnostic />}
         {tab === 'buy' && <BuyScreen key={seed} wallet={wallet} seed={seed} onManage={manageName} />}
         {tab === 'pay' && <PayScreen wallet={wallet} />}
         {tab === 'names' && (

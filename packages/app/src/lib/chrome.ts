@@ -108,6 +108,33 @@ export function chromeInsets(input: {
 }
 
 /**
+ * What Nimiq Pay actually reports, for the one case this module cannot reason
+ * its way out of: a WebView nobody can attach a console to, on someone else's
+ * phone. `?diag=1` renders this on screen, so a single screenshot answers what
+ * a browser never can — whether the host was detected, what `env()` resolved
+ * to, and how big the viewport really is. Every value is read, none assumed.
+ */
+export function describeChrome(win: Window = window): Record<string, string> {
+  const safeArea = measureSafeArea(win.document)
+  const override = parseChromeOverride(win.location.search)
+  const pay = isPayHost(win)
+  const insets = chromeInsets({ pay, safeArea, override })
+  const root = win.document.documentElement
+  return {
+    pay: pay ? 'yes' : 'no',
+    lang: String((win as { nimiqPay?: { language?: unknown } }).nimiqPay?.language ?? '—'),
+    'env top/bottom': `${safeArea.top} / ${safeArea.bottom}`,
+    'reserved top/bottom': `${insets.top} / ${insets.bottom}`,
+    override: override === null ? 'none' : `${override.top} / ${override.bottom}`,
+    'inner w×h': `${win.innerWidth}×${win.innerHeight}`,
+    'doc scrollHeight': String(root.scrollHeight),
+    'visualViewport h': String(win.visualViewport?.height ?? '—'),
+    dpr: String(win.devicePixelRatio),
+    ua: win.navigator.userAgent.slice(0, 96),
+  }
+}
+
+/**
  * Publish the insets as `--chrome-top` / `--chrome-bottom` on the root element,
  * where `app.css` spends them as the frame's padding. Called once at startup;
  * nothing here changes for the life of a session — Pay's bar does not resize

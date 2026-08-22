@@ -48,11 +48,8 @@ html,
 body {
   margin: 0;
   padding: 0;
-  height: 100%;
-  /* The document itself never scrolls — see `.frame`. Without this the WebView
-     still offers a rubber-band drag, which reads as the app sliding out from
-     under the host's bar. */
-  overflow: hidden;
+  /* Damps the rubber-band drag that reads as the app sliding out from under the
+     host's bar. Deliberately *not* `overflow: hidden` — see `.frame`. */
   overscroll-behavior: none;
 }
 
@@ -68,25 +65,28 @@ body {
 /* ── Frame: masthead / content / tab bar, one-handed ── */
 
 /*
- * The frame is pinned to the WebView, not sized in viewport units, and it is
- * the *content* that scrolls rather than the document.
+ * `--chrome-top` / `--chrome-bottom` are the whole fix, and the box model
+ * around them is deliberately the boring one.
  *
- * `min-height: 100dvh` plus a document-level scroll is what mini-app cycle I
- * reported as three separate bugs and is really one: the frame was as tall as
- * the whole WebView while the visible part was smaller, so the page had a
- * little slack to scroll, the masthead slid up under Nimiq Pay's bar (taking
- * Connect Wallet and Disconnect with it), and the tab bar — sticky to the
- * bottom of a document taller than the screen — sat behind the system
- * navigation buttons. `position: fixed` with `inset: 0` cannot do any of that:
- * it is exactly the WebView, whatever `dvh` reports, and there is no document
- * scroll left to drift.
+ * A first attempt made the frame `position: fixed; inset: 0` with `.content`
+ * as the app's only scroller — a better shape on paper, and it rendered
+ * correctly in a browser at every width tested. **Inside Nimiq Pay it rendered
+ * nothing at all**, and no browser can reproduce that WebView, so the cause is
+ * still unknown. What is known is that `min-height: 100dvh` with a sticky tab
+ * bar *does* render there. So the frame is that again, and the insets are
+ * applied as padding on top of it: a layout whose worst case is the misplaced
+ * chrome we started with, never a blank screen.
+ *
+ * `box-sizing: border-box` is global, so the padding eats into the 100dvh
+ * rather than adding to it — the frame stays exactly the viewport and the
+ * document gains no scroll. `100vh` first, because a WebView old enough to
+ * drop `dvh` should still get a full-height frame rather than a collapsed one.
  */
 .frame {
-  position: fixed;
-  inset: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
   padding-top: var(--chrome-top);
   padding-bottom: var(--chrome-bottom);
 }
@@ -125,13 +125,6 @@ body {
 
 .content {
   flex: 1;
-  /* The only scroller in the app. `min-height: 0` because a flex item's default
-     `auto` floor is its content height, which would push the tab bar off the
-     bottom of a fixed frame instead of scrolling. */
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
   padding: 4px 16px 24px;
 }
 
@@ -142,9 +135,11 @@ body {
 }
 
 .tabbar {
-  /* Nothing sticky: the frame does not scroll, so the last row of a column
-     layout is already the bottom of the screen — and above `--chrome-bottom`,
-     which is where the system navigation buttons are. */
+  /* Sticky to `--chrome-bottom`, not to 0: sticky resolves against the
+     scrollport, so a tab bar stuck to the viewport's own bottom edge is exactly
+     the one that sat behind the system navigation buttons. */
+  position: sticky;
+  bottom: var(--chrome-bottom);
   flex: none;
   display: flex;
   /* Shrink-to-fit rather than five equal columns. "Buy/Search" is three times
@@ -1022,4 +1017,35 @@ li.note {
 
 .pay-go:disabled {
   opacity: 0.45;
+}
+
+/* ── ?diag=1: the host readout (lib/chrome.ts's describeChrome) ── */
+
+.diag {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  font-family: ui-monospace, 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.diag > div {
+  display: flex;
+  gap: 8px;
+}
+
+.diag dt {
+  flex: 0 0 42%;
+  color: var(--ink-soft);
+}
+
+.diag dd {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
 }
