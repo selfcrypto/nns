@@ -11,7 +11,11 @@ name: nns-edge
 
 services:
   edge:
-    image: nginx:1-alpine
+    # Pinned to the exact minor, unlike the roles that float on a major: this
+    # is the TLS terminator, and its ACME support (`acme_certificate`) is new
+    # enough that a silent minor bump could change issuance behaviour under a
+    # routine `pull`. Bump it deliberately, and re-run `nns-vps verify` after.
+    image: nginx:1.31.4-alpine
     restart: unless-stopped
     init: true
 

@@ -206,6 +206,23 @@ rebuilt from anywhere. `down -v` on `settlement/` is never routine.
 - **The node was resynced.** If its retention no longer covers `LAUNCH_HEIGHT`,
   the indexer refuses to start. Fix the node, not the height.
 
+The procedure, in your role's directory — build first, so a broken image
+surfaces before anything stops:
+
+```
+docker compose build
+docker compose stop
+docker compose start postgres
+docker compose exec -T postgres psql -U nns -d template1 -c 'DROP DATABASE nns'
+docker compose exec -T postgres psql -U nns -d template1 -c 'CREATE DATABASE nns'
+docker compose up -d      # the indexer migrates and replays from LAUNCH_HEIGHT
+```
+
+(`template1`, because a session inside the doomed database blocks the drop.)
+On the one-box kit this is one command: `nns-vps rebuild <role>`. It refuses
+the settlement ledger by name — that database is not derived state and is
+never dropped.
+
 ## Verify from outside
 
 Whatever you run, check it from a host that is not the one serving it. A

@@ -20,6 +20,9 @@
 #
 # **Every service below is a verbatim copy**, and has to stay one: `docker
 # compose config` here renders each of the four identically to the same service
+# — and since 2026-08-22 that is enforced, not promised: `nns-vps check` fails
+# on any difference, naming the service and printing the diff. Edit a copied
+# service in its source role and this file in the same change.
 # in ../resolver and ../delegate, modulo the project name. That equality is the
 # only thing keeping a third copy of the resolver stack honest — a change to
 # either source role belongs here in the same commit, and the rendered configs
