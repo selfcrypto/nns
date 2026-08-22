@@ -12,7 +12,7 @@
  * runs — decides the rest.
  */
 
-import { CHAT_PREFIX, parseChatPayload } from '@nns/chat'
+import { CHAT_PREFIX, attributedFrom, parseChatPayload } from '@nns/chat'
 
 import type { Logger } from './logger.js'
 import type { RpcClient, RpcTransaction } from './rpc.js'
@@ -56,7 +56,11 @@ export function rowsFromBatch(
       txHash: tx.hash,
       blockNumber: tx.blockNumber,
       timestamp: tx.timestamp,
-      sender: tx.from,
+      // Attributed at scan time, mirroring §8.2's log: the stored sender is
+      // the effective sender, so querying a Nimiq Pay user's durable address
+      // finds their messages even after the signing HTLC is pruned. Served
+      // rows carry no proof — this is where attribution happens or nowhere.
+      sender: attributedFrom(tx),
       recipient: tx.to,
       name: payload.name,
       message: payload.message,

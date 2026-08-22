@@ -27,6 +27,13 @@ export interface RpcTransaction {
   readonly blockNumber: number
   readonly timestamp: number
   readonly from: string
+  /**
+   * Sender account type and transaction proof — both on the wire for every
+   * transaction (rpc-reference §8.2). Carried so the scan can attribute an
+   * HTLC-sent message to its authorizing key before the row is stored.
+   */
+  readonly fromType?: number | undefined
+  readonly proof?: string | undefined
   readonly to: string
   /** Absent on a reward transaction, which is why chat's prefix test takes them. */
   readonly recipientData?: string | undefined

@@ -21,6 +21,14 @@ describe('fetchHistory', () => {
     expect(page.oldestBlock).toBe(59_000_000)
   })
 
+  it('carries fromType and proof through for attribution, absent when not strings/numbers', async () => {
+    const htlcSent = { ...sample, hash: 'htlc', fromType: 2, proof: '01aa' }
+    const page = await fetchHistory(() => Promise.resolve([htlcSent, { ...sample, proof: 42 }]), sample.to)
+    expect(page.txs[0]).toMatchObject({ hash: 'htlc', fromType: 2, proof: '01aa' })
+    expect(page.txs[1]?.fromType).toBeUndefined()
+    expect(page.txs[1]?.proof).toBeUndefined()
+  })
+
   it('skips malformed entries rather than failing the page', async () => {
     const page = await fetchHistory(() => Promise.resolve([sample, { hash: 42 }]), sample.to)
     expect(page.txs).toHaveLength(1)

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CHAT_MAX_BYTES,
+  attributedFrom,
   chatByteBudget,
   chatConversations,
   chatMessages,
@@ -14,6 +15,17 @@ import {
 
 const ME = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
 const PEER = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
+
+/**
+ * Real mainnet material, block 59,516,314 — the same EarlyResolve proof
+ * `core/attribution.test.ts` pins: Nimiq Pay's HTLC spending with the
+ * co-signer's signature first and the contract sender's (the user's Local
+ * wallet) second.
+ */
+const MAINNET_EARLY_RESOLVE =
+  '010091b21f4b100273bd7034f6369c29d1f7ba72dba7de6720ad3cd8b8191621891300668acc228bf8ad0a832757b1e92b549e07f775937c2b4d2818d555943bef1c8421728d8f7bd4695d85fb3b626b541dcb0e3fbd791357d8720596c3b89547f506009e1ffbdc365402365800270b0b68904e51514e8bb05e48cd5e7310ba1412f6a2008525da9a0f4d04539a1a606df4b39307eeec06df1cf2e2c3d65030bcf4f675967425e34eb68cee64d3b7e9c6ea935ddc1ffa110565ead6a92aaf912d7fb1fb03'
+const LOCAL = 'NQ88 XL24 NHPU MYVX 67AC TXLX NQX1 R471 EGM9'
+const HTLC = 'NQ89 R3HN 70XQ 2E5A L4YS CV2Q UL5J 84TX 8L8H'
 
 const hex = (text: string): string =>
   [...new TextEncoder().encode(text)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
@@ -137,6 +149,41 @@ describe('inbox derivation', () => {
       [ME],
     )
     expect(subjectBreaks(messages).map((entry) => entry.showSubject)).toEqual([true, false, true])
+  })
+})
+
+describe('attribution — the effective sender reaches the inbox (r25)', () => {
+  it('attributes an HTLC send to its authorizing key, in spaced form', () => {
+    expect(attributedFrom({ from: HTLC, fromType: 2, proof: MAINNET_EARLY_RESOLVE })).toBe(LOCAL)
+  })
+
+  it('answers the account unchanged when attribution does not apply', () => {
+    // Not an HTLC; an HTLC with no proof carried; an unrecognised proof shape.
+    expect(attributedFrom({ from: PEER, fromType: 0, proof: MAINNET_EARLY_RESOLVE })).toBe(PEER)
+    expect(attributedFrom({ from: HTLC, fromType: 2 })).toBe(HTLC)
+    expect(attributedFrom({ from: HTLC, fromType: 2, proof: '00ff' })).toBe(HTLC)
+  })
+
+  it('an incoming Pay message has the durable wallet as its peer, never the contract', () => {
+    const messages = chatMessages(
+      [tx({ from: HTLC, fromType: 2, proof: MAINNET_EARLY_RESOLVE })],
+      [ME],
+    )
+    expect(messages).toHaveLength(1)
+    expect(messages[0]?.direction).toBe('in')
+    expect(messages[0]?.peer).toBe(LOCAL)
+  })
+
+  it('my own Pay send is mine even when the signing contract is not in my set', () => {
+    // The rotation case: the HTLC that signed has been destroyed and is no
+    // longer a listAccounts member — the message must not vanish or flip 'in'.
+    const messages = chatMessages(
+      [tx({ from: HTLC, fromType: 2, proof: MAINNET_EARLY_RESOLVE, to: PEER })],
+      [LOCAL],
+    )
+    expect(messages).toHaveLength(1)
+    expect(messages[0]?.direction).toBe('out')
+    expect(messages[0]?.peer).toBe(PEER)
   })
 })
 

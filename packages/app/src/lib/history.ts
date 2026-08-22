@@ -116,7 +116,13 @@ export async function fetchHistory(transport: HistoryTransport, address: string,
       continue
     }
     oldestBlock = oldestBlock === null ? blockNumber : Math.min(oldestBlock, blockNumber)
-    txs.push({ hash, blockNumber, timestamp, from, to, recipientData, executionResult })
+    // `fromType` and `proof` ride along when present (§3 carries both on
+    // every read endpoint) so the inbox can attribute an HTLC-sent message
+    // to its authorizing key — the raw `from` of a Nimiq Pay send is a
+    // contract address that holds no names and will be pruned.
+    const fromType = typeof tx['fromType'] === 'number' ? tx['fromType'] : undefined
+    const proof = typeof tx['proof'] === 'string' ? tx['proof'] : undefined
+    txs.push({ hash, blockNumber, timestamp, from, fromType, proof, to, recipientData, executionResult })
   }
   return { txs, oldestBlock }
 }

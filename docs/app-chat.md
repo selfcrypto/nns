@@ -108,9 +108,18 @@ Inbox pipeline, entirely client-side:
 1. Fetch history for the Pay address: **one call, 500 transactions,
    descending**. There is no `startAt` paging loop — see the window note below.
 2. Keep `executionResult: true`, data starting `NC1`, well-formed payload.
-3. Direction from `from`/`to`; the conversation key is the **peer address**.
-4. Order by `timestamp`.
-5. Mark, per **incoming** message, whether its name is one this address owns.
+3. Attribute the sender: `from` is read through §7.2's **effective sender**
+   (`attributedFrom` in `@nns/chat`, over core's parser) — the account,
+   unless it is an HTLC whose proof names its authorizing key. Nimiq Pay
+   signs every send from an HTLC it routinely destroys; the raw `from` is an
+   address that holds no names, cannot receive a reply, and stops existing.
+   The registry attributes ownership to the authorizing key (r25), so the
+   inbox must too, or a Pay user appears as their contract: no names beside
+   the identicon, and replies mailed to a doomed address.
+4. Direction from the attributed sender and `to`; the conversation key is the
+   **peer address**.
+5. Order by `timestamp`.
+6. Mark, per **incoming** message, whether its name is one this address owns.
    A message naming a name that was never yours is noise or spoofing, shown
    muted, never dropped silently.
 
@@ -147,6 +156,17 @@ never trusts a server's parse. The service is **independent of the protocol's
 code**: its own scan, database and RPC client, importing nothing from the
 indexer, the API or `core`. It states the window it was built with, for the
 same reason this section states one.
+
+**For a Pay sender, the index is the complete path, not just the cheap one.**
+`getTransactionsByAddress` indexes **senders and recipients only** — a
+`relatedAddresses` member is not returned (measured; rpc-reference §8.1) —
+so a message signed by the HTLC never appears in the durable wallet's own
+history, and once Pay destroys that HTLC and drops it from `listAccounts`,
+the direct path cannot find the user's past sends at all. The index stores
+each row's **attributed** sender (step 3's rule, applied at scan time —
+served rows carry no proof, so attribution happens there or nowhere), which
+makes querying the durable address sufficient. The direct path stays an
+honest best effort, exactly like its 500-transaction window.
 
 ## 5. Threat model and required wording
 

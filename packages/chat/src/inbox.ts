@@ -4,6 +4,7 @@
  * the chat index agree on what a conversation is.
  */
 
+import { SENDER_TYPE_HTLC, formatAddress, htlcAuthorizer } from '@nns/core'
 import { parseChatPayload } from './format.js'
 
 
@@ -13,9 +14,37 @@ export interface ChatTx {
   /** Milliseconds — measured on the real object (docs/rpc-reference.md §3). */
   readonly timestamp: number
   readonly from: string
+  /**
+   * The sender's account type (`fromType` on the RPC object) and the
+   * transaction's proof, hex. Optional because a chat-index row does not
+   * carry them — its `sender` is already attributed at scan time. Absent
+   * fields mean `attributedFrom` answers `from` unchanged.
+   */
+  readonly fromType?: number | undefined
+  readonly proof?: string | undefined
   readonly to: string
   readonly recipientData: string
   readonly executionResult: boolean
+}
+
+/**
+ * Who a transaction is from, for every rule in this file: the account,
+ * unless it is an HTLC whose proof names its authorizing key — §7.2's
+ * effective sender (r25), read through core's parser rather than
+ * reimplemented. Nimiq Pay signs every mini-app send from an HTLC it
+ * routinely destroys; the raw `from` is therefore an address that stops
+ * existing, holds no names, and can never receive a reply. The authorizing
+ * key's address is the durable one, and it is what the registry attributes
+ * ownership to — so it is the peer, the direction test, and the reply
+ * target here too.
+ *
+ * Spaced form, matching what the RPC serves in `from`/`to` and what the
+ * identity set holds.
+ */
+export function attributedFrom(tx: Pick<ChatTx, 'from' | 'fromType' | 'proof'>): string {
+  if (tx.fromType !== SENDER_TYPE_HTLC || tx.proof === undefined) return tx.from
+  const authorizer = htlcAuthorizer(tx.proof)
+  return authorizer === null ? tx.from : formatAddress(authorizer)
 }
 
 export interface ChatMessage {
@@ -38,13 +67,14 @@ export function chatMessages(txs: readonly ChatTx[], myAddresses: readonly strin
     seen.add(tx.hash)
     const payload = parseChatPayload(tx.recipientData)
     if (payload === null) continue
+    const from = attributedFrom(tx)
     // Between two of my own addresses, the sender's view wins: 'out'.
-    const incoming = mine.has(tx.to) && !mine.has(tx.from)
-    if (!incoming && !mine.has(tx.from)) continue
+    const incoming = mine.has(tx.to) && !mine.has(from)
+    if (!incoming && !mine.has(from)) continue
     messages.push({
       hash: tx.hash,
       direction: incoming ? 'in' : 'out',
-      peer: incoming ? tx.from : tx.to,
+      peer: incoming ? from : tx.to,
       name: payload.name,
       message: payload.message,
       timestamp: tx.timestamp,
