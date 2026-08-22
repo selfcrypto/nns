@@ -76,10 +76,24 @@ export function prepareAction(options: {
   name: string
   info: NameInfo | null
   signer: string
+  /**
+   * Every address the viewer holds — what a new ownership is confirmed
+   * against, because for the three "anyone" actions the app cannot know which
+   * address will sign. `signerFor` answers `viewers[0]`; the Pay wallet signs
+   * with whichever address holds the balance, which is never that one. So
+   * `register` confirmed by comparing the new owner against an address that
+   * had not signed, was false on every poll, and could not reach `confirmed`
+   * at any timeout (seen on a real mainnet registration, 2026-08-21).
+   */
+  viewers: readonly string[]
   params: ApiParams | null
   apiBase: string
 }): PreparedAction {
   const { inputs, name, info, signer, params, apiBase } = options
+  // `signer` alone when a caller holds one address, which is also what keeps
+  // the single-address callers and the tests honest.
+  const viewers = options.viewers.length === 0 ? [signer] : options.viewers
+  const ownedByViewer = (owner: string): boolean => viewers.some((address) => sameAddress(owner, address))
   const sender = parseAddress(signer)
   const record = info?.record ?? null
 
@@ -106,7 +120,7 @@ export function prepareAction(options: {
         review: [`Pays ${lunaToNim(fee)} NIM to the registry for a one-year term.`],
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null
-          return rec !== null && sameAddress(rec.owner, signer)
+          return rec !== null && ownedByViewer(rec.owner)
         },
       }
     }
@@ -230,7 +244,7 @@ export function prepareAction(options: {
         ],
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null
-          return rec !== null && sameAddress(rec.owner, signer)
+          return rec !== null && ownedByViewer(rec.owner)
         },
       }
     }

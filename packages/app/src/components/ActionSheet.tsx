@@ -32,6 +32,7 @@ export function ActionSheet({
   name,
   info,
   signer,
+  viewers,
   wallet,
   onClose,
   onChanged,
@@ -40,6 +41,9 @@ export function ActionSheet({
   name: string
   info: NameInfo | null
   signer: string
+  /** The whole identity set: the wallet may sign with any member of it, and
+   *  on the Pay path it is never the first. */
+  viewers: readonly string[]
   wallet: Wallet
   onClose: () => void
   onChanged: () => void
@@ -88,12 +92,12 @@ export function ActionSheet({
   const prepared = useMemo(() => {
     if (!inputsTouched) return null
     try {
-      return { ok: true as const, value: prepareAction({ inputs, name, info, signer, params, apiBase: apiBase() }) }
+      return { ok: true as const, value: prepareAction({ inputs, name, info, signer, viewers, params, apiBase: apiBase() }) }
     } catch (error) {
       if (error instanceof ActionInputError) return { ok: false as const, message: error.message }
       return { ok: false as const, message: error instanceof Error ? error.message : String(error) }
     }
-  }, [inputs, inputsTouched, name, info, signer, params])
+  }, [inputs, inputsTouched, name, info, signer, viewers, params])
 
   const needsAcknowledge = action === 'buy'
   const ready = prepared?.ok === true && (!needsAcknowledge || acknowledged) && progress === 'idle' && result === null

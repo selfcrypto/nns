@@ -87,6 +87,7 @@ function Actions({
           name={name}
           info={info}
           signer={signerFor(open, view, viewers) ?? ''}
+          viewers={viewers}
           wallet={wallet}
           onClose={() => setOpen(null)}
           onChanged={onChanged}

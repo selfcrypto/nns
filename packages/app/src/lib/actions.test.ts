@@ -24,7 +24,7 @@ const registered = (over?: Partial<NameInfo['pending']>): NameInfo => ({
 })
 
 const prepare = (inputs: ActionInputs, info: NameInfo | null = registered(), signer = OWNER) =>
-  prepareAction({ inputs, name: 'example', info, signer, params, apiBase: 'http://api' })
+  prepareAction({ inputs, name: 'example', info, signer, viewers: [signer], params, apiBase: 'http://api' })
 
 describe('prepareAction builds through core and prices exactly (§10.5)', () => {
   it('register pays the standard band exactly for a 7-char name', () => {
@@ -109,5 +109,47 @@ describe('parseNimAmount', () => {
       expect(() => parseNimAmount(bad), bad).toThrow(ActionInputError)
     }
     expect(() => parseNimAmount('abc', 'Amount')).toThrow(/^Amount must be/)
+  })
+})
+
+describe('an acquisition confirms against the whole identity set, not the assumed signer', () => {
+  // Nimiq Pay signs with whichever of its addresses holds the balance, and it
+  // is never listAccounts()[0] — which is exactly what `signerFor` answers for
+  // `register`, `renew` and `buy`. Confirming against that address compared the
+  // new owner with one that had not signed: false on every poll, so a real
+  // mainnet registration could not reach `confirmed` at any timeout, while the
+  // name sat registered and visible in "My names" (2026-08-21).
+  const LOCAL = 'NQ88 XL24 NHPU MYVX 67AC TXLX NQX1 R471 EGM9'
+  const REMOTE = 'NQ89 R3HN 70XQ 2E5A L4YS CV2Q UL5J 84TX 8L8H'
+
+  const confirmAgainst = async (owner: string, viewers: readonly string[]) => {
+    const info: NameInfo = {
+      ...registered(),
+      record: { ...registered().record!, owner, target: owner },
+    }
+    const original = globalThis.fetch
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response(JSON.stringify(info), { headers: { 'content-type': 'application/json' } }))) as typeof fetch
+    try {
+      return await prepareAction({
+        inputs: { action: 'register' },
+        name: 'example',
+        info: null,
+        signer: LOCAL,
+        viewers,
+        params,
+        apiBase: 'http://api',
+      }).confirm()
+    } finally {
+      globalThis.fetch = original
+    }
+  }
+
+  it('confirms when a different address in the set turns out to be the owner', async () => {
+    expect(await confirmAgainst(REMOTE, [LOCAL, REMOTE])).toBe(true)
+  })
+
+  it('still refuses an owner that is nobody in the set', async () => {
+    expect(await confirmAgainst('NQ42 5QRF L5AV J6K3 BQHQ FAE8 XXHR TS8Y 9YRA', [LOCAL, REMOTE])).toBe(false)
   })
 })
