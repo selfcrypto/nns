@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PAY_BAR_HEIGHT, PAY_NAV_MIN, chromeInsets, isPayHost, parseChromeOverride } from './chrome'
+import { PAY_NAV_MIN, chromeInsets, isPayHost, parseChromeOverride } from './chrome'
 
 describe('isPayHost', () => {
   it('answers on the host context Pay seeds before the page script runs', () => {
@@ -34,20 +34,24 @@ describe('chromeInsets', () => {
     expect(chromeInsets({ pay: false, safeArea: { top: 0, bottom: 0 }, override: null })).toEqual({ top: 0, bottom: 0 })
   })
 
-  it('adds Pay’s bar to the safe area, because it sits below the status bar', () => {
-    expect(chromeInsets({ pay: true, safeArea, override: null })).toEqual({
-      top: 47 + PAY_BAR_HEIGHT,
-      bottom: 34,
-    })
+  it('leaves the top alone — Pay’s bar is above the WebView, not over it', () => {
+    // Measured from a device screenshot: the page begins below the close
+    // button and the reload arrows, already clear of them. Reserving for that
+    // bar produced a grey band and nothing else.
+    expect(chromeInsets({ pay: true, safeArea, override: null })).toEqual({ top: 47, bottom: 48 })
   })
 
   it('floors the bottom when the host consumed the window insets', () => {
-    // Android edge-to-edge: env() reads 0 and the navigation buttons are still
-    // there. Reserving nothing is what put the tab bar behind them.
+    // Android edge-to-edge: env() reads 0 and the navigation buttons are drawn
+    // straight over the tab bar's labels.
     expect(chromeInsets({ pay: true, safeArea: { top: 0, bottom: 0 }, override: null })).toEqual({
-      top: PAY_BAR_HEIGHT,
+      top: 0,
       bottom: PAY_NAV_MIN,
     })
+  })
+
+  it('never shrinks a bottom the host did report', () => {
+    expect(chromeInsets({ pay: true, safeArea: { top: 47, bottom: 96 }, override: null }).bottom).toBe(96)
   })
 
   it('lets the override win, so the numbers are measurable on a device', () => {

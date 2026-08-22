@@ -69,13 +69,13 @@ body {
  * around them is deliberately the boring one.
  *
  * A first attempt made the frame `position: fixed; inset: 0` with `.content`
- * as the app's only scroller — a better shape on paper, and it rendered
- * correctly in a browser at every width tested. **Inside Nimiq Pay it rendered
- * nothing at all**, and no browser can reproduce that WebView, so the cause is
- * still unknown. What is known is that `min-height: 100dvh` with a sticky tab
- * bar *does* render there. So the frame is that again, and the insets are
- * applied as padding on top of it: a layout whose worst case is the misplaced
- * chrome we started with, never a blank screen.
+ * as the app's only scroller — a better shape on paper, and correct in a
+ * browser at every width tested. Inside Nimiq Pay it pushed the tab bar
+ * *further* off the bottom than the layout it replaced: a fixed element's
+ * containing block is the layout viewport, which that WebView reports taller
+ * than `100dvh` does. No browser reproduces the difference, so the frame is
+ * `min-height: 100dvh` with a sticky tab bar again — the one measured to sit
+ * where it should — and the insets are padding on top of it.
  *
  * `box-sizing: border-box` is global, so the padding eats into the 100dvh
  * rather than adding to it — the frame stays exactly the viewport and the

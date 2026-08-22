@@ -1,34 +1,34 @@
 /**
  * Host chrome insets — how much of the WebView the *host* has already spent.
  *
- * Nimiq Pay draws its own bar over the top of a mini app's WebView, and on
- * Android the WebView runs edge-to-edge behind the system navigation bar. The
- * SDK exposes no geometry for either: `window.nimiqPay` carries a language and
- * a device-identifier request and nothing else (docs/rpc-reference.md §8), and
- * where the host consumes the window insets `env(safe-area-inset-*)` reads 0.
- * A layout that trusts `env()` alone therefore renders its masthead under Pay's
- * bar and its tab bar under the system buttons — which is what mini-app cycle I
- * reported: no Connect Wallet, no Disconnect, a tab bar behind the navigation
- * buttons.
+ * Every number here was **measured from a device screenshot** on 2026-08-22,
+ * because Nimiq Pay's WebView takes no console and no remote debugger and no
+ * browser reproduces it. Two rounds of reasoning about it from a desktop got
+ * both ends wrong, in opposite directions. What the screenshots show:
  *
- * So the app reserves the space itself. `env()` is still read — it is right
- * wherever it is populated, and it is the only thing that knows about a notch —
- * and Pay's own bar is **added** to it, because that bar sits below the status
- * bar rather than instead of it. The bottom takes a floor instead of a sum:
- * there is one system bar down there, and a host that reports it honestly
- * reports the whole of it.
+ *   - **Pay's browser bar does not overlay the page.** The close button, the
+ *     hostname and the reload arrows sit *above* the WebView; the page begins
+ *     underneath them, already clear. Reserving room for that bar bought one
+ *     thing — a grey band between it and the masthead. So the top is the safe
+ *     area and nothing else: right on a notch, zero where the host has already
+ *     done the insetting.
+ *   - **The bottom is where the space actually goes.** The Android navigation
+ *     buttons are drawn straight over the tab bar's labels, and
+ *     `env(safe-area-inset-bottom)` reads 0 underneath them. That one the app
+ *     has to reserve itself.
  *
- * The two constants are the only guesses in this file, which is why
- * `?chrome=<top>,<bottom>` overrides them: the right numbers are measurable on
- * a device in one reload, and a rebuild should not stand between someone
- * holding the phone and the answer.
+ * `?diag=1` renders what the host reports, and `?chrome=<top>,<bottom>`
+ * overrides both reserves — so settling a number is a reload rather than a
+ * rebuild, which is what it takes when the only instrument is a person holding
+ * a phone.
  */
 
-/** Pay's bar, drawn over the WebView below the status bar. */
-export const PAY_BAR_HEIGHT = 48
-
-/** Android's navigation bar, for a host that consumed the window insets. */
-export const PAY_NAV_MIN = 24
+/**
+ * Android's navigation bar is 48dp, and the host consumes the window insets, so
+ * `env(safe-area-inset-bottom)` cannot say so. A floor, not a sum: there is one
+ * bar down there, and a host that reports it honestly reports all of it.
+ */
+export const PAY_NAV_MIN = 48
 
 export interface Insets {
   readonly top: number
@@ -101,8 +101,10 @@ export function chromeInsets(input: {
 }): Insets {
   if (input.override !== null) return input.override
   if (!input.pay) return input.safeArea
+  // The top is the safe area unchanged — Pay's bar is above the WebView, not
+  // over it, so there is nothing up there `env()` does not already know.
   return {
-    top: input.safeArea.top + PAY_BAR_HEIGHT,
+    top: input.safeArea.top,
     bottom: Math.max(input.safeArea.bottom, PAY_NAV_MIN),
   }
 }
@@ -127,8 +129,12 @@ export function describeChrome(win: Window = window): Record<string, string> {
     'reserved top/bottom': `${insets.top} / ${insets.bottom}`,
     override: override === null ? 'none' : `${override.top} / ${override.bottom}`,
     'inner w×h': `${win.innerWidth}×${win.innerHeight}`,
+    // The three heights that disagree when a WebView is taller than what it
+    // shows — which is the shape of the tab bar falling off the bottom.
+    'client h': String(root.clientHeight),
+    'visual h/off': `${win.visualViewport?.height ?? '—'} / ${win.visualViewport?.offsetTop ?? '—'}`,
+    'screen h': String(win.screen.height),
     'doc scrollHeight': String(root.scrollHeight),
-    'visualViewport h': String(win.visualViewport?.height ?? '—'),
     dpr: String(win.devicePixelRatio),
     ua: win.navigator.userAgent.slice(0, 96),
   }
