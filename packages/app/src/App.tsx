@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { appConfig, ConfigParseError } from './config'
-import { describeChrome } from './lib/chrome'
+import { applyHostChrome, describeChrome } from './lib/chrome'
 import { detectWallet, type Wallet } from './lib/wallet'
-import { connectWalletLabel, disconnectLabel } from './lib/wording'
+import { IdentityBar } from './components/IdentityBar'
 import { BuyScreen } from './screens/Buy'
 import { InboxScreen } from './screens/Inbox'
 import { MyNamesScreen } from './screens/MyNames'
@@ -36,8 +36,8 @@ const TAB_LABEL: Record<Tab, string> = {
  * area, which is inside both reserved insets, so it stays visible even when the
  * numbers around it are wrong. Absent otherwise; it costs nothing to ship.
  */
-function ChromeDiagnostic() {
-  const facts = useMemo(() => describeChrome(), [])
+function ChromeDiagnostic({ wallet }: { wallet: Wallet | null }) {
+  const facts = describeChrome(window, wallet === null ? null : wallet.identity)
   return (
     <dl className="diag">
       {Object.entries(facts).map(([key, value]) => (
@@ -68,6 +68,8 @@ export function App() {
   /** A name Buy handed to My names to manage, cleared when My names is done with it. */
   const [manage, setManage] = useState<string | null>(null)
   const [wallet, setWallet] = useState<Wallet | null>(null)
+  /** The identity row's address list, open or closed. */
+  const [identityOpen, setIdentityOpen] = useState(false)
   // Hub connects mutate the wallet's identity in place; this counter re-renders on them.
   const [, setIdentityNonce] = useState(0)
 
@@ -78,7 +80,18 @@ export function App() {
     if (problem !== null) return
     let cancelled = false
     void detectWallet(window.localStorage, window.location.search).then((detected) => {
-      if (!cancelled) setWallet(detected)
+      if (cancelled) return
+      // Second pass at the insets. `isHostedWebView` keys on a provider global
+      // that Pay injects **asynchronously**, so the call in `main.tsx` — which
+      // has to run before the first paint — can miss it, and did on a real
+      // phone: the bottom reserve was computed as if this were a desktop
+      // browser and the tab bar stayed under the navigation buttons.
+      try {
+        applyHostChrome(window, detected.identity.kind === 'pay')
+      } catch {
+        /* keep whatever the first pass decided */
+      }
+      setWallet(detected)
     })
     return () => {
       cancelled = true
@@ -128,6 +141,7 @@ export function App() {
       : () => {
           wallet.disconnect?.()
           setManage(null)
+          setIdentityOpen(false)
           setIdentityNonce((value) => value + 1)
         }
 
@@ -136,33 +150,24 @@ export function App() {
       <header className="masthead">
         <h1 className="wordmark">nns</h1>
         <p className="masthead-sub">names on Nimiq</p>
-        {connect !== null && wallet !== null && wallet.identity.addresses.length === 0 && (
-          <button type="button" className="connect connect-top" onClick={connect}>
-            {connectWalletLabel()}
-          </button>
-        )}
-        {disconnect !== null && (
-          <button type="button" className="connect connect-quiet connect-top" onClick={disconnect}>
-            {disconnectLabel()}
-          </button>
-        )}
       </header>
       <main className="content">
-        {diagnostic && <ChromeDiagnostic />}
+        {diagnostic && <ChromeDiagnostic wallet={wallet} />}
         {tab === 'buy' && <BuyScreen key={seed} wallet={wallet} seed={seed} onManage={manageName} />}
         {tab === 'pay' && <PayScreen wallet={wallet} />}
         {tab === 'names' && (
-          <MyNamesScreen
-            wallet={wallet}
-            manage={manage}
-            onManageHandled={() => setManage(null)}
-            onConnect={connect}
-            onDisconnect={disconnect}
-          />
+          <MyNamesScreen wallet={wallet} manage={manage} onManageHandled={() => setManage(null)} />
         )}
         {tab === 'inbox' && <InboxScreen wallet={wallet} />}
         {tab === 'market' && <OffersScreen onOpen={openName} />}
       </main>
+      <IdentityBar
+        wallet={wallet}
+        onConnect={connect}
+        onDisconnect={disconnect}
+        expanded={identityOpen}
+        onToggle={() => setIdentityOpen((open) => !open)}
+      />
       <nav className="tabbar" aria-label="Sections">
         {TABS.map((entry) => (
           <button

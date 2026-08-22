@@ -38,18 +38,28 @@ export interface Insets {
 const NO_INSETS: Insets = { top: 0, bottom: 0 }
 
 /** Structural, so this module needs no SDK import to ask the question. */
-interface PayHostWindow {
+interface HostWindow {
   readonly nimiqPay?: unknown
+  readonly nimiq?: unknown
 }
 
 /**
- * True inside Nimiq Pay. `window.nimiqPay` is seeded synchronously before the
- * page script runs, so unlike `window.nimiq` — injected asynchronously, which
- * is why `init()` takes a timeout — this answer is available on the first
- * frame, before anything has been laid out.
+ * True inside a Nimiq Pay WebView — **either** container.
+ *
+ * Two globals, and testing only the first is what made the bottom reserve a
+ * no-op on a real phone. `window.nimiqPay` is the *host context*, seeded
+ * synchronously for a mini app launched through `nimiqpay://miniapp?url=…`.
+ * Pay's **in-app browser** is a different container: it shows browser chrome
+ * (close, hostname, reload) and need not seed that context at all — but the
+ * wallet works there, so `window.nimiq`, the injected provider, is present.
+ *
+ * The provider arrives **asynchronously** (which is why `init()` takes a
+ * timeout), so a call during module init can miss it and a later one will not.
+ * `applyHostChrome` therefore runs twice: once before the first paint, and
+ * again once `detectWallet` has an answer.
  */
-export function isPayHost(win: PayHostWindow | undefined = globalThis.window): boolean {
-  return win?.nimiqPay != null
+export function isHostedWebView(win: HostWindow | undefined = globalThis.window): boolean {
+  return win?.nimiqPay != null || win?.nimiq != null
 }
 
 /** `?chrome=72,24` — two non-negative pixel counts, or null for anything else. */
@@ -116,14 +126,26 @@ export function chromeInsets(input: {
  * a browser never can — whether the host was detected, what `env()` resolved
  * to, and how big the viewport really is. Every value is read, none assumed.
  */
-export function describeChrome(win: Window = window): Record<string, string> {
+export function describeChrome(
+  win: Window = window,
+  wallet: { readonly kind: string; readonly addresses: readonly string[] } | null = null,
+): Record<string, string> {
   const safeArea = measureSafeArea(win.document)
   const override = parseChromeOverride(win.location.search)
-  const pay = isPayHost(win)
+  const pay = isHostedWebView(win)
   const insets = chromeInsets({ pay, safeArea, override })
   const root = win.document.documentElement
+  const globals = win as HostWindow
   return {
-    pay: pay ? 'yes' : 'no',
+    hosted: pay ? 'yes' : 'no',
+    // Which of the two globals is actually there. The pair distinguishes the
+    // mini-app container from the in-app browser, and either from a plain
+    // mobile browser — the question `isHostedWebView` used to get wrong.
+    'nimiq / nimiqPay': `${globals.nimiq != null ? 'yes' : 'no'} / ${globals.nimiqPay != null ? 'yes' : 'no'}`,
+    // Which adapter won, and whether it knows any address. Together these say
+    // whether a missing Disconnect is the Pay path having nothing to
+    // disconnect from, or a Hub connect that never persisted.
+    wallet: wallet === null ? 'detecting…' : `${wallet.kind} · ${wallet.addresses.length} address(es)`,
     lang: String((win as { nimiqPay?: { language?: unknown } }).nimiqPay?.language ?? '—'),
     'env top/bottom': `${safeArea.top} / ${safeArea.bottom}`,
     'reserved top/bottom': `${insets.top} / ${insets.bottom}`,
@@ -142,20 +164,24 @@ export function describeChrome(win: Window = window): Record<string, string> {
 
 /**
  * Publish the insets as `--chrome-top` / `--chrome-bottom` on the root element,
- * where `app.css` spends them as the frame's padding. Called once at startup;
- * nothing here changes for the life of a session — Pay's bar does not resize
- * and the safe area only moves on rotation, which this app does not support
- * (portrait, one-handed).
+ * where `app.css` spends them as the frame's padding.
+ *
+ * Called **twice**: once before the first paint, and again once `detectWallet`
+ * has an answer — `hosted` carries that answer, because the provider global
+ * this keys on is injected asynchronously and the first call can miss it.
+ * Idempotent: two custom properties and one attribute, set to the same values
+ * whenever the inputs have not changed.
  */
-export function applyHostChrome(win: Window = window): Insets {
+export function applyHostChrome(win: Window = window, hosted = false): Insets {
+  const pay = hosted || isHostedWebView(win)
   const insets = chromeInsets({
-    pay: isPayHost(win),
+    pay,
     safeArea: measureSafeArea(win.document),
     override: parseChromeOverride(win.location.search),
   })
   const root = win.document.documentElement
   root.style.setProperty('--chrome-top', `${insets.top}px`)
   root.style.setProperty('--chrome-bottom', `${insets.bottom}px`)
-  if (isPayHost(win)) root.dataset['host'] = 'pay'
+  if (pay) root.dataset['host'] = 'pay'
   return insets
 }

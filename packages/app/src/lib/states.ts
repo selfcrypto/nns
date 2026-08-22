@@ -9,6 +9,7 @@
 
 import { CONSTANTS, feeBand, tryParseAddress } from '@nns/core'
 import type { ApiParams, NameInfo } from './api'
+import type { Identity, WalletKind } from './identity'
 
 export type NameViewKind = 'available' | 'registered' | 'grace' | 'reserved'
 
@@ -198,4 +199,51 @@ export const offerExpiresAt = (openedHeight: number): number =>
 /** The exact §10.5 value a `G` or `N` for this name must carry, from `/params`. */
 export function registrationFee(name: string, params: ApiParams): bigint {
   return feeBand(name) === 'STANDARD' ? params.prices.feeStandard : params.prices.feeLong
+}
+
+// ── The identity row (docs/app-ux.md §1) ────────────────────────────────────
+
+/**
+ * What the row above the tab bar shows. Pure, because the package's Vitest
+ * environment is `node` and a component that decides for itself is a component
+ * with untested branches — which is exactly how a missing Disconnect went
+ * unnoticed until a user reported it from a phone.
+ *
+ * `checking` is a state in its own right, not an absence: rendering nothing
+ * while `detectWallet` is in flight is indistinguishable, on screen, from a
+ * control that is broken.
+ */
+export type IdentityRow =
+  | { readonly kind: 'checking' }
+  | { readonly kind: 'connect'; readonly host: WalletKind }
+  | {
+      readonly kind: 'connected'
+      readonly host: WalletKind
+      readonly primary: string
+      readonly more: number
+      readonly canAdd: boolean
+      readonly canDisconnect: boolean
+    }
+
+export function identityRow(
+  wallet: {
+    readonly identity: Identity
+    readonly connect: unknown | null
+    readonly disconnect: unknown | null
+  } | null,
+): IdentityRow {
+  if (wallet === null) return { kind: 'checking' }
+  const { kind, addresses } = wallet.identity
+  const primary = addresses[0]
+  if (primary === undefined) return { kind: 'connect', host: kind }
+  return {
+    kind: 'connected',
+    host: kind,
+    primary,
+    more: addresses.length - 1,
+    // Only the Hub grows its set an address at a time; Pay's is the host's,
+    // whole, and asking again cannot add to it.
+    canAdd: kind === 'hub' && wallet.connect !== null,
+    canDisconnect: wallet.disconnect !== null,
+  }
 }

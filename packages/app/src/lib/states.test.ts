@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { CONSTANTS } from '@nns/core'
 import type { NameInfo } from './api'
+import type { Identity } from './identity'
 import {
   actionGates,
+  identityRow,
   nameView,
   offerCancellableAt,
   registrationFee,
@@ -203,5 +205,69 @@ describe('sameAddress', () => {
     expect(sameAddress(OWNER, OWNER.toLowerCase())).toBe(true)
     expect(sameAddress(OWNER, OTHER)).toBe(false)
     expect(sameAddress('not an address', OWNER)).toBe(false)
+  })
+})
+
+// ── The identity row (docs/app-ux.md §1) ────────────────────────────────────
+
+describe('identityRow', () => {
+  const wallet = (identity: Identity, connect: unknown | null, disconnect: unknown | null) => ({
+    identity,
+    connect,
+    disconnect,
+  })
+  const A = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
+  const B = 'NQ88 0000 0000 0000 0000 0000 0000 0000 0001'
+
+  it('is `checking` while detectWallet is still deciding — never nothing', () => {
+    // A blank row and a broken control look identical on a phone. This state
+    // exists so the row always draws something.
+    expect(identityRow(null)).toEqual({ kind: 'checking' })
+  })
+
+  it('offers connect when the host is Pay but has given no accounts', () => {
+    // The declined-prompt case. Before 2026-08-22 this fell through to the Hub
+    // and offered a desktop web-wallet connector inside Pay's own WebView.
+    expect(identityRow(wallet({ kind: 'pay', addresses: [] }, () => {}, () => {}))).toEqual({
+      kind: 'connect',
+      host: 'pay',
+    })
+  })
+
+  it('offers connect on the Hub with an empty set', () => {
+    expect(identityRow(wallet({ kind: 'hub', addresses: [] }, () => {}, () => {}))).toEqual({
+      kind: 'connect',
+      host: 'hub',
+    })
+  })
+
+  it('shows a Pay session its address and a disconnect', () => {
+    // The bug that started this: a connected Pay user had no way back out,
+    // because the adapter shipped with both handles null.
+    expect(identityRow(wallet({ kind: 'pay', addresses: [A, B] }, () => {}, () => {}))).toEqual({
+      kind: 'connected',
+      host: 'pay',
+      primary: A,
+      more: 1,
+      // Pay's set is the host's, whole — asking again cannot add to it.
+      canAdd: false,
+      canDisconnect: true,
+    })
+  })
+
+  it('lets the Hub grow its set one address at a time', () => {
+    expect(identityRow(wallet({ kind: 'hub', addresses: [A] }, () => {}, () => {}))).toEqual({
+      kind: 'connected',
+      host: 'hub',
+      primary: A,
+      more: 0,
+      canAdd: true,
+      canDisconnect: true,
+    })
+  })
+
+  it('never offers an action the wallet does not have', () => {
+    const row = identityRow(wallet({ kind: 'hub', addresses: [A] }, null, null))
+    expect(row).toMatchObject({ kind: 'connected', canAdd: false, canDisconnect: false })
   })
 })

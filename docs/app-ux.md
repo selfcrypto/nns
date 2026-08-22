@@ -13,28 +13,31 @@ nothing more than two taps deep.
 
 ```
 ┌────────────────────────────┐
-│ ······ host chrome ······· │  --chrome-top: reserved, never drawn into
+│ ······ host chrome ······· │  --chrome-top (env only; 0 where the host insets)
 ├────────────────────────────┤
-│ nns.  names on Nimiq       │  masthead (wordmark; no menu hidden behind it)
+│ nns.  names on Nimiq       │  masthead — HIDDEN inside Pay, whose bar names us
 ├────────────────────────────┤
 │                            │
-│         screen             │  one screen at a time, the app's only scroller
+│         screen             │  one screen at a time, vertical scroll
 │                            │
+├────────────────────────────┤
+│ ◉ NQ52 A3NY … KF8N   Disconnect │  identity row — the only connect UI
 ├────────────────────────────┤
 │ Buy/Search Pay My Names Inbox Market │  tab bar, thumb row
 ├────────────────────────────┤
-│ ······ host chrome ······· │  --chrome-bottom
+│ ······ host chrome ······· │  --chrome-bottom (Android's 48dp nav bar)
 └────────────────────────────┘
 ```
 
-**The frame is the WebView, and the frame never scrolls.** It is
-`position: fixed; inset: 0` with `--chrome-top` / `--chrome-bottom` as padding,
-and the screen area is the one element with `overflow-y: auto`. Sizing it in
-viewport units instead made it taller than the visible area inside Nimiq Pay,
-which gave the document a little slack to scroll: the masthead drifted up under
-Pay's own bar — taking Connect Wallet and Disconnect with it — and the tab bar
-ended up behind the Android navigation buttons. The two custom properties come
-from `lib/chrome.ts`, which is also where the numbers behind them are argued.
+**Nothing interactive goes in the top strip.** The frame is `min-height: 100dvh`
+with `--chrome-top` / `--chrome-bottom` as padding and a tab bar sticky to
+`bottom: var(--chrome-bottom)`; `lib/chrome.ts` computes both and argues the
+numbers. Two earlier attempts to reason about that WebView from a desktop got
+both ends wrong in opposite directions — a `position: fixed; inset: 0` frame
+pushed the tab bar *further* off the bottom, because a fixed element's
+containing block is the layout viewport and Pay reports it taller than `100dvh`
+does. Every number in that file is now measured from a device screenshot, and
+`?chrome=<top>,<bottom>` and `?diag=1` exist so the next one can be too.
 
 Five tabs, and the first two are named for jobs rather than mechanisms:
 **Buy/Search** is discovery and acquisition, **Pay** sends NIM to a name.
@@ -81,11 +84,22 @@ management happens. The card is the same component Buy renders
 (`components/NameCard.tsx`), given the owner action list instead of the
 acquisition one. When sends enable, a *Renew* shortcut rides on due/grace rows.
 
-Identity lives at the foot of this screen and in the masthead: **Connect Wallet**
-(naming no single wallet — which one answers is `detectWallet`'s business), *Add
-another address*, and **Disconnect**, which forgets the persisted set so a
-different address can be chosen. Without it there was no way back to a first-run
-state, which is what prompted adding it.
+Identity does **not** live on this screen. It is one row above the tab bar
+(`components/IdentityBar.tsx`), on every tab: the acting address with its
+identicon, **Disconnect** beside it, and — tapping the address — the rest of the
+set plus *Add another address* on the Hub. It was in the masthead and at the
+foot of this screen at once, which is two copies of one control; it is at the
+bottom now because that is the row a thumb reaches and it is nowhere near a
+host's chrome (Kike, 2026-08-22).
+
+**Both adapters connect and disconnect.** The Pay path shipped with neither, on
+the reasoning that the host's account set is unconditional. What that produced
+was a user who had accepted Pay's prompt and could find no way back out, and a
+*declined* prompt that fell through to the **Hub** connector — a desktop web
+wallet, offered inside Pay's own WebView. So `detectWallet` only falls back to
+the Hub outside a hosted WebView, and Pay's `disconnect` is device-local: it
+stops this app using the accounts and says exactly that, because Pay offers no
+revocation to wrap.
 
 **Inbox** (new tab): thread list → thread → composer.
 

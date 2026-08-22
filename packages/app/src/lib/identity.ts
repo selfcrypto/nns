@@ -82,3 +82,36 @@ export function saveHubAddresses(storage: StorageLike, addresses: readonly strin
 export function clearHubAddresses(storage: StorageLike): void {
   saveHubAddresses(storage, [])
 }
+
+// ── Pay dismissal (per device, same best-effort store) ─────────────────────
+
+const PAY_DISMISSED_KEY = 'nns.pay.dismissed'
+
+/**
+ * Whether the user has told *this app* to stop using Nimiq Pay's accounts.
+ *
+ * Pay hands its account set over with no prompt and no revocation, so there is
+ * nothing in Pay to disconnect from — which is why the Pay adapter shipped with
+ * `connect` and `disconnect` both null, and why a user who had connected could
+ * find no way back out (Kike, 2026-08-22). This flag is that way out, and it is
+ * honest about its scope: it drops the addresses from the app's identity on
+ * this device. It revokes nothing in the wallet, and the wording must not claim
+ * it does.
+ */
+export function loadPayDismissed(storage: StorageLike): boolean {
+  try {
+    return storage.getItem(PAY_DISMISSED_KEY) === '1'
+  } catch {
+    // A broken store reads as "not dismissed" — the same direction
+    // `hidden.ts` fails in: never hide something the user did not hide.
+    return false
+  }
+}
+
+export function savePayDismissed(storage: StorageLike, dismissed: boolean): void {
+  try {
+    storage.setItem(PAY_DISMISSED_KEY, dismissed ? '1' : '0')
+  } catch {
+    // Best-effort, like every per-device store here.
+  }
+}

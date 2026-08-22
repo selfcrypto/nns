@@ -98,6 +98,15 @@ body {
   gap: 10px;
 }
 
+/*
+ * Inside Nimiq Pay the host's own bar already names the app, and a second
+ * wordmark under it is the grey strip in Kike's screenshot. `data-host` is
+ * stamped by `lib/chrome.ts` before the first paint, so this costs no flash.
+ */
+:root[data-host='pay'] .masthead {
+  display: none;
+}
+
 .wordmark {
   margin: 0;
   font-size: 28px;
@@ -535,12 +544,112 @@ li.note {
   padding: 8px 16px;
 }
 
-.connect-top {
-  margin-left: auto;
+/*
+ * ── The identity row (components/IdentityBar.tsx) ──
+ *
+ * Between the screen and the tab bar: the thumb reaches it, and it is nowhere
+ * near a host's chrome. It replaces `.connect-top` in the masthead and
+ * `.identity-actions` at the foot of My Names — one control, one place.
+ */
+
+.identity-bar {
+  flex: none;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.identity-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.identity-who {
+  appearance: none;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  padding: 2px 0;
+}
+
+.identity-who:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+
+.identity-address {
+  font-size: 13px;
+  color: var(--ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.identity-more {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: var(--depth-bg);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.identity-action {
   flex: none;
   white-space: nowrap;
   font-size: 13px;
-  padding: 7px 14px;
+  padding: 6px 12px;
+}
+
+.identity-connect {
+  width: 100%;
+  padding: 10px 20px;
+  font-size: 15px;
+}
+
+.identity-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.identity-expanded {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.identity-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.identity-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.identity-add {
+  align-self: flex-start;
+  font-size: 13px;
+  padding: 6px 14px;
 }
 
 /* ── Lists (my names, market) ── */
@@ -955,12 +1064,6 @@ li.note {
   padding: 0;
   align-self: flex-start;
   cursor: pointer;
-}
-
-.identity-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
 }
 
 /* ── Pay ── */

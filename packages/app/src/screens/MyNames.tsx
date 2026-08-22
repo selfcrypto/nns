@@ -12,15 +12,7 @@ import { apiBase } from '../lib/nns'
 import { search } from '../lib/search'
 import { renewalUrgency } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
-import {
-  addAddressLabel,
-  backToNamesLabel,
-  connectWalletLabel,
-  disconnectLabel,
-  graceBadge,
-  renewDueLine,
-  unreachableLine,
-} from '../lib/wording'
+import { backToNamesLabel, graceBadge, renewDueLine, unreachableLine } from '../lib/wording'
 import type { Wallet } from '../lib/wallet'
 import { NameCard, OWNER_ACTIONS } from '../components/NameCard'
 import { Badge, EmptyState, NameText, Spinner } from '../components/ui'
@@ -78,15 +70,11 @@ export function MyNamesScreen({
   wallet,
   manage,
   onManageHandled,
-  onConnect,
-  onDisconnect,
 }: {
   wallet: Wallet | null
   /** A name Buy handed over; opens straight into its detail. */
   manage: string | null
   onManageHandled: () => void
-  onConnect: (() => void) | null
-  onDisconnect: (() => void) | null
 }) {
   const [selected, setSelected] = useState<string | null>(null)
   const [listNonce, setListNonce] = useState(0)
@@ -111,15 +99,10 @@ export function MyNamesScreen({
   if (viewers.length === 0) {
     return (
       <div className="screen">
-        <EmptyState
-          title={onConnect !== null ? 'Connect a wallet' : 'Open in Nimiq Pay'}
-          body="Your names are listed by your wallet addresses."
-        />
-        {onConnect !== null && (
-          <button type="button" className="connect" onClick={onConnect}>
-            {connectWalletLabel()}
-          </button>
-        )}
+        {/* No button here: connecting lives in the identity row above the tab
+            bar, which is on screen right now. Two copies of one control is two
+            controls that drift. */}
+        <EmptyState title="No wallet connected" body="Your names are listed by your wallet addresses." />
       </div>
     )
   }
@@ -172,18 +155,6 @@ export function MyNamesScreen({
           })}
         </ul>
       )}
-      <div className="identity-actions">
-        {onConnect !== null && (
-          <button type="button" className="connect connect-quiet" onClick={onConnect}>
-            {addAddressLabel()}
-          </button>
-        )}
-        {onDisconnect !== null && (
-          <button type="button" className="connect connect-quiet" onClick={onDisconnect}>
-            {disconnectLabel()}
-          </button>
-        )}
-      </div>
     </div>
   )
 }

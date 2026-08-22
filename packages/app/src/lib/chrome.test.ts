@@ -1,11 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { PAY_NAV_MIN, chromeInsets, isPayHost, parseChromeOverride } from './chrome'
+import { PAY_NAV_MIN, chromeInsets, isHostedWebView, parseChromeOverride } from './chrome'
 
-describe('isPayHost', () => {
-  it('answers on the host context Pay seeds before the page script runs', () => {
-    expect(isPayHost({ nimiqPay: { language: 'de' } })).toBe(true)
-    expect(isPayHost({})).toBe(false)
-    expect(isPayHost(undefined)).toBe(false)
+describe('isHostedWebView', () => {
+  it('answers on either global, because Pay has two containers', () => {
+    // The mini-app container seeds the host context…
+    expect(isHostedWebView({ nimiqPay: { language: 'de' } })).toBe(true)
+    // …and the in-app browser need not, but the provider is injected there,
+    // because the wallet works. Testing only the first is what made the bottom
+    // reserve a no-op on a real phone (Kike, 2026-08-22).
+    expect(isHostedWebView({ nimiq: {} })).toBe(true)
+    expect(isHostedWebView({ nimiq: {}, nimiqPay: {} })).toBe(true)
+  })
+
+  it('is false in a plain browser', () => {
+    expect(isHostedWebView({})).toBe(false)
+    expect(isHostedWebView(undefined)).toBe(false)
   })
 })
 

@@ -315,6 +315,20 @@ export const addAddressLabel = (): string => 'Add another address'
 
 export const disconnectLabel = (): string => 'Disconnect'
 
+/**
+ * Pay hands its account set over with no prompt and offers no revocation, so
+ * the app's own disconnect is device-local and the label may not imply more.
+ */
+export const payConnectLabel = (): string => 'Connect Nimiq Pay'
+
+export const payDisconnectNote = (): string => 'Stops this app using your Nimiq Pay account on this device.'
+
+/** The identity row while `detectWallet` is still deciding — never nothing. */
+export const walletCheckingLine = (): string => 'Checking wallet…'
+
+/** The rest of the address set, behind the one being shown. */
+export const moreAddressesLabel = (count: number): string => `+${count}`
+
 // ── Buy → My names handoff (docs/app-ux.md §2) ─────────────────────────────
 
 export const ownNameLine = (): string => 'You own this name.'
