@@ -43,11 +43,11 @@ describe('chromeInsets', () => {
     expect(chromeInsets({ pay: false, safeArea: { top: 0, bottom: 0 }, override: null })).toEqual({ top: 0, bottom: 0 })
   })
 
-  it('leaves the top alone — Pay’s bar is above the WebView, not over it', () => {
-    // Measured from a device screenshot: the page begins below the close
-    // button and the reload arrows, already clear of them. Reserving for that
-    // bar produced a grey band and nothing else.
-    expect(chromeInsets({ pay: true, safeArea, override: null })).toEqual({ top: 47, bottom: 48 })
+  it('reserves nothing at the top — Pay has already done the insetting', () => {
+    // Three device screenshots: the page begins below the status bar *and*
+    // below Pay's own bar, already clear of both, while `env()` still reports
+    // the status bar. Honouring it is a strip of nothing.
+    expect(chromeInsets({ pay: true, safeArea, override: null })).toEqual({ top: 0, bottom: 48 })
   })
 
   it('floors the bottom when the host consumed the window insets', () => {

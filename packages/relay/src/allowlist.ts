@@ -13,6 +13,7 @@
  */
 
 export const ALLOWED_METHODS = [
+  'getAccountByAddress',
   'getBlockNumber',
   'getTransactionByHash',
   'getTransactionsByAddress',
@@ -73,6 +74,25 @@ export function screen(bodyText: string): Screened {
   if (!Array.isArray(params)) return refusal(id, -32602, 'params must be an array')
 
   switch (method as AllowedMethod) {
+    /**
+     * Added 2026-08-22 for one job: the `type` field. Nimiq Pay's
+     * `listAccounts()` hands the app its **HTLC contract** alongside the
+     * durable address, and nothing in the SDK says which is which — this is
+     * the only way to tell a contract from a keypair account.
+     *
+     * It also returns a balance, which is why it needed a decision rather than
+     * a line: the relay already serves `getTransactionsByAddress`, the whole
+     * history of any address, so a single balance is strictly less than what
+     * this endpoint already gives away. Both are public chain data.
+     */
+    case 'getAccountByAddress': {
+      const account: unknown = params[0]
+      if (params.length !== 1 || typeof account !== 'string' || !ADDRESS.test(account)) {
+        return refusal(id, -32602, 'getAccountByAddress takes one Nimiq address string')
+      }
+      return accepted(id, 'getAccountByAddress', [account])
+    }
+
     case 'getBlockNumber': {
       if (params.length !== 0) return refusal(id, -32602, 'getBlockNumber takes no params')
       return accepted(id, 'getBlockNumber', [])

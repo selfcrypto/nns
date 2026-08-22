@@ -74,3 +74,19 @@ describe('per-method params', () => {
     expect(errorCode(screen(rpc('sendRawTransaction', [42])))).toBe(-32602)
   })
 })
+
+describe('getAccountByAddress — the account-type lookup', () => {
+  const ADDRESS = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
+
+  it('accepts one address', () => {
+    const screened = screen(rpc('getAccountByAddress', [ADDRESS]))
+    expect(screened).toMatchObject({ ok: true, method: 'getAccountByAddress', params: [ADDRESS] })
+  })
+
+  it('refuses anything else in the field', () => {
+    expect(errorCode(screen(rpc('getAccountByAddress', [])))).toBe(-32602)
+    expect(errorCode(screen(rpc('getAccountByAddress', [ADDRESS, 1])))).toBe(-32602)
+    expect(errorCode(screen(rpc('getAccountByAddress', [{ address: ADDRESS }])))).toBe(-32602)
+    expect(errorCode(screen(rpc('getAccountByAddress', ['<script>alert(1)</script>'])))).toBe(-32602)
+  })
+})

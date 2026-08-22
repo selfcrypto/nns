@@ -33,7 +33,7 @@ import {
 import { isHostedWebView } from './chrome'
 import { hubChooseAddress, hubSignTransaction } from './hub'
 import { connectWallet, devAddressOverride, paySendTransaction, type WalletSession } from './sdk'
-import { isDefiniteRejection, type HistoryTransport } from './history'
+import { defaultTransport, fetchAccountType, isDefiniteRejection, type HistoryTransport } from './history'
 
 export interface SubmitRequest {
   readonly sender: string
@@ -67,14 +67,44 @@ export interface Wallet {
 
 export async function detectWallet(storage: StorageLike, search: string): Promise<Wallet> {
   const paySession = loadPayDismissed(storage) ? null : await connectWallet()
-  if (paySession !== null) return payWallet(paySession, storage)
+  if (paySession !== null) return await payWallet(paySession, storage)
   // **Inside Pay, the fallback is Pay again — never the Hub.** `connectWallet`
   // returns null for a declined prompt exactly as it does for "no wallet here",
   // and falling through on the first case offered a *desktop web-wallet
   // connector inside Pay's own WebView* (Kike, 2026-08-22). The container is a
   // wallet; the answer to a declined connection is to ask it again.
-  if (isHostedWebView()) return payWallet(null, storage)
+  if (isHostedWebView()) return await payWallet(null, storage)
   return hubWallet(storage, search)
+}
+
+/**
+ * Nimiq Pay's account set includes the **Remote wallet's HTLC contract** beside
+ * the durable address, and the SDK says nothing about which is which — both are
+ * just strings from `listAccounts()`. A contract is the wrong thing to show a
+ * user as "your address": it expires, and since §7.2 attribution (r25)
+ * ownership follows the authorizing key, so nothing the user owns is ever
+ * recorded against it (Kike, 2026-08-22).
+ *
+ * `getAccountByAddress`'s `type` is the only signal that tells them apart, so
+ * the filter is a node round trip and therefore best-effort in both directions:
+ *
+ *   - **Only a confirmed contract is dropped.** No endpoint, a refusal, an
+ *     unexpected shape — every one of those keeps the address. Hiding an
+ *     address a user really owns hides their names with it; showing a contract
+ *     for a few days is a cosmetic wart.
+ *   - **The set never empties.** If every lookup somehow said "contract", the
+ *     original set stands: an empty identity is indistinguishable from a
+ *     disconnected wallet, and this is not entitled to cause that.
+ */
+async function withoutContracts(addresses: readonly string[]): Promise<readonly string[]> {
+  const transport = defaultTransport()
+  if (transport === null || addresses.length < 2) return addresses
+  const types = await Promise.all(addresses.map((address) => fetchAccountType(transport, address)))
+  const kept = addresses.filter((_, index) => {
+    const type = types[index]
+    return type === null || type === 'basic'
+  })
+  return kept.length === 0 ? addresses : kept
 }
 
 /**
@@ -82,18 +112,19 @@ export async function detectWallet(storage: StorageLike, search: string): Promis
  * user declined the prompt, or dismissed the app's use of them. That is still
  * a Pay wallet: it knows no address yet and `connect` asks again.
  */
-function payWallet(session: WalletSession | null, storage: StorageLike): Wallet {
+async function payWallet(session: WalletSession | null, storage: StorageLike): Promise<Wallet> {
   // Canonical spaced form, like every other address entering the set: the
   // identicon bug of 2026-08-21 was one spelling meeting another.
   let addresses: readonly string[] = []
   let current = session
-  const adopt = (adopted: WalletSession | null) => {
+  const adopt = async (adopted: WalletSession | null) => {
     current = adopted
     addresses = []
     if (adopted === null) return
     for (const address of adopted.addresses) addresses = withAddress(addresses, address)
+    addresses = await withoutContracts(addresses)
   }
-  adopt(session)
+  await adopt(session)
 
   return {
     get identity() {
@@ -106,7 +137,7 @@ function payWallet(session: WalletSession | null, storage: StorageLike): Wallet 
      */
     connect: async () => {
       savePayDismissed(storage, false)
-      adopt(await connectWallet())
+      await adopt(await connectWallet())
       return { kind: 'pay', addresses }
     },
 
@@ -117,7 +148,8 @@ function payWallet(session: WalletSession | null, storage: StorageLike): Wallet 
      */
     disconnect: () => {
       savePayDismissed(storage, true)
-      adopt(null)
+      current = null
+      addresses = []
       return { kind: 'pay', addresses }
     },
 

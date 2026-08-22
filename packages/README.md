@@ -18,7 +18,7 @@ somebody's client. That is the failure mode the whole design exists to prevent.
 | **`api`** | Read-only REST over the indexer's database: eleven endpoints, §8.3 proofs | no | Postgres |
 | **`resolver`** | Client library: asks several APIs, checks quorum, verifies proofs, follows §8.6 delegation | no | any NNS API |
 | **`app`** | The Nimiq Pay mini app — search, register, manage. Static Vite bundle | no | `resolver`, relay |
-| **`relay`** | RPC proxy for the app: four allowlisted node methods, rate limits, CORS | **node credential** | node |
+| **`relay`** | RPC proxy for the app: five allowlisted node methods, rate limits, CORS | **node credential** | node |
 | **`delegate`** | Reference §8.6 host: answers `shop.alice` for one name's owner | no | nothing |
 | **`settlement`** | Watches obligations and issues `M` — payouts, commission, refunds | **two hot keys** | any NNS API, node (wallet) |
 | **`anchor`** | The §9 EVM contract, its publisher, and a browser-safe reader | funded EVM key | an EVM chain, IPFS |

@@ -126,3 +126,29 @@ export async function fetchHistory(transport: HistoryTransport, address: string,
   }
   return { txs, oldestBlock }
 }
+
+/**
+ * The account's type, or null when the node did not clearly say.
+ *
+ * One caller and one purpose: Nimiq Pay's `listAccounts()` returns the durable
+ * address **and the Remote wallet's HTLC contract**, and nothing in the SDK
+ * distinguishes them. `getAccountByAddress` carries a `type` field —
+ * `"basic"` for a keypair account (docs/rpc-reference.md §4) — which is the
+ * only signal there is.
+ *
+ * Null on any doubt: a missing endpoint, a refusal, a shape that is not what
+ * was measured. Every caller must read null as "keep it", because dropping an
+ * address the user actually owns hides their names, and showing a contract for
+ * a few days does not.
+ */
+export async function fetchAccountType(transport: HistoryTransport, address: string): Promise<string | null> {
+  let answer: unknown
+  try {
+    answer = await transport('getAccountByAddress', [address])
+  } catch {
+    return null
+  }
+  if (typeof answer !== 'object' || answer === null) return null
+  const { type } = answer as { type?: unknown }
+  return typeof type === 'string' ? type : null
+}

@@ -111,10 +111,13 @@ export function chromeInsets(input: {
 }): Insets {
   if (input.override !== null) return input.override
   if (!input.pay) return input.safeArea
-  // The top is the safe area unchanged — Pay's bar is above the WebView, not
-  // over it, so there is nothing up there `env()` does not already know.
   return {
-    top: input.safeArea.top,
+    // **Zero, not the safe area.** Pay's WebView already begins below the
+    // status bar *and* below Pay's own bar — three device screenshots show the
+    // page starting clear of both — yet `env(safe-area-inset-top)` still
+    // reports the status bar there. Honouring it reserved a strip of nothing
+    // twice over, once as a 48 px guess and then again as the inset itself.
+    top: 0,
     bottom: Math.max(input.safeArea.bottom, PAY_NAV_MIN),
   }
 }

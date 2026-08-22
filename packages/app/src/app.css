@@ -85,8 +85,13 @@ body {
 .frame {
   display: flex;
   flex-direction: column;
+  /* `svh` — the *small* viewport, the visible one with the host's chrome
+     expanded. `dvh` is the dynamic one, and inside Pay's in-app browser it
+     resolves taller than what is actually on screen, which is the slack the
+     page scrolls by and the reason the tab bar sits low. `vh` first, for a
+     WebView old enough to know neither. */
   min-height: 100vh;
-  min-height: 100dvh;
+  min-height: 100svh;
   padding-top: var(--chrome-top);
   padding-bottom: var(--chrome-bottom);
 }

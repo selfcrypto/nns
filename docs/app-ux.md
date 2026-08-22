@@ -194,7 +194,7 @@ compose ──▶ review (in-app) ──▶ Pay sheet (wallet UI) ──▶ conf
   2026-08-21, the API's height advances in exact 60-block steps, ~60 s, on
   top of the scan's own poll interval. The window is therefore ~210 s, and
   when it runs out the machine **asks the chain** (`getTransactionByHash`,
-  one of the relay's four methods) before saying anything negative:
+  one of the relay's five methods) before saying anything negative:
 
   | On chain | Ending | What it says |
   |---|---|---|
