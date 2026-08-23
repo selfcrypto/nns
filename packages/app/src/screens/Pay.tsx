@@ -16,7 +16,16 @@
 
 import { useMemo, useState } from 'react'
 import { ActionInputError, parseNimAmount } from '../lib/actions'
-import { EvmAmountError, fetchUsdtBalance, formatUsdt, parseUsdtAmount, sendUsdtOnPolygon, type EvmSendOutcome } from '../lib/evm'
+import {
+  EvmAmountError,
+  fetchUsdtBalanceFor,
+  formatUsdt,
+  parseUsdtAmount,
+  sendUsdtOnPolygon,
+  silentEvmAccount,
+  type EvmSendOutcome,
+} from '../lib/evm'
+import { discoverEvmProvider, requestHostEvmAddress } from '../lib/sdk'
 import { lunaToNim } from '../lib/format'
 import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
@@ -42,6 +51,7 @@ import {
   usdtButtonLabel,
   usdtNoGasLine,
   usdtNoLinkLine,
+  usdtShowBalanceLabel,
   usdtNoProviderLine,
   usdtWrongChainLine,
   sendConfirmedLine,
@@ -120,17 +130,37 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
   const evm = resolved?.evm ?? ''
 
   // Balances are display-only and every miss is a hidden line, never a zero:
-  // an endpoint that cannot answer must not read as "broke". NIM asks the
-  // relay for the acting sender; USDT asks the connected EVM wallet silently
-  // (eth_accounts, one eth_call — no prompt, and only on Polygon). Refreshed
-  // per sender/mode change and after a send that changed one of them.
-  const balanceSeed = `${mode}:${sender ?? ''}:${result?.status ?? ''}:${usdtResult?.ok === true ? usdtResult.hash : ''}`
+  // an endpoint that cannot answer must not read as "broke".
+  //
+  // NIM sums over `wallet.balanceAddresses`, not the identity: inside Pay
+  // the spendable NIM sits on the Remote wallet's HTLC contract, which the
+  // identity deliberately drops (§7.2) — summing the identity read ~0 on a
+  // funded wallet. The SDK exposes no balance method, so the node is asked
+  // about every account Pay reported, contract included.
+  //
+  // USDT needs an account before it can read anything: the silent
+  // `eth_accounts` (empty until this site is authorized — often per
+  // session), a send's own `from`, or the explicit connect button below.
+  const [evmAccount, setEvmAccount] = useState<string | null>(null)
+  const balanceSeed = `${mode}:${sender ?? ''}:${evmAccount ?? ''}:${result?.status ?? ''}:${usdtResult?.ok === true ? usdtResult.hash : ''}`
   const nimBalance = useAsync(async () => {
-    if (mode !== 'nim' || sender === null) return null
+    if (mode !== 'nim' || wallet === null) return null
     const transport = defaultTransport()
-    return transport === null ? null : fetchNimBalance(transport, sender)
+    if (transport === null) return null
+    const targets = wallet.balanceAddresses.length > 0 ? wallet.balanceAddresses : sender !== null ? [sender] : []
+    if (targets.length === 0) return null
+    const balances = await Promise.all(targets.map((address) => fetchNimBalance(transport, address)))
+    const known = balances.filter((balance): balance is bigint => balance !== null)
+    return known.length === 0 ? null : known.reduce((sum, balance) => sum + balance, 0n)
   }, [balanceSeed])
-  const usdtBalance = useAsync(() => (mode === 'usdt' ? fetchUsdtBalance() : Promise.resolve(null)), [balanceSeed])
+  const usdtBalance = useAsync(async () => {
+    if (mode !== 'usdt') return null
+    const account = evmAccount ?? (usdtResult?.ok === true ? usdtResult.from : null) ?? (await silentEvmAccount())
+    if (account === null) return null
+    if (account !== evmAccount) setEvmAccount(account)
+    return fetchUsdtBalanceFor(account)
+  }, [balanceSeed])
+  const canConnectEvm = useMemo(() => mode === 'usdt' && discoverEvmProvider() !== null, [mode])
 
   // Nimiq drops a self-transaction silently: the RPC accepts it and returns a
   // hash, so nothing downstream would ever report this.
@@ -252,6 +282,18 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
           </label>
           {usdtBalance.status === 'done' && usdtBalance.value !== null && (
             <p className="pay-balance">{balanceLine(formatUsdt(usdtBalance.value), 'USDT')}</p>
+          )}
+          {usdtBalance.status === 'done' && usdtBalance.value === null && evmAccount === null && canConnectEvm && (
+            <button
+              type="button"
+              className="sheet-suggest"
+              onClick={async () => {
+                const account = await requestHostEvmAddress()
+                if (account !== null) setEvmAccount(account)
+              }}
+            >
+              {usdtShowBalanceLabel()}
+            </button>
           )}
 
           {parsedUsdt !== null && 'error' in parsedUsdt && <p className="field-error">{parsedUsdt.error}</p>}

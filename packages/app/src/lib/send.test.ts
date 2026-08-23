@@ -10,6 +10,7 @@ const REQUEST = {
 }
 
 const walletThat = (outcome: SubmitOutcome): Wallet => ({
+  balanceAddresses: [],
   identity: { kind: 'hub', addresses: [REQUEST.sender] },
   connect: null,
   disconnect: null,

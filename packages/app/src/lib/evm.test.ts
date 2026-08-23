@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EvmAmountError, FALLBACK_TRANSFER_GAS, USDT_POLYGON, erc20TransferData, evmErrorMessage, fetchUsdtBalance, formatUsdt, gasLimitFor, parseUsdtAmount, sendUsdtOnPolygon } from './evm'
+import { EvmAmountError, FALLBACK_TRANSFER_GAS, USDT_POLYGON, erc20TransferData, evmErrorMessage, fetchUsdtBalanceFor, formatUsdt, gasLimitFor, parseUsdtAmount, sendUsdtOnPolygon, silentEvmAccount } from './evm'
 
 describe('parseUsdtAmount', () => {
   it('takes integers and up to six decimals, exactly', () => {
@@ -149,33 +149,59 @@ describe('sendUsdtOnPolygon over a fake provider', () => {
   })
 })
 
-describe('fetchUsdtBalance', () => {
+describe('silentEvmAccount and fetchUsdtBalanceFor', () => {
   const provider = (answers: Record<string, unknown>) => ({
     request: (args: { method: string }) =>
       answers[args.method] instanceof Error
         ? Promise.reject(answers[args.method])
         : Promise.resolve(answers[args.method]),
   })
+  const noFetch = (() => Promise.reject(new Error('no network in tests'))) as unknown as typeof fetch
+  const rpcFetch = (result: unknown) =>
+    (() => Promise.resolve({ json: () => Promise.resolve({ result }) })) as unknown as typeof fetch
 
-  it('reads balanceOf for the silently-connected account, on Polygon only', async () => {
-    const units = await fetchUsdtBalance(
+  it('silently reads the already-authorized account, lowercased, and never prompts', async () => {
+    expect(await silentEvmAccount(provider({ eth_accounts: ['0xAA00000000000000000000000000000000000001'] }))).toBe(
+      '0xaa00000000000000000000000000000000000001',
+    )
+    expect(await silentEvmAccount(provider({ eth_accounts: [] }))).toBeNull()
+    expect(await silentEvmAccount(provider({ eth_accounts: new Error('nope') }))).toBeNull()
+  })
+
+  it('reads balanceOf through the wallet when it is on Polygon', async () => {
+    const units = await fetchUsdtBalanceFor(
+      '0xaa00000000000000000000000000000000000001',
       provider({
-        eth_accounts: ['0xAA00000000000000000000000000000000000001'],
         eth_chainId: '0x89',
         eth_call: '0x0000000000000000000000000000000000000000000000000000000000bebc20',
       }),
+      noFetch,
     )
     expect(units).toBe(12_500_000n)
   })
 
-  it('hides rather than lies: no account, wrong chain, or a refusal are all null', async () => {
-    expect(await fetchUsdtBalance(provider({ eth_accounts: [] }))).toBeNull()
+  it('falls back to the public Polygon endpoint when the wallet cannot answer', async () => {
+    // Wrong chain: the wallet's eth_call would answer for the wrong network.
     expect(
-      await fetchUsdtBalance(
-        provider({ eth_accounts: ['0xAA00000000000000000000000000000000000001'], eth_chainId: '0x1' }),
+      await fetchUsdtBalanceFor(
+        '0xaa00000000000000000000000000000000000001',
+        provider({ eth_chainId: '0x1' }),
+        rpcFetch('0x0000000000000000000000000000000000000000000000000000000000000f4240'),
       ),
+    ).toBe(1_000_000n)
+    // Provider refuses reads outright.
+    expect(
+      await fetchUsdtBalanceFor(
+        '0xaa00000000000000000000000000000000000001',
+        provider({ eth_chainId: new Error('unsupported') }),
+        rpcFetch('0x01'),
+      ),
+    ).toBe(1n)
+  })
+
+  it('hides rather than lies when nothing answers', async () => {
+    expect(
+      await fetchUsdtBalanceFor('0xaa00000000000000000000000000000000000001', provider({ eth_chainId: '0x1' }), noFetch),
     ).toBeNull()
-    expect(await fetchUsdtBalance(provider({ eth_accounts: new Error('nope') }))).toBeNull()
-    expect(await fetchUsdtBalance(null)).toBeNull()
   })
 })

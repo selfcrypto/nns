@@ -77,27 +77,69 @@ export function erc20BalanceOfData(account: string): string {
 }
 
 /**
- * The connected account's USDT balance, silently — `eth_accounts` (never a
- * prompt) and one `eth_call`. Display-only, and `null` on every miss: no
- * provider, not yet connected, or the wallet sitting on another chain,
- * where the call answers for the wrong network and a wrong number is worse
- * than none.
+ * The already-authorized account, silently — `eth_accounts` never prompts,
+ * and answers `[]` until the user has connected this site once (per
+ * session on some wallets, which is why a fresh page often knows nothing).
+ * The prompting counterpart is `requestHostEvmAddress` in `sdk.ts`.
  */
-export async function fetchUsdtBalance(providerOverride?: Eip1193Like | null): Promise<bigint | null> {
+export async function silentEvmAccount(providerOverride?: Eip1193Like | null): Promise<string | null> {
   const provider = providerOverride ?? discoverEvmProvider()
   if (provider == null) return null
   try {
     const accounts = (await provider.request({ method: 'eth_accounts' })) as unknown
     const account = Array.isArray(accounts) && typeof accounts[0] === 'string' ? accounts[0] : null
-    if (account === null) return null
-    const chain = (await provider.request({ method: 'eth_chainId' })) as unknown
-    if (chain !== POLYGON_CHAIN_HEX) return null
-    const answer = (await provider.request({
-      method: 'eth_call',
-      params: [{ to: USDT_POLYGON.address, data: erc20BalanceOfData(account) }, 'latest'],
-    })) as unknown
-    if (typeof answer !== 'string' || !/^0x[0-9a-fA-F]+$/.test(answer)) return null
-    return BigInt(answer)
+    return account !== null && /^0x[0-9a-fA-F]{40}$/.test(account) ? account.toLowerCase() : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * A public Polygon endpoint, for the **display-only** balance read and
+ * nothing else. The send path deliberately runs no Polygon RPC — the wallet
+ * prices, signs, broadcasts and confirms — but a balance needs an `eth_call`
+ * answered from Polygon specifically, and the wallet's provider may be on
+ * another chain or not proxy reads at all. A miss here hides a line; it can
+ * never misroute a payment.
+ */
+export const POLYGON_PUBLIC_RPC = 'https://polygon-rpc.com'
+
+const parseBalanceAnswer = (answer: unknown): bigint | null =>
+  typeof answer === 'string' && /^0x[0-9a-fA-F]+$/.test(answer) ? BigInt(answer) : null
+
+/**
+ * The account's USDT balance: the wallet's own `eth_call` when it is on
+ * Polygon, else the public endpoint. Display-only, `null` on every miss —
+ * an endpoint that cannot answer must not read as a zero balance.
+ */
+export async function fetchUsdtBalanceFor(
+  account: string,
+  providerOverride?: Eip1193Like | null,
+  fetchImpl: typeof fetch = fetch,
+): Promise<bigint | null> {
+  const call = { to: USDT_POLYGON.address, data: erc20BalanceOfData(account) }
+
+  const provider = providerOverride ?? discoverEvmProvider()
+  if (provider != null) {
+    try {
+      const chain = (await provider.request({ method: 'eth_chainId' })) as unknown
+      if (chain === POLYGON_CHAIN_HEX) {
+        const units = parseBalanceAnswer(await provider.request({ method: 'eth_call', params: [call, 'latest'] }))
+        if (units !== null) return units
+      }
+    } catch {
+      /* fall through to the public endpoint */
+    }
+  }
+
+  try {
+    const response = await fetchImpl(POLYGON_PUBLIC_RPC, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [call, 'latest'] }),
+    })
+    const body = (await response.json()) as { result?: unknown }
+    return parseBalanceAnswer(body.result)
   } catch {
     return null
   }

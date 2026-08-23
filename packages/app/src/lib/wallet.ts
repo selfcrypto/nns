@@ -62,6 +62,18 @@ export interface Wallet {
    * Pay's own WebView.
    */
   readonly disconnect: (() => Identity) | null
+  /**
+   * The addresses whose balances add up to what this wallet can spend —
+   * distinct from `identity` on the Pay path, on purpose. Identity drops
+   * the Remote wallet's HTLC contract (§7.2: ownership follows the
+   * authorizing key, and a contract is the wrong thing to call "your
+   * address"), but the contract is exactly where Pay keeps the spendable
+   * NIM — so a balance summed over the identity read ~0 on a funded wallet
+   * (Kike, 2026-08-23). Pay exposes no balance method of its own; the sum
+   * over the **raw** `listAccounts()` set, contract included, is the number
+   * the wallet itself shows. Hub: same as the identity.
+   */
+  readonly balanceAddresses: readonly string[]
   readonly submit: (request: SubmitRequest, transport: HistoryTransport | null) => Promise<SubmitOutcome>
 }
 
@@ -116,19 +128,27 @@ async function payWallet(session: WalletSession | null, storage: StorageLike): P
   // Canonical spaced form, like every other address entering the set: the
   // identicon bug of 2026-08-21 was one spelling meeting another.
   let addresses: readonly string[] = []
+  // The unfiltered set, canonicalised but with the HTLC contract kept: what
+  // Pay's spendable balance is summed over. See `Wallet.balanceAddresses`.
+  let rawAddresses: readonly string[] = []
   let current = session
   const adopt = async (adopted: WalletSession | null) => {
     current = adopted
     addresses = []
+    rawAddresses = []
     if (adopted === null) return
-    for (const address of adopted.addresses) addresses = withAddress(addresses, address)
-    addresses = await withoutContracts(addresses)
+    for (const address of adopted.addresses) rawAddresses = withAddress(rawAddresses, address)
+    addresses = await withoutContracts(rawAddresses)
   }
   await adopt(session)
 
   return {
     get identity() {
       return { kind: 'pay', addresses } satisfies Identity
+    },
+
+    get balanceAddresses() {
+      return rawAddresses
     },
 
     /**
@@ -150,6 +170,7 @@ async function payWallet(session: WalletSession | null, storage: StorageLike): P
       savePayDismissed(storage, true)
       current = null
       addresses = []
+      rawAddresses = []
       return { kind: 'pay', addresses }
     },
 
@@ -187,6 +208,11 @@ function hubWallet(storage: StorageLike, search: string): Wallet {
   return {
     get identity() {
       return identity()
+    },
+
+    // Hub addresses are ordinary accounts: identity and balance agree.
+    get balanceAddresses() {
+      return addresses
     },
 
     connect: async () => {

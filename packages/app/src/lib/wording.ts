@@ -419,6 +419,9 @@ export const usdtAcceptedLine = (): string => 'The wallet accepted it — track 
 /** One shape for both assets: "Balance: 123.45 NIM", "Balance: 12.5 USDT". */
 export const balanceLine = (amount: string, symbol: string): string => `Balance: ${amount} ${symbol}`
 
+/** The gesture-gated path to a balance the silent probe cannot see — raises the wallet's connect sheet. */
+export const usdtShowBalanceLabel = (): string => 'Show my USDT balance…'
+
 /** The network rejects a zero value outright (§5.4) — say so before the wallet opens. */
 export const payZeroLine = (): string => 'Enter an amount above zero.'
 
