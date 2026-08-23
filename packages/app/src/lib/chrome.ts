@@ -185,6 +185,49 @@ export function describeChrome(
 }
 
 /**
+ * Whether an on-screen keyboard is up, from the one signal that means it:
+ * the **visual** viewport being materially shorter than the layout one.
+ *
+ * The threshold is 100 CSS px — far above any browser-chrome jitter, far
+ * below any keyboard. Focus alone is deliberately not the signal: a hardware
+ * keyboard and every desktop focus a field without shrinking anything, and
+ * hiding the tab bar for them would be a layout jump for no occlusion. A
+ * WebView with no `visualViewport` at all answers false and keeps its bar —
+ * the pre-2026-08-23 behaviour, degraded rather than guessed.
+ */
+export function keyboardVisible(win: {
+  readonly innerHeight: number
+  readonly visualViewport?: { readonly height: number } | null
+}): boolean {
+  const visual = win.visualViewport
+  if (visual == null) return false
+  return win.innerHeight - visual.height > 100
+}
+
+/**
+ * Keep `data-keyboard` on the root element in step with the on-screen
+ * keyboard, so `app.css` can hide the tab bar while one is up. Sticky
+ * resolves against the resized viewport, which is how the bar ended up
+ * mid-screen over the very sheet being typed into (Kike's screenshots,
+ * 2026-08-23). `focusin`/`focusout` are listened to as *triggers* only — the
+ * decision is always {@link keyboardVisible}'s, with a `focusout` re-check
+ * one frame later because the viewport grows back after the event fires.
+ */
+export function watchKeyboard(win: Window = window): void {
+  const root = win.document.documentElement
+  const update = () => {
+    if (keyboardVisible(win)) root.dataset['keyboard'] = '1'
+    else delete root.dataset['keyboard']
+  }
+  win.visualViewport?.addEventListener('resize', update)
+  win.document.addEventListener('focusin', update)
+  win.document.addEventListener('focusout', () => {
+    win.setTimeout(update, 50)
+  })
+  update()
+}
+
+/**
  * Publish the insets as `--chrome-top` / `--chrome-bottom` on the root element,
  * where `app.css` spends them as the frame's padding.
  *

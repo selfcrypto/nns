@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PAY_NAV_MIN, chromeInsets, isHostedWebView, parseChromeOverride } from './chrome'
+import { PAY_NAV_MIN, chromeInsets, isHostedWebView, keyboardVisible, parseChromeOverride } from './chrome'
 
 describe('isHostedWebView', () => {
   it('answers on either global, because Pay has two containers', () => {
@@ -66,5 +66,21 @@ describe('chromeInsets', () => {
   it('lets the override win, so the numbers are measurable on a device', () => {
     expect(chromeInsets({ pay: true, safeArea, override: { top: 90, bottom: 12 } })).toEqual({ top: 90, bottom: 12 })
     expect(chromeInsets({ pay: false, safeArea, override: { top: 0, bottom: 0 } })).toEqual({ top: 0, bottom: 0 })
+  })
+})
+
+describe('keyboardVisible', () => {
+  it('answers on the visual viewport shrinking past 100px — an on-screen keyboard, nothing else', () => {
+    expect(keyboardVisible({ innerHeight: 803, visualViewport: { height: 420 } })).toBe(true)
+    expect(keyboardVisible({ innerHeight: 803, visualViewport: { height: 780 } })).toBe(false)
+  })
+
+  it('is false with no visualViewport at all — degrade to keeping the bar, never guess', () => {
+    expect(keyboardVisible({ innerHeight: 803 })).toBe(false)
+    expect(keyboardVisible({ innerHeight: 803, visualViewport: null })).toBe(false)
+  })
+
+  it('desktop focus shrinks nothing and hides nothing', () => {
+    expect(keyboardVisible({ innerHeight: 900, visualViewport: { height: 900 } })).toBe(false)
   })
 })

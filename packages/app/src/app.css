@@ -740,6 +740,7 @@ li.note {
   bottom: var(--chrome-bottom);
   flex: none;
   display: flex;
+  z-index: 2;
   /* Shrink-to-fit rather than five equal columns. "Buy/Search" is three times
      the width of "Pay" and equal columns would either truncate it or force
      every label down to its size. */
@@ -747,6 +748,28 @@ li.note {
   padding: 8px 8px 10px;
   background: var(--paper);
   border-top: 1px solid var(--line);
+}
+
+/* The reserve below the bar is the host's — navigation buttons, viewport
+   slack — but sticky masks nothing, so page content scrolled past the bar
+   showed through the band and the bar read as floating mid-air (Kike's
+   screenshots, 2026-08-23). Paper over exactly that band. */
+.tabbar::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: var(--chrome-bottom);
+  background: var(--paper);
+}
+
+/* An on-screen keyboard resizes the viewport, sticky resolves against the
+   resized one, and the bar lands mid-screen over the sheet being typed into.
+   Nobody switches tabs mid-keystroke; the bar returns with the viewport.
+   `data-keyboard` is maintained by chrome.ts's watchKeyboard. */
+[data-keyboard] .tabbar {
+  display: none;
 }
 
 .tab {
