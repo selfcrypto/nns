@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import '@nns/resolver/rendering.css'
 import './app.css'
 import { App } from './App'
-import { applyHostChrome, watchKeyboard } from './lib/chrome'
+import { applyHostChrome, watchViewport } from './lib/chrome'
 
 const container = document.getElementById('root')
 if (container === null) throw new Error('missing #root')
@@ -18,7 +18,7 @@ if (container === null) throw new Error('missing #root')
 // their own, so failing to improve on them is not a reason to show nothing.
 try {
   applyHostChrome()
-  watchKeyboard()
+  watchViewport()
 } catch {
   /* keep the stylesheet's defaults */
 }

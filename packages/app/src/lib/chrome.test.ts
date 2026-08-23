@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PAY_NAV_MIN, chromeInsets, isHostedWebView, keyboardVisible, parseChromeOverride } from './chrome'
+import { PAY_NAV_MIN, chromeInsets, isHostedWebView, keyboardVisible, parseChromeOverride, viewportSlack } from './chrome'
 
 describe('isHostedWebView', () => {
   it('answers on either global, because Pay has two containers', () => {
@@ -70,17 +70,44 @@ describe('chromeInsets', () => {
 })
 
 describe('keyboardVisible', () => {
-  it('answers on the visual viewport shrinking past 100px — an on-screen keyboard, nothing else', () => {
-    expect(keyboardVisible({ innerHeight: 803, visualViewport: { height: 420 } })).toBe(true)
-    expect(keyboardVisible({ innerHeight: 803, visualViewport: { height: 780 } })).toBe(false)
+  it('answers on the visual viewport shrinking past 100px under a constant layout viewport — overlay mode', () => {
+    expect(keyboardVisible({ innerHeight: 803, maxInnerHeight: 803, visualHeight: 420 })).toBe(true)
+    expect(keyboardVisible({ innerHeight: 803, maxInnerHeight: 803, visualHeight: 780 })).toBe(false)
   })
 
-  it('is false with no visualViewport at all — degrade to keeping the bar, never guess', () => {
-    expect(keyboardVisible({ innerHeight: 803 })).toBe(false)
-    expect(keyboardVisible({ innerHeight: 803, visualViewport: null })).toBe(false)
+  it("answers on the layout viewport itself shrinking past 150px — resize mode, Pay's in-app browser", () => {
+    expect(keyboardVisible({ innerHeight: 420, maxInnerHeight: 803, visualHeight: 420 })).toBe(true)
+    expect(keyboardVisible({ innerHeight: 420, maxInnerHeight: 803, visualHeight: null })).toBe(true)
   })
 
   it('desktop focus shrinks nothing and hides nothing', () => {
-    expect(keyboardVisible({ innerHeight: 900, visualViewport: { height: 900 } })).toBe(false)
+    expect(keyboardVisible({ innerHeight: 900, maxInnerHeight: 900, visualHeight: 900 })).toBe(false)
+    expect(keyboardVisible({ innerHeight: 900, maxInnerHeight: 900, visualHeight: null })).toBe(false)
+  })
+})
+
+describe('viewportSlack', () => {
+  it('is the layout viewport\'s excess over the visual one, floored at 0', () => {
+    expect(viewportSlack({ innerHeight: 877, visualViewport: { height: 803 } })).toBe(74)
+    expect(viewportSlack({ innerHeight: 803, visualViewport: { height: 803 } })).toBe(0)
+    expect(viewportSlack({ innerHeight: 800, visualViewport: { height: 803 } })).toBe(0)
+  })
+
+  it('is null, not 0, with nothing to measure — the caller falls back to PAY_NAV_MIN', () => {
+    expect(viewportSlack({ innerHeight: 803 })).toBeNull()
+    expect(viewportSlack({ innerHeight: 803, visualViewport: null })).toBeNull()
+  })
+})
+
+describe('chromeInsets with live slack', () => {
+  const safeArea = { top: 0, bottom: 0 }
+  it('spends the measured slack as the bottom reserve, 0 included', () => {
+    expect(chromeInsets({ pay: true, safeArea, override: null, slack: 74 }).bottom).toBe(74)
+    expect(chromeInsets({ pay: true, safeArea, override: null, slack: 0 }).bottom).toBe(0)
+  })
+
+  it('falls back to PAY_NAV_MIN only when there was nothing to measure', () => {
+    expect(chromeInsets({ pay: true, safeArea, override: null, slack: null }).bottom).toBe(PAY_NAV_MIN)
+    expect(chromeInsets({ pay: true, safeArea, override: null }).bottom).toBe(PAY_NAV_MIN)
   })
 })

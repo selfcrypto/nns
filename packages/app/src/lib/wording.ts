@@ -261,6 +261,18 @@ export const noHostLine = (): string => 'No subdomain resolver set.'
 
 export const currentExpiryLine = (approx: string): string => `Currently expires ${approx}.`
 
+/** The silent pre-fill: the host wallet already exposed the address. */
+export const suggestedEvmLabel = (evm: string): string => `Use this wallet’s address: ${evm}`
+
+/**
+ * The gesture-driven path: raises the wallet's own connect sheet
+ * (`eth_requestAccounts`), the same flow every EVM dApp gets in Pay's
+ * browser. The ellipsis is the "a dialog follows" convention.
+ */
+export const connectEvmLabel = (): string => 'Use my wallet’s USDC / USDT address…'
+
+export const connectEvmFailedLine = (): string => 'The wallet offered no address — paste it instead.'
+
 export const ACTION_LABEL: Record<AppAction, string> = {
   register: 'Register',
   setTarget: 'Change where it points',

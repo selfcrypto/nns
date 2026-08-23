@@ -124,32 +124,77 @@ export function hostLanguage(): string | undefined {
   return window.nimiqPay?.language
 }
 
+// ── The host's EVM side (§6 `E` pre-fill) ───────────────────────────────────
+//
+// The mini-app SDK's typed surface is NIM-only (its ten `WALLET_METHODS`),
+// but Pay demonstrably has an EVM side: opening an EVM dApp in its in-app
+// browser offers a connect sheet naming the user's EVM address (observed
+// on-device, 2026-08-23). That is the standard EIP-1193 gate — `eth_accounts`
+// answers `[]` until the site is *connected*, and `eth_requestAccounts` is
+// what raises the wallet's connect UI. So there are two calls here: a silent
+// probe for the already-connected case, and a gesture-driven request that
+// walks the same flow every EVM dApp uses.
+//
+// A positive answer is a pre-fill, never an authority: the user still
+// reviews the address, and the record is whatever they confirm.
+
+interface Eip1193Provider {
+  request(args: { method: string }): Promise<unknown>
+}
+
+function asEip1193(candidate: unknown): Eip1193Provider | null {
+  if (typeof candidate !== 'object' || candidate === null) return null
+  return typeof (candidate as { request?: unknown }).request === 'function' ? (candidate as Eip1193Provider) : null
+}
+
 /**
- * Best-effort probe for the host's own EVM address, to pre-fill the §6 `E`
- * input. The mini-app SDK's typed surface is NIM-only (its ten
- * `WALLET_METHODS`), but the SDK is a fork of Trust's `trust-web3-provider`,
- * whose WebView lineage conventionally injects an EIP-1193 provider as
- * `window.ethereum` — whether Pay's does is unmeasured, so this asks and
- * treats every failure as "no". `eth_accounts` only reads the already-exposed
- * account list; nothing here prompts, connects, or signs.
- *
- * A positive answer is a pre-fill, never an authority: the user still
- * reviews the address, and the record is whatever they confirm. If this is
- * ever observed answering inside Pay, record it in docs/rpc-reference.md §8.
+ * `window.ethereum`, or the first EIP-6963 announcer — the modern discovery
+ * path, where wallets answer a `requestProvider` event instead of (or beside)
+ * claiming the global. Announcements are dispatched synchronously from the
+ * request per the EIP, so no waiting is involved; absence is `null`.
  */
+export function discoverEvmProvider(win: Window | undefined = globalThis.window): Eip1193Provider | null {
+  if (win === undefined) return null
+  const injected = asEip1193((win as { ethereum?: unknown }).ethereum)
+  if (injected !== null) return injected
+  let announced: Eip1193Provider | null = null
+  const listen = (event: Event) => {
+    const detail = (event as CustomEvent<{ provider?: unknown }>).detail
+    if (announced === null) announced = asEip1193(detail?.provider)
+  }
+  win.addEventListener('eip6963:announceProvider', listen)
+  win.dispatchEvent(new Event('eip6963:requestProvider'))
+  win.removeEventListener('eip6963:announceProvider', listen)
+  return announced
+}
+
+const firstEvmAddress = (answer: unknown): string | null => {
+  if (!Array.isArray(answer)) return null
+  const first = answer.find((entry) => typeof entry === 'string' && /^0x[0-9a-fA-F]{40}$/.test(entry))
+  return typeof first === 'string' ? first.toLowerCase() : null
+}
+
+/** Silent: the already-connected case only. `eth_accounts` never prompts. */
 export async function probeHostEvmAddress(): Promise<string | null> {
-  if (typeof window === 'undefined') return null
-  const provider = (window as { ethereum?: unknown }).ethereum
-  if (typeof provider !== 'object' || provider === null) return null
-  const request = (provider as { request?: unknown }).request
-  if (typeof request !== 'function') return null
+  const provider = discoverEvmProvider()
+  if (provider === null) return null
   try {
-    const answer: unknown = await (request as (args: { method: string }) => Promise<unknown>).call(provider, {
-      method: 'eth_accounts',
-    })
-    if (!Array.isArray(answer)) return null
-    const first = answer.find((entry) => typeof entry === 'string' && /^0x[0-9a-fA-F]{40}$/.test(entry))
-    return typeof first === 'string' ? first.toLowerCase() : null
+    return firstEvmAddress(await provider.request({ method: 'eth_accounts' }))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Prompting: raises the wallet's own connect sheet, so call it from a user
+ * gesture and nowhere else. A decline, a missing provider and an empty
+ * answer are all `null` — the sheet falls back to paste.
+ */
+export async function requestHostEvmAddress(): Promise<string | null> {
+  const provider = discoverEvmProvider()
+  if (provider === null) return null
+  try {
+    return firstEvmAddress(await provider.request({ method: 'eth_requestAccounts' }))
   } catch {
     return null
   }

@@ -4,7 +4,7 @@ import { getParams, type NameInfo } from '../lib/api'
 import { defaultTransport } from '../lib/history'
 import { apiBase } from '../lib/nns'
 import { approxDate, formatApproxDate } from '../lib/format'
-import { probeHostEvmAddress } from '../lib/sdk'
+import { discoverEvmProvider, probeHostEvmAddress, requestHostEvmAddress } from '../lib/sdk'
 import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
 import type { AppAction } from '../lib/states'
@@ -12,6 +12,8 @@ import type { Wallet } from '../lib/wallet'
 import {
   ACTION_LABEL,
   buyAcknowledgeLabel,
+  connectEvmFailedLine,
+  connectEvmLabel,
   currentEvmLine,
   currentExpiryLine,
   currentHostLine,
@@ -19,6 +21,7 @@ import {
   custodialWarning,
   noEvmLine,
   noHostLine,
+  suggestedEvmLabel,
   sendConfirmedLine,
   sendConfirmingLine,
   sendDeclinedLine,
@@ -67,6 +70,10 @@ export function ActionSheet({
   // authority. Empty answer, no probe result yet, no injection: paste field.
   const hostEvm = useAsync(() => (action === 'setEvm' ? probeHostEvmAddress() : Promise.resolve(null)), [action])
   const suggestedEvm = hostEvm.status === 'done' ? hostEvm.value : null
+  // Whether a "use my wallet's address" button can exist at all. The provider
+  // is discovered per open — it is injected asynchronously in some hosts.
+  const canRequestEvm = useMemo(() => action === 'setEvm' && discoverEvmProvider() !== null, [action])
+  const [evmRequestFailed, setEvmRequestFailed] = useState(false)
   const [newOwner, setNewOwner] = useState('')
   const [host, setHost] = useState('')
   const [priceNim, setPriceNim] = useState('')
@@ -195,17 +202,36 @@ export function ActionSheet({
           ) : null}
           {!clearEvm && (
             <>
+              {/* The field is always the field — typing any address works.
+                  The button only fills it: instantly when the silent probe
+                  already knows the address, else through the wallet's own
+                  connect sheet (eth_requestAccounts — the flow every EVM
+                  dApp gets in Pay's browser), which needs the user gesture
+                  this tap is. */}
               <input
                 className="sheet-input nns-name"
                 placeholder={info?.record?.evm ? `${info.record.evm} (current)` : '0x… EVM address'}
                 value={evmInput}
                 onChange={(event) => setEvmInput(event.target.value)}
               />
-              {suggestedEvm !== null && evmInput.trim() === '' && (
-                <button type="button" className="sheet-suggest" onClick={() => setEvmInput(suggestedEvm)}>
-                  Use this wallet’s address: {suggestedEvm}
+              {(suggestedEvm !== null || canRequestEvm) && (
+                <button
+                  type="button"
+                  className="sheet-suggest"
+                  onClick={async () => {
+                    const address = suggestedEvm ?? (await requestHostEvmAddress())
+                    if (address !== null) {
+                      setEvmInput(address)
+                      setEvmRequestFailed(false)
+                    } else {
+                      setEvmRequestFailed(true)
+                    }
+                  }}
+                >
+                  {suggestedEvm !== null ? suggestedEvmLabel(suggestedEvm) : connectEvmLabel()}
                 </button>
               )}
+              {evmRequestFailed && <p className="field-error">{connectEvmFailedLine()}</p>}
             </>
           )}
         </>

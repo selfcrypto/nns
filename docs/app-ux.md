@@ -23,7 +23,7 @@ nothing more than two taps deep.
 ├────────────────────────────┤
 │ Buy/Search Pay My Names Inbox Market │  tab bar, thumb row
 ├────────────────────────────┤
-│ ······ host chrome ······· │  --chrome-bottom (Android's 48dp nav bar)
+│ ······ host chrome ······· │  --chrome-bottom (live viewport slack)
 └────────────────────────────┘
 ```
 
@@ -37,8 +37,13 @@ and argues the numbers. Two earlier attempts to reason about that WebView from a
 both ends wrong in opposite directions — a `position: fixed; inset: 0` frame
 pushed the tab bar *further* off the bottom, because a fixed element's
 containing block is the layout viewport and Pay reports it taller than `100dvh`
-does. Every number in that file is now measured from a device screenshot, and
-`?chrome=<top>,<bottom>` and `?diag=1` exist so the next one can be too.
+does. The bottom reserve is measured **live** since 2026-08-23 —
+`viewportSlack`, the layout viewport's excess over the visual one, re-read
+whenever no keyboard is up — because the screenshot-measured 120 was right
+for one day and a 120 px dead band the next; the constant survives only as
+the fallback where `visualViewport` does not exist. The tab bar hides while
+an on-screen keyboard is up (`data-keyboard`, both keyboard modes detected).
+`?chrome=<top>,<bottom>` and `?diag=1` remain the on-device instruments.
 
 Five tabs, and the first two are named for jobs rather than mechanisms:
 **Buy/Search** is discovery and acquisition, **Pay** sends NIM to a name.
@@ -228,7 +233,7 @@ still describe the *new* state once inputs are typed.
 | `G` register | `/params` fee (exact §10.5), availability with non-inclusion proof | Price and term as ≈ date; race possibility; pending fee change if scheduled | `/name` shows the record, owner = me |
 | `N` renew | `/params` fee | New expiry = current + 1 y (from expiry, not from now — early renewal never penalised) | `/name` expiry moved |
 | `S` set target | Target address (or "point back at me" → `PROTOCOL_ADDRESS` sentinel) | Where payments will go; pin note if target was pinned by others | `/resolve` answers the new target |
-| `E` link EVM address | `0x` address (EIP-55 if mixed-case) or clear; pre-filled from `window.ethereum` when injected | The declared address, that it covers every EVM chain, and that the registry records what you declare | `/name` evm set/cleared |
+| `E` link EVM address | `0x` address (EIP-55 if mixed-case) or clear; a button fills it from the wallet (silent `eth_accounts` pre-fill, else the `eth_requestAccounts` connect sheet) — the field stays editable and paste always works | The declared address, that it covers every EVM chain, and that the registry records what you declare | `/name` evm set/cleared |
 | `X` transfer | Recipient address | ~12 h timelock as ≈ date; cancellable with `K` until then; a second `X` restarts; **not** anti-theft wording | `/name` pending.transfer set |
 | `D` delegate | Host (`validateHost`; name+host ≤ 52) or empty to clear | What subdomains will do; that the host answers unproven | `/name` host set/cleared |
 | `K` cancel | Non-empty cancellable set | **Lists everything** it will cancel — one `K` cancels all of it | `/name` pending cleared |

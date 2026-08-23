@@ -42,10 +42,12 @@
  * 48 + 74, rounded up for margin. It is a floor, not a sum with `env()`: one
  * bar is down there, and a host that reports it honestly reports all of it.
  *
- * **This is measured, not derived from anything the host told us** — the SDK
- * exposes no geometry at all. If it is wrong on another device it will show as
- * a dead band above the tab bar; `?chrome=0,<n>` retunes it in a reload and
- * `?diag=1` prints the numbers behind it.
+ * **Demoted to a fallback on 2026-08-23.** The predicted dead band showed up
+ * the very next day — same person, next session, a 120 px blank strip with
+ * the real reserve at 0 — so the reserve is now `viewportSlack`, measured
+ * live from `visualViewport` (the same 74 px component this constant baked
+ * in, on the day it was 74). This number is used only where there is no
+ * `visualViewport` to measure, and `?chrome=0,<n>` still overrides everything.
  */
 export const PAY_NAV_MIN = 120
 
@@ -127,6 +129,8 @@ export function chromeInsets(input: {
   readonly pay: boolean
   readonly safeArea: Insets
   readonly override: Insets | null
+  /** Live {@link viewportSlack}; `null`/absent falls back to {@link PAY_NAV_MIN}. */
+  readonly slack?: number | null
 }): Insets {
   if (input.override !== null) return input.override
   if (!input.pay) return input.safeArea
@@ -137,7 +141,12 @@ export function chromeInsets(input: {
     // reports the status bar there. Honouring it reserved a strip of nothing
     // twice over, once as a 48 px guess and then again as the inset itself.
     top: 0,
-    bottom: Math.max(input.safeArea.bottom, PAY_NAV_MIN),
+    // The bottom reserve is the *measured* slack when the viewport can be
+    // measured. The PAY_NAV_MIN constant survived one day as the answer and
+    // was wrong on the next device (Kike's screenshots, 2026-08-23: a dead
+    // 120 px band with the real reserve at 0) — it is now only the fallback
+    // for a WebView with no visualViewport to measure.
+    bottom: Math.max(input.safeArea.bottom, input.slack ?? PAY_NAV_MIN),
   }
 }
 
@@ -185,44 +194,86 @@ export function describeChrome(
 }
 
 /**
- * Whether an on-screen keyboard is up, from the one signal that means it:
- * the **visual** viewport being materially shorter than the layout one.
+ * Whether an on-screen keyboard is up. Two signatures, because WebViews
+ * disagree about what a keyboard does to the page:
  *
- * The threshold is 100 CSS px — far above any browser-chrome jitter, far
- * below any keyboard. Focus alone is deliberately not the signal: a hardware
- * keyboard and every desktop focus a field without shrinking anything, and
- * hiding the tab bar for them would be a layout jump for no occlusion. A
- * WebView with no `visualViewport` at all answers false and keeps its bar —
- * the pre-2026-08-23 behaviour, degraded rather than guessed.
+ *   - **Overlay mode**: the layout viewport keeps its height and the *visual*
+ *     one shrinks — `innerHeight - visualHeight` opens past 100 px.
+ *   - **Resize mode** — what Pay's in-app browser actually does (Kike's
+ *     second screenshot pair, 2026-08-23: the bar re-stuck above the
+ *     keyboard, so the layout viewport itself shrank and the first detector
+ *     never fired): `innerHeight` drops well below the tallest value this
+ *     session has seen. 150 px is far above any browser-chrome collapse and
+ *     far below any keyboard.
+ *
+ * Focus alone is deliberately not a signal: hardware keyboards and desktops
+ * focus fields without occluding anything. A WebView with no
+ * `visualViewport` still gets the resize-mode answer.
  */
-export function keyboardVisible(win: {
+export function keyboardVisible(view: {
   readonly innerHeight: number
-  readonly visualViewport?: { readonly height: number } | null
+  readonly maxInnerHeight: number
+  readonly visualHeight: number | null
 }): boolean {
-  const visual = win.visualViewport
-  if (visual == null) return false
-  return win.innerHeight - visual.height > 100
+  if (view.visualHeight !== null && view.innerHeight - view.visualHeight > 100) return true
+  return view.maxInnerHeight - view.innerHeight > 150
 }
 
 /**
- * Keep `data-keyboard` on the root element in step with the on-screen
- * keyboard, so `app.css` can hide the tab bar while one is up. Sticky
- * resolves against the resized viewport, which is how the bar ended up
- * mid-screen over the very sheet being typed into (Kike's screenshots,
- * 2026-08-23). `focusin`/`focusout` are listened to as *triggers* only — the
- * decision is always {@link keyboardVisible}'s, with a `focusout` re-check
- * one frame later because the viewport grows back after the event fires.
+ * The layout viewport's excess over the visual one, at rest — the "viewport
+ * taller than what it shows" quirk, **measured live** instead of shipped as
+ * a constant. This is the exact distance a `sticky; bottom: 0` element sits
+ * below the visible area, so it is the exact reserve the tab bar needs; on
+ * a device or Pay build without the quirk it measures 0 and no reserve
+ * appears. `null` where `visualViewport` does not exist — the caller falls
+ * back to {@link PAY_NAV_MIN} rather than guessing 0.
+ *
+ * Only meaningful while no keyboard is up: a keyboard opens the same gap in
+ * overlay mode, which is why {@link watchViewport} re-measures only when
+ * {@link keyboardVisible} says false.
  */
-export function watchKeyboard(win: Window = window): void {
+export function viewportSlack(win: {
+  readonly innerHeight: number
+  readonly visualViewport?: { readonly height: number } | null
+}): number | null {
+  const visual = win.visualViewport
+  if (visual == null) return null
+  return Math.max(0, Math.round(win.innerHeight - visual.height))
+}
+
+/**
+ * Keep the root element in step with the viewport: `data-keyboard` while an
+ * on-screen keyboard is up (app.css hides the tab bar — sticky resolves
+ * against the resized viewport, which is how the bar ended up mid-screen
+ * over the very sheet being typed into), and a re-measured
+ * `--chrome-bottom` whenever it is not (the reserve is live slack, not a
+ * constant). `focusin`/`focusout` are triggers only — the decision is always
+ * {@link keyboardVisible}'s, with a `focusout` re-check shortly after
+ * because the viewport grows back only once the event has fired.
+ */
+export function watchViewport(win: Window = window): void {
   const root = win.document.documentElement
+  let maxInner = win.innerHeight
   const update = () => {
-    if (keyboardVisible(win)) root.dataset['keyboard'] = '1'
-    else delete root.dataset['keyboard']
+    const inner = win.innerHeight
+    maxInner = Math.max(maxInner, inner)
+    const keyboard = keyboardVisible({
+      innerHeight: inner,
+      maxInnerHeight: maxInner,
+      visualHeight: win.visualViewport?.height ?? null,
+    })
+    if (keyboard) {
+      root.dataset['keyboard'] = '1'
+    } else {
+      delete root.dataset['keyboard']
+      applyHostChrome(win, root.dataset['host'] === 'pay')
+    }
   }
   win.visualViewport?.addEventListener('resize', update)
+  win.addEventListener('resize', update)
   win.document.addEventListener('focusin', update)
   win.document.addEventListener('focusout', () => {
-    win.setTimeout(update, 50)
+    win.setTimeout(update, 80)
   })
   update()
 }
@@ -243,6 +294,7 @@ export function applyHostChrome(win: Window = window, hosted = false): Insets {
     pay,
     safeArea: measureSafeArea(win.document),
     override: parseChromeOverride(win.location.search),
+    slack: viewportSlack(win),
   })
   const root = win.document.documentElement
   root.style.setProperty('--chrome-top', `${insets.top}px`)
