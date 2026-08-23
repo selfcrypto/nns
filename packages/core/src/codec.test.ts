@@ -12,6 +12,7 @@ import {
   encodeOffer,
   encodeRegister,
   encodeRenew,
+  encodeSetEvm,
   encodeSetTarget,
   encodeSettlement,
   encodeTransfer,
@@ -60,6 +61,12 @@ describe('every message type round-trips encode → parse', () => {
     ],
     ['S', encodeSetTarget({ name: 'kikename', target: BOB }), { type: 'S', name: 'kikename' }],
     ['S reset', encodeSetTarget({ name: 'kikename', target: null }), { type: 'S', name: 'kikename' }],
+    [
+      'E',
+      encodeSetEvm({ name: 'kikename', evm: '0x1B3F6a09E2c40D55c8a1b2C3d4E5F60718293A4b' }),
+      { type: 'E', name: 'kikename', evm: '0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b' },
+    ],
+    ['E clear', encodeSetEvm({ name: 'kikename', evm: null }), { type: 'E', name: 'kikename', evm: '' }],
     ['X', encodeTransfer({ name: 'kikename', newOwner: BOB }), { type: 'X', name: 'kikename' }],
     [
       'D',

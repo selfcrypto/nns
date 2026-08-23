@@ -44,15 +44,16 @@ const hex0x = (bytes: Uint8Array): string => `0x${Buffer.from(bytes).toString('h
  *
  * The document carries **every field the §8.1 leaf encodes**, because a client
  * re-derives the leaf hash from these fields and a proof whose leaf the
- * verifier cannot rebuild binds nothing. `delegate` is the field that
- * witnesses that rule now — `recovery` carried it until r20 deleted the
- * recovery address. See `docs/decisions.md`.
+ * verifier cannot rebuild binds nothing. `delegate` and `evm` (r26) are the
+ * fields that witness that rule now — `recovery` carried it until r20 deleted
+ * the recovery address. See `docs/decisions.md`.
  */
 function leafDocument(proof: MerkleProof): Record<string, unknown> {
   return {
     name: proof.record.name,
     owner: formatAddress(proof.record.owner),
     target: formatAddress(proof.record.target),
+    evm: proof.record.evm,
     expiry: proof.record.expiry,
     status: proof.record.status,
     delegate: proof.record.host,

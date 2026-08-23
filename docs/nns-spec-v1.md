@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 25**
+**Protocol specification, v1 draft — revision 26**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -20,6 +20,44 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > stays something an implementation can claim to implement rather than a
 > changelog id. A change that touches a section an open revision already
 > touches goes into that revision's note — it does not open a new one.
+
+> **Changes in revision 26 — a name can carry an EVM address.** One new
+> message type and one new leaf field, on-chain and consensus-relevant:
+>
+> - **§6 `E` — Set EVM address.** `NNS1E<name>|<evm>`: the owner binds one
+>   20-byte EVM address to the name — base64url unpadded, 27 characters,
+>   canonical form only, empty to clear. To `PROTOCOL_ADDRESS` with
+>   `DUST_VALUE`, owner-only, effective on inclusion, no timelock: a
+>   mistyped `E` is repaired like a mistyped `S`, by sending another. One
+>   record covers every EVM chain, by the derivation convention multicoin
+>   wallets share. The record is **self-declared** — the protocol proves the
+>   *name owner* said it; control of the EVM key is demonstrated on the EVM
+>   side by that key itself, transacting.
+> - **§8.1 — `evm:20B` enters the leaf**, between `target` and `expiry`,
+>   20 zero bytes when unset. `COMMITMENT_LAYOUT` is **`5`** and every root
+>   changes. A reducer and layout change: every database rebuilds.
+> - **§7.3 — lifecycle.** The record persists through `GRACE` and renewal,
+>   like `target`; it is cleared when a transfer takes effect (`X` or `B`)
+>   and on the fall to `AVAILABLE` — it authorizes a foreign-chain key, and
+>   the authorization must not outlive the ownership that granted it.
+> - **§7.4 — no new verdict tokens.** `E` reuses `WRONG_RECIPIENT`,
+>   `NAME_NOT_REGISTERED` and `NOT_OWNER`, in the `S` check order. A
+>   canonicality violation in the `evm` field — wrong length, a character
+>   outside the alphabet, nonzero trailing bits, the all-zero address — is
+>   `MALFORMED_PAYLOAD`, like a non-canonical number: the field is a
+>   fixed-width encoding of a value, not structured content like a `D`
+>   host. The vocabulary stays 26 tokens. The `UNKNOWN_TYPE` row's type
+>   count had been stale at 14 since r20 retired `R`; with `E`, §6 has 14
+>   types again and the number is true once more.
+> - **Why the leaf, and why only EVM.** The tree is keccak256, so an §8.3
+>   proof verifies cheaply inside an EVM contract; `evm` in the leaf is
+>   what lets a contract bind a name to `msg.sender` trustlessly — the
+>   trust root for any on-chain ecosystem layer, none of which is protocol.
+>   No other chain enters the protocol: a bech32m address cannot fit the
+>   §5.1 budget beside a name, per-chain address validation in the reducer
+>   is a consensus surface, and no other chain brings an on-chain verifier
+>   to serve. Every other per-chain or per-name record composes on the EVM
+>   side, authorized transitively through this one.
 
 > **Changes in revision 25 — the delegate endpoint keeps neither its `v1`
 > segment nor its prefix.** §8.6 only, and §6 `D`'s note on the short path.
@@ -1453,7 +1491,7 @@ Blocks routinely carry several transactions, so this is not a corner case.
 
 | To `TREASURY_ADDRESS` or `PROTOCOL_ADDRESS` | To the counterparty | To `BURN_ADDRESS` |
 |---|---|---|
-| `G` register, `N` renew, `K` cancel, `O` offer, `D` delegate, `A` auction, `P` governance, `U` unreserve *releasing* a name | `S` set, `X` transfer, `U` unreserve *awarding* a name | `F` burn attestation |
+| `G` register, `N` renew, `K` cancel, `O` offer, `D` delegate, `E` EVM address, `A` auction, `P` governance, `U` unreserve *releasing* a name | `S` set, `X` transfer, `U` unreserve *awarding* a name | `F` burn attestation |
 
 **`U` is the only type whose recipient chooses what it does.** For every other
 type the recipient is a route: it says where the message belongs and is checked
@@ -1500,7 +1538,7 @@ requires of the addresses NNS itself signs from.
 **Two protocol addresses, split by purpose.** `TREASURY_ADDRESS` receives
 money — registration and renewal fees, listing fees, marketplace commission.
 `PROTOCOL_ADDRESS` receives everything that carries only `DUST_VALUE`:
-`K`, `D`, `P`, a releasing `U`, and the two sentinels above.
+`K`, `D`, `E`, `P`, a releasing `U`, and the two sentinels above.
 
 The split earns its keep three ways. It keeps the treasury's traffic close to
 its revenue: without it, §10.2's base would sit under an unbounded
@@ -1530,7 +1568,7 @@ The indexer does not rely on this split for discovery; see §7.1.
 
 Fee-bearing messages (`G`, `N`, `O`) carry the fee and go to
 `TREASURY_ADDRESS`. Non-fee-bearing messages carry `DUST_VALUE`: `S` and `X`
-to their counterparty, and `K`, `D`, `A`, `P` plus the single §5.3
+to their counterparty, and `K`, `D`, `E`, `A`, `P` plus the single §5.3
 sentinel to `PROTOCOL_ADDRESS`. `F` and `M` carry the amount being moved (§6).
 
 A `U` carries `DUST_VALUE` under both of its behaviours — to
@@ -1644,6 +1682,52 @@ NNS1S<name>
 Changes where the name resolves; ownership unchanged. This — not `X` — is the
 correct operation for "I generated new seeds and want my name to point at the
 new address."
+
+### `E` — Set EVM address
+
+```
+NNS1E<name>|<evm>
+```
+
+- `evm`: the 20-byte EVM address the owner claims, **base64url, unpadded —
+  exactly 27 characters**. An empty `evm` clears the record. Canonical form
+  is the only valid form: the trailing two bits of the final character MUST
+  be zero, and the all-zero address is invalid — it is the EVM burn address,
+  and it would be a second spelling of the empty-field clear. Any violation
+  — wrong length, a character outside the base64url alphabet, nonzero
+  trailing bits, twenty zero bytes — is `MALFORMED_PAYLOAD` (§7.4), never a
+  token of its own: unlike a `D` host, this field is a fixed-width canonical
+  encoding of a value, like a numeric field (§5.2), not structured content
+- **Size:** 5 + `len(name)` + 1 + 27 ≤ 57 for every valid name — inside the
+  58-byte working limit every message keeps (§6 `D`)
+- **To:** `PROTOCOL_ADDRESS`, value `DUST_VALUE`
+- Sender must be the current owner
+
+Declares the address the owner controls on EVM chains — one address for
+every EVM chain, because multicoin wallets share the derivation convention
+that makes the same address valid on all of them. The record is
+**self-declared**: the protocol verifies that the name's owner said it, not
+that the owner controls the EVM key. Control is demonstrated on the EVM
+side, where the declared address can prove itself by transacting — which is
+also why `evm` sits in the §8.1 leaf: the tree is keccak256, so an EVM
+contract can verify an §8.3 proof and bind a name to `msg.sender` with no
+oracle. Nothing on any other chain is, or becomes, protocol: every further
+per-chain or per-name record composes on the EVM side, authorized
+transitively through this one record.
+
+A later `E` replaces the record; there is no frequency bound and no
+timelock — a mistyped `E` is the same class of self-inflicted loss as a
+mistyped `S` target, and is repaired the same way, by sending another. The
+record persists through `GRACE` and renewal, like `target`; it is cleared
+when a transfer takes effect and on the fall to `AVAILABLE` (§7.3) — it
+authorizes a foreign-chain key, and that authorization must not outlive the
+ownership that granted it.
+
+Clients taking an EVM address as user input SHOULD validate the EIP-55
+checksum when the input is mixed-case, before encoding; the wire and leaf
+forms are raw bytes and carry no checksum of their own.
+
+Example: `NNS1Ekike|Gz9qCeLEDVXIobLD1OX2BxgpOks` — 37 bytes.
 
 ### `X` — Transfer ownership
 
@@ -2248,6 +2332,7 @@ AVAILABLE ──G──▶ REGISTERED ──expiry──▶ GRACE ──+30d─�
                       │
                       ├──X (after timelock)──▶ REGISTERED (new owner)
                       ├──S──────────────────▶ target changed
+                      ├──E──────────────────▶ EVM address set/cleared
                       ├──D──────────────────▶ delegate host set/cleared
                       └──O + B──────────────▶ REGISTERED (buyer)
 ```
@@ -2319,13 +2404,16 @@ A `U` therefore competes with the transactions in its own block on the ordinary
 the landing block", for what a same-block `G` sees from either side of it.
 
 **Dependent-state resets.** When a transfer takes effect (`X` after its
-timelock, or `B`): `owner` and `target` both become the new owner, the
-delegate host is cleared, open offers are cancelled, and any pending `X` is
-void. A clean slate is the safe default — in
-particular, the old target must not keep receiving funds sent to the name —
+timelock, or `B`): `owner` and `target` both become the new owner, the EVM
+address and the delegate host are cleared, open offers are cancelled, and
+any pending `X` is void. A clean slate is the safe default — in
+particular, the old target must not keep receiving funds sent to the name,
+and the old owner's EVM key must not keep answering for it —
 and the new owner reconfigures explicitly. On entering `GRACE`: the delegate
 host is cleared (a lapsed name cannot keep answering for its subdomains),
-and open offers and any pending `X` are cancelled. On falling to
+and open offers and any pending `X` are cancelled; the EVM address
+persists, like `owner` and `target`, so a grace-then-renew round trip does
+not force the owner to re-declare it. On falling to
 `AVAILABLE`, all state for the name is cleared.
 
 ### 7.4 Rejection: forfeit versus refund
@@ -2349,14 +2437,14 @@ the message before the race does.
 - `G` whose name is invalid per §4.1 or reserved — checkable offline
 - `G` for a name in `GRACE` — the status and its end height are provable
   from the checkpoint tree (§8.1), so a correct client prevents it
-- `S`, `O`, `D`, `X`, `K` from anyone other than the current owner
+- `S`, `O`, `D`, `E`, `X`, `K` from anyone other than the current owner
 - `O` whose price is below `MIN_PRICE` (§6 `O`). The floor is `FEE_LONG` as
   in effect at that height, and the active prices are committed to in every
   checkpoint (§8.1), so a correct client can prove it before sending. The
   payload is checked before the value carried, exactly as a `G`'s name
   syntax is: a message whose own payload is unusable is rejected on that
   ground whatever it paid
-- `X`, `S`, `D` on an expired or grace-period name
+- `X`, `S`, `D`, `E` on an expired or grace-period name
 - `D` whose host exceeds `MAX_HOST_LEN` or includes a scheme
 - `P` from any sender other than `ADMIN_ADDRESS`, violating a §10.6 bound, or
   carrying less than `GOVERNANCE_DELAY` notice — counted from the height of the
@@ -2444,16 +2532,16 @@ against a message of a listed type.
 | `UNKNOWN_TYPE` | any | `NNS1` prefix, but the type character is not one of the 14 in §6 |
 | `OVER_LENGTH` | any | Payload longer than the 64-byte budget (§5.1) |
 | `MALFORMED_PAYLOAD` | any | Known type, but the payload does not parse per §6 — wrong field count, empty name, unparseable integer, non-canonical number (§6) |
-| `WRONG_RECIPIENT` | `G` `D` `K` `N` `O` `B` `A` `P` `F` | Not the recipient §5.3 routes this type to |
+| `WRONG_RECIPIENT` | `G` `D` `E` `K` `N` `O` `B` `A` `P` `F` | Not the recipient §5.3 routes this type to |
 | `INVALID_RECIPIENT` | `U` | Recipient is `BURN_ADDRESS` — the one address a name may not be awarded to (§6 `U`) |
 | `WRONG_SENDER` | `M` `F` | `M` from neither `MARKETPLACE_ADDRESS` nor `TREASURY_ADDRESS`; `F` from other than `TREASURY_ADDRESS` |
 | `INSUFFICIENT_VALUE` | `G` `N` `O` | Value below the fee this message owes: the band fee for the name at this message's height for `G` and `N` (§10.1), the listing fee for `O` (§6 `O`) — unreachable for `O` while `LISTING_FEE` is 0 |
 | `INVALID_NAME` | `G` `U` | Name fails §4.1 rules 2–5 or the rule 1 ceiling. The floor never fires here: a 1–4 character name satisfying rules 2–5 is reserved by rule (§4.1), so a `G` for one takes `RESERVED_NAME` while it is held and is a normal registration once a `U` has released it. Rule 6 is inverted for `U`, since a `U`'s name must be *in* `RESERVED_NAMES` |
 | `RESERVED_NAME` | `G` | Name currently in `RESERVED_NAMES` — on the published list or reserved by rule (§4.1) — and not yet removed from it by a fired `U` |
 | `NAME_IN_GRACE` | `G` | Name exists in `GRACE` |
-| `NAME_NOT_REGISTERED` | `S` `X` `D` `O` | Name absent, expired, or in `GRACE` — these types require `REGISTERED` |
+| `NAME_NOT_REGISTERED` | `S` `X` `D` `E` `O` | Name absent, expired, or in `GRACE` — these types require `REGISTERED` |
 | `NAME_NOT_FOUND` | `K` `N` | Name has no record at all. Distinct from the row above because `K` and `N` are valid against a name in `GRACE` |
-| `NOT_OWNER` | `S` `X` `D` `O` `K` | Sender is not the current owner |
+| `NOT_OWNER` | `S` `X` `D` `E` `O` `K` | Sender is not the current owner |
 | `INVALID_HOST` | `D` | Host fails any §6 `D` rule: over `MAX_HOST_LEN`, a character outside the §6 `D` alphabet (which is how a scheme is caught — `:` is not in it), or a leading/trailing/consecutive-character rule. Never `MALFORMED_PAYLOAD` — a bad host still splits into fields per §5.2, so the payload parses and the host is judged as content |
 | `NOT_ADMIN` | `P` `U` | Sender is not `ADMIN_ADDRESS` |
 | `INSUFFICIENT_NOTICE` | `P` | `effective_height` less than `GOVERNANCE_DELAY` above the height of the block the message landed in. **`P` only since r22** — `U` no longer carries a height |
@@ -2508,6 +2596,7 @@ each type runs its rows in this order:
 |---|---|
 | `G` | `INVALID_NAME`, `RESERVED_NAME`, `INSUFFICIENT_VALUE`, `NAME_IN_GRACE`, `LOST_REGISTRATION_RACE` — as fixed above |
 | `S` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
+| `E` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
 | `D` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `INVALID_HOST` |
 | `X` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
 | `K` | `NAME_NOT_FOUND`, `NOT_OWNER`, `NOTHING_TO_CANCEL` |
@@ -2567,7 +2656,7 @@ That is the whole rule.
 
 Deliberately, there is **no anti-spam machinery in v1**. Fee-bearing messages
 (`G`, `N`, `O`) are priced by their own fee, which is what §8.2's growth
-bound rests on. Signalling messages (`K`, `D`, `S`, `X`) are not priced,
+bound rests on. Signalling messages (`K`, `D`, `E`, `S`, `X`) are not priced,
 so someone who owns a name can emit them repeatedly for the cost of the dust
 and the network fee. Registration is the only gate.
 
@@ -2602,15 +2691,19 @@ The tree itself:
 - `leaf = keccak256(0x00 ‖ enc)`; internal nodes `keccak256(0x01 ‖ left ‖
   right)`. The one-byte domain-separation prefixes prevent a crafted leaf
   from being reinterpreted as an internal node (second-preimage hardening)
-- `enc = len(name):u8 ‖ name ‖ owner:20B ‖ target:20B ‖ expiry:u64-BE ‖
-  status:u8 ‖ len(host):u8 ‖ host`
+- `enc = len(name):u8 ‖ name ‖ owner:20B ‖ target:20B ‖ evm:20B ‖
+  expiry:u64-BE ‖ status:u8 ‖ len(host):u8 ‖ host`
   - `name` and `host` are raw ASCII bytes; every variable-length field is
     length-prefixed, so no two distinct states share an encoding
   - Addresses are the raw 20-byte form, never the `NQ` string; an unset
     host has length 0
+  - `evm` is the address set by the name's last effective `E` (§6 `E`), or
+    20 zero bytes when unset — unambiguous, because an all-zero `E` payload
+    is `MALFORMED_PAYLOAD`, so no set record can encode as unset
   - Through r19 a `recovery:20B` field sat between `status` and the host.
     r20 deleted the recovery address (§6), so it is gone and **every root
-    changes**; `COMMITMENT_LAYOUT` is `4`
+    changes**; r26 then inserted `evm:20B` between `target` and `expiry`,
+    and every root changes again. `COMMITMENT_LAYOUT` is `5`
   - `status` is `0x00` for `REGISTERED`, `0x01` for `GRACE`
 - Odd nodes promoted unchanged; empty tree → 32 zero bytes
 
@@ -2755,7 +2848,8 @@ rather than consensus state.
 The reference implementation's `merkle.json` conformance vectors pin every value
 above, all three empty forms included. They track this clause: `0x0A` and the
 six unreserved cases landed with r16, the pending `U`'s 20-byte `recipient`
-with r17, and the name leaf lost `recovery:20B` with r20 — each regeneration
+with r17, the name leaf lost `recovery:20B` with r20 and gained `evm:20B`
+with r26 — each regeneration
 recorded in the file's own `spec` field. r22 removes the pending-`U` cases:
 **every case whose state is still reachable keeps its r21 value, byte for
 byte**, which is the file-level form of the argument above. The two that existed
@@ -2898,6 +2992,7 @@ of overclaim §2.1 exists to avoid.
   "name": "kike",
   "owner": "NQ...",
   "target": "NQ...",
+  "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b",
   "expiry": 215725374,
   "status": "REGISTERED",
   "delegate": "nns.binance.com",
@@ -2918,8 +3013,10 @@ here: §8.1's odd-node promotion makes the tree shape depend on the leaf
 count, so neither a sibling's side nor the promotion points can be recovered
 from the hashes alone.
 
-The document carries **every field the §8.1 leaf encodes** — `delegate`
-included, `""` when unset — because the client re-derives the leaf hash
+The document carries **every field the §8.1 leaf encodes** — `delegate` and
+`evm` included, `""` when unset; `evm` is lowercase `0x`-prefixed hex when
+set, per the §5.1 hex convention, and a verifier rebuilds `""` as 20 zero
+bytes — because the client re-derives the leaf hash
 from these fields and recombines it with the proof (§8.5). Omit one and the
 proof stops binding the record: a verifier that cannot rebuild the preimage
 is verifying a hash it was handed, which proves nothing about the fields
@@ -2927,8 +3024,8 @@ next to it. This rule has already been broken once: `recovery` was missing
 from this example through r16, and the gap was found when the first
 verification test tried to rebuild a leaf for a record that had one. That
 field is gone with `R` (r20), but the rule it exposed is not — `delegate`
-now carries it, and an implementation must keep a test that strips a leaf
-field and expects verification to fail.
+and `evm` now carry it, and an implementation must keep a test that strips a
+leaf field and expects verification to fail.
 
 **Non-inclusion** — needed before a user pays to register — is proven by
 returning the two adjacent leaves that lexicographically bracket the queried
@@ -3987,12 +4084,12 @@ not in v1.
 
 ### 16.2 Pricing signalling messages
 
-`G`, `N` and `O` are priced by their own fee. `K`, `D`, `S` and `X` are
+`G`, `N` and `O` are priced by their own fee. `K`, `D`, `E`, `S` and `X` are
 not, so a name owner can emit them repeatedly at dust cost. Three mechanisms
 were considered:
 
 - **A `SIGNAL_FEE` in `value`**, for messages addressed to
-  `PROTOCOL_ADDRESS`. Works for `K`, `D`, `P` and a releasing `U`. Does
+  `PROTOCOL_ADDRESS`. Works for `K`, `D`, `E`, `P` and a releasing `U`. Does
   **not** work for `S`, `X` — or, since r17, an awarding `U`: their
   recipient is the counterparty — usually the user's own other address — so
   the fee would be money moving between one person's pockets, or in the award's

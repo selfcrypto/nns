@@ -136,6 +136,21 @@ function readSteps(source: unknown, path: string): readonly ProofStep[] {
   })
 }
 
+/**
+ * §8.3's `evm` — lowercase `0x`-hex when set, `''` when unset, rebuilt into
+ * the leaf as 20 raw bytes (zero bytes for `''`). Strict on case: the §5.1
+ * hex convention is lowercase, and an uppercase digit here would re-derive
+ * the same bytes while disagreeing with every other document — reject it
+ * rather than normalise.
+ */
+function readEvm(source: unknown, path: string): string {
+  const value = readString(source, path, 'evm')
+  if (value !== '' && !/^0x[0-9a-f]{40}$/.test(value)) {
+    throw new DocumentError(`${path}.evm`, 'expected "" or a lowercase 0x-prefixed 20-byte hex address')
+  }
+  return value
+}
+
 function readLeaf(source: unknown, path: string): ProvenLeaf {
   // `delegate: null` and `delegate: ""` are the same leaf: §8.1 length-prefixes
   // the host, so both encode as a single zero byte.
@@ -149,6 +164,7 @@ function readLeaf(source: unknown, path: string): ProvenLeaf {
       name: readString(source, path, 'name'),
       owner: readAddress(source, path, 'owner'),
       target: readAddress(source, path, 'target'),
+      evm: readEvm(source, path),
       expiry: readCount(source, path, 'expiry'),
       status: readStatus(source, path, 'status'),
       host: delegate ?? '',

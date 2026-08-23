@@ -77,6 +77,7 @@ export type NameRow = {
   name: string
   owner: string
   target: string
+  evm: string
   expiry: number
   status: string
   host: string
@@ -163,6 +164,7 @@ export function nameRows(state: NnsState): NameRow[] {
     name: record.name,
     owner: record.owner,
     target: record.target,
+    evm: record.evm,
     expiry: record.expiry,
     status: record.status,
     host: record.host,
@@ -259,6 +261,7 @@ function readName(row: NameRow): NameRecord {
     name: toText(row.name, 'names.name'),
     owner: toAddress(row.owner, 'names.owner'),
     target: toAddress(row.target, 'names.target'),
+    evm: toText(row.evm, 'names.evm'),
     expiry: toHeight(row.expiry, 'names.expiry'),
     status: status satisfies NameStatus,
     host: toText(row.host, 'names.host'),

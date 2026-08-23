@@ -125,6 +125,37 @@ export function hostLanguage(): string | undefined {
 }
 
 /**
+ * Best-effort probe for the host's own EVM address, to pre-fill the §6 `E`
+ * input. The mini-app SDK's typed surface is NIM-only (its ten
+ * `WALLET_METHODS`), but the SDK is a fork of Trust's `trust-web3-provider`,
+ * whose WebView lineage conventionally injects an EIP-1193 provider as
+ * `window.ethereum` — whether Pay's does is unmeasured, so this asks and
+ * treats every failure as "no". `eth_accounts` only reads the already-exposed
+ * account list; nothing here prompts, connects, or signs.
+ *
+ * A positive answer is a pre-fill, never an authority: the user still
+ * reviews the address, and the record is whatever they confirm. If this is
+ * ever observed answering inside Pay, record it in docs/rpc-reference.md §8.
+ */
+export async function probeHostEvmAddress(): Promise<string | null> {
+  if (typeof window === 'undefined') return null
+  const provider = (window as { ethereum?: unknown }).ethereum
+  if (typeof provider !== 'object' || provider === null) return null
+  const request = (provider as { request?: unknown }).request
+  if (typeof request !== 'function') return null
+  try {
+    const answer: unknown = await (request as (args: { method: string }) => Promise<unknown>).call(provider, {
+      method: 'eth_accounts',
+    })
+    if (!Array.isArray(answer)) return null
+    const first = answer.find((entry) => typeof entry === 'string' && /^0x[0-9a-fA-F]{40}$/.test(entry))
+    return typeof first === 'string' ? first.toLowerCase() : null
+  } catch {
+    return null
+  }
+}
+
+/**
  * Development affordance for a desktop browser, where no wallet is injected:
  * `?address=NQ…` stands in as the viewer identity. Read-only — it can never
  * sign anything, so it impersonates nothing.

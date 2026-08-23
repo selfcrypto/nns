@@ -30,6 +30,8 @@ export interface ApiNameRecord {
   readonly name: string
   readonly owner: Address
   readonly target: Address
+  /** §6 `E` record — lowercase `0x`-hex, `''` when unset. */
+  readonly evm: string
   readonly expiry: number
   readonly status: NameStatus
   readonly host: string
@@ -236,6 +238,7 @@ function nameRecord(row: Row): ApiNameRecord {
     name: text(row, 'name'),
     owner: address(row, 'owner'),
     target: address(row, 'target'),
+    evm: text(row, 'evm'),
     expiry: toHeight(row['expiry'], 'expiry'),
     status: status(row),
     host: text(row, 'host'),
@@ -252,7 +255,7 @@ function offer(row: Row): ApiOffer {
   }
 }
 
-const NAME_COLUMNS = 'name, owner, target, expiry, status, host'
+const NAME_COLUMNS = 'name, owner, target, evm, expiry, status, host'
 
 const CHECKPOINT_COLUMNS =
   'height, layout, name_root, prices_root, pending_root, unreserved_root, log_hash, commitment'

@@ -102,13 +102,17 @@ export class CheckpointError extends Error {
  *   `recovery:20B` and the pending-transfer entry lost `via_recovery:u8`, so
  *   **every** commitment changed value, not only those over some particular
  *   pending item. Tag `0x06` (pending `R`) is retired and not reused.
+ * - `5` — r26: the name leaf gained `evm:20B` between `target` and `expiry`
+ *   (§6 `E`, 20 zero bytes when unset), so **every** commitment changed value
+ *   again. Migration 008 adds the column; every layout-4 database is dropped
+ *   and resynced, as every layout-3 database was at r20.
  *
  * Each bump changed the value of commitments the earlier function also
  * produced, so rows at different layouts at the same height are not comparable
  * and their difference is not a divergence. This column exists so that stays
  * legible in the data instead of being a mismatch nobody can explain.
  */
-export const COMMITMENT_LAYOUT = 4
+export const COMMITMENT_LAYOUT = 5
 
 /** A checkpoint, as it goes into the `checkpoints` table. `BYTEA` wants `Buffer`. */
 export type CheckpointRow = {

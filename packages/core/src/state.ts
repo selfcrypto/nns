@@ -30,6 +30,12 @@ export interface NameRecord {
   readonly status: NameStatus
   /** Delegate resolver host, `''` when none (§6 `D`). */
   readonly host: string
+  /**
+   * EVM address the owner declared, lowercase `0x`-hex, `''` when none
+   * (§6 `E`). One record covers every EVM chain; §8.1 commits it as raw
+   * 20 bytes, zero when unset.
+   */
+  readonly evm: string
 }
 
 /** An `X` awaiting its `XFER_TIMELOCK` (§6 `X`). */

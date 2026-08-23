@@ -215,6 +215,7 @@ function serialiseRecord(record: ApiNameRecord): Record<string, unknown> {
     name: record.name,
     owner: formatAddress(record.owner),
     target: formatAddress(record.target),
+    evm: record.evm,
     expiry: record.expiry,
     status: record.status,
     host: record.host,
@@ -285,6 +286,7 @@ export function createRoutes(queries: Queries): RouteHandler {
     return respond(200, {
       name,
       target: formatAddress(record.target),
+      evm: record.evm,
       status: record.status,
       expiry: record.expiry,
       host: record.host,
@@ -377,6 +379,7 @@ export function createRoutes(queries: Queries): RouteHandler {
       names: value.map((record) => ({
         name: record.name,
         target: formatAddress(record.target),
+        evm: record.evm,
         expiry: record.expiry,
         status: record.status,
         host: record.host,

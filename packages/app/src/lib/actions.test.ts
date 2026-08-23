@@ -18,7 +18,7 @@ const registered = (over?: Partial<NameInfo['pending']>): NameInfo => ({
   name: 'example',
   reserved: false,
   unreserved: false,
-  record: { name: 'example', owner: OWNER, target: OWNER, expiry: 2_000_000, status: 'REGISTERED', host: '' },
+  record: { name: 'example', owner: OWNER, target: OWNER, evm: '', expiry: 2_000_000, status: 'REGISTERED', host: '' },
   pending: { transfer: null, offer: null, ...over },
   height: 1_000_000,
 })
@@ -45,6 +45,25 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     const { sameAddress } = await import('./states')
     const prepared = prepare({ action: 'setTarget', target: OTHER })
     expect(sameAddress(prepared.request.recipient, OTHER)).toBe(true)
+  })
+
+  it('set EVM address routes to PROTOCOL_ADDRESS at dust, base64url in the payload (§6 E)', () => {
+    const prepared = prepare({ action: 'setEvm', evm: '0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b' })
+    expect(prepared.request.recipient).toBe(CONSTANTS.PROTOCOL_ADDRESS)
+    expect(prepared.request.value).toBe(CONSTANTS.DUST_VALUE)
+    expect(Buffer.from(prepared.request.dataHex, 'hex').toString()).toBe('NNS1Eexample|Gz9qCeLEDVXIobLD1OX2BxgpOks')
+  })
+
+  it('set EVM address enforces EIP-55 on mixed-case input — the only checksum the record gets', () => {
+    // Correct checksum case for this address flips at least one letter; break one.
+    expect(() => prepare({ action: 'setEvm', evm: '0x5Aaeb6053F3E94C9b9A09f33669435E7Ef1BeAed' })).toThrow(
+      /checksum/,
+    )
+  })
+
+  it('clearing the EVM address sends the empty field form', () => {
+    const prepared = prepare({ action: 'setEvm', evm: 'clear' })
+    expect(Buffer.from(prepared.request.dataHex, 'hex').toString()).toBe('NNS1Eexample|')
   })
 
   it('transfer to the owning address is refused before any transaction exists', () => {

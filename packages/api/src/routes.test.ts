@@ -46,6 +46,7 @@ const RECORD = {
   target: B,
   expiry: 215_880_000,
   status: 'REGISTERED' as const,
+  evm: '',
   host: '',
 }
 
@@ -141,6 +142,7 @@ describe('/resolve', () => {
         name: 'alice-example',
         target: 'NQ93 48H2 48H2 48H2 48H2 48H2 48H2 48H2 48H2',
         status: 'REGISTERED',
+        evm: '',
         expiry: 215_880_000,
         host: 'r.example.com',
         proof: null,
@@ -292,6 +294,7 @@ describe('/name', () => {
           target: formatAddress(B),
           expiry: 215_880_000,
           status: 'REGISTERED',
+          evm: '',
           host: 'r.example.com',
         },
         pending: {
@@ -339,7 +342,9 @@ describe('/address/{addr}/names', () => {
         status: 200,
         body: {
           address: formatAddress(A),
-          names: [{ name: 'alice-example', target: formatAddress(B), expiry: 215_880_000, status: 'REGISTERED', host: '' }],
+          names: [
+            { name: 'alice-example', target: formatAddress(B), evm: '', expiry: 215_880_000, status: 'REGISTERED', host: '' },
+          ],
           height: HEIGHT,
         },
       })
@@ -439,6 +444,7 @@ function verifiesWithCoreAlone(doc: Record<string, unknown>, rootHex0x: string):
     name: doc['name'] as string,
     owner: parseAddress(doc['owner'] as string),
     target: parseAddress(doc['target'] as string),
+    evm: doc['evm'] as string,
     expiry: doc['expiry'] as number,
     status: doc['status'] as NameStatus,
     host: doc['delegate'] as string,

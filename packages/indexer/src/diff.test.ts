@@ -20,7 +20,7 @@ function withName(state: NnsState, name: string, overrides: Record<string, unkno
     target: compact(A),
     expiry: 215_000_000,
     status: 'REGISTERED',
-    recovery: null,
+    evm: '',
     host: '',
     ...overrides,
   } as NameRecord)

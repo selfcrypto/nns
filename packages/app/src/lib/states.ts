@@ -45,6 +45,7 @@ export function nameView(name: string, info: NameInfo | null): NameView {
 export type AppAction =
   | 'register'
   | 'setTarget'
+  | 'setEvm'
   | 'transfer'
   | 'delegate'
   | 'cancel'
@@ -154,6 +155,7 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
   return {
     register: register(),
     setTarget: ownerGate(),
+    setEvm: ownerGate(),
     transfer: ownerGate(),
     delegate: ownerGate(),
     cancel: cancel(),

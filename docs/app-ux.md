@@ -222,6 +222,7 @@ compose ──▶ review (in-app) ──▶ Pay sheet (wallet UI) ──▶ conf
 | `G` register | `/params` fee (exact §10.5), availability with non-inclusion proof | Price and term as ≈ date; race possibility; pending fee change if scheduled | `/name` shows the record, owner = me |
 | `N` renew | `/params` fee | New expiry = current + 1 y (from expiry, not from now — early renewal never penalised) | `/name` expiry moved |
 | `S` set target | Target address (or "point back at me" → `PROTOCOL_ADDRESS` sentinel) | Where payments will go; pin note if target was pinned by others | `/resolve` answers the new target |
+| `E` link EVM address | `0x` address (EIP-55 if mixed-case) or clear; pre-filled from `window.ethereum` when injected | The declared address, that it covers every EVM chain, and that the registry records what you declare | `/name` evm set/cleared |
 | `X` transfer | Recipient address | ~12 h timelock as ≈ date; cancellable with `K` until then; a second `X` restarts; **not** anti-theft wording | `/name` pending.transfer set |
 | `D` delegate | Host (`validateHost`; name+host ≤ 52) or empty to clear | What subdomains will do; that the host answers unproven | `/name` host set/cleared |
 | `K` cancel | Non-empty cancellable set | **Lists everything** it will cancel — one `K` cancels all of it | `/name` pending cleared |

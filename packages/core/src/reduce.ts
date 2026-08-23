@@ -188,17 +188,17 @@ function computeNextDue(draft: Draft): number {
 
 /**
  * §7.3: on a transfer taking effect (`X` after its timelock, or `B`), owner
- * and target both become the new owner, the delegate host is cleared, open
- * offers are cancelled, and any pending `X` is void.
+ * and target both become the new owner, the EVM address and the delegate
+ * host are cleared, open offers are cancelled, and any pending `X` is void.
  *
  * A clean slate is the safe default — in particular the old target must not
- * keep receiving funds sent to the name — and the new owner reconfigures
- * explicitly.
+ * keep receiving funds sent to the name, and the old owner's EVM key must
+ * not keep answering for it — and the new owner reconfigures explicitly.
  */
 function applyTransfer(draft: Draft, name: string, newOwner: Address): void {
   const record = draft.names.get(name)
   if (record === undefined) return
-  draft.names.set(name, { ...record, owner: newOwner, target: newOwner, host: '' })
+  draft.names.set(name, { ...record, owner: newOwner, target: newOwner, host: '', evm: '' })
   draft.transfers.delete(name)
   draft.offers.delete(name)
 }
@@ -206,7 +206,8 @@ function applyTransfer(draft: Draft, name: string, newOwner: Address): void {
 /**
  * §7.3 on entering `GRACE`: the delegate host is cleared — a lapsed name
  * cannot keep answering for its subdomains — and open offers and any pending
- * `X` are cancelled.
+ * `X` are cancelled. The EVM address persists, like `owner` and `target`,
+ * so a grace-then-renew round trip does not force the owner to re-declare it.
  */
 function enterGrace(draft: Draft, name: string): void {
   const record = draft.names.get(name)
@@ -547,6 +548,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
         expiry,
         status: 'REGISTERED',
         host: '',
+        evm: '',
       })
       schedule(draft, expiry)
       return { state: freeze(draft), verdict: ok() }
@@ -564,6 +566,21 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
 
       const draft = draftOf(state)
       draft.names.set(message.name, { ...record, target })
+      return { state: freeze(draft), verdict: ok() }
+    }
+
+    // ── E — Set EVM address (§6) ─────────────────────────────────────────────
+    case 'E': {
+      if (!addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS)) return keep(forfeit('WRONG_RECIPIENT'))
+      const record = state.names.get(message.name)
+      if (record === undefined || record.status !== 'REGISTERED') return keep(forfeit('NAME_NOT_REGISTERED'))
+      if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
+
+      // The payload was judged at parse: a non-canonical evm field is
+      // MALFORMED_PAYLOAD before this case is reached (§6 `E`), so `evm` here
+      // is `''` (clear) or a valid lowercase 0x-hex address.
+      const draft = draftOf(state)
+      draft.names.set(message.name, { ...record, evm: message.evm })
       return { state: freeze(draft), verdict: ok() }
     }
 
@@ -814,8 +831,8 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       draft.unreserved.add(message.name)
       // §6 `U`: an award additionally creates the REGISTERED record — owner
       // and target the awardee, a full TERM_LENGTH from this block, delegate
-      // host unset, nothing pending. A release stops at the line above and the
-      // name is AVAILABLE under the normal rules.
+      // host and EVM address unset, nothing pending. A release stops at the
+      // line above and the name is AVAILABLE under the normal rules.
       if (!addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS)) {
         const expiry = tx.blockNumber + CONSTANTS.TERM_LENGTH
         draft.names.set(message.name, {
@@ -825,6 +842,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
           expiry,
           status: 'REGISTERED',
           host: '',
+          evm: '',
         })
         schedule(draft, expiry)
       }

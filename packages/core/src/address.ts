@@ -12,6 +12,8 @@
  * characters of Nimiq base32 encoding 160 bits.
  */
 
+import { keccak_256 } from '@noble/hashes/sha3.js'
+
 declare const AddressBrand: unique symbol
 
 /**
@@ -159,3 +161,39 @@ export const isZeroAddress = (address: Address): boolean => address === ZERO_ADD
 
 /** Byte-exact equality. Addresses are already canonical, so this is `===`. */
 export const addressEquals = (a: Address, b: Address): boolean => a === b
+
+/**
+ * §6 `E`'s client input rule, in one place: an EVM address as a user typed
+ * it → the canonical lowercase `0x`-hex the builder and the leaf use, or
+ * `null`.
+ *
+ * Mixed-case input MUST carry a valid EIP-55 checksum — that is the SHOULD
+ * §6 `E` places on clients, and the only fat-finger protection the wire form
+ * has, since base64url carries no checksum of its own. All-lowercase and
+ * all-uppercase inputs carry no checksum claim and are accepted as-is.
+ * The all-zero address is `null` here for the same reason the codec refuses
+ * it: it is the EVM burn address, and NNS has no meaning for it.
+ */
+export function tryParseEvmAddress(input: string): string | null {
+  const trimmed = input.trim()
+  if (!/^0x[0-9a-fA-F]{40}$/.test(trimmed)) return null
+  const body = trimmed.slice(2)
+  if (!/[1-9a-fA-F]/.test(body)) return null
+  const lower = body.toLowerCase()
+  if (body !== lower && body !== body.toUpperCase() && body !== checksumCase(lower)) return null
+  return `0x${lower}`
+}
+
+/** EIP-55: uppercase each hex letter whose nibble in keccak256(ascii(lower)) is ≥ 8. */
+function checksumCase(lower: string): string {
+  const ascii = new Uint8Array(40)
+  for (let i = 0; i < 40; i++) ascii[i] = lower.charCodeAt(i)
+  const hash = keccak_256(ascii)
+  let out = ''
+  for (let i = 0; i < 40; i++) {
+    const char = lower.charAt(i)
+    const nibble = i % 2 === 0 ? (hash[i >> 1] as number) >> 4 : (hash[i >> 1] as number) & 0x0f
+    out += nibble >= 8 ? char.toUpperCase() : char
+  }
+  return out
+}

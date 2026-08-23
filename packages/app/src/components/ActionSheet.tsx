@@ -3,6 +3,7 @@ import { prepareAction, ActionInputError, type ActionInputs } from '../lib/actio
 import { getParams, type NameInfo } from '../lib/api'
 import { defaultTransport } from '../lib/history'
 import { apiBase } from '../lib/nns'
+import { probeHostEvmAddress } from '../lib/sdk'
 import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
 import type { AppAction } from '../lib/states'
@@ -52,6 +53,13 @@ export function ActionSheet({
   const params = paramsState.status === 'done' ? paramsState.value : null
   const [target, setTarget] = useState('')
   const [resetTarget, setResetTarget] = useState(false)
+  const [evmInput, setEvmInput] = useState('')
+  const [clearEvm, setClearEvm] = useState(false)
+  // Best-effort pre-fill from the host wallet (window.ethereum, if Pay's
+  // WebView injects one) — a suggestion the user still reviews, never an
+  // authority. Empty answer, no probe result yet, no injection: paste field.
+  const hostEvm = useAsync(() => (action === 'setEvm' ? probeHostEvmAddress() : Promise.resolve(null)), [action])
+  const suggestedEvm = hostEvm.status === 'done' ? hostEvm.value : null
   const [newOwner, setNewOwner] = useState('')
   const [host, setHost] = useState('')
   const [priceNim, setPriceNim] = useState('')
@@ -63,6 +71,8 @@ export function ActionSheet({
     switch (action) {
       case 'setTarget':
         return { action, target: resetTarget ? 'reset' : target }
+      case 'setEvm':
+        return { action, evm: clearEvm ? 'clear' : evmInput }
       case 'transfer':
         return { action, newOwner }
       case 'delegate':
@@ -75,12 +85,14 @@ export function ActionSheet({
       case 'buy':
         return { action }
     }
-  }, [action, target, resetTarget, newOwner, host, priceNim])
+  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, priceNim])
 
   const inputsTouched = (() => {
     switch (action) {
       case 'setTarget':
         return resetTarget || target.trim() !== ''
+      case 'setEvm':
+        return clearEvm || evmInput.trim() !== ''
       case 'transfer':
         return newOwner.trim() !== ''
       case 'offer':
@@ -139,6 +151,31 @@ export function ActionSheet({
               value={target}
               onChange={(event) => setTarget(event.target.value)}
             />
+          )}
+        </>
+      )}
+      {action === 'setEvm' && (
+        <>
+          {info?.record?.evm ? (
+            <label className="sheet-check">
+              <input type="checkbox" checked={clearEvm} onChange={(event) => setClearEvm(event.target.checked)} />
+              Remove the linked address
+            </label>
+          ) : null}
+          {!clearEvm && (
+            <>
+              <input
+                className="sheet-input nns-name"
+                placeholder={info?.record?.evm ? `${info.record.evm} (current)` : '0x… EVM address'}
+                value={evmInput}
+                onChange={(event) => setEvmInput(event.target.value)}
+              />
+              {suggestedEvm !== null && evmInput.trim() === '' && (
+                <button type="button" className="sheet-suggest" onClick={() => setEvmInput(suggestedEvm)}>
+                  Use this wallet’s address: {suggestedEvm}
+                </button>
+              )}
+            </>
           )}
         </>
       )}

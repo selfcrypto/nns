@@ -296,6 +296,7 @@ describe('the unreserved set is committed — r16 §8.1, tag 0x0A', () => {
       target: compact(D),
       expiry: base.height + 31_536_000,
       status: 'REGISTERED',
+      evm: '',
       host: '',
     })
     expect(commit(awarded)).not.toBe(commit(released))
@@ -326,6 +327,7 @@ describe('the unreserved set is committed — r16 §8.1, tag 0x0A', () => {
       target: compact(A),
       expiry: LAUNCH + 100_000,
       status: 'REGISTERED',
+      evm: '',
       host: '',
     }
     expect(commit(withName(base, record))).not.toBe(commit(base))

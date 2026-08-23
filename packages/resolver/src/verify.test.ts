@@ -57,11 +57,19 @@ describe('inclusion', () => {
     // must break verification, or the document stops binding the record (§8.3).
     ['delegate stripped', (json) => void (json['delegate'] = null)],
     ['delegate', (json) => void (json['delegate'] = 'evil.example')],
+    // `evm` joined the leaf in r26 and carries the same witness: a cleared or
+    // substituted record must stop the preimage hashing to the proven leaf.
+    ['evm stripped', (json) => void (json['evm'] = '')],
+    ['evm', (json) => void (json['evm'] = '0x00000000000000000000000000000000000000ff')],
   ]
 
   for (const [field, mutate] of tampered) {
     it(`rejects a proof whose ${field} was altered`, () => {
-      const records = [record('alpha'), record('bravo', { host: 'ok.example' }), record('charlie')]
+      const records = [
+        record('alpha'),
+        record('bravo', { host: 'ok.example', evm: '0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b' }),
+        record('charlie'),
+      ]
       const json = inclusionJson(records, 'bravo')
       mutate(json)
       expect(() => verifyInclusion(readInclusionDocument(json), 'bravo')).toThrow(ProofError)

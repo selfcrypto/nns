@@ -1,7 +1,7 @@
 {
   "vectors": "nns/reduce",
   "version": 1,
-  "spec": "nns-spec-v1 draft r23, §7.3, §7.4 and §7.5",
+  "spec": "nns-spec-v1 draft r26, §7.3, §7.4 and §7.5",
   "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`), a bare height advance (`advanceTo`), or a `check` against the state at that point. A `check` may also carry `label`, which snapshots the four §8.1 component digests (`nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` — the commitment minus the height and the log hash), and `since` + `changed`, which compares them against an earlier label: every component **not** listed in `changed` MUST be byte-identical. `logLines` is the number of §8.2 lines emitted so far, and a height advance MUST never add one.",
   "addresses": {
     "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
@@ -3306,6 +3306,257 @@
           }
         }
       }
+    },
+    {
+      "id": "E_sets_and_clears_the_evm_address",
+      "note": "§6 E: owner-only, effective on inclusion, replaced by a later E; the empty field clears. Resolution and ownership are untouched.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "names": {
+              "kikename": {
+                "owner": "ALICE",
+                "target": "ALICE",
+                "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b"
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842722,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ekikename|"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "ALICE",
+            "evm": ""
+          }
+        },
+        "resolves": {
+          "kikename": "ALICE"
+        }
+      }
+    },
+    {
+      "id": "transfer_clears_the_evm_address",
+      "note": "§7.3: the record authorizes a foreign-chain key, and the authorization must not outlive the ownership that granted it — cleared with the host when a transfer takes effect.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Xkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "advanceTo": 58885921
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "BOB",
+            "target": "BOB",
+            "evm": "",
+            "host": ""
+          }
+        }
+      }
+    },
+    {
+      "id": "grace_keeps_the_evm_address_through_renewal",
+      "note": "§7.3: on entering GRACE the evm record persists, like owner and target, so grace-then-renew does not force the owner to re-declare it. Setting one during GRACE still forfeits NAME_NOT_REGISTERED.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "advanceTo": 90378720
+        },
+        {
+          "check": {
+            "names": {
+              "kikename": {
+                "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b"
+              }
+            },
+            "resolves": {
+              "kikename": null
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 90378720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ekikename|"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_REGISTERED"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 90378721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Nkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "ALICE",
+            "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b",
+            "status": "REGISTERED"
+          }
+        },
+        "resolves": {
+          "kikename": "ALICE"
+        }
+      }
+    },
+    {
+      "id": "E_with_nonzero_pad_bits_is_malformed",
+      "note": "Canonicality violations in the evm field are MALFORMED_PAYLOAD, like a non-canonical number — never a token of their own (§6 E, §7.4). The record is untouched.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOkt"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "MALFORMED_PAYLOAD"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "evm": ""
+          }
+        }
+      }
     }
   ],
   "checkOrder": {
@@ -4490,6 +4741,70 @@
             "recipient": "BURN",
             "value": "12345",
             "text": "NNS1F"
+          }
+        }
+      },
+      {
+        "id": "E_wrong_recipient_beats_name_not_registered",
+        "setup": "empty",
+        "pinnedBy": "§7.4",
+        "note": "The recipient check precedes every other check on the types that have one (§7.4); E routes to PROTOCOL_ADDRESS. A misrouted E for an absent name trips both.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "CAROL",
+          "value": "1",
+          "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "WRONG_RECIPIENT"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_REGISTERED"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks"
+          }
+        }
+      },
+      {
+        "id": "E_name_not_registered_beats_not_owner",
+        "setup": "one_in_grace_one_registered",
+        "pinnedBy": null,
+        "note": "Same order as S, whose shape E shares: state before sender, so the more fundamental fact about the name is the one reported. A stranger's E on a grace name trips both.",
+        "tx": {
+          "blockNumber": 90378720,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NAME_NOT_REGISTERED"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOT_OWNER"
+          },
+          "tx": {
+            "blockNumber": 90378720,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Eothername|Gz9qCeLEDVXIobLD1OX2BxgpOks"
           }
         }
       }

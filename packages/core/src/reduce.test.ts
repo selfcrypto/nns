@@ -174,6 +174,7 @@ describe('G — register (§6, §7.4)', () => {
       expiry: LAUNCH + 5 + CONSTANTS.TERM_LENGTH,
       status: 'REGISTERED',
       host: '',
+      evm: '',
     })
     expect(resolve(state, 'kikename')).toBe(ALICE)
   })
@@ -1015,6 +1016,7 @@ describe('U — unreserve (§6)', () => {
       expiry: LAUNCH + CONSTANTS.TERM_LENGTH,
       status: 'REGISTERED',
       host: '',
+      evm: '',
     })
     expect(resolve(state, 'nq')).toBe(BOB)
   })
@@ -1086,6 +1088,7 @@ describe('U — unreserve (§6)', () => {
       expiry: LAUNCH + CONSTANTS.TERM_LENGTH,
       status: 'REGISTERED',
       host: '',
+      evm: '',
     })
     expect(resolve(state, 'binance')).toBe(BOB)
   })

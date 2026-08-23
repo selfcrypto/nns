@@ -33,6 +33,7 @@ const registered = (over: Partial<NameInfo> = {}): NameInfo =>
       target: OWNER,
       expiry: 2_000_000,
       status: 'REGISTERED',
+      evm: '',
       host: '',
     },
     ...over,
@@ -46,6 +47,7 @@ const graceInfo = (): NameInfo =>
       target: OWNER,
       expiry: 900_000,
       status: 'GRACE',
+      evm: '',
       host: '',
     },
   })

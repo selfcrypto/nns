@@ -29,6 +29,7 @@ export {
   isZeroAddress,
   parseAddress,
   tryParseAddress,
+  tryParseEvmAddress,
   type Address,
 } from './address.js'
 
@@ -166,6 +167,7 @@ export {
   encodeOffer,
   encodeRegister,
   encodeRenew,
+  encodeSetEvm,
   encodeSetTarget,
   encodeSettlement,
   encodeTransfer,

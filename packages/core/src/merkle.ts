@@ -6,8 +6,8 @@
  * two implementations that quietly disagree about who owns a name.
  *
  * ```
- * enc  = len(name):u8 ‖ name ‖ owner:20B ‖ target:20B ‖ expiry:u64-BE
- *        ‖ status:u8 ‖ len(host):u8 ‖ host
+ * enc  = len(name):u8 ‖ name ‖ owner:20B ‖ target:20B ‖ evm:20B
+ *        ‖ expiry:u64-BE ‖ status:u8 ‖ len(host):u8 ‖ host
  * leaf = keccak256(0x00 ‖ enc)
  * node = keccak256(0x01 ‖ left ‖ right)
  * ```
@@ -139,18 +139,28 @@ export function compareNames(a: string, b: string): number {
  * The `enc` of §8.1 — the leaf preimage, before hashing.
  *
  * Addresses are the raw 20-byte form, never the `NQ` string; an unset host has
- * length 0. Through r19 a `recovery:20B` field sat between `status` and the
- * host — r20 removed it, which is why every root changed.
+ * length 0 and an unset `evm` is 20 zero bytes. Through r19 a `recovery:20B`
+ * field sat between `status` and the host — r20 removed it, and r26 inserted
+ * `evm:20B` between `target` and `expiry`: every root changed both times.
  */
 export function encodeLeaf(record: NameRecord): Uint8Array {
   return concat([
     lengthPrefixed(record.name),
     addressToBytes(record.owner),
     addressToBytes(record.target),
+    evmBytes(record.evm),
     u64be(record.expiry),
     u8(record.status === 'REGISTERED' ? 0x00 : 0x01),
     lengthPrefixed(record.host),
   ])
+}
+
+/** §8.1 `evm:20B` — the §6 `E` record as raw bytes, 20 zero bytes when unset. */
+function evmBytes(evm: string): Uint8Array {
+  const bytes = new Uint8Array(20)
+  if (evm === '') return bytes
+  for (let i = 0; i < 20; i++) bytes[i] = Number.parseInt(evm.slice(2 + i * 2, 4 + i * 2), 16)
+  return bytes
 }
 
 export const leafHash = (record: NameRecord): Uint8Array => keccak_256(concat([u8(TAG.LEAF), encodeLeaf(record)]))

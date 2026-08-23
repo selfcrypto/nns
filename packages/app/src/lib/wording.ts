@@ -246,6 +246,7 @@ export const sendsDisabledLine = (): string =>
 export const ACTION_LABEL: Record<AppAction, string> = {
   register: 'Register',
   setTarget: 'Change where it points',
+  setEvm: 'Link USDC / USDT address',
   transfer: 'Transfer ownership',
   delegate: 'Set subdomain resolver',
   cancel: 'Cancel what’s pending',

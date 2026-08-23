@@ -35,7 +35,7 @@ export interface Cursor {
   configFingerprint: string
 }
 
-const NAME_COLUMNS = ['name', 'owner', 'target', 'expiry', 'status', 'host'] as const
+const NAME_COLUMNS = ['name', 'owner', 'target', 'evm', 'expiry', 'status', 'host'] as const
 const PENDING_COLUMNS = [
   'kind',
   'name',

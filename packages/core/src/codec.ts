@@ -40,7 +40,7 @@ export const BURN_ADDRESS: Address = parseAddress(CONSTANTS.BURN_ADDRESS)
  * r20 removed the mechanism, and the letter is **not** reserved — `NNS1R…`
  * parses as `UNKNOWN_TYPE` and forfeits like any unrecognised type (§7.4).
  */
-export const MESSAGE_TYPES = ['G', 'S', 'X', 'D', 'K', 'N', 'O', 'B', 'M', 'A', 'P', 'U', 'F'] as const
+export const MESSAGE_TYPES = ['G', 'S', 'E', 'X', 'D', 'K', 'N', 'O', 'B', 'M', 'A', 'P', 'U', 'F'] as const
 
 export type MessageType = (typeof MESSAGE_TYPES)[number]
 
@@ -54,6 +54,8 @@ export type MessageType = (typeof MESSAGE_TYPES)[number]
 export type Message =
   | { readonly type: 'G'; readonly name: string; readonly ref: string | null }
   | { readonly type: 'S'; readonly name: string }
+  /** `evm` is lowercase `0x`-hex, `''` for the clearing form (§6 `E`). */
+  | { readonly type: 'E'; readonly name: string; readonly evm: string }
   | { readonly type: 'X'; readonly name: string }
   | { readonly type: 'D'; readonly name: string; readonly host: string }
   | { readonly type: 'K'; readonly name: string }
@@ -141,6 +143,59 @@ function hexToText(hex: string): string | null {
 
 const HEX = /^[0-9a-fA-F]*$/
 
+// ── Base64url (§6 `E`) ──────────────────────────────────────────────────────
+
+const BASE64URL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+
+/**
+ * §6 `E`: exactly one encoding per address. 20 raw bytes are 27 unpadded
+ * base64url characters carrying two trailing pad bits, which MUST be zero;
+ * the all-zero address is invalid — it is the EVM burn address, and it would
+ * be a second spelling of the empty-field clear. Returns lowercase `0x`-hex,
+ * or `null` for every violation — the parse maps that to `MALFORMED_PAYLOAD`,
+ * like a non-canonical number, never a token of its own.
+ */
+function evmFromBase64url(field: string): string | null {
+  if (field.length !== 27) return null
+  let acc = 0
+  let bits = 0
+  let hex = '0x'
+  let zero = true
+  for (let i = 0; i < 27; i++) {
+    const value = BASE64URL.indexOf(field.charAt(i))
+    if (value < 0) return null
+    acc = ((acc << 6) | value) & 0x3fff
+    bits += 6
+    if (bits >= 8) {
+      bits -= 8
+      const byte = (acc >> bits) & 0xff
+      if (byte !== 0) zero = false
+      hex += byte.toString(16).padStart(2, '0')
+    }
+  }
+  // 27 × 6 = 162 bits: 20 bytes and the two pad bits left in `acc`.
+  if ((acc & ((1 << bits) - 1)) !== 0) return null
+  if (zero) return null
+  return hex
+}
+
+/** The inverse: 40 lowercase hex characters (no `0x`) to 27 base64url characters. */
+function evmToBase64url(hex: string): string {
+  let out = ''
+  let acc = 0
+  let bits = 0
+  for (let i = 0; i < 40; i += 2) {
+    acc = ((acc << 8) | Number.parseInt(hex.slice(i, i + 2), 16)) & 0x3fff
+    bits += 8
+    while (bits >= 6) {
+      bits -= 6
+      out += BASE64URL.charAt((acc >> bits) & 0x3f)
+    }
+  }
+  // 160 bits leave 4; the final character carries them plus two zero pad bits.
+  return out + BASE64URL.charAt((acc << (6 - bits)) & 0x3f)
+}
+
 // ── Canonical numeric fields ────────────────────────────────────────────────
 
 /**
@@ -220,6 +275,19 @@ export function parse(recipientDataHex: string): ParseResult {
     case 'B': {
       if (payload.length === 0 || payload.includes('|')) return bad('MALFORMED_PAYLOAD')
       return good({ type, name: payload })
+    }
+
+    case 'E': {
+      const fields = payload.split('|')
+      // Exactly one pipe, like `D`: an empty evm clears the record, so
+      // `NNS1Ename|` parses; `NNS1Ename` does not.
+      if (fields.length !== 2) return bad('MALFORMED_PAYLOAD')
+      const [name, evmField] = fields as [string, string]
+      if (name.length === 0) return bad('MALFORMED_PAYLOAD')
+      if (evmField === '') return good({ type: 'E', name, evm: '' })
+      const evm = evmFromBase64url(evmField)
+      if (evm === null) return bad('MALFORMED_PAYLOAD')
+      return good({ type: 'E', name, evm })
     }
 
     case 'D': {
@@ -384,6 +452,33 @@ export function encodeSetTarget(
   const name = requireName(params.name)
   const recipient = params.target ?? CONSTANTS.PROTOCOL_ADDRESS
   return build('S', name, recipient, CONSTANTS.DUST_VALUE, params.sender)
+}
+
+const EVM_HEX = /^0x[0-9a-fA-F]{40}$/
+
+/**
+ * `E` — Set EVM address (§6). To `PROTOCOL_ADDRESS`; the address travels in
+ * the payload as unpadded base64url of the raw 20 bytes — hex's 40 characters
+ * would cap names at 18. `evm: null` clears the record.
+ *
+ * Takes the display form (`0x` + 40 hex, any case) and refuses the all-zero
+ * address. EIP-55 checksum validation is a client *input* rule (§6 `E`), not
+ * a wire rule, so case is accepted and lowercased here — a client taking
+ * mixed-case input SHOULD have checked the checksum before this call.
+ */
+export function encodeSetEvm(params: { name: string; evm: string | null } & SenderOption): BuiltTransaction {
+  const name = requireName(params.name)
+  if (params.evm === null) {
+    return build('E', `${name}|`, CONSTANTS.PROTOCOL_ADDRESS, CONSTANTS.DUST_VALUE, params.sender)
+  }
+  if (!EVM_HEX.test(params.evm)) {
+    fail(`invalid EVM address ${JSON.stringify(params.evm)} — 0x followed by 40 hex characters (§6 E)`)
+  }
+  const hex = params.evm.slice(2).toLowerCase()
+  if (!/[1-9a-f]/.test(hex)) {
+    fail('the all-zero EVM address is invalid — clear the record with evm: null instead (§6 E)')
+  }
+  return build('E', `${name}|${evmToBase64url(hex)}`, CONSTANTS.PROTOCOL_ADDRESS, CONSTANTS.DUST_VALUE, params.sender)
 }
 
 /** `X` — Transfer ownership (§6). To the new owner. */

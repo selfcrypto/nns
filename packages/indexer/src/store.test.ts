@@ -113,6 +113,7 @@ function populated(base: NnsState): NnsState {
           target: compact(B),
           expiry: 215_880_000,
           status: 'REGISTERED',
+          evm: '',
           host: 'resolver.example.com',
         },
       ],
@@ -273,6 +274,7 @@ describe.skipIf(URL === undefined)('Store', () => {
             target: compact(A),
             expiry: 215_880_000,
             status: 'REGISTERED',
+            evm: '',
             host: '',
           },
         ],
@@ -365,6 +367,7 @@ describe.skipIf(URL === undefined)('Store', () => {
       target: compact(D),
       expiry: 58_181_040 + CONSTANTS.TERM_LENGTH,
       status: 'REGISTERED' as const,
+      evm: '',
       host: '',
     }
     const release = Object.freeze({ ...initialState(), unreserved: new Set(['nimiq']) })

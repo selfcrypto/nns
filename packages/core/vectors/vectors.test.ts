@@ -132,9 +132,9 @@ describe('vectors/codec.json', () => {
     expect(() => build(config, testCase, testCase.name, book)).toThrow()
   })
 
-  it('covers all thirteen §6 message types', () => {
+  it('covers all fourteen §6 message types', () => {
     const covered = new Set(file.roundTrip.cases.map((c: any) => c.message.type))
-    expect([...covered].sort()).toEqual(['A', 'B', 'D', 'F', 'G', 'K', 'M', 'N', 'O', 'P', 'S', 'U', 'X'])
+    expect([...covered].sort()).toEqual(['A', 'B', 'D', 'E', 'F', 'G', 'K', 'M', 'N', 'O', 'P', 'S', 'U', 'X'])
   })
 })
 
@@ -608,6 +608,7 @@ describe('vectors/reduce.json', () => {
         parse: 3, // §5.2 payload, before routing
         G: 5, // §7.4's fixed five-check order, four adjacent pairs plus grace
         S: 1,
+        E: 2, // r26: recipient before state (pinned), state before sender (free, like S)
         X: 1,
         D: 3,
         K: 3,
@@ -635,8 +636,8 @@ describe('vectors/reduce.json', () => {
       const cases = section.cases as any[]
       const pinned = cases.filter((c) => c.pinnedBy !== null)
       const free = cases.filter((c) => c.pinnedBy === null)
-      expect(pinned).toHaveLength(17)
-      expect(free).toHaveLength(18)
+      expect(pinned).toHaveLength(18)
+      expect(free).toHaveLength(19)
       for (const testCase of cases) {
         expect(typeof testCase.note, `${testCase.id} needs a note`).toBe('string')
         expect(testCase.note.length, `${testCase.id} needs a real note`).toBeGreaterThan(40)

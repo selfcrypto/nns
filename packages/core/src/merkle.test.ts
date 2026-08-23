@@ -29,6 +29,7 @@ const config = testConfig()
 const record = (over: Partial<NameRecord> & { name: string }): NameRecord => ({
   owner: ALICE,
   target: ALICE,
+  evm: '',
   expiry: 215_680_000,
   status: 'REGISTERED',
   host: '',
@@ -43,27 +44,41 @@ const stateWith = (...records: NameRecord[]): NnsState =>
 
 describe('§8.1 leaf byte layout', () => {
   it('lays the fields out exactly as the spec writes them', () => {
-    const r = record({ name: 'kike-one', target: BOB, host: 'nns.x.com', status: 'GRACE' })
+    const r = record({
+      name: 'kike-one',
+      target: BOB,
+      evm: '0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b',
+      host: 'nns.x.com',
+      status: 'GRACE',
+    })
     const enc = encodeLeaf(r)
 
-    // len(name):u8 ‖ name ‖ owner:20 ‖ target:20 ‖ expiry:u64BE ‖ status:u8
-    //   ‖ len(host):u8 ‖ host
-    expect(enc).toHaveLength(1 + 8 + 20 + 20 + 8 + 1 + 1 + 9)
+    // len(name):u8 ‖ name ‖ owner:20 ‖ target:20 ‖ evm:20 ‖ expiry:u64BE
+    //   ‖ status:u8 ‖ len(host):u8 ‖ host
+    expect(enc).toHaveLength(1 + 8 + 20 + 20 + 20 + 8 + 1 + 1 + 9)
 
     let at = 0
     expect(enc[at++]).toBe(8)
     expect(enc.slice(at, (at += 8))).toEqual(Uint8Array.from([...'kike-one'].map((c) => c.charCodeAt(0))))
     expect(enc.slice(at, (at += 20))).toEqual(addressToBytes(ALICE))
     expect(enc.slice(at, (at += 20))).toEqual(addressToBytes(BOB))
+    expect(enc.slice(at, (at += 20))).toEqual(
+      Uint8Array.from([0x1b, 0x3f, 0x6a, 0x09, 0xe2, 0xc4, 0x0d, 0x55, 0xc8, 0xa1, 0xb2, 0xc3, 0xd4, 0xe5, 0xf6, 0x07, 0x18, 0x29, 0x3a, 0x4b]),
+    )
     expect(enc.slice(at, (at += 8))).toEqual(Uint8Array.from([0, 0, 0, 0, 0x0c, 0xdb, 0x04, 0x00])) // 215,680,000
     expect(enc[at++]).toBe(0x01) // GRACE
     expect(enc[at++]).toBe(9)
     expect(enc.slice(at)).toEqual(Uint8Array.from([...'nns.x.com'].map((c) => c.charCodeAt(0))))
   })
 
+  it('encodes an unset evm as 20 zero bytes', () => {
+    const enc = encodeLeaf(record({ name: 'kikename' }))
+    expect(enc.slice(1 + 8 + 40, 1 + 8 + 60)).toEqual(new Uint8Array(20))
+  })
+
   it('writes the expiry big-endian', () => {
     const enc = encodeLeaf(record({ name: 'kikename', expiry: 1 }))
-    expect(enc.slice(1 + 8 + 40, 1 + 8 + 40 + 8)).toEqual(Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 1]))
+    expect(enc.slice(1 + 8 + 60, 1 + 8 + 60 + 8)).toEqual(Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 1]))
   })
 
   it('encodes an unset host as a zero length prefix and nothing more', () => {
@@ -72,7 +87,7 @@ describe('§8.1 leaf byte layout', () => {
   })
 
   it('uses 0x00 for REGISTERED and 0x01 for GRACE', () => {
-    const at = 1 + 8 + 40 + 8
+    const at = 1 + 8 + 60 + 8
     expect(encodeLeaf(record({ name: 'kikename', status: 'REGISTERED' }))[at]).toBe(0x00)
     expect(encodeLeaf(record({ name: 'kikename', status: 'GRACE' }))[at]).toBe(0x01)
   })
@@ -93,6 +108,7 @@ describe('§8.1 leaf byte layout', () => {
   it('leaves the referrer out — it is accounting, not registry state', () => {
     // NameRecord has no ref field at all, which is the structural guarantee.
     expect(Object.keys(record({ name: 'kikename' })).sort()).toEqual([
+      'evm',
       'expiry',
       'host',
       'name',

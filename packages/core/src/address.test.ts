@@ -8,6 +8,7 @@ import {
   formatAddress,
   parseAddress,
   tryParseAddress,
+  tryParseEvmAddress,
 } from './address.js'
 import { CONSTANTS } from './constants.js'
 
@@ -84,5 +85,29 @@ describe('formatAddress', () => {
 
   it('formats the burn address exactly as §3 writes it', () => {
     expect(formatAddress(ZERO_ADDRESS)).toBe(CONSTANTS.BURN_ADDRESS)
+  })
+})
+
+describe('tryParseEvmAddress (§6 E input rule)', () => {
+  // The EIP-55 test vectors, verbatim from the EIP.
+  const checksummed = '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed'
+
+  it('accepts a correctly checksummed mixed-case address, lowercased', () => {
+    expect(tryParseEvmAddress(checksummed)).toBe(checksummed.toLowerCase())
+  })
+
+  it('rejects a mixed-case address whose checksum is broken', () => {
+    expect(tryParseEvmAddress('0x5Aaeb6053F3E94C9b9A09f33669435E7Ef1BeAed')).toBeNull()
+  })
+
+  it('accepts all-lowercase and all-uppercase, which claim no checksum', () => {
+    expect(tryParseEvmAddress(checksummed.toLowerCase())).toBe(checksummed.toLowerCase())
+    expect(tryParseEvmAddress(`0x${checksummed.slice(2).toUpperCase()}`)).toBe(checksummed.toLowerCase())
+  })
+
+  it('rejects the wrong shape and the all-zero address', () => {
+    expect(tryParseEvmAddress('5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed')).toBeNull()
+    expect(tryParseEvmAddress('0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAe')).toBeNull()
+    expect(tryParseEvmAddress(`0x${'0'.repeat(40)}`)).toBeNull()
   })
 })

@@ -18,6 +18,7 @@ const nameBody = {
     name: 'example',
     owner: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
     target: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
+    evm: '',
     expiry: 2_000_000,
     status: 'REGISTERED',
     host: '',

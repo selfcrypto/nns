@@ -1,7 +1,7 @@
 {
   "vectors": "nns/codec",
   "version": 1,
-  "spec": "nns-spec-v1 draft r21, §5 and §6",
+  "spec": "nns-spec-v1 draft r26, §5 and §6",
   "description": "Wire format. `text` is the message as ASCII; `data` is the same bytes as lowercase hex, which is what the RPC carries in both directions (§5.1). Recipients are role names resolved through `addresses`; `value` is luna as a decimal string.",
   "addresses": {
     "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
@@ -349,6 +349,40 @@
         "recipient": "BURN",
         "value": "1000",
         "byteLength": 5
+      },
+      {
+        "id": "E_sets_the_evm_address",
+        "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks",
+        "data": "4e4e5331456b696b656e616d657c477a397143654c45445658496f624c44314f5832427867704f6b73",
+        "message": {
+          "type": "E",
+          "name": "kikename",
+          "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b"
+        },
+        "build": {
+          "builder": "setEvm",
+          "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b"
+        },
+        "recipient": "PROTOCOL",
+        "value": "1",
+        "note": "The evm field is unpadded base64url of the raw 20 bytes — 27 characters, canonical form only (§6 E). The builder takes the 0x-hex display form."
+      },
+      {
+        "id": "E_empty_field_clears",
+        "text": "NNS1Ekikename|",
+        "data": "4e4e5331456b696b656e616d657c",
+        "message": {
+          "type": "E",
+          "name": "kikename",
+          "evm": ""
+        },
+        "build": {
+          "builder": "setEvm",
+          "evm": null
+        },
+        "recipient": "PROTOCOL",
+        "value": "1",
+        "note": "Like D: the empty field is the clearing form, so NNS1Ename| parses and NNS1Ename does not. The one spelling of clear — the all-zero address is MALFORMED_PAYLOAD."
       }
     ]
   },
@@ -658,6 +692,66 @@
           }
         },
         "note": "Parse is tolerant and the reducer judges: 0 is a canonical decimal, so this parses, and then forfeits BELOW_MIN_PRICE (§6 O). See reduce.json / an_O_below_MIN_PRICE_forfeits."
+      },
+      {
+        "id": "E_no_pipe_is_malformed",
+        "text": "NNS1Ekikename",
+        "data": "4e4e5331456b696b656e616d65",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "One field is the wrong field count — the clearing form is NNS1Ename| (§6 E)."
+      },
+      {
+        "id": "E_wrong_length_is_malformed",
+        "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOk",
+        "data": "4e4e5331456b696b656e616d657c477a397143654c45445658496f624c44314f5832427867704f6b",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "26 characters. The field is exactly 27 base64url characters or empty."
+      },
+      {
+        "id": "E_bad_alphabet_is_malformed",
+        "text": "NNS1Ekikename|Gz9qCeLEDVXIo+LD1OX2BxgpOks",
+        "data": "4e4e5331456b696b656e616d657c477a397143654c45445658496f2b4c44314f5832427867704f6b73",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "Base64url, not base64: + is outside the alphabet."
+      },
+      {
+        "id": "E_nonzero_pad_bits_are_malformed",
+        "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOkt",
+        "data": "4e4e5331456b696b656e616d657c477a397143654c45445658496f624c44314f5832427867704f6b74",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "The final character carries two pad bits which MUST be zero — exactly one encoding per address, like a canonical number (§6 E)."
+      },
+      {
+        "id": "E_all_zero_address_is_malformed",
+        "text": "NNS1Ekikename|AAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "data": "4e4e5331456b696b656e616d657c414141414141414141414141414141414141414141414141414141",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "The all-zero address is the EVM burn address and a second spelling of the empty-field clear (§6 E)."
+      },
+      {
+        "id": "E_empty_name_is_malformed",
+        "text": "NNS1E|Gz9qCeLEDVXIobLD1OX2BxgpOks",
+        "data": "4e4e5331457c477a397143654c45445658496f624c44314f5832427867704f6b73",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "A name is never empty."
       }
     ]
   },
@@ -736,6 +830,18 @@
         "price": "40000000",
         "minPrice": "80000000",
         "note": "The launch floor, refused because a P has doubled FEE_LONG. MIN_PRICE is the value in effect at the message's height, never the constant."
+      },
+      {
+        "id": "E_all_zero_address",
+        "builder": "setEvm",
+        "name": "kikename",
+        "evm": "0x0000000000000000000000000000000000000000"
+      },
+      {
+        "id": "E_not_display_form",
+        "builder": "setEvm",
+        "name": "kikename",
+        "evm": "1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b"
       }
     ]
   }

@@ -51,10 +51,11 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [name, target, status, expiry, host, proof, height]
+                required: [name, target, evm, status, expiry, host, proof, height]
                 properties:
                   name: { type: string }
                   target: { $ref: '#/components/schemas/Address' }
+                  evm: { $ref: '#/components/schemas/EvmAddress' }
                   status: { const: REGISTERED }
                   expiry: { $ref: '#/components/schemas/Height' }
                   host:
@@ -192,10 +193,11 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [name, target, expiry, status, host]
+                      required: [name, target, evm, expiry, status, host]
                       properties:
                         name: { type: string }
                         target: { $ref: '#/components/schemas/Address' }
+                        evm: { $ref: '#/components/schemas/EvmAddress' }
                         expiry: { $ref: '#/components/schemas/Height' }
                         status: { $ref: '#/components/schemas/Status' }
                         host: { type: string }
@@ -609,6 +611,12 @@ components:
       type: string
       description: Nimiq address in conventional spaced form.
       examples: ['NQ34 248H 248H 248H 248H 248H 248H 248H 248H']
+    EvmAddress:
+      type: string
+      pattern: '^(0x[0-9a-f]{40})?$'
+      description: >
+        §6 E record — the EVM address the owner declared, lowercase 0x-hex,
+        '' when unset. One record covers every EVM chain.
     Luna:
       type: string
       pattern: '^[0-9]+$'
@@ -658,11 +666,12 @@ components:
       additionalProperties: true
     NameRecord:
       type: object
-      required: [name, owner, target, expiry, status, host]
+      required: [name, owner, target, evm, expiry, status, host]
       properties:
         name: { type: string }
         owner: { $ref: '#/components/schemas/Address' }
         target: { $ref: '#/components/schemas/Address' }
+        evm: { $ref: '#/components/schemas/EvmAddress' }
         expiry: { $ref: '#/components/schemas/Height' }
         status: { $ref: '#/components/schemas/Status' }
         host: { type: string }
@@ -703,14 +712,15 @@ components:
       type: object
       description: >
         One §8.1 leaf with its path. Carries every field the leaf encodes —
-        delegate included, '' when unset — because the verifier re-derives
-        the leaf hash from these fields; omit one and the proof binds
-        nothing (§8.3).
-      required: [name, owner, target, expiry, status, delegate, leaf_index, proof]
+        delegate and evm included, '' when unset — because the verifier
+        re-derives the leaf hash from these fields; omit one and the proof
+        binds nothing (§8.3).
+      required: [name, owner, target, evm, expiry, status, delegate, leaf_index, proof]
       properties:
         name: { type: string }
         owner: { $ref: '#/components/schemas/Address' }
         target: { $ref: '#/components/schemas/Address' }
+        evm: { $ref: '#/components/schemas/EvmAddress' }
         expiry: { $ref: '#/components/schemas/Height' }
         status: { $ref: '#/components/schemas/Status' }
         delegate:

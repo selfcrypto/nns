@@ -103,6 +103,7 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
       target: B,
       expiry: 215_880_000,
       status: 'REGISTERED',
+      evm: '',
       host: 'r.example.com',
     })
     expect((await queries.record('nobody-here')).value).toBeNull()
@@ -169,6 +170,7 @@ const record = (name: string, over: Partial<ApiNameRecord> = {}): ApiNameRecord 
   target: B,
   expiry: 215_880_000,
   status: 'REGISTERED',
+  evm: '',
   host: '',
   ...over,
 })
@@ -179,6 +181,7 @@ function docVerifies(doc: Record<string, unknown>, rootHex0x: string): boolean {
     name: doc['name'] as string,
     owner: parseAddress(doc['owner'] as string),
     target: parseAddress(doc['target'] as string),
+    evm: doc['evm'] as string,
     expiry: doc['expiry'] as number,
     status: doc['status'] as NameStatus,
     host: doc['delegate'] as string,

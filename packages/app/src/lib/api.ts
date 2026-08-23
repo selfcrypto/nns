@@ -38,6 +38,8 @@ export interface ApiNameRecord {
   readonly name: string
   readonly owner: string
   readonly target: string
+  /** §6 `E` record — lowercase `0x`-hex, `''` when unset. */
+  readonly evm: string
   readonly expiry: number
   readonly status: NameStatus
   readonly host: string
@@ -145,6 +147,7 @@ const readNameRecord = (value: unknown, path: string): ApiNameRecord => {
     name: str(body['name'], `${path}.name`),
     owner: str(body['owner'], `${path}.owner`),
     target: str(body['target'], `${path}.target`),
+    evm: str(body['evm'], `${path}.evm`),
     expiry: num(body['expiry'], `${path}.expiry`),
     status: status(body['status'], `${path}.status`),
     host: str(body['host'], `${path}.host`),

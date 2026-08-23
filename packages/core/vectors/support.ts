@@ -17,6 +17,7 @@ import {
   encodeOffer,
   encodeRegister,
   encodeRenew,
+  encodeSetEvm,
   encodeSetTarget,
   encodeSettlement,
   encodeTransfer,
@@ -106,6 +107,8 @@ export interface BuildSpec {
   target?: string | null
   newOwner?: string
   host?: string
+  /** `E` only: `0x`-hex display form, or `null` to clear (§6 `E`). */
+  evm?: string | null
   price?: string
   /** §3 MIN_PRICE for the case. Defaults to FEE_LONG at launch prices. */
   minPrice?: string
@@ -147,6 +150,8 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
       })
     case 'setTarget':
       return encodeSetTarget({ name, target: optionalAddress(book, spec.target), ...sender })
+    case 'setEvm':
+      return encodeSetEvm({ name, evm: spec.evm ?? null, ...sender })
     case 'transfer':
       return encodeTransfer({ name, newOwner: address(book, spec.newOwner as string), ...sender })
     case 'delegate':
@@ -205,6 +210,8 @@ export interface VectorRecord {
   name: string
   owner: string
   target: string
+  /** Lowercase `0x`-hex; absent or `''` is unset — 20 zero bytes in the leaf (§8.1, r26). */
+  evm?: string
   expiry: number
   status: 'REGISTERED' | 'GRACE'
   host: string
@@ -214,6 +221,7 @@ export const readRecord = (raw: VectorRecord, book: AddressBook): NameRecord => 
   name: raw.name,
   owner: address(book, raw.owner),
   target: address(book, raw.target),
+  evm: raw.evm ?? '',
   expiry: raw.expiry,
   status: raw.status,
   host: raw.host,

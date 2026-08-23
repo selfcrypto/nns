@@ -1,7 +1,7 @@
 {
   "vectors": "nns/merkle",
   "version": 1,
-  "spec": "nns-spec-v1 draft r22, §8.1 and §8.3",
+  "spec": "nns-spec-v1 draft r26, §8.1 and §8.3",
   "description": "Checkpoint tree byte layout. `enc` is the §8.1 leaf preimage, `leaf` is keccak256(0x00 ‖ enc), internal nodes are keccak256(0x01 ‖ left ‖ right), odd nodes are promoted unchanged, and an empty tree is 32 zero bytes. All hex is lowercase and unprefixed.",
   "addresses": {
     "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
@@ -9,7 +9,7 @@
     "CAROL": "NQ19 KSMT HHEJ TYNF J1GK 40NK LHSL C5P7 P24M"
   },
   "leaves": {
-    "description": "enc = len(name):u8 ‖ name ‖ owner:20B ‖ target:20B ‖ expiry:u64-BE ‖ status:u8 ‖ len(host):u8 ‖ host",
+    "description": "enc = len(name):u8 ‖ name ‖ owner:20B ‖ target:20B ‖ evm:20B ‖ expiry:u64-BE ‖ status:u8 ‖ len(host):u8 ‖ host",
     "cases": [
       {
         "id": "minimal_registered",
@@ -21,9 +21,9 @@
           "status": "REGISTERED",
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a37445100000000056311e00000",
-        "leaf": "a2e9a943f5fb8e4347193f9ff6ae9a736960a0381a286f7c6e1bcb2f62a48750",
-        "note": "An unset host is a zero length prefix and nothing more. The r19 recovery field sat between status and the host; r20 removed it."
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000056311e00000",
+        "leaf": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "note": "An unset host is a zero length prefix and nothing more, and an unset evm is 20 zero bytes. The r19 recovery field sat between status and the host (r20 removed it); r26 inserted evm:20B between target and expiry."
       },
       {
         "id": "full_grace",
@@ -35,8 +35,8 @@
           "status": "GRACE",
           "host": "nns.x.com"
         },
-        "enc": "086b696b652d6f6e655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c59667300000000056311e001096e6e732e782e636f6d",
-        "leaf": "87991b91bfa5a489e31d52513e5791cab4b0a442fcf347611a1998999113b43c",
+        "enc": "086b696b652d6f6e655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c596673000000000000000000000000000000000000000000000000056311e001096e6e732e782e636f6d",
+        "leaf": "ba6b7e3876a8a8fcb6ab372246bf43525c3922c00cc908e332be806741efc3d2",
         "note": "status is 0x01 for GRACE, 0x00 for REGISTERED."
       },
       {
@@ -49,8 +49,8 @@
           "status": "REGISTERED",
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a37445100000000000000010000",
-        "leaf": "dae2082a1ac683b4c52a112d1e464e0a7d50383e71f646b11158bb272f95329e"
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000000000010000",
+        "leaf": "7d4a86ff46515657632ff2332ed351bbc668ed70201fce184c10f29a937a482a"
       },
       {
         "id": "length_prefixes_prevent_collision_a",
@@ -62,8 +62,8 @@
           "status": "REGISTERED",
           "host": "e"
         },
-        "enc": "076b696b656e616d5a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a37445100000000056311e0000165",
-        "leaf": "227ce1343543d5230141757ae12b01e6703587d16587082e39ecb44bd45bb182",
+        "enc": "076b696b656e616d5a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000056311e0000165",
+        "leaf": "04679d137cf3edd1296c51be4f9a829680140933726d709434ef8c9a33b5889e",
         "note": "Paired with the next case. Without length prefixes these two distinct states would share an encoding."
       },
       {
@@ -76,8 +76,23 @@
           "status": "REGISTERED",
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a37445100000000056311e00000",
-        "leaf": "a2e9a943f5fb8e4347193f9ff6ae9a736960a0381a286f7c6e1bcb2f62a48750"
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000056311e00000",
+        "leaf": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655"
+      },
+      {
+        "id": "evm_set_is_twenty_raw_bytes",
+        "record": {
+          "name": "kikename",
+          "owner": "ALICE",
+          "target": "BOB",
+          "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b",
+          "expiry": 90378720,
+          "status": "REGISTERED",
+          "host": ""
+        },
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c5966731b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b00000000056311e00000",
+        "leaf": "747689b6b7e152d9622f6749a102841b2665dcce6ab64444cbe46ea09753cc68",
+        "note": "§6 E's record enters the leaf as the raw 20 bytes between target and expiry; base64url is only the wire form. Absent evm in these vectors means unset."
       }
     ]
   },
@@ -101,7 +116,7 @@
         "names": [
           "kikename"
         ],
-        "root": "a2e9a943f5fb8e4347193f9ff6ae9a736960a0381a286f7c6e1bcb2f62a48750"
+        "root": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655"
       },
       {
         "id": "two_leaves",
@@ -109,7 +124,7 @@
           "aaaaaname",
           "bbbbbname"
         ],
-        "root": "909a424fcd36e8c472dbc9cb32b6e915198a4b98df9692319aed17a3df3ca074"
+        "root": "5ccbf504bbd146a168770d1aa735534127957197dc8151de1f129867f60f63dc"
       },
       {
         "id": "three_leaves_odd_promotion",
@@ -118,7 +133,7 @@
           "bbbbbname",
           "cccccname"
         ],
-        "root": "e5be3ac76f74fb064a70181d6c38c585e72e86ed55642ed2cd7608cfd56a5db9"
+        "root": "b47a494bdc0e2711dc0b2200442ec0bc0c4fd253281a1f1fdf03213e856e1cc7"
       },
       {
         "id": "five_leaves",
@@ -129,7 +144,7 @@
           "dddddname",
           "eeeeename"
         ],
-        "root": "ef907635b66d5f6e7c517b51082754f51345946391b721225663da4b35c8f443"
+        "root": "a65365c8dfe11408c2ee40bbba51dd533739b10d7785c3610d05e14703367e18"
       },
       {
         "id": "insertion_order_does_not_matter",
@@ -138,7 +153,7 @@
           "aaaaaname",
           "bbbbbname"
         ],
-        "root": "e5be3ac76f74fb064a70181d6c38c585e72e86ed55642ed2cd7608cfd56a5db9",
+        "root": "b47a494bdc0e2711dc0b2200442ec0bc0c4fd253281a1f1fdf03213e856e1cc7",
         "sameRootAs": "three_leaves_odd_promotion"
       },
       {
@@ -151,7 +166,7 @@
             "status": "GRACE"
           }
         },
-        "root": "7a9bdb0de50c29c4e615f3eeed0fb1009702aa9d2e7bbf00445c72450c30788c",
+        "root": "98b187ea081b333ae713e2e174edf266e89bd42dda5fcf2d37d1fa20b8041d63",
         "note": "This is what makes non-inclusion mean AVAILABLE rather than merely not-REGISTERED (§8.1)."
       }
     ]
@@ -294,11 +309,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "a2e9a943f5fb8e4347193f9ff6ae9a736960a0381a286f7c6e1bcb2f62a48750",
+        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
         "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "c9afa56080ae08464158c61c5c6e625c4073e877f651f64769d4409b193ea93f"
+        "commitment": "c10774979c4766e27f9497048fd3bd325bed1ca37e3e28ef5ea16c220b745075"
       },
       {
         "id": "every_pending_category",
@@ -359,11 +374,11 @@
           }
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "c0402efcdcc3f56ab0932454e33b54308000cdce9e7329717f52fd343c86bf05",
+        "nameRoot": "c9a279f988933002ac3575bd0248cffeee29da2a21a9590c9889d55b65eb94cc",
         "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
         "pendingRoot": "12b080187c9ceab6dc404ef90315407e15e62514a6ecf23262a8a20ea3079cef",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "6788ff59411f668b90bb1927c8f6481e12bbfb7c284bc339afb750e255cd10b8"
+        "commitment": "1b6c400564c11951a179d8d1aa4543ac2773ea7f68419a4dbd940976b9351f6d"
       },
       {
         "id": "same_names_no_pending_set",
@@ -397,11 +412,11 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "every_pending_category",
         "differsFrom": "every_pending_category",
-        "nameRoot": "c0402efcdcc3f56ab0932454e33b54308000cdce9e7329717f52fd343c86bf05",
+        "nameRoot": "c9a279f988933002ac3575bd0248cffeee29da2a21a9590c9889d55b65eb94cc",
         "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "ec287facf4587a3123cb2e2058e5147aa9a7368de89cbb9fbf522a20cc106fbc"
+        "commitment": "e8c7ecc89e322f477c43151755dfdeebc2683b3cf49c4f9d6612818efa052e22"
       },
       {
         "id": "prices_moved_by_a_P",
@@ -427,11 +442,11 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "one_name_nothing_pending",
         "differsFrom": "one_name_nothing_pending",
-        "nameRoot": "a2e9a943f5fb8e4347193f9ff6ae9a736960a0381a286f7c6e1bcb2f62a48750",
+        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
         "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "7eea4a4cd4363ccc9d185b2d9d30ede202dc315ab0ad265c7614244279525109"
+        "commitment": "d281ec03ed7b5b131b66daec7cb7c321e0abb7223bf13c9fac9cbd0ce7736b65"
       },
       {
         "id": "one_fired_unreserve",
@@ -460,11 +475,11 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "one_name_nothing_pending",
         "differsFrom": "one_name_nothing_pending",
-        "nameRoot": "a2e9a943f5fb8e4347193f9ff6ae9a736960a0381a286f7c6e1bcb2f62a48750",
+        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
         "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "621cc735f00f1996b0c525a38267877ef62abc4d46947768578330547026a95c",
-        "commitment": "c26f415a682000946673d437649d1557640bc324ffb4e07d9709d0782b1bb5ba"
+        "commitment": "91a1894100674b461121f1982f51ed74088aadde72c9785cb2850598ba586e24"
       },
       {
         "id": "unreserved_sorted_bytewise",
@@ -493,11 +508,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "a2e9a943f5fb8e4347193f9ff6ae9a736960a0381a286f7c6e1bcb2f62a48750",
+        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
         "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "f620900b533d87f4d7405b52a351a27baea463cbd828ec6a7a4c4b388898d763",
-        "commitment": "bce87f53516453fb1808e93b61f6ce3f0f2dfdc85044465ae1e372416cffd145"
+        "commitment": "2e20999b4b7b3953859ebd94bc9417dd85b1cb018dee0f0b5425338661a055db"
       },
       {
         "id": "unreserved_authored_unsorted",
@@ -527,11 +542,11 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameCommitmentAs": "unreserved_sorted_bytewise",
-        "nameRoot": "a2e9a943f5fb8e4347193f9ff6ae9a736960a0381a286f7c6e1bcb2f62a48750",
+        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
         "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "f620900b533d87f4d7405b52a351a27baea463cbd828ec6a7a4c4b388898d763",
-        "commitment": "bce87f53516453fb1808e93b61f6ce3f0f2dfdc85044465ae1e372416cffd145"
+        "commitment": "2e20999b4b7b3953859ebd94bc9417dd85b1cb018dee0f0b5425338661a055db"
       },
       {
         "id": "unreserved_length_prefixes_prevent_collision",
@@ -560,11 +575,11 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "differsFrom": "unreserved_one_joined_name",
-        "nameRoot": "a2e9a943f5fb8e4347193f9ff6ae9a736960a0381a286f7c6e1bcb2f62a48750",
+        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
         "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "55d8faceb22e897e1072e0411f03f6df7d395d44eb12c946ea8a8ac307bf14a7",
-        "commitment": "019375dcf742ebc90bd591ee22a7d2c0bbad58e9240c1c477f6412289b81d6c6"
+        "commitment": "281f6f62c5b8800aac3c0641335ce4da827c70b3cb586e0f53a509a1dddabbe3"
       },
       {
         "id": "unreserved_one_joined_name",
@@ -590,11 +605,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "a2e9a943f5fb8e4347193f9ff6ae9a736960a0381a286f7c6e1bcb2f62a48750",
+        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
         "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "9613428d03a791759f48f9a8f6be65697e3a041ba059fb4acf677bc16db77086",
-        "commitment": "f4da1f0afcd871151fc7eb9809b79de36492c770d0bb5710c4ab0620f5414cbc"
+        "commitment": "526efc51b3692002836d1d1a89c77468975c75c12ef5ccec7099947ace7b3281"
       }
     ]
   }

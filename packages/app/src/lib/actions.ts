@@ -14,12 +14,14 @@ import {
   encodeOffer,
   encodeRegister,
   encodeRenew,
+  encodeSetEvm,
   encodeSetTarget,
   encodeTransfer,
   formatAddress,
   LUNA_PER_NIM,
   parseAddress,
   tryParseAddress,
+  tryParseEvmAddress,
   type BuiltTransaction,
 } from '@nns/core'
 import { getNameInfo, type ApiParams, type NameInfo } from './api'
@@ -34,6 +36,7 @@ export type ActionInputs =
   | { readonly action: 'cancel' }
   | { readonly action: 'buy' }
   | { readonly action: 'setTarget'; readonly target: string | 'reset' }
+  | { readonly action: 'setEvm'; readonly evm: string | 'clear' }
   | { readonly action: 'transfer'; readonly newOwner: string }
   | { readonly action: 'delegate'; readonly host: string }
   | { readonly action: 'offer'; readonly priceNim: string }
@@ -155,6 +158,33 @@ export function prepareAction(options: {
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null
           return rec !== null && sameAddress(rec.target, expected)
+        },
+      }
+    }
+
+    case 'setEvm': {
+      // §6 E's client input rule lives in core: mixed-case input must carry a
+      // valid EIP-55 checksum, and this is the only checksum the record ever
+      // gets — the wire form is raw bytes.
+      const evm = inputs.evm === 'clear' ? null : tryParseEvmAddress(inputs.evm)
+      if (inputs.evm !== 'clear' && evm === null) {
+        throw new ActionInputError(
+          'Not an EVM address — 0x followed by 40 hex characters, with its checksum intact if mixed-case',
+        )
+      }
+      return {
+        action: 'setEvm',
+        request: asRequest(encodeSetEvm({ name, evm, sender })),
+        review: evm === null
+          ? [`Removes the linked EVM address from ${name}.`]
+          : [
+              `USDC / USDT sent to ${name} on any EVM chain can use ${evm}.`,
+              'One address covers Polygon, Ethereum, Arbitrum, Base and every other EVM chain.',
+              'The registry records the address you declare — double-check it is yours.',
+            ],
+        confirm: async () => {
+          const rec = (await infoNow())?.record ?? null
+          return rec !== null && rec.evm === (evm ?? '')
         },
       }
     }
