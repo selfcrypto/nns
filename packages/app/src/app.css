@@ -371,6 +371,13 @@ li.note {
   padding: 4px 14px;
 }
 
+.sheet-current {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
 .sheet {
   /* Opens inline under its action row, so it needs air on both sides. */
   margin-top: 10px;

@@ -217,6 +217,12 @@ compose ──▶ review (in-app) ──▶ Pay sheet (wallet UI) ──▶ conf
 
 ## 5. Per-action flow table
 
+**A sheet opens showing what it is about to change** (2026-08-23): `S` the
+current target, `E` the currently linked address (or that none is), `D` the
+current host (or that none is set), `N` the current expiry as `≈ date` on the
+~1 block/s clock. Before any input, from the record — the review lines below
+still describe the *new* state once inputs are typed.
+
 | Flow | Compose needs | Review must say | Effect that confirms it |
 |---|---|---|---|
 | `G` register | `/params` fee (exact §10.5), availability with non-inclusion proof | Price and term as ≈ date; race possibility; pending fee change if scheduled | `/name` shows the record, owner = me |

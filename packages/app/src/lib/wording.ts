@@ -243,6 +243,24 @@ export const sendsDisabledLine = (): string =>
 
 // ── Send flows (docs/app-ux.md §4 — one state machine, one vocabulary) ─────
 
+/**
+ * Current-state lines, shown at the top of an action sheet so the owner sees
+ * what they are about to change before typing anything (Kike, 2026-08-23).
+ * The expiry date is the block-clock approximation — ~1 block/s — and keeps
+ * the `≈` the states doc requires.
+ */
+export const currentTargetLine = (target: string): string => `Currently points to ${target}.`
+
+export const currentEvmLine = (evm: string): string => `Currently linked to ${evm}.`
+
+export const noEvmLine = (): string => 'No address linked yet.'
+
+export const currentHostLine = (host: string): string => `${host} currently answers for subdomains.`
+
+export const noHostLine = (): string => 'No subdomain resolver set.'
+
+export const currentExpiryLine = (approx: string): string => `Currently expires ${approx}.`
+
 export const ACTION_LABEL: Record<AppAction, string> = {
   register: 'Register',
   setTarget: 'Change where it points',

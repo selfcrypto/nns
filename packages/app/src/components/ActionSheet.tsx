@@ -3,6 +3,7 @@ import { prepareAction, ActionInputError, type ActionInputs } from '../lib/actio
 import { getParams, type NameInfo } from '../lib/api'
 import { defaultTransport } from '../lib/history'
 import { apiBase } from '../lib/nns'
+import { approxDate, formatApproxDate } from '../lib/format'
 import { probeHostEvmAddress } from '../lib/sdk'
 import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
@@ -11,7 +12,13 @@ import type { Wallet } from '../lib/wallet'
 import {
   ACTION_LABEL,
   buyAcknowledgeLabel,
+  currentEvmLine,
+  currentExpiryLine,
+  currentHostLine,
+  currentTargetLine,
   custodialWarning,
+  noEvmLine,
+  noHostLine,
   sendConfirmedLine,
   sendConfirmingLine,
   sendDeclinedLine,
@@ -129,6 +136,28 @@ export function ActionSheet({
     if (outcome.status === 'confirmed') onChanged()
   }
 
+  // What the record says right now, before any input: the thing this action
+  // is about to change, or for renew the clock it is about to extend. The
+  // expiry date rides the block clock (~1 block/s) via approxDate.
+  const record = info?.record ?? null
+  const currentLine = ((): string | null => {
+    if (record === null) return null
+    switch (action) {
+      case 'setTarget':
+        return currentTargetLine(record.target)
+      case 'setEvm':
+        return record.evm === '' ? noEvmLine() : currentEvmLine(record.evm)
+      case 'delegate':
+        return record.host === '' ? noHostLine() : currentHostLine(record.host)
+      case 'renew':
+        return info === null
+          ? null
+          : currentExpiryLine(formatApproxDate(approxDate(record.expiry, info.height, Date.now())))
+      default:
+        return null
+    }
+  })()
+
   return (
     <div className="sheet">
       <div className="sheet-head">
@@ -137,6 +166,8 @@ export function ActionSheet({
           Close
         </button>
       </div>
+
+      {currentLine !== null && <p className="sheet-current">{currentLine}</p>}
 
       {action === 'setTarget' && (
         <>
