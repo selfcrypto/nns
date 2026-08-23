@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EvmAmountError, FALLBACK_TRANSFER_GAS, USDT_POLYGON, erc20TransferData, evmErrorMessage, formatUsdt, gasLimitFor, parseUsdtAmount, sendUsdtOnPolygon } from './evm'
+import { EvmAmountError, FALLBACK_TRANSFER_GAS, USDT_POLYGON, erc20TransferData, evmErrorMessage, fetchUsdtBalance, formatUsdt, gasLimitFor, parseUsdtAmount, sendUsdtOnPolygon } from './evm'
 
 describe('parseUsdtAmount', () => {
   it('takes integers and up to six decimals, exactly', () => {
@@ -146,5 +146,36 @@ describe('sendUsdtOnPolygon over a fake provider', () => {
     })
     expect((await sendUsdtOnPolygon({ to: TO, units: 1n }, provider)).ok).toBe(true)
     expect(calls.some((c) => c.method === 'wallet_switchEthereumChain')).toBe(true)
+  })
+})
+
+describe('fetchUsdtBalance', () => {
+  const provider = (answers: Record<string, unknown>) => ({
+    request: (args: { method: string }) =>
+      answers[args.method] instanceof Error
+        ? Promise.reject(answers[args.method])
+        : Promise.resolve(answers[args.method]),
+  })
+
+  it('reads balanceOf for the silently-connected account, on Polygon only', async () => {
+    const units = await fetchUsdtBalance(
+      provider({
+        eth_accounts: ['0xAA00000000000000000000000000000000000001'],
+        eth_chainId: '0x89',
+        eth_call: '0x0000000000000000000000000000000000000000000000000000000000bebc20',
+      }),
+    )
+    expect(units).toBe(12_500_000n)
+  })
+
+  it('hides rather than lies: no account, wrong chain, or a refusal are all null', async () => {
+    expect(await fetchUsdtBalance(provider({ eth_accounts: [] }))).toBeNull()
+    expect(
+      await fetchUsdtBalance(
+        provider({ eth_accounts: ['0xAA00000000000000000000000000000000000001'], eth_chainId: '0x1' }),
+      ),
+    ).toBeNull()
+    expect(await fetchUsdtBalance(provider({ eth_accounts: new Error('nope') }))).toBeNull()
+    expect(await fetchUsdtBalance(null)).toBeNull()
   })
 })

@@ -16,9 +16,9 @@
 
 import { useMemo, useState } from 'react'
 import { ActionInputError, parseNimAmount } from '../lib/actions'
-import { EvmAmountError, formatUsdt, parseUsdtAmount, sendUsdtOnPolygon, type EvmSendOutcome } from '../lib/evm'
+import { EvmAmountError, fetchUsdtBalance, formatUsdt, parseUsdtAmount, sendUsdtOnPolygon, type EvmSendOutcome } from '../lib/evm'
 import { lunaToNim } from '../lib/format'
-import { defaultTransport } from '../lib/history'
+import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
 import { search } from '../lib/search'
 import { performSend, type SendPhase, type SendResult } from '../lib/send'
@@ -27,6 +27,7 @@ import { useAsync } from '../lib/useAsync'
 import { useDebounced } from '../lib/useDebounced'
 import type { Wallet } from '../lib/wallet'
 import {
+  balanceLine,
   payAmountLabel,
   payButtonLabel,
   payFromLabel,
@@ -117,6 +118,19 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
   // target — `''` when the name never linked one, and deliberately never any
   // other source: resolve() is still the only thing that produces an address.
   const evm = resolved?.evm ?? ''
+
+  // Balances are display-only and every miss is a hidden line, never a zero:
+  // an endpoint that cannot answer must not read as "broke". NIM asks the
+  // relay for the acting sender; USDT asks the connected EVM wallet silently
+  // (eth_accounts, one eth_call — no prompt, and only on Polygon). Refreshed
+  // per sender/mode change and after a send that changed one of them.
+  const balanceSeed = `${mode}:${sender ?? ''}:${result?.status ?? ''}:${usdtResult?.ok === true ? usdtResult.hash : ''}`
+  const nimBalance = useAsync(async () => {
+    if (mode !== 'nim' || sender === null) return null
+    const transport = defaultTransport()
+    return transport === null ? null : fetchNimBalance(transport, sender)
+  }, [balanceSeed])
+  const usdtBalance = useAsync(() => (mode === 'usdt' ? fetchUsdtBalance() : Promise.resolve(null)), [balanceSeed])
 
   // Nimiq drops a self-transaction silently: the RPC accepts it and returns a
   // hash, so nothing downstream would ever report this.
@@ -236,6 +250,9 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
               aria-label="Amount in USDT"
             />
           </label>
+          {usdtBalance.status === 'done' && usdtBalance.value !== null && (
+            <p className="pay-balance">{balanceLine(formatUsdt(usdtBalance.value), 'USDT')}</p>
+          )}
 
           {parsedUsdt !== null && 'error' in parsedUsdt && <p className="field-error">{parsedUsdt.error}</p>}
 
@@ -305,6 +322,9 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
               aria-label="Amount in NIM"
             />
           </label>
+          {nimBalance.status === 'done' && nimBalance.value !== null && (
+            <p className="pay-balance">{balanceLine(lunaToNim(nimBalance.value), 'NIM')}</p>
+          )}
 
           {parsed !== null && 'error' in parsed && <p className="field-error">{parsed.error}</p>}
           {self && <p className="field-error">{paySelfLine()}</p>}

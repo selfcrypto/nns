@@ -268,19 +268,22 @@ export function bottomShortfall(view: {
 }
 
 /**
- * The one bottom hazard **no web instrument can see**: Android's three-button
- * navigation bar drawn over an edge-to-edge WebView, with the host having
- * consumed the window insets — `env()` reads 0 under it, `visualViewport`
- * matches `innerHeight`, and on some builds `100svh` resolves to the full
- * layout height too. 2026-08-22 measured it, 2026-08-23 rediscovered it the
- * hard way when a purely-measured reserve went to 0 and the buttons sat on
- * the tab bar's labels again. So inside Pay on Android the reserve has a
- * **floor**: 48dp of nav bar plus a margin. On gesture-nav devices this
- * costs a painted 56 px strip at worst; under the buttons it is the
- * difference between a usable tab bar and none. iOS reports its home
- * indicator through `env()` and needs no floor.
+ * The bottom hazard **no web instrument can see** — and it is both halves,
+ * not one: Android's nav bar drawn over an edge-to-edge WebView (env() reads
+ * 0 under it) *and* Pay's layout viewport extending past the visible screen
+ * while `visualViewport` and `100svh` both report the full lying height.
+ * 2026-08-22 measured the pair from a screenshot: 48 + 74. 2026-08-23 spent
+ * three deploys re-learning that no instrument reads either — a measured
+ * reserve of 0, then a 56 floor covering only the nav half, each putting
+ * the buttons back on the bar's labels mid-scroll while the scroll-end
+ * position looked fine (the sticky pin runs off the *layout* bottom, the
+ * natural position off the svh frame; only the pinned state shows the
+ * slack). So inside Pay on Android the floor is the full measured
+ * {@link PAY_NAV_MIN}, and cleverness stops here: instruments may only
+ * *raise* the reserve, never lower it. iOS reports its home indicator
+ * through `env()` and gets no floor.
  */
-export const PAY_ANDROID_NAV_FLOOR = 56
+export const PAY_ANDROID_NAV_FLOOR = 120
 
 const isAndroid = (win: Window): boolean => /android/i.test(win.navigator?.userAgent ?? '')
 

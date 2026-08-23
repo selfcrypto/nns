@@ -416,6 +416,9 @@ export const usdtNoGasLine = (): string =>
  */
 export const usdtAcceptedLine = (): string => 'The wallet accepted it — track it on Polygonscan:'
 
+/** One shape for both assets: "Balance: 123.45 NIM", "Balance: 12.5 USDT". */
+export const balanceLine = (amount: string, symbol: string): string => `Balance: ${amount} ${symbol}`
+
 /** The network rejects a zero value outright (§5.4) — say so before the wallet opens. */
 export const payZeroLine = (): string => 'Enter an amount above zero.'
 

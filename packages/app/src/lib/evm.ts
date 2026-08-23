@@ -71,6 +71,38 @@ export function erc20TransferData(to: string, units: bigint): string {
   return `0xa9059cbb${address}${amount}`
 }
 
+/** `balanceOf(address)` calldata — selector `0x70a08231` and one padded argument. */
+export function erc20BalanceOfData(account: string): string {
+  return `0x70a08231${account.toLowerCase().replace(/^0x/, '').padStart(64, '0')}`
+}
+
+/**
+ * The connected account's USDT balance, silently — `eth_accounts` (never a
+ * prompt) and one `eth_call`. Display-only, and `null` on every miss: no
+ * provider, not yet connected, or the wallet sitting on another chain,
+ * where the call answers for the wrong network and a wrong number is worse
+ * than none.
+ */
+export async function fetchUsdtBalance(providerOverride?: Eip1193Like | null): Promise<bigint | null> {
+  const provider = providerOverride ?? discoverEvmProvider()
+  if (provider == null) return null
+  try {
+    const accounts = (await provider.request({ method: 'eth_accounts' })) as unknown
+    const account = Array.isArray(accounts) && typeof accounts[0] === 'string' ? accounts[0] : null
+    if (account === null) return null
+    const chain = (await provider.request({ method: 'eth_chainId' })) as unknown
+    if (chain !== POLYGON_CHAIN_HEX) return null
+    const answer = (await provider.request({
+      method: 'eth_call',
+      params: [{ to: USDT_POLYGON.address, data: erc20BalanceOfData(account) }, 'latest'],
+    })) as unknown
+    if (typeof answer !== 'string' || !/^0x[0-9a-fA-F]+$/.test(answer)) return null
+    return BigInt(answer)
+  } catch {
+    return null
+  }
+}
+
 export type EvmSendOutcome =
   | { readonly ok: true; readonly hash: string; readonly from: string }
   | { readonly ok: false; readonly reason: 'no-provider' | 'declined' | 'wrong-chain' | 'failed'; readonly detail?: string }

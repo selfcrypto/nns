@@ -1236,6 +1236,12 @@ li.note {
   color: var(--paper);
 }
 
+.pay-balance {
+  margin: -6px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
 /* The §6 E record on the pay form: a 0x address has no spaced form and no
    identicon — monospace, wrapped, and nothing pretending otherwise. */
 .pay-evm {

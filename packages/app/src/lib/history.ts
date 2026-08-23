@@ -152,3 +152,20 @@ export async function fetchAccountType(transport: HistoryTransport, address: str
   const { type } = answer as { type?: unknown }
   return typeof type === 'string' ? type : null
 }
+
+/**
+ * The account's balance in luna, from the same allowlisted call the type
+ * lookup uses. Display-only — `null` (endpoint missing, refusal, odd shape)
+ * hides the line rather than showing a zero that would read as "broke".
+ */
+export async function fetchNimBalance(transport: HistoryTransport, address: string): Promise<bigint | null> {
+  let answer: unknown
+  try {
+    answer = await transport('getAccountByAddress', [address])
+  } catch {
+    return null
+  }
+  if (typeof answer !== 'object' || answer === null) return null
+  const { balance } = answer as { balance?: unknown }
+  return typeof balance === 'number' && Number.isSafeInteger(balance) && balance >= 0 ? BigInt(balance) : null
+}
