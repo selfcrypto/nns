@@ -17,6 +17,11 @@
 
 import { discoverEvmProvider } from './sdk'
 
+/** The provider shape `discoverEvmProvider` answers with — re-declared here for the injectable parameter. */
+interface Eip1193Like {
+  request(args: { method: string; params?: readonly unknown[] }): Promise<unknown>
+}
+
 /** Polygon PoS, the chain the record's convention names first (§6 `E`). */
 export const POLYGON_CHAIN_HEX = '0x89'
 
@@ -70,10 +75,51 @@ export type EvmSendOutcome =
   | { readonly ok: true; readonly hash: string; readonly from: string }
   | { readonly ok: false; readonly reason: 'no-provider' | 'declined' | 'wrong-chain' | 'failed'; readonly detail?: string }
 
+/**
+ * A provider rejection is usually a plain `{code, message}` object, not an
+ * `Error` — `String()` on one is the literal `[object Object]` that reached
+ * a screen on 2026-08-23. Dig the human text out, wherever this wallet put
+ * it, and cap the JSON fallback so a screen never renders a novel.
+ */
+export function evmErrorMessage(error: unknown): string {
+  if (error instanceof Error && error.message !== '') return error.message
+  if (typeof error === 'object' && error !== null) {
+    const { message, data } = error as { message?: unknown; data?: unknown }
+    if (typeof message === 'string' && message !== '') return message
+    const nested = (data as { message?: unknown } | null)?.message
+    if (typeof nested === 'string' && nested !== '') return nested
+    try {
+      return JSON.stringify(error).slice(0, 200)
+    } catch {
+      return 'the wallet refused without a message'
+    }
+  }
+  return String(error)
+}
+
 const looksDeclined = (error: unknown): boolean => {
   const code = (error as { code?: unknown })?.code
   if (code === 4001) return true // EIP-1193 userRejectedRequest
-  return /reject|declin|cancel|denied/i.test(error instanceof Error ? error.message : String(error))
+  return /reject|declin|cancel|denied/i.test(evmErrorMessage(error))
+}
+
+/**
+ * When `eth_estimateGas` itself fails — a node refusing, or a transfer that
+ * would revert — the wallet still gets the transaction, under a limit that
+ * covers USDT0's proxy paths with room to spare. Unused gas is refunded; a
+ * knowingly-reverting send costs cents of POL, and the wallet's own sheet
+ * is the right place to refuse it. Pay estimates nothing on its own —
+ * "Transaction must include \"gas\" or \"gasLimit\"" (on-device,
+ * 2026-08-23) — so a `gas` field is always sent.
+ */
+export const FALLBACK_TRANSFER_GAS = 160_000n
+
+/** The estimate, padded half again — proxy token paths vary — or the fallback. */
+export function gasLimitFor(estimate: unknown): string {
+  if (typeof estimate === 'string' && /^0x[0-9a-fA-F]+$/.test(estimate)) {
+    return `0x${((BigInt(estimate) * 3n) / 2n).toString(16)}`
+  }
+  return `0x${FALLBACK_TRANSFER_GAS.toString(16)}`
 }
 
 /**
@@ -83,12 +129,15 @@ const looksDeclined = (error: unknown): boolean => {
  * transfer for the wallet to price, sign and broadcast. Every step is the
  * wallet's UI; every refusal is a value here, not a throw.
  */
-export async function sendUsdtOnPolygon(request: {
-  readonly to: string
-  readonly units: bigint
-}): Promise<EvmSendOutcome> {
-  const provider = discoverEvmProvider()
-  if (provider === null) return { ok: false, reason: 'no-provider' }
+export async function sendUsdtOnPolygon(
+  request: {
+    readonly to: string
+    readonly units: bigint
+  },
+  providerOverride?: Eip1193Like | null,
+): Promise<EvmSendOutcome> {
+  const provider = providerOverride ?? discoverEvmProvider()
+  if (provider == null) return { ok: false, reason: 'no-provider' }
   try {
     const accounts = (await provider.request({
       method: 'eth_requestAccounts',
@@ -100,21 +149,32 @@ export async function sendUsdtOnPolygon(request: {
     if (chain !== POLYGON_CHAIN_HEX) {
       try {
         await provider.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: POLYGON_CHAIN_HEX }] })
-      } catch {
+      } catch (error) {
+        if (looksDeclined(error)) return { ok: false, reason: 'declined' }
         return { ok: false, reason: 'wrong-chain' }
       }
     }
 
+    const transfer = {
+      from,
+      to: USDT_POLYGON.address,
+      value: '0x0',
+      data: erc20TransferData(request.to, request.units),
+    }
+
+    // Pay estimates nothing on its own, so estimate here and always send a
+    // `gas` field; an estimation failure falls back rather than refusing —
+    // the wallet's fee sheet is the honest place for the final no.
+    let estimate: unknown = null
+    try {
+      estimate = await provider.request({ method: 'eth_estimateGas', params: [transfer] })
+    } catch {
+      /* the fallback limit covers it */
+    }
+
     const hash = (await provider.request({
       method: 'eth_sendTransaction',
-      params: [
-        {
-          from,
-          to: USDT_POLYGON.address,
-          value: '0x0',
-          data: erc20TransferData(request.to, request.units),
-        },
-      ],
+      params: [{ ...transfer, gas: gasLimitFor(estimate) }],
     })) as unknown
     if (typeof hash !== 'string' || !/^0x[0-9a-fA-F]{64}$/.test(hash)) {
       return { ok: false, reason: 'failed', detail: 'the wallet returned no transaction hash' }
@@ -122,6 +182,6 @@ export async function sendUsdtOnPolygon(request: {
     return { ok: true, hash: hash.toLowerCase(), from }
   } catch (error) {
     if (looksDeclined(error)) return { ok: false, reason: 'declined' }
-    return { ok: false, reason: 'failed', detail: error instanceof Error ? error.message : String(error) }
+    return { ok: false, reason: 'failed', detail: evmErrorMessage(error) }
   }
 }

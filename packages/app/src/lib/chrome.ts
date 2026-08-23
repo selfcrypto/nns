@@ -136,6 +136,8 @@ export function chromeInsets(input: {
   readonly override: Insets | null
   /** Live {@link bottomShortfall}; `null`/absent falls back to {@link PAY_NAV_MIN}. */
   readonly slack?: number | null
+  /** Android inside Pay carries the unmeasurable nav floor — see {@link PAY_ANDROID_NAV_FLOOR}. */
+  readonly android?: boolean
 }): Insets {
   if (input.override !== null) return input.override
   if (!input.pay) return input.safeArea
@@ -146,12 +148,14 @@ export function chromeInsets(input: {
     // reports the status bar there. Honouring it reserved a strip of nothing
     // twice over, once as a 48 px guess and then again as the inset itself.
     top: 0,
-    // The bottom reserve is the *measured* slack when the viewport can be
-    // measured. The PAY_NAV_MIN constant survived one day as the answer and
-    // was wrong on the next device (Kike's screenshots, 2026-08-23: a dead
-    // 120 px band with the real reserve at 0) — it is now only the fallback
-    // for a WebView with no visualViewport to measure.
-    bottom: Math.max(input.safeArea.bottom, input.slack ?? PAY_NAV_MIN),
+    // The bottom reserve, largest claim wins: the honest `env()`, the live
+    // measured shortfall (clamped), the Android nav floor no instrument can
+    // see, and PAY_NAV_MIN only when there was nothing to measure at all.
+    bottom: Math.max(
+      input.safeArea.bottom,
+      input.slack ?? PAY_NAV_MIN,
+      input.android === true ? PAY_ANDROID_NAV_FLOOR : 0,
+    ),
   }
 }
 
@@ -257,8 +261,28 @@ export function bottomShortfall(view: {
     .filter((height): height is number => height !== null)
     .map((height) => view.innerHeight - height)
   if (gaps.length === 0) return null
-  return Math.max(0, Math.round(Math.max(...gaps)))
+  // Clamped: larger than any nav-bar + slack combination actually seen
+  // (48 + 74), small enough that a broken reading on an exotic device costs
+  // a strip, not half a screen. `?chrome` overrides stay uncapped.
+  return Math.min(160, Math.max(0, Math.round(Math.max(...gaps))))
 }
+
+/**
+ * The one bottom hazard **no web instrument can see**: Android's three-button
+ * navigation bar drawn over an edge-to-edge WebView, with the host having
+ * consumed the window insets — `env()` reads 0 under it, `visualViewport`
+ * matches `innerHeight`, and on some builds `100svh` resolves to the full
+ * layout height too. 2026-08-22 measured it, 2026-08-23 rediscovered it the
+ * hard way when a purely-measured reserve went to 0 and the buttons sat on
+ * the tab bar's labels again. So inside Pay on Android the reserve has a
+ * **floor**: 48dp of nav bar plus a margin. On gesture-nav devices this
+ * costs a painted 56 px strip at worst; under the buttons it is the
+ * difference between a usable tab bar and none. iOS reports its home
+ * indicator through `env()` and needs no floor.
+ */
+export const PAY_ANDROID_NAV_FLOOR = 56
+
+const isAndroid = (win: Window): boolean => /android/i.test(win.navigator?.userAgent ?? '')
 
 /**
  * What `100svh` resolves to right now, in CSS pixels — the probe that makes
@@ -336,6 +360,7 @@ export function applyHostChrome(win: Window = window, hosted = false): Insets {
       visualHeight: win.visualViewport?.height ?? null,
       svhHeight: measureSmallViewport(win.document),
     }),
+    android: isAndroid(win),
   })
   const root = win.document.documentElement
   root.style.setProperty('--chrome-top', `${insets.top}px`)

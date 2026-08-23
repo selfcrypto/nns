@@ -402,6 +402,14 @@ export const usdtNoProviderLine = (): string =>
 export const usdtWrongChainLine = (): string => 'The wallet wouldn’t switch to Polygon — nothing was sent.'
 
 /**
+ * The first failure many users will hit: Nimiq Pay's own USDT flow is
+ * gasless through its relay, so the account can hold USDT and no POL at all
+ * — and a raw dApp transfer needs POL for the network fee.
+ */
+export const usdtNoGasLine = (): string =>
+  'The wallet has no POL to pay Polygon’s network fee — nothing was sent.'
+
+/**
  * The wallet returned a hash — which is not confirmation, and no endpoint of
  * ours watches Polygon, so the honest report names the wallet as the actor
  * and hands over the one thing that can be tracked.

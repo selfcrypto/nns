@@ -39,6 +39,7 @@ import {
   usdtAcceptedLine,
   usdtAmountLabel,
   usdtButtonLabel,
+  usdtNoGasLine,
   usdtNoLinkLine,
   usdtNoProviderLine,
   usdtWrongChainLine,
@@ -248,7 +249,10 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
               {usdtResult.reason === 'no-provider' && usdtNoProviderLine()}
               {usdtResult.reason === 'declined' && sendDeclinedLine()}
               {usdtResult.reason === 'wrong-chain' && usdtWrongChainLine()}
-              {usdtResult.reason === 'failed' && `Couldn’t send: ${usdtResult.detail ?? 'unknown'}`}
+              {usdtResult.reason === 'failed' &&
+                (/insufficient funds/i.test(usdtResult.detail ?? '')
+                  ? usdtNoGasLine()
+                  : `Couldn’t send: ${usdtResult.detail ?? 'unknown'}`)}
             </p>
           )}
           {usdtResult !== null && usdtResult.ok && (

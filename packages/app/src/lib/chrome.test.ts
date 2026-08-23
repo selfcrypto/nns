@@ -125,3 +125,20 @@ describe('chromeInsets with live slack', () => {
     expect(chromeInsets({ pay: true, safeArea, override: null }).bottom).toBe(PAY_NAV_MIN)
   })
 })
+
+describe('the reserve clamp and the Android nav floor', () => {
+  const safeArea = { top: 0, bottom: 0 }
+
+  it('clamps a pathological measurement to a strip, not half a screen', () => {
+    expect(bottomShortfall({ innerHeight: 2000, visualHeight: 1000, svhHeight: 1000 })).toBe(160)
+  })
+
+  it('floors the reserve under Android nav buttons no instrument can see', () => {
+    // Kike's device: every instrument reads 0 while the buttons overlay the bar.
+    expect(chromeInsets({ pay: true, safeArea, override: null, slack: 0, android: true }).bottom).toBe(56)
+    // A measured shortfall above the floor wins.
+    expect(chromeInsets({ pay: true, safeArea, override: null, slack: 122, android: true }).bottom).toBe(122)
+    // No floor outside Android — iOS reports its home indicator through env().
+    expect(chromeInsets({ pay: true, safeArea, override: null, slack: 0, android: false }).bottom).toBe(0)
+  })
+})
