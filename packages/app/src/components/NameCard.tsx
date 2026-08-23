@@ -8,7 +8,7 @@
  * still say what is possible; this says what the screen is *for*.
  */
 
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { CONSTANTS } from '@nns/core'
 import { primaryAddress } from '../lib/identity'
 import { approxDate, formatApproxDate } from '../lib/format'
@@ -69,30 +69,37 @@ function Actions({
         const signer = signerFor(action, view, viewers)
         const usable = gate.enabled && signer !== null && wallet !== null
         return (
-          <div key={action} className="action-row">
-            <span className="action-label">{ACTION_LABEL[action]}</span>
-            {usable ? (
-              <button type="button" className="action-go" onClick={() => setOpen(open === action ? null : action)}>
-                {open === action ? 'Close' : 'Open'}
-              </button>
-            ) : (
-              <span className="action-state">{gate.reason !== null ? GATE_REASON_TEXT[gate.reason] : GATE_REASON_TEXT['no-viewer']}</span>
+          // A fragment, not a wrapper div: the rows stay siblings so
+          // `.action-row:last-child` keeps trimming the final border, and the
+          // sheet opens *under the row that was tapped* — it rendered after
+          // the whole list until 2026-08-23, which put every sheet under the
+          // last row (Kike, on the first live use of the ninth action).
+          <Fragment key={action}>
+            <div className="action-row">
+              <span className="action-label">{ACTION_LABEL[action]}</span>
+              {usable ? (
+                <button type="button" className="action-go" onClick={() => setOpen(open === action ? null : action)}>
+                  {open === action ? 'Close' : 'Open'}
+                </button>
+              ) : (
+                <span className="action-state">{gate.reason !== null ? GATE_REASON_TEXT[gate.reason] : GATE_REASON_TEXT['no-viewer']}</span>
+              )}
+            </div>
+            {open === action && wallet !== null && (
+              <ActionSheet
+                action={action}
+                name={name}
+                info={info}
+                signer={signer ?? ''}
+                viewers={viewers}
+                wallet={wallet}
+                onClose={() => setOpen(null)}
+                onChanged={onChanged}
+              />
             )}
-          </div>
+          </Fragment>
         )
       })}
-      {open !== null && wallet !== null && (
-        <ActionSheet
-          action={open}
-          name={name}
-          info={info}
-          signer={signerFor(open, view, viewers) ?? ''}
-          viewers={viewers}
-          wallet={wallet}
-          onClose={() => setOpen(null)}
-          onChanged={onChanged}
-        />
-      )}
     </div>
   )
 }

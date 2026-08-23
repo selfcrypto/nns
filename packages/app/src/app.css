@@ -372,7 +372,9 @@ li.note {
 }
 
 .sheet {
+  /* Opens inline under its action row, so it needs air on both sides. */
   margin-top: 10px;
+  margin-bottom: 10px;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
