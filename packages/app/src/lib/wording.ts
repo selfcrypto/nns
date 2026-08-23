@@ -379,6 +379,35 @@ export const payAmountLabel = (): string => 'Amount in NIM'
 
 export const payButtonLabel = (nim: string | null): string => (nim === null ? 'Pay' : `Pay ${nim} NIM`)
 
+// ── The USDT · Polygon mode (§6 E consumes the record it wrote) ────────────
+
+export const payModeNimLabel = (): string => 'NIM'
+
+export const payModeUsdtLabel = (): string => 'USDT · Polygon'
+
+export const payUsdtEmptyBody = (): string =>
+  'Type a name to send USDT on Polygon to the address its owner linked.'
+
+/** The name resolves, and its owner never sent an `E` — honest, not an error. */
+export const usdtNoLinkLine = (name: string): string => `${name} hasn’t linked a USDC / USDT address.`
+
+export const usdtAmountLabel = (): string => 'Amount in USDT'
+
+export const usdtButtonLabel = (amount: string | null): string =>
+  amount === null ? 'Send USDT' : `Send ${amount} USDT on Polygon`
+
+export const usdtNoProviderLine = (): string =>
+  'No EVM wallet answered. Open this page inside Nimiq Pay, or in a browser with an EVM wallet.'
+
+export const usdtWrongChainLine = (): string => 'The wallet wouldn’t switch to Polygon — nothing was sent.'
+
+/**
+ * The wallet returned a hash — which is not confirmation, and no endpoint of
+ * ours watches Polygon, so the honest report names the wallet as the actor
+ * and hands over the one thing that can be tracked.
+ */
+export const usdtAcceptedLine = (): string => 'The wallet accepted it — track it on Polygonscan:'
+
 /** The network rejects a zero value outright (§5.4) — say so before the wallet opens. */
 export const payZeroLine = (): string => 'Enter an amount above zero.'
 

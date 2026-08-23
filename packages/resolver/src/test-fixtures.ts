@@ -149,6 +149,7 @@ export function resolveJson(
   return {
     name,
     target: formatAddress(live.target),
+    evm: live.evm,
     status: live.status,
     expiry: live.expiry,
     host: live.host,

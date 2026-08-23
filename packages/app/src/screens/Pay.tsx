@@ -16,6 +16,7 @@
 
 import { useMemo, useState } from 'react'
 import { ActionInputError, parseNimAmount } from '../lib/actions'
+import { EvmAmountError, formatUsdt, parseUsdtAmount, sendUsdtOnPolygon, type EvmSendOutcome } from '../lib/evm'
 import { lunaToNim } from '../lib/format'
 import { defaultTransport } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
@@ -29,9 +30,18 @@ import {
   payAmountLabel,
   payButtonLabel,
   payFromLabel,
+  payModeNimLabel,
+  payModeUsdtLabel,
   paySelfLine,
   payToLabel,
+  payUsdtEmptyBody,
   payZeroLine,
+  usdtAcceptedLine,
+  usdtAmountLabel,
+  usdtButtonLabel,
+  usdtNoLinkLine,
+  usdtNoProviderLine,
+  usdtWrongChainLine,
   sendConfirmedLine,
   sendConfirmingLine,
   sendDeclinedLine,
@@ -54,6 +64,16 @@ const SETTLE_MS = 1_000
 export function PayScreen({ wallet }: { wallet: Wallet | null }) {
   const [text, setText] = useState('')
   const [amount, setAmount] = useState('')
+  /**
+   * Which asset this screen pays. `nim` is the native flow below; `usdt`
+   * pays the §6 `E` record — the EVM address the owner declared — over
+   * Polygon, through whatever EIP-1193 wallet the environment offers. The
+   * resolution leg is identical and verified identically; only the address
+   * field consumed and the send plane differ.
+   */
+  const [mode, setMode] = useState<'nim' | 'usdt'>('nim')
+  const [usdtSending, setUsdtSending] = useState(false)
+  const [usdtResult, setUsdtResult] = useState<EvmSendOutcome | null>(null)
   const [chosenSender, setChosenSender] = useState<string | null>(null)
   const [pinBlocking, setPinBlocking] = useState(false)
   const [progress, setProgress] = useState<SendPhase | 'idle'>('idle')
@@ -71,7 +91,7 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
   const resolved = outcome.status === 'done' && outcome.value.kind === 'resolved' ? outcome.value.result : null
 
   const parsed = useMemo((): { readonly luna: bigint } | { readonly error: string } | null => {
-    if (amount.trim() === '') return null
+    if (mode !== 'nim' || amount.trim() === '') return null
     try {
       const luna = parseNimAmount(amount, 'Amount')
       // The network rejects a zero value outright (§5.4, and why DUST_VALUE
@@ -80,7 +100,22 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
     } catch (error) {
       return { error: error instanceof ActionInputError ? error.message : String(error) }
     }
-  }, [amount])
+  }, [mode, amount])
+
+  const parsedUsdt = useMemo((): { readonly units: bigint } | { readonly error: string } | null => {
+    if (mode !== 'usdt' || amount.trim() === '') return null
+    try {
+      const units = parseUsdtAmount(amount)
+      return units === 0n ? { error: payZeroLine() } : { units }
+    } catch (error) {
+      return { error: error instanceof EvmAmountError ? error.message : String(error) }
+    }
+  }, [mode, amount])
+
+  // The record the owner declared, from the same verified resolve as the NIM
+  // target — `''` when the name never linked one, and deliberately never any
+  // other source: resolve() is still the only thing that produces an address.
+  const evm = resolved?.evm ?? ''
 
   // Nimiq drops a self-transaction silently: the RPC accepts it and returns a
   // hash, so nothing downstream would ever report this.
@@ -89,6 +124,17 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
   const luna = parsed !== null && 'luna' in parsed ? parsed.luna : null
   const canPay =
     resolved !== null && sender !== null && luna !== null && !self && !pinBlocking && wallet !== null && progress === 'idle'
+
+  const usdtUnits = parsedUsdt !== null && 'units' in parsedUsdt ? parsedUsdt.units : null
+  const canPayUsdt = resolved !== null && evm !== '' && usdtUnits !== null && !usdtSending
+
+  const payUsdt = async () => {
+    if (evm === '' || usdtUnits === null) return
+    setUsdtResult(null)
+    setUsdtSending(true)
+    setUsdtResult(await sendUsdtOnPolygon({ to: evm, units: usdtUnits }))
+    setUsdtSending(false)
+  }
 
   const pay = async () => {
     if (resolved === null || sender === null || luna === null || wallet === null) return
@@ -117,6 +163,25 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
 
   return (
     <div className="screen">
+      <div className="pay-mode" role="tablist" aria-label="Asset">
+        {(['nim', 'usdt'] as const).map((entry) => (
+          <button
+            key={entry}
+            type="button"
+            role="tab"
+            aria-selected={mode === entry}
+            className={mode === entry ? 'pay-mode-tab pay-mode-active' : 'pay-mode-tab'}
+            onClick={() => {
+              setMode(entry)
+              setUsdtResult(null)
+              setResult(null)
+            }}
+          >
+            {entry === 'nim' ? payModeNimLabel() : payModeUsdtLabel()}
+          </button>
+        ))}
+      </div>
+
       <input
         className="search-input nns-name"
         type="text"
@@ -131,7 +196,10 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
       />
 
       {outcome.status === 'idle' && (
-        <EmptyState title="Pay a name" body="Type a name to see where it pays, then send NIM to it." />
+        <EmptyState
+          title="Pay a name"
+          body={mode === 'nim' ? 'Type a name to see where it pays, then send NIM to it.' : payUsdtEmptyBody()}
+        />
       )}
       {outcome.status === 'loading' && <Spinner />}
       {outcome.status === 'error' && <p className="field-error">{unreachableLine()}</p>}
@@ -142,7 +210,59 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
         <NameCard outcome={outcome.value} wallet={wallet} nowMs={Date.now()} actions={[]} onChanged={() => {}} onManage={null} />
       )}
 
-      {resolved !== null && (
+      {resolved !== null && mode === 'usdt' && evm === '' && (
+        <p className="note note-info">{usdtNoLinkLine(resolved.query)}</p>
+      )}
+
+      {resolved !== null && mode === 'usdt' && evm !== '' && (
+        <div className="pay-form">
+          <p className="pay-to">
+            {payToLabel()} <NameText>{resolved.query}</NameText>
+          </p>
+          {/* The declared EVM record, from the verified resolve — the same
+              proof discipline as the NIM target, §8.3 leaf and all. */}
+          <p className="pay-evm nns-name">{evm}</p>
+
+          <label className="pay-amount">
+            {usdtAmountLabel()}
+            <input
+              className="pay-input"
+              type="text"
+              inputMode="decimal"
+              placeholder="10.00"
+              value={amount}
+              onChange={(event) => setAmount(event.target.value)}
+              aria-label="Amount in USDT"
+            />
+          </label>
+
+          {parsedUsdt !== null && 'error' in parsedUsdt && <p className="field-error">{parsedUsdt.error}</p>}
+
+          <button className="pay-go" type="button" disabled={!canPayUsdt} onClick={() => void payUsdt()}>
+            {usdtButtonLabel(usdtUnits === null ? null : formatUsdt(usdtUnits))}
+          </button>
+
+          {usdtSending && <p className="note note-info">{sendSubmittingLine()}</p>}
+          {usdtResult !== null && !usdtResult.ok && (
+            <p className="field-error">
+              {usdtResult.reason === 'no-provider' && usdtNoProviderLine()}
+              {usdtResult.reason === 'declined' && sendDeclinedLine()}
+              {usdtResult.reason === 'wrong-chain' && usdtWrongChainLine()}
+              {usdtResult.reason === 'failed' && `Couldn’t send: ${usdtResult.detail ?? 'unknown'}`}
+            </p>
+          )}
+          {usdtResult !== null && usdtResult.ok && (
+            <p className="note note-info">
+              {usdtAcceptedLine()}{' '}
+              <a href={`https://polygonscan.com/tx/${usdtResult.hash}`} target="_blank" rel="noreferrer">
+                {usdtResult.hash.slice(0, 10)}…{usdtResult.hash.slice(-6)}
+              </a>
+            </p>
+          )}
+        </div>
+      )}
+
+      {resolved !== null && mode === 'nim' && (
         <div className="pay-form">
           <p className="pay-to">
             {payToLabel()} <NameText>{resolved.query}</NameText>

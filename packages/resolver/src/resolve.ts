@@ -84,6 +84,13 @@ export interface ResolveResult {
   /** The registered name that carried the answer. The parent, for a dotted query. */
   readonly name: string
   readonly address: Address
+  /**
+   * The §6 `E` record — the EVM address the owner declared, lowercase
+   * `0x`-hex, `''` when none. One address for every EVM chain. Verified on
+   * the same terms as `address`: it is in the agreement key, and a proof
+   * committing to a different value keeps the answer at `PROOF_PENDING`.
+   */
+  readonly evm: string
   readonly verification: Verification
   /** The delegate host the name designates, `''` when none (§6 `D`). */
   readonly host: string
@@ -199,12 +206,18 @@ interface AvailableObservation extends Observation {
 const checkpointOf = (response: ResolveResponse): CheckpointRef | null =>
   response.proof === null ? null : { rootHex: toHex(response.proof.root), height: response.proof.nimiqHeight }
 
-/** A proof that commits to exactly the answer being served — the only thing that earns `PROVEN`. */
+/**
+ * A proof that commits to exactly the answer being served — the only thing
+ * that earns `PROVEN`. `evm` joined `target` here in r26: both are §8.1 leaf
+ * fields a client acts on, and a proof committing to a different EVM address
+ * — a recent `E`, or a lying endpoint — must not read as "verified" either.
+ */
 const provesTheAnswer = (observation: ResolveObservation): boolean =>
   observation.proven !== null &&
   observation.response !== null &&
   observation.proven.status === 'REGISTERED' &&
-  observation.proven.target === observation.response.target
+  observation.proven.target === observation.response.target &&
+  observation.proven.evm === observation.response.evm
 
 // ── The resolver ────────────────────────────────────────────────────────────
 
@@ -354,6 +367,10 @@ export class NnsResolver {
     return {
       ...resolved,
       address: response.address,
+      // The parent's record, not the label's: §8.6 answers carry an address
+      // and a ttl, nothing more, and inheriting the parent's EVM record onto
+      // a subdomain would attribute it to an owner who never declared it.
+      evm: '',
       verification: 'DELEGATED',
       delegate: { parent, label, host: resolved.host, ttl },
       warnings: this.#raise(warnings),
@@ -475,7 +492,7 @@ export class NnsResolver {
       const proven = response.proof === null ? null : verifyInclusion(response.proof, name)
 
       return answered<ResolveObservation>({
-        key: `FOUND:${response.target}:${response.status}:${response.host}`,
+        key: `FOUND:${response.target}:${response.evm}:${response.status}:${response.host}`,
         summary: `${response.target} (${response.status}) at height ${response.height}`,
         checkpoint: checkpointOf(response),
         response,
@@ -523,6 +540,7 @@ export class NnsResolver {
       query,
       name,
       address: live.target,
+      evm: live.evm,
       verification: proven ? 'PROVEN' : 'PROOF_PENDING',
       host: live.host,
       checkpoint: agreement.checkpoint,

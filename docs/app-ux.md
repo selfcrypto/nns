@@ -46,7 +46,15 @@ an on-screen keyboard is up (`data-keyboard`, both keyboard modes detected).
 `?chrome=<top>,<bottom>` and `?diag=1` remain the on-device instruments.
 
 Five tabs, and the first two are named for jobs rather than mechanisms:
-**Buy/Search** is discovery and acquisition, **Pay** sends NIM to a name.
+**Buy/Search** is discovery and acquisition, **Pay** sends NIM to a name —
+and, since 2026-08-23, **USDT over Polygon** to the name's §6 `E` record: an
+asset switch on the screen, the same verified resolve (`result.evm`, checked
+against the proven leaf on the same terms as the target), and the send handed
+to whatever EIP-1193 wallet the environment offers as a plain ERC-20
+`transfer` — the dApp path, no EVM key or Polygon RPC in the app. A name
+without an `E` record says so and is not payable in that mode. The wallet's
+returned hash is never called confirmation; the result line names the wallet
+as the actor and links Polygonscan.
 Management of what you already own is **My Names** and lives nowhere else — a
 name you own is never handled from Buy (§2). No hamburger, no settings screen in v1 — the app has no
 user-configurable state except the client-side hidden-senders list (managed

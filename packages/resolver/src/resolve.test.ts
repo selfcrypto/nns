@@ -241,6 +241,28 @@ describe('resolve', () => {
     expect(result.warnings.map((w) => w.code)).toContain('TARGET_CHANGED_SINCE_CHECKPOINT')
   })
 
+  it('carries the §6 E record, verified on the same terms as the target', async () => {
+    const evm = '0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b'
+    const withEvm = [record('kikeee', { evm }), record('nimiq')]
+    const body = resolveJson(withEvm, 'kikeee')
+    const result = await resolverOver({ 'a.example': serves(body), 'b.example': serves(body) }).resolve('kikeee')
+    expect(result.evm).toBe(evm)
+    expect(result.verification).toBe('PROVEN')
+  })
+
+  it('reports pending depth when the evm record changed since the checkpoint — an E landed', async () => {
+    const body = resolveJson(RECORDS, 'kikeee', {
+      live: { evm: '0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b' },
+    })
+    const result = await resolverOver({ 'a.example': serves(body), 'b.example': serves(body) }).resolve('kikeee')
+
+    // The proof verified — for a record without this EVM address. Same rule
+    // as a changed target: "verified" must cover what the user acts on.
+    expect(result.verification).toBe('PROOF_PENDING')
+    expect(result.evm).toBe('0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b')
+    expect(result.warnings.map((w) => w.code)).toContain('TARGET_CHANGED_SINCE_CHECKPOINT')
+  })
+
   it('fails when too few resolvers answer', async () => {
     const body = resolveJson(RECORDS, 'kikeee')
     const error = await resolverOver({ 'a.example': () => 'unreachable', 'b.example': serves(body) })

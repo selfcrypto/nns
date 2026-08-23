@@ -1210,6 +1210,41 @@ li.note {
 
 /* ── Pay ── */
 
+/* Asset switch: two segments, same pill vocabulary as the tab bar. */
+.pay-mode {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.pay-mode-tab {
+  appearance: none;
+  flex: 0 1 auto;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+}
+
+.pay-mode-active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+/* The §6 E record on the pay form: a 0x address has no spaced form and no
+   identicon — monospace, wrapped, and nothing pretending otherwise. */
+.pay-evm {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  color: var(--ink-soft);
+}
+
 .pay-form {
   display: flex;
   flex-direction: column;

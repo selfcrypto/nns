@@ -139,7 +139,7 @@ export function hostLanguage(): string | undefined {
 // reviews the address, and the record is whatever they confirm.
 
 interface Eip1193Provider {
-  request(args: { method: string }): Promise<unknown>
+  request(args: { method: string; params?: readonly unknown[] }): Promise<unknown>
 }
 
 function asEip1193(candidate: unknown): Eip1193Provider | null {

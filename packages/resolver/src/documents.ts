@@ -249,6 +249,8 @@ export function readNonInclusionDocument(value: unknown, path = 'proof'): NonInc
 export interface ResolveResponse {
   readonly name: string
   readonly target: Address
+  /** §6 `E` record — lowercase `0x`-hex, `''` when none. */
+  readonly evm: string
   readonly status: NameStatus
   readonly expiry: number
   readonly host: string
@@ -262,6 +264,7 @@ export function readResolveResponse(value: unknown, path = 'response'): ResolveR
   return {
     name: readString(value, path, 'name'),
     target: readAddress(value, path, 'target'),
+    evm: readEvm(value, path),
     status: readStatus(value, path, 'status'),
     expiry: readCount(value, path, 'expiry'),
     host: readString(value, path, 'host'),
