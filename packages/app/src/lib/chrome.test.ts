@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PAY_NAV_MIN, chromeInsets, isHostedWebView, keyboardVisible, parseChromeOverride, viewportSlack } from './chrome'
+import { PAY_NAV_MIN, bottomShortfall, chromeInsets, isHostedWebView, keyboardVisible, parseChromeOverride } from './chrome'
 
 describe('isHostedWebView', () => {
   it('answers on either global, because Pay has two containers', () => {
@@ -86,16 +86,30 @@ describe('keyboardVisible', () => {
   })
 })
 
-describe('viewportSlack', () => {
-  it('is the layout viewport\'s excess over the visual one, floored at 0', () => {
-    expect(viewportSlack({ innerHeight: 877, visualViewport: { height: 803 } })).toBe(74)
-    expect(viewportSlack({ innerHeight: 803, visualViewport: { height: 803 } })).toBe(0)
-    expect(viewportSlack({ innerHeight: 800, visualViewport: { height: 803 } })).toBe(0)
+describe('bottomShortfall', () => {
+  it('takes the visual-viewport gap — the taller-than-shown quirk', () => {
+    expect(bottomShortfall({ innerHeight: 877, visualHeight: 803, svhHeight: 877 })).toBe(74)
+  })
+
+  it('takes the svh gap — the nav bar drawn over the WebView, invisible to visualViewport', () => {
+    // Kike's device, 2026-08-23: visual == inner (slack 0), yet the 100svh
+    // frame ends above the nav buttons. The svh probe is what sees them.
+    expect(bottomShortfall({ innerHeight: 851, visualHeight: 851, svhHeight: 803 })).toBe(48)
+  })
+
+  it('takes the larger gap when both exist, and floors at 0', () => {
+    expect(bottomShortfall({ innerHeight: 925, visualHeight: 851, svhHeight: 803 })).toBe(122)
+    expect(bottomShortfall({ innerHeight: 803, visualHeight: 803, svhHeight: 803 })).toBe(0)
+    expect(bottomShortfall({ innerHeight: 800, visualHeight: 803, svhHeight: 805 })).toBe(0)
   })
 
   it('is null, not 0, with nothing to measure — the caller falls back to PAY_NAV_MIN', () => {
-    expect(viewportSlack({ innerHeight: 803 })).toBeNull()
-    expect(viewportSlack({ innerHeight: 803, visualViewport: null })).toBeNull()
+    expect(bottomShortfall({ innerHeight: 803, visualHeight: null, svhHeight: null })).toBeNull()
+  })
+
+  it('one instrument missing does not blind the other', () => {
+    expect(bottomShortfall({ innerHeight: 851, visualHeight: null, svhHeight: 803 })).toBe(48)
+    expect(bottomShortfall({ innerHeight: 877, visualHeight: 803, svhHeight: null })).toBe(74)
   })
 })
 

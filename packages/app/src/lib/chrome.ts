@@ -44,10 +44,15 @@
  *
  * **Demoted to a fallback on 2026-08-23.** The predicted dead band showed up
  * the very next day — same person, next session, a 120 px blank strip with
- * the real reserve at 0 — so the reserve is now `viewportSlack`, measured
+ * the real reserve at 0 — so the reserve is now `bottomShortfall`, measured
  * live from `visualViewport` (the same 74 px component this constant baked
- * in, on the day it was 74). This number is used only where there is no
- * `visualViewport` to measure, and `?chrome=0,<n>` still overrides everything.
+ * in, on the day it was 74). And re-demoted the same day, correctly this time: the visual
+ * viewport cannot see an Android nav bar drawn *over* the WebView — the 48
+ * component — which came back the moment the reserve was slack alone. The
+ * reserve is now `bottomShortfall`, the larger of the visual-viewport gap
+ * and the `100svh` gap, which does capture the overlay. This number is used
+ * only where neither can be measured, and `?chrome=0,<n>` still overrides
+ * everything.
  */
 export const PAY_NAV_MIN = 120
 
@@ -129,7 +134,7 @@ export function chromeInsets(input: {
   readonly pay: boolean
   readonly safeArea: Insets
   readonly override: Insets | null
-  /** Live {@link viewportSlack}; `null`/absent falls back to {@link PAY_NAV_MIN}. */
+  /** Live {@link bottomShortfall}; `null`/absent falls back to {@link PAY_NAV_MIN}. */
   readonly slack?: number | null
 }): Insets {
   if (input.override !== null) return input.override
@@ -186,6 +191,7 @@ export function describeChrome(
     // shows — which is the shape of the tab bar falling off the bottom.
     'client h': String(root.clientHeight),
     'visual h/off': `${win.visualViewport?.height ?? '—'} / ${win.visualViewport?.offsetTop ?? '—'}`,
+    '100svh': String(measureSmallViewport(win.document) ?? '—'),
     'screen h': String(win.screen.height),
     'doc scrollHeight': String(root.scrollHeight),
     dpr: String(win.devicePixelRatio),
@@ -220,25 +226,56 @@ export function keyboardVisible(view: {
 }
 
 /**
- * The layout viewport's excess over the visual one, at rest — the "viewport
- * taller than what it shows" quirk, **measured live** instead of shipped as
- * a constant. This is the exact distance a `sticky; bottom: 0` element sits
- * below the visible area, so it is the exact reserve the tab bar needs; on
- * a device or Pay build without the quirk it measures 0 and no reserve
- * appears. `null` where `visualViewport` does not exist — the caller falls
- * back to {@link PAY_NAV_MIN} rather than guessing 0.
+ * How far a `sticky; bottom: 0` element would sit below the *usable* bottom
+ * of the screen — the tab bar's reserve, measured live from **two** shortfalls
+ * because one of them is invisible to the other's instrument:
  *
- * Only meaningful while no keyboard is up: a keyboard opens the same gap in
- * overlay mode, which is why {@link watchViewport} re-measures only when
+ *   - `innerHeight − visualViewport.height`: the "viewport taller than what
+ *     it shows" quirk of Pay's in-app browser.
+ *   - `innerHeight − 100svh`: the Android navigation bar drawn **over** the
+ *     WebView. `visualViewport` does not see an overlaid system bar — on
+ *     2026-08-23 it measured 0 on a device whose nav buttons were sitting
+ *     straight on the tab bar's labels (Kike's third screenshot set, the
+ *     original 2026-08-22 bug back for one deploy) — but the same screenshots
+ *     show the `100svh` frame ending *above* those buttons, so the svh probe
+ *     is the instrument that captures it.
+ *
+ * The reserve is the larger shortfall, floored at 0. `null` only when
+ * neither can be measured — no `visualViewport` and no `svh` support — and
+ * the caller falls back to {@link PAY_NAV_MIN} rather than guessing 0.
+ *
+ * Only meaningful while no keyboard is up: a keyboard opens the same gaps,
+ * which is why {@link watchViewport} re-measures only when
  * {@link keyboardVisible} says false.
  */
-export function viewportSlack(win: {
+export function bottomShortfall(view: {
   readonly innerHeight: number
-  readonly visualViewport?: { readonly height: number } | null
+  readonly visualHeight: number | null
+  readonly svhHeight: number | null
 }): number | null {
-  const visual = win.visualViewport
-  if (visual == null) return null
-  return Math.max(0, Math.round(win.innerHeight - visual.height))
+  const gaps = [view.visualHeight, view.svhHeight]
+    .filter((height): height is number => height !== null)
+    .map((height) => view.innerHeight - height)
+  if (gaps.length === 0) return null
+  return Math.max(0, Math.round(Math.max(...gaps)))
+}
+
+/**
+ * What `100svh` resolves to right now, in CSS pixels — the probe that makes
+ * the nav-overlay shortfall measurable at all. `null` where the unit is
+ * unsupported (a WebView old enough also predates the quirks this measures).
+ */
+export function measureSmallViewport(doc: Document = document): number | null {
+  const view = doc.defaultView
+  if (view == null || doc.body == null) return null
+  if (typeof view.CSS?.supports === 'function' && !view.CSS.supports('height', '100svh')) return null
+  const probe = doc.createElement('div')
+  probe.style.cssText =
+    'position:fixed;top:0;left:0;width:0;height:100svh;visibility:hidden;pointer-events:none'
+  doc.body.appendChild(probe)
+  const height = probe.getBoundingClientRect().height
+  probe.remove()
+  return Number.isFinite(height) && height > 0 ? height : null
 }
 
 /**
@@ -294,7 +331,11 @@ export function applyHostChrome(win: Window = window, hosted = false): Insets {
     pay,
     safeArea: measureSafeArea(win.document),
     override: parseChromeOverride(win.location.search),
-    slack: viewportSlack(win),
+    slack: bottomShortfall({
+      innerHeight: win.innerHeight,
+      visualHeight: win.visualViewport?.height ?? null,
+      svhHeight: measureSmallViewport(win.document),
+    }),
   })
   const root = win.document.documentElement
   root.style.setProperty('--chrome-top', `${insets.top}px`)
