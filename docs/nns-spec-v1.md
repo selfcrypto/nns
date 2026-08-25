@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 26**
+**Protocol specification, v1 draft — revision 27**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -20,6 +20,41 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > stays something an implementation can claim to implement rather than a
 > changelog id. A change that touches a section an open revision already
 > touches goes into that revision's note — it does not open a new one.
+
+> **Changes in revision 27 — canonical order becomes the hash rank, and
+> block bodies leave the node requirements.** A reducer-rule change: any
+> block carrying two or more NNS messages can reorder under the new rule, so
+> the §8.2 log and every root from the first such block move — every
+> database rebuilds.
+>
+> - **§5.2 — canonical order is `(block_number ascending, transaction hash
+>   ascending, bytewise)`.** `tx_index` is redefined, not removed: it is the
+>   transaction's zero-based **rank** in that order within its block, so §6
+>   `M`'s `(height, tx_index)` identity, the §8.2 log line's second field
+>   and the obligation ledger's `TxRef` keep their shapes while every value
+>   moves. The rank's universe is pinned exactly: every transaction in the
+>   block whose `recipientData` begins with `NNS1`, taken **before** any
+>   §7.5 discard — the only set derivable from the batch response alone.
+> - **Why.** The old second coordinate — position in the block body array —
+>   exists only in bodies: the RPC transaction object carries no index
+>   field, so every NNS-bearing block cost a `getBlockByNumber(h, true)`
+>   call and the node had to retain **bodies** across the scan range, a
+>   strictly stronger requirement than serving the transaction stream and
+>   one measured to exclude real endpoints (`rpc-mainnet.nimiqscan.com`,
+>   2026-08-22). The tiebreak's only real requirement is determinism, and
+>   the hash is already on every object `getTransactionsByBatchNumber`
+>   returns. The reward-inherent counting hazard — inherents in the batch
+>   response shifting counted positions — disappears with the count, and
+>   the rule becomes a pure function in `core` instead of a clause every
+>   indexer re-implements against an RPC quirk.
+> - **§6.2 — hash grinding, stated and accepted.** A same-block sender can
+>   grind a transaction with a low hash to sort ahead without out-bidding
+>   fees. No regression: §6.2 accepts front-running wholesale, and body
+>   position never protected against it — the validator orders the body
+>   freely.
+> - **§11.1 — node requirements.** Block bodies are required nowhere; what
+>   remains is the transaction stream over the scan range, plus header
+>   reads near the head for calibration and the horizon guard.
 
 > **Changes in revision 26 — a name can carry an EVM address.** One new
 > message type and one new leaf field, on-chain and consensus-relevant:
@@ -1477,15 +1512,31 @@ only reading under which two encodings of the same message are impossible —
 anything looser lets implementations accept different message sets and
 diverge.
 
-**Canonical order** is `(block_number ascending, position in the block body
-array ascending)`. The RPC transaction object carries **no index, position,
-or ordering field** — verified 2026-08-06 against the full object, whose
-fields are `hash, blockNumber, timestamp, confirmations, size,
-relatedAddresses, from, fromType, to, toType, value, fee, senderData,
-recipientData, flags, validityStartHeight, proof, networkId,
-executionResult`. Order therefore comes from array position in the block
-body, and every implementation must derive it the same way or roots diverge.
-Blocks routinely carry several transactions, so this is not a corner case.
+**Canonical order** is `(block_number ascending, transaction hash ascending,
+bytewise)`, and `tx_index` — the second coordinate of the `(height,
+tx_index)` identity used throughout §6 and §8 — is a transaction's
+zero-based **rank** in that order within its block. The rank's universe is
+pinned exactly: every transaction in the block whose `recipientData` begins
+with `NNS1`, taken **before** any §7.5 discard — a failed or wrong-network
+message still occupies its rank, and everything unprefixed is invisible to
+the count. This is the only set every implementation can derive from the
+batch response alone; ranking over §7.5 survivors instead would couple
+`tx_index` to the discard rules and invite drift. Hashes compare bytewise —
+on lowercase hex that is plain lexicographic order.
+
+The hash is on every object `getTransactionsByBatchNumber` returns, so the
+order requires no further call. Through r26 the second coordinate was the
+position in the block body array — an index the RPC transaction object does
+not carry (verified 2026-08-06 against the full object), which forced one
+`getBlockByNumber(h, true)` call per NNS-bearing block and required the node
+to retain bodies across the scan range. The tiebreak's only real requirement
+is that it be deterministic and identical across implementations; the hash
+provides that from the batch response alone.
+
+Stated plainly: a same-block sender can grind a transaction with a low hash
+to sort ahead of a competitor without out-bidding fees. This is accepted
+deliberately — §6.2 accepts front-running wholesale, and body position never
+protected against it either: the validator orders the body freely.
 
 ### 5.3 Routing
 
@@ -1615,6 +1666,14 @@ a name after seeing someone else's intent. The judgement to accept it:
 Paying a maximum fee does **not** solve front-running: equal fees leave
 ordering to propagation and to the block producer's own policy, and a producer
 running a bot has absolute priority regardless of fee.
+
+The same judgement covers **hash grinding** (§5.2, r27): same-block order is
+the hash rank, so a sender can grind a low hash to sort ahead of a competitor
+already in the same block. That is a narrower power than the two above — it
+needs the competitor's message visible *and* a same-block landing — and it
+was never absent: under the body-position order the block producer placed the
+body freely, so same-block priority was always for sale to someone. Accepted
+on the same grounds, re-evaluated on the same triggers.
 
 The mitigation that does work is `RESERVED_NAMES` (§4.1).
 
@@ -2186,7 +2245,7 @@ alike.
 
 **Ordering inside the landing block.** A `U` is an ordinary message under §5.2's
 canonical order, so a `G` for the same name in the same block is decided by
-position in the block body array. Ahead of the `U` it sees a reserved name and
+the hash rank (r27; body position through r26). Ahead of the `U` it sees a reserved name and
 forfeits `RESERVED_NAME`. Behind a release it sees an available one and
 registers normally. Behind an award it sees a `REGISTERED` name and takes
 `LOST_REGISTRATION_RACE` — a refund, since losing to a state change inside the
@@ -2267,14 +2326,18 @@ It deliberately does **not** use `getTransactionsByAddress`:
 Cost is round trips: 720 batches per day of chain. With `LAUNCH_HEIGHT` at
 protocol launch, a full replay is a few thousand local RPC calls.
 
-Inherents and reward transactions MUST be filtered before prefix matching.
+Inherents and reward transactions appear in the batch response alongside
+user transactions. No heuristic is needed to identify them: they carry no
+`NNS1` payload, so the prefix filter excludes them — from discovery and from
+§5.2's rank universe alike (r27; through r26 they threatened the counted
+body position, which is gone).
 
 ### 7.2 Replay
 
 1. Start at `LAUNCH_HEIGHT`.
 2. Process transactions in canonical order: ascending `block_number`, then
-   ascending position in the block body array (§5.2 — there is no index
-   field on the RPC object).
+   ascending transaction hash, bytewise (§5.2 — the rank is derived from the
+   batch response alone; no body fetch, no index field needed).
 2b. Discard everything §7.5 excludes **before** applying any rule.
 2c. Derive each surviving transaction's **effective sender** (below) before
    any rule reads the sender.
@@ -2866,9 +2929,11 @@ wants that.
 ### 8.2 The NNS log
 
 Every `NNS1`-prefixed transaction, in canonical order, one line each.
-`tx_index` is the **zero-based** position of the transaction in its block's
-body array (§5.2) — stated explicitly because a one-based reading would
-produce a different log hash and therefore a different checkpoint, silently.
+`tx_index` is the transaction's **zero-based** rank in canonical order
+within its block (§5.2, r27) — stated explicitly because a one-based
+reading, or a rank taken over §7.5 survivors instead of the full universe,
+would produce a different log hash and therefore a different checkpoint,
+silently.
 The `<data>` field carries the message as **lowercase hex, never raw text**:
 a malformed but `NNS1`-prefixed payload still earns a line, and nothing
 stops such a payload containing a space or a newline — written raw, it
@@ -3828,9 +3893,16 @@ all in v1.
 | Task | Node required |
 |---|---|
 | Steady-state tailing | Normal (pruning) node — only the latest batch is read |
-| Bootstrap replay | History node, **no transaction index needed** |
-| Rebuilding lost state | History node |
-| Tier 3 verification | History node |
+| Bootstrap replay | `getTransactionsByBatchNumber` over the scan range — history back to the scan floor, **no transaction index, no block bodies** |
+| Rebuilding lost state | Same as bootstrap replay |
+| Tier 3 verification | Same as bootstrap replay |
+
+Beyond the transaction stream the indexer needs `getBlockNumber`,
+`getBatchNumber`, and `getBlockByNumber(h, false)` **near the head only**:
+batch calibration is a head-local binary search (~9 calls, once), and the
+history-horizon guard's startup bisection (~20 calls) runs on the refusing
+path. Block bodies — `getBlockByNumber(h, true)` — are required nowhere
+since r27: canonical order (§5.2) is derived from the batch response alone.
 
 ~1TB of history suffices; the ~2TB indexed configuration is not required.
 
