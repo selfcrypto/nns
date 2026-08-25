@@ -48,8 +48,6 @@ export {
   type LoggerOptions,
 } from './logger.js'
 
-export { OrderingError, compare, resolvePositions, type Positioned } from './ordering.js'
-
 export { Progress, type ProgressOptions } from './progress.js'
 
 export {

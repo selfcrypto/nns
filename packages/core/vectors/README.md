@@ -102,8 +102,13 @@ only; it defaults to empty.
 
 ### `ordering.json` and `reduce.json`
 
-`ordering.json` runs one block's transactions in array order and pins the
-owner, the log lines, the log hash and the root. `reduce.json` runs `steps`
+`ordering.json` authors one block's transactions in **response order**,
+which deliberately never matches canonical order: a runner ranks them per
+§5.2 (r27 — `(blockNumber, hash ascending bytewise)` over the block's
+`NNS1`-prefixed transactions, before any §7.5 discard) and then reduces in
+rank order, pinning the owner, each transaction's `txIndex`, the log lines,
+the log hash and the root. A transaction authored without `txIndex` must be
+excluded from the universe and never reduced. `reduce.json` runs `steps`
 against a fresh state: each step is a transaction (`tx` + expected `verdict`),
 a bare height advance (`advanceTo`), or an intermediate `check`.
 

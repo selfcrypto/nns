@@ -1,8 +1,8 @@
 {
   "vectors": "nns/ordering",
-  "version": 1,
-  "spec": "nns-spec-v1 draft r21, §5.2 and §8.2",
-  "description": "Canonical order is (block_number ascending, position in the block body array ascending). The RPC transaction object carries no index, position or ordering field — verified 2026-08-06 against the full object — so every implementation must derive it the same way or roots diverge. Blocks routinely carry several transactions, so this is not a corner case.",
+  "version": 2,
+  "spec": "nns-spec-v1 draft r27, §5.2 and §8.2",
+  "description": "Canonical order is (block_number ascending, transaction hash ascending, bytewise), and tx_index is a transaction's zero-based rank in that order within its block. The rank's universe is every transaction in the block whose recipientData begins with NNS1, taken BEFORE any §7.5 discard — a discarded message still occupies its rank, and everything unprefixed is invisible to the count. Each case's transactions are authored in RESPONSE order, which deliberately never matches canonical order: a runner must rank them (the reference implementation is core's rankMessages) before reducing. txIndex on a transaction is the hand-authored expected rank; a transaction authored without txIndex must be excluded from the universe and never reduced.",
   "addresses": {
     "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
     "PROTOCOL": "NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8",
@@ -17,20 +17,9 @@
   "cases": [
     {
       "id": "two_registrations_in_one_block",
-      "note": "Alice is at index 0 and wins. Bob loses the race and is refunded by the treasury — a concurrency loss, not a client error (§7.4).",
+      "note": "Authored with Bob first in response order; Alice's lower hash ranks 0 and wins. Bob loses the race and is refunded by the treasury — a concurrency loss, not a client error (§7.4).",
       "block": 58842730,
       "transactions": [
-        {
-          "txIndex": 0,
-          "hash": "aa00000000000000000000000000000000000000000000000000000000000000",
-          "sender": "ALICE",
-          "recipient": "TREASURY",
-          "value": "200000000",
-          "text": "NNS1Gkikename",
-          "verdict": {
-            "kind": "OK"
-          }
-        },
         {
           "txIndex": 1,
           "hash": "aa10000000000000000000000000000000000000000000000000000000000000",
@@ -41,6 +30,17 @@
           "verdict": {
             "kind": "REFUND",
             "reason": "LOST_REGISTRATION_RACE"
+          }
+        },
+        {
+          "txIndex": 0,
+          "hash": "aa00000000000000000000000000000000000000000000000000000000000000",
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "200000000",
+          "text": "NNS1Gkikename",
+          "verdict": {
+            "kind": "OK"
           }
         }
       ],
@@ -57,13 +57,13 @@
       }
     },
     {
-      "id": "the_same_block_with_the_positions_swapped",
-      "note": "Identical transactions, opposite array positions, opposite outcome. This is the case that proves ordering is load-bearing rather than incidental.",
+      "id": "the_same_block_with_the_hashes_swapped",
+      "note": "Identical transactions, opposite hashes, opposite outcome. This is the case that proves the hash rank is load-bearing rather than incidental: response order is unchanged from the previous case, only the hashes moved.",
       "block": 58842730,
       "transactions": [
         {
           "txIndex": 0,
-          "hash": "aa10000000000000000000000000000000000000000000000000000000000000",
+          "hash": "aa00000000000000000000000000000000000000000000000000000000000000",
           "sender": "BOB",
           "recipient": "TREASURY",
           "value": "200000000",
@@ -74,7 +74,7 @@
         },
         {
           "txIndex": 1,
-          "hash": "aa00000000000000000000000000000000000000000000000000000000000000",
+          "hash": "aa10000000000000000000000000000000000000000000000000000000000000",
           "sender": "ALICE",
           "recipient": "TREASURY",
           "value": "200000000",
@@ -90,17 +90,17 @@
           "kikename": "BOB"
         },
         "logLines": [
-          "58842730 0 aa10000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3 200000000 4e4e5331476b696b656e616d65 OK",
-          "58842730 1 aa00000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3 200000000 4e4e5331476b696b656e616d65 LOST_REGISTRATION_RACE"
+          "58842730 0 aa00000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3 200000000 4e4e5331476b696b656e616d65 OK",
+          "58842730 1 aa10000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3 200000000 4e4e5331476b696b656e616d65 LOST_REGISTRATION_RACE"
         ],
-        "logHash": "b0e12ff94237d09974df47b284efc043e44c4a83bab80f8861512899d3f80135",
+        "logHash": "afd922ec2f02596403c69bf1c1bd16c0a2af21b20607336b182b3e35360b9792",
         "root": "c63df39f271482ce4d7a00698c7ba053f530f7586062981037e40f4febe24125",
         "differsFrom": "two_registrations_in_one_block"
       }
     },
     {
-      "id": "a_failed_transaction_still_occupies_its_position",
-      "note": "§7.5 discards the failed G before any rule, so it takes no name and earns no log line — but it is still at index 0 of the block body, and index 1 is still index 1.",
+      "id": "a_discarded_message_still_occupies_its_rank",
+      "note": "The rank's universe is pre-discard: §7.5 drops the failed G before any rule, so it takes no name and earns no log line — but its hash still holds rank 0, and Bob's surviving G logs at index 1, not 0.",
       "block": 58842740,
       "transactions": [
         {
@@ -137,6 +137,48 @@
         ],
         "logHash": "99f857ce24cf565af1917993be5ac260fb2a3995a6028ec5d53b7da8b41d92da",
         "root": "9d17094e8f8c947e08d3f86826d86d060bd15fe9c78aa79b15d3c81e1dce7a41"
+      }
+    },
+    {
+      "id": "a_single_message_ranks_zero_whatever_else_the_block_carries",
+      "note": "Only NNS1-prefixed transactions hold ranks. The block also carries a plain transfer with unrelated data and a transfer with none — one hash below the message, one above — and the message still ranks 0. Under the r26 body-position rule its index depended on where the validator placed it.",
+      "block": 58842750,
+      "transactions": [
+        {
+          "hash": "cc00000000000000000000000000000000000000000000000000000000000000",
+          "sender": "BOB",
+          "recipient": "MARKETPLACE",
+          "value": "500",
+          "text": "hello world"
+        },
+        {
+          "hash": "ccff000000000000000000000000000000000000000000000000000000000000",
+          "sender": "BOB",
+          "recipient": "MARKETPLACE",
+          "value": "500",
+          "text": ""
+        },
+        {
+          "txIndex": 0,
+          "hash": "cc50000000000000000000000000000000000000000000000000000000000000",
+          "sender": "ALICE",
+          "recipient": "TREASURY",
+          "value": "200000000",
+          "text": "NNS1Gkikename",
+          "verdict": {
+            "kind": "OK"
+          }
+        }
+      ],
+      "expect": {
+        "owner": {
+          "kikename": "ALICE"
+        },
+        "logLines": [
+          "58842750 0 cc50000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3 200000000 4e4e5331476b696b656e616d65 OK"
+        ],
+        "logHash": "83535a295aceb803b6a20ec8be7dbd459bbc2064c3d2fd7d8685c0a89e47d616",
+        "root": "dd8e4ff2d87d2735e2ec0b41da9efa428053552e86f0081cb58a4592bd7ed1b3"
       }
     }
   ]

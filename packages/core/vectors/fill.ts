@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url'
 import { bytesToHex, hexToBytes } from '@noble/hashes/utils.js'
 import { canonicalLogLine, logHash } from '../src/log.js'
 import { checkpoint, encodeLeaf, leafHash, merkleRoot } from '../src/merkle.js'
+import { rankMessages } from '../src/ordering.js'
 import { reduce } from '../src/reduce.js'
 import { type NameRecord, type NnsState, initialState } from '../src/state.js'
 import {
@@ -108,10 +109,31 @@ const stateWith = (config: ReturnType<typeof readConfig>, records: NameRecord[])
   const config = readConfig(file.config, book)
 
   for (const testCase of file.cases) {
+    // §5.2 (r27): rank the response-order transactions before reducing. The
+    // authored txIndex is the reviewable expectation — a rank that disagrees,
+    // or a transaction outside the universe carrying one, is an authoring
+    // error, so it throws here rather than filling wrong derived values.
+    const inputs: Array<{ blockNumber: number; hash: string; recipientData: string; raw: any }> =
+      testCase.transactions.map((raw: any) => ({
+        blockNumber: testCase.block as number,
+        hash: raw.hash as string,
+        recipientData: (raw.data ?? hexOf(raw.text ?? '')) as string,
+        raw,
+      }))
+    const ranked = rankMessages(inputs)
+    const rankByRaw = new Map(ranked.map((entry) => [entry.tx.raw, entry.txIndex]))
+    for (const raw of testCase.transactions) {
+      if (rankByRaw.get(raw) !== raw.txIndex) {
+        throw new Error(
+          `${testCase.id}: transaction ${raw.hash} authored txIndex ${raw.txIndex}, ranked ${rankByRaw.get(raw)}`,
+        )
+      }
+    }
+
     let state = initialState()
     const lines: string[] = []
-    for (const raw of testCase.transactions) {
-      const tx = readTx({ ...raw, blockNumber: testCase.block }, book, file.config.networkId)
+    for (const { tx: input, txIndex } of ranked) {
+      const tx = readTx({ ...input.raw, blockNumber: testCase.block, txIndex }, book, file.config.networkId)
       const result = reduce(state, tx, config)
       state = result.state
       if (result.verdict.kind !== 'IGNORED') lines.push(canonicalLogLine(tx, result.verdict))
@@ -133,4 +155,4 @@ console.log(`  empty tree is 32 zero bytes      ${/^0{64}$/.test(empty.root)}`)
 console.log(`  one-leaf root equals its leaf    ${single.root === singleLeaf.leaf}`)
 const ordering = load('ordering.json')
 const [first, swapped] = ordering.cases
-console.log(`  swapping positions changes root  ${first.expect.root !== swapped.expect.root}`)
+console.log(`  swapping hashes changes root     ${first.expect.root !== swapped.expect.root}`)

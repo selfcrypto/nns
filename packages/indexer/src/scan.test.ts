@@ -125,43 +125,65 @@ describe('§7.5 discovery filters', () => {
   })
 })
 
-describe('canonical order (§5.2)', () => {
-  it('takes txIndex from the block body, not from the batch result', async () => {
-    // The batch call also returns a reward inherent, which is not in any body.
-    // Counting it would shift every index after it.
+describe('canonical order (§5.2, r27)', () => {
+  it('ranks NNS messages by hash within their block; nothing else holds a rank', async () => {
+    // The batch call also returns a reward inherent and unrelated transfers.
+    // The rank's universe is NNS1-prefixed transactions only, so neither can
+    // shift an index — the reward heuristic the body-position rule needed has
+    // nothing left to guess about.
     const reward = tx({ blockNumber: 61, from: 'NQ07 REWARD', recipientData: '' })
     const node = fakeNode({
       head: 120,
       blocks: {
         61: [
           tx({ blockNumber: 61, recipientData: payload('noise') }),
-          tx({ blockNumber: 61, recipientData: NNS('Gsecond') }),
+          // Response order and hash order disagree on purpose.
+          tx({ blockNumber: 61, hash: 'ff'.repeat(32), recipientData: NNS('Gsecond') }),
+          tx({ blockNumber: 61, hash: '11'.repeat(32), recipientData: NNS('Gfirst') }),
         ],
-        62: [tx({ blockNumber: 62, recipientData: NNS('Gfirst') })],
+        62: [tx({ blockNumber: 62, recipientData: NNS('Gnextblock') })],
       },
       inherents: [reward],
     })
     const { scanner: s } = scanner(node)
     const found = await s.scanBatch(2)
     expect(found.map((c) => [c.blockNumber, c.txIndex, c.recipientData])).toEqual([
+      [61, 0, NNS('Gfirst')],
       [61, 1, NNS('Gsecond')],
-      [62, 0, NNS('Gfirst')],
+      [62, 0, NNS('Gnextblock')],
     ])
   })
 
-  it('fetches a block body only for blocks that carry an NNS message', async () => {
+  it('reads no block bodies at all — the rank comes from the batch response alone', async () => {
     const node = fakeNode({
       head: 120,
       blocks: {
         61: [tx({ blockNumber: 61, recipientData: payload('noise') })],
-        75: [tx({ blockNumber: 75, recipientData: NNS('Gonly') })],
+        75: [tx({ blockNumber: 75, recipientData: NNS('Gonly') }), tx({ blockNumber: 75, recipientData: NNS('Gtwo') })],
       },
     })
     const { scanner: s } = scanner(node)
     await s.scanBatch(2)
-    expect(node.calls.blocks).toEqual([75])
+    expect(node.calls.blocks).toEqual([])
     // Calibration probes are header reads, counted apart from body reads.
     expect(node.calls.probes.length).toBeGreaterThan(0)
+  })
+
+  it('gives a §7.5-discarded message a rank it keeps occupying', async () => {
+    // The universe is pre-discard: the failed message holds rank 0, and
+    // discarding it later must not renumber the survivor to 0.
+    const node = fakeNode({
+      head: 120,
+      blocks: {
+        61: [
+          tx({ blockNumber: 61, hash: '11'.repeat(32), recipientData: NNS('Gtaken'), executionResult: false }),
+          tx({ blockNumber: 61, hash: 'ff'.repeat(32), recipientData: NNS('Gkept') }),
+        ],
+      },
+    })
+    const { scanner: s } = scanner(node)
+    const found = await s.scanBatch(2)
+    expect(found.map((c) => [c.txIndex, c.recipientData])).toEqual([[1, NNS('Gkept')]])
   })
 
   it('emits ascending (blockNumber, txIndex)', async () => {

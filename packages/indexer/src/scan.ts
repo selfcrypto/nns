@@ -16,12 +16,11 @@
  * wired. Surviving transactions are handed to `onCandidate` and logged.
  */
 
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS, rankMessages } from '@nns/core'
 
 import { type ChainGeometry, calibrate, lastFinalisedBatch } from './chain.js'
 import { HorizonError, assertHistoryHorizon } from './horizon.js'
 import type { Logger } from './logger.js'
-import { resolvePositions } from './ordering.js'
 import type { RpcClient, RpcTransaction } from './rpc.js'
 
 /** `NNS1` as lowercase hex — `recipientData` arrives hex-encoded (§5.1). */
@@ -33,7 +32,7 @@ export class ScanError extends Error {
 
 /**
  * A transaction that carries the `NNS1` prefix and survived §7.5, stamped
- * with its canonical position.
+ * with its canonical rank (§5.2 hash order, derived by `core.rankMessages`).
  *
  * Addresses stay in `NQ…` string form: turning them into `core`'s `Address`
  * is the reducer wiring's job, and a malformed one is a verdict question, not
@@ -287,16 +286,10 @@ export class Scanner {
     this.logger.info('scan.stopped', { nextBatch: this.cursor })
   }
 
-  /** Fetch one batch, apply §7.5's discovery filters, order, emit. */
+  /** Fetch one batch, rank per §5.2, apply §7.5's discovery filters, emit. */
   async scanBatch(batch: number): Promise<readonly NnsCandidate[]> {
     const geometry = await this.calibrated()
     const returned = await this.rpc.getTransactionsByBatchNumber(batch)
-
-    let droppedFailedExecution = 0
-    let droppedWrongNetwork = 0
-    let droppedBeforeLaunch = 0
-    let droppedNotNns1 = 0
-    const survivors: RpcTransaction[] = []
 
     for (const tx of returned) {
       // If the method took a block number rather than a batch number we would
@@ -308,8 +301,23 @@ export class Scanner {
             `(PoS genesis ${geometry.genesisBlock})`,
         )
       }
-      // §7.5, in order. Reward transactions need no rule of their own: they
-      // carry no NNS1 payload, so the prefix filter takes them.
+    }
+
+    // §5.2 (r27): core ranks the batch response directly — the universe is
+    // every `NNS1`-prefixed transaction, before any §7.5 discard, so a
+    // discarded message still occupies its rank. Rewards and inherents carry
+    // no NNS1 payload and fall out of the universe with everything else
+    // unprefixed; no body fetch, no reward heuristic.
+    const ranked = rankMessages(returned)
+    const droppedNotNns1 = returned.length - ranked.length
+
+    // §7.5, in order — discovery filters over the ranked universe. The ranks
+    // are already final: a discard here removes the message, never renumbers.
+    let droppedFailedExecution = 0
+    let droppedWrongNetwork = 0
+    let droppedBeforeLaunch = 0
+    const candidates: NnsCandidate[] = []
+    for (const { tx, txIndex } of ranked) {
       if (tx.executionResult === false) {
         droppedFailedExecution += 1
         continue
@@ -322,15 +330,8 @@ export class Scanner {
         droppedBeforeLaunch += 1
         continue
       }
-      if (!hasProtocolPrefix(tx.recipientData)) {
-        droppedNotNns1 += 1
-        continue
-      }
-      survivors.push(tx)
+      candidates.push(toCandidate(tx, txIndex))
     }
-
-    const positioned = await resolvePositions(this.rpc, survivors)
-    const candidates = positioned.map(({ tx, txIndex }) => toCandidate(tx, txIndex))
 
     const summary: BatchSummary = {
       batch,

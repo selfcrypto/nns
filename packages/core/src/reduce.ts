@@ -53,10 +53,10 @@ export class ReducerError extends Error {
 /**
  * One transaction, as the indexer reads it from the RPC.
  *
- * `txIndex` is the **zero-based** position in the block body array. The RPC
- * object carries no index, position or ordering field — verified 2026-08-06
- * against the full object — so canonical order is `(blockNumber, array
- * position)` and every implementation must derive it the same way (§5.2).
+ * `txIndex` is the **zero-based rank** in canonical order within the block —
+ * `(blockNumber ascending, transaction hash ascending, bytewise)` over the
+ * block's `NNS1`-prefixed transactions, before any §7.5 discard (§5.2, r27).
+ * `rankMessages` in `ordering.ts` derives it; this type only carries it.
  */
 export interface ChainTransaction {
   readonly blockNumber: number

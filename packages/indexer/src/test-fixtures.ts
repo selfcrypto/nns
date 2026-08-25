@@ -20,7 +20,10 @@ let counter = 0
 export function tx(overrides: Partial<RpcTransaction> & { blockNumber: number }): RpcTransaction {
   counter += 1
   return {
-    hash: `hash${counter.toString().padStart(4, '0')}`,
+    // 64 hex chars, as on the wire: §5.2 orders same-block messages by hash,
+    // so a fake hash must be orderable. Monotonic, so within one test
+    // creation order and hash order agree unless a test overrides the hash.
+    hash: counter.toString(16).padStart(64, '0'),
     timestamp: 1_700_000_000 + counter,
     from: 'NQ11 1111 1111 1111 1111 1111 1111 1111 1111',
     to: 'NQ22 2222 2222 2222 2222 2222 2222 2222 2222',
@@ -42,7 +45,10 @@ export interface FakeNodeOptions {
    * readable.
    */
   genesis?: number
-  /** Block bodies, by height. Order within an array is the canonical order. */
+  /**
+   * Block contents, by height. Array order is response order and means
+   * nothing: canonical order is `(blockNumber, hash)` (§5.2, r27).
+   */
   blocks?: Record<number, readonly RpcTransaction[]>
   /** Extra entries the batch call returns that are NOT in any body (rewards). */
   inherents?: readonly RpcTransaction[]

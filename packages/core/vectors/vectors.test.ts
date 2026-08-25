@@ -25,6 +25,7 @@ import {
   verifyProof,
 } from '../src/merkle.js'
 import { isValidRef, parseQuery, validateHost, validateLabel, validateName } from '../src/name.js'
+import { rankMessages } from '../src/ordering.js'
 import { advanceTo, reduce } from '../src/reduce.js'
 import { type NameRecord, type NnsState, initialState, lookup, resolve } from '../src/state.js'
 import {
@@ -288,13 +289,32 @@ describe('vectors/ordering.json', () => {
   const config = readConfig(file.config, book)
 
   const run = (testCase: any): { state: NnsState; lines: string[] } => {
+    // §5.2 (r27): the transactions are authored in response order, which
+    // deliberately never matches canonical order. Rank first, then reduce.
+    const inputs: Array<{ blockNumber: number; hash: string; recipientData: string; raw: any }> =
+      testCase.transactions.map((raw: any) => ({
+        blockNumber: testCase.block,
+        hash: raw.hash,
+        recipientData: raw.data ?? hexOf(raw.text ?? ''),
+        raw,
+      }))
+    const ranked = rankMessages(inputs)
+
+    // The authored txIndex is the reviewable expectation: ranking must
+    // reproduce it, and a transaction authored without one must be excluded
+    // from the universe (its rank here reads back undefined).
+    const rankByRaw = new Map(ranked.map((entry) => [entry.tx.raw, entry.txIndex]))
+    for (const raw of testCase.transactions) {
+      expect(rankByRaw.get(raw), `rank of ${raw.hash}`).toBe(raw.txIndex)
+    }
+
     let state = initialState()
     const lines: string[] = []
-    for (const raw of testCase.transactions) {
-      const tx = readTx({ ...raw, blockNumber: testCase.block }, book, file.config.networkId)
+    for (const { tx: input, txIndex } of ranked) {
+      const tx = readTx({ ...input.raw, blockNumber: testCase.block, txIndex }, book, file.config.networkId)
       const result = reduce(state, tx, config)
       state = result.state
-      expect(result.verdict).toMatchObject(raw.verdict)
+      expect(result.verdict).toMatchObject(input.raw.verdict)
       if (result.verdict.kind !== 'IGNORED') lines.push(canonicalLogLine(tx, result.verdict))
     }
     return { state, lines }
@@ -310,18 +330,26 @@ describe('vectors/ordering.json', () => {
     expect(bytesToHex(merkleRoot(state))).toBe(testCase.expect.root)
   })
 
-  it('derives a different root when the two positions swap — ordering is load-bearing', () => {
+  it('derives a different root when the two hashes swap — the rank is load-bearing', () => {
     const swapped = file.cases.find((c: any) => c.expect.differsFrom !== undefined)
     const other = file.cases.find((c: any) => c.id === swapped.expect.differsFrom)
     expect(swapped.expect.root).not.toBe(other.expect.root)
     expect(swapped.expect.logHash).not.toBe(other.expect.logHash)
   })
 
-  it('logs no line for a transaction §7.5 discards, while it keeps its position', () => {
-    const testCase = file.cases.find((c: any) => c.id === 'a_failed_transaction_still_occupies_its_position')
+  it('logs no line for a transaction §7.5 discards, while it keeps its rank', () => {
+    const testCase = file.cases.find((c: any) => c.id === 'a_discarded_message_still_occupies_its_rank')
     expect(testCase.transactions).toHaveLength(2)
     expect(testCase.expect.logLines).toHaveLength(1)
     expect(testCase.expect.logLines[0].split(' ')[1]).toBe('1')
+  })
+
+  it('keeps unprefixed transactions out of the universe — a lone message ranks 0', () => {
+    const testCase = file.cases.find((c: any) => c.id === 'a_single_message_ranks_zero_whatever_else_the_block_carries')
+    expect(testCase.transactions).toHaveLength(3)
+    expect(testCase.transactions.filter((raw: any) => raw.txIndex !== undefined)).toHaveLength(1)
+    expect(testCase.expect.logLines).toHaveLength(1)
+    expect(testCase.expect.logLines[0].split(' ')[1]).toBe('0')
   })
 })
 
