@@ -402,9 +402,22 @@ export const usdtNoProviderLine = (): string =>
 export const usdtWrongChainLine = (): string => 'The wallet wouldn’t switch to Polygon — nothing was sent.'
 
 /**
- * The first failure many users will hit: Nimiq Pay's own USDT flow is
- * gasless through its relay, so the account can hold USDT and no POL at all
- * — and a raw dApp transfer needs POL for the network fee.
+ * Not enough USDT for the amount typed. One line for both moments it can
+ * arrive: before a send, when the displayed balance already answers, and
+ * after one, when the wallet refused and the measured balance explains why —
+ * so it states the shortfall and stays silent about sending.
+ */
+export const usdtShortBalanceLine = (held: string, asked: string): string =>
+  `The wallet holds ${held} USDT — not enough to send ${asked}.`
+
+/**
+ * Only ever shown on a *measured* zero POL balance with enough USDT — never
+ * inferred from the wallet's error text, which says "insufficient funds" for
+ * gas and token shortfalls alike (the guess put "no POL" on a zero-USDT
+ * account, tester 2026-08-25). Why POL at all: Nimiq Pay's own USDT flow is
+ * gasless through its relay, but that relay lives behind Pay's native send
+ * UI — a mini app's transfer goes through the injected provider as a plain
+ * on-chain transaction, and that path pays Polygon's fee in POL.
  */
 export const usdtNoGasLine = (): string =>
   'The wallet has no POL to pay Polygon’s network fee — nothing was sent.'

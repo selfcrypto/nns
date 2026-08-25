@@ -43,10 +43,12 @@ export class EvmAmountError extends Error {
 /**
  * A USDT decimal to integer units — six decimals, the whole precision there
  * is. The same shape as `parseNimAmount`, for the same reason: one parser
- * per notation, or two come to disagree.
+ * per notation, or two come to disagree. `,` is a decimal separator too —
+ * half the keyboards this app meets write 0,50 — and only that: one
+ * separator per amount, no thousands grouping.
  */
 export const parseUsdtAmount = (text: string): bigint => {
-  const match = /^([0-9]+)(?:\.([0-9]{1,6}))?$/.exec(text.trim())
+  const match = /^([0-9]+)(?:[.,]([0-9]{1,6}))?$/.exec(text.trim())
   if (match === null || match[1] === undefined) {
     throw new EvmAmountError('Amount must be a USDT amount, like 25 or 9.50')
   }
@@ -108,24 +110,23 @@ const parseBalanceAnswer = (answer: unknown): bigint | null =>
   typeof answer === 'string' && /^0x[0-9a-fA-F]+$/.test(answer) ? BigInt(answer) : null
 
 /**
- * The account's USDT balance: the wallet's own `eth_call` when it is on
- * Polygon, else the public endpoint. Display-only, `null` on every miss —
- * an endpoint that cannot answer must not read as a zero balance.
+ * One Polygon read: the wallet's own provider when it reports Polygon, else
+ * the public endpoint. `null` on every miss — an endpoint that cannot answer
+ * must not read as a zero balance.
  */
-export async function fetchUsdtBalanceFor(
-  account: string,
-  providerOverride?: Eip1193Like | null,
-  fetchImpl: typeof fetch = fetch,
+async function readPolygonQuantity(
+  method: string,
+  params: readonly unknown[],
+  providerOverride: Eip1193Like | null | undefined,
+  fetchImpl: typeof fetch,
 ): Promise<bigint | null> {
-  const call = { to: USDT_POLYGON.address, data: erc20BalanceOfData(account) }
-
   const provider = providerOverride ?? discoverEvmProvider()
   if (provider != null) {
     try {
       const chain = (await provider.request({ method: 'eth_chainId' })) as unknown
       if (chain === POLYGON_CHAIN_HEX) {
-        const units = parseBalanceAnswer(await provider.request({ method: 'eth_call', params: [call, 'latest'] }))
-        if (units !== null) return units
+        const quantity = parseBalanceAnswer(await provider.request({ method, params }))
+        if (quantity !== null) return quantity
       }
     } catch {
       /* fall through to the public endpoint */
@@ -136,7 +137,7 @@ export async function fetchUsdtBalanceFor(
     const response = await fetchImpl(POLYGON_PUBLIC_RPC, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_call', params: [call, 'latest'] }),
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
     })
     const body = (await response.json()) as { result?: unknown }
     return parseBalanceAnswer(body.result)
@@ -145,9 +146,45 @@ export async function fetchUsdtBalanceFor(
   }
 }
 
+/** The account's USDT balance — display and refusal evidence, never a false zero. */
+export async function fetchUsdtBalanceFor(
+  account: string,
+  providerOverride?: Eip1193Like | null,
+  fetchImpl: typeof fetch = fetch,
+): Promise<bigint | null> {
+  const call = { to: USDT_POLYGON.address, data: erc20BalanceOfData(account) }
+  return readPolygonQuantity('eth_call', [call, 'latest'], providerOverride, fetchImpl)
+}
+
+/**
+ * The account's native POL — read only to *explain* a refused send, never to
+ * refuse one ourselves: whether a transfer needs POL at all is the wallet's
+ * business (Pay's own USDT flow is gasless through its relay; this dApp path
+ * may not be), so the app asks the question only after the wallet said no.
+ */
+export async function fetchPolBalanceFor(
+  account: string,
+  providerOverride?: Eip1193Like | null,
+  fetchImpl: typeof fetch = fetch,
+): Promise<bigint | null> {
+  return readPolygonQuantity('eth_getBalance', [account, 'latest'], providerOverride, fetchImpl)
+}
+
 export type EvmSendOutcome =
   | { readonly ok: true; readonly hash: string; readonly from: string }
-  | { readonly ok: false; readonly reason: 'no-provider' | 'declined' | 'wrong-chain' | 'failed'; readonly detail?: string }
+  | {
+      readonly ok: false
+      readonly reason: 'no-provider' | 'declined' | 'wrong-chain' | 'failed'
+      readonly detail?: string
+      /**
+       * Only on `failed`, and only when a balance was measured: what the
+       * wallet's "insufficient funds" actually meant. The string alone names
+       * no culprit — Polygon says it for a gas shortfall, wallets say it for
+       * a token shortfall — and guessing put "no POL" on a screen whose real
+       * problem was zero USDT (tester, 2026-08-25).
+       */
+      readonly cause?: { readonly kind: 'no-usdt'; readonly held: bigint } | { readonly kind: 'no-pol' }
+    }
 
 /**
  * A provider rejection is usually a plain `{code, message}` object, not an
@@ -209,14 +246,16 @@ export async function sendUsdtOnPolygon(
     readonly units: bigint
   },
   providerOverride?: Eip1193Like | null,
+  fetchImpl: typeof fetch = fetch,
 ): Promise<EvmSendOutcome> {
   const provider = providerOverride ?? discoverEvmProvider()
   if (provider == null) return { ok: false, reason: 'no-provider' }
+  let from: string | null = null
   try {
     const accounts = (await provider.request({
       method: 'eth_requestAccounts',
     })) as unknown
-    const from = Array.isArray(accounts) && typeof accounts[0] === 'string' ? accounts[0].toLowerCase() : null
+    from = Array.isArray(accounts) && typeof accounts[0] === 'string' ? accounts[0].toLowerCase() : null
     if (from === null) return { ok: false, reason: 'declined' }
 
     const chain = (await provider.request({ method: 'eth_chainId' })) as unknown
@@ -256,6 +295,20 @@ export async function sendUsdtOnPolygon(
     return { ok: true, hash: hash.toLowerCase(), from }
   } catch (error) {
     if (looksDeclined(error)) return { ok: false, reason: 'declined' }
-    return { ok: false, reason: 'failed', detail: evmErrorMessage(error) }
+    const detail = evmErrorMessage(error)
+    // "insufficient funds" names no culprit by itself. Measure before
+    // blaming: a USDT balance below the send is the answer; failing that, a
+    // POL balance of exactly zero is; anything else stays the wallet's own
+    // words. Both reads are misses-stay-silent, so an unreachable endpoint
+    // degrades to the generic report, never to a wrong diagnosis.
+    if (from !== null && /insufficient funds/i.test(detail)) {
+      const held = await fetchUsdtBalanceFor(from, provider, fetchImpl)
+      if (held !== null && held < request.units) {
+        return { ok: false, reason: 'failed', detail, cause: { kind: 'no-usdt', held } }
+      }
+      const pol = await fetchPolBalanceFor(from, provider, fetchImpl)
+      if (pol === 0n) return { ok: false, reason: 'failed', detail, cause: { kind: 'no-pol' } }
+    }
+    return { ok: false, reason: 'failed', detail }
   }
 }

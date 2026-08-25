@@ -1,15 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { EvmAmountError, FALLBACK_TRANSFER_GAS, USDT_POLYGON, erc20TransferData, evmErrorMessage, fetchUsdtBalanceFor, formatUsdt, gasLimitFor, parseUsdtAmount, sendUsdtOnPolygon, silentEvmAccount } from './evm'
+import { EvmAmountError, FALLBACK_TRANSFER_GAS, USDT_POLYGON, erc20TransferData, evmErrorMessage, fetchPolBalanceFor, fetchUsdtBalanceFor, formatUsdt, gasLimitFor, parseUsdtAmount, sendUsdtOnPolygon, silentEvmAccount } from './evm'
+
+const noFetch = (() => Promise.reject(new Error('no network in tests'))) as unknown as typeof fetch
 
 describe('parseUsdtAmount', () => {
-  it('takes integers and up to six decimals, exactly', () => {
+  it('takes integers and up to six decimals, exactly, with . or , between', () => {
     expect(parseUsdtAmount('25')).toBe(25_000_000n)
     expect(parseUsdtAmount('9.5')).toBe(9_500_000n)
+    expect(parseUsdtAmount('9,5')).toBe(9_500_000n)
+    expect(parseUsdtAmount('0,50')).toBe(500_000n)
     expect(parseUsdtAmount('0.000001')).toBe(1n)
   })
 
   it('refuses what is not an amount', () => {
-    for (const bad of ['', '1,5', '1.2345678', '-2', '1e3', '0x10']) {
+    // One separator per amount: grouped thousands like 1.000,5 read
+    // differently per locale, so they never parse.
+    for (const bad of ['', '1.2345678', '1,2345678', '-2', '1e3', '0x10', ',5', '1.000,5', '1,000.5']) {
       expect(() => parseUsdtAmount(bad)).toThrow(EvmAmountError)
     }
   })
@@ -121,7 +127,9 @@ describe('sendUsdtOnPolygon over a fake provider', () => {
       eth_estimateGas: '0x10000',
       eth_sendTransaction: { reject: { code: -32000, message: 'insufficient funds for gas * price' } },
     })
-    const failure = await sendUsdtOnPolygon({ to: TO, units: 1n }, refused.provider)
+    // No balance answers anywhere: the classification degrades to the
+    // wallet's own words, never to a guessed culprit.
+    const failure = await sendUsdtOnPolygon({ to: TO, units: 1n }, refused.provider, noFetch)
     expect(failure).toEqual({ ok: false, reason: 'failed', detail: 'insufficient funds for gas * price' })
 
     const declined = fake({
@@ -130,9 +138,59 @@ describe('sendUsdtOnPolygon over a fake provider', () => {
       eth_estimateGas: '0x10000',
       eth_sendTransaction: { reject: { code: 4001 } },
     })
-    expect(await sendUsdtOnPolygon({ to: TO, units: 1n }, declined.provider)).toEqual({
+    expect(await sendUsdtOnPolygon({ to: TO, units: 1n }, declined.provider, noFetch)).toEqual({
       ok: false,
       reason: 'declined',
+    })
+    // A decline is a decline: no balance was read to explain it.
+    expect(declined.calls.some((c) => c.method === 'eth_call' || c.method === 'eth_getBalance')).toBe(false)
+  })
+
+  it('names the measured culprit behind "insufficient funds" — the token first', async () => {
+    // Holds 0.5 USDT, asked to send 1: the shortfall is USDT, whatever POL says.
+    const short = fake({
+      eth_requestAccounts: ['0xAA00000000000000000000000000000000000001'],
+      eth_chainId: '0x89',
+      eth_estimateGas: '0x10000',
+      eth_sendTransaction: { reject: { code: -32000, message: 'insufficient funds' } },
+      eth_call: `0x${(500_000n).toString(16).padStart(64, '0')}`,
+    })
+    expect(await sendUsdtOnPolygon({ to: TO, units: 1_000_000n }, short.provider, noFetch)).toEqual({
+      ok: false,
+      reason: 'failed',
+      detail: 'insufficient funds',
+      cause: { kind: 'no-usdt', held: 500_000n },
+    })
+
+    // Enough USDT, zero POL: now — and only now — the fee is the story.
+    const gasless = fake({
+      eth_requestAccounts: ['0xAA00000000000000000000000000000000000001'],
+      eth_chainId: '0x89',
+      eth_estimateGas: '0x10000',
+      eth_sendTransaction: { reject: { code: -32000, message: 'insufficient funds' } },
+      eth_call: `0x${(2_000_000n).toString(16).padStart(64, '0')}`,
+      eth_getBalance: '0x0',
+    })
+    expect(await sendUsdtOnPolygon({ to: TO, units: 1_000_000n }, gasless.provider, noFetch)).toEqual({
+      ok: false,
+      reason: 'failed',
+      detail: 'insufficient funds',
+      cause: { kind: 'no-pol' },
+    })
+
+    // Both balances healthy: the wallet's words stand on their own.
+    const healthy = fake({
+      eth_requestAccounts: ['0xAA00000000000000000000000000000000000001'],
+      eth_chainId: '0x89',
+      eth_estimateGas: '0x10000',
+      eth_sendTransaction: { reject: { code: -32000, message: 'insufficient funds' } },
+      eth_call: `0x${(2_000_000n).toString(16).padStart(64, '0')}`,
+      eth_getBalance: '0xde0b6b3a7640000',
+    })
+    expect(await sendUsdtOnPolygon({ to: TO, units: 1_000_000n }, healthy.provider, noFetch)).toEqual({
+      ok: false,
+      reason: 'failed',
+      detail: 'insufficient funds',
     })
   })
 
@@ -156,7 +214,6 @@ describe('silentEvmAccount and fetchUsdtBalanceFor', () => {
         ? Promise.reject(answers[args.method])
         : Promise.resolve(answers[args.method]),
   })
-  const noFetch = (() => Promise.reject(new Error('no network in tests'))) as unknown as typeof fetch
   const rpcFetch = (result: unknown) =>
     (() => Promise.resolve({ json: () => Promise.resolve({ result }) })) as unknown as typeof fetch
 
@@ -202,6 +259,26 @@ describe('silentEvmAccount and fetchUsdtBalanceFor', () => {
   it('hides rather than lies when nothing answers', async () => {
     expect(
       await fetchUsdtBalanceFor('0xaa00000000000000000000000000000000000001', provider({ eth_chainId: '0x1' }), noFetch),
+    ).toBeNull()
+  })
+
+  it('reads POL the same three ways: wallet on Polygon, public fallback, null on a miss', async () => {
+    expect(
+      await fetchPolBalanceFor(
+        '0xaa00000000000000000000000000000000000001',
+        provider({ eth_chainId: '0x89', eth_getBalance: '0x0' }),
+        noFetch,
+      ),
+    ).toBe(0n)
+    expect(
+      await fetchPolBalanceFor(
+        '0xaa00000000000000000000000000000000000001',
+        provider({ eth_chainId: '0x1' }),
+        rpcFetch('0x0de0b6b3a7640000'),
+      ),
+    ).toBe(1_000_000_000_000_000_000n)
+    expect(
+      await fetchPolBalanceFor('0xaa00000000000000000000000000000000000001', provider({ eth_chainId: '0x1' }), noFetch),
     ).toBeNull()
   })
 })

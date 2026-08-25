@@ -104,7 +104,7 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
   })
 
   it('a malformed price never reaches an encoder', () => {
-    expect(() => prepare({ action: 'offer', priceNim: '1,5' })).toThrow(ActionInputError)
+    expect(() => prepare({ action: 'offer', priceNim: '1,234567' })).toThrow(ActionInputError)
     expect(() => prepare({ action: 'offer', priceNim: '' })).toThrow(ActionInputError)
   })
 })
@@ -114,17 +114,19 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
  * two would be two chances to disagree about how much money a user meant.
  */
 describe('parseNimAmount', () => {
-  it('takes integers and up to five decimals, exactly', () => {
+  it('takes integers and up to five decimals, exactly, with . or , between', () => {
     expect(parseNimAmount('450')).toBe(450n * LUNA_PER_NIM)
     expect(parseNimAmount('1.5')).toBe(LUNA_PER_NIM + LUNA_PER_NIM / 2n)
+    expect(parseNimAmount('1,5')).toBe(LUNA_PER_NIM + LUNA_PER_NIM / 2n)
     expect(parseNimAmount('0.00001')).toBe(1n)
     expect(parseNimAmount(' 2 ')).toBe(2n * LUNA_PER_NIM)
   })
 
   it('refuses what is not an amount, and says which field', () => {
     // Six decimals is below luna: silently rounding it would move money the
-    // user did not mean to move.
-    for (const bad of ['1.234567', 'abc', '-1', '', '1,5', '1.', '.5', '1e3']) {
+    // user did not mean to move. One separator per amount: grouped thousands
+    // like 1.000,5 are ambiguous between locales, so they never parse.
+    for (const bad of ['1.234567', '1,234567', 'abc', '-1', '', '1.', '.5', ',5', '1e3', '1.000,5', '1,000.5']) {
       expect(() => parseNimAmount(bad), bad).toThrow(ActionInputError)
     }
     expect(() => parseNimAmount('abc', 'Amount')).toThrow(/^Amount must be/)

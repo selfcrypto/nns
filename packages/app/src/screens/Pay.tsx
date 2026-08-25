@@ -51,6 +51,7 @@ import {
   usdtButtonLabel,
   usdtNoGasLine,
   usdtNoLinkLine,
+  usdtShortBalanceLine,
   usdtShowBalanceLabel,
   usdtNoProviderLine,
   usdtWrongChainLine,
@@ -171,7 +172,13 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
     resolved !== null && sender !== null && luna !== null && !self && !pinBlocking && wallet !== null && progress === 'idle'
 
   const usdtUnits = parsedUsdt !== null && 'units' in parsedUsdt ? parsedUsdt.units : null
-  const canPayUsdt = resolved !== null && evm !== '' && usdtUnits !== null && !usdtSending
+  // Refuse a send the displayed balance already rules out — with the real
+  // reason, before the wallet's ambiguous "insufficient funds" can stand in
+  // for it. Only a *known* balance blocks: an unreadable one hides a line,
+  // never a button (the display-miss discipline in evm.ts).
+  const usdtHeld = usdtBalance.status === 'done' ? usdtBalance.value : null
+  const usdtShort = usdtHeld !== null && usdtUnits !== null && usdtUnits > usdtHeld
+  const canPayUsdt = resolved !== null && evm !== '' && usdtUnits !== null && !usdtSending && !usdtShort
 
   const payUsdt = async () => {
     if (evm === '' || usdtUnits === null) return
@@ -297,6 +304,9 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
           )}
 
           {parsedUsdt !== null && 'error' in parsedUsdt && <p className="field-error">{parsedUsdt.error}</p>}
+          {usdtShort && usdtHeld !== null && usdtUnits !== null && (
+            <p className="field-error">{usdtShortBalanceLine(formatUsdt(usdtHeld), formatUsdt(usdtUnits))}</p>
+          )}
 
           <button className="pay-go" type="button" disabled={!canPayUsdt} onClick={() => void payUsdt()}>
             {usdtButtonLabel(usdtUnits === null ? null : formatUsdt(usdtUnits))}
@@ -308,10 +318,20 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
               {usdtResult.reason === 'no-provider' && usdtNoProviderLine()}
               {usdtResult.reason === 'declined' && sendDeclinedLine()}
               {usdtResult.reason === 'wrong-chain' && usdtWrongChainLine()}
+              {/* Refusal wording follows the *measured* cause, never the
+                  wallet's error text — "insufficient funds" is what Polygon
+                  says for missing gas and what wallets say for missing
+                  tokens, and guessing between them blamed POL on a
+                  zero-USDT account. */}
               {usdtResult.reason === 'failed' &&
-                (/insufficient funds/i.test(usdtResult.detail ?? '')
-                  ? usdtNoGasLine()
-                  : `Couldn’t send: ${usdtResult.detail ?? 'unknown'}`)}
+                (usdtResult.cause?.kind === 'no-usdt'
+                  ? usdtShortBalanceLine(
+                      formatUsdt(usdtResult.cause.held),
+                      usdtUnits !== null ? formatUsdt(usdtUnits) : amount,
+                    )
+                  : usdtResult.cause?.kind === 'no-pol'
+                    ? usdtNoGasLine()
+                    : `Couldn’t send: ${usdtResult.detail ?? 'unknown'}`)}
             </p>
           )}
           {usdtResult !== null && usdtResult.ok && (
