@@ -19,9 +19,9 @@
 import { CONSTANTS, rankMessages } from '@nns/core'
 
 import { type ChainGeometry, calibrate, lastFinalisedBatch } from './chain.js'
-import { HorizonError, assertHistoryHorizon } from './horizon.js'
+import { assertHistoryHorizon } from './horizon.js'
 import type { Logger } from './logger.js'
-import type { RpcClient, RpcTransaction } from './rpc.js'
+import { RpcError, RpcTransportError, type RpcClient, type RpcTransaction } from './rpc.js'
 
 /** `NNS1` as lowercase hex — `recipientData` arrives hex-encoded (§5.1). */
 export const PROTOCOL_PREFIX_HEX = Buffer.from(CONSTANTS.PROTOCOL_ID, 'ascii').toString('hex')
@@ -274,11 +274,22 @@ export class Scanner {
         if (scanned === 0) await this.sleep(this.pollIntervalMs, signal)
       } catch (error) {
         if (signal.aborted) break
-        // A node that does not hold the window is not a transient failure, and
-        // the poll loop would turn it into a quiet one: an indexer retrying
-        // forever at `error` level looks the same as an indexer that is merely
-        // behind. It leaves here, and the process exits non-zero.
-        if (error instanceof HorizonError) throw error
+        // Only the RPC layer's own failures are transient — the node
+        // restarting, the network blinking — and the client already wraps
+        // every one of those in its two classes (minus what it marks
+        // `retryable: false` itself: bad credentials, a broken envelope).
+        // Everything else is a rule or state problem (a checkpoint
+        // divergence, a failed commit, a horizon refusal, a node answering
+        // outside the batch), and retrying it is worse than dying twice over:
+        // an indexer retrying forever at `error` level looks the same as an
+        // indexer that is merely behind, and `CheckpointBuilder` has already
+        // advanced the in-memory log hash past the failed commit, so a
+        // replayed batch appends the same rows again (checkpoint.ts, "A
+        // failed commit is fatal"). It leaves here, the process exits
+        // non-zero, and a restart reseeds the fold from the log table.
+        const transient =
+          error instanceof RpcError || (error instanceof RpcTransportError && error.retryable)
+        if (!transient) throw error
         this.logger.error('scan.error', { nextBatch: this.cursor, error })
         await this.sleep(this.pollIntervalMs, signal)
       }

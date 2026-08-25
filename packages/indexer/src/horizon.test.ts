@@ -47,6 +47,18 @@ describe('holdsBlock', () => {
     // would name a horizon it never gave us.
     await expect(holdsBlock(rpc, 1_500)).rejects.toThrow(RpcTransportError)
   })
+
+  it('propagates a bare HTTP 404 instead of reading it as a pruned block', async () => {
+    // A proxy or a typo'd path answers `404 Not Found` at the HTTP layer; only
+    // the node's own "Block not found" phrase means the block is gone.
+    const rpc: HorizonRpc = {
+      getBlockNumber: async () => 2_000,
+      getBlockByNumber: async () => {
+        throw new RpcTransportError('getBlockByNumber: HTTP 404 Not Found')
+      },
+    }
+    await expect(holdsBlock(rpc, 1_500)).rejects.toThrow(/HTTP 404/)
+  })
 })
 
 describe('earliestBlockHeld', () => {

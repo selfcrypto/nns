@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { HorizonError } from './horizon.js'
+import { RpcTransportError } from './rpc.js'
 import { PROTOCOL_PREFIX_HEX, Scanner, hasProtocolPrefix } from './scan.js'
 import { MAINNET, collectingLogger, fakeNode, payload, tx } from './test-fixtures.js'
 
@@ -427,7 +428,10 @@ describe('run', () => {
       getBlockNumber: async () => {
         if (!failed) {
           failed = true
-          throw new Error('ECONNREFUSED')
+          // The client wraps every transport failure in its own class
+          // (rpc.ts); only those, and the node's own JSON-RPC errors, are
+          // transient enough to retry.
+          throw new RpcTransportError('getBlockNumber: request failed', { cause: new Error('ECONNREFUSED') })
         }
         return 120
       },
@@ -451,5 +455,55 @@ describe('run', () => {
     await s.run(controller.signal)
     expect(lines.some((line) => line['msg'] === 'scan.error')).toBe(true)
     expect(s.nextBatch).toBe(2)
+  })
+
+  it('dies on a failed commit instead of retrying into an advanced log hash', async () => {
+    // The commit seam throws a `StoreError` on divergence and anything at all
+    // on a database failure. None of it is transient: `CheckpointBuilder` has
+    // already advanced the in-memory fold past the failed batch, so a retry
+    // appends the same rows again and reports a monotonicity error that masks
+    // the real one. The loop must leave, so the process can exit and reseed.
+    const node = fakeNode({ head: 120, blocks: {} })
+    const { logger, lines } = collectingLogger()
+    const s = new Scanner({
+      rpc: node.rpc,
+      logger,
+      networkId: 24,
+      launchHeight: 1,
+      pollIntervalMs: 1,
+      onBatchComplete: async () => {
+        throw new Error('checkpoint divergence at height 720')
+      },
+      sleep: async () => {
+        throw new Error('the loop retried a failed commit')
+      },
+    })
+    await expect(s.run(new AbortController().signal)).rejects.toThrow(/checkpoint divergence/)
+    // Not demoted to a transient-looking scan.error either.
+    expect(lines.some((line) => line['msg'] === 'scan.error')).toBe(false)
+  })
+
+  it('dies on a transport failure the client itself marks unretryable', async () => {
+    const node = fakeNode({ head: 120, blocks: {} })
+    const broken = {
+      ...node.rpc,
+      getBlockNumber: async (): Promise<number> => {
+        throw new RpcTransportError('getBlockNumber: result is not an object (envelope missing?)', {
+          retryable: false,
+        })
+      },
+    }
+    const { logger } = collectingLogger()
+    const s = new Scanner({
+      rpc: broken,
+      logger,
+      networkId: 24,
+      launchHeight: 1,
+      pollIntervalMs: 1,
+      sleep: async () => {
+        throw new Error('the loop retried an unretryable failure')
+      },
+    })
+    await expect(s.run(new AbortController().signal)).rejects.toThrow(/envelope missing/)
   })
 })

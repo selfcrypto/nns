@@ -50,11 +50,16 @@ export type HorizonRpc = Pick<RpcClient, 'getBlockNumber' | 'getBlockByNumber'>
  * `data: "Block not found: 58177017"`, so `message` alone cannot tell a pruned
  * block from a broken node. Matching over both is also what lets a caller
  * holding a plain `fetch` wrapper — the determinism harness — reuse this.
+ *
+ * The match wants the node's whole phrase, not just "not found": a proxy or a
+ * typo'd path answering a bare `HTTP 404 Not Found` is a broken endpoint, and
+ * classifying it as a pruned block would bisect on garbage and hand the
+ * operator a plausible-looking horizon instead of the real failure.
  */
 function isMissingBlock(error: unknown): boolean {
   if (!(error instanceof Error)) return false
   const detail = error instanceof RpcError ? `${error.message} ${String(error.data ?? '')}` : error.message
-  return /not found/i.test(detail)
+  return /block not found/i.test(detail)
 }
 
 /** Does the node still hold this block? Any other failure propagates. */

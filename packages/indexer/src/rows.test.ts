@@ -44,7 +44,10 @@ function populated(): NnsState {
           target: address(B),
           expiry: 215_880_000,
           status: 'REGISTERED',
-          evm: '',
+          // Non-empty on purpose: this fixture is the round-trip pin, and an
+          // `evm` lost between `nameRows` and `stateFromRows` would corrupt
+          // every §8.1 leaf on restart (r26).
+          evm: '0x52908400098527886e0f7030069857d2e4169ee7',
           host: 'resolver.example.com',
         },
       ],
