@@ -202,7 +202,15 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     await pool.end()
   })
 
-  const treeRecords = [record('alice-example', { host: 'r.example.com' }), record('zeta-name')]
+  // A non-empty `evm` (r26) rides one record on purpose: were the column
+  // dropped anywhere between `checkpoint_names` and the leaf, the derived
+  // root would not match and every proof here would vanish.
+  const EVM = `0x${'ab'.repeat(20)}`
+  const treeRecords = [
+    record('alice-example', { host: 'r.example.com' }),
+    record('evm-name', { evm: EVM }),
+    record('zeta-name'),
+  ]
   const coveredRows: LogRow[] = [
     {
       block_height: 58_190_000,
@@ -252,17 +260,24 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     )
     for (const r of treeRecords) {
       await pool.query(
-        `INSERT INTO checkpoint_names (height, name, owner, target, expiry, status, host)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [CP_HEIGHT, r.name, r.owner, r.target, r.expiry, r.status, r.host],
+        `INSERT INTO checkpoint_names (height, name, owner, target, evm, expiry, status, host)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [CP_HEIGHT, r.name, r.owner, r.target, r.evm, r.expiry, r.status, r.host],
       )
     }
+    // Live row for the record the proof test resolves; the first suite seeded
+    // the others.
+    await pool.query(
+      `INSERT INTO names (name, owner, target, evm, expiry, status, host)
+       VALUES ('evm-name', $1, $2, $3, 215880000, 'REGISTERED', '')`,
+      [A, B, EVM],
+    )
 
     const latest = await queries.latestCheckpoint()
     expect(latest.value).toMatchObject({ height: CP_HEIGHT, layout: 4, nameRoot: nameRoot.toString('hex') })
 
     const base = await queries.proofBase()
-    expect(base.value?.records?.size).toBe(2)
+    expect(base.value?.records?.size).toBe(3)
   })
 
   it('serves a checkpoint by exact height, identically to /checkpoints/latest', async () => {
@@ -319,6 +334,18 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     const advertised = (checkpointRoute.body as { checkpoint: { nameRoot: string } }).checkpoint.nameRoot
     expect(doc['root']).toBe(advertised)
     expect(docVerifies(doc, advertised)).toBe(true)
+  })
+
+  it('carries a non-empty `evm` from the snapshot into the record and the §8.3 proof (r26)', async () => {
+    const resolved = await handle('GET', '/resolve/evm-name')
+    expect(resolved.status).toBe(200)
+    expect((resolved.body as { evm: string }).evm).toBe(EVM)
+
+    const doc = (resolved.body as { proof: Record<string, unknown> }).proof
+    expect(doc['evm']).toBe(EVM)
+    expect(docVerifies(doc, doc['root'] as string)).toBe(true)
+    // The leaf binds the field: a proof served with `evm` blanked must fail.
+    expect(docVerifies({ ...doc, evm: '' }, doc['root'] as string)).toBe(false)
   })
 
   it('a non-inclusion proof brackets the queried name and both leaves verify', async () => {

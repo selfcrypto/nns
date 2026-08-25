@@ -452,6 +452,11 @@ paths:
                         type: { type: string, nullable: true, description: §6 message letter, or null when unparseable. }
                         parseFailure: { type: string, nullable: true }
                   height: { type: integer }
+        '400':
+          description: UNKNOWN_FORMAT — format was neither json nor text; `accepted` names the values.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '404':
           description: NO_CHECKPOINT — none written yet.
           content:

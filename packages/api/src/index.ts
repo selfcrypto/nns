@@ -10,6 +10,7 @@ export {
   type BurnAttestation,
   type BurnReport,
   type CheckpointLog,
+  type CheckpointLookup,
   type LatestCheckpoint,
   type NameDetail,
   type ParamsSnapshot,
