@@ -8,6 +8,7 @@ import {
   checkAnchors,
   createAnchorReadRpc,
   DEFAULT_READER_LOOKBACK_BLOCKS,
+  latestAnchoredHeight,
   ReaderError,
   type AnchorReadRpc,
 } from './reader.js'
@@ -194,6 +195,81 @@ describe('checkAnchors', () => {
         toBlock: 'latest',
       },
     ])
+  })
+})
+
+describe('latestAnchoredHeight', () => {
+  // Discovery, not verification: it says which height to ask about, and
+  // `checkAnchors` decides whether the answer there can be trusted. Keeping
+  // those apart is what stops a caller reading "no anchor found" when the real
+  // answer is "one publisher, and quorum is two".
+
+  const publishers = [ALICE, BOB]
+
+  it('reports the newest height two endpoints agree on', () => {
+    const logs = [
+      anchored(ALICE, { height: HEIGHT }),
+      anchored(ALICE, { height: HEIGHT + 720, tx: '0xaaa1' as Hex }),
+    ]
+    return expect(
+      latestAnchoredHeight([rpc('a', logs), rpc('b', logs)], { contractAddress: CONTRACT, publishers }),
+    ).resolves.toEqual({ status: 'found', height: HEIGHT + 720 })
+  })
+
+  it('does not apply quorum — one publisher still names a height', async () => {
+    // Otherwise a deployment with a single live publisher would look like a
+    // chain with no anchors, instead of getting `quorum-not-met` from the real
+    // check, which is the answer that says what to do about it.
+    const logs = [anchored(ALICE)]
+    await expect(
+      latestAnchoredHeight([rpc('a', logs), rpc('b', logs)], { contractAddress: CONTRACT, publishers }),
+    ).resolves.toEqual({ status: 'found', height: HEIGHT })
+  })
+
+  it('ignores an unlisted publisher entirely (§8.5 #1)', async () => {
+    const logs = [anchored(MALLORY, { height: HEIGHT + 1440 }), anchored(ALICE, { height: HEIGHT })]
+    await expect(
+      latestAnchoredHeight([rpc('a', logs), rpc('b', logs)], { contractAddress: CONTRACT, publishers }),
+    ).resolves.toEqual({ status: 'found', height: HEIGHT })
+  })
+
+  it('will not be raised by an anchor only one endpoint reports', async () => {
+    // The whole point of §9's cross-check: a single endpoint that alone claims
+    // a newer height would otherwise steer every caller to a height the others
+    // have never heard of.
+    const shared = [anchored(ALICE, { height: HEIGHT })]
+    const alone = [...shared, anchored(BOB, { height: HEIGHT + 720, tx: '0xb0b1' as Hex })]
+    await expect(
+      latestAnchoredHeight([rpc('a', alone), rpc('b', shared)], { contractAddress: CONTRACT, publishers }),
+    ).resolves.toEqual({ status: 'found', height: HEIGHT })
+  })
+
+  it('reports none when the window holds nothing listed', async () => {
+    const result = await latestAnchoredHeight([rpc('a', []), rpc('b', [])], {
+      contractAddress: CONTRACT,
+      publishers,
+    })
+    expect(result).toEqual({ status: 'none', lookbackBlocks: DEFAULT_READER_LOOKBACK_BLOCKS })
+  })
+
+  it('reports not-checked with no publisher list, rather than checking nothing', async () => {
+    await expect(
+      latestAnchoredHeight([rpc('a', []), rpc('b', [])], { contractAddress: CONTRACT }),
+    ).resolves.toEqual({ status: 'not-checked', reason: 'NO_PUBLISHERS' })
+  })
+
+  it('reports unavailable when fewer than two endpoints answer', async () => {
+    const result = await latestAnchoredHeight(
+      [rpc('a', [anchored(ALICE)]), rpc('b', new Error('gateway timeout'))],
+      { contractAddress: CONTRACT, publishers },
+    )
+    expect(result.status).toBe('unavailable')
+  })
+
+  it('refuses a single endpoint — one is not a cross-check', async () => {
+    await expect(
+      latestAnchoredHeight([rpc('a', [])], { contractAddress: CONTRACT, publishers }),
+    ).rejects.toThrow(ReaderError)
   })
 })
 

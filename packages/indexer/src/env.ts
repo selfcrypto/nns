@@ -14,7 +14,7 @@
  * shape.
  */
 
-import { defineConfig, type NnsConfig } from '@nns/core'
+import { CONSTANTS, defineConfig, type NnsConfig } from '@nns/core'
 
 import { isLogLevel, type LogLevel } from './logger.js'
 
@@ -49,12 +49,30 @@ export interface IndexerSettings {
    * with `snapshot` can switch to `hybrid` later and have it run.
    */
   readonly startMode: StartMode
+  /** Where a bootstrap's expected commitment comes from. */
+  readonly snapshotSource: SnapshotSource
   /**
-   * The API root a `snapshot`/`hybrid` bootstrap reads `/log` and
-   * `/checkpoints/{height}` from. Another operator's resolver — **not** this
-   * deployment's own.
+   * For `peer`, the API root a bootstrap reads `/log` and
+   * `/checkpoints/{height}` from — another operator's resolver, **not** this
+   * deployment's own. For `anchor`, an IPFS gateway root; `{cid}` is
+   * substituted where it appears, and `/ipfs/<cid>` appended where it does not.
    */
   readonly snapshotUrl: string | undefined
+  /**
+   * Anchor-chain endpoints. **Two or more**, and independent: §9 exists
+   * because the injected provider is the host's, and one endpoint can lie
+   * alone. The reader refuses a single one rather than treating it as a check.
+   */
+  readonly anchorRpcUrls: readonly string[]
+  readonly anchorContract: string | undefined
+  /**
+   * `ANCHOR_PUBLISHERS`. An unlisted publisher is ignored, never counted and
+   * never a mismatch (§8.5 #1), so an empty list is not a permissive default —
+   * it is no check at all, and the bootstrap refuses rather than proceed.
+   */
+  readonly anchorPublishers: readonly string[]
+  /** Distinct listed publishers that must agree. Defaults to `ANCHOR_QUORUM`. */
+  readonly anchorQuorum: number
 }
 
 /**
@@ -83,6 +101,39 @@ const START_MODES: readonly StartMode[] = ['scratch', 'snapshot', 'hybrid']
 
 export function isStartMode(value: string): value is StartMode {
   return (START_MODES as readonly string[]).includes(value)
+}
+
+/**
+ * Where a bootstrap's log and its expected §8.1 commitment come from
+ * (`NNS_SNAPSHOT_SOURCE`).
+ *
+ * - `peer` — another operator's API. The log and the checkpoint it is bound to
+ *   come from the same party, so what is proved is "this is what that operator
+ *   committed to". All six components come back, so a mismatch names one.
+ * - `anchor` — the §9 contract. `ANCHOR_QUORUM` listed publishers must agree,
+ *   across at least two RPC endpoints, and the bytes then come from any IPFS
+ *   gateway with the gateway trusted for nothing. Stronger provenance, coarser
+ *   diagnostics: an `Anchored` event carries the commitment and the CID digest
+ *   and no individual roots.
+ */
+export type SnapshotSource = 'peer' | 'anchor'
+
+const SNAPSHOT_SOURCES: readonly SnapshotSource[] = ['peer', 'anchor']
+
+export function isSnapshotSource(value: string): value is SnapshotSource {
+  return (SNAPSHOT_SOURCES as readonly string[]).includes(value)
+}
+
+/** A 20-byte EVM address in the form the reader and the contract both use. */
+const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/
+
+function list(env: EnvSource, key: string): readonly string[] {
+  const raw = read(env, key)
+  if (raw === undefined) return []
+  return raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== '')
 }
 
 export type EnvSource = Readonly<Record<string, string | undefined>>
@@ -156,15 +207,58 @@ export function loadSettings(env: EnvSource = process.env): IndexerSettings {
       `NNS_START_MODE must be one of ${START_MODES.join('|')}, got ${JSON.stringify(startMode)}`,
     )
   }
+  const snapshotSource = read(env, 'NNS_SNAPSHOT_SOURCE') ?? 'peer'
+  if (!isSnapshotSource(snapshotSource)) {
+    throw new EnvError(
+      `NNS_SNAPSHOT_SOURCE must be one of ${SNAPSHOT_SOURCES.join('|')}, got ${JSON.stringify(snapshotSource)}`,
+    )
+  }
   const snapshotUrl = read(env, 'NNS_SNAPSHOT_URL')
+  const anchorRpcUrls = list(env, 'NNS_SNAPSHOT_ANCHOR_RPC')
+  const anchorContract = read(env, 'NNS_SNAPSHOT_ANCHOR_CONTRACT')
+  const anchorPublishers = list(env, 'NNS_SNAPSHOT_ANCHOR_PUBLISHERS')
+  const anchorQuorum = integer(env, 'NNS_SNAPSHOT_ANCHOR_QUORUM', CONSTANTS.ANCHOR_QUORUM, 1)
+
   if (startMode !== 'scratch') {
     if (snapshotUrl === undefined) {
-      throw new EnvError(`NNS_START_MODE=${startMode} needs NNS_SNAPSHOT_URL — see packages/indexer/.env.example`)
+      throw new EnvError(
+        `NNS_START_MODE=${startMode} needs NNS_SNAPSHOT_URL ` +
+          `(${snapshotSource === 'anchor' ? 'an IPFS gateway root' : "another operator's API root"}) ` +
+          '— see packages/indexer/.env.example',
+      )
     }
     try {
-      void new URL(snapshotUrl)
+      void new URL(snapshotUrl.replace('{cid}', 'cid'))
     } catch {
       throw new EnvError(`NNS_SNAPSHOT_URL is not a valid URL: ${JSON.stringify(snapshotUrl)}`)
+    }
+    if (snapshotSource === 'anchor') {
+      // Checked here rather than at the first fetch: an hour into a backfill
+      // is the wrong moment to discover the publisher list was never filled.
+      if (anchorRpcUrls.length < 2) {
+        throw new EnvError(
+          'NNS_SNAPSHOT_SOURCE=anchor needs at least two independent endpoints in ' +
+            'NNS_SNAPSHOT_ANCHOR_RPC (comma-separated). §9: one endpoint is not a cross-check.',
+        )
+      }
+      if (anchorContract === undefined || !EVM_ADDRESS.test(anchorContract)) {
+        throw new EnvError(
+          `NNS_SNAPSHOT_ANCHOR_CONTRACT must be a 20-byte 0x address, got ${JSON.stringify(anchorContract)}`,
+        )
+      }
+      if (anchorPublishers.length === 0) {
+        throw new EnvError(
+          'NNS_SNAPSHOT_SOURCE=anchor needs NNS_SNAPSHOT_ANCHOR_PUBLISHERS. An unlisted publisher is ' +
+            'ignored rather than counted (§8.5 #1), so an empty list is no check at all, not a lenient one.',
+        )
+      }
+      for (const publisher of anchorPublishers) {
+        if (!EVM_ADDRESS.test(publisher)) {
+          throw new EnvError(
+            `NNS_SNAPSHOT_ANCHOR_PUBLISHERS entries must be 20-byte 0x addresses, got ${JSON.stringify(publisher)}`,
+          )
+        }
+      }
     }
   }
 
@@ -181,7 +275,12 @@ export function loadSettings(env: EnvSource = process.env): IndexerSettings {
     databaseUrl: required(env, 'NNS_DATABASE_URL'),
     config: nnsConfig(networkId),
     startMode,
+    snapshotSource,
     snapshotUrl,
+    anchorRpcUrls,
+    anchorContract,
+    anchorPublishers,
+    anchorQuorum,
   })
 }
 

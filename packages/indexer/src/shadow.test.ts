@@ -18,7 +18,6 @@ import {
   encodeRegister,
   feeFor,
   initialState,
-  logFile,
   logHash,
 } from '@nns/core'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
@@ -28,7 +27,7 @@ import { BLOCKS_PER_BATCH } from './chain.js'
 import { checkpointRow, hex } from './checkpoint.js'
 import { createPool, migrate } from './db.js'
 import { verifyFromChain, VerificationError } from './shadow.js'
-import type { Fetcher } from './peer.js'
+import type { LogSource, PeerCheckpoint } from './peer.js'
 import { Store } from './store.js'
 import {
   chainBlocks,
@@ -61,45 +60,27 @@ const SENDS = [
 ]
 const staged = stageLog(SENDS, CONFIG)
 
-/** The peer, serving exactly the log `SENDS` produces. */
-const peer: Fetcher = (url: string) => {
-  const bytes = logFile(staged.lines)
-  const hash = hex(logHash(staged.lines))
-  if (url.endsWith('/log')) {
-    return Promise.resolve({
-      ok: true,
-      status: 200,
-      headers: {
-        get: (name: string) =>
-          name === 'x-nns-log-hash' ? `0x${hash}` : name === 'x-nns-checkpoint-height' ? String(PEER_HEIGHT) : null,
-      },
-      arrayBuffer: () =>
-        Promise.resolve(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer),
-      text: () => Promise.resolve(''),
-    })
-  }
+/** The peer's log, with the §8.1 components derived from those same lines. */
+const peerLog = (): LogSource => {
   const row = checkpointRow(coreCheckpoint(advanceTo(staged.state, PEER_HEIGHT), logHash(staged.lines)))
-  return Promise.resolve({
-    ok: true,
-    status: 200,
-    headers: { get: () => null },
-    arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-    text: () =>
-      Promise.resolve(
-        JSON.stringify({
-          checkpoint: {
-            height: PEER_HEIGHT,
-            layout: row.layout,
-            nameRoot: `0x${row.name_root.toString('hex')}`,
-            pricesRoot: `0x${row.prices_root.toString('hex')}`,
-            pendingRoot: `0x${row.pending_root.toString('hex')}`,
-            unreservedRoot: `0x${row.unreserved_root.toString('hex')}`,
-            logHash: `0x${hash}`,
-            commitment: `0x${row.commitment.toString('hex')}`,
-          },
-        }),
-      ),
-  })
+  const components: PeerCheckpoint = {
+    height: PEER_HEIGHT,
+    layout: row.layout,
+    nameRoot: row.name_root.toString('hex'),
+    pricesRoot: row.prices_root.toString('hex'),
+    pendingRoot: row.pending_root.toString('hex'),
+    unreservedRoot: row.unreserved_root.toString('hex'),
+    logHash: hex(logHash(staged.lines)),
+    commitment: row.commitment.toString('hex'),
+  }
+  return {
+    lines: staged.lines,
+    height: PEER_HEIGHT,
+    commitment: components.commitment,
+    components,
+    origin: 'https://peer.example.com',
+    evidence: 'peer-checkpoint',
+  }
 }
 
 const chain = (sends: readonly (typeof SENDS)[number][]) =>
@@ -129,9 +110,8 @@ describe.skipIf(URL_ === undefined)('verifyFromChain', () => {
       rpc: chain(SENDS).rpc,
       logger,
       config: CONFIG,
-      sourceUrl: 'https://peer.example.com',
       launchHeight: LAUNCH_HEIGHT,
-      fetcher: peer,
+      source: peerLog(),
     })
   })
 

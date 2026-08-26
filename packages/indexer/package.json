@@ -24,6 +24,7 @@
     "migrate": "node --env-file=.env dist/migrate.js"
   },
   "dependencies": {
+    "@nns/anchor": "workspace:*",
     "@nns/core": "workspace:*",
     "pg": "catalog:"
   },

@@ -76,7 +76,7 @@ import type { Logger } from './logger.js'
 import { Pipeline, type BatchResult } from './pipeline.js'
 import { nameRows } from './rows.js'
 import type { NnsCandidate, ScanRpc } from './scan.js'
-import { fetchPeerSnapshot, type Fetcher, type PeerCheckpoint } from './peer.js'
+import type { LogSource } from './peer.js'
 import type { Store, Verification } from './store.js'
 
 export class BootstrapError extends Error {
@@ -100,10 +100,16 @@ export interface BootstrapOptions {
   readonly rpc: ScanRpc
   readonly logger: Logger
   readonly config: NnsConfig
-  /** The API root of another operator's resolver. */
-  readonly sourceUrl: string
+  /**
+   * The log and the §8.1 commitment it must reproduce, already fetched.
+   *
+   * Passed in rather than fetched here so this file is about replaying and
+   * persisting and nothing else — which is also what lets a test hand it a log
+   * without a network, and what let the anchor source be added without
+   * touching a line of the replay.
+   */
+  readonly source: LogSource
   readonly launchHeight: number
-  readonly fetcher: Fetcher
 }
 
 export interface BootstrapResult {
@@ -136,23 +142,22 @@ interface Stop {
  *   whole verification runs before the first row.
  */
 export async function bootstrap(options: BootstrapOptions): Promise<BootstrapResult> {
-  const { store, logger, config, sourceUrl, launchHeight, fetcher } = options
+  const { store, logger, config, source, launchHeight } = options
+  const sourceUrl = source.origin
+  const height = source.height
 
-  logger.info('bootstrap.start', { source: sourceUrl })
-  const snapshot = await fetchPeerSnapshot(sourceUrl, fetcher)
-  const remote = snapshot.checkpoint
-  const height = remote.height
+  logger.info('bootstrap.start', { source: sourceUrl, evidence: source.evidence, height })
   if (height % CONSTANTS.CHECKPOINT_INTERVAL !== 0) {
     throw new BootstrapError(
-      `${sourceUrl} stamped checkpoint height ${height}, which is not a multiple of ` +
+      `${sourceUrl} names checkpoint height ${height}, which is not a multiple of ` +
         `CHECKPOINT_INTERVAL (${CONSTANTS.CHECKPOINT_INTERVAL}) — §8.1 boundaries are absolute multiples`,
     )
   }
-  if (remote.layout !== COMMITMENT_LAYOUT) {
+  if (source.components !== null && source.components.layout !== COMMITMENT_LAYOUT) {
     throw new BootstrapError(
-      `${sourceUrl} commits at §8.1 layout ${remote.layout}, this build derives layout ${COMMITMENT_LAYOUT}. ` +
-        'Rows at different layouts are the output of different functions and are not comparable — ' +
-        'a difference between them is not a divergence and an agreement would not be evidence.',
+      `${sourceUrl} commits at §8.1 layout ${source.components.layout}, this build derives layout ` +
+        `${COMMITMENT_LAYOUT}. Rows at different layouts are the output of different functions and are not ` +
+        'comparable — a difference between them is not a divergence and an agreement would not be evidence.',
     )
   }
 
@@ -167,13 +172,13 @@ export async function bootstrap(options: BootstrapOptions): Promise<BootstrapRes
   }
   const throughHeight = geometry.macroBlockOf(checkpointBatch - 1)
 
-  const candidates = readLog(snapshot.lines, config, launchHeight, height)
+  const candidates = readLog(source.lines, config, launchHeight, height)
 
   // ── Pass 1: verify, writing nothing ──────────────────────────────────────
   const verified = await replay({
     candidates,
     stops: [...macroStops(launchBatch, checkpointBatch - 1, geometry), { throughHeight: height, nextBatch: checkpointBatch }],
-    sourceLines: snapshot.lines,
+    sourceLines: source.lines,
     config,
     logger,
   })
@@ -188,9 +193,10 @@ export async function bootstrap(options: BootstrapOptions): Promise<BootstrapRes
       `the replay produced ${verified.consumed} log lines from ${candidates.length} served ones`,
     )
   }
-  compareCheckpoint(derived, remote, sourceUrl)
+  compareCheckpoint(derived, source)
   logger.info('bootstrap.verified', {
     source: sourceUrl,
+    evidence: source.evidence,
     height,
     lines: candidates.length,
     names: verified.state.names.size,
@@ -206,14 +212,14 @@ export async function bootstrap(options: BootstrapOptions): Promise<BootstrapRes
     verifiedFrom: geometry.firstBlockOf(checkpointBatch),
     bootstrapHeight: throughHeight,
     bootstrapSource: sourceUrl,
-    bootstrapLogHash: snapshot.logHash,
+    bootstrapLogHash: hex(derived.logHash),
     shadowThrough: null,
   }
   let first = true
   const persisted = await replay({
     candidates,
     stops: macroStops(launchBatch, checkpointBatch - 1, geometry),
-    sourceLines: snapshot.lines,
+    sourceLines: source.lines,
     config,
     logger,
     onStep: async (step) => {
@@ -404,23 +410,40 @@ async function replay(options: {
   return { state, lastCheckpoint, consumed }
 }
 
-/** All six §8.1 components, compared one at a time so a mismatch names one. */
-function compareCheckpoint(derived: Checkpoint, remote: PeerCheckpoint, sourceUrl: string): void {
-  const components: readonly (readonly [string, Uint8Array, string])[] = [
-    ['nameRoot', derived.nameRoot, remote.nameRoot],
-    ['pricesRoot', derived.pricesRoot, remote.pricesRoot],
-    ['pendingRoot', derived.pendingRoot, remote.pendingRoot],
-    ['unreservedRoot', derived.unreservedRoot, remote.unreservedRoot ?? ''],
-    ['logHash', derived.logHash, remote.logHash],
-    ['commitment', derived.commitment, remote.commitment],
-  ]
+/**
+ * The derived checkpoint against what the source says it should be.
+ *
+ * Two shapes, one rule. A source carrying all six components is compared one
+ * at a time, so a mismatch names *which* — on a disagreement between two
+ * implementations that is most of the answer. A source carrying only the
+ * commitment (the §9 anchor: an `Anchored` event holds the root and the CID
+ * digest, no individual roots) is compared on the commitment alone, which is
+ * no weaker a check — the §8.2 log hash is one of the six inputs, so a single
+ * wrong byte anywhere still moves it — only a quieter one when it fails.
+ */
+function compareCheckpoint(derived: Checkpoint, source: LogSource): void {
+  const components: readonly (readonly [string, Uint8Array, string])[] =
+    source.components === null
+      ? [['commitment', derived.commitment, source.commitment]]
+      : [
+          ['nameRoot', derived.nameRoot, source.components.nameRoot],
+          ['pricesRoot', derived.pricesRoot, source.components.pricesRoot],
+          ['pendingRoot', derived.pendingRoot, source.components.pendingRoot],
+          ['unreservedRoot', derived.unreservedRoot, source.components.unreservedRoot ?? ''],
+          ['logHash', derived.logHash, source.components.logHash],
+          ['commitment', derived.commitment, source.commitment],
+        ]
   for (const [name, ours, theirs] of components) {
     if (hex(ours) === theirs) continue
     throw new BootstrapError(
-      `replaying ${sourceUrl}'s log at height ${derived.height} did not reproduce its checkpoint: ` +
+      `replaying the log from ${source.origin} at height ${derived.height} did not reproduce the ` +
+        `${source.evidence === 'anchor' ? 'anchored' : "peer's"} checkpoint: ` +
         `${name} is ${hex(ours)} here, ${theirs === '' ? '(absent)' : theirs} there. ` +
-        'Nothing has been written. Either that log is not what that checkpoint commits, or the two ' +
-        'implementations disagree about a rule — and which of the six components differs says which.',
+        'Nothing has been written. Either that log is not what that commitment covers, or the two ' +
+        'implementations disagree about a rule' +
+        (source.components === null
+          ? ' — an anchor carries the commitment alone, so which of the six moved is not visible from here.'
+          : ' — and which of the six components differs says which.'),
     )
   }
 }

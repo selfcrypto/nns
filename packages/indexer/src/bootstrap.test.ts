@@ -25,7 +25,7 @@ import { bootstrap, BootstrapError } from './bootstrap.js'
 import { BLOCKS_PER_BATCH } from './chain.js'
 import { checkpointRow, hex } from './checkpoint.js'
 import { createPool, migrate } from './db.js'
-import type { Fetcher } from './peer.js'
+import type { LogSource, PeerCheckpoint } from './peer.js'
 import { Store } from './store.js'
 import {
   collectingLogger,
@@ -67,51 +67,45 @@ const staged: StagedLog = stageLog(
 const digest = (bytes: Uint8Array): string => hex(bytes)
 
 /**
- * A peer's API: `/log` with its two §8.2 headers, and `/checkpoints/{height}`
- * with all six components — derived here rather than asserted, so the fixture
- * cannot claim a commitment its own log does not produce.
+ * A {@link LogSource} as a peer's API would produce one: the staged lines, and
+ * the six §8.1 components **derived from those lines** rather than asserted, so
+ * the fixture cannot claim a commitment its own log does not produce.
  */
-function peer(options: { lines?: readonly string[]; commitment?: string } = {}): Fetcher {
+function peer(options: { lines?: readonly string[]; commitment?: string } = {}): LogSource {
   const lines = options.lines ?? staged.lines
-  const bytes = logFile(lines)
-  const hash = digest(logHash(lines))
-
-  // The checkpoint the peer publishes at PEER_HEIGHT, over its own replay.
   const record = checkpointFor(staged.state, PEER_HEIGHT, logHash(staged.lines))
+  const components: PeerCheckpoint = {
+    height: PEER_HEIGHT,
+    layout: record.layout,
+    nameRoot: record.name_root.toString('hex'),
+    pricesRoot: record.prices_root.toString('hex'),
+    pendingRoot: record.pending_root.toString('hex'),
+    unreservedRoot: record.unreserved_root.toString('hex'),
+    logHash: digest(logHash(lines)),
+    commitment: options.commitment ?? record.commitment.toString('hex'),
+  }
+  return {
+    lines,
+    height: PEER_HEIGHT,
+    commitment: components.commitment,
+    components,
+    origin: 'https://peer.example.com',
+    evidence: 'peer-checkpoint',
+  }
+}
 
-  return (url: string) => {
-    if (url.endsWith('/log')) {
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        headers: {
-          get: (name: string) =>
-            name === 'x-nns-log-hash' ? `0x${hash}` : name === 'x-nns-checkpoint-height' ? String(PEER_HEIGHT) : null,
-        },
-        arrayBuffer: () =>
-          Promise.resolve(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer),
-        text: () => Promise.resolve(''),
-      })
-    }
-    const body = {
-      checkpoint: {
-        height: PEER_HEIGHT,
-        layout: record.layout,
-        nameRoot: `0x${record.name_root.toString('hex')}`,
-        pricesRoot: `0x${record.prices_root.toString('hex')}`,
-        pendingRoot: `0x${record.pending_root.toString('hex')}`,
-        unreservedRoot: `0x${record.unreserved_root.toString('hex')}`,
-        logHash: `0x${digest(logHash(lines))}`,
-        commitment: options.commitment ?? `0x${record.commitment.toString('hex')}`,
-      },
-    }
-    return Promise.resolve({
-      ok: true,
-      status: 200,
-      headers: { get: () => null },
-      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
-      text: () => Promise.resolve(JSON.stringify(body)),
-    })
+/**
+ * The same log as the §9 anchor supplies one: the commitment and nothing else.
+ * An `Anchored` event carries the root and the CID digest, so there are no
+ * individual roots to compare and `components` is null.
+ */
+function anchored(options: { lines?: readonly string[]; commitment?: string } = {}): LogSource {
+  const source = peer(options)
+  return {
+    ...source,
+    components: null,
+    origin: 'https://gateway.example.com/ipfs/bafyfixture',
+    evidence: 'anchor',
   }
 }
 
@@ -144,15 +138,14 @@ describe.skipIf(URL_ === undefined)('bootstrap', () => {
     await migrate(pool, logger)
   })
 
-  const run = (fetcher: Fetcher) =>
+  const run = (source: LogSource) =>
     bootstrap({
       store: new Store(pool, CONFIG, logger),
       rpc: node().rpc,
       logger,
       config: CONFIG,
-      sourceUrl: 'https://peer.example.com',
       launchHeight: LAUNCH_HEIGHT,
-      fetcher,
+      source,
     })
 
   it('replays a verified log into state, and stops one batch below the peer', async () => {
@@ -185,11 +178,13 @@ describe.skipIf(URL_ === undefined)('bootstrap', () => {
     })
     // The first block the scanner will read — above everything the log wrote.
     expect(result.verifiedFrom).toBeGreaterThan(result.throughHeight)
+    // Recorded from what the replay derived, not from what the source claimed —
+    // the two were just proven equal, and only one of them is this build's.
     expect(verification?.bootstrapLogHash).toBe(digest(logHash(staged.lines)))
   })
 
   it('writes nothing when the replay does not reproduce the peer commitment', async () => {
-    await expect(run(peer({ commitment: `0x${'11'.repeat(32)}` }))).rejects.toThrow(BootstrapError)
+    await expect(run(peer({ commitment: '11'.repeat(32) }))).rejects.toThrow(BootstrapError)
     // Verified before the first row: a refusal leaves an empty database, not a
     // half-seeded one that a restart would tail from.
     const store = new Store(pool, CONFIG, logger)
@@ -200,7 +195,24 @@ describe.skipIf(URL_ === undefined)('bootstrap', () => {
   })
 
   it('names the component that disagrees, not just that something does', async () => {
-    await expect(run(peer({ commitment: `0x${'11'.repeat(32)}` }))).rejects.toThrow(/commitment is/)
+    await expect(run(peer({ commitment: '11'.repeat(32) }))).rejects.toThrow(/commitment is/)
+  })
+
+  it('verifies an anchored source on the commitment alone, and says so when it fails', async () => {
+    // An `Anchored` event carries the root and the CID digest — no individual
+    // roots — so there is one comparison. It is not a weaker check: the §8.2
+    // log hash is one of the commitment's six inputs, so a wrong byte moves it.
+    const result = await run(anchored())
+    expect(result.checkpointHeight).toBe(PEER_HEIGHT)
+    expect((await new Store(pool, CONFIG, logger).loadState()).names.size).toBe(2)
+  })
+
+  it('refuses an anchored commitment the replay does not reproduce', async () => {
+    await expect(run(anchored({ commitment: '11'.repeat(32) }))).rejects.toThrow(/anchored checkpoint/)
+    await expect(run(anchored({ commitment: '11'.repeat(32) }))).rejects.toThrow(
+      /which of the six moved is not visible/,
+    )
+    expect(await new Store(pool, CONFIG, logger).loadCursor()).toBeNull()
   })
 
   it('refuses a log whose lines do not replay to the verdicts they claim', async () => {

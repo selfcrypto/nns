@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import { CONSTANTS } from '@nns/core'
+
 import { EnvError, loadSettings } from './env.js'
 
 const MINIMAL = {
@@ -125,6 +127,73 @@ describe('NNS_START_MODE', () => {
     const settings = loadSettings({ ...MINIMAL, NNS_SNAPSHOT_URL: 'https://peer.example.com' })
     expect(settings.startMode).toBe('scratch')
     expect(settings.snapshotUrl).toBe('https://peer.example.com')
+  })
+})
+
+describe('NNS_SNAPSHOT_SOURCE', () => {
+  const ANCHOR = {
+    ...MINIMAL,
+    NNS_START_MODE: 'snapshot',
+    NNS_SNAPSHOT_SOURCE: 'anchor',
+    NNS_SNAPSHOT_URL: 'https://gw.example.com',
+    NNS_SNAPSHOT_ANCHOR_RPC: 'https://rpc-a.example.com, https://rpc-b.example.com',
+    NNS_SNAPSHOT_ANCHOR_CONTRACT: '0xef503a681c490ccb65090b7e9f6df734d9f7eaeb',
+    NNS_SNAPSHOT_ANCHOR_PUBLISHERS: '0x2efd3f0e5608bb9e2e7027a1f73485b82e8093c6',
+  }
+
+  it('defaults to peer', () => {
+    expect(loadSettings(MINIMAL).snapshotSource).toBe('peer')
+  })
+
+  it('reads the anchor set, trimming the comma-separated lists', () => {
+    const settings = loadSettings(ANCHOR)
+    expect(settings.snapshotSource).toBe('anchor')
+    expect(settings.anchorRpcUrls).toEqual(['https://rpc-a.example.com', 'https://rpc-b.example.com'])
+    expect(settings.anchorPublishers).toEqual(['0x2efd3f0e5608bb9e2e7027a1f73485b82e8093c6'])
+    expect(settings.anchorQuorum).toBe(CONSTANTS.ANCHOR_QUORUM)
+  })
+
+  it('refuses a single endpoint — §9 says one is not a cross-check', () => {
+    expect(() => loadSettings({ ...ANCHOR, NNS_SNAPSHOT_ANCHOR_RPC: 'https://only.example.com' })).toThrow(
+      /at least two independent endpoints/,
+    )
+  })
+
+  it('refuses an empty publisher list rather than treating it as permissive', () => {
+    // §8.5 #1: an unlisted publisher is ignored, never counted — so no list is
+    // no check, and the failure would otherwise be silent agreement.
+    expect(() => loadSettings({ ...ANCHOR, NNS_SNAPSHOT_ANCHOR_PUBLISHERS: '' })).toThrow(
+      /NNS_SNAPSHOT_ANCHOR_PUBLISHERS/,
+    )
+  })
+
+  it('refuses addresses that are not 20 bytes', () => {
+    expect(() => loadSettings({ ...ANCHOR, NNS_SNAPSHOT_ANCHOR_CONTRACT: '0xdeadbeef' })).toThrow(/20-byte/)
+    expect(() => loadSettings({ ...ANCHOR, NNS_SNAPSHOT_ANCHOR_PUBLISHERS: 'alice' })).toThrow(/20-byte/)
+  })
+
+  it('takes a deliberately lowered quorum, and refuses zero', () => {
+    expect(loadSettings({ ...ANCHOR, NNS_SNAPSHOT_ANCHOR_QUORUM: '1' }).anchorQuorum).toBe(1)
+    expect(() => loadSettings({ ...ANCHOR, NNS_SNAPSHOT_ANCHOR_QUORUM: '0' })).toThrow(/>= 1/)
+  })
+
+  it('accepts a {cid} template as the gateway', () => {
+    expect(
+      loadSettings({ ...ANCHOR, NNS_SNAPSHOT_URL: 'https://{cid}.ipfs.dweb.link' }).snapshotUrl,
+    ).toBe('https://{cid}.ipfs.dweb.link')
+  })
+
+  it('checks none of it while the mode is scratch', () => {
+    // The anchor set describes a bootstrap. A scratch indexer never performs
+    // one, and refusing to start over a half-filled block an operator is still
+    // writing would be a refusal about nothing.
+    expect(() =>
+      loadSettings({ ...ANCHOR, NNS_START_MODE: undefined, NNS_SNAPSHOT_ANCHOR_PUBLISHERS: '' }),
+    ).not.toThrow()
+  })
+
+  it('refuses an unknown source by name', () => {
+    expect(() => loadSettings({ ...MINIMAL, NNS_SNAPSHOT_SOURCE: 'ipfs' })).toThrow(/peer\|anchor/)
   })
 })
 

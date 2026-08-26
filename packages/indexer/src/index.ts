@@ -29,10 +29,12 @@ export {
 
 export {
   EnvError,
+  isSnapshotSource,
   isStartMode,
   loadSettings,
   type EnvSource,
   type IndexerSettings,
+  type SnapshotSource,
   type StartMode,
 } from './env.js'
 
@@ -120,16 +122,26 @@ export {
   type Verification,
 } from './store.js'
 
+export {
+  AnchorSourceError,
+  anchoredSource,
+  gatewayUrl,
+  type AnchoredSourceOptions,
+} from './anchored.js'
+
 export { BootstrapError, bootstrap, type BootstrapOptions, type BootstrapResult } from './bootstrap.js'
 
 export { VerificationError, verifyFromChain, type VerifyOptions } from './shadow.js'
 
 export {
   PeerError,
+  fetchLogBytes,
   fetchPeerCheckpoint,
   fetchPeerSnapshot,
   httpFetcher,
+  peerSource,
   type Fetcher,
+  type LogSource,
   type PeerCheckpoint,
   type PeerSnapshot,
 } from './peer.js'

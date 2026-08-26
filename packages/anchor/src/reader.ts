@@ -245,60 +245,9 @@ export async function checkAnchors(
   const lookback = options.lookbackBlocks ?? DEFAULT_READER_LOOKBACK_BLOCKS
   const listed = new Set(publishers)
 
-  // Every endpoint queried in parallel; a failure is recorded, never fatal
-  // by itself — absence of an answer is "couldn't check", not data.
-  interface EndpointView {
-    readonly rpc: string
-    readonly anchors: readonly PastAnchor[] | null
-    readonly error: string | null
-  }
-  const views: readonly EndpointView[] = await Promise.all(
-    rpcs.map(async (rpc): Promise<EndpointView> => {
-      try {
-        const head = await rpc.blockNumber()
-        const fromBlock = head > lookback ? head - lookback : 0n
-        const logs = await rpc.getLogs({
-          address: options.contractAddress,
-          topics: [ANCHORED_TOPIC0 as Hex],
-          fromBlock,
-          toBlock: 'latest',
-        })
-        const anchors = logs.map(decodeAnchored).filter((anchor) => listed.has(anchor.publisher))
-        return { rpc: rpc.label, anchors, error: null }
-      } catch (error) {
-        return { rpc: rpc.label, anchors: null, error: error instanceof Error ? error.message : String(error) }
-      }
-    }),
-  )
-
-  const answered = views.filter((view) => view.anchors !== null)
-  if (answered.length < 2) {
-    return {
-      status: 'unavailable',
-      errors: views
-        .filter((view) => view.error !== null)
-        .map((view) => ({ rpc: view.rpc, error: view.error ?? 'unknown' })),
-    }
-  }
-
-  // Cross-check: an anchor counts only when at least two endpoints report
-  // it. Seen-once anchors are neither counted nor ignored — if they would
-  // change the outcome, the outcome is that the endpoints disagree.
-  const seenBy = new Map<string, { anchor: PastAnchor; rpcs: string[] }>()
-  for (const view of answered) {
-    for (const anchor of view.anchors ?? []) {
-      const key = anchorKey(anchor)
-      const entry = seenBy.get(key)
-      if (entry === undefined) seenBy.set(key, { anchor, rpcs: [view.rpc] })
-      else if (!entry.rpcs.includes(view.rpc)) entry.rpcs.push(view.rpc)
-    }
-  }
-  const confirmed: PastAnchor[] = []
-  const singleSource: { anchor: PastAnchor; rpc: string }[] = []
-  for (const { anchor, rpcs: sources } of seenBy.values()) {
-    if (sources.length >= 2) confirmed.push(anchor)
-    else singleSource.push({ anchor, rpc: sources[0]! })
-  }
+  const swept = await sweep(rpcs, options.contractAddress, listed, lookback)
+  if (swept.confirmed === null) return { status: 'unavailable', errors: swept.errors }
+  const { confirmed, singleSource } = swept
 
   const staleness = computeStaleness(confirmed, options.now ?? (() => Math.floor(Date.now() / 1000)))
 
@@ -377,6 +326,132 @@ export async function checkAnchors(
     anchors: agreed.map(toAgreed),
     staleness,
   }
+}
+
+/**
+ * One `Anchored` sweep per endpoint, cross-checked.
+ *
+ * Every endpoint is queried in parallel and a failure is recorded rather than
+ * thrown: **absence of an answer is "couldn't check", not data.** Fewer than
+ * two answers means the §9 cross-check could not run at all, which comes back
+ * as `confirmed: null` — the caller turns that into `unavailable`.
+ *
+ * An anchor is `confirmed` only when **at least two endpoints report it**
+ * (the full tuple, so a fabricated variant never merges with a real one).
+ * A seen-once anchor is neither counted nor discarded: it goes to
+ * `singleSource`, because whether it matters depends on what the caller was
+ * asking, and an event that would change the answer means the endpoints
+ * genuinely disagree.
+ *
+ * Shared by {@link checkAnchors} and {@link latestAnchoredHeight} so the two
+ * cannot drift about what "the chain says" means.
+ */
+async function sweep(
+  rpcs: readonly AnchorReadRpc[],
+  contractAddress: EvmAddress,
+  listed: ReadonlySet<string>,
+  lookback: bigint,
+): Promise<{
+  readonly confirmed: PastAnchor[] | null
+  readonly singleSource: { anchor: PastAnchor; rpc: string }[]
+  readonly errors: readonly { readonly rpc: string; readonly error: string }[]
+}> {
+  interface EndpointView {
+    readonly rpc: string
+    readonly anchors: readonly PastAnchor[] | null
+    readonly error: string | null
+  }
+  const views: readonly EndpointView[] = await Promise.all(
+    rpcs.map(async (rpc): Promise<EndpointView> => {
+      try {
+        const head = await rpc.blockNumber()
+        const fromBlock = head > lookback ? head - lookback : 0n
+        const logs = await rpc.getLogs({
+          address: contractAddress,
+          topics: [ANCHORED_TOPIC0 as Hex],
+          fromBlock,
+          toBlock: 'latest',
+        })
+        const anchors = logs.map(decodeAnchored).filter((anchor) => listed.has(anchor.publisher))
+        return { rpc: rpc.label, anchors, error: null }
+      } catch (error) {
+        return { rpc: rpc.label, anchors: null, error: error instanceof Error ? error.message : String(error) }
+      }
+    }),
+  )
+
+  const errors = views
+    .filter((view) => view.error !== null)
+    .map((view) => ({ rpc: view.rpc, error: view.error ?? 'unknown' }))
+  const answered = views.filter((view) => view.anchors !== null)
+  if (answered.length < 2) return { confirmed: null, singleSource: [], errors }
+
+  const seenBy = new Map<string, { anchor: PastAnchor; rpcs: string[] }>()
+  for (const view of answered) {
+    for (const anchor of view.anchors ?? []) {
+      const key = anchorKey(anchor)
+      const entry = seenBy.get(key)
+      if (entry === undefined) seenBy.set(key, { anchor, rpcs: [view.rpc] })
+      else if (!entry.rpcs.includes(view.rpc)) entry.rpcs.push(view.rpc)
+    }
+  }
+  const confirmed: PastAnchor[] = []
+  const singleSource: { anchor: PastAnchor; rpc: string }[] = []
+  for (const { anchor, rpcs: sources } of seenBy.values()) {
+    if (sources.length >= 2) confirmed.push(anchor)
+    else singleSource.push({ anchor, rpc: sources[0]! })
+  }
+  return { confirmed, singleSource, errors }
+}
+
+/** Which height {@link latestAnchoredHeight} found, or why it found none. */
+export type AnchorHeightLookup =
+  | { readonly status: 'found'; readonly height: number }
+  | { readonly status: 'not-checked'; readonly reason: 'NO_PUBLISHERS' }
+  | { readonly status: 'unavailable'; readonly errors: readonly { readonly rpc: string; readonly error: string }[] }
+  /** The window holds no cross-checked anchor from a listed publisher. */
+  | { readonly status: 'none'; readonly lookbackBlocks: bigint }
+
+export interface AnchorHeightOptions {
+  readonly contractAddress: EvmAddress
+  readonly publishers?: readonly string[]
+  readonly lookbackBlocks?: bigint
+}
+
+/**
+ * The newest Nimiq checkpoint height any listed publisher has anchored, as
+ * agreed by at least two endpoints.
+ *
+ * Discovery, **not** verification: it reports which height to ask about, and
+ * {@link checkAnchors} is what decides whether the answer at that height is
+ * trustworthy. Quorum is deliberately not applied here — a height that turns
+ * out to have only one publisher behind it must come back as an explicit
+ * `quorum-not-met` from the real check, not silently as "no anchor found".
+ *
+ * A seen-once anchor cannot raise the answer: an endpoint that alone claims a
+ * newer height would otherwise steer every caller to a height the others have
+ * never heard of, which is the single-endpoint trust §9 exists to remove.
+ */
+export async function latestAnchoredHeight(
+  rpcs: readonly AnchorReadRpc[],
+  options: AnchorHeightOptions,
+): Promise<AnchorHeightLookup> {
+  const publishers = (options.publishers ?? []).map((address) => address.toLowerCase())
+  if (publishers.length === 0) return { status: 'not-checked', reason: 'NO_PUBLISHERS' }
+  if (rpcs.length < 2) {
+    throw new ReaderError(
+      'latestAnchoredHeight needs at least two independent RPC endpoints (§9) — one is not a cross-check',
+    )
+  }
+  const lookback = options.lookbackBlocks ?? DEFAULT_READER_LOOKBACK_BLOCKS
+  const swept = await sweep(rpcs, options.contractAddress, new Set(publishers), lookback)
+  if (swept.confirmed === null) return { status: 'unavailable', errors: swept.errors }
+
+  let height: number | null = null
+  for (const anchor of swept.confirmed) {
+    if (height === null || anchor.nimiqHeight > height) height = anchor.nimiqHeight
+  }
+  return height === null ? { status: 'none', lookbackBlocks: lookback } : { status: 'found', height }
 }
 
 function computeStaleness(confirmed: readonly PastAnchor[], now: () => number): AnchorStaleness {

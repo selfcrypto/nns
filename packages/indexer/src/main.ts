@@ -13,6 +13,7 @@
  */
 
 import { CONSTANTS } from '@nns/core'
+import { createAnchorReadRpc } from '@nns/anchor/reader'
 import { bootstrap } from './bootstrap.js'
 import { CheckpointBuilder } from './checkpoint.js'
 import { createLogger, type Logger } from './logger.js'
@@ -25,7 +26,8 @@ import { RpcClient } from './rpc.js'
 import { nameRows } from './rows.js'
 import { Scanner } from './scan.js'
 import { verifyFromChain } from './shadow.js'
-import { httpFetcher } from './peer.js'
+import { anchoredSource } from './anchored.js'
+import { httpFetcher, peerSource, type LogSource } from './peer.js'
 import { Store } from './store.js'
 
 async function main(): Promise<void> {
@@ -93,9 +95,8 @@ async function main(): Promise<void> {
           rpc,
           logger,
           config: settings.config,
-          sourceUrl: settings.snapshotUrl,
           launchHeight: CONSTANTS.LAUNCH_HEIGHT,
-          fetcher: httpFetcher,
+          source: await logSource(settings, logger),
         })
         cursor = await store.loadCursor()
       } else {
@@ -217,6 +218,29 @@ async function main(): Promise<void> {
   } finally {
     await pool.end()
   }
+}
+
+/**
+ * The log a bootstrap replays, and the §8.1 commitment it must reproduce.
+ *
+ * Two sources, and the choice is about **where the expected commitment comes
+ * from**, not about where the bytes come from. `peer` asks one operator for
+ * both; `anchor` takes the commitment off the §9 contract — cross-checked
+ * across publishers and RPC endpoints — and then fetches the bytes from any
+ * IPFS gateway, trusting the gateway for nothing.
+ */
+async function logSource(settings: IndexerSettings, logger: Logger): Promise<LogSource> {
+  const url = settings.snapshotUrl as string
+  if (settings.snapshotSource === 'peer') return await peerSource(url, httpFetcher)
+  return await anchoredSource({
+    rpcs: settings.anchorRpcUrls.map((endpoint) => createAnchorReadRpc(endpoint)),
+    contractAddress: settings.anchorContract as string,
+    publishers: settings.anchorPublishers,
+    quorum: settings.anchorQuorum,
+    gateway: url,
+    fetcher: httpFetcher,
+    logger,
+  })
 }
 
 function installSignalHandlers(logger: Logger, controller: AbortController): void {
