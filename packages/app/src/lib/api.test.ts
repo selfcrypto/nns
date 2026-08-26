@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ApiError, getNameInfo, getOffers, getParams, type JsonFetch } from './api'
+import { ApiError, getBurn, getNameInfo, getOffers, getParams, type JsonFetch } from './api'
 
 const respond =
   (routes: Record<string, { status: number; body: unknown }>): JsonFetch =>
@@ -93,6 +93,22 @@ describe('luna amounts', () => {
         }),
       ),
     ).rejects.toBeInstanceOf(ApiError)
+  })
+
+  it('the burn record parses both §10.2 halves to bigint — burned alone is not an answer', async () => {
+    const burn = await getBurn(
+      'http://api',
+      respond({
+        '/burn': {
+          status: 200,
+          body: { revenue: '1000000000', owed: '200000000', burned: '150000000', attestations: [], height: 42 },
+        },
+      }),
+    )
+    expect(burn.owed).toBe(200_000_000n)
+    expect(burn.burned).toBe(150_000_000n)
+    expect(burn.revenue).toBe(1_000_000_000n)
+    expect(burn.height).toBe(42)
   })
 
   it('params carries a scheduled governance change with its own prices', async () => {

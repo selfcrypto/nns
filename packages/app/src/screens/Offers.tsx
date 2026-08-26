@@ -2,7 +2,7 @@ import { getOffers } from '../lib/api'
 import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
 import { apiBase } from '../lib/nns'
 import { useAsync } from '../lib/useAsync'
-import { custodialWarning, sendsDisabledLine, unreachableLine } from '../lib/wording'
+import { custodialWarning, expiryUntilLine, offersEmptyBody, offersEmptyTitle, unreachableLine } from '../lib/wording'
 import { EmptyState, Identicon, NameText, Spinner } from '../components/ui'
 
 export function OffersScreen({ onOpen }: { onOpen: (name: string) => void }) {
@@ -29,7 +29,7 @@ export function OffersScreen({ onOpen }: { onOpen: (name: string) => void }) {
   if (offers.length === 0) {
     return (
       <div className="screen">
-        <EmptyState title="Nothing for sale" body="Owners list names here. When one is listed, this is where it shows." />
+        <EmptyState title={offersEmptyTitle()} body={offersEmptyBody()} />
       </div>
     )
   }
@@ -48,14 +48,13 @@ export function OffersScreen({ onOpen }: { onOpen: (name: string) => void }) {
                 <Identicon address={offer.seller} size={24} />
                 <span className="nns-name">{ellipsizeAddress(offer.seller)}</span>
               </span>
-              <span className="offer-until">until {formatApproxDate(approxDate(offer.expiryHeight, height, nowMs))}</span>
+              <span className="offer-until">{expiryUntilLine(formatApproxDate(approxDate(offer.expiryHeight, height, nowMs)))}</span>
             </button>
           </li>
         ))}
       </ul>
-      {/* §8.5 #10's wording ships with the listing; the buy flow itself is send-layer work. */}
+      {/* §8.5 #10's wording ships with the listing; the checkbox-gated version guards the buy sheet itself. */}
       <p className="note note-info">{custodialWarning()}</p>
-      <p className="note note-info">{sendsDisabledLine()}</p>
     </div>
   )
 }

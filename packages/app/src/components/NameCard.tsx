@@ -13,7 +13,7 @@ import { CONSTANTS } from '@nns/core'
 import { primaryAddress } from '../lib/identity'
 import { approxDate, formatApproxDate } from '../lib/format'
 import type { SearchOutcome } from '../lib/search'
-import { actionGates, nameView, sameAddress, signerFor, type AppAction } from '../lib/states'
+import { actionGates, nameView, renewalUrgency, sameAddress, signerFor, type AppAction } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import {
   ACTION_LABEL,
@@ -22,12 +22,17 @@ import {
   alarmHeadline,
   availableLine,
   delegateFailedLine,
+  expiresLine,
+  graceEndsUnknownPhrase,
   graceLine,
+  justRegisteredLine,
   manageOwnNameLabel,
   messageOwnerLabel,
   ownNameLine,
   parentNotDelegatingLine,
+  parentNotRegisteredLine,
   queryFaultLine,
+  renewDueLine,
   reservedLine,
   unreachableLine,
 } from '../lib/wording'
@@ -35,7 +40,7 @@ import { AddressRow, Overlays, TitleName, VerificationLine, WarningNotes, tierOf
 import { ActionSheet } from './ActionSheet'
 import { Composer } from './Composer'
 import { PinCheck } from './PinCheck'
-import { RailCard } from './ui'
+import { Badge, RailCard } from './ui'
 
 /** Discovery: what someone who does not own the name can do with it. */
 export const ACQUIRE_ACTIONS: readonly AppAction[] = ['register', 'buy']
@@ -142,6 +147,8 @@ export function NameCard({
     case 'resolved': {
       const name = outcome.info?.name ?? outcome.result.name
       const mine = onManage !== null && ownedByViewer(outcome, viewers)
+      const record = outcome.info?.record ?? null
+      const height = outcome.info?.height ?? null
       return (
         <RailCard tier={tierOf(outcome.result)}>
           <TitleName name={outcome.result.query} />
@@ -149,6 +156,18 @@ export function NameCard({
           <AddressRow address={outcome.result.address} full />
           <VerificationLine result={outcome.result} />
           {outcome.info !== null && <Overlays info={outcome.info} nowMs={nowMs} />}
+          {/* States doc §1/§6: expiry as ≈ date on the detail card, turning into
+              the §10.4 renewal reminder inside the 60-day window — the list row
+              in My names says it too, but the card is where a name is *looked at*. */}
+          {record !== null && height !== null && record.status === 'REGISTERED' && (
+            <p className="expiry-line">
+              {renewalUrgency(record.expiry, height) === 'due' ? (
+                <Badge tone="couldnt-check">{renewDueLine(formatApproxDate(approxDate(record.expiry, height, nowMs)))}</Badge>
+              ) : (
+                expiresLine(formatApproxDate(approxDate(record.expiry, height, nowMs)))
+              )}
+            </p>
+          )}
           <WarningNotes warnings={outcome.result.warnings} />
           {mine ? (
             <div className="own-name">
@@ -184,7 +203,7 @@ export function NameCard({
         return (
           <RailCard tier="plain">
             <TitleName name={outcome.name} />
-            <p>Just registered by someone — search again to see it.</p>
+            <p>{justRegisteredLine()}</p>
           </RailCard>
         )
       }
@@ -204,7 +223,7 @@ export function NameCard({
       const until =
         record !== null && height !== null
           ? formatApproxDate(approxDate(record.expiry + CONSTANTS.GRACE_PERIOD, height, nowMs))
-          : 'its grace period ends'
+          : graceEndsUnknownPhrase()
       const mine = onManage !== null && ownedByViewer(outcome, viewers)
       return (
         <RailCard tier="plain">
@@ -230,8 +249,8 @@ export function NameCard({
           <TitleName name={outcome.parent} />
           <p>
             {outcome.code === 'NOT_FOUND'
-              ? `${outcome.parent} isn’t registered, so nothing can answer for its subdomains.`
-              : graceLine('its grace period ends')}
+              ? parentNotRegisteredLine(outcome.parent)
+              : graceLine(graceEndsUnknownPhrase())}
           </p>
         </RailCard>
       )

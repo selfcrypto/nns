@@ -1335,3 +1335,39 @@ li.note {
   min-width: 0;
   font-weight: 600;
 }
+
+/* ── Expiry on the detail card (states doc §1/§6; §10.4 reminder inside 60 d) ── */
+
+.expiry-line {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* ── The burn record (§10.2 — Buy's footer until the visual pass) ── */
+
+.burn-figures {
+  margin-top: auto;
+  padding-top: 24px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.burn-title {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.burn-row {
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.burn-amount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

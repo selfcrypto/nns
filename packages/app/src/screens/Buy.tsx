@@ -9,13 +9,57 @@
  */
 
 import { useMemo, useState } from 'react'
+import { getBurn } from '../lib/api'
+import { lunaToNim } from '../lib/format'
+import { apiBase } from '../lib/nns'
 import { isShortName, queryFault, search } from '../lib/search'
 import { useAsync } from '../lib/useAsync'
 import { useDebounced } from '../lib/useDebounced'
 import type { Wallet } from '../lib/wallet'
-import { queryFaultLine, shortNameNoteLine, unreachableLine } from '../lib/wording'
+import {
+  burnBurnedLabel,
+  burnEvenLine,
+  burnExplainer,
+  burnOwedLabel,
+  burnShortfallLine,
+  burnSurplusLine,
+  burnTitle,
+  buyEmptyBody,
+  buyEmptyTitle,
+  queryFaultLine,
+  shortNameNoteLine,
+  unreachableLine,
+} from '../lib/wording'
 import { ACQUIRE_ACTIONS, NameCard } from '../components/NameCard'
 import { EmptyState, Spinner } from '../components/ui'
+
+/**
+ * §10.2's burn record, both halves — burned means nothing without owed
+ * (packages/app/CLAUDE.md, "Show the burned quantities"). At the bottom of the
+ * front door until the visual pass finds it a home; quiet when the API does
+ * not answer, because an unreachable record must not read as a broken promise.
+ */
+function BurnFigures() {
+  const burn = useAsync(() => getBurn(apiBase()), [])
+  if (burn.status !== 'done') return null
+  const { burned, owed } = burn.value
+  const gap = owed - burned
+  return (
+    <section className="burn-figures">
+      <h3 className="burn-title">{burnTitle()}</h3>
+      <p className="burn-row">
+        <span>{burnBurnedLabel()}</span>
+        <span className="burn-amount">{lunaToNim(burned)} NIM</span>
+      </p>
+      <p className="burn-row">
+        <span>{burnOwedLabel()}</span>
+        <span className="burn-amount">{lunaToNim(owed)} NIM</span>
+      </p>
+      <p className="burn-row">{gap > 0n ? burnShortfallLine(lunaToNim(gap)) : gap < 0n ? burnSurplusLine(lunaToNim(-gap)) : burnEvenLine()}</p>
+      <p className="note note-info">{burnExplainer()}</p>
+    </section>
+  )
+}
 
 /**
  * Long enough that a word typed at speed is one query, not one per character —
@@ -82,9 +126,7 @@ export function BuyScreen({
       </form>
       {hint !== null && <p className={hint.tone}>{hint.text}</p>}
 
-      {outcome.status === 'idle' && (
-        <EmptyState title="Every name is an address" body="Look one up to see where it pays, or find a free one to register." />
-      )}
+      {outcome.status === 'idle' && <EmptyState title={buyEmptyTitle()} body={buyEmptyBody()} />}
       {outcome.status === 'loading' && <Spinner />}
       {outcome.status === 'error' && <p className="field-error">{unreachableLine()}</p>}
       {outcome.status === 'done' && (
@@ -97,6 +139,7 @@ export function BuyScreen({
           onManage={onManage}
         />
       )}
+      <BurnFigures />
     </div>
   )
 }

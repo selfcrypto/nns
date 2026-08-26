@@ -126,6 +126,22 @@ export const reservedLine = (): string =>
 export const graceLine = (untilDate: string): string =>
   `Expired — in grace until ${untilDate}. It still belongs to its owner and can be renewed. It is not available.`
 
+/** `graceLine`'s date slot when no height is at hand to compute one. */
+export const graceEndsUnknownPhrase = (): string => 'its grace period ends'
+
+/** Detail-card expiry (states doc §1 REGISTERED: "expiry as ≈ date"). */
+export const expiresLine = (whenDate: string): string => `Expires ${whenDate}.`
+
+/** List-row form of the same fact. */
+export const expiryUntilLine = (whenDate: string): string => `until ${whenDate}`
+
+/** An availability miss that is neither reserved nor free: someone beat the lookup. */
+export const justRegisteredLine = (): string =>
+  'Just registered by someone — search again to see it.'
+
+export const parentNotRegisteredLine = (parent: string): string =>
+  `${parent} isn’t registered, so nothing can answer for its subdomains.`
+
 export const pendingTransferLine = (newOwner: string, whenDate: string): string =>
   `Transferring to ${newOwner}, ${whenDate}. Until then it stays under the current owner’s control.`
 
@@ -238,8 +254,8 @@ export function queryFaultLine(fault: QueryFault): string {
 export const custodialWarning = (): string =>
   'Settlement is custodial: if this purchase loses a race or hits a cancelled offer, the refund comes from the marketplace operator — auditable in the public log, but a promise, not a protocol rule.'
 
-export const sendsDisabledLine = (): string =>
-  'Sending isn’t enabled in this build yet.'
+/** app-ux §5: the sheet shows only the marketplace address, so the app says who is selling. */
+export const soldByLine = (seller: string): string => `Sold by ${seller}.`
 
 // ── Send flows (docs/app-ux.md §4 — one state machine, one vocabulary) ─────
 
@@ -525,3 +541,53 @@ export const peerMoreNamesLine = (more: number): string => `+${more} more`
  */
 export const peerNamesHint = (): string =>
   'Names shown above an address are looked up in the registry, not taken from the message.'
+
+// ── Empty states (one title + body per screen; components add nothing) ──────
+
+export const buyEmptyTitle = (): string => 'Every name is an address'
+
+export const buyEmptyBody = (): string =>
+  'Look one up to see where it pays, or find a free one to register.'
+
+export const myNamesNoWalletTitle = (): string => 'No wallet connected'
+
+export const myNamesNoWalletBody = (): string => 'Your names are listed by your wallet addresses.'
+
+export const myNamesEmptyTitle = (): string => 'No names yet'
+
+export const myNamesEmptyBody = (): string =>
+  'Find a free name in Buy — it points at your address the moment it’s registered.'
+
+export const offersEmptyTitle = (): string => 'Nothing for sale'
+
+export const offersEmptyBody = (): string =>
+  'Owners list names here. When one is listed, this is where it shows.'
+
+export const inboxNoWalletTitle = (): string => 'No wallet connected'
+
+export const inboxNotConfiguredTitle = (): string => 'Inbox not set up'
+
+export const inboxEmptyTitle = (): string => 'No messages'
+
+// ── The burn record (§10.2 — burned, owed, and the gap between them) ────────
+
+export const burnTitle = (): string => 'Fee burn'
+
+export const burnBurnedLabel = (): string => 'Burned so far'
+
+export const burnOwedLabel = (): string => 'Owed under the commitment'
+
+export const burnShortfallLine = (nim: string): string => `Behind by ${nim} NIM — owed but not yet burned.`
+
+export const burnSurplusLine = (nim: string): string => `Ahead by ${nim} NIM — more burned than owed.`
+
+export const burnEvenLine = (): string => 'Burned exactly what is owed.'
+
+/**
+ * Both halves or nothing: burned alone says nothing about whether the
+ * commitment is being kept, which is why §10.2 calls the record auditable
+ * rather than promised. The share is computed, not written out — a `P`
+ * cannot move it, but a spec revision can.
+ */
+export const burnExplainer = (): string =>
+  `${Number(CONSTANTS.BURN_SHARE_BP) / 100}% of what the registry earns is committed to be burned. These figures come from the public log, so the commitment is checkable, not taken on trust.`

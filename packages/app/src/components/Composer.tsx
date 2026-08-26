@@ -6,6 +6,7 @@ import { sameAddress } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import {
   CHAT_ENCODE_TEXT,
+  GATE_REASON_TEXT,
   chatBudgetLine,
   chatOwnNameLine,
   chatPublicNotice,
@@ -18,7 +19,6 @@ import {
   sendSettlingLine,
   sendUncheckedLine,
   sendUnconfirmedLine,
-  sendsDisabledLine,
 } from '../lib/wording'
 import { NameText } from './ui'
 
@@ -104,7 +104,9 @@ export function Composer({
           className="composer-send"
           type="button"
           disabled={!canSend}
-          title={wallet === null ? sendsDisabledLine() : undefined}
+          // The honest reason: with no wallet there is no signer — the old line
+          // claimed the build could not send, which stopped being true 2026-08-21.
+          title={wallet === null ? GATE_REASON_TEXT['no-viewer'] : undefined}
           onClick={() => void send()}
         >
           Send

@@ -86,6 +86,14 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     expect(prepared.request.recipient).toBe(CONSTANTS.MARKETPLACE_ADDRESS)
   })
 
+  it('buy review presents the seller — the wallet sheet only ever shows the marketplace (§5.3, app-ux §5)', () => {
+    const withOffer = registered({
+      offer: { name: 'example', seller: OWNER, price: 45_050_000n, openedHeight: 1, expiryHeight: 2_000_000 },
+    })
+    const prepared = prepare({ action: 'buy' }, withOffer, OTHER)
+    expect(prepared.review.some((line) => line.includes(OWNER))).toBe(true)
+  })
+
   it('buying your own name is refused', () => {
     const withOffer = registered({
       offer: { name: 'example', seller: OWNER, price: 45_050_000n, openedHeight: 1, expiryHeight: 2_000_000 },

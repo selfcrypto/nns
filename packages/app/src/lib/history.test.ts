@@ -51,6 +51,20 @@ describe('fetchTransport', () => {
     expect(Array.isArray(data) && data[0]).toEqual(sample)
   })
 
+  // `VITE_NNS_RPC = "/rpc"` is a supported deployment (config.ts's
+  // `isEndpointUrl`); it works only because the endpoint is handed to fetch
+  // verbatim — a `new URL(endpoint)` here would throw on the relative form.
+  it('a same-origin endpoint reaches fetch verbatim, with no origin invented', async () => {
+    const seen: string[] = []
+    const transport = fetchTransport('/rpc', (input) => {
+      seen.push(String(input))
+      return Promise.resolve(response({ jsonrpc: '2.0', id: 1, result: { data: 7, metadata: null } }))
+    })
+    const data = await transport('getBlockNumber', [])
+    expect(data).toBe(7)
+    expect(seen).toEqual(['/rpc'])
+  })
+
   it('surfaces an RPC error by its data field, like the SDK does', async () => {
     const transport = fetchTransport('http://h', () =>
       Promise.resolve(response({ jsonrpc: '2.0', id: 1, error: { code: -32601, message: 'nope', data: 'Method not found' } })),

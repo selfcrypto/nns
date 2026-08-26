@@ -26,6 +26,7 @@ import {
 } from '@nns/core'
 import { getNameInfo, type ApiParams, type NameInfo } from './api'
 import { lunaToNim } from './format'
+import { soldByLine } from './wording'
 import { sameAddress, registrationFee } from './states'
 import type { AppAction } from './states'
 import type { SubmitRequest } from './wallet'
@@ -272,6 +273,9 @@ export function prepareAction(options: {
         request: asRequest(encodeBuy({ name, price: offer.price, sender })),
         review: [
           `Buys ${name} for ${lunaToNim(offer.price)} NIM, paid to the marketplace escrow.`,
+          // The wallet sheet shows only the marketplace address (§5.3), so the
+          // app is the one place the seller appears (docs/app-ux.md §5).
+          soldByLine(offer.seller),
         ],
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null

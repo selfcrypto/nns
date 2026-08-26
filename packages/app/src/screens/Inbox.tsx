@@ -23,8 +23,11 @@ import {
   hideSenderAction,
   inboxDownLine,
   inboxEmptyLine,
+  inboxEmptyTitle,
   inboxNoWalletLine,
+  inboxNoWalletTitle,
   inboxNotConfiguredLine,
+  inboxNotConfiguredTitle,
   inboxWindowLine,
   notYourNameLine,
   peerMoreNamesLine,
@@ -119,14 +122,14 @@ export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
   if (viewers.length === 0) {
     return (
       <div className="screen">
-        <EmptyState title="No wallet connected" body={inboxNoWalletLine()} />
+        <EmptyState title={inboxNoWalletTitle()} body={inboxNoWalletLine()} />
       </div>
     )
   }
   if (source === null) {
     return (
       <div className="screen">
-        <EmptyState title="Inbox not set up" body={inboxNotConfiguredLine()} />
+        <EmptyState title={inboxNotConfiguredTitle()} body={inboxNotConfiguredLine()} />
       </div>
     )
   }
@@ -172,7 +175,7 @@ export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
 
   return (
     <div className="screen">
-      {conversations.length === 0 && <EmptyState title="No messages" body={inboxEmptyLine()} />}
+      {conversations.length === 0 && <EmptyState title={inboxEmptyTitle()} body={inboxEmptyLine()} />}
       <ConversationList conversations={shown} namesFor={namesFor} onOpen={setOpenPeer} />
       {muted.length > 0 && (
         <details className="hidden-bucket">

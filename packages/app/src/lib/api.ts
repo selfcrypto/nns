@@ -1,7 +1,7 @@
 /**
  * Raw NNS API reads, for non-address data only: `/name`, `/address/{addr}/names`,
- * `/offers`, `/params`. Anything an address or an availability verdict comes
- * out of goes through `@nns/resolver` (`src/lib/nns.ts`) — never through here.
+ * `/offers`, `/params`, `/burn`. Anything an address or an availability verdict
+ * comes out of goes through `@nns/resolver` (`src/lib/nns.ts`) — never through here.
  *
  * Luna amounts arrive as decimal strings (the API's rule: `bigint` does not
  * survive JSON) and are parsed to `bigint` here, never to `number`.
@@ -94,6 +94,14 @@ export interface FeePrices {
   readonly feeStandard: bigint
   readonly feeLong: bigint
   readonly commissionBp: bigint
+}
+
+/** `/burn` — §10.2's two halves; the attestation list is served but not needed here. */
+export interface BurnRecord {
+  readonly revenue: bigint
+  readonly owed: bigint
+  readonly burned: bigint
+  readonly height: number
 }
 
 export interface ApiParams {
@@ -248,6 +256,16 @@ export async function getOffers(base: string, fetchJson: JsonFetch = jsonFetch):
   if (!Array.isArray(offers)) throw shape('offers')
   return {
     offers: offers.map((entry, index) => readOffer(entry, `offers[${index}]`)),
+    height: num(body['height'], 'height'),
+  }
+}
+
+export async function getBurn(base: string, fetchJson: JsonFetch = jsonFetch): Promise<BurnRecord> {
+  const body = record(await request(fetchJson, base, '/burn'), 'response')
+  return {
+    revenue: luna(body['revenue'], 'revenue'),
+    owed: luna(body['owed'], 'owed'),
+    burned: luna(body['burned'], 'burned'),
     height: num(body['height'], 'height'),
   }
 }

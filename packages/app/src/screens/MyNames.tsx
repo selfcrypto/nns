@@ -12,7 +12,17 @@ import { apiBase } from '../lib/nns'
 import { search } from '../lib/search'
 import { renewalUrgency } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
-import { backToNamesLabel, graceBadge, renewDueLine, unreachableLine } from '../lib/wording'
+import {
+  backToNamesLabel,
+  expiryUntilLine,
+  graceBadge,
+  myNamesEmptyBody,
+  myNamesEmptyTitle,
+  myNamesNoWalletBody,
+  myNamesNoWalletTitle,
+  renewDueLine,
+  unreachableLine,
+} from '../lib/wording'
 import type { Wallet } from '../lib/wallet'
 import { NameCard, OWNER_ACTIONS } from '../components/NameCard'
 import { Badge, EmptyState, NameText, Spinner } from '../components/ui'
@@ -102,7 +112,7 @@ export function MyNamesScreen({
         {/* No button here: connecting lives in the identity row above the tab
             bar, which is on screen right now. Two copies of one control is two
             controls that drift. */}
-        <EmptyState title="No wallet connected" body="Your names are listed by your wallet addresses." />
+        <EmptyState title={myNamesNoWalletTitle()} body={myNamesNoWalletBody()} />
       </div>
     )
   }
@@ -127,7 +137,7 @@ export function MyNamesScreen({
   return (
     <div className="screen">
       {names.length === 0 ? (
-        <EmptyState title="No names yet" body="Find a free name in Buy — it points at your address the moment it’s registered." />
+        <EmptyState title={myNamesEmptyTitle()} body={myNamesEmptyBody()} />
       ) : (
         <ul className="name-list">
           {names.map((ownedName) => {
@@ -146,7 +156,7 @@ export function MyNamesScreen({
                     ) : urgency === 'due' ? (
                       <Badge tone="couldnt-check">{renewDueLine(expiryDate)}</Badge>
                     ) : (
-                      <span className="name-row-expiry">until {expiryDate}</span>
+                      <span className="name-row-expiry">{expiryUntilLine(expiryDate)}</span>
                     )}
                   </span>
                 </button>
