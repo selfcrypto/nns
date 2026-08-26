@@ -143,8 +143,32 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
         commissionBp: 250n,
         lastGovernanceHeight: 58_150_000,
         pending: { feeStandard: 800_000_000n, feeLong: 80_000_000n, commissionBp: 300n, effectiveHeight: 58_243_200 },
+        // No `verification` row: this database was replayed from the chain,
+        // which is what an absent row means and the strongest answer there is.
+        verification: { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null },
       },
     })
+  })
+
+  it('discloses a bootstrap when the indexer recorded one (§8.4 tiers)', async () => {
+    await pool.query(
+      `INSERT INTO verification (id, verified_from, bootstrap_height, bootstrap_source, shadow_through)
+       VALUES (TRUE, $1, $2, $3, $4)`,
+      [HEIGHT, HEIGHT - 60, 'https://peer.example.com', HEIGHT - 100_000],
+    )
+    try {
+      const params = await queries.params()
+      expect(params.value.verification).toEqual({
+        verifiedFrom: HEIGHT,
+        bootstrap: {
+          height: HEIGHT - 60,
+          source: 'https://peer.example.com',
+          verifiedThrough: HEIGHT - 100_000,
+        },
+      })
+    } finally {
+      await pool.query('DELETE FROM verification')
+    }
   })
 
   it('the GOVERNANCE pending row never leaks into a name detail', async () => {

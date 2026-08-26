@@ -153,6 +153,7 @@ export {
   logFile,
   logHash,
   parseLogLine,
+  splitLogFile,
   verdictToken,
   type LogHasher,
 } from './log.js'

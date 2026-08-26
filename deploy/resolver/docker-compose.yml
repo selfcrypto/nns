@@ -68,6 +68,10 @@ services:
       # so a node on the wrong one indexes nothing rather than the wrong thing.
       NNS_NETWORK_ID: ${NNS_NETWORK_ID:-24}
       NNS_LOG_LEVEL: ${NNS_LOG_LEVEL:-info}
+      # How an EMPTY database is seeded: scratch (default) | snapshot | hybrid.
+      # Ignored once the database has a cursor. See packages/indexer/.env.example.
+      NNS_START_MODE: ${NNS_START_MODE:-scratch}
+      NNS_SNAPSHOT_URL: ${NNS_SNAPSHOT_URL:-}
       NNS_POLL_INTERVAL_MS: ${NNS_POLL_INTERVAL_MS:-15000}
       NNS_PROGRESS_INTERVAL_MS: ${NNS_PROGRESS_INTERVAL_MS:-60000}
       NNS_RPC_TIMEOUT_MS: ${NNS_RPC_TIMEOUT_MS:-30000}

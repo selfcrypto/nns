@@ -119,6 +119,16 @@ export interface ScannerOptions {
   onBatchComplete?: (batch: CompletedBatch) => void | Promise<void>
   /** Resume point, from a stored cursor. Overrides the `LAUNCH_HEIGHT` start. */
   startBatch?: number
+  /**
+   * Last batch to scan. {@link Scanner.run} returns once the cursor passes it
+   * instead of idling for the next finalised batch.
+   *
+   * For `hybrid`'s background re-derivation (`shadow.ts`), which re-scans a
+   * bounded range that the chain has long since finalised and must then stop —
+   * a second scanner tailing the head forever would double every RPC call the
+   * indexer makes, permanently, to verify nothing new.
+   */
+  stopAfterBatch?: number
   /** Injectable for tests. Must resolve early when the signal aborts. */
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>
 }
@@ -132,6 +142,7 @@ export class Scanner {
   private readonly onCandidate: ((candidate: NnsCandidate) => void | Promise<void>) | undefined
   private readonly onBatchComplete: ((batch: CompletedBatch) => void | Promise<void>) | undefined
   private readonly startBatchOverride: number | undefined
+  private readonly stopAfterBatch: number | undefined
   private readonly sleep: (ms: number, signal?: AbortSignal) => Promise<void>
 
   /**
@@ -163,6 +174,7 @@ export class Scanner {
     this.onCandidate = options.onCandidate
     this.onBatchComplete = options.onBatchComplete
     this.startBatchOverride = options.startBatch
+    this.stopAfterBatch = options.stopAfterBatch
     this.sleep = options.sleep ?? delay
   }
 
@@ -192,7 +204,10 @@ export class Scanner {
     // height: batch numbers are relative to the PoS genesis, so `head / 60`
     // is wrong by tens of thousands of batches and wrong silently.
     const currentBatch = await this.rpc.getBatchNumber()
-    const target = lastFinalisedBatch(currentBatch)
+    const finalised = lastFinalisedBatch(currentBatch)
+    // A bounded scan still never reads past finality: the ceiling is the lower
+    // of the two, so `stopAfterBatch` can only shorten the range.
+    const target = this.stopAfterBatch === undefined ? finalised : Math.min(finalised, this.stopAfterBatch)
     this.target = target
 
     let cursor = this.cursor ?? (await this.startBatch(geometry))
@@ -263,12 +278,21 @@ export class Scanner {
     return batch
   }
 
-  /** Run until the signal aborts. */
+  /**
+   * True once a bounded scan has passed its last batch. Always false for the
+   * ordinary tail, which has no last batch.
+   */
+  private get finished(): boolean {
+    return this.stopAfterBatch !== undefined && this.cursor !== undefined && this.cursor > this.stopAfterBatch
+  }
+
+  /** Run until the signal aborts, or until `stopAfterBatch` is passed. */
   async run(signal: AbortSignal): Promise<void> {
     while (!signal.aborted) {
       try {
         const scanned = await this.tick(signal)
         if (signal.aborted) break
+        if (this.finished) break
         // Only idle when there was nothing to do. A non-empty pass may have
         // been cut short by a newly finalised batch.
         if (scanned === 0) await this.sleep(this.pollIntervalMs, signal)

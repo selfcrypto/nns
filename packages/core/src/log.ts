@@ -174,6 +174,48 @@ export function logFile(lines: readonly string[]): Uint8Array {
 }
 
 /**
+ * {@link logFile} inverted: the canonical file bytes back into §8.2 lines.
+ *
+ * Every line is terminated, including the last, so a well-formed file ends
+ * with exactly one empty trailing element. **An unterminated final line is
+ * rejected rather than accepted** — it hashes differently, and tolerating it
+ * would let a truncated download pass a transport check that compares the
+ * served bytes to the hash served with them.
+ *
+ * It lives here for the same reason {@link createLogHasher} does. Anyone who
+ * fetches a log has to split it before hashing it, and a second opinion about
+ * where the lines are is a second opinion about what §8.2 commits — which is
+ * a divergence, not a parsing preference. `@nns/settlement` reads a log to
+ * audit it and `@nns/indexer` reads one to bootstrap from it; those two are
+ * deliberately independent of each other, so the one thing they must not each
+ * invent is this.
+ */
+export function splitLogFile(bytes: Uint8Array): readonly string[] {
+  if (bytes.length === 0) return []
+  if (bytes[bytes.length - 1] !== 0x0a) {
+    throw new LogError('log file does not end with a newline — §8.2 terminates every line, including the last')
+  }
+  // Decoded byte by byte rather than through `TextDecoder`, which is neither a
+  // browser nor a Node global as far as this package's types are concerned —
+  // and which would accept well-formed UTF-8 above U+007F that {@link logFile}
+  // refuses to emit. Rejecting a high byte here makes the two exactly inverse.
+  const lines: string[] = []
+  let line = ''
+  for (const byte of bytes) {
+    if (byte === 0x0a) {
+      lines.push(line)
+      line = ''
+      continue
+    }
+    if (byte > 0x7f) {
+      throw new LogError(`log file contains a non-ASCII byte: 0x${byte.toString(16).padStart(2, '0')}`)
+    }
+    line += String.fromCharCode(byte)
+  }
+  return lines
+}
+
+/**
  * The committed log hash: keccak256 of the file bytes, from the first line
  * through the last message at or below the checkpoint height (§8.2).
  */

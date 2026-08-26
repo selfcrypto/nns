@@ -38,6 +38,51 @@ export interface IndexerSettings {
   /** How often the `indexer.progress` heartbeat may repeat. */
   readonly progressIntervalMs: number
   readonly logLevel: LogLevel
+  /**
+   * How an **empty** database is seeded. Read only when there is no cursor —
+   * a database that has already scanned a batch is never re-seeded, whatever
+   * this says, because the mode describes where state came from and that is a
+   * fact the database already holds.
+   *
+   * `hybrid`'s background verification is the exception: it resumes on every
+   * start while an unverified range remains, so an operator who bootstrapped
+   * with `snapshot` can switch to `hybrid` later and have it run.
+   */
+  readonly startMode: StartMode
+  /**
+   * The API root a `snapshot`/`hybrid` bootstrap reads `/log` and
+   * `/checkpoints/{height}` from. Another operator's resolver — **not** this
+   * deployment's own.
+   */
+  readonly snapshotUrl: string | undefined
+}
+
+/**
+ * How an empty database is seeded (`NNS_START_MODE`).
+ *
+ * - `scratch` — replay every batch from `LAUNCH_HEIGHT`. The default, and the
+ *   only mode that derives the whole registry from the chain.
+ * - `snapshot` — fetch a peer's §8.2 log, verify it against the §8.1
+ *   commitment that peer publishes, replay it into state, and start scanning
+ *   from there. Minutes instead of hours, at the cost of §8.4 Tier 3 depth
+ *   over the bootstrapped range: a line the peer **omitted** is invisible to a
+ *   replay of what it served.
+ * - `hybrid` — `snapshot`, and then re-derive the bootstrapped range from the
+ *   chain in the background, checking every §8.1 commitment against the one
+ *   already stored. Usable immediately, Tier 3 shortly after.
+ *
+ * A **flag** was the obvious shape and is the wrong one here: this indexer runs
+ * under compose, and `deploy/README.md` is explicit that every value a role
+ * needs goes in that role's `.env`. `@nns/anchor` already learned this the
+ * expensive way — `NNS_ANCHOR_SEND=--send` exists purely to thread a flag back
+ * through an env var, which is the shape of the mistake, not a precedent.
+ */
+export type StartMode = 'scratch' | 'snapshot' | 'hybrid'
+
+const START_MODES: readonly StartMode[] = ['scratch', 'snapshot', 'hybrid']
+
+export function isStartMode(value: string): value is StartMode {
+  return (START_MODES as readonly string[]).includes(value)
 }
 
 export type EnvSource = Readonly<Record<string, string | undefined>>
@@ -105,6 +150,24 @@ export function loadSettings(env: EnvSource = process.env): IndexerSettings {
     throw new EnvError(`NNS_LOG_LEVEL must be one of debug|info|warn|error, got ${JSON.stringify(level)}`)
   }
 
+  const startMode = read(env, 'NNS_START_MODE') ?? 'scratch'
+  if (!isStartMode(startMode)) {
+    throw new EnvError(
+      `NNS_START_MODE must be one of ${START_MODES.join('|')}, got ${JSON.stringify(startMode)}`,
+    )
+  }
+  const snapshotUrl = read(env, 'NNS_SNAPSHOT_URL')
+  if (startMode !== 'scratch') {
+    if (snapshotUrl === undefined) {
+      throw new EnvError(`NNS_START_MODE=${startMode} needs NNS_SNAPSHOT_URL — see packages/indexer/.env.example`)
+    }
+    try {
+      void new URL(snapshotUrl)
+    } catch {
+      throw new EnvError(`NNS_SNAPSHOT_URL is not a valid URL: ${JSON.stringify(snapshotUrl)}`)
+    }
+  }
+
   return Object.freeze({
     rpcUrl: url,
     rpcUser: read(env, 'NNS_RPC_USER'),
@@ -117,6 +180,8 @@ export function loadSettings(env: EnvSource = process.env): IndexerSettings {
     logLevel: level,
     databaseUrl: required(env, 'NNS_DATABASE_URL'),
     config: nnsConfig(networkId),
+    startMode,
+    snapshotUrl,
   })
 }
 

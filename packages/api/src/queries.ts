@@ -79,6 +79,34 @@ export interface ParamsSnapshot {
     readonly commissionBp: bigint
     readonly effectiveHeight: number
   } | null
+  readonly verification: VerificationSnapshot
+}
+
+/**
+ * How much of what this resolver serves it derived from the chain itself
+ * (indexer migration 009, `NNS_START_MODE`).
+ *
+ * §8.4 grades verification in tiers and §8.5 makes a client's depth indicator
+ * a **neutral** disclosure rather than a warning. This is the server half of
+ * that: an indexer seeded from a peer's log holds Tier 1 evidence for the
+ * bootstrapped range — strong, but blind to a message that was on chain and
+ * omitted from the log — and a caller cannot tell unless it is told.
+ *
+ * `verifiedFrom` equals `LAUNCH_HEIGHT` and `bootstrap` is `null` for every
+ * indexer replayed from the chain, which is every indexer that predates the
+ * mode and every one still using the default.
+ */
+export interface VerificationSnapshot {
+  /** The lowest height this resolver derived from the chain itself. */
+  readonly verifiedFrom: number
+  readonly bootstrap: {
+    /** Height the downloaded log was replayed through. */
+    readonly height: number
+    /** The API root it was downloaded from. */
+    readonly source: string
+    /** How far a background re-derivation has reached, or `null` if none runs. */
+    readonly verifiedThrough: number | null
+  } | null
 }
 
 /** A stored §8.1 checkpoint row, digests as bare lowercase hex. */
@@ -414,9 +442,14 @@ export class PgQueries implements Queries {
         `SELECT fee_standard, fee_long, commission_bp, effective_height
            FROM pending WHERE kind = 'GOVERNANCE'`,
       )
+      const verification = await client.query(
+        `SELECT verified_from, bootstrap_height, bootstrap_source, shadow_through
+           FROM verification WHERE id`,
+      )
       // #snapshot has already proven the params row exists.
       const row = params.rows[0] as Row
       const scheduled: Row | undefined = governance.rows[0]
+      const seeded: Row | undefined = verification.rows[0]
       return {
         feeStandard: toLuna(row['fee_standard'], 'fee_standard'),
         feeLong: toLuna(row['fee_long'], 'fee_long'),
@@ -434,6 +467,7 @@ export class PgQueries implements Queries {
                 commissionBp: toLuna(scheduled['commission_bp'], 'commission_bp'),
                 effectiveHeight: toHeight(scheduled['effective_height'], 'effective_height'),
               },
+        verification: verificationOf(seeded),
       }
     })
   }
@@ -585,6 +619,34 @@ export class PgQueries implements Queries {
       const row = (revenue.rows as Row[])[0]
       return { attestations, revenue: toLuna(row?.['revenue'], 'revenue') }
     })
+  }
+}
+
+/**
+ * The `verification` row as served, or the scratch answer when there is none.
+ *
+ * No row means one thing and it is the strong answer: everything above
+ * `LAUNCH_HEIGHT` here was derived from the chain by the indexer that wrote it.
+ * Reporting that as `null` would make the default look like missing
+ * information, which is the opposite of what it is.
+ */
+function verificationOf(row: Row | undefined): VerificationSnapshot {
+  if (row === undefined) return { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null }
+  const height = row['bootstrap_height']
+  const source = row['bootstrap_source']
+  return {
+    verifiedFrom: toHeight(row['verified_from'], 'verified_from'),
+    bootstrap:
+      height === null || height === undefined || typeof source !== 'string'
+        ? null
+        : {
+            height: toHeight(height, 'bootstrap_height'),
+            source,
+            verifiedThrough:
+              row['shadow_through'] === null || row['shadow_through'] === undefined
+                ? null
+                : toHeight(row['shadow_through'], 'shadow_through'),
+          },
   }
 }
 

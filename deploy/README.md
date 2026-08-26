@@ -138,6 +138,18 @@ node actually holds. **That refusal is the good outcome.** Get a node with the
 history; [`resolver/README.md`](resolver/README.md) explains why raising the
 start height is the wrong response to it.
 
+`NNS_START_MODE` is the one thing that moves this requirement. A `snapshot`
+bootstrap seeds an empty database from another operator's §8.2 log — verified
+against the §8.1 commitment that operator publishes, and replayed locally
+rather than copied — and then scans from there, so the node only has to hold
+history from the bootstrap height on. It buys minutes instead of hours and
+costs §8.4 Tier 3 depth over the bootstrapped range: a message that was on
+chain and is missing from that log commits perfectly, and every operator who
+bootstraps from the same peer inherits the same blind spot. The resolver says
+so on `/params` rather than claiming otherwise. `hybrid` re-derives the range
+from the chain in the background and needs the full history like `scratch`,
+which it checks at startup.
+
 ## Keys, and where they may not be
 
 The two that hold a spending key are the two with no public surface:

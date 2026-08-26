@@ -86,3 +86,45 @@ describe('loadSettings', () => {
     expect(settings.pollIntervalMs).toBe(15_000)
   })
 })
+
+describe('NNS_START_MODE', () => {
+  // The mode is `.env`, not a flag, because this process runs under compose
+  // and every value a role needs lives in that role's `.env`
+  // (`deploy/README.md`). A flag would need an env var to carry it anyway —
+  // which is exactly what `NNS_ANCHOR_SEND=--send` already is.
+
+  it('defaults to scratch — the mode that derives everything from the chain', () => {
+    expect(loadSettings(MINIMAL).startMode).toBe('scratch')
+    expect(loadSettings(MINIMAL).snapshotUrl).toBeUndefined()
+  })
+
+  it('accepts the three modes and refuses anything else by name', () => {
+    for (const mode of ['scratch', 'snapshot', 'hybrid']) {
+      const env = { ...MINIMAL, NNS_START_MODE: mode, NNS_SNAPSHOT_URL: 'https://peer.example.com' }
+      expect(loadSettings(env).startMode).toBe(mode)
+    }
+    expect(() => loadSettings({ ...MINIMAL, NNS_START_MODE: 'fast' })).toThrow(EnvError)
+    expect(() => loadSettings({ ...MINIMAL, NNS_START_MODE: 'fast' })).toThrow(/scratch\|snapshot\|hybrid/)
+  })
+
+  it('refuses snapshot and hybrid with no source — there is nothing to download from', () => {
+    for (const mode of ['snapshot', 'hybrid']) {
+      expect(() => loadSettings({ ...MINIMAL, NNS_START_MODE: mode })).toThrow(/NNS_SNAPSHOT_URL/)
+    }
+  })
+
+  it('refuses a source that is not a URL', () => {
+    expect(() =>
+      loadSettings({ ...MINIMAL, NNS_START_MODE: 'snapshot', NNS_SNAPSHOT_URL: 'peer.example.com' }),
+    ).toThrow(/not a valid URL/)
+  })
+
+  it('ignores a source scratch will never read, rather than refusing it', () => {
+    // An operator who bootstrapped once and set the mode back should not have
+    // to also delete the URL to start the indexer.
+    const settings = loadSettings({ ...MINIMAL, NNS_SNAPSHOT_URL: 'https://peer.example.com' })
+    expect(settings.startMode).toBe('scratch')
+    expect(settings.snapshotUrl).toBe('https://peer.example.com')
+  })
+})
+

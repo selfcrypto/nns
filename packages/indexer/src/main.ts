@@ -13,16 +13,19 @@
  */
 
 import { CONSTANTS } from '@nns/core'
+import { bootstrap } from './bootstrap.js'
 import { CheckpointBuilder } from './checkpoint.js'
 import { createLogger, type Logger } from './logger.js'
 import { EnvError, loadSettings, type IndexerSettings } from './env.js'
 import { createPool, migrate } from './db.js'
-import { HorizonError } from './horizon.js'
+import { assertHistoryHorizon, HorizonError } from './horizon.js'
 import { Pipeline } from './pipeline.js'
 import { Progress } from './progress.js'
 import { RpcClient } from './rpc.js'
 import { nameRows } from './rows.js'
 import { Scanner } from './scan.js'
+import { verifyFromChain } from './shadow.js'
+import { httpFetcher } from './peer.js'
 import { Store } from './store.js'
 
 async function main(): Promise<void> {
@@ -51,6 +54,7 @@ async function main(): Promise<void> {
     networkId: settings.networkId,
     launchHeight: CONSTANTS.LAUNCH_HEIGHT,
     pollIntervalMs: settings.pollIntervalMs,
+    startMode: settings.startMode,
   })
 
   const pool = createPool(settings.databaseUrl)
@@ -59,8 +63,55 @@ async function main(): Promise<void> {
     await migrate(pool, logger)
 
     const store = new Store(pool, settings.config, logger)
+    const rpc = new RpcClient({
+      url: settings.rpcUrl,
+      username: settings.rpcUser,
+      password: settings.rpcPassword,
+      timeoutMs: settings.rpcTimeoutMs,
+      attempts: settings.rpcAttempts,
+      logger,
+    })
+
     // Throws if the database was built under different §3 values.
-    const cursor = await store.loadCursor()
+    let cursor = await store.loadCursor()
+    if (settings.startMode !== 'scratch' && settings.snapshotUrl !== undefined) {
+      if (cursor === null) {
+        // `hybrid` re-derives from LAUNCH_HEIGHT, so it needs a node that still
+        // holds it. Checked here, before a row is written: the same refusal
+        // arriving an hour later, from the background sweep, would leave a
+        // bootstrapped database behind that nobody asked for.
+        if (settings.startMode === 'hybrid') {
+          await assertHistoryHorizon({
+            rpc,
+            startHeight: CONSTANTS.LAUNCH_HEIGHT,
+            origin: 'LAUNCH_HEIGHT, which NNS_START_MODE=hybrid re-derives from',
+            logger,
+          })
+        }
+        await bootstrap({
+          store,
+          rpc,
+          logger,
+          config: settings.config,
+          sourceUrl: settings.snapshotUrl,
+          launchHeight: CONSTANTS.LAUNCH_HEIGHT,
+          fetcher: httpFetcher,
+        })
+        cursor = await store.loadCursor()
+      } else {
+        // The mode says how an empty database is seeded, and this one is not
+        // empty. Said out loud rather than ignored: an operator who set it
+        // expecting a re-seed should not have to infer from the batch rate
+        // that nothing happened.
+        logger.info('bootstrap.skipped', {
+          startMode: settings.startMode,
+          reason: 'the database already has a cursor — state is never re-seeded',
+          nextBatch: cursor.nextBatch,
+        })
+      }
+    }
+
+    const verification = await store.loadVerification()
     let state = await store.loadState()
     // §8.1 boundaries are absolute multiples of CHECKPOINT_INTERVAL from
     // LAUNCH_HEIGHT on, and LAUNCH_HEIGHT can be one of them — a boundary at a
@@ -75,14 +126,6 @@ async function main(): Promise<void> {
     await store.streamLogRows((row) => checkpoints.seed(row))
     checkpoints.seeded()
 
-    const rpc = new RpcClient({
-      url: settings.rpcUrl,
-      username: settings.rpcUser,
-      password: settings.rpcPassword,
-      timeoutMs: settings.rpcTimeoutMs,
-      attempts: settings.rpcAttempts,
-      logger,
-    })
     const pipeline = new Pipeline(settings.config, logger, {
       ...(latestCheckpoint === null ? {} : { lastCheckpointHeight: latestCheckpoint.height }),
     })
@@ -131,10 +174,46 @@ async function main(): Promise<void> {
     })
 
     installSignalHandlers(logger, controller)
+
+    // `hybrid` runs the §8.4 Tier 3 replay beside the tail, and it runs on
+    // every start while an unverified range remains — not only on the start
+    // that bootstrapped. An operator who seeded with `snapshot` and set
+    // `hybrid` afterwards gets the sweep, which is the useful reading of a
+    // mode that describes what this indexer is doing rather than what it did
+    // once.
+    let verificationFailure: unknown
+    const sweep =
+      settings.startMode === 'hybrid' &&
+      verification !== null &&
+      verification.bootstrapHeight !== null &&
+      verification.verifiedFrom > CONSTANTS.LAUNCH_HEIGHT
+        ? verifyFromChain(
+            {
+              rpc,
+              store,
+              logger,
+              config: settings.config,
+              networkId: settings.networkId,
+              launchHeight: CONSTANTS.LAUNCH_HEIGHT,
+              pollIntervalMs: settings.pollIntervalMs,
+              throughHeight: verification.bootstrapHeight,
+            },
+            controller.signal,
+          ).catch((error: unknown) => {
+            // A sweep that disagrees with the stored state has caught the one
+            // failure this design exists to catch. Stop the tail rather than
+            // keep serving rows a replay of the chain does not reproduce.
+            verificationFailure = error
+            controller.abort()
+          })
+        : Promise.resolve()
+
     await scanner.run(controller.signal)
+    await sweep
     // The run's totals, whatever the heartbeat's cadence had reached.
     progress.flush('stop')
     logger.info('indexer.stop', { nextBatch: scanner.nextBatch, height: state.height })
+    if (verificationFailure !== undefined) throw verificationFailure
   } finally {
     await pool.end()
   }

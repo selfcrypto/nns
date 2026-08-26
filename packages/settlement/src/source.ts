@@ -25,7 +25,7 @@
  * here would be a second opinion from the same code.
  */
 
-import { logFile, logHash } from '@nns/core'
+import { logFile, logHash, splitLogFile } from '@nns/core'
 
 export class SourceError extends Error {
   override readonly name = 'SourceError'
@@ -64,23 +64,15 @@ function digest(value: string, field: string): string {
 }
 
 /**
- * Split the file bytes into §8.2 lines.
+ * Splitting the file into lines is `core`'s (`splitLogFile`), not this
+ * module's, and re-exported here so callers keep one import.
  *
- * Every line is terminated, including the last, so a well-formed file ends with
- * exactly one empty trailing element. An unterminated final line is rejected
- * rather than accepted: it hashes differently, and silently tolerating it here
- * would make the transport check pass on a truncated download.
+ * Where the lines are is what §8.2 commits to, so a second opinion about it is
+ * a divergence rather than a parsing preference — and `@nns/indexer` reads a
+ * log too, to bootstrap from one. The two are deliberately independent of each
+ * other; `core` is where they are allowed to agree.
  */
-export function splitLogFile(bytes: Uint8Array): readonly string[] {
-  if (bytes.length === 0) return []
-  if (bytes[bytes.length - 1] !== 0x0a) {
-    throw new SourceError('log file does not end with a newline — §8.2 terminates every line, including the last')
-  }
-  const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes)
-  const lines = text.split('\n')
-  lines.pop()
-  return lines
-}
+export { splitLogFile } from '@nns/core'
 
 function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false

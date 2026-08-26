@@ -1,7 +1,7 @@
 import { keccak_256 } from '@noble/hashes/sha3.js'
 import { hexToBytes } from '@noble/hashes/utils.js'
 import { describe, expect, it } from 'vitest'
-import { LogError, canonicalLogLine, cidFromDigest, createLogHasher, digestFromCid, logFile, logHash, parseLogLine, verdictToken } from './log.js'
+import { LogError, canonicalLogLine, cidFromDigest, createLogHasher, digestFromCid, logFile, logHash, parseLogLine, splitLogFile, verdictToken } from './log.js'
 import type { ChainTransaction, Verdict } from './reduce.js'
 import { ALICE, MAINNET_ID, TREASURY } from './test-fixtures.js'
 import { unionMembers } from './vocabulary-fixture.js'
@@ -149,6 +149,42 @@ describe('logFile and logHash — §8.2 canonical form', () => {
 
   it('rejects a non-ASCII line rather than encoding it silently', () => {
     expect(() => logFile(['café'])).toThrow(LogError)
+  })
+})
+
+describe('splitLogFile — the inverse, for anyone who fetches a log', () => {
+  // A reader has to split a file before hashing it, and where the lines are is
+  // what §8.2 commits to. It lives here so `@nns/settlement` (which audits a
+  // log) and `@nns/indexer` (which bootstraps from one) cannot each invent it —
+  // those two are deliberately independent, and this is the one thing they
+  // must agree on by construction rather than by luck.
+
+  it('round-trips every line, terminator included', () => {
+    const lines = [canonicalLogLine(tx(), OK), canonicalLogLine(tx({ txIndex: 1 }), OK)]
+    expect(splitLogFile(logFile(lines))).toEqual(lines)
+  })
+
+  it('an empty file is an empty log, not an empty line', () => {
+    expect(splitLogFile(new Uint8Array(0))).toEqual([])
+    expect(logFile(splitLogFile(new Uint8Array(0)))).toEqual(new Uint8Array(0))
+  })
+
+  it('refuses an unterminated final line — a truncated download hashes cleanly otherwise', () => {
+    const truncated = logFile(['a', 'bb']).slice(0, -1)
+    expect(() => splitLogFile(truncated)).toThrow(LogError)
+    expect(() => splitLogFile(truncated)).toThrow(/does not end with a newline/)
+  })
+
+  it('keeps an empty line rather than dropping it', () => {
+    // Not a legal log, but silently collapsing `\n\n` would make the
+    // round-trip lossy exactly where a corrupt file needs to be caught.
+    expect(splitLogFile(Uint8Array.from([0x61, 0x0a, 0x0a]))).toEqual(['a', ''])
+  })
+
+  it('refuses a byte logFile would never emit', () => {
+    // `logFile` rejects anything above U+007F, so accepting one here would make
+    // the two functions disagree about what a canonical file is.
+    expect(() => splitLogFile(Uint8Array.from([0xc3, 0xa9, 0x0a]))).toThrow(/non-ASCII byte/)
   })
 })
 

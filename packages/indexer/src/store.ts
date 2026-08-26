@@ -35,6 +35,28 @@ export interface Cursor {
   configFingerprint: string
 }
 
+/**
+ * Where this database's state came from (migration 009).
+ *
+ * A scratch database has no row: everything above `LAUNCH_HEIGHT` was derived
+ * from the chain by this process, which is what {@link Store.loadVerification}
+ * returning `null` means. A bootstrapped one has a row, and it is the only
+ * place that records the range whose evidence is §8.4 Tier 1 rather than
+ * Tier 3.
+ */
+export interface Verification {
+  /** Lowest height derived from the chain. `LAUNCH_HEIGHT` once fully verified. */
+  verifiedFrom: number
+  /** Height the downloaded log was replayed through, or `null` for scratch. */
+  bootstrapHeight: number | null
+  /** The API root the log came from, or `null`. */
+  bootstrapSource: string | null
+  /** Bare lowercase hex — the §8.2 hash the peer's checkpoint committed. */
+  bootstrapLogHash: string | null
+  /** How far `hybrid`'s background re-derivation has reached, or `null`. */
+  shadowThrough: number | null
+}
+
 const NAME_COLUMNS = ['name', 'owner', 'target', 'evm', 'expiry', 'status', 'host'] as const
 const PENDING_COLUMNS = [
   'kind',
@@ -128,6 +150,14 @@ export interface CommitInput {
   snapshot?: { readonly height: number; readonly names: readonly NameRow[] }
   nextBatch: number
   scannedThrough: number
+  /**
+   * Written in the same transaction as the rows it describes, which is the
+   * only ordering that is safe: a database that records a bootstrap *after*
+   * writing its rows can crash in between and come back claiming to be a
+   * scratch replay of a log it downloaded. Under-claiming verification is
+   * recoverable; over-claiming it is the failure this row exists to prevent.
+   */
+  verification?: Verification
 }
 
 /** A checkpoint as stored, hex-encoded. `BYTEA` comes back as a `Buffer`. */
@@ -204,6 +234,68 @@ export class Store {
       scannedThrough: row.scanned_through,
       configFingerprint: row.config_fingerprint,
     }
+  }
+
+  /**
+   * Where this database's state came from, or `null` for one replayed from
+   * `LAUNCH_HEIGHT`.
+   *
+   * `null` is the answer for every database written before migration 009 as
+   * well as every scratch database written since, and the two are the same
+   * claim: nothing here came from anywhere but the chain.
+   */
+  async loadVerification(): Promise<Verification | null> {
+    const result = await this.pool.query<{
+      verified_from: number
+      bootstrap_height: number | null
+      bootstrap_source: string | null
+      bootstrap_log_hash: Buffer | null
+      shadow_through: number | null
+    }>(
+      `SELECT verified_from, bootstrap_height, bootstrap_source, bootstrap_log_hash, shadow_through
+         FROM verification WHERE id`,
+    )
+    const row = result.rows[0]
+    if (row === undefined) return null
+    return {
+      verifiedFrom: row.verified_from,
+      bootstrapHeight: row.bootstrap_height,
+      bootstrapSource: row.bootstrap_source,
+      bootstrapLogHash: row.bootstrap_log_hash?.toString('hex') ?? null,
+      shadowThrough: row.shadow_through,
+    }
+  }
+
+  /**
+   * How far `hybrid`'s background re-derivation has got.
+   *
+   * Progress reporting, not a resume point — see migration 009. Written on a
+   * throttle by the sweep rather than per batch: it is the one write in this
+   * class that no root depends on, and putting an fsync in front of every
+   * batch of a second full replay would cost more than the sweep it reports.
+   */
+  async recordShadowProgress(height: number): Promise<void> {
+    await this.pool.query(
+      'UPDATE verification SET shadow_through = $1, updated_at = now() WHERE id',
+      [height],
+    )
+  }
+
+  /**
+   * The sweep reached the bootstrap height with every §8.1 commitment matching:
+   * the range that arrived as a peer's log has now been derived from the chain,
+   * and this database is §8.4 Tier 3 from `LAUNCH_HEIGHT` like any other.
+   *
+   * The bootstrap columns are kept rather than cleared. What the log said and
+   * where it came from stays on the record — a verified bootstrap is a fact
+   * about how this database was built, not an embarrassment to tidy away.
+   */
+  async completeVerification(launchHeight: number): Promise<void> {
+    await this.pool.query(
+      'UPDATE verification SET verified_from = $1, shadow_through = $2, updated_at = now() WHERE id',
+      [launchHeight, launchHeight],
+    )
+    this.logger.info('verify.complete', { verifiedFrom: launchHeight })
   }
 
   /**
@@ -301,6 +393,7 @@ export class Store {
       await insertRows(client, 'log', LOG_COLUMNS, input.logRows, 'DO NOTHING')
       await this.writeCheckpoints(client, input.checkpoints ?? [])
       if (input.snapshot !== undefined) await this.writeSnapshot(client, input.snapshot)
+      if (input.verification !== undefined) await writeVerification(client, input.verification)
       await client.query(
         `INSERT INTO "cursor" (id, next_batch, scanned_through, config_fingerprint, updated_at)
          VALUES (TRUE, $1, $2, $3, now())
@@ -452,4 +545,33 @@ export class Store {
       ],
     )
   }
+}
+
+/**
+ * Upsert the single `verification` row (migration 009).
+ *
+ * A free function rather than a method because it runs inside
+ * {@link Store.commitBatch}'s transaction, on that transaction's client — the
+ * point of writing it here at all.
+ */
+async function writeVerification(client: PoolClient, verification: Verification): Promise<void> {
+  await client.query(
+    `INSERT INTO verification
+       (id, verified_from, bootstrap_height, bootstrap_source, bootstrap_log_hash, shadow_through, updated_at)
+     VALUES (TRUE, $1, $2, $3, $4, $5, now())
+     ON CONFLICT (id) DO UPDATE
+       SET verified_from = EXCLUDED.verified_from,
+           bootstrap_height = EXCLUDED.bootstrap_height,
+           bootstrap_source = EXCLUDED.bootstrap_source,
+           bootstrap_log_hash = EXCLUDED.bootstrap_log_hash,
+           shadow_through = EXCLUDED.shadow_through,
+           updated_at = now()`,
+    [
+      verification.verifiedFrom,
+      verification.bootstrapHeight,
+      verification.bootstrapSource,
+      verification.bootstrapLogHash === null ? null : Buffer.from(verification.bootstrapLogHash, 'hex'),
+      verification.shadowThrough,
+    ],
+  )
 }

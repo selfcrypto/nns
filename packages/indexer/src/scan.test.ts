@@ -506,4 +506,47 @@ describe('run', () => {
     })
     await expect(s.run(new AbortController().signal)).rejects.toThrow(/envelope missing/)
   })
+
+  it('stops at stopAfterBatch instead of tailing — a bounded re-scan must end', async () => {
+    // `hybrid`'s background re-derivation (`shadow.ts`) re-scans a finished
+    // range. Without a ceiling it would idle at the head forever, doubling
+    // every RPC call the indexer makes to verify nothing new.
+    const node = fakeNode({ head: 600, blocks: {} })
+    const { logger } = collectingLogger()
+    const s = new Scanner({
+      rpc: node.rpc,
+      logger,
+      networkId: 24,
+      launchHeight: 1,
+      pollIntervalMs: 1,
+      stopAfterBatch: 3,
+      sleep: async () => {
+        throw new Error('a bounded scan idled instead of returning')
+      },
+    })
+    await s.run(new AbortController().signal)
+    expect(node.calls.batches).toEqual([1, 2, 3])
+    expect(s.nextBatch).toBe(4)
+  })
+
+  it('never reads past finality, even when stopAfterBatch is above it', async () => {
+    const node = fakeNode({ head: 180, blocks: {} })
+    const { logger } = collectingLogger()
+    const s = new Scanner({
+      rpc: node.rpc,
+      logger,
+      networkId: 24,
+      launchHeight: 1,
+      pollIntervalMs: 1,
+      stopAfterBatch: 99,
+      sleep: async () => {
+        throw new Error('stopped waiting for finality')
+      },
+    })
+    // One tick: the ceiling is the lower of the two, so a stop above the
+    // finalised batch shortens nothing and the scan is still finality-bound.
+    await s.tick()
+    expect(Math.max(...node.calls.batches)).toBeLessThan(3)
+  })
 })
+

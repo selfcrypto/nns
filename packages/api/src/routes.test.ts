@@ -8,6 +8,7 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 import {
+  CONSTANTS,
   formatAddress,
   leafHash,
   logFile,
@@ -65,6 +66,8 @@ const PARAMS = {
   commissionBp: 250n,
   lastGovernanceHeight: null,
   pending: null,
+  // The ordinary answer: replayed from LAUNCH_HEIGHT, nothing downloaded.
+  verification: { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null },
 }
 
 /** Every method rejects unless the test stubs it, so a route that reaches for
@@ -384,9 +387,27 @@ describe('/params', () => {
         listingFee: '0',
         lastGovernanceHeight: null,
         pendingGovernance: null,
+        verification: { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null },
         height: HEIGHT,
       },
     })
+  })
+
+  it('discloses a bootstrap, and the sweep re-deriving it (§8.4, §8.5)', async () => {
+    const seeded = {
+      ...PARAMS,
+      verification: {
+        verifiedFrom: CONSTANTS.LAUNCH_HEIGHT + 720_000,
+        bootstrap: {
+          height: CONSTANTS.LAUNCH_HEIGHT + 719_940,
+          source: 'https://peer.example.com',
+          verifiedThrough: CONSTANTS.LAUNCH_HEIGHT + 100_000,
+        },
+      },
+    }
+    const handle = routes({ params: () => Promise.resolve(snap(seeded)) })
+    const response = await handle('GET', '/params')
+    expect(response.body).toMatchObject({ verification: seeded.verification })
   })
 
   it('surfaces a scheduled governance change', async () => {

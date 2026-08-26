@@ -27,7 +27,14 @@ export {
   type CheckpointRow,
 } from './checkpoint.js'
 
-export { EnvError, loadSettings, type EnvSource, type IndexerSettings } from './env.js'
+export {
+  EnvError,
+  isStartMode,
+  loadSettings,
+  type EnvSource,
+  type IndexerSettings,
+  type StartMode,
+} from './env.js'
 
 export {
   HorizonError,
@@ -110,7 +117,22 @@ export {
   type CommitInput,
   type Cursor,
   type StoredCheckpoint,
+  type Verification,
 } from './store.js'
+
+export { BootstrapError, bootstrap, type BootstrapOptions, type BootstrapResult } from './bootstrap.js'
+
+export { VerificationError, verifyFromChain, type VerifyOptions } from './shadow.js'
+
+export {
+  PeerError,
+  fetchPeerCheckpoint,
+  fetchPeerSnapshot,
+  httpFetcher,
+  type Fetcher,
+  type PeerCheckpoint,
+  type PeerSnapshot,
+} from './peer.js'
 
 export {
   PROTOCOL_PREFIX_HEX,

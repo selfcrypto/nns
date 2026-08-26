@@ -659,6 +659,10 @@ export function createRoutes(queries: Queries): RouteHandler {
               },
               effectiveHeight: value.pending.effectiveHeight,
             },
+      // §8.4/§8.5 disclosure: which part of what this resolver serves it
+      // derived from the chain itself. `verifiedFrom === LAUNCH_HEIGHT` with
+      // `bootstrap: null` is the ordinary answer and the strong one.
+      verification: value.verification,
       height,
     })
   }

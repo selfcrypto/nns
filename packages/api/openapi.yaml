@@ -243,7 +243,8 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [prices, minPrice, listingFee, lastGovernanceHeight, pendingGovernance, height]
+                required:
+                  [prices, minPrice, listingFee, lastGovernanceHeight, pendingGovernance, verification, height]
                 properties:
                   prices: { $ref: '#/components/schemas/Prices' }
                   minPrice: { $ref: '#/components/schemas/Luna' }
@@ -258,6 +259,33 @@ paths:
                           prices: { $ref: '#/components/schemas/Prices' }
                           effectiveHeight: { $ref: '#/components/schemas/Height' }
                       - type: 'null'
+                  verification:
+                    type: object
+                    description: >
+                      How much of what this resolver serves it derived from the
+                      chain itself (§8.4 tiers, §8.5 depth). verifiedFrom equals
+                      LAUNCH_HEIGHT and bootstrap is null for an indexer
+                      replayed from the chain, which is the default. A
+                      bootstrapped one downloaded another operator's §8.2 log
+                      and verified it against that operator's §8.1 commitment:
+                      Tier 1 evidence for everything below verifiedFrom, which
+                      is strong but cannot see a message omitted from the log.
+                      verifiedThrough reports a background re-derivation in
+                      progress; when it completes, verifiedFrom drops to
+                      LAUNCH_HEIGHT.
+                    required: [verifiedFrom, bootstrap]
+                    properties:
+                      verifiedFrom: { $ref: '#/components/schemas/Height' }
+                      bootstrap:
+                        oneOf:
+                          - type: object
+                            required: [height, source, verifiedThrough]
+                            properties:
+                              height: { $ref: '#/components/schemas/Height' }
+                              source: { type: string, format: uri }
+                              verifiedThrough:
+                                oneOf: [{ $ref: '#/components/schemas/Height' }, { type: 'null' }]
+                          - type: 'null'
                   height: { $ref: '#/components/schemas/Height' }
         '503': { $ref: '#/components/responses/NotSynced' }
 

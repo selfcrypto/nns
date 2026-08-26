@@ -3,6 +3,21 @@
  * the scan loop uses. Not a test file itself — imported by the tests.
  */
 
+import {
+  CONSTANTS,
+  addressFromBytes,
+  canonicalLogLine,
+  formatAddress,
+  defineConfig,
+  initialState,
+  reduce,
+  type Address,
+  type BuiltTransaction,
+  type ChainTransaction,
+  type NnsConfig,
+  type NnsState,
+} from '@nns/core'
+
 import { BLOCKS_PER_BATCH } from './chain.js'
 import { createLogger, type Logger } from './logger.js'
 import { RpcError, type RpcBlock, type RpcTransaction } from './rpc.js'
@@ -129,3 +144,116 @@ export function collectingLogger(): { logger: Logger; lines: Record<string, unkn
   })
   return { logger, lines }
 }
+
+// ── A staged §8.2 log ───────────────────────────────────────────────────────
+//
+// Transactions go through `core`'s builders for their recipient, value and
+// payload, through `core.reduce` for their verdict, and through
+// `core.canonicalLogLine` for their line — so a fixture cannot encode a
+// message one way and the reducer read it another. What `bootstrap.ts` then
+// gets is a list of strings and nothing else, which is exactly what it gets
+// from a peer's `/log`.
+
+/** Distinct, valid, and never the all-zero burn address. */
+export function testAddress(seed: number): Address {
+  if (seed < 1 || seed > 255) throw new Error(`test address seed ${seed} out of range — 0 is BURN_ADDRESS`)
+  const bytes = new Uint8Array(20)
+  bytes[19] = seed
+  return addressFromBytes(bytes)
+}
+
+export const SELLER = testAddress(10)
+export const BUYER = testAddress(11)
+
+export const LAUNCH_HEIGHT: number = CONSTANTS.LAUNCH_HEIGHT
+
+export const testConfig = (overrides: Partial<Parameters<typeof defineConfig>[0]> = {}): NnsConfig =>
+  defineConfig({ networkId: MAINNET, ...overrides })
+
+/** A hash is only ever echoed, so a deterministic stand-in keeps lines stable. */
+const fakeHash = (height: number, txIndex: number): string =>
+  `${height.toString(16).padStart(32, '0')}${txIndex.toString(16).padStart(32, '0')}`
+
+export interface Send {
+  readonly height: number
+  readonly txIndex: number
+  readonly sender: Address
+  readonly built: BuiltTransaction
+}
+
+export const send = (height: number, txIndex: number, sender: Address, built: BuiltTransaction): Send => ({
+  height,
+  txIndex,
+  sender,
+  built,
+})
+
+export function sendToChainTransaction(item: Send, config: NnsConfig): ChainTransaction {
+  return {
+    blockNumber: item.height,
+    txIndex: item.txIndex,
+    hash: fakeHash(item.height, item.txIndex),
+    sender: item.sender,
+    recipient: item.built.recipient,
+    value: item.built.value,
+    recipientData: item.built.data,
+    executionResult: true,
+    networkId: config.networkId,
+  }
+}
+
+export interface StagedLog {
+  readonly lines: readonly string[]
+  /** The state the staging run ended on — the answer a replay must reach. */
+  readonly state: NnsState
+}
+
+/** Reduce every send in order and emit the log line each one earns (§7.6). */
+export function stageLog(sends: readonly Send[], config: NnsConfig): StagedLog {
+  let state = initialState()
+  const lines: string[] = []
+  for (const item of sends) {
+    const chainTx = sendToChainTransaction(item, config)
+    const result = reduce(state, chainTx, config)
+    state = result.state
+    if (result.verdict.kind === 'IGNORED') {
+      throw new Error(`fixture send at ${item.height}:${item.txIndex} was ignored`)
+    }
+    lines.push(canonicalLogLine(chainTx, result.verdict))
+  }
+  return { lines, state }
+}
+
+/**
+ * The same sends, as the chain would serve them: one `RpcTransaction` per
+ * block, keyed by height for {@link fakeNode}'s `blocks`.
+ *
+ * The pair with {@link stageLog} is the point — a §8.2 log and a chain that
+ * agree by construction, so a test that breaks one of them is testing the
+ * disagreement rather than the fixture. One message per block keeps every
+ * `tx_index` zero, which is what §5.2's per-block hash rank produces for a
+ * block with a single NNS message and what `stageLog` assumes.
+ */
+export function chainBlocks(
+  sends: readonly Send[],
+  config: NnsConfig,
+): Record<number, readonly RpcTransaction[]> {
+  const blocks: Record<number, RpcTransaction[]> = {}
+  for (const item of sends) {
+    const chainTx = sendToChainTransaction(item, config)
+    ;(blocks[item.height] ??= []).push({
+      hash: chainTx.hash,
+      blockNumber: item.height,
+      timestamp: 1_700_000_000 + item.height,
+      from: formatAddress(item.sender),
+      to: formatAddress(item.built.recipient),
+      value: Number(item.built.value),
+      fee: 0,
+      recipientData: item.built.data,
+      networkId: config.networkId,
+      executionResult: true,
+    })
+  }
+  return blocks
+}
+
