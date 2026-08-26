@@ -63,6 +63,18 @@ export interface AnchoredSourceOptions {
    * serves.
    */
   readonly gateway: string
+  /**
+   * How far back to scan for `Anchored` events. Defaults to the reader's
+   * `DEFAULT_READER_LOOKBACK_BLOCKS`.
+   *
+   * **Public endpoints cap `eth_getLogs` ranges**, and the common Sepolia one
+   * caps it at 50,000 — below that default, which makes every check come back
+   * `unavailable` with the cap quoted in the error. `@nns/anchor`'s own
+   * publisher already ships `NNS_ANCHOR_LOOKBACK_BLOCKS=45000` for this. The
+   * window only has to be wider than `ANCHOR_STALENESS_LIMIT_SEC` (48 h), and
+   * 45,000 blocks is about a week.
+   */
+  readonly lookbackBlocks?: bigint
   readonly fetcher: Fetcher
   readonly logger: Logger
 }
@@ -97,9 +109,11 @@ export async function anchoredSource(options: AnchoredSourceOptions): Promise<Lo
     })
   }
 
+  const lookback = options.lookbackBlocks
   const lookup = await latestAnchoredHeight(options.rpcs, {
     contractAddress,
     publishers: options.publishers,
+    ...(lookback === undefined ? {} : { lookbackBlocks: lookback }),
   })
   switch (lookup.status) {
     case 'found':
@@ -127,6 +141,7 @@ export async function anchoredSource(options: AnchoredSourceOptions): Promise<Lo
     height: lookup.height,
     publishers: options.publishers,
     quorum,
+    ...(lookback === undefined ? {} : { lookbackBlocks: lookback }),
   })
   if (check.status !== 'verified') {
     throw new AnchorSourceError(describeRefusal(check, lookup.height))

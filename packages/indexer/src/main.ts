@@ -237,6 +237,9 @@ async function logSource(settings: IndexerSettings, logger: Logger): Promise<Log
     contractAddress: settings.anchorContract as string,
     publishers: settings.anchorPublishers,
     quorum: settings.anchorQuorum,
+    ...(settings.anchorLookbackBlocks === undefined
+      ? {}
+      : { lookbackBlocks: settings.anchorLookbackBlocks }),
     gateway: url,
     fetcher: httpFetcher,
     logger,

@@ -73,6 +73,14 @@ export interface IndexerSettings {
   readonly anchorPublishers: readonly string[]
   /** Distinct listed publishers that must agree. Defaults to `ANCHOR_QUORUM`. */
   readonly anchorQuorum: number
+  /**
+   * How far back to scan for `Anchored` events, or `undefined` for the
+   * reader's default. Public endpoints cap `eth_getLogs` ranges — the common
+   * Sepolia one at 50,000 blocks, below that default — and a range over the
+   * cap comes back as an error, which the §9 cross-check correctly reads as
+   * "couldn't check" rather than "no anchor".
+   */
+  readonly anchorLookbackBlocks: bigint | undefined
 }
 
 /**
@@ -218,6 +226,13 @@ export function loadSettings(env: EnvSource = process.env): IndexerSettings {
   const anchorContract = read(env, 'NNS_SNAPSHOT_ANCHOR_CONTRACT')
   const anchorPublishers = list(env, 'NNS_SNAPSHOT_ANCHOR_PUBLISHERS')
   const anchorQuorum = integer(env, 'NNS_SNAPSHOT_ANCHOR_QUORUM', CONSTANTS.ANCHOR_QUORUM, 1)
+  const anchorLookbackRaw = read(env, 'NNS_SNAPSHOT_ANCHOR_LOOKBACK')
+  if (anchorLookbackRaw !== undefined && !/^[1-9]\d*$/.test(anchorLookbackRaw)) {
+    throw new EnvError(
+      `NNS_SNAPSHOT_ANCHOR_LOOKBACK must be a positive integer of blocks, got ${JSON.stringify(anchorLookbackRaw)}`,
+    )
+  }
+  const anchorLookbackBlocks = anchorLookbackRaw === undefined ? undefined : BigInt(anchorLookbackRaw)
 
   if (startMode !== 'scratch') {
     if (snapshotUrl === undefined) {
@@ -281,6 +296,7 @@ export function loadSettings(env: EnvSource = process.env): IndexerSettings {
     anchorContract,
     anchorPublishers,
     anchorQuorum,
+    anchorLookbackBlocks,
   })
 }
 

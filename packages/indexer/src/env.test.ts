@@ -177,6 +177,14 @@ describe('NNS_SNAPSHOT_SOURCE', () => {
     expect(() => loadSettings({ ...ANCHOR, NNS_SNAPSHOT_ANCHOR_QUORUM: '0' })).toThrow(/>= 1/)
   })
 
+  it('takes a lookback override, because the reader default exceeds public caps', () => {
+    // publicnode's Sepolia caps eth_getLogs at 50,000 blocks and errors above
+    // it; DEFAULT_READER_LOOKBACK_BLOCKS is 250,000. Measured, not assumed.
+    expect(loadSettings({ ...ANCHOR, NNS_SNAPSHOT_ANCHOR_LOOKBACK: '45000' }).anchorLookbackBlocks).toBe(45_000n)
+    expect(loadSettings(ANCHOR).anchorLookbackBlocks).toBeUndefined()
+    expect(() => loadSettings({ ...ANCHOR, NNS_SNAPSHOT_ANCHOR_LOOKBACK: '-1' })).toThrow(/positive integer/)
+  })
+
   it('accepts a {cid} template as the gateway', () => {
     expect(
       loadSettings({ ...ANCHOR, NNS_SNAPSHOT_URL: 'https://{cid}.ipfs.dweb.link' }).snapshotUrl,
