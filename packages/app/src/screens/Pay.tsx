@@ -14,7 +14,7 @@
  * zero value is rejected outright.
  */
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { ActionInputError, parseNimAmount } from '../lib/actions'
 import {
   EvmAmountError,
@@ -25,7 +25,7 @@ import {
   silentEvmAccount,
   type EvmSendOutcome,
 } from '../lib/evm'
-import { discoverEvmProvider, requestHostEvmAddress } from '../lib/sdk'
+import { requestHostEvmAddress } from '../lib/sdk'
 import { lunaToNim } from '../lib/format'
 import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
@@ -52,7 +52,7 @@ import {
   usdtNoGasLine,
   usdtNoLinkLine,
   usdtShortBalanceLine,
-  usdtShowBalanceLabel,
+  usdtBalanceUnknownLine,
   usdtNoProviderLine,
   usdtWrongChainLine,
   sendConfirmedLine,
@@ -141,9 +141,14 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
   //
   // USDT needs an account before it can read anything: the silent
   // `eth_accounts` (empty until this site is authorized — often per
-  // session), a send's own `from`, or the explicit connect button below.
+  // session), a send attempt's own `from` — refusals included — or, once
+  // per visit, the wallet's own connect prompt. There is no balance button:
+  // a balance is not something to ask for (tester, 2026-08-27), so the row
+  // acquires its account itself, and a declined prompt stays declined.
   const [evmAccount, setEvmAccount] = useState<string | null>(null)
-  const balanceSeed = `${mode}:${sender ?? ''}:${evmAccount ?? ''}:${result?.status ?? ''}:${usdtResult?.ok === true ? usdtResult.hash : ''}`
+  const [usdtTries, setUsdtTries] = useState(0)
+  const evmPrompted = useRef(false)
+  const balanceSeed = `${mode}:${sender ?? ''}:${evmAccount ?? ''}:${result?.status ?? ''}:${usdtTries}`
   const nimBalance = useAsync(async () => {
     if (mode !== 'nim' || wallet === null) return null
     const transport = defaultTransport()
@@ -156,12 +161,18 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
   }, [balanceSeed])
   const usdtBalance = useAsync(async () => {
     if (mode !== 'usdt') return null
-    const account = evmAccount ?? (usdtResult?.ok === true ? usdtResult.from : null) ?? (await silentEvmAccount())
+    let account = evmAccount ?? (await silentEvmAccount())
+    if (account === null && !evmPrompted.current) {
+      // The one prompt, on the tab tap that chose this mode — inside Pay it
+      // is the host's own wallet answering; elsewhere it is the standard
+      // connect sheet, and a decline is final until the next visit.
+      evmPrompted.current = true
+      account = await requestHostEvmAddress()
+    }
     if (account === null) return null
     if (account !== evmAccount) setEvmAccount(account)
     return fetchUsdtBalanceFor(account)
   }, [balanceSeed])
-  const canConnectEvm = useMemo(() => mode === 'usdt' && discoverEvmProvider() !== null, [mode])
 
   // Nimiq drops a self-transaction silently: the RPC accepts it and returns a
   // hash, so nothing downstream would ever report this.
@@ -184,8 +195,13 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
     if (evm === '' || usdtUnits === null) return
     setUsdtResult(null)
     setUsdtSending(true)
-    setUsdtResult(await sendUsdtOnPolygon({ to: evm, units: usdtUnits }))
+    const outcome = await sendUsdtOnPolygon({ to: evm, units: usdtUnits })
+    setUsdtResult(outcome)
     setUsdtSending(false)
+    // Every attempt teaches: the account it acted for (refusals included)
+    // and a fresh balance read — the refusal above, the figure below it.
+    if (outcome.from !== null) setEvmAccount(outcome.from)
+    setUsdtTries((tries) => tries + 1)
   }
 
   const pay = async () => {
@@ -233,6 +249,21 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
           </button>
         ))}
       </div>
+
+      {/* The payer's own balance, always — under the tabs, not behind a
+          button, not gated on a resolved name (tester, 2026-08-27: the row
+          hiding on a miss read as a broken control). A known account whose
+          read missed says so; no account at all claims nothing. */}
+      {mode === 'nim' && nimBalance.status === 'done' && nimBalance.value !== null && (
+        <p className="pay-balance">{balanceLine(lunaToNim(nimBalance.value), 'NIM')}</p>
+      )}
+      {mode === 'usdt' &&
+        usdtBalance.status === 'done' &&
+        (usdtBalance.value !== null ? (
+          <p className="pay-balance">{balanceLine(formatUsdt(usdtBalance.value), 'USDT')}</p>
+        ) : evmAccount !== null ? (
+          <p className="pay-balance">{usdtBalanceUnknownLine()}</p>
+        ) : null)}
 
       <input
         className="search-input nns-name"
@@ -287,22 +318,6 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
               aria-label="Amount in USDT"
             />
           </label>
-          {usdtBalance.status === 'done' && usdtBalance.value !== null && (
-            <p className="pay-balance">{balanceLine(formatUsdt(usdtBalance.value), 'USDT')}</p>
-          )}
-          {usdtBalance.status === 'done' && usdtBalance.value === null && evmAccount === null && canConnectEvm && (
-            <button
-              type="button"
-              className="sheet-suggest"
-              onClick={async () => {
-                const account = await requestHostEvmAddress()
-                if (account !== null) setEvmAccount(account)
-              }}
-            >
-              {usdtShowBalanceLabel()}
-            </button>
-          )}
-
           {parsedUsdt !== null && 'error' in parsedUsdt && <p className="field-error">{parsedUsdt.error}</p>}
           {usdtShort && usdtHeld !== null && usdtUnits !== null && (
             <p className="field-error">{usdtShortBalanceLine(formatUsdt(usdtHeld), formatUsdt(usdtUnits))}</p>
@@ -384,10 +399,6 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
               aria-label="Amount in NIM"
             />
           </label>
-          {nimBalance.status === 'done' && nimBalance.value !== null && (
-            <p className="pay-balance">{balanceLine(lunaToNim(nimBalance.value), 'NIM')}</p>
-          )}
-
           {parsed !== null && 'error' in parsed && <p className="field-error">{parsed.error}</p>}
           {self && <p className="field-error">{paySelfLine()}</p>}
 

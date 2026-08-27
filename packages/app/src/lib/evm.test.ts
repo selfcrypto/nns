@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EvmAmountError, FALLBACK_TRANSFER_GAS, USDT_POLYGON, erc20TransferData, evmErrorMessage, fetchPolBalanceFor, fetchUsdtBalanceFor, formatUsdt, gasLimitFor, parseUsdtAmount, sendUsdtOnPolygon, silentEvmAccount } from './evm'
+import { EvmAmountError, FALLBACK_TRANSFER_GAS, POLYGON_PUBLIC_RPCS, USDT_POLYGON, erc20TransferData, evmErrorMessage, fetchPolBalanceFor, fetchUsdtBalanceFor, formatUsdt, gasLimitFor, parseUsdtAmount, sendUsdtOnPolygon, silentEvmAccount } from './evm'
 
 const noFetch = (() => Promise.reject(new Error('no network in tests'))) as unknown as typeof fetch
 
@@ -130,7 +130,12 @@ describe('sendUsdtOnPolygon over a fake provider', () => {
     // No balance answers anywhere: the classification degrades to the
     // wallet's own words, never to a guessed culprit.
     const failure = await sendUsdtOnPolygon({ to: TO, units: 1n }, refused.provider, noFetch)
-    expect(failure).toEqual({ ok: false, reason: 'failed', detail: 'insufficient funds for gas * price' })
+    expect(failure).toEqual({
+      ok: false,
+      reason: 'failed',
+      from: '0xaa00000000000000000000000000000000000001',
+      detail: 'insufficient funds for gas * price',
+    })
 
     const declined = fake({
       eth_requestAccounts: ['0xAA00000000000000000000000000000000000001'],
@@ -138,9 +143,12 @@ describe('sendUsdtOnPolygon over a fake provider', () => {
       eth_estimateGas: '0x10000',
       eth_sendTransaction: { reject: { code: 4001 } },
     })
+    // A refusal is still a connect: the outcome names the account, so the
+    // screen can read its balance without prompting again.
     expect(await sendUsdtOnPolygon({ to: TO, units: 1n }, declined.provider, noFetch)).toEqual({
       ok: false,
       reason: 'declined',
+      from: '0xaa00000000000000000000000000000000000001',
     })
     // A decline is a decline: no balance was read to explain it.
     expect(declined.calls.some((c) => c.method === 'eth_call' || c.method === 'eth_getBalance')).toBe(false)
@@ -158,6 +166,7 @@ describe('sendUsdtOnPolygon over a fake provider', () => {
     expect(await sendUsdtOnPolygon({ to: TO, units: 1_000_000n }, short.provider, noFetch)).toEqual({
       ok: false,
       reason: 'failed',
+      from: '0xaa00000000000000000000000000000000000001',
       detail: 'insufficient funds',
       cause: { kind: 'no-usdt', held: 500_000n },
     })
@@ -174,6 +183,7 @@ describe('sendUsdtOnPolygon over a fake provider', () => {
     expect(await sendUsdtOnPolygon({ to: TO, units: 1_000_000n }, gasless.provider, noFetch)).toEqual({
       ok: false,
       reason: 'failed',
+      from: '0xaa00000000000000000000000000000000000001',
       detail: 'insufficient funds',
       cause: { kind: 'no-pol' },
     })
@@ -190,6 +200,7 @@ describe('sendUsdtOnPolygon over a fake provider', () => {
     expect(await sendUsdtOnPolygon({ to: TO, units: 1_000_000n }, healthy.provider, noFetch)).toEqual({
       ok: false,
       reason: 'failed',
+      from: '0xaa00000000000000000000000000000000000001',
       detail: 'insufficient funds',
     })
   })
@@ -260,6 +271,18 @@ describe('silentEvmAccount and fetchUsdtBalanceFor', () => {
     expect(
       await fetchUsdtBalanceFor('0xaa00000000000000000000000000000000000001', provider({ eth_chainId: '0x1' }), noFetch),
     ).toBeNull()
+  })
+
+  it('walks the endpoint list — a dead first entry is not a miss', async () => {
+    // polygon-rpc.com went 401 on 2026-08-27 and, as the only endpoint, took
+    // every fallback read down with it. The list survives one dead entry.
+    const byUrl = ((url: string) =>
+      url === POLYGON_PUBLIC_RPCS[0]
+        ? Promise.resolve({ json: () => Promise.resolve({ error: { code: -32000 } }) })
+        : Promise.resolve({ json: () => Promise.resolve({ result: '0x0f4240' }) })) as unknown as typeof fetch
+    expect(
+      await fetchUsdtBalanceFor('0xaa00000000000000000000000000000000000001', provider({ eth_chainId: '0x1' }), byUrl),
+    ).toBe(1_000_000n)
   })
 
   it('reads POL the same three ways: wallet on Polygon, public fallback, null on a miss', async () => {

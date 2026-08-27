@@ -271,6 +271,9 @@ importers:
 
   packages/indexer:
     dependencies:
+      '@nns/anchor':
+        specifier: workspace:*
+        version: link:../anchor
       '@nns/core':
         specifier: workspace:*
         version: link:../core
