@@ -74,8 +74,10 @@ import { EmptyState, NameText, Spinner } from '../components/ui'
 /** The same settle as Buy — one query per typed word, not one per character. */
 const SETTLE_MS = 1_000
 
-export function PayScreen({ wallet }: { wallet: Wallet | null }) {
-  const [text, setText] = useState('')
+export function PayScreen({ wallet, seed }: { wallet: Wallet | null; seed: string }) {
+  // Seeded by Buy's "Pay this address" handoff, with the query as typed — a
+  // dotted one included, since this screen resolves through the same `search()`.
+  const [text, setText] = useState(seed)
   const [amount, setAmount] = useState('')
   /**
    * Which asset this screen pays. `nim` is the native flow below; `usdt`
@@ -290,7 +292,7 @@ export function PayScreen({ wallet }: { wallet: Wallet | null }) {
       {/* Not resolved: the shared card says why — reserved, available, in grace,
           a delegate that did not answer, an alarm. None of them is payable. */}
       {outcome.status === 'done' && resolved === null && (
-        <NameCard outcome={outcome.value} wallet={wallet} nowMs={Date.now()} actions={[]} onChanged={() => {}} onManage={null} />
+        <NameCard outcome={outcome.value} wallet={wallet} nowMs={Date.now()} actions={[]} onChanged={() => {}} onManage={null} onPay={null} />
       )}
 
       {resolved !== null && mode === 'usdt' && evm === '' && (

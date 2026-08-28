@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { CONSTANTS } from '@nns/core'
 import type { NameInfo } from './api'
 import type { Identity } from './identity'
+import { parseAddress } from '@nns/core'
+import type { ResolveResult } from '@nns/resolver'
+import type { SearchOutcome } from './search'
 import {
   actionGates,
   identityRow,
@@ -10,6 +13,7 @@ import {
   registrationFee,
   renewalUrgency,
   sameAddress,
+  viewFor,
 } from './states'
 
 const OWNER = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
@@ -53,40 +57,125 @@ const graceInfo = (): NameInfo =>
   })
 
 describe('nameView (app-states.md §1)', () => {
-  it('a 404 is available', () => {
-    expect(nameView('example', null).kind).toBe('available')
+  it('a 404 is available — because the caller says so, not because info is null', () => {
+    expect(nameView('example', null, 'available').kind).toBe('available')
+  })
+
+  // The overlay is best-effort (`lib/search.ts` swallows its failure and never
+  // asks for it at all on a dotted query), so a null info is "not known", and
+  // reading it as `available` is how a delegated subdomain came to be offered
+  // for registration.
+  it('a missing overlay is whatever the caller already established, never available by default', () => {
+    expect(nameView('example', null, 'registered').kind).toBe('registered')
+    expect(nameView('example', null, 'grace').kind).toBe('grace')
+    expect(actionGates({ view: nameView('example', null, 'registered'), viewers: [OWNER], head: 0 }).register).toEqual({
+      enabled: false,
+      reason: 'taken',
+    })
+  })
+
+  it('a registered name with no record in hand refuses owner actions as unknown, not as unregistered', () => {
+    const gates = actionGates({ view: nameView('example', null, 'registered'), viewers: [OWNER], head: 0 })
+    expect(gates.setTarget).toEqual({ enabled: false, reason: 'state-unknown' })
+    expect(gates.transfer.reason).toBe('state-unknown')
   })
 
   it('reserved with no record is reserved; released is available', () => {
-    expect(nameView('example', info({ reserved: true })).kind).toBe('reserved')
-    expect(nameView('example', info({ reserved: false, unreserved: true })).kind).toBe('available')
+    expect(nameView('example', info({ reserved: true }), 'available').kind).toBe('reserved')
+    expect(nameView('example', info({ reserved: false, unreserved: true }), 'available').kind).toBe('available')
   })
 
   it('grace carries the first height a G can succeed — expiry + GRACE_PERIOD, half-open', () => {
-    const view = nameView('example', graceInfo())
+    const view = nameView('example', graceInfo(), 'available')
     expect(view.kind).toBe('grace')
     expect(view.availableAt).toBe(900_000 + CONSTANTS.GRACE_PERIOD)
   })
 })
 
+const resolveResult = (over: Partial<ResolveResult> = {}): ResolveResult => ({
+  query: 'example',
+  name: 'example',
+  address: parseAddress(OWNER),
+  evm: '',
+  verification: 'PROVEN',
+  host: '',
+  checkpoint: null,
+  height: 1_000_000,
+  delegate: null,
+  quorum: { required: 1, queried: 1, agreed: 1, resolvers: ['op'] },
+  anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' },
+  warnings: [],
+  ...over,
+})
+
+describe('viewFor — which outcomes carry an actionable name', () => {
+  /**
+   * The bug this exists for (Kike, 2026-08-28): `rico.nns` resolved through
+   * `nns`'s delegate and the card offered **Register**. There is no label to
+   * register — the `G` would have gone out for the *parent*, which resolved and
+   * is therefore held, and the reducer forfeits that fee as `NAME_TAKEN`.
+   */
+  it('a delegated answer has no actionable name at all', () => {
+    const outcome: SearchOutcome = {
+      kind: 'resolved',
+      result: resolveResult({
+        query: 'rico.nns',
+        name: 'nns',
+        delegate: { parent: 'nns', label: 'rico', host: 'nns.example.com', ttl: 300 },
+      }),
+      info: null,
+      parentInfo: null,
+    }
+    expect(viewFor(outcome)).toBeNull()
+  })
+
+  it('a plain name that resolved is registered — never available, however the overlay went', () => {
+    const outcome: SearchOutcome = { kind: 'resolved', result: resolveResult(), info: null, parentInfo: null }
+    const view = viewFor(outcome)
+    expect(view?.kind).toBe('registered')
+    expect(actionGates({ view: view!, viewers: [], head: 0 }).register.reason).toBe('taken')
+  })
+
+  it('availability carries the verdict `available()` gave, and nothing when it refused', () => {
+    const base = { kind: 'availability', name: 'example', info: null } as const
+    expect(
+      viewFor({
+        ...base,
+        availability: { name: 'example', available: true, reason: null, verification: 'PROVEN', checkpoint: null, height: 1, quorum: { required: 1, queried: 1, agreed: 1, resolvers: ['op'] }, anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' }, warnings: [] },
+      })?.kind,
+    ).toBe('available')
+    expect(
+      viewFor({
+        ...base,
+        availability: { name: 'example', available: false, reason: 'RESERVED', verification: 'PROVEN', checkpoint: null, height: 1, quorum: { required: 1, queried: 1, agreed: 1, resolvers: ['op'] }, anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' }, warnings: [] },
+      }),
+    ).toBeNull()
+  })
+
+  it('nothing to act on where there is no name: a failed delegate, an alarm', () => {
+    expect(viewFor({ kind: 'delegate-failed', query: 'rico.nns', code: 'DELEGATE_FAILED', parent: null })).toBeNull()
+    expect(viewFor({ kind: 'alarm', code: 'ANCHOR_MISMATCH', message: '' })).toBeNull()
+  })
+})
+
 describe('actionGates (app-states.md §4)', () => {
   it('register: only on available — grace and reserved carry their own reasons', () => {
-    expect(actionGates({ view: nameView('a', null), viewers: [], head: 0 }).register.enabled).toBe(true)
-    expect(actionGates({ view: nameView('a', info({ reserved: true })), viewers: [], head: 0 }).register.reason).toBe('reserved')
-    expect(actionGates({ view: nameView('a', graceInfo()), viewers: [OWNER], head: 950_000 }).register.reason).toBe('in-grace')
-    expect(actionGates({ view: nameView('a', registered()), viewers: [OTHER], head: 0 }).register.reason).toBe('taken')
+    expect(actionGates({ view: nameView('a', null, 'available'), viewers: [], head: 0 }).register.enabled).toBe(true)
+    expect(actionGates({ view: nameView('a', info({ reserved: true }), 'available'), viewers: [], head: 0 }).register.reason).toBe('reserved')
+    expect(actionGates({ view: nameView('a', graceInfo(), 'available'), viewers: [OWNER], head: 950_000 }).register.reason).toBe('in-grace')
+    expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OTHER], head: 0 }).register.reason).toBe('taken')
   })
 
   it('S/X/D require REGISTERED and the owner — never grace, never a non-owner', () => {
-    const owned = actionGates({ view: nameView('a', registered()), viewers: [OWNER], head: 1_000_000 })
+    const owned = actionGates({ view: nameView('a', registered(), 'available'), viewers: [OWNER], head: 1_000_000 })
     expect(owned.setTarget.enabled).toBe(true)
     expect(owned.transfer.enabled).toBe(true)
     expect(owned.delegate.enabled).toBe(true)
 
-    const notOwner = actionGates({ view: nameView('a', registered()), viewers: [OTHER], head: 1_000_000 })
+    const notOwner = actionGates({ view: nameView('a', registered(), 'available'), viewers: [OTHER], head: 1_000_000 })
     expect(notOwner.setTarget.reason).toBe('not-owner')
 
-    const inGrace = actionGates({ view: nameView('a', graceInfo()), viewers: [OWNER], head: 950_000 })
+    const inGrace = actionGates({ view: nameView('a', graceInfo(), 'available'), viewers: [OWNER], head: 950_000 })
     expect(inGrace.setTarget.reason).toBe('in-grace')
     expect(inGrace.transfer.reason).toBe('in-grace')
     expect(inGrace.delegate.reason).toBe('in-grace')
@@ -96,15 +185,15 @@ describe('actionGates (app-states.md §4)', () => {
     const pendingTransfer = registered({
       pending: { transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 }, offer: null },
     })
-    const gates = actionGates({ view: nameView('a', pendingTransfer), viewers: [OWNER], head: 1_000_000 })
+    const gates = actionGates({ view: nameView('a', pendingTransfer, 'available'), viewers: [OWNER], head: 1_000_000 })
     expect(gates.setTarget.enabled).toBe(true)
     expect(gates.cancel.enabled).toBe(true)
   })
 
   it('N is for anyone, in term or in grace — gone once the record is', () => {
-    expect(actionGates({ view: nameView('a', registered()), viewers: [], head: 0 }).renew.enabled).toBe(true)
-    expect(actionGates({ view: nameView('a', graceInfo()), viewers: [], head: 950_000 }).renew.enabled).toBe(true)
-    expect(actionGates({ view: nameView('a', null), viewers: [OWNER], head: 0 }).renew.reason).toBe('no-record')
+    expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [], head: 0 }).renew.enabled).toBe(true)
+    expect(actionGates({ view: nameView('a', graceInfo(), 'available'), viewers: [], head: 950_000 }).renew.enabled).toBe(true)
+    expect(actionGates({ view: nameView('a', null, 'available'), viewers: [OWNER], head: 0 }).renew.reason).toBe('no-record')
   })
 
   it('K: the offer is cancellable at exactly openedHeight + OFFER_IRREVOCABLE, not a block before', () => {
@@ -118,16 +207,16 @@ describe('actionGates (app-states.md §4)', () => {
     const boundary = offerCancellableAt(opened)
     expect(boundary).toBe(opened + CONSTANTS.OFFER_IRREVOCABLE)
 
-    const before = actionGates({ view: nameView('a', withOffer), viewers: [OWNER], head: boundary - 1 })
+    const before = actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: boundary - 1 })
     expect(before.cancel.enabled).toBe(false)
     expect(before.cancel.reason).toBe('offer-irrevocable')
 
-    const at = actionGates({ view: nameView('a', withOffer), viewers: [OWNER], head: boundary })
+    const at = actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: boundary })
     expect(at.cancel.enabled).toBe(true)
   })
 
   it('K in grace is nothing-to-cancel — grace entry already cleared the cancellable set', () => {
-    const gates = actionGates({ view: nameView('a', graceInfo()), viewers: [OWNER], head: 950_000 })
+    const gates = actionGates({ view: nameView('a', graceInfo(), 'available'), viewers: [OWNER], head: 950_000 })
     expect(gates.cancel.reason).toBe('nothing-to-cancel')
   })
 
@@ -138,8 +227,8 @@ describe('actionGates (app-states.md §4)', () => {
         offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: 1, expiryHeight: 2_000_000 },
       },
     })
-    expect(actionGates({ view: nameView('a', registered()), viewers: [OWNER], head: 0 }).offer.enabled).toBe(true)
-    expect(actionGates({ view: nameView('a', withOffer), viewers: [OWNER], head: 0 }).offer.reason).toBe('offer-open')
+    expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OWNER], head: 0 }).offer.enabled).toBe(true)
+    expect(actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: 0 }).offer.reason).toBe('offer-open')
   })
 
   it('B needs an open, unexpired offer', () => {
@@ -149,18 +238,18 @@ describe('actionGates (app-states.md §4)', () => {
         offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: 1, expiryHeight: 1_500_000 },
       },
     })
-    expect(actionGates({ view: nameView('a', withOffer), viewers: [OTHER], head: 1_000_000 }).buy.enabled).toBe(true)
-    expect(actionGates({ view: nameView('a', withOffer), viewers: [OTHER], head: 1_500_000 }).buy.reason).toBe('no-offer')
-    expect(actionGates({ view: nameView('a', registered()), viewers: [OTHER], head: 0 }).buy.reason).toBe('no-offer')
+    expect(actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OTHER], head: 1_000_000 }).buy.enabled).toBe(true)
+    expect(actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OTHER], head: 1_500_000 }).buy.reason).toBe('no-offer')
+    expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OTHER], head: 0 }).buy.reason).toBe('no-offer')
   })
 
   it('no wallet identity closes the owner actions with no-viewer, not not-owner', () => {
-    const gates = actionGates({ view: nameView('a', registered()), viewers: [], head: 0 })
+    const gates = actionGates({ view: nameView('a', registered(), 'available'), viewers: [], head: 0 })
     expect(gates.setTarget.reason).toBe('no-viewer')
   })
 
   it('identity is a set: any address in it owning the record opens the owner actions', () => {
-    const gates = actionGates({ view: nameView('a', registered()), viewers: [OTHER, OWNER], head: 0 })
+    const gates = actionGates({ view: nameView('a', registered(), 'available'), viewers: [OTHER, OWNER], head: 0 })
     expect(gates.setTarget.enabled).toBe(true)
     expect(gates.transfer.enabled).toBe(true)
   })
@@ -169,15 +258,15 @@ describe('actionGates (app-states.md §4)', () => {
 describe('signerFor — every action knows which address signs', () => {
   it('owner actions sign with the owning address, wherever it sits in the set', async () => {
     const { signerFor } = await import('./states')
-    const view = nameView('a', registered())
+    const view = nameView('a', registered(), 'available')
     expect(signerFor('setTarget', view, [OTHER, OWNER])).toBe(OWNER)
     expect(signerFor('setTarget', view, [OTHER])).toBeNull()
   })
 
   it('anyone-actions sign with the primary address', async () => {
     const { signerFor } = await import('./states')
-    expect(signerFor('register', nameView('a', null), [OTHER, OWNER])).toBe(OTHER)
-    expect(signerFor('renew', nameView('a', registered()), [])).toBeNull()
+    expect(signerFor('register', nameView('a', null, 'available'), [OTHER, OWNER])).toBe(OTHER)
+    expect(signerFor('renew', nameView('a', registered(), 'available'), [])).toBeNull()
   })
 })
 

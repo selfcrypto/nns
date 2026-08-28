@@ -10,6 +10,7 @@
 import { CONSTANTS, feeBand, tryParseAddress } from '@nns/core'
 import type { ApiParams, NameInfo } from './api'
 import type { Identity, WalletKind } from './identity'
+import type { SearchOutcome } from './search'
 
 export type NameViewKind = 'available' | 'registered' | 'grace' | 'reserved'
 
@@ -21,9 +22,25 @@ export interface NameView {
   readonly availableAt: number | null
 }
 
-/** §1 of the states doc, from `/name/{name}` (or its 404, passed as null). */
-export function nameView(name: string, info: NameInfo | null): NameView {
-  if (info === null) return { kind: 'available', name, info: null, availableAt: null }
+/**
+ * §1 of the states doc, from `/name/{name}` (or its 404, passed as null).
+ *
+ * **`whenUnknown` is required, and it is not a default.** `/name` is an
+ * *overlay* — `lib/search.ts` fetches it best-effort and swallows its failure,
+ * and never fetches it at all for a dotted query. A null info therefore means
+ * "not asked, or the ask failed", which is not a state and above all is not
+ * `available`: reading it as one is the app minting an availability verdict out
+ * of a failed fetch, which packages/app/CLAUDE.md gives to `resolve()` and
+ * `available()` alone. It shipped as the default and offered **Register** on a
+ * delegated subdomain — for the *parent*, whose `G` would have been forfeited
+ * as `NAME_TAKEN` (Kike, 2026-08-28).
+ *
+ * So the caller passes what the resolver already established: a name that
+ * resolved is `registered`, one `available()` cleared is `available`, one that
+ * threw `IN_GRACE` is `grace`.
+ */
+export function nameView(name: string, info: NameInfo | null, whenUnknown: NameViewKind): NameView {
+  if (info === null) return { kind: whenUnknown, name, info: null, availableAt: null }
   if (info.record === null) {
     return info.reserved
       ? { kind: 'reserved', name, info, availableAt: null }
@@ -38,6 +55,38 @@ export function nameView(name: string, info: NameInfo | null): NameView {
     }
   }
   return { kind: 'registered', name, info, availableAt: null }
+}
+
+/**
+ * The view a search outcome offers actions on — **`null` when it offers none**,
+ * which is a real answer and not an absence:
+ *
+ * - A **dotted query** (§8.6). What is on screen is a label, and every action
+ *   in `AppAction` takes a *name*; the only name in a delegated answer is the
+ *   parent, which resolved, so it is held. The card that read the outcome's
+ *   `name` field offered to register that parent — a `G` the reducer forfeits
+ *   as `NAME_TAKEN`. Whether the label exists is the host's word and NNS's
+ *   business nowhere (states doc §5 #4).
+ * - An unavailable name, an unreachable resolver, a delegate that failed, an
+ *   alarm: nothing on those cards is an object to act on.
+ *
+ * Here rather than in the component because the package's Vitest environment is
+ * `node`: a rule a component decides for itself is a rule with untested
+ * branches, and this one shipped wrong.
+ */
+export function viewFor(outcome: SearchOutcome): NameView | null {
+  switch (outcome.kind) {
+    case 'resolved':
+      return outcome.result.delegate !== null
+        ? null
+        : nameView(outcome.info?.name ?? outcome.result.name, outcome.info, 'registered')
+    case 'availability':
+      return outcome.availability.available ? nameView(outcome.name, outcome.info, 'available') : null
+    case 'grace':
+      return nameView(outcome.name, outcome.info, 'grace')
+    default:
+      return null
+  }
 }
 
 // ── Action legality (docs/app-states.md §4) ─────────────────────────────────
@@ -64,6 +113,8 @@ export type GateReason =
   | 'offer-irrevocable'
   | 'offer-open'
   | 'no-offer'
+  /** The name resolved, but `/name` did not answer — no record to act on. */
+  | 'state-unknown'
 
 export interface Gate {
   readonly enabled: boolean
@@ -100,6 +151,9 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
 
   const ownerGate = (): Gate => {
     if (view.kind === 'grace') return closed('in-grace')
+    // Registered but no record in hand: the overlay failed. Say that, rather
+    // than "this name isn't registered" under a name that just resolved.
+    if (view.kind === 'registered' && info === null) return closed('state-unknown')
     if (registeredRecord === null) return closed('no-record')
     if (viewers.length === 0) return closed('no-viewer')
     if (!isOwner) return closed('not-owner')

@@ -13,7 +13,7 @@ import { CONSTANTS } from '@nns/core'
 import { primaryAddress } from '../lib/identity'
 import { approxDate, formatApproxDate } from '../lib/format'
 import type { SearchOutcome } from '../lib/search'
-import { actionGates, nameView, renewalUrgency, sameAddress, signerFor, type AppAction } from '../lib/states'
+import { actionGates, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import {
   ACTION_LABEL,
@@ -28,12 +28,15 @@ import {
   justRegisteredLine,
   manageOwnNameLabel,
   messageOwnerLabel,
+  messageParentOwnerLabel,
   ownNameLine,
   parentNotDelegatingLine,
   parentNotRegisteredLine,
+  payThisLabel,
   queryFaultLine,
   renewDueLine,
   reservedLine,
+  subdomainNotRegistrableLine,
   unreachableLine,
 } from '../lib/wording'
 import { AddressRow, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from './result'
@@ -50,20 +53,22 @@ export const OWNER_ACTIONS: readonly AppAction[] = ['setTarget', 'setEvm', 'tran
 
 function Actions({
   actions,
-  name,
-  info,
+  view,
   wallet,
   onChanged,
 }: {
   actions: readonly AppAction[]
-  name: string
-  info: ReturnType<typeof nameView>['info']
+  /**
+   * Built by the caller, because only the caller knows what the resolver said:
+   * `nameView`'s unknown-state fallback is not guessable from here (states.ts).
+   */
+  view: NameView
   wallet: Wallet | null
   onChanged: () => void
 }) {
   const [open, setOpen] = useState<AppAction | null>(null)
+  const { name, info } = view
   const viewers = wallet?.identity.addresses ?? []
-  const view = nameView(name, info)
   const gates = actionGates({ view, viewers, head: info?.height ?? 0 })
 
   return (
@@ -122,6 +127,7 @@ export function NameCard({
   actions,
   onChanged,
   onManage,
+  onPay,
 }: {
   outcome: SearchOutcome
   wallet: Wallet | null
@@ -136,6 +142,14 @@ export function NameCard({
    * destination.
    */
   onManage: ((name: string) => void) | null
+  /**
+   * Buy passes this: a resolved card is an **address**, whatever the query was,
+   * and paying it is the one thing every resolved card can offer — including a
+   * delegated one, which has no name to act on at all. Seeded with the query as
+   * typed, so `label.name` arrives at Pay whole. Null where the card is already
+   * inside a send flow (Pay) or a management list (My names).
+   */
+  onPay: ((query: string) => void) | null
 }) {
   const sender = wallet === null ? null : primaryAddress(wallet.identity)
   const viewers = wallet?.identity.addresses ?? []
@@ -146,7 +160,10 @@ export function NameCard({
 
     case 'resolved': {
       const name = outcome.info?.name ?? outcome.result.name
-      const mine = onManage !== null && ownedByViewer(outcome, viewers)
+      // Null for a delegated answer, which has no name-level actions at all —
+      // `viewFor` holds the rule and the reason (states.ts).
+      const view = viewFor(outcome)
+      const mine = view !== null && onManage !== null && ownedByViewer(outcome, viewers)
       const record = outcome.info?.record ?? null
       const height = outcome.info?.height ?? null
       return (
@@ -169,7 +186,22 @@ export function NameCard({
             </p>
           )}
           <WarningNotes warnings={outcome.result.warnings} />
-          {mine ? (
+          {/* Its own `.actions` group: one rule above it, and `:last-child`
+              trims the row's own border. A delegated card's only action; on a
+              plain one it sits above the name actions as a second group. */}
+          {onPay !== null && (
+            <div className="actions">
+              <div className="action-row">
+                <span className="action-label">{payThisLabel()}</span>
+                <button type="button" className="action-go" onClick={() => onPay(outcome.result.query)}>
+                  Open
+                </button>
+              </div>
+            </div>
+          )}
+          {view === null ? (
+            <p className="note note-info">{subdomainNotRegistrableLine(outcome.result.delegate?.parent ?? outcome.result.name)}</p>
+          ) : mine ? (
             <div className="own-name">
               <p className="own-name-line">{ownNameLine()}</p>
               <button type="button" className="action-go" onClick={() => onManage(name)}>
@@ -177,12 +209,27 @@ export function NameCard({
               </button>
             </div>
           ) : (
-            <Actions actions={actions} name={name} info={outcome.info} wallet={wallet} onChanged={onChanged} />
+            <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} />
           )}
           {outcome.info !== null && outcome.info.record !== null && !mine && (
             <details className="message-owner">
               <summary>{messageOwnerLabel()}</summary>
               <Composer name={outcome.info.name} recipient={outcome.info.record.owner} wallet={wallet} sender={sender} />
+            </details>
+          )}
+          {/* A subdomain is asked for from the parent's owner. The subject is
+              the **parent** — an NC subject is an NNS name and carries no dot
+              (`@nns/chat`'s `validateNameSyntax`) — and the recipient is that
+              name's owner, so the pairing stays a lookup rather than a claim. */}
+          {view === null && outcome.parentInfo !== null && outcome.parentInfo.record !== null && (
+            <details className="message-owner">
+              <summary>{messageParentOwnerLabel(outcome.parentInfo.name)}</summary>
+              <Composer
+                name={outcome.parentInfo.name}
+                recipient={outcome.parentInfo.record.owner}
+                wallet={wallet}
+                sender={sender}
+              />
             </details>
           )}
         </RailCard>
@@ -207,12 +254,13 @@ export function NameCard({
           </RailCard>
         )
       }
+      const view = viewFor(outcome)
       return (
         <RailCard tier={availability.verification === 'PROVEN' ? 'proven' : 'depth'}>
           <TitleName name={outcome.name} />
           <p className="available-line">{availableLine()}</p>
           <WarningNotes warnings={availability.warnings} />
-          <Actions actions={actions} name={outcome.name} info={outcome.info} wallet={wallet} onChanged={onChanged} />
+          {view !== null && <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} />}
         </RailCard>
       )
     }
@@ -225,6 +273,7 @@ export function NameCard({
           ? formatApproxDate(approxDate(record.expiry + CONSTANTS.GRACE_PERIOD, height, nowMs))
           : graceEndsUnknownPhrase()
       const mine = onManage !== null && ownedByViewer(outcome, viewers)
+      const view = viewFor(outcome)
       return (
         <RailCard tier="plain">
           <TitleName name={outcome.name} />
@@ -237,7 +286,7 @@ export function NameCard({
               </button>
             </div>
           ) : (
-            <Actions actions={actions} name={outcome.name} info={outcome.info} wallet={wallet} onChanged={onChanged} />
+            view !== null && <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} />
           )}
         </RailCard>
       )

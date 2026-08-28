@@ -28,7 +28,20 @@ import { apiBase, resolver } from './nns'
 
 export type SearchOutcome =
   | { readonly kind: 'invalid'; readonly fault: QueryFault }
-  | { readonly kind: 'resolved'; readonly result: ResolveResult; readonly info: NameInfo | null }
+  | {
+      readonly kind: 'resolved'
+      readonly result: ResolveResult
+      /** The queried name's own record. **Always null for a dotted query** — NNS holds no record of a label. */
+      readonly info: NameInfo | null
+      /**
+       * The *parent's* record, dotted queries only (null otherwise). Kept apart
+       * from `info` on purpose: it describes a different name from the one in
+       * the title, and rendering it as the subject's own is the "a name beside
+       * an address must be a lookup on that address" mistake one field over.
+       * Its one use is the owner a subdomain question goes to.
+       */
+      readonly parentInfo: NameInfo | null
+    }
   | { readonly kind: 'availability'; readonly name: string; readonly availability: AvailableResult; readonly info: NameInfo | null }
   | { readonly kind: 'grace'; readonly name: string; readonly info: NameInfo | null }
   | { readonly kind: 'parent-state'; readonly parent: string; readonly code: 'NOT_FOUND' | 'IN_GRACE' }
@@ -153,11 +166,15 @@ export async function search(rawQuery: string): Promise<SearchOutcome> {
   }
 
   const plainName = parsed.query.kind === 'name' ? parsed.query.name : null
+  const parentName = parsed.query.kind === 'dotted' ? parsed.query.parent : null
 
   try {
     const result = await resolver().resolve(query)
     const info = plainName !== null ? await infoOrNull(plainName) : null
-    return { kind: 'resolved', result, info }
+    // The parent's owner is who a subdomain is asked for; the label's own
+    // record does not exist, here or anywhere.
+    const parentInfo = parentName !== null ? await infoOrNull(parentName) : null
+    return { kind: 'resolved', result, info, parentInfo }
   } catch (error) {
     if (error instanceof LookupError) {
       if (plainName === null) {

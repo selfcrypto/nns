@@ -70,6 +70,7 @@ function Detail({
           }}
           // Already the destination: no handoff to offer.
           onManage={null}
+          onPay={null}
         />
       )}
     </div>

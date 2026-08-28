@@ -67,6 +67,8 @@ export function App() {
   const [seed, setSeed] = useState('')
   /** A name Buy handed to My names to manage, cleared when My names is done with it. */
   const [manage, setManage] = useState<string | null>(null)
+  /** A query Buy handed to Pay. Keyed on the screen, so a second handoff starts a clean send. */
+  const [payFor, setPayFor] = useState('')
   const [wallet, setWallet] = useState<Wallet | null>(null)
   /** The identity row's address list, open or closed. */
   const [identityOpen, setIdentityOpen] = useState(false)
@@ -161,8 +163,19 @@ export function App() {
       </header>
       <main className="content">
         {diagnostic && <ChromeDiagnostic wallet={wallet} />}
-        {tab === 'buy' && <BuyScreen key={seed} wallet={wallet} seed={seed} onManage={manageName} />}
-        {tab === 'pay' && <PayScreen wallet={wallet} />}
+        {tab === 'buy' && (
+          <BuyScreen
+            key={seed}
+            wallet={wallet}
+            seed={seed}
+            onManage={manageName}
+            onPay={(query) => {
+              setPayFor(query)
+              setTab('pay')
+            }}
+          />
+        )}
+        {tab === 'pay' && <PayScreen key={payFor} wallet={wallet} seed={payFor} />}
         {tab === 'names' && (
           <MyNamesScreen wallet={wallet} manage={manage} onManageHandled={() => setManage(null)} />
         )}

@@ -127,11 +127,12 @@ about a name a `U` could open.
 | Under 5 characters, well formed | **Grey note, not an error**: reserved by default, registrable only if deliberately released. The lookup still runs, because a released short name is an ordinary name (§1) |
 | Under 5 characters, malformed (`sud0`, `l1do`, `??`) | The broken rule, and **never the word "reserved"** — failing rules 2–5 puts a name on neither membership route, so no `U` can free it: verified, the reducer forfeits `INVALID_NAME` and `encodeUnreserve` refuses to build the message |
 | Invalid label (before the dot) | Label wording, which is not name wording: labels floor at **1** character, need no letter, have no digit rule and are never reserved |
-| Valid name | One of §1's states, via `resolve()` (falling back to `available()` on `NOT_FOUND`) plus `/name` for the overlays |
+| Valid name | One of §1's states, via `resolve()` (falling back to `available()` on `NOT_FOUND`) plus `/name` for the overlays. **The overlay is not the state**: it is fetched best-effort and its failure is swallowed, so a missing one leaves the state the resolver already gave — a name that resolved is REGISTERED. Reading a missing overlay as AVAILABLE is the app minting an availability verdict, which belongs to `resolve()` and `available()` alone |
+| Any resolved card | **Pay this address**, handing the query as typed to the Pay tab. A resolved card is an address whatever the query was |
 | Valid name **the viewer owns** | "You own this name." and a *Manage it* handoff to My names — never the owner actions. Buy offers `register` and `buy`; the owner's six live in My names alone (app-ux §2) |
 | Dotted query, parent not registered | The parent's own §1 state, worded about the parent |
 | Dotted query, parent has no host | `PARENT_NOT_DELEGATING` wording |
-| Dotted query, host answered | `DELEGATED` result, §2 treatment |
+| Dotted query, host answered | `DELEGATED` result, §2 treatment — and **no name action, ever**. A label is not a registrable object: every action in §4 takes a name, and the only name in a delegated answer is the parent, which resolved and is therefore held. The card offering the acquisition list offered to register *the parent* — a `G` the reducer forfeits as `NAME_TAKEN` (Kike, 2026-08-28). What it does offer is the address: **Pay this address**, and **Ask `<parent>`'s owner**, which is a message to the parent's owner with the parent as the NC subject (a subject is a name and carries no dot) |
 | Dotted query, host failed | `DELEGATE_FAILED` wording — host's fault, parent shown verified |
 
 Labels are validated locally too (`core.validateLabel`, 1–24 chars, no
@@ -145,6 +146,11 @@ Gating is **by state, never by owner-equality alone**. "Owner" below means
 `record.owner` equals the `listAccounts()` address. Every action is also
 gated by `core` validation of its inputs, byte-ceiling preflight, and
 consensus being established. `M`, `P`, `U`, `F` never appear in the app.
+
+Every action below takes a **name**. None of them applies to a dotted query:
+the label is the delegate host's business and NNS holds no record of it, so a
+delegated card carries the address actions (pay, message the parent's owner)
+and none of these.
 
 | Action | Who | Legal when | Never when | Notes |
 |---|---|---|---|---|

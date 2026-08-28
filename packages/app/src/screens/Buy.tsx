@@ -72,10 +72,13 @@ export function BuyScreen({
   wallet,
   seed,
   onManage,
+  onPay,
 }: {
   wallet: Wallet | null
   seed: string
   onManage: (name: string) => void
+  /** Hands the query, as typed, to the Pay tab — the one action a delegated card has. */
+  onPay: (query: string) => void
 }) {
   const [text, setText] = useState(seed)
   const [nonce, setNonce] = useState(0)
@@ -137,6 +140,7 @@ export function BuyScreen({
           actions={ACQUIRE_ACTIONS}
           onChanged={() => setNonce((value) => value + 1)}
           onManage={onManage}
+          onPay={onPay}
         />
       )}
       <BurnFigures />

@@ -116,6 +116,25 @@ export const delegateFailedLine = (parent: string): string =>
 export const parentNotDelegatingLine = (parent: string): string =>
   `${parent} doesn’t delegate subdomains.`
 
+/**
+ * Why a delegated card carries no name actions. States what NNS does *not*
+ * hold — never whether the subdomain exists, which is the host's word alone
+ * (§5 #4). What the card does still offer is the address: pay it, or ask the
+ * parent's owner.
+ */
+export const subdomainNotRegistrableLine = (parent: string): string =>
+  `Subdomains aren’t registered on NNS — ${parent}’s owner issues them.`
+
+/** The handoff from a resolved card to the Pay tab, seeded with the query. */
+export const payThisLabel = (): string => 'Pay this address'
+
+/**
+ * Messaging about a subdomain goes to the **parent's** owner, with the parent
+ * as the subject: the NC convention's subject is an NNS name (no dot), and the
+ * parent is the only name in a delegated answer that anybody owns.
+ */
+export const messageParentOwnerLabel = (parent: string): string => `Ask ${parent}’s owner`
+
 // ── Name states (states doc §1) ─────────────────────────────────────────────
 
 export const availableLine = (): string => 'Available'
@@ -168,6 +187,7 @@ export const GATE_REASON_TEXT: Record<GateReason, string> = {
   'offer-irrevocable': 'The offer is in its irrevocable window.',
   'offer-open': 'An offer is already open — cancel it first.',
   'no-offer': 'No open offer on this name.',
+  'state-unknown': 'Couldn’t read this name’s record — try again.',
 }
 
 // ── Input validation (§4.1 in plain words, field-level) ────────────────────
