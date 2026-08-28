@@ -18,14 +18,26 @@ import { CONSTANTS, type LabelInvalidReason, type NameInvalidReason } from '@nns
 
 // ── Verification lines ──────────────────────────────────────────────────────
 
-/** "Verified by 1 resolver — Operator" · "Verified by 2 resolvers". */
+/**
+ * "Verified by 1 resolver" · "Verified by 2 resolvers" — the count alone, with
+ * the parties listed under it by `resolverIdentityLine`.
+ *
+ * The operator used to be appended at N = 1 and nobody was named above it,
+ * which is backwards: at N = 2 the line said two parties agreed and left the
+ * user unable to name either (Kike, 2026-08-28, on adding a second resolver).
+ * The list answers it at every N.
+ */
 export function verifiedByLine(quorum: QuorumReport): string {
-  if (quorum.agreed === 1) {
-    const operator = quorum.resolvers[0] ?? 'unnamed'
-    return `Verified by 1 resolver — ${operator}`
-  }
-  return `Verified by ${quorum.agreed} resolvers`
+  return `Verified by ${quorum.agreed} ${quorum.agreed === 1 ? 'resolver' : 'resolvers'}`
 }
+
+/**
+ * One agreeing resolver: the party, then the endpoint that answered. The name
+ * is chosen by whoever wrote the config, so it identifies nothing on its own —
+ * the URL is the half a user can go and check.
+ */
+export const resolverIdentityLine = (resolver: { readonly name: string; readonly url: string }): string =>
+  `${resolver.name} — ${resolver.url}`
 
 export const proofPendingLine = (): string =>
   'Proof pending — checkpoints are cut every ~12 minutes. The name works now.'
@@ -129,11 +141,14 @@ export const subdomainNotRegistrableLine = (parent: string): string =>
 export const payThisLabel = (): string => 'Pay this address'
 
 /**
- * Messaging about a subdomain goes to the **parent's** owner, with the parent
- * as the subject: the NC convention's subject is an NNS name (no dot), and the
- * parent is the only name in a delegated answer that anybody owns.
+ * Messaging a subdomain goes to the address it resolved to — the only party
+ * `label.parent` designates. Not the parent's owner: that is whoever runs the
+ * host, and the address they gave out may belong to anyone.
  */
-export const messageParentOwnerLabel = (parent: string): string => `Ask ${parent}’s owner`
+export const messageSubdomainLabel = (): string => 'Message this address'
+
+export const messageSubdomainNote = (parent: string): string =>
+  `Goes to the address above, which ${parent}’s resolver gave — no proof covers it, and it may not be ${parent}’s owner.`
 
 // ── Name states (states doc §1) ─────────────────────────────────────────────
 

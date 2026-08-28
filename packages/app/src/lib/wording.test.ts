@@ -13,23 +13,33 @@ import {
   parentNotDelegatingLine,
   paySelfLine,
   queryFaultLine,
+  resolverIdentityLine,
   shortNameNoteLine,
   verifiedByLine,
 } from './wording'
 
+const LABS = { name: 'Example Labs', url: 'https://api.example.com' }
+const OURS = { name: 'Ours', url: 'https://nns.ours.example' }
+
 describe('"Verified by N resolvers" (resolver README decision, 2026-08-14)', () => {
-  it('is singular at 1 and names the operator', () => {
-    const line = verifiedByLine({ required: 1, queried: 1, agreed: 1, resolvers: ['Example Labs'] })
-    expect(line).toBe('Verified by 1 resolver — Example Labs')
+  it('is the count, singular at 1', () => {
+    expect(verifiedByLine({ required: 1, queried: 1, agreed: 1, resolvers: [LABS] })).toBe('Verified by 1 resolver')
   })
 
   it('never says "unverified" about a healthy answer', () => {
-    const line = verifiedByLine({ required: 1, queried: 1, agreed: 1, resolvers: ['Example Labs'] })
+    const line = verifiedByLine({ required: 1, queried: 1, agreed: 1, resolvers: [LABS] })
     expect(line.toLowerCase()).not.toContain('unverified')
   })
 
-  it('is plural with no operator name above 1', () => {
-    expect(verifiedByLine({ required: 2, queried: 2, agreed: 2, resolvers: ['A', 'B'] })).toBe('Verified by 2 resolvers')
+  it('is plural above 1', () => {
+    expect(verifiedByLine({ required: 2, queried: 2, agreed: 2, resolvers: [LABS, OURS] })).toBe('Verified by 2 resolvers')
+  })
+
+  // The count names nobody, which is the whole complaint at N = 2 (Kike,
+  // 2026-08-28). The party is the name; the URL is the half a user can check.
+  it('names every agreeing resolver by name and API URL', () => {
+    expect(resolverIdentityLine(LABS)).toBe('Example Labs — https://api.example.com')
+    expect(resolverIdentityLine(OURS)).toContain('https://nns.ours.example')
   })
 })
 

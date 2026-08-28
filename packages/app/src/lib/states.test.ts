@@ -102,7 +102,7 @@ const resolveResult = (over: Partial<ResolveResult> = {}): ResolveResult => ({
   checkpoint: null,
   height: 1_000_000,
   delegate: null,
-  quorum: { required: 1, queried: 1, agreed: 1, resolvers: ['op'] },
+  quorum: { required: 1, queried: 1, agreed: 1, resolvers: [{ name: 'op', url: 'https://api.example.com' }] },
   anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' },
   warnings: [],
   ...over,
@@ -124,13 +124,12 @@ describe('viewFor — which outcomes carry an actionable name', () => {
         delegate: { parent: 'nns', label: 'rico', host: 'nns.example.com', ttl: 300 },
       }),
       info: null,
-      parentInfo: null,
     }
     expect(viewFor(outcome)).toBeNull()
   })
 
   it('a plain name that resolved is registered — never available, however the overlay went', () => {
-    const outcome: SearchOutcome = { kind: 'resolved', result: resolveResult(), info: null, parentInfo: null }
+    const outcome: SearchOutcome = { kind: 'resolved', result: resolveResult(), info: null }
     const view = viewFor(outcome)
     expect(view?.kind).toBe('registered')
     expect(actionGates({ view: view!, viewers: [], head: 0 }).register.reason).toBe('taken')
@@ -141,13 +140,13 @@ describe('viewFor — which outcomes carry an actionable name', () => {
     expect(
       viewFor({
         ...base,
-        availability: { name: 'example', available: true, reason: null, verification: 'PROVEN', checkpoint: null, height: 1, quorum: { required: 1, queried: 1, agreed: 1, resolvers: ['op'] }, anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' }, warnings: [] },
+        availability: { name: 'example', available: true, reason: null, verification: 'PROVEN', checkpoint: null, height: 1, quorum: { required: 1, queried: 1, agreed: 1, resolvers: [{ name: 'op', url: 'https://api.example.com' }] }, anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' }, warnings: [] },
       })?.kind,
     ).toBe('available')
     expect(
       viewFor({
         ...base,
-        availability: { name: 'example', available: false, reason: 'RESERVED', verification: 'PROVEN', checkpoint: null, height: 1, quorum: { required: 1, queried: 1, agreed: 1, resolvers: ['op'] }, anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' }, warnings: [] },
+        availability: { name: 'example', available: false, reason: 'RESERVED', verification: 'PROVEN', checkpoint: null, height: 1, quorum: { required: 1, queried: 1, agreed: 1, resolvers: [{ name: 'op', url: 'https://api.example.com' }] }, anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' }, warnings: [] },
       }),
     ).toBeNull()
   })

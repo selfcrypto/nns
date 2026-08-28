@@ -11,6 +11,7 @@ import {
   forSaleLine,
   pendingTransferLine,
   proofPendingLine,
+  resolverIdentityLine,
   verifiedByLine,
 } from '../lib/wording'
 import { Badge, Identicon, NameText, type RailTier } from './ui'
@@ -26,11 +27,32 @@ export const tierOf = (result: ResolveResult): RailTier => {
   }
 }
 
+/**
+ * Who agreed, by name **and API URL**. The count says how many parties the
+ * answer rests on; only the URL says which, and a user who wants to check one
+ * has to be able to see where it lives.
+ */
+function ResolverList({ quorum }: { quorum: ResolveResult['quorum'] }) {
+  if (quorum.resolvers.length === 0) return null
+  return (
+    <ul className="verify-resolvers">
+      {quorum.resolvers.map((resolver) => (
+        <li key={resolver.url}>{resolverIdentityLine(resolver)}</li>
+      ))}
+    </ul>
+  )
+}
+
 /** The one line §8.5 #6 and the resolver README fix the wording of. */
 export function VerificationLine({ result }: { result: ResolveResult }) {
   switch (result.verification) {
     case 'PROVEN':
-      return <p className="verify verify-proven">{verifiedByLine(result.quorum)}</p>
+      return (
+        <div className="verify verify-proven">
+          <p>{verifiedByLine(result.quorum)}</p>
+          <ResolverList quorum={result.quorum} />
+        </div>
+      )
     case 'PROOF_PENDING':
       return <p className="verify verify-depth">{proofPendingLine()}</p>
     case 'DELEGATED':

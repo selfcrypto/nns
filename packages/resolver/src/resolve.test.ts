@@ -86,7 +86,9 @@ describe('resolve', () => {
 
     expect(result.verification).toBe('PROVEN')
     expect(result.address).toBe(address(5))
-    expect(result.quorum).toMatchObject({ required: 2, queried: 2, agreed: 2, resolvers: ['reference', 'community'] })
+    // Name **and** URL: at N > 1 a count names nobody, and the URL is the half
+    // a user can go and check (Kike, 2026-08-28).
+    expect(result.quorum).toMatchObject({ required: 2, queried: 2, agreed: 2, resolvers: [A, B] })
     expect(result.checkpoint?.height).toBe(CHECKPOINT_HEIGHT)
   })
 

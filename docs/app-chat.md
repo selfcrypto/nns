@@ -30,15 +30,16 @@ NC1<name>|<message>
 | Field | Rule |
 |---|---|
 | `NC1` | 3 ASCII bytes, exact |
-| `name` | The name the message is about — §4.1 **syntax** (`validateNameSyntax`: awarded short names are registered and messageable), lowercase |
+| `name` | The **subject** — the name the message is about, lowercase. §4.1 **syntax** (`validateNameSyntax`: awarded short names are registered and messageable), **or a `label.parent` query**: §4.4 syntax on the label, §4.1 on the parent. `validateChatSubject` is the one check |
 | `\|` | 1 byte, the same separator every NNS1 payload uses |
 | `message` | UTF-8, ≥ 1 byte, no C0 control characters |
 
 **Total ≤ 64 bytes, hard.** The network's cap is the measured silent-drop
 boundary: 65+ bytes returns a hash and never lands (docs/rpc-reference.md
 §4). The message budget is therefore `64 − 4 − len(name)` **bytes** — 55 for
-a 5-char name, 36 for a 24-char one — and the composer counts UTF-8 bytes,
-not characters, because an emoji costs four.
+a 5-char name, 36 for a 24-char one, 11 for the longest dotted subject there
+is — and the composer counts UTF-8 bytes, not characters, because an emoji
+costs four.
 
 Transaction fields:
 
@@ -75,6 +76,16 @@ the §8.1 leaf commits `owner` and `packages/api`'s proof documents already
 carry every leaf field, so `@nns/resolver` can expose a verified owner
 without new protocol. Do that before chat ever grows anything more valuable
 than text.
+
+**A subdomain is the one subject with no owner.** §8.6 gives `label.parent` no
+record, so §3's owner does not exist for it and there is nothing to look up:
+the only party the query designates is the address the parent's delegate host
+answered with. A message about `rico.nns` therefore goes **there**, with
+`rico.nns` as the subject. The parent's owner is not a stand-in — they run the
+host, and the address they hand out may belong to anyone (Kike, 2026-08-28).
+Two things follow, and the app says both beside the composer: that address is
+the host's word and no proof covers it, and it is a *target*, so it may be a
+deposit address nobody reads.
 
 **Messaging your own name is impossible, not forbidden**: sender = owner
 would be a self-transaction, which the network drops silently (§5.3). The

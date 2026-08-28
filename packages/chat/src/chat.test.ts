@@ -84,6 +84,34 @@ describe('encode/parse roundtrip', () => {
     expect(encodeChatPayload('nq', 'hi').ok).toBe(true)
   })
 
+  /**
+   * A subdomain has no owner and no record (§8.6) — the only party `rico.nns`
+   * designates is the address its parent's host answered with. So the subject
+   * has to be able to say `rico.nns`; naming the parent instead addressed
+   * whoever runs the host (Kike, 2026-08-28).
+   */
+  it('accepts a dotted subject, and roundtrips it', () => {
+    const encoded = encodeChatPayload('rico.nns', 'is this free?')
+    expect(encoded.ok).toBe(true)
+    if (!encoded.ok) return
+    expect(parseChatPayload(encoded.dataHex)).toEqual({ name: 'rico.nns', message: 'is this free?' })
+  })
+
+  it('applies label rules to the label and name rules to the parent', () => {
+    // A label floors at 1 character and needs no letter (§4.4); the parent is
+    // a name and takes §4.1's syntax.
+    expect(encodeChatPayload('a.example', 'hi').ok).toBe(true)
+    expect(encodeChatPayload('-rico.nns', 'hi')).toEqual({ ok: false, reason: 'BAD_NAME' })
+    expect(encodeChatPayload('rico.-nns', 'hi')).toEqual({ ok: false, reason: 'BAD_NAME' })
+    expect(encodeChatPayload('a.b.c', 'hi')).toEqual({ ok: false, reason: 'BAD_NAME' })
+    expect(encodeChatPayload('rico.', 'hi')).toEqual({ ok: false, reason: 'BAD_NAME' })
+    expect(encodeChatPayload('.nns', 'hi')).toEqual({ ok: false, reason: 'BAD_NAME' })
+  })
+
+  it('the budget shrinks by the whole dotted subject', () => {
+    expect(chatByteBudget('rico.nns')).toBe(chatByteBudget('nns') - 5)
+  })
+
   it('parse refuses non-NC1 data, NNS1 payloads included', () => {
     expect(parseChatPayload(hex('NNS1Gexample'))).toBeNull()
     expect(parseChatPayload(hex('NC2example|hi'))).toBeNull()

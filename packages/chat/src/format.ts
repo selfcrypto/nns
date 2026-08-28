@@ -8,14 +8,15 @@
  * message invisible to every NNS indexer (§7.5), instead of a forfeited,
  * log-spamming `UNKNOWN_TYPE`.
  *
- * **`@nns/core` is imported for one thing: `validateNameSyntax`.** The name in
- * a payload is an NNS name, so its syntax is §4.1's rule — reading that rule
- * is not participating in the protocol, while copying it would be a second
- * implementation of a protocol rule. Nothing here reaches core's state, the
- * reducer, the log or any root.
+ * **`@nns/core` is imported for two things: `validateNameSyntax` and
+ * `validateLabel`.** A subject is an NNS name or a `label.name` query, so its
+ * syntax is §4.1's and §4.4's rule — reading those rules is not participating
+ * in the protocol, while copying them would be a second implementation of a
+ * protocol rule. Nothing here reaches core's state, the reducer, the log or
+ * any root.
  */
 
-import { validateNameSyntax } from '@nns/core'
+import { validateLabel, validateNameSyntax } from '@nns/core'
 import { bytesToHex, hexToBytes } from './hex.js'
 
 export const CHAT_PREFIX = 'NC1'
@@ -23,7 +24,11 @@ export const CHAT_PREFIX = 'NC1'
 export const CHAT_MAX_BYTES = 64
 export const CHAT_DUST_LUNA = 1n
 
-/** Message budget in UTF-8 **bytes** for a given name: 64 − 3 − name − 1. */
+/**
+ * Message budget in UTF-8 **bytes** for a given subject: 64 − 3 − subject − 1.
+ * A dotted subject is the longest one there is — 49 bytes at the limits — and
+ * the composer shows what that leaves rather than refusing it.
+ */
 export function chatByteBudget(name: string): number {
   return CHAT_MAX_BYTES - CHAT_PREFIX.length - name.length - 1
 }
@@ -41,10 +46,28 @@ export type ChatEncodeResult =
 // eslint-disable-next-line no-control-regex -- the point is to refuse them
 const CONTROL = /[\u0000-\u001f\u007f]/
 
+/**
+ * A subject is a name, **or a `label.name` query** (docs/app-chat.md §2).
+ *
+ * The dotted form is what a message to a subdomain is about. §8.6 gives a
+ * subdomain no owner and no record — the only address it has is the one its
+ * parent's delegate host answered with — so a message about `rico.nns` goes
+ * *there*, and the subject has to be able to say `rico.nns`. Naming the parent
+ * instead would have addressed a different party (Kike, 2026-08-28): the
+ * parent's owner is whoever runs the host, not whoever holds the label.
+ *
+ * Syntax only, on both halves: §4.1 rule 6 is chain state (an awarded short
+ * name is registered and messageable), and §4.4 labels are never reserved.
+ */
+export function validateChatSubject(subject: string): boolean {
+  const dot = subject.indexOf('.')
+  if (dot < 0) return validateNameSyntax(subject).ok
+  if (subject.indexOf('.', dot + 1) >= 0) return false
+  return validateLabel(subject.slice(0, dot)).ok && validateNameSyntax(subject.slice(dot + 1)).ok
+}
+
 export function encodeChatPayload(name: string, message: string): ChatEncodeResult {
-  // Syntax, not the full rule set: awarded short names are registered and
-  // messageable, so the reserved floor must not apply here.
-  if (!validateNameSyntax(name).ok) return { ok: false, reason: 'BAD_NAME' }
+  if (!validateChatSubject(name)) return { ok: false, reason: 'BAD_NAME' }
   if (message.length === 0) return { ok: false, reason: 'EMPTY_MESSAGE' }
   if (CONTROL.test(message)) return { ok: false, reason: 'CONTROL_CHARS' }
   const bytes = new TextEncoder().encode(`${CHAT_PREFIX}${name}|${message}`)
@@ -73,7 +96,7 @@ export function parseChatPayload(dataHex: string): ChatPayload | null {
   if (separator === -1) return null
   const name = rest.slice(0, separator)
   const message = rest.slice(separator + 1)
-  if (!validateNameSyntax(name).ok) return null
+  if (!validateChatSubject(name)) return null
   if (message.length === 0 || CONTROL.test(message)) return null
   return { name, message }
 }

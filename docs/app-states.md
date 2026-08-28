@@ -132,7 +132,7 @@ about a name a `U` could open.
 | Valid name **the viewer owns** | "You own this name." and a *Manage it* handoff to My names — never the owner actions. Buy offers `register` and `buy`; the owner's six live in My names alone (app-ux §2) |
 | Dotted query, parent not registered | The parent's own §1 state, worded about the parent |
 | Dotted query, parent has no host | `PARENT_NOT_DELEGATING` wording |
-| Dotted query, host answered | `DELEGATED` result, §2 treatment — and **no name action, ever**. A label is not a registrable object: every action in §4 takes a name, and the only name in a delegated answer is the parent, which resolved and is therefore held. The card offering the acquisition list offered to register *the parent* — a `G` the reducer forfeits as `NAME_TAKEN` (Kike, 2026-08-28). What it does offer is the address: **Pay this address**, and **Ask `<parent>`'s owner**, which is a message to the parent's owner with the parent as the NC subject (a subject is a name and carries no dot) |
+| Dotted query, host answered | `DELEGATED` result, §2 treatment — and **no name action, ever**. A label is not a registrable object: every action in §4 takes a name, and the only name in a delegated answer is the parent, which resolved and is therefore held. The card offering the acquisition list offered to register *the parent* — a `G` the reducer forfeits as `NAME_TAKEN` (Kike, 2026-08-28). What it does offer is the address: **Pay this address**, and **Message this address**, an NC message to the address the host answered with, subject `label.parent`. Not the parent's owner: §8.6 gives a label no record and no owner, and whoever runs the host is a different party from whoever holds the label |
 | Dotted query, host failed | `DELEGATE_FAILED` wording — host's fault, parent shown verified |
 
 Labels are validated locally too (`core.validateLabel`, 1–24 chars, no
@@ -174,8 +174,13 @@ include this transaction", never "sent".
 ## 5. Standing wording rules
 
 1. **"Verified by N resolvers"** — one neutral line, always present on a
-   successful proven resolution. `N` is `result.quorum.agreed`; singular at
-   1; **name the operator when N = 1**. Never hidden, greyed or apologetic.
+   successful proven resolution, with **every agreeing resolver listed under
+   it by name and API URL** (`result.quorum.resolvers`, which carries the
+   endpoint). `N` is `result.quorum.agreed`; singular at 1. Never hidden,
+   greyed or apologetic. The count says how many parties the answer rests on
+   and nothing about which, and a configured `name` identifies a party only to
+   whoever wrote the config — the URL is the half a user can go and check
+   (Kike, 2026-08-28, on adding a second resolver).
 2. **Never label a quorum-1 answer "unverified".** The proof verified; what
    is absent is corroboration by a second party, which is a different
    sentence. Alarm vocabulary spends down to zero the first time it is used

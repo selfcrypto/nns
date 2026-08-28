@@ -16,7 +16,7 @@ const nns = createResolver({
 const result = await nns.resolve('kike')
 result.address       // 'NQ...' — the address to pay
 result.verification  // 'PROVEN'
-result.quorum        // { required: 2, queried: 2, agreed: 2, resolvers: [...] }
+result.quorum        // { required: 2, queried: 2, agreed: 2, resolvers: [{ name, url }, …] }
 result.warnings      // [] — anything the user should be told, see below
 ```
 
@@ -173,7 +173,7 @@ interface ResolveResult {
   checkpoint    // { rootHex, height } the proof was against, or null
   height        // chain height this answer is as of
   delegate      // set only for a dotted query, e.g. 'alice.exchange'
-  quorum        // { required, queried, agreed, resolvers: [names] }
+  quorum        // { required, queried, agreed, resolvers: [{ name, url }] } — who agreed
   anchor        // what the second-chain check concluded, or why it did not run
   warnings      // everything the user should be told; see the table
 }
@@ -359,15 +359,22 @@ whole design exists to surface. Treat it as one.
 
 ## Telling the user: "Verified by N resolvers"
 
-One neutral line, always present on a successful resolution:
+One neutral line, always present on a successful resolution, with the parties
+that agreed listed under it:
 
-> **Verified by 1 resolver** — Example Labs
+> **Verified by 2 resolvers**
+> Example Labs — https://nns.example.org
+> Second Operator — https://nns.other.example
 
-`N` is `result.quorum.agreed`. Singular at 1. Name the operator when `N` is 1,
-because at that point the trust rests on one party and the honest interface is
-to say whose. There is no variant of this line that is hidden, greyed, or
-apologetic — hiding the count while it is 1 hides the one number worth knowing,
-and showing nothing reads as "fine".
+`N` is `result.quorum.agreed`. Singular at 1. There is no variant of this line
+that is hidden, greyed, or apologetic — hiding the count while it is 1 hides the
+one number worth knowing, and showing nothing reads as "fine".
+
+**Name every resolver that agreed, by name and by API URL.** The count says how
+many parties an answer rests on and nothing about which, so at `N` = 2 a user
+who wants to check one has nowhere to go; and the `name` is a label the host app
+chose, which identifies a party only to whoever wrote the config. `quorum.resolvers`
+therefore carries the endpoint — `{ name, url }` — and the client shows both.
 
 **Do not label a quorum-1 answer "unverified".** It is factually wrong: the
 proof verified, the checkpoint binding held, and — with publishers configured —

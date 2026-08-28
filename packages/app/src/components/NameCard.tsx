@@ -28,7 +28,8 @@ import {
   justRegisteredLine,
   manageOwnNameLabel,
   messageOwnerLabel,
-  messageParentOwnerLabel,
+  messageSubdomainLabel,
+  messageSubdomainNote,
   ownNameLine,
   parentNotDelegatingLine,
   parentNotRegisteredLine,
@@ -217,19 +218,17 @@ export function NameCard({
               <Composer name={outcome.info.name} recipient={outcome.info.record.owner} wallet={wallet} sender={sender} />
             </details>
           )}
-          {/* A subdomain is asked for from the parent's owner. The subject is
-              the **parent** — an NC subject is an NNS name and carries no dot
-              (`@nns/chat`'s `validateNameSyntax`) — and the recipient is that
-              name's owner, so the pairing stays a lookup rather than a claim. */}
-          {view === null && outcome.parentInfo !== null && outcome.parentInfo.record !== null && (
+          {/* A subdomain's message goes to the address it resolved to, with
+              the dotted query as its subject. There is no owner to write to —
+              §8.6 gives a label no record — and the parent's owner is a
+              different party: whoever runs the host, not whoever holds the
+              label (Kike, 2026-08-28). The address is the host's word, which
+              the card already says above the composer. */}
+          {view === null && (
             <details className="message-owner">
-              <summary>{messageParentOwnerLabel(outcome.parentInfo.name)}</summary>
-              <Composer
-                name={outcome.parentInfo.name}
-                recipient={outcome.parentInfo.record.owner}
-                wallet={wallet}
-                sender={sender}
-              />
+              <summary>{messageSubdomainLabel()}</summary>
+              <p className="note note-info">{messageSubdomainNote(outcome.result.delegate?.parent ?? outcome.result.name)}</p>
+              <Composer name={outcome.result.query} recipient={outcome.result.address} wallet={wallet} sender={sender} />
             </details>
           )}
         </RailCard>

@@ -74,8 +74,13 @@ export interface QuorumReport {
   readonly required: number
   readonly queried: number
   readonly agreed: number
-  /** The resolvers whose answers were verified and agreed, by configured name. */
-  readonly resolvers: readonly string[]
+  /**
+   * The resolvers whose answers were verified and agreed — **name and URL**,
+   * as configured. The name is how a party is spoken about; the URL is the
+   * only half a user can go and check, and at N > 1 a bare count names nobody
+   * at all. A client shows both (README, "Telling the user").
+   */
+  readonly resolvers: readonly ResolverEndpoint[]
 }
 
 export interface ResolveResult {
@@ -272,7 +277,7 @@ export class NnsResolver {
       required: this.#policy.required,
       queried: agreement.queried,
       agreed: agreement.witnesses.length,
-      resolvers: agreement.witnesses.map((witness) => witness.endpoint.name),
+      resolvers: agreement.witnesses.map(({ endpoint }) => ({ name: endpoint.name, url: endpoint.url })),
     }
   }
 
