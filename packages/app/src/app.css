@@ -759,13 +759,14 @@ li.note {
 
 .content {
   flex: 1;
-  padding: 4px 16px 24px;
+  padding: 0;
 }
 
 .screen {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  padding: 4px 16px 24px;
 }
 
 .tabbar {
@@ -1447,7 +1448,8 @@ li.note {
  */
 
 .home-screen {
-  padding-top: 0;
+  padding: 0;
+  gap: 0;
 }
 
 .hero-section {
@@ -1457,10 +1459,10 @@ li.note {
   align-items: center;
   justify-content: center;
   text-align: center;
-  /* Pull up behind the masthead (-64px) and bleed out horizontally */
-  margin: -64px -16px 40px;
+  /* Pull up behind the masthead (-64px) */
+  margin: -64px 0 0;
   /* Add extra top padding to account for the masthead overlapping it */
-  padding: 100px 24px 40px;
+  padding: 100px 16px 40px;
   min-height: 100vh;
   /* Massive immersive height */
   background: var(--paper);
@@ -1659,7 +1661,7 @@ li.note {
   .hero-section {
     min-height: 70svh;
     margin-bottom: 0;
-    padding-top: 80px;
+    padding-top: 120px;
     padding-left: 16px;
     padding-right: 16px;
   }
@@ -1948,12 +1950,14 @@ li.note {
 
   .step-card h4 {
     margin-bottom: 8px;
+    margin-top: 8px;
   }
 
   .step-connector {
     width: 2px;
     height: 32px;
-    margin: 16px 0;
+    margin-top: 40px;
+    margin-bottom: 8px;
   }
 }
 
@@ -2367,7 +2371,7 @@ li.note {
   background: #151833;
   color: white;
   padding: 40px 16px 40px;
-  margin: 0 -16px -24px;
+  margin: 0;
 }
 
 .footer-content {
