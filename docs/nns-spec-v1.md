@@ -259,10 +259,12 @@ Mitigations, strongest first:
    their own bundles from their own domains, so their users are outside the
    operator's reach entirely. Wide adoption of the package is therefore a
    security property, not only a distribution strategy.
-3. **Content-hash pinning by the host**, if the mini-app framework can pin a
-   build rather than a live URL. **OPEN:** to be asked of the Nimiq team.
-4. **Independent deployments.** The frontend is MIT; anyone may host it, and
+3. **Independent deployments.** The frontend is MIT; anyone may host it, and
    users who prefer not to trust the operator's domain can use another.
+
+(A fourth — content-hash pinning of the build by the mini-app framework —
+was listed through 2026-08-29 and dropped without being asked: hard to
+implement, questionable result, and nobody would deploy it.)
 
 This is the ordinary trust boundary of every web frontend in the ecosystem,
 but it deserves stating here because NNS is a system whose entire product is
@@ -2993,10 +2995,10 @@ Decisions pending:
    §10.5 probe ran on a post-fork Nimiq Pay build and the confirmation
    sheet honours the app's **value** and **fee** exactly, so every
    fee-bearing message is sendable from the mini app and §16.2's fee-gate
-   is viable. Still open, for the Nimiq team: can the framework pin a build
-   by **content hash** rather than a live URL (§2.2, mitigation 3) — the
-   only thing that would narrow the client-delivery hole without
-   wallet-native resolution
+   is viable. The content-hash-pinning half is **closed 2026-08-29,
+   dropped without asking**: hard to implement, questionable result, and
+   nobody would deploy it — §2.2's remaining mitigations stand on their
+   own
 7. Integrator share rate and `ref` issuance process (§10.7)
 8. Whether the publisher stipend exists in v1 at all (§10.7)
 9. Whether a Nimiq-side log attestation message (an `L` type carrying the
