@@ -179,7 +179,7 @@ category" rather than quietly counting a vector that no longer pins a height.
 
 ### `checkOrder` — which check runs first
 
-Thirty-five cases in `reduce.json`'s own section, not scenarios. Each is a
+Thirty-seven cases in `reduce.json`'s own section, not scenarios. Each is a
 message that satisfies **two** rejection conditions at once: `verdict` is the
 token the earlier check produces, and `insteadOf` is the same probe rebuilt to
 trip only the later one, run against the same pre-state and required to earn
@@ -191,7 +191,7 @@ fixing the order, or is `null`. `insteadOfUnreachable` replaces `insteadOf`
 where the later token cannot be produced at all (only `A`, whose §6 clause
 makes `BELOW_MIN_PRICE` unreachable by construction).
 
-**Seventeen of the thirty-five orderings are fixed by the spec; eighteen are
+**Eighteen of the thirty-seven orderings are fixed by the spec; nineteen are
 implementation choices.** §7.4 fixes `G`'s five-check order ("recipient, name
 syntax, reservation, **value, then availability**"), `REFUND_FLOOR` converting
 a refund into a forfeit, the parse chain ("hex → `NNS1` prefix → length →

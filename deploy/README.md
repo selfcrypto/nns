@@ -207,7 +207,9 @@ file and a `docker compose up`. `docker compose down -v` is a supported, if
 slow, repair for a resolver.
 
 The ledger records payments that have already left a hot key and cannot be
-rebuilt from anywhere. `down -v` on `settlement/` is never routine.
+fully rebuilt — an in-flight attempt exists nowhere else, and a rebuild is a
+quarantine, not a keystroke (decisions.md 2026-08-17). `down -v` on
+`settlement/` is never routine.
 
 ## Two cases where a rebuild is required, not optional
 

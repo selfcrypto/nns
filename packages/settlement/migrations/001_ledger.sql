@@ -3,8 +3,10 @@
 -- **Its own database, never a schema beside the indexer's.** The indexer's
 -- database is a projection of the chain: droppable, rebuildable from
 -- `LAUNCH_HEIGHT` by anyone. This one records payments that have left a hot
--- key and cannot be rebuilt from anywhere. Nothing here may ever become an
--- input to `reconcile`, which is the other half of the same rule.
+-- key and cannot be fully rebuilt — an in-flight attempt exists nowhere else,
+-- and a rebuild is a quarantine (decisions.md 2026-08-17). Nothing here may
+-- ever become an input to `reconcile`, which is the other half of the same
+-- rule.
 --
 -- ## What the keys are for
 --

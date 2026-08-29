@@ -1,6 +1,6 @@
 # Packages
 
-Ten packages in one pnpm workspace. They divide along one line: **`core` decides
+Twelve packages in one pnpm workspace. They divide along one line: **`core` decides
 what the protocol means, and nothing else is allowed to.**
 
 Every rule — what a valid name is, which verdict a message earns, what bytes go

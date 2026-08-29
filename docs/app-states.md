@@ -149,8 +149,8 @@ consensus being established. `M`, `P`, `U`, `F` never appear in the app.
 
 Every action below takes a **name**. None of them applies to a dotted query:
 the label is the delegate host's business and NNS holds no record of it, so a
-delegated card carries the address actions (pay, message the parent's owner)
-and none of these.
+delegated card carries the address actions (pay this address, message this
+address — the one the host resolved to, §3) and none of these.
 
 | Action | Who | Legal when | Never when | Notes |
 |---|---|---|---|---|

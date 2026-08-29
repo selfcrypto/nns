@@ -60,7 +60,7 @@ services:
   # projection of the chain: droppable, and rebuilt from `LAUNCH_HEIGHT` by
   # anyone — `down -v` on it is a routine step in the determinism runs. The
   # ledger records transactions that have left the system's only hot key and
-  # cannot be rebuilt from anywhere. Sharing a server would put one `down -v`,
+  # cannot be fully rebuilt. Sharing a server would put one `down -v`,
   # one disk, and one `DROP SCHEMA` between them.
   #
   # It has no `depends_on` and nothing depends on it: the issuer's own service
@@ -147,5 +147,5 @@ volumes:
   # is the deliberate way to start over — and the way to reproduce the
   # "byte-identical roots from an empty database" check.
   postgres-data:
-  # Never included in that `down -v`: this one cannot be rebuilt from the chain.
+  # Never included in that `down -v`: an in-flight attempt exists nowhere else.
   settlement-data:
