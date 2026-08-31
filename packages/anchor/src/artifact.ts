@@ -91,8 +91,8 @@ export const ARTIFACT = {
 export const ANCHORED_TOPIC0 = ARTIFACT.anchoredTopic0
 
 /**
- * CREATE2 init-code hash. The contract has no constructor arguments, so the
- * deployed address is `keccak256(0xff ‖ deployer ‖ salt ‖ initCodeHash)`
- * truncated to 20 bytes — identical on every EVM chain for a fixed salt.
+ * CREATE2 init-code hash — kept for third parties deploying through a
+ * factory. This package's own deploy is plain `CREATE`
+ * (`docs/decisions.md`, "CREATE2 dropped with the second chain").
  */
 export const INIT_CODE_HASH = ARTIFACT.initCodeHash

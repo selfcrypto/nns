@@ -2399,8 +2399,8 @@ differs from the one it last anchored — which it already reads from the
 chain for idempotency — and anchors **unconditionally when its newest
 anchor is older than 24 hours**, so a live publisher over a quiet registry
 still attests daily and a stale anchor still means what §8.5 #8 needs it to
-mean: the publisher stopped, not the registry. Every root also published to
-the NNS API and the repo.
+mean: the publisher stopped, not the registry. Every root is also served by
+the NNS API's checkpoint documents.
 
 An anchor is an event emission of roughly 30k gas — fractions of a cent on
 any cheap EVM chain — so gas was never the constraint; even hourly would
@@ -2423,8 +2423,10 @@ in gas and remains the wrong trade for the same churn reason.
 **Nothing in this specification depends on which chain the anchor contract
 lives on.** Chain id, contract address and RPC endpoints are client and
 publisher *configuration*; the contract below is plain Solidity with no
-chain-specific opcode, precompile or assumption, and deployed through
-`CREATE2` with a fixed salt it takes the same address on any EVM chain.
+chain-specific opcode, precompile or assumption, so it deploys unchanged on
+any EVM chain — and whether a configured address holds it is checked against
+the committed bytecode with one `eth_getCode`, never inferred from how the
+address was derived.
 Moving to a different chain, or anchoring to a second one in parallel, is a
 deployment decision and a change to a config value — it needs **no revision
 of this document**. A future reader should treat the chain named below as
