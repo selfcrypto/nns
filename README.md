@@ -102,7 +102,7 @@ is a lost name, as in ENS.
 | `docs/decisions.md` | Every reading taken where the spec was silent, with the argument |
 | `docs/status.md` | What is built, what is next. Where a new session starts |
 | `docs/history/` | Revision narratives, the session journal, battery records |
-| `docs/runbooks/` | `operators.md` (the role map) and `testing.md` (the mainnet battery) |
+| `docs/runbooks/` | `operators.md` (the role map), `testing.md` (the mainnet battery), `deploy.md` (how a change reaches the deployed boxes) |
 | **`packages/`** | **Twelve packages — [`packages/README.md`](packages/README.md) explains each one and how they stack** |
 | **`deploy/`** | **One directory per operator role — [`deploy/README.md`](deploy/README.md) picks the right one and covers what they share** |
 | `tasks/` | One brief per package, naming the spec sections it needs |
@@ -183,8 +183,12 @@ belonging to a role they do not run:
 - **The service** (`deploy/service`) — our own deployment: the resolver stack
   plus the RPC relay the mini app needs and the app bundle itself.
 - **Settlement** (`deploy/settlement`) — pays what the protocol owes. Holds the
-  system's only hot key, needs no inbound reachability, and must not share a
+  system's only hot keys, needs no inbound reachability, and must not share a
   machine with the service.
+- **An anchor publisher** (`deploy/anchor`) — notarises checkpoint roots on the
+  EVM contract. The contract is permissionless on purpose: a second,
+  independent party anchoring is what turns timestamping into §8.5's anchor
+  quorum, and recruiting one is a launch deliverable.
 
 [`docs/runbooks/operators.md`](docs/runbooks/operators.md) is the map: what each
 role is, what it needs, and the things that are easy to get wrong — starting

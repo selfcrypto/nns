@@ -78,7 +78,8 @@ deploying, you are in the right directory now; use one of the rows above.
 ## What every role shares
 
 **One image recipe.** All services build from `docker/Dockerfile`, parameterised
-by a `PKG` build arg (`indexer | api | relay | delegate | settlement`). The
+by a `PKG` build arg
+(`indexer | api | relay | delegate | settlement | anchor | chat-index`). The
 build context is the **repository root**, so clone the whole repo — not just
 `deploy/`. Everything compiles inside the image: the host needs Docker and
 nothing else, no Node, no pnpm.
