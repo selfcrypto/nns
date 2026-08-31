@@ -82,6 +82,18 @@ describe('loadLedgerSettings', () => {
       }),
     ).toThrow(/its own/)
   })
+
+  // Both sides compare trimmed: a raw NNS_DATABASE_URL that differs only by
+  // whitespace is the same database, not a different one.
+  it('refuses the indexer’s database when the raw values differ only by whitespace', () => {
+    expect(() =>
+      loadLedgerSettings({
+        ...BASE,
+        NNS_DATABASE_URL: ' postgres://nns@localhost:5433/nns\n',
+        NNS_SETTLEMENT_DATABASE_URL: 'postgres://nns@localhost:5433/nns',
+      }),
+    ).toThrow(/its own/)
+  })
 })
 
 describe('loadIssuerSettings', () => {

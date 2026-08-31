@@ -182,10 +182,10 @@ export function loadWatcherSettings(env: EnvSource = process.env): WatcherSettin
 export function loadLedgerSettings(env: EnvSource = process.env): LedgerSettings {
   const base = loadWatcherSettings(env)
   const databaseUrl = required(env, 'NNS_SETTLEMENT_DATABASE_URL')
-  if (read(env, 'NNS_DATABASE_URL') !== undefined && env['NNS_DATABASE_URL'] === databaseUrl) {
+  if (read(env, 'NNS_DATABASE_URL') === databaseUrl) {
     throw new EnvError(
       'NNS_SETTLEMENT_DATABASE_URL is the indexer\'s NNS_DATABASE_URL. The ledger records payments that have left a hot key ' +
-        'and cannot be rebuilt from the chain; the indexer\'s database is a projection that is meant to be droppable. Give the ledger its own',
+        'and cannot be fully rebuilt — an in-flight attempt exists nowhere else; the indexer\'s database is a droppable projection. Give the ledger its own',
     )
   }
   return Object.freeze({ ...base, databaseUrl })
