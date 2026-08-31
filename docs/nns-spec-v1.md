@@ -2394,12 +2394,16 @@ Events rather than storage — logs live in the receipt trie, are independently
 verifiable, and cost a fraction of an `SSTORE`.
 
 Cadence: **on change, with a daily floor**, to one chain. The publisher
-runs on a schedule (every few hours), anchors when the current commitment
-differs from the one it last anchored — which it already reads from the
+runs on a schedule (every few hours), anchors when the log digest differs
+from the one its own last anchor carries — which it already reads from the
 chain for idempotency — and anchors **unconditionally when its newest
 anchor is older than 24 hours**, so a live publisher over a quiet registry
 still attests daily and a stale anchor still means what §8.5 #8 needs it to
-mean: the publisher stopped, not the registry. Every root is also served by
+mean: the publisher stopped, not the registry. The log digest, not the
+commitment, is the change signal: §8.1 binds the checkpoint height into
+the commitment, so it differs at every checkpoint even over an unchanged
+registry, while an unchanged log means an unchanged registry — state moves
+only through logged messages. Every root is also served by
 the NNS API's checkpoint documents.
 
 An anchor is an event emission of roughly 30k gas — fractions of a cent on

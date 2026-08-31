@@ -188,8 +188,8 @@ export interface PublishPlan {
   readonly maxPriorityFeePerGas: bigint
   readonly maxCost: bigint
   /**
-   * Why this anchor is being sent (§9's cadence): the commitment moved, or
-   * the daily floor came due with it unchanged.
+   * Why this anchor is being sent (§9's cadence): the log moved, or the
+   * daily floor came due over an unchanged log.
    */
   readonly trigger: 'change' | 'floor'
   /** Conditions worth a human's attention that do not stop the anchor. */
@@ -208,12 +208,14 @@ export type PublishOutcome =
     }
   | {
       /**
-       * §9's cadence says not yet: the commitment equals the last anchored
-       * one and that anchor is younger than the daily floor.
+       * §9's cadence says not yet: the log digest equals the newest own
+       * anchor's and that anchor is younger than the daily floor.
        */
       readonly kind: 'unchanged'
       readonly nimiqHeight: number
       readonly commitment: Hex
+      /** The digest both runs derived — the proof "unchanged" is about content. */
+      readonly logDigest: Hex
       readonly lastAnchoredHeight: number
       readonly ageSeconds: number
       readonly transactionHash: Hex
@@ -328,52 +330,13 @@ export async function planPublish(deps: PublishDeps, options: PublishOptions): P
     }
   }
 
-  // §9's cadence: anchor on change, and unconditionally at the daily floor.
-  // The newest own anchor decides both halves; its block timestamp is the
-  // clock the floor runs against. Catch-up stays latest-only either way —
-  // the checkpoints between the last anchor and this one stay unanchored,
-  // which the cadence makes the *normal* case rather than an outage
-  // (docs/decisions.md), so the warning below is about time, not heights.
-  let trigger: PublishPlan['trigger'] = 'change'
-  const newest = mine.reduce(
-    (best: PastAnchor | null, anchor) =>
-      best === null || anchor.nimiqHeight > best.nimiqHeight ? anchor : best,
-    null,
-  )
-  if (newest === null) {
-    warnings.push(
-      `no prior anchor from ${publisher} within the last ${options.lookbackBlocks} anchor-chain blocks — ` +
-        'first run, or an outage longer than the lookback window',
-    )
-  } else {
-    const ageSeconds = deps.now() - newest.timestamp
-    if (newest.root === checkpoint.commitment) {
-      if (ageSeconds < DAILY_FLOOR_SEC) {
-        return {
-          kind: 'unchanged',
-          nimiqHeight,
-          commitment: checkpoint.commitment,
-          lastAnchoredHeight: newest.nimiqHeight,
-          ageSeconds,
-          transactionHash: newest.transactionHash,
-        }
-      }
-      trigger = 'floor'
-    }
-    if (ageSeconds > CONSTANTS.ANCHOR_STALENESS_LIMIT_SEC) {
-      warnings.push(
-        `newest own anchor is ${Math.floor(ageSeconds / 3600)} h old — beyond ANCHOR_STALENESS_LIMIT ` +
-          `(${CONSTANTS.ANCHOR_STALENESS_LIMIT_SEC / 3600} h), so clients have been warning. The schedule ` +
-          'missed at least one daily-floor anchor; this run closes the gap, and the timestamp gap on chain ' +
-          'is the honest record of it',
-      )
-    }
-  }
-
   // §8.2's operational mitigation: the same bytes through two independent
   // implementations, and only a CID both minted is anchored. A mismatch is a
   // hard stop and an alert — never a choice of one, because the publisher
-  // has no way to know which service is the broken one.
+  // has no way to know which service is the broken one. This runs before the
+  // cadence decision because the cadence needs the digest, and deriving a
+  // CID locally would be a third §8.2 implementation — the dry adds are the
+  // only way to know the log is unchanged without becoming one.
   const [first, second] = ipfs
   const [cidA, cidB] = await Promise.all([
     first.add(snapshot.bytes, { pin: false }),
@@ -392,6 +355,56 @@ export async function planPublish(deps: PublishDeps, options: PublishOptions): P
   } catch (error) {
     if (!(error instanceof LogError)) throw error
     throw new PublishError(`both services agreed on a CID that is not §8.2's shape — ${error.message}`)
+  }
+  const logDigest: Hex = `0x${bytesToHex(digest)}`
+
+  // §9's cadence: anchor on change, and unconditionally at the daily floor.
+  // "Change" is judged by the log digest, never by the commitment: §8.1
+  // binds the checkpoint height into the commitment, so it differs at every
+  // checkpoint over an unchanged registry, and comparing it anchored on
+  // every look (live until 2026-09-01 — the quiet path below was
+  // unreachable). An unchanged log digest is an unchanged registry: state
+  // moves only through logged messages. The newest own anchor decides both
+  // halves; its block timestamp is the clock the floor runs against.
+  // Catch-up stays latest-only either way — the checkpoints between the
+  // last anchor and this one stay unanchored, which the cadence makes the
+  // *normal* case rather than an outage (docs/decisions.md), so the warning
+  // below is about time, not heights.
+  let trigger: PublishPlan['trigger'] = 'change'
+  const newest = mine.reduce(
+    (best: PastAnchor | null, anchor) =>
+      best === null || anchor.nimiqHeight > best.nimiqHeight ? anchor : best,
+    null,
+  )
+  if (newest === null) {
+    warnings.push(
+      `no prior anchor from ${publisher} within the last ${options.lookbackBlocks} anchor-chain blocks — ` +
+        'first run, or an outage longer than the lookback window',
+    )
+  } else {
+    const ageSeconds = deps.now() - newest.timestamp
+    if (newest.logDigest === logDigest) {
+      if (ageSeconds < DAILY_FLOOR_SEC) {
+        return {
+          kind: 'unchanged',
+          nimiqHeight,
+          commitment: checkpoint.commitment,
+          logDigest,
+          lastAnchoredHeight: newest.nimiqHeight,
+          ageSeconds,
+          transactionHash: newest.transactionHash,
+        }
+      }
+      trigger = 'floor'
+    }
+    if (ageSeconds > CONSTANTS.ANCHOR_STALENESS_LIMIT_SEC) {
+      warnings.push(
+        `newest own anchor is ${Math.floor(ageSeconds / 3600)} h old — beyond ANCHOR_STALENESS_LIMIT ` +
+          `(${CONSTANTS.ANCHOR_STALENESS_LIMIT_SEC / 3600} h), so clients have been warning. The schedule ` +
+          'missed at least one daily-floor anchor; this run closes the gap, and the timestamp gap on chain ' +
+          'is the honest record of it',
+      )
+    }
   }
 
   const calldata = encodeAnchorCalldata(checkpoint.commitment, nimiqHeight, digest)
@@ -428,7 +441,7 @@ export async function planPublish(deps: PublishDeps, options: PublishOptions): P
       nimiqHeight,
       commitment: checkpoint.commitment,
       cid: cidA,
-      logDigest: `0x${bytesToHex(digest)}`,
+      logDigest,
       logBytes: snapshot.bytes,
       calldata,
       nonce,
@@ -508,7 +521,7 @@ export function describePublishPlan(plan: PublishPlan): readonly string[] {
     `  contract        ${plan.contractAddress} (code verified against the artifact)`,
     `  publisher       ${plan.publisher}`,
     `  nimiq height    ${plan.nimiqHeight}`,
-    `  trigger         ${plan.trigger === 'change' ? 'commitment changed' : 'daily floor (commitment unchanged, newest anchor ≥ 24 h old)'}`,
+    `  trigger         ${plan.trigger === 'change' ? 'log changed' : 'daily floor (log unchanged, newest anchor ≥ 24 h old)'}`,
     `  commitment      ${plan.commitment} (verbatim from the checkpoint)`,
     `  log snapshot    ${plan.logBytes.length} bytes`,
     `  cid             ${plan.cid} (two implementations agree)`,

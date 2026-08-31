@@ -73,14 +73,24 @@ function fakeIpfs(label: string, cid: string = CID): IpfsAdd & { calls: AddOptio
   }
 }
 
-/** An Anchored event as eth_getLogs would return it. Age defaults to an hour. */
-function anchoredLog(root: Hex, publisher: EvmAddress, nimiqHeight: number, timestamp = NOW - 3_600): EvmLog {
+/**
+ * An Anchored event as eth_getLogs would return it. Age defaults to an hour;
+ * the digest defaults to the current snapshot's, i.e. "the log has not moved
+ * since this anchor".
+ */
+function anchoredLog(
+  root: Hex,
+  publisher: EvmAddress,
+  nimiqHeight: number,
+  timestamp = NOW - 3_600,
+  digestHex = DIGEST_HEX,
+): EvmLog {
   const heightWord = nimiqHeight.toString(16).padStart(64, '0')
   const timestampWord = timestamp.toString(16).padStart(64, '0')
   return {
     address: CONTRACT,
     topics: [ANCHORED_TOPIC0 as Hex, root, addressTopic(publisher)],
-    data: `0x${heightWord}${timestampWord}${DIGEST_HEX}`,
+    data: `0x${heightWord}${timestampWord}${digestHex}`,
     blockNumber: 100n,
     transactionHash: '0xabcd' as Hex,
   }
@@ -339,27 +349,38 @@ describe('planPublish', () => {
 
   // ── The §9 cadence: on change, with a daily floor ─────────────────────────
 
-  it('skips while the commitment is unchanged and the newest anchor is fresh', async () => {
+  it('skips while the log is unchanged and the newest anchor is fresh — the commitment is not the trigger', async () => {
+    // The live shape: the older anchor carries a *different* root, because
+    // §8.1 binds the height into the commitment and the height has moved.
+    // Only the log digest says "nothing happened", and comparing the
+    // commitment instead anchored on every look (caught live 2026-09-01,
+    // docs/audit/anchor.md F4).
+    const priorRoot: Hex = `0x${'cd'.repeat(32)}`
     const d = deps({
-      rpc: fakeRpc({ logs: [anchoredLog(COMMITMENT, PUBLISHER, HEIGHT - 720, NOW - 6 * 3_600)] }),
+      rpc: fakeRpc({ logs: [anchoredLog(priorRoot, PUBLISHER, HEIGHT - 720, NOW - 6 * 3_600)] }),
     })
     const outcome = await planPublish(d.bundle, OPTIONS)
     expect(outcome).toEqual({
       kind: 'unchanged',
       nimiqHeight: HEIGHT,
       commitment: COMMITMENT,
+      logDigest: `0x${DIGEST_HEX}`,
       lastAnchoredHeight: HEIGHT - 720,
       ageSeconds: 6 * 3_600,
       transactionHash: '0xabcd',
     })
-    // Nothing else was spent: no IPFS traffic, no signing.
-    expect(d.ipfsA.calls).toEqual([])
+    // The only spend is the dry adds that decided the log is unchanged —
+    // knowing the digest without them would take a third §8.2
+    // implementation. No pin, no signing, no send.
+    expect(d.ipfsA.calls).toEqual([{ pin: false }])
+    expect(d.ipfsB.calls).toEqual([{ pin: false }])
     expect(d.signer.signed).toEqual([])
   })
 
-  it('anchors at the daily floor even when the commitment is unchanged', async () => {
+  it('anchors at the daily floor even when the log is unchanged', async () => {
+    const priorRoot: Hex = `0x${'cd'.repeat(32)}`
     const d = deps({
-      rpc: fakeRpc({ logs: [anchoredLog(COMMITMENT, PUBLISHER, HEIGHT - 720, NOW - DAILY_FLOOR_SEC - 60)] }),
+      rpc: fakeRpc({ logs: [anchoredLog(priorRoot, PUBLISHER, HEIGHT - 720, NOW - DAILY_FLOOR_SEC - 60)] }),
     })
     const plan = await planned(d)
     expect(plan.trigger).toBe('floor')
@@ -369,9 +390,10 @@ describe('planPublish', () => {
   })
 
   it('anchors on change regardless of how fresh the last anchor is', async () => {
-    const otherRoot: Hex = `0x${'cd'.repeat(32)}`
+    const priorRoot: Hex = `0x${'cd'.repeat(32)}`
+    const priorDigest = 'ef'.repeat(32) // the log has grown since that anchor
     const d = deps({
-      rpc: fakeRpc({ logs: [anchoredLog(otherRoot, PUBLISHER, HEIGHT - 720, NOW - 600)] }),
+      rpc: fakeRpc({ logs: [anchoredLog(priorRoot, PUBLISHER, HEIGHT - 720, NOW - 600, priorDigest)] }),
     })
     const plan = await planned(d)
     expect(plan.trigger).toBe('change')
