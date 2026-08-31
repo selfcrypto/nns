@@ -79,8 +79,8 @@ Hints are computed off the settled value for that reason. Outcomes are
 viewer's addresses owns gets "You own this name." and a **Manage it** button that
 hands off to My names, because acquiring and managing are different jobs and a
 screen called Buy offering to transfer your own name away is a contradiction. The
-owner's six (`setTarget`, `transfer`, `delegate`, `renew`, `offer`, `cancel`) are
-not rendered here at all. Legality is unchanged: `actionGates` and `signerFor`
+owner's seven (`setTarget`, `setEvm`, `transfer`, `delegate`, `renew`, `offer`,
+`cancel`) are not rendered here at all. Legality is unchanged: `actionGates` and `signerFor`
 still decide what is possible — this decides what the screen is *for*.
 
 - **Taken name (resolved card)** gains a **"Message the owner"** row — the
@@ -150,8 +150,12 @@ disclosure rides on the listing, as now.
 
 ### Pay — one payment to a name
 
-Type a name, it resolves on the same settle as Buy, enter an amount in NIM, the
-wallet signs. Nothing else: no NNS message, no registry effect.
+Type a name, it resolves on the same settle as Buy, enter an amount — NIM by
+default, or **USDT over Polygon** via the asset switch (since 2026-08-23; the
+mechanism is §1's intro: `result.evm`, the dApp path, a plain ERC-20
+`transfer`) — and the wallet signs. Nothing else: no NNS message, no registry
+effect. The USDT mode changes none of this section's shape: same resolve,
+same pin check, a different asset and signer.
 
 ```
 name → resolve() → pin check → amount → wallet signs → confirm by tx hash

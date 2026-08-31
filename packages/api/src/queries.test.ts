@@ -6,7 +6,9 @@
  * It drops and recreates its own schema, so point it at a throwaway
  * database. The schema comes from the indexer's own migrations — the API has
  * none of its own, which is the point: these tests read exactly the tables
- * the indexer writes, in the shape migration `004` leaves them.
+ * the indexer writes, in the shape the migrations through `008` leave them
+ * (`005`'s checkpoint_names, `007`'s kind drop and `008`'s evm are all
+ * load-bearing for this suite).
  *
  * **The schema is named, not `public`.** `packages/indexer`'s gated suite
  * points at the same `NNS_TEST_DATABASE_URL`, and vitest runs the two

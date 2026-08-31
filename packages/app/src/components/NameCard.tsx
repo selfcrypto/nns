@@ -49,7 +49,7 @@ import { Badge, RailCard } from './ui'
 /** Discovery: what someone who does not own the name can do with it. */
 export const ACQUIRE_ACTIONS: readonly AppAction[] = ['register', 'buy']
 
-/** Management: the owner's six, which live in My names and nowhere else. */
+/** Management: the owner's seven, which live in My names and nowhere else. */
 export const OWNER_ACTIONS: readonly AppAction[] = ['setTarget', 'setEvm', 'transfer', 'delegate', 'renew', 'offer', 'cancel']
 
 function Actions({

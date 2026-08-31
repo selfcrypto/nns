@@ -387,7 +387,8 @@ export function pendingCommitment(state: NnsState): Uint8Array {
   // concatenation carries no separators and no entry count, so a category with
   // no entries contributed nothing even when it existed. Every r21 commitment
   // over a state with no `U` in flight — which is now every state — keeps its
-  // value, and COMMITMENT_LAYOUT stays 4.
+  // value, and COMMITMENT_LAYOUT stayed 4 through r22 (r26's bump to 5 was
+  // the evm leaf field, unrelated to the pending set).
 
   return keccak_256(concat([u8(TAG.PENDING), ...entries]))
 }

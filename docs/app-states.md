@@ -206,6 +206,18 @@ include this transaction", never "sent".
    the resolved address** beside any address a user might pay — it is a
    picture of what will actually be paid.
 10. **Grace is neither gone nor free** — see §1's GRACE wording.
+11. **The §10.2 burn readout is a quiet fact, never a promise banner** —
+    Buy's footer shows burned, owed, and behind/ahead/even (`/burn`; the
+    share computed from `CONSTANTS.BURN_SHARE_BP`, never hardcoded), and
+    shows nothing when the API does not answer, so an unreachable record
+    never reads as a broken promise. (Decided 2026-08-17, built at the
+    2026-08-26 audit; its footer placement is provisional until the visual
+    pass.)
+12. **Empty states and date lines are neutral tone, and live in
+    `wording.ts`** like every other sentence — the Buy / My names / Offers /
+    Inbox empty-state titles and bodies, `justRegisteredLine`,
+    `parentNotRegisteredLine`, `graceEndsUnknownPhrase` and the expiry date
+    lines (centralised at the 2026-08-26 audit). None is a warning.
 
 ---
 
@@ -213,7 +225,7 @@ include this transaction", never "sent".
 
 | Screen | Must render |
 |---|---|
-| **Buy** | Every §3 outcome; every §2 verification value, warning tone and halting error; §1 states with overlays. Acquisition actions only — a name the viewer owns is the handoff, not the toolbox |
+| **Buy** | Every §3 outcome; every §2 verification value, warning tone and halting error; §1 states with overlays. Acquisition actions only — a name the viewer owns is the handoff, not the toolbox. The §10.2 burn readout in the footer (§5 rule 11) |
 | **Name detail** (in My names; one component, shared with Buy) | §1 REGISTERED/GRACE with all overlays; §2 badges; expiry ≈ date; renewal reminder from 60 d; owner actions gated per §4 (visible but disabled states carry the *reason* they are disabled) |
 | **My names** | `/address/{addr}/names` (REGISTERED and GRACE); expiry sort; the 60-day reminder; empty state ("no names yet") and the no-wallet state; a row opens that name's detail **in place**; Connect Wallet / Add another address / Disconnect |
 | **Pay** | §7 |

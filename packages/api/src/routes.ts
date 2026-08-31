@@ -1,5 +1,5 @@
 /**
- * The six read-only endpoints, as a pure `(method, url) → {status, body}`
+ * The read-only endpoints, as a pure `(method, url) → {status, body}`
  * function — testable without a socket, and the server file stays dumb.
  *
  * No protocol rules live here. Name syntax, address parsing and `MIN_PRICE`

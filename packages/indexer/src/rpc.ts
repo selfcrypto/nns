@@ -70,7 +70,8 @@ export interface RpcResponse<T> {
 /**
  * A transaction as the node returns it — the fields captured by the probe on
  * 2026-08-06. Note what is *not* here: any index, position or ordering field.
- * Canonical order comes from position in the block body array (spec §5.2).
+ * None is needed — §5.2's canonical order is `(blockNumber, transaction hash)`
+ * since r27, derived from this shape alone via `core.rankMessages`.
  */
 export interface RpcTransaction {
   readonly hash: string

@@ -74,13 +74,13 @@ body {
  * *further* off the bottom than the layout it replaced: a fixed element's
  * containing block is the layout viewport, which that WebView reports taller
  * than `100dvh` does. No browser reproduces the difference, so the frame is
- * `min-height: 100dvh` with a sticky tab bar again — the one measured to sit
+ * `min-height: 100svh` with a sticky tab bar again — the one measured to sit
  * where it should — and the insets are padding on top of it.
  *
- * `box-sizing: border-box` is global, so the padding eats into the 100dvh
+ * `box-sizing: border-box` is global, so the padding eats into the 100svh
  * rather than adding to it — the frame stays exactly the viewport and the
  * document gains no scroll. `100vh` first, because a WebView old enough to
- * drop `dvh` should still get a full-height frame rather than a collapsed one.
+ * drop `svh` should still get a full-height frame rather than a collapsed one.
  */
 .frame {
   display: flex;
@@ -348,7 +348,7 @@ li.note {
   font-size: 15px;
 }
 
-/* ── Actions (visible, gated; sends disabled in this build) ── */
+/* ── Actions (visible, gated) ── */
 
 .actions {
   margin-top: 14px;
@@ -788,7 +788,7 @@ li.note {
 /* An on-screen keyboard resizes the viewport, sticky resolves against the
    resized one, and the bar lands mid-screen over the sheet being typed into.
    Nobody switches tabs mid-keystroke; the bar returns with the viewport.
-   `data-keyboard` is maintained by chrome.ts's watchKeyboard. */
+   `data-keyboard` is maintained by chrome.ts's watchViewport. */
 [data-keyboard] .tabbar {
   display: none;
 }

@@ -85,7 +85,10 @@ only; it defaults to empty.
   pending or unreserved set is `keccak256(0x04)` / `keccak256(0x0A)` — the tag
   byte alone.
 
-  **These commitments are r22.** The unreserved set (tag `0x0A`, r16) is the
+  **These commitments are r26** — the leaf gained `evm:20B` at r26
+  (`COMMITMENT_LAYOUT` 5; `evm_set_is_twenty_raw_bytes` pins the encoding),
+  so every commitment over a state with a name in it moved at that bump.
+  The unreserved set (tag `0x0A`, r16) is the
   sixth component; an r15 implementation reproduces all four component digests
   and none of the commitments. `one_fired_unreserve` is the pair that shows
   why the component exists — a released name has no leaf and no pending entry,

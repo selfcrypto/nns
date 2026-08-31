@@ -1,5 +1,5 @@
 /**
- * `node:http` around the route handler. Six read-only routes do not earn a
+ * `node:http` around the route handler. Read-only routes do not earn a
  * framework dependency; everything with behaviour worth testing lives in
  * `routes.ts`, and this file only moves bytes.
  *

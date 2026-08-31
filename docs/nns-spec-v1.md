@@ -1711,6 +1711,7 @@ Applied before any other rule, and before a message is even parsed:
 | `executionResult` is `false` | **Albatross includes failed transactions in blocks.** Without this rule a failed `G` could take a name, and two implementations disagreeing about it would produce different roots |
 | Reward transactions | `getTransactionsByBatchNumber` returns them alongside user transactions; they carry no `NNS1` payload but must not be counted in ordering either |
 | `networkId` is not ours | Guards against a misconfigured node fed by a different network |
+| Height below `LAUNCH_HEIGHT` | Nothing before launch is protocol material. §7.1's scan starts at `LAUNCH_HEIGHT`; a pre-launch `NNS1`-shaped payload a node serves anyway must not become a message |
 | `recipientData` does not begin with `NNS1` | The ordinary case — most chain traffic is not NNS |
 
 The `executionResult` rule is the one that matters: it is invisible in the
