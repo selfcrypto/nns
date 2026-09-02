@@ -399,6 +399,13 @@ export class PgQueries implements Queries {
             // Keyed on the empty name, so no §4.1-valid name can match it —
             // but this query must not rely on the caller having validated.
             break
+          case 'AUCTION':
+            // Written by an r28 indexer (migration 010). Surfacing it as
+            // `auction` beside `offer` is tasks/13 D3; until then the row is
+            // tolerated rather than thrown on, so a name under auction still
+            // resolves — an `O` against it forfeits `AUCTION_OPEN` on chain,
+            // which is the protocol's own guard, not this route's.
+            break
           default:
             throw new QueryError(`pending row of unknown kind ${JSON.stringify(row['kind'])}`)
         }

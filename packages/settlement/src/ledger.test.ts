@@ -554,7 +554,7 @@ describe.skipIf(URL === undefined)('Ledger over Postgres', () => {
       logHash: hex(coreLogHash(staged.lines)),
       boundToCheckpoint: true,
     }
-    const snapshot = takeSnapshot(log, replayLog(staged.lines, initialState(), config))
+    const snapshot = takeSnapshot(log, replayLog(staged.lines, initialState(), config, height))
 
     const update = await ledgerOf().applySnapshot(snapshot)
     expect(update.inserted).toHaveLength(3)

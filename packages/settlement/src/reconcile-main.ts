@@ -41,7 +41,7 @@ async function run(argv: readonly string[]): Promise<number> {
 
   const settings = loadSettings()
   const snapshot = await fetchLog(settings.apiUrl, httpFetcher, bind)
-  const replay = replayLog(snapshot.lines, initialState(), settings.config)
+  const replay = replayLog(snapshot.lines, initialState(), settings.config, snapshot.checkpointHeight)
   const report = reconcile({
     replay,
     checkpointHeight: snapshot.checkpointHeight,

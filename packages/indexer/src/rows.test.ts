@@ -2,6 +2,7 @@ import {
   defineConfig,
   initialState,
   parseAddress,
+  type Auction,
   type NameRecord,
   type NnsState,
   type Obligation,
@@ -79,6 +80,36 @@ function populated(): NnsState {
         },
       ],
     ]),
+    // One auction with a standing bid and one without (r28, migration 010).
+    // The bid ref's txIndex is 0 on purpose: a falsy value is the one a
+    // `?? null` or a truthiness check would lose, and it is the commonest
+    // rank a bid can have.
+    auctions: new Map<string, Auction>([
+      [
+        'bob-in-grace',
+        {
+          name: 'bob-in-grace',
+          seller: address(B),
+          reserve: 50_000_000n,
+          endHeight: 58_290_000,
+          bidder: address(C),
+          bid: 52_500_000n,
+          bidRef: { height: 58_201_000, txIndex: 0 },
+        },
+      ],
+      [
+        'nns',
+        {
+          name: 'nns',
+          seller: address(A),
+          reserve: 400_000_000_000n,
+          endHeight: 58_300_000,
+          bidder: null,
+          bid: 0n,
+          bidRef: null,
+        },
+      ],
+    ]),
     prices: { feeStandard: 400_000_000n, feeLong: 40_000_000n, commissionBp: 250n },
     pendingGovernance: {
       prices: { feeStandard: 800_000_000n, feeLong: 80_000_000n, commissionBp: 500n },
@@ -110,6 +141,7 @@ function normalise(state: NnsState): unknown {
     names: [...state.names.entries()].sort(),
     transfers: [...state.transfers.entries()].sort(),
     offers: [...state.offers.entries()].sort(),
+    auctions: [...state.auctions.entries()].sort(),
     prices: state.prices,
     pendingGovernance: state.pendingGovernance,
     lastGovernanceHeight: state.lastGovernanceHeight,
@@ -143,6 +175,42 @@ describe('round trip', () => {
     expect(rows.unreserved.sort()).toEqual(['nimiq', 'wallet'])
   })
 
+  it('writes an AUCTION row per open auction, with the bid ref beside the committed fields', () => {
+    const rows = rowsOf(populated()).pending.filter((row) => row.kind === 'AUCTION')
+    expect(rows.map((row) => row.name).sort()).toEqual(['bob-in-grace', 'nns'])
+    const withBid = rows.find((row) => row.name === 'bob-in-grace')
+    expect(withBid).toMatchObject({
+      seller: address(B),
+      reserve: '50000000',
+      end_height: 58_290_000,
+      bidder: address(C),
+      bid: '52500000',
+      bid_ref_height: 58_201_000,
+      bid_ref_tx_index: 0,
+    })
+    const noBid = rows.find((row) => row.name === 'nns')
+    expect(noBid).toMatchObject({ bidder: null, bid: '0', bid_ref_height: null, bid_ref_tx_index: null })
+  })
+
+  it('refuses an AUCTION row whose bid is half present', () => {
+    // Migration 010's shape check refuses these at the table; the read
+    // refuses them too, so a row that arrived any other way cannot become an
+    // auction with a bid nobody can be refunded to, or a ref nobody paid.
+    const rows = rowsOf(populated())
+    const auction = rows.pending.find((row) => row.kind === 'AUCTION' && row.name === 'bob-in-grace')
+    if (auction === undefined) throw new Error('fixture has no auction with a bid')
+
+    const rewrite = (patch: Partial<typeof auction>) => ({
+      ...rows,
+      pending: rows.pending.map((row) => (row === auction ? { ...row, ...patch } : row)),
+    })
+    expect(() => stateFromRows(rewrite({ bidder: null }))).toThrow(RowError)
+    expect(() => stateFromRows(rewrite({ bid_ref_tx_index: null }))).toThrow(RowError)
+    expect(() => stateFromRows(rewrite({ bid_ref_height: null }))).toThrow(RowError)
+    expect(() => stateFromRows(rewrite({ bid: null }))).toThrow(RowError)
+    expect(() => stateFromRows(rewrite({ bidder: null, bid: '0', bid_ref_height: null, bid_ref_tx_index: null }))).not.toThrow()
+  })
+
   it('keeps obligation order within one transaction', () => {
     const restored = stateFromRows(rowsOf(populated()))
     expect(restored.outstanding.get('58190001:3')?.map((item) => item.kind)).toEqual([
@@ -164,6 +232,12 @@ describe('round trip', () => {
     const wire = {
       ...rows,
       names: rows.names.map((row) => ({ ...row, expiry: String(row.expiry) as unknown as number })),
+      pending: rows.pending.map((row) => ({
+        ...row,
+        end_height: (row.end_height === null ? null : String(row.end_height)) as unknown as number | null,
+        bid_ref_height: (row.bid_ref_height === null ? null : String(row.bid_ref_height)) as unknown as number | null,
+        bid_ref_tx_index: (row.bid_ref_tx_index === null ? null : String(row.bid_ref_tx_index)) as unknown as number | null,
+      })),
       params: {
         ...rows.params,
         state_height: String(rows.params.state_height) as unknown as number,

@@ -70,6 +70,12 @@ const PENDING_COLUMNS = [
   'fee_standard',
   'fee_long',
   'commission_bp',
+  'reserve',
+  'end_height',
+  'bidder',
+  'bid',
+  'bid_ref_height',
+  'bid_ref_tx_index',
 ] as const
 const SETTLEMENT_COLUMNS = [
   'ref_height',

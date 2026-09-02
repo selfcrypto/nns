@@ -19,6 +19,7 @@ import {
   LAUNCH_PRICES,
   parseAddress,
   type Address,
+  type Auction,
   type NameRecord,
   type NameStatus,
   type NnsState,
@@ -91,7 +92,10 @@ export type NameRow = {
 // and must be resynced, not migrated. 'UNRESERVE' went the same way in r22,
 // when a `U` became effective on landing and stopped having a pending form;
 // migration 007 drops the kind and the `recipient` column it needed.
-export type PendingKind = 'TRANSFER' | 'OFFER' | 'GOVERNANCE'
+// 'AUCTION' arrived with r28 (migration 010): an open auction is committed
+// pending state under §8.1 tag 0x0B, and the row carries the bid's ref too —
+// not committed, but the settlement identity the close owes its two legs by.
+export type PendingKind = 'TRANSFER' | 'OFFER' | 'AUCTION' | 'GOVERNANCE'
 
 export type PendingRow = {
   kind: PendingKind
@@ -105,6 +109,12 @@ export type PendingRow = {
   fee_standard: string | null
   fee_long: string | null
   commission_bp: string | null
+  reserve: string | null
+  end_height: number | null
+  bidder: string | null
+  bid: string | null
+  bid_ref_height: number | null
+  bid_ref_tx_index: number | null
 }
 
 export type ParamsRow = {
@@ -157,6 +167,12 @@ const emptyPending = {
   fee_standard: null,
   fee_long: null,
   commission_bp: null,
+  reserve: null,
+  end_height: null,
+  bidder: null,
+  bid: null,
+  bid_ref_height: null,
+  bid_ref_tx_index: null,
 } as const
 
 export function nameRows(state: NnsState): NameRow[] {
@@ -172,15 +188,6 @@ export function nameRows(state: NnsState): NameRow[] {
 }
 
 export function pendingRows(state: NnsState): PendingRow[] {
-  // r28 activated `A` in core, and an open auction is committed pending state
-  // (§8.1 tag 0x0B). Until migration 010 gives it a row, persisting a state
-  // that holds one would resume silently wrong — the kind of failure this
-  // package exists to refuse. Loud on purpose: tasks/13-auction.md, D2.
-  if (state.auctions.size > 0) {
-    throw new Error(
-      `state holds ${state.auctions.size} open auction(s) and the pending table cannot store them yet (tasks/13-auction.md, D2)`,
-    )
-  }
   const rows: PendingRow[] = []
   for (const item of state.transfers.values()) {
     rows.push({
@@ -200,6 +207,23 @@ export function pendingRows(state: NnsState): PendingRow[] {
       price: item.price.toString(10),
       opened_height: item.openedHeight,
       expiry_height: item.expiryHeight,
+    })
+  }
+  for (const item of state.auctions.values()) {
+    // `bid` is written even with no bidder: it is 0 then, and core's `Auction`
+    // says so — the column mirrors the field rather than encoding "no bid"
+    // twice. The ref is the one value here that is not in the §8.1 entry.
+    rows.push({
+      ...emptyPending,
+      kind: 'AUCTION',
+      name: item.name,
+      seller: item.seller,
+      reserve: item.reserve.toString(10),
+      end_height: item.endHeight,
+      bidder: item.bidder,
+      bid: item.bid.toString(10),
+      bid_ref_height: item.bidRef === null ? null : item.bidRef.height,
+      bid_ref_tx_index: item.bidRef === null ? null : item.bidRef.txIndex,
     })
   }
   if (state.pendingGovernance !== null) {
@@ -291,6 +315,7 @@ export function stateFromRows(rows: StateRows): NnsState {
 
   const transfers = new Map<string, PendingTransfer>()
   const offers = new Map<string, Offer>()
+  const auctions = new Map<string, Auction>()
   let pendingGovernance: PendingGovernance | null = null
 
   for (const row of rows.pending) {
@@ -312,6 +337,34 @@ export function stateFromRows(rows: StateRows): NnsState {
           expiryHeight: toHeight(required(row.expiry_height, 'pending.expiry_height'), 'pending.expiry_height'),
         })
         break
+      case 'AUCTION': {
+        // A bid is all-or-nothing: bidder, amount and ref together, or none
+        // of them. Migration 010's shape check refuses the half-present row
+        // at the table; this refuses it at the read, so a row that reached
+        // the state through any other path fails the same way.
+        const bidder = row.bidder === null ? null : toAddress(row.bidder, 'pending.bidder')
+        const bid = toLuna(required(row.bid, 'pending.bid'), 'pending.bid')
+        const bidRef =
+          bidder === null
+            ? null
+            : {
+                height: toHeight(required(row.bid_ref_height, 'pending.bid_ref_height'), 'pending.bid_ref_height'),
+                txIndex: toHeight(required(row.bid_ref_tx_index, 'pending.bid_ref_tx_index'), 'pending.bid_ref_tx_index'),
+              }
+        if (bidder === null && (bid !== 0n || row.bid_ref_height !== null || row.bid_ref_tx_index !== null)) {
+          throw new RowError(`pending: AUCTION row for ${JSON.stringify(name)} has bid fields but no bidder`)
+        }
+        auctions.set(name, {
+          name,
+          seller: toAddress(required(row.seller, 'pending.seller'), 'pending.seller'),
+          reserve: toLuna(required(row.reserve, 'pending.reserve'), 'pending.reserve'),
+          endHeight: toHeight(required(row.end_height, 'pending.end_height'), 'pending.end_height'),
+          bidder,
+          bid,
+          bidRef,
+        })
+        break
+      }
       case 'GOVERNANCE':
         if (pendingGovernance !== null) throw new RowError('pending: more than one GOVERNANCE row')
         pendingGovernance = {
@@ -362,8 +415,7 @@ export function stateFromRows(rows: StateRows): NnsState {
     names,
     transfers,
     offers,
-    // Nothing persists one yet (see `pendingRows`), so nothing can be read back.
-    auctions: new Map(),
+    auctions,
     prices,
     pendingGovernance,
     lastGovernanceHeight:

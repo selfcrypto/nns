@@ -127,6 +127,24 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
     // any more (migration 007 dropped the kind).
     expect((await queries.detail('legacy-brand')).value.unreserved).toBe(true)
 
+    // An r28 indexer writes an AUCTION row (migration 010). Until tasks/13
+    // D3 surfaces it, the route must tolerate it rather than throw — a name
+    // under auction still has to resolve.
+    await pool.query(
+      `INSERT INTO names (name, owner, target, expiry, status, host)
+       VALUES ('carol-example', $1, $1, 215880000, 'REGISTERED', '')`,
+      [B],
+    )
+    await pool.query(
+      `INSERT INTO pending (kind, name, seller, reserve, end_height, bidder, bid, bid_ref_height, bid_ref_tx_index)
+       VALUES ('AUCTION', 'carol-example', $1, '50000000', 58276400, $2, '52500000', 58190100, 0)`,
+      [B, A],
+    )
+    const auctioned = await queries.detail('carol-example')
+    expect(auctioned.value.record?.name).toBe('carol-example')
+    expect(auctioned.value.offer).toBeNull()
+    expect(auctioned.value.transfer).toBeNull()
+
     const owned = await queries.byOwner(A)
     expect(owned.value.map((r) => r.name)).toEqual(['alice-example', 'bob-example'])
     expect(owned.value[1]?.status).toBe('GRACE')

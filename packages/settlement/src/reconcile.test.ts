@@ -47,7 +47,7 @@ const scenario = [
 
 function reportFor(sends: typeof scenario, boundToCheckpoint = true) {
   const staged = stageLog(sends, config)
-  const replay = replayLog(staged.lines, initialState(), config)
+  const replay = replayLog(staged.lines, initialState(), config, LAUNCH_HEIGHT + 720)
   return reconcile({
     replay,
     checkpointHeight: LAUNCH_HEIGHT + 720,
@@ -81,10 +81,13 @@ describe('reconcile', () => {
     expect(report.totalOutstanding).toBe(COMMISSION + PRICE)
   })
 
-  it('ages each standing obligation against the end of the log', () => {
+  it('ages each standing obligation against the checkpoint the log was served through', () => {
+    // Not against the last line: the watcher ages by the stamped height, and
+    // since r28 the state itself is advanced to it (an auction can close in
+    // the gap), so the two reports say the same thing about the same debt.
     const report = reportFor(scenario)
     const refund = report.standing.find((leg) => leg.kind === 'REFUND')
-    expect(refund?.ageBlocks).toBe(H.settle - H.buy)
+    expect(refund?.ageBlocks).toBe(LAUNCH_HEIGHT + 720 - H.buy)
     expect(refund?.owedTo).toBe(LOSER)
   })
 
@@ -97,7 +100,7 @@ describe('reconcile', () => {
   it('is unsound when a verdict disagrees with the replay', () => {
     const staged = stageLog(scenario, config)
     const tampered = staged.lines.map((line) => line.replace(/ OFFER_NOT_OPEN$/, ' OK'))
-    const replay = replayLog(tampered, initialState(), config)
+    const replay = replayLog(tampered, initialState(), config, LAUNCH_HEIGHT + 720)
     const report = reconcile({
       replay,
       checkpointHeight: LAUNCH_HEIGHT + 720,
