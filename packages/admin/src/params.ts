@@ -22,6 +22,7 @@
 
 import type { PendingGovernance, Prices } from '@nns/core'
 
+import { apiBase, getJson, heightField, lunaField } from './api.js'
 import { AdminError } from './cli.js'
 
 /** `/params`, as a `P` needs it. */
@@ -42,30 +43,15 @@ export interface ParamsSource {
   fetchParams(): Promise<ActiveParams>
 }
 
-/** Luna and basis points cross the wire as decimal strings; `bigint` is the unit here. */
-function luna(value: unknown, field: string, url: string): bigint {
-  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
-    throw new AdminError(`${url} answered ${field} = ${JSON.stringify(value)} — expected a decimal string of luna`)
-  }
-  return BigInt(value)
-}
-
-function height(value: unknown, field: string, url: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw new AdminError(`${url} answered ${field} = ${JSON.stringify(value)} — expected a block height`)
-  }
-  return value
-}
-
 function prices(value: unknown, field: string, url: string): Prices {
   if (typeof value !== 'object' || value === null) {
     throw new AdminError(`${url} answered ${field} = ${JSON.stringify(value)} — expected the three prices`)
   }
   const raw = value as Record<string, unknown>
   return {
-    feeStandard: luna(raw['feeStandard'], `${field}.feeStandard`, url),
-    feeLong: luna(raw['feeLong'], `${field}.feeLong`, url),
-    commissionBp: luna(raw['commissionBp'], `${field}.commissionBp`, url),
+    feeStandard: lunaField(raw['feeStandard'], `${field}.feeStandard`, url),
+    feeLong: lunaField(raw['feeLong'], `${field}.feeLong`, url),
+    commissionBp: lunaField(raw['commissionBp'], `${field}.commissionBp`, url),
   }
 }
 
@@ -78,49 +64,29 @@ export function parseParams(body: unknown, url: string): ActiveParams {
   const pending = raw['pendingGovernance']
   return Object.freeze({
     prices: prices(raw['prices'], 'prices', url),
-    lastGovernanceHeight: last === null || last === undefined ? null : height(last, 'lastGovernanceHeight', url),
+    lastGovernanceHeight: last === null || last === undefined ? null : heightField(last, 'lastGovernanceHeight', url),
     pending:
       pending === null || pending === undefined
         ? null
         : {
             prices: prices((pending as Record<string, unknown>)['prices'], 'pendingGovernance.prices', url),
-            effectiveHeight: height(
+            effectiveHeight: heightField(
               (pending as Record<string, unknown>)['effectiveHeight'],
               'pendingGovernance.effectiveHeight',
               url,
             ),
           },
-    height: height(raw['height'], 'height', url),
+    height: heightField(raw['height'], 'height', url),
     url,
   })
 }
 
-/**
- * `GET {baseUrl}/params` over plain `fetch`. The error names the URL: the
- * first live run of the settlement reconciler produced a bare
- * `TypeError: fetch failed` naming neither URL nor attempt, which is a defect
- * this package does not need to repeat.
- */
+/** `GET {baseUrl}/params`. */
 export function createParamsSource(baseUrl: string): ParamsSource {
-  const url = `${baseUrl.replace(/\/+$/, '')}/params`
+  const url = `${apiBase(baseUrl)}/params`
   return {
     async fetchParams(): Promise<ActiveParams> {
-      let response: Response
-      try {
-        response = await fetch(url, { headers: { accept: 'application/json' } })
-      } catch (cause) {
-        throw new AdminError(`GET ${url} failed: ${cause instanceof Error ? cause.message : String(cause)}`)
-      }
-      if (!response.ok) {
-        throw new AdminError(`GET ${url} answered ${response.status} ${response.statusText}`)
-      }
-      let body: unknown
-      try {
-        body = await response.json()
-      } catch (cause) {
-        throw new AdminError(`GET ${url} did not answer JSON: ${cause instanceof Error ? cause.message : String(cause)}`)
-      }
-      return parseParams(body, url)
+      return parseParams(await getJson(url), url)
     },
   }
 }

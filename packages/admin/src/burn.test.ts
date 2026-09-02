@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { BURN_ADDRESS, CONSTANTS, defineConfig, encodeBurn } from '@nns/core'
+import { BURN_ADDRESS, CONSTANTS, encodeBurn } from '@nns/core'
 
-import { AdminRefusal, UsageError, type AdminRpc } from './cli.js'
+import { AdminRefusal, blockingChecks, broadcast, UsageError, type AdminRpc } from './cli.js'
 import {
-  broadcastBurn,
-  burnRefusals,
   confirmBurn,
   createBurnSource,
   describeBurnPlan,
@@ -22,7 +20,6 @@ const TREASURY = CONSTANTS.TREASURY_ADDRESS
 /** The parsed export — CONSTANTS.BURN_ADDRESS is the raw spaced string. */
 const BURN = BURN_ADDRESS
 
-const config = defineConfig({ networkId: 24 })
 
 const HEAD = 58_099_950
 const HASH = 'c0ffee'.repeat(10) + 'c0ff'
@@ -106,19 +103,19 @@ describe('parseBurnArgs', () => {
 describe('planBurn refusals', () => {
   it('refuses over-owed: the ceiling is owed − burned, and BURN_ADDRESS gives nothing back', async () => {
     const { rpc } = fakeRpc()
-    const plan = await planBurn(rpc, source(), config, { amount: OUTSTANDING + 1n })
-    const blocking = burnRefusals(plan)
+    const plan = await planBurn(rpc, source(), { amount: OUTSTANDING + 1n })
+    const blocking = blockingChecks(plan.checks)
     expect(blocking).toHaveLength(1)
     expect(blocking[0]?.message).toContain('over-owed')
     expect(blocking[0]?.message).toContain('unrecoverable')
-    await expect(broadcastBurn(rpc, config, plan)).rejects.toThrow(AdminRefusal)
+    await expect(broadcast(rpc, plan)).rejects.toThrow(AdminRefusal)
   })
 
   it('refuses when nothing is owed — burned already covers owed', async () => {
     const { rpc } = fakeRpc()
     const covered = { ...STATUS, burned: STATUS.owed }
-    const plan = await planBurn(rpc, source(covered), config, { amount: 1n })
-    expect(burnRefusals(plan)[0]?.message).toContain('nothing is owed')
+    const plan = await planBurn(rpc, source(covered), { amount: 1n })
+    expect(blockingChecks(plan.checks)[0]?.message).toContain('nothing is owed')
   })
 
   it('refuses over-balance: an unfunded burn is accepted by the RPC and never mined (§11.5)', async () => {
@@ -126,12 +123,12 @@ describe('planBurn refusals', () => {
     // the value is the whole amount, so under-balance means this exact
     // transaction cannot mine.
     const { rpc } = fakeRpc({ balance: Number(OUTSTANDING / 2n) })
-    const plan = await planBurn(rpc, source(), config, { amount: OUTSTANDING })
-    const blocking = burnRefusals(plan)
+    const plan = await planBurn(rpc, source(), { amount: OUTSTANDING })
+    const blocking = blockingChecks(plan.checks)
     expect(blocking).toHaveLength(1)
     expect(blocking[0]?.message).toContain('§11.5')
     expect(blocking[0]?.message).toContain('never be mined')
-    await expect(broadcastBurn(rpc, config, plan)).rejects.toThrow(AdminRefusal)
+    await expect(broadcast(rpc, plan)).rejects.toThrow(AdminRefusal)
   })
 
   it('refuses a stale ceiling: the node shows an executed F above the /burn snapshot', async () => {
@@ -146,13 +143,13 @@ describe('planBurn refusals', () => {
       value: 25_000_000,
     }
     const { rpc } = fakeRpc({ history: [uncounted] })
-    const plan = await planBurn(rpc, source(), config, { amount: 1n })
-    const blocking = burnRefusals(plan)
+    const plan = await planBurn(rpc, source(), { amount: 1n })
+    const blocking = blockingChecks(plan.checks)
     expect(blocking).toHaveLength(1)
     expect(blocking[0]?.message).toContain('stale ceiling')
     expect(blocking[0]?.message).toContain(String(STATUS.height))
     expect(plan.uncounted).toEqual([{ hash: uncounted.hash, blockNumber: uncounted.blockNumber, value: 25_000_000n }])
-    await expect(broadcastBurn(rpc, config, plan)).rejects.toThrow(AdminRefusal)
+    await expect(broadcast(rpc, plan)).rejects.toThrow(AdminRefusal)
   })
 
   it('refuses an inconclusive sweep: a full window entirely above the snapshot proves nothing', async () => {
@@ -167,18 +164,18 @@ describe('planBurn refusals', () => {
       value: 1,
     }))
     const { rpc } = fakeRpc({ history })
-    const plan = await planBurn(rpc, source(), config, { amount: 1n })
+    const plan = await planBurn(rpc, source(), { amount: 1n })
     expect(plan.sweepConclusive).toBe(false)
-    const blocking = burnRefusals(plan)
+    const blocking = blockingChecks(plan.checks)
     expect(blocking).toHaveLength(1)
     expect(blocking[0]?.message).toContain('inconclusive sweep')
-    await expect(broadcastBurn(rpc, config, plan)).rejects.toThrow(AdminRefusal)
+    await expect(broadcast(rpc, plan)).rejects.toThrow(AdminRefusal)
     // The same window with one entry at the snapshot height is conclusive.
     const anchored = [...history.slice(0, SWEEP_LIMIT - 1), { ...history[0]!, blockNumber: STATUS.height }]
     const { rpc: rpc2 } = fakeRpc({ history: anchored })
-    const plan2 = await planBurn(rpc2, source(), config, { amount: 1n })
+    const plan2 = await planBurn(rpc2, source(), { amount: 1n })
     expect(plan2.sweepConclusive).toBe(true)
-    expect(burnRefusals(plan2)).toEqual([])
+    expect(blockingChecks(plan2.checks)).toEqual([])
   })
 
   it('the sweep ignores counted burns, failed executions, and non-F traffic to BURN_ADDRESS', async () => {
@@ -191,16 +188,16 @@ describe('planBurn refusals', () => {
       { hash: '03'.repeat(32), blockNumber: STATUS.height + 6, recipientData: '4e4e533153', executionResult: true, value: 1 },
     ]
     const { rpc } = fakeRpc({ history })
-    const plan = await planBurn(rpc, source(), config, { amount: 1n })
+    const plan = await planBurn(rpc, source(), { amount: 1n })
     expect(plan.uncounted).toEqual([])
-    expect(burnRefusals(plan)).toEqual([])
+    expect(blockingChecks(plan.checks)).toEqual([])
   })
 })
 
 describe('planBurn', () => {
   it('plans a clean burn: builder bytes, read-only calls, no checks', async () => {
     const { rpc, calls } = fakeRpc()
-    const plan = await planBurn(rpc, source(), config, { amount: OUTSTANDING })
+    const plan = await planBurn(rpc, source(), { amount: OUTSTANDING })
     const expected = encodeBurn({ amount: OUTSTANDING, sender: TREASURY })
     expect(plan.recipient).toBe(BURN)
     expect(plan.data).toBe(expected.data)
@@ -215,8 +212,8 @@ describe('planBurn', () => {
     // Balance exactly covers burn + debts; the headroom is what is missing.
     const owes: TreasuryOwes = { total: 40_000_000n, legs: 2 }
     const { rpc } = fakeRpc({ balance: Number(OUTSTANDING + owes.total) })
-    const plan = await planBurn(rpc, source(STATUS, owes), config, { amount: OUTSTANDING })
-    expect(burnRefusals(plan)).toEqual([])
+    const plan = await planBurn(rpc, source(STATUS, owes), { amount: OUTSTANDING })
+    expect(blockingChecks(plan.checks)).toEqual([])
     expect(plan.checks).toHaveLength(1)
     expect(plan.checks[0]).toMatchObject({ severity: 'warn' })
     expect(plan.checks[0]?.message).toContain('refunds are paid from this address')
@@ -229,7 +226,7 @@ describe('describeBurnPlan', () => {
     // The user-facing rule: the /burn height beside the current head, so an
     // operator acting on old data sees it before --send, not after.
     const { rpc } = fakeRpc()
-    const plan = await planBurn(rpc, source(), config, { amount: OUTSTANDING })
+    const plan = await planBurn(rpc, source(), { amount: OUTSTANDING })
     const lines = describeBurnPlan(plan).join('\n')
     expect(lines).toContain(`${STATUS.url} at height ${STATUS.height}`)
     expect(lines).toContain(`head is ${HEAD}`)
@@ -238,7 +235,7 @@ describe('describeBurnPlan', () => {
 
   it('decodes the payload it built and prints the wire value, the two addresses, and IRREVERSIBLE', async () => {
     const { rpc } = fakeRpc()
-    const plan = await planBurn(rpc, source(), config, { amount: OUTSTANDING })
+    const plan = await planBurn(rpc, source(), { amount: OUTSTANDING })
     const lines = describeBurnPlan(plan).join('\n')
     expect(lines).toContain('4e4e533146')
     expect(lines).toContain('decoded: F, no fields')
@@ -250,16 +247,16 @@ describe('describeBurnPlan', () => {
 
   it('throws rather than print a plan whose payload is not an F', async () => {
     const { rpc } = fakeRpc()
-    const plan = await planBurn(rpc, source(), config, { amount: 1n })
+    const plan = await planBurn(rpc, source(), { amount: 1n })
     expect(() => describeBurnPlan({ ...plan, data: '4e4e5331556e696d6971' })).toThrow(/does not parse back as one/)
   })
 })
 
-describe('broadcastBurn', () => {
+describe('broadcast', () => {
   it('unlocks the treasury by address, then sends with the probed parameter order and the plan head', async () => {
     const { rpc, calls } = fakeRpc()
-    const plan = await planBurn(rpc, source(), config, { amount: OUTSTANDING })
-    const outcome = await broadcastBurn(rpc, config, plan)
+    const plan = await planBurn(rpc, source(), { amount: OUTSTANDING })
+    const outcome = await broadcast(rpc, plan)
     expect(outcome).toEqual({ validityStartHeight: HEAD, hash: HASH })
     const sent = calls.filter((c) => c.method === 'unlockAccount' || c.method === 'sendBasicTransactionWithData')
     expect(sent[0]?.params).toEqual([TREASURY, null, null])

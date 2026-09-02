@@ -1,15 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { CONSTANTS, CodecError, LAUNCH_PRICES, defineConfig, encodeGovernance, parseAddress } from '@nns/core'
+import { CONSTANTS, CodecError, LAUNCH_PRICES, encodeGovernance, parseAddress } from '@nns/core'
 
-import { AdminRefusal, NOTICE_MARGIN, UsageError, type AdminRpc } from './cli.js'
+import { AdminRefusal, blockingChecks, broadcast, NOTICE_MARGIN, UsageError, type AdminRpc } from './cli.js'
 import {
   LARGE_MOVE_FACTOR,
   PARAMS_LAG_LIMIT,
-  broadcastGovernance,
   describeGovernancePlan,
   parseGovernanceArgs,
   planGovernance,
-  refusals,
   type GovernanceParams,
   type GovernancePlan,
 } from './governance.js'
@@ -20,7 +18,6 @@ const PROTOCOL = CONSTANTS.PROTOCOL_ADDRESS
 const ADMIN = CONSTANTS.ADMIN_ADDRESS
 const MARKETPLACE = CONSTANTS.MARKETPLACE_ADDRESS
 
-const config = defineConfig({ networkId: 24 })
 
 const HEAD = 58_099_950
 /** The minimum this CLI will accept: GOVERNANCE_DELAY plus the mempool margin. */
@@ -82,7 +79,7 @@ async function plan(
   balance = BALANCE,
 ): Promise<GovernancePlan> {
   const { rpc } = fakeRpc(balance)
-  return await planGovernance(rpc, source(paramsOverrides), config, { ...params, ...overrides })
+  return await planGovernance(rpc, source(paramsOverrides), { ...params, ...overrides })
 }
 
 const messages = (built: GovernancePlan): string => built.checks.map((check) => check.message).join('\n')
@@ -90,7 +87,7 @@ const messages = (built: GovernancePlan): string => built.checks.map((check) => 
 describe('planGovernance', () => {
   it('builds the message core builds, and reads only the head, the parameters and the balance', async () => {
     const { rpc, calls } = fakeRpc()
-    const built = await planGovernance(rpc, source(), config, params)
+    const built = await planGovernance(rpc, source(), params)
 
     const expected = encodeGovernance(params)
     expect(built.data).toBe(expected.data)
@@ -112,7 +109,7 @@ describe('planGovernance', () => {
 
   it('refuses offline, before the node hears anything, whatever the builder refuses', async () => {
     const { rpc, calls } = fakeRpc()
-    await expect(planGovernance(rpc, source(), config, { ...params, feeStandard: -1n })).rejects.toThrow(CodecError)
+    await expect(planGovernance(rpc, source(), { ...params, feeStandard: -1n })).rejects.toThrow(CodecError)
     expect(calls).toEqual([])
   })
 })
@@ -120,7 +117,7 @@ describe('planGovernance', () => {
 describe('§10.6 bounds — core’s rule, checked before signing', () => {
   it('refuses a price above PRICE_CEILING, and says the message cannot be retracted', async () => {
     const built = await plan({ feeStandard: CONSTANTS.PRICE_CEILING + 1n })
-    expect(refusals(built)).toHaveLength(1)
+    expect(blockingChecks(built.checks)).toHaveLength(1)
     expect(messages(built)).toContain('PRICE_BAND')
     expect(messages(built)).toContain('GOVERNANCE_BOUND_VIOLATED')
     expect(messages(built)).toContain('cannot be retracted')
@@ -130,7 +127,7 @@ describe('§10.6 bounds — core’s rule, checked before signing', () => {
     // §10.6 has no rate limit, so a 3× move is a legal P. The only thing left
     // between a misplaced decimal and a repriced registry is this warning.
     const built = await plan({ feeStandard: LAUNCH_PRICES.feeStandard * 3n })
-    expect(refusals(built)).toEqual([])
+    expect(blockingChecks(built.checks)).toEqual([])
     expect(messages(built)).toContain(`more than ${LARGE_MOVE_FACTOR}×`)
     expect(messages(built)).toContain('Check the decimal point')
   })
@@ -174,7 +171,7 @@ describe('notice (§6 P) — the bound that cannot be checked exactly', () => {
 
   it('refuses the bare minimum too, and names the height that carries the margin', async () => {
     const built = await plan({ effectiveHeight: HEAD + CONSTANTS.GOVERNANCE_DELAY })
-    expect(refusals(built)).toHaveLength(1)
+    expect(blockingChecks(built.checks)).toHaveLength(1)
     expect(messages(built)).toContain('measured from the block this lands in')
     expect(messages(built)).toContain(String(HEAD + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN))
   })
@@ -187,14 +184,14 @@ describe('notice (§6 P) — the bound that cannot be checked exactly', () => {
 describe('§11.5 balance precheck', () => {
   it('refuses a sender that cannot cover value + fee — the failure is silence, not an error', async () => {
     const built = await plan({}, {}, 0)
-    expect(refusals(built)).toHaveLength(1)
+    expect(blockingChecks(built.checks)).toHaveLength(1)
     expect(messages(built)).toContain('§11.5')
     expect(messages(built)).toContain('never be mined')
   })
 
   it('warns — and still sends — below the operational floor', async () => {
     const built = await plan({}, {}, 5)
-    expect(refusals(built)).toEqual([])
+    expect(blockingChecks(built.checks)).toEqual([])
     expect(built.checks.map((check) => check.severity)).toEqual(['warn'])
     expect(messages(built)).toContain('top it up')
   })
@@ -206,7 +203,7 @@ describe('§11.5 balance precheck', () => {
         return Promise.resolve({ balance: '1000' } as T)
       },
     }
-    await expect(planGovernance(rpc, source(), config, params)).rejects.toThrow(/whole number of luna/)
+    await expect(planGovernance(rpc, source(), params)).rejects.toThrow(/whole number of luna/)
   })
 })
 
@@ -267,11 +264,11 @@ describe('describeGovernancePlan', () => {
   })
 })
 
-describe('broadcastGovernance', () => {
+describe('broadcast', () => {
   it('unlocks by address, then sends with the probed parameter order and the plan head', async () => {
     const { rpc, calls } = fakeRpc()
-    const built = await planGovernance(rpc, source(), config, params)
-    const outcome = await broadcastGovernance(rpc, config, built)
+    const built = await planGovernance(rpc, source(), params)
+    const outcome = await broadcast(rpc, built)
 
     expect(outcome).toEqual({ validityStartHeight: HEAD, hash: HASH })
     expect(calls.map((call) => call.method)).toEqual([
@@ -288,8 +285,8 @@ describe('broadcastGovernance', () => {
 
   it('refuses a plan carrying a refusal, without unlocking anything', async () => {
     const { rpc, calls } = fakeRpc(0)
-    const built = await planGovernance(rpc, source(), config, { ...params, effectiveHeight: HEAD })
-    await expect(broadcastGovernance(rpc, config, built)).rejects.toThrow(AdminRefusal)
+    const built = await planGovernance(rpc, source(), { ...params, effectiveHeight: HEAD })
+    await expect(broadcast(rpc, built)).rejects.toThrow(AdminRefusal)
     expect(calls.map((call) => call.method)).toEqual(['getBlockNumber', 'getAccountByAddress'])
   })
 })

@@ -25,13 +25,10 @@ import {
   formatAddress,
   governanceBoundViolation,
   type Address,
-  type NnsConfig,
 } from '@nns/core'
 
 import {
   ADMIN_MIN_BALANCE,
-  AdminRefusal,
-  blockingChecks,
   NOTICE_MARGIN,
   UsageError,
   formatLuna,
@@ -96,16 +93,6 @@ export interface GovernancePlan {
   readonly checks: readonly GovernanceCheck[]
 }
 
-export interface GovernanceOutcome {
-  readonly validityStartHeight: number
-  readonly hash: string
-}
-
-/** The checks that stop a broadcast. Empty means `--send` adds nothing but the send. */
-export function refusals(plan: GovernancePlan): readonly GovernanceCheck[] {
-  return blockingChecks(plan.checks)
-}
-
 function amount(raw: string | undefined, label: string): bigint {
   if (raw === undefined) throw new UsageError(`p takes ${label}`)
   if (!/^\d+$/.test(raw)) {
@@ -147,7 +134,6 @@ export function parseGovernanceArgs(argv: readonly string[]): GovernanceCommand 
 export async function planGovernance(
   rpc: AdminRpc,
   source: ParamsSource,
-  config: NnsConfig,
   params: GovernanceParams,
 ): Promise<GovernancePlan> {
   const tx = encodeGovernance({ ...params, sender: CONSTANTS.ADMIN_ADDRESS })
@@ -268,39 +254,4 @@ export function describeGovernancePlan(plan: GovernancePlan): string[] {
     lines.push(`  ${severity === 'refuse' ? 'REFUSED' : 'WARNING'}: ${message}`)
   }
   return lines
-}
-
-/**
- * Broadcast a plan. Sequence per `docs/rpc-reference.md` §5.2: unlock the
- * admin account by address — the key stays in the node's wallet — then send,
- * reusing the plan's head as `validityStartHeight`.
- *
- * It refuses a plan carrying a refusal rather than trusting the caller to have
- * looked: this is the only function in the module that can spend, and the
- * message it would send is unretractable.
- */
-export async function broadcastGovernance(
-  rpc: AdminRpc,
-  config: NnsConfig,
-  plan: GovernancePlan,
-): Promise<GovernanceOutcome> {
-  const blocking = refusals(plan)
-  if (blocking.length > 0) {
-    throw new AdminRefusal(
-      `refusing to broadcast: ${blocking.length} check${blocking.length === 1 ? '' : 's'} failed — ` +
-        blocking.map((check) => check.message).join('; '),
-    )
-  }
-  await rpc.call('unlockAccount', [CONSTANTS.ADMIN_ADDRESS, null, null])
-  const hash = await rpc.call<string>('sendBasicTransactionWithData', [
-    CONSTANTS.ADMIN_ADDRESS,
-    plan.recipient,
-    plan.data,
-    // JSON has no bigint; the value is DUST_VALUE by construction, so the
-    // conversion cannot lose precision. fee 0 is accepted (§5.4).
-    Number(plan.value),
-    0,
-    plan.head,
-  ])
-  return { validityStartHeight: plan.head, hash }
 }

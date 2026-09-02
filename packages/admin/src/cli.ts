@@ -68,6 +68,62 @@ export function blockingChecks(checks: readonly AdminCheck[]): readonly AdminChe
 }
 
 /**
+ * What the send needs from a plan, whichever command built it: the bytes,
+ * the two addresses, the head it was planned against, and the checks. Every
+ * plan carries more; this is the slice {@link broadcast} reads.
+ */
+export interface SendablePlan {
+  readonly sender: Address
+  readonly recipient: Address
+  /** Hex, as the RPC takes it. */
+  readonly data: string
+  readonly value: bigint
+  readonly head: number
+  readonly checks: readonly AdminCheck[]
+}
+
+export interface Broadcast {
+  readonly validityStartHeight: number
+  readonly hash: string
+}
+
+/**
+ * The send, once. `p`, `u` and `f` each had a copy until 2026-09-02, alike
+ * to the line except for the sender — which the plan already knows.
+ *
+ * A plan carrying any refusal cannot be broadcast: the message would be
+ * forfeited or would never be mined. Then unlock by address (the key lives
+ * in the node's wallet, docs/rpc-reference.md §5) and send with the probed
+ * parameter order — `[wallet, recipient, dataHex, value, fee,
+ * validityStartHeight]`. The fee is 0 for every message here (§5.4 accepts
+ * it), and `validityStartHeight` is the head the plan was built against.
+ *
+ * JSON has no bigint, so `value` crosses as a number. For the dust-valued
+ * commands the narrowing cannot lose precision; for `f` the value *is* the
+ * burn, and `planBurn` refuses any amount outside safe-integer range before
+ * this cast can be reached.
+ */
+export async function broadcast(rpc: AdminRpc, plan: SendablePlan): Promise<Broadcast> {
+  const blocking = blockingChecks(plan.checks)
+  if (blocking.length > 0) {
+    throw new AdminRefusal(
+      `refusing to broadcast: ${blocking.length} check${blocking.length === 1 ? '' : 's'} failed — ` +
+        blocking.map((check) => check.message).join('; '),
+    )
+  }
+  await rpc.call('unlockAccount', [plan.sender, null, null])
+  const hash = await rpc.call<string>('sendBasicTransactionWithData', [
+    plan.sender,
+    plan.recipient,
+    plan.data,
+    Number(plan.value),
+    0,
+    plan.head,
+  ])
+  return { validityStartHeight: plan.head, hash }
+}
+
+/**
  * Margin this CLI demands *above* `GOVERNANCE_DELAY`, in blocks (~1 h).
  *
  * Notice is the one §10.6 bound that cannot be checked exactly. The reducer

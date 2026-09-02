@@ -25,6 +25,7 @@
  * response and stamps it with the height it was read at.
  */
 
+import { apiBase, getJson, heightField } from './api.js'
 import { AdminError } from './cli.js'
 
 /**
@@ -88,13 +89,6 @@ export function describeAvailability(availability: NameAvailability): string {
   return `not registrable: ${reason ?? 'no reason given'} (§4.1)`
 }
 
-function height(value: unknown, field: string, url: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw new AdminError(`${url} answered ${field} = ${JSON.stringify(value)} — expected a block height`)
-  }
-  return value
-}
-
 function optionalString(value: unknown, field: string, url: string): string | null {
   if (value === null || value === undefined) return null
   if (typeof value !== 'string') {
@@ -122,38 +116,19 @@ export function parseAvailability(body: unknown, url: string): NameAvailability 
     available,
     reason: optionalString(raw['reason'], 'reason', url),
     status: optionalString(raw['status'], 'status', url),
-    expiry: expiry === null || expiry === undefined ? null : height(expiry, 'expiry', url),
-    height: height(raw['height'], 'height', url),
+    expiry: expiry === null || expiry === undefined ? null : heightField(expiry, 'expiry', url),
+    height: heightField(raw['height'], 'height', url),
     url,
   })
 }
 
-/**
- * `GET {baseUrl}/available/{name}` over plain `fetch`. The error names the
- * URL, for `params.ts`'s reason: a bare `TypeError: fetch failed` naming
- * neither URL nor attempt is a defect this package does not need to repeat.
- */
+/** `GET {baseUrl}/available/{name}`. */
 export function createReservationSource(baseUrl: string): ReservationSource {
-  const base = `${baseUrl.replace(/\/+$/, '')}/available`
+  const base = `${apiBase(baseUrl)}/available`
   return {
     async fetchAvailability(name: string): Promise<NameAvailability> {
       const url = `${base}/${encodeURIComponent(name)}`
-      let response: Response
-      try {
-        response = await fetch(url, { headers: { accept: 'application/json' } })
-      } catch (cause) {
-        throw new AdminError(`GET ${url} failed: ${cause instanceof Error ? cause.message : String(cause)}`)
-      }
-      if (!response.ok) {
-        throw new AdminError(`GET ${url} answered ${response.status} ${response.statusText}`)
-      }
-      let body: unknown
-      try {
-        body = await response.json()
-      } catch (cause) {
-        throw new AdminError(`GET ${url} did not answer JSON: ${cause instanceof Error ? cause.message : String(cause)}`)
-      }
-      return parseAvailability(body, url)
+      return parseAvailability(await getJson(url), url)
     },
   }
 }
