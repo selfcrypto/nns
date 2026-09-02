@@ -124,23 +124,23 @@ export async function broadcast(rpc: AdminRpc, plan: SendablePlan): Promise<Broa
 }
 
 /**
- * Margin this CLI demands *above* `GOVERNANCE_DELAY`, in blocks (~1 h).
+ * Margin this CLI demands *above* a landing-measured floor, in blocks (~1 h).
  *
- * Notice is the one §10.6 bound that cannot be checked exactly. The reducer
- * measures it from the block the message **lands in** (§6 `P`); this process
- * only knows the head it planned against, and an `effective_height` at exactly
- * `head + GOVERNANCE_DELAY` therefore forfeits unless the message is mined in
- * the very next block. §6 `P` says clients MUST compute it "with margin above
- * `GOVERNANCE_DELAY`, never from the exact minimum"; this is that margin. It
- * is client policy rather than a protocol rule, which is why it lives here and
- * not in `core`.
+ * Two messages carry a height the reducer measures from the block they
+ * **land in**: `P`'s `effective_height` against `GOVERNANCE_DELAY` (§6 `P`)
+ * and, since r28, `A`'s `end_height` against `AUCTION_MIN_DURATION` (§6 `A`,
+ * "measured from inclusion like `P`'s notice"). This process only knows the
+ * head it planned against, so a height at exactly `head + floor` forfeits
+ * unless the message is mined in the very next block. §6 `P` says clients
+ * MUST compute it "with margin above `GOVERNANCE_DELAY`, never from the exact
+ * minimum"; this is that margin, and the same one serves `A`. It is client
+ * policy rather than a protocol rule, which is why it lives here and not in
+ * `core`.
  *
- * **`p` only since r22.** It was shared with `u` for exactly one day: `u`
- * checked notice in its own copy, only warned, and broadcast a certain
- * `INSUFFICIENT_NOTICE` anyway, so the two were merged here — and then r22 took
- * `U` out of `GOVERNANCE_DELAY` altogether (§6 `U`). `f` carries no height
- * either, so `P` is the only message with a notice and {@link noticeChecks}
- * names it outright.
+ * **One check, parameterised by the floor.** It was `P`'s alone from r22
+ * (when `U` lost its height) until r28 gave `A` a window of the same shape;
+ * the day it was two copies, `u`'s only warned and broadcast a certain
+ * `INSUFFICIENT_NOTICE`, which is the argument for keeping it one.
  *
  * **Why an hour rather than the measured latency.** Three delays stack between
  * reading the head and landing in a block, and the one that is easy to measure
@@ -165,20 +165,46 @@ export async function broadcast(rpc: AdminRpc, plan: SendablePlan): Promise<Broa
  */
 export const NOTICE_MARGIN = BLOCKS_PER_HOUR
 
+/** A height the reducer measures from the landing block, and the floor it must clear. */
+export interface LandingBound {
+  /** How the plan names the rule — `§6 P notice`, `§6 A window`. */
+  readonly clause: string
+  /** The height field's name in the operator's words. */
+  readonly field: string
+  readonly floor: number
+  readonly floorName: string
+}
+
+/** `P`: `effective_height − landing ≥ GOVERNANCE_DELAY` (§6 `P`, §10.6). */
+export const GOVERNANCE_NOTICE: LandingBound = Object.freeze({
+  clause: '§6 P notice',
+  field: 'effective height',
+  floor: CONSTANTS.GOVERNANCE_DELAY,
+  floorName: 'GOVERNANCE_DELAY',
+})
+
+/** `A`: `end_height − landing ≥ AUCTION_MIN_DURATION` (§6 `A`), forfeiting the same token. */
+export const AUCTION_WINDOW: LandingBound = Object.freeze({
+  clause: '§6 A window',
+  field: 'end height',
+  floor: CONSTANTS.AUCTION_MIN_DURATION,
+  floorName: 'AUCTION_MIN_DURATION',
+})
+
 /**
- * §6 `P` notice. Empty when the notice clears `GOVERNANCE_DELAY` with the
- * margin. `P`'s alone: a `U` carries no height since r22 and an `F` never
- * did, so there is no other message this bound could be checked for.
+ * The landing-measured bound. Empty when the target clears the floor with the
+ * margin; otherwise one refusal, because both shortfalls forfeit
+ * `INSUFFICIENT_NOTICE` and neither can be retracted.
  */
-export function noticeChecks(effectiveHeight: number, head: number): AdminCheck[] {
-  const notice = effectiveHeight - head
-  const floor = CONSTANTS.GOVERNANCE_DELAY
+export function noticeChecks(target: number, head: number, bound: LandingBound): AdminCheck[] {
+  const notice = target - head
+  const { clause, field, floor, floorName } = bound
   if (notice < floor) {
     return [
       {
         severity: 'refuse',
         message:
-          `§6 P notice: effective height is ${notice} blocks from head ${head}, under GOVERNANCE_DELAY ` +
+          `${clause}: ${field} is ${notice} blocks from head ${head}, under ${floorName} ` +
           `(${floor} blocks, ${hours(floor)}) — ` +
           'this forfeits INSUFFICIENT_NOTICE even if it is mined in the next block',
       },
@@ -189,8 +215,8 @@ export function noticeChecks(effectiveHeight: number, head: number): AdminCheck[
       {
         severity: 'refuse',
         message:
-          `§6 P notice: effective height is ${notice} blocks from head ${head}, which clears ` +
-          `GOVERNANCE_DELAY by ${notice - floor} blocks. Notice is measured from the block this lands in, not ` +
+          `${clause}: ${field} is ${notice} blocks from head ${head}, which clears ` +
+          `${floorName} by ${notice - floor} blocks. The window is measured from the block this lands in, not ` +
           `from now, so it forfeits if it waits longer than that between here and a block — use at least ` +
           `${head + floor + NOTICE_MARGIN} (${hours(NOTICE_MARGIN)} of margin)`,
       },

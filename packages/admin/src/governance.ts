@@ -29,6 +29,7 @@ import {
 
 import {
   ADMIN_MIN_BALANCE,
+  GOVERNANCE_NOTICE,
   NOTICE_MARGIN,
   UsageError,
   formatLuna,
@@ -196,9 +197,10 @@ function check(
   move('fee_long', active.prices.feeLong, params.feeLong)
 
   // §6 `P` notice, plus the margin the landing block makes necessary. It
-  // lives in `cli.ts` from the day it was shared with `u`; since r22 `P` is
-  // the only message that has one.
-  checks.push(...noticeChecks(params.effectiveHeight, head))
+  // lives in `cli.ts` from the day it was shared with `u`; since r28 `A`'s
+  // window is the other bound of that shape, and the check is one function
+  // parameterised by the floor.
+  checks.push(...noticeChecks(params.effectiveHeight, head, GOVERNANCE_NOTICE))
 
   // §11.5 rule 1 — an unfunded sender fails by silence, not by error.
   if (balance < cost) {

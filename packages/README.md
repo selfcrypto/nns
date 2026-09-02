@@ -20,9 +20,9 @@ somebody's client. That is the failure mode the whole design exists to prevent.
 | **`app`** | The Nimiq Pay mini app — search, register, manage. Static Vite bundle | no | `resolver`, relay |
 | **`relay`** | RPC proxy for the app: five allowlisted node methods, rate limits, CORS | **node credential** | node |
 | **`delegate`** | Reference §8.6 host: answers `shop.alice` for one name's owner | no | nothing |
-| **`settlement`** | Watches obligations and issues `M` — payouts, commission, refunds | **two hot keys** | any NNS API, node (wallet) |
+| **`settlement`** | Watches obligations and issues `M` — payouts, commission, refunds; since r28 the auction's outbid refunds and its close's two legs, which no log line announces | **two hot keys** | any NNS API, node (wallet) |
 | **`anchor`** | The §9 EVM contract, its publisher, and a browser-safe reader | funded EVM key | an EVM chain, IPFS |
-| **`admin`** | Cold-key CLI for `P` (governance), `U` (unreserve), `F` (burn attestation) | **cold key** (in the node's wallet) | node, an NNS API |
+| **`admin`** | Cold-key CLI for `P` (governance), `U` (unreserve), `F` (burn attestation), `A` (the admin's auction of a reserved name, r28) | **cold key** (in the node's wallet) | node, an NNS API |
 | **`chat`** | The NC message convention (`docs/app-chat.md`): wire format, inbox derivation. **Not protocol** | no | **nothing** — pure |
 | **`chat-index`** | Optional: indexes NC messages and serves them by address, so the Inbox is a lookup rather than a full-history pull | no | node (read), its own Postgres |
 
@@ -59,7 +59,7 @@ deploy it, and the registry is unchanged.
    anchor      publishes checkpoint roots to an EVM chain, so past
                claims cannot be quietly rewritten.
 
-   admin       sends P / U / F from the cold key.
+   admin       sends P / U / F / A from the cold key.
 ```
 
 `relay` is the odd one: it has **no workspace dependencies at all**, because it

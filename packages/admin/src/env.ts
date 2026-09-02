@@ -26,7 +26,9 @@ export interface AdminSettings {
    * Base URL of an NNS API. Every command needs one — `p` for the active
    * prices (`params.ts`), `u` for whether the name is still RESERVED
    * (`reservation.ts`, since 2026-08-21), `f` for the §10.2 ceiling
-   * (`burn.ts`) — but none of it is chain state a node could answer, so it is
+   * (`burn.ts`), `a` for all three of the floor, the reservation and the open
+   * auctions (`auction.ts`, r28) — but none of it is chain state a node could
+   * answer, so it is
    * parsed here and demanded by each command on entry rather than at load:
    * the error then says which read the command cannot make without it.
    */

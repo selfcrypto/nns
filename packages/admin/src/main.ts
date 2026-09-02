@@ -1,9 +1,10 @@
 /**
- * Admin CLI entry point. Three commands:
+ * Admin CLI entry point. Four commands:
  *
  *   p <fee_standard> <fee_long> <commission_bp> <effective-height> [--send]
  *   u <name> [recipient] [--send]
  *   f <amount_luna> [--send]
+ *   a <name> <reserve_luna> <end-height> [--send]
  *
  * Dry-run by default: the plan is always printed, and nothing is broadcast
  * without `--send`.
@@ -11,6 +12,8 @@
 
 import { RpcClient } from '@nns/indexer'
 
+import { describeAuctionPlan, parseAuctionArgs, planAuction } from './auction.js'
+import { createAuctionsSource } from './auctions.js'
 import { confirmBurn, createBurnSource, describeBurnPlan, parseBurnArgs, planBurn } from './burn.js'
 import { blockingChecks, broadcast, UsageError, type AdminRpc, type Broadcast, type SendablePlan } from './cli.js'
 import { loadSettings } from './env.js'
@@ -22,6 +25,7 @@ import { describePlan, parseUnreserveArgs, planUnreserve } from './unreserve.js'
 const USAGE = `usage: p <fee_standard> <fee_long> <commission_bp> <effective-height> [--send]
        u <name> [recipient] [--send]
        f <amount_luna> [--send]
+       a <name> <reserve_luna> <end-height> [--send]
 
 p builds a P (§6): the two prices — in luna — and the marketplace commission in
 basis points, all in one message, taking effect at the given height. It checks
@@ -56,19 +60,31 @@ ceiling is provably stale (the node shows an executed F the /burn snapshot
 has not counted). After --send it polls /burn until the attestation appears,
 and reports UNCONFIRMED honestly if it does not — a hash is not confirmation.
 
+a builds an A (§6, r28): the admin's auction of a name still held in
+RESERVED_NAMES — a reserve in luna (at least MIN_PRICE as in effect, read from
+GET /params) and the height the window ends at. At the close the standing bid
+wins: the name is REGISTERED to the bidder for a full term, leaves the reserved
+set, and both legs of the sale land on TREASURY_ADDRESS. It REFUSES a name
+that is not currently reserved (GET /available/{name} — a released or
+registered name forfeits NAME_NOT_FOUND or NOT_OWNER), a name already under
+auction (GET /auctions — a second A forfeits AUCTION_OPEN), and an end under
+AUCTION_MIN_DURATION plus the same landing margin p applies to notice. K
+cannot cancel an auction, so the decoded dry run is the last point to stop it.
+
 All are dry runs; nothing is broadcast without --send.
 
 Settings come from the environment; see packages/admin/.env.example.`
 
 async function run(argv: readonly string[]): Promise<number> {
   const [command, ...rest] = argv
-  if (command !== 'p' && command !== 'u' && command !== 'f') {
+  if (command !== 'p' && command !== 'u' && command !== 'f' && command !== 'a') {
     console.error(USAGE)
     return 2
   }
   try {
     if (command === 'p') return await runGovernance(rest)
     if (command === 'u') return await runUnreserve(rest)
+    if (command === 'a') return await runAuction(rest)
     return await runBurn(rest)
   } catch (error) {
     if (error instanceof UsageError) {
@@ -81,7 +97,7 @@ async function run(argv: readonly string[]): Promise<number> {
   }
 }
 
-/** What differs between the three commands, once the loop around them is shared. */
+/** What differs between the four commands, once the loop around them is shared. */
 interface Command<Plan extends SendablePlan> {
   /** Why this command cannot run without `NNS_API_URL` — the usage error names the read. */
   readonly apiReason: string
@@ -96,7 +112,8 @@ interface Command<Plan extends SendablePlan> {
 /**
  * The loop every command runs: settings, the API demanded on entry, plan,
  * print, refuse or dry-run or send. One copy since 2026-09-02; there were
- * three, and they differed only in the strings this table carries.
+ * three, and they differed only in the strings this table carries. `a`
+ * joined the same day as the fourth row.
  */
 async function execute<Plan extends SendablePlan>(send: boolean, command: Command<Plan>): Promise<number> {
   const settings = loadSettings()
@@ -151,6 +168,33 @@ function runUnreserve(argv: readonly string[]): Promise<number> {
     plan: (rpc, apiUrl) => planUnreserve(rpc, createReservationSource(apiUrl), params),
     describe: describePlan,
     refusalNote: '',
+  })
+}
+
+function runAuction(argv: readonly string[]): Promise<number> {
+  const { params, send } = parseAuctionArgs(argv)
+  // Three reads, all chain state the message cannot speak for: MIN_PRICE as
+  // in effect (the reserve's floor, and the builder's argument), whether the
+  // name is still RESERVED, and whether an auction is already running on it.
+  // The floor, a bad name and a self-send throw inside the builder; the rest
+  // are refusals the printed plan carries.
+  return execute(send, {
+    apiReason:
+      'a needs NNS_API_URL: MIN_PRICE as in effect (GET /params), whether the name is still RESERVED ' +
+      '(GET /available/{name}) and whether it is already under auction (GET /auctions) are chain state, and an A ' +
+      'that gets any of them wrong is mined and forfeited',
+    plan: (rpc, apiUrl) =>
+      planAuction(
+        rpc,
+        {
+          params: createParamsSource(apiUrl),
+          reservation: createReservationSource(apiUrl),
+          auctions: createAuctionsSource(apiUrl),
+        },
+        params,
+      ),
+    describe: describeAuctionPlan,
+    refusalNote: ', and an A that lands cannot be cancelled',
   })
 }
 
