@@ -164,6 +164,18 @@ describe('planUnreserve', () => {
     expect(calls).toEqual([])
   })
 
+  it('an awardee spelled as PROTOCOL_ADDRESS is a release — the plan reads the built recipient, not argv', async () => {
+    const { rpc } = fakeRpc()
+    const plan = await planUnreserve(rpc, fakeReservation(), config, { ...release, recipient: PROTOCOL })
+    // Byte-identical to the release: the reducer sees the recipient, nothing else.
+    expect(plan.data).toBe(encodeUnreserve({ name: 'binance' }).data)
+    expect(plan.recipient).toBe(PROTOCOL)
+    expect(plan.kind).toBe('release')
+    const lines = describePlan(plan).join('\n')
+    expect(lines).toContain('U release: binance')
+    expect(lines).not.toContain('award term')
+  })
+
   it('refuses an award to the admin address — a silent self-transaction (§5.3)', async () => {
     const { rpc, calls } = fakeRpc()
     await expect(planUnreserve(rpc, fakeReservation(), config, { ...release, recipient: ADMIN })).rejects.toThrow(/self-transactions/)

@@ -12,8 +12,9 @@
  * **No notice, and no notice checks, since r22.** A `U` takes effect in the
  * block it lands in; `GOVERNANCE_DELAY` is `P`'s alone. §6 `U` says why: an
  * award has no counterparty to warn, and a release announced a day ahead hands
- * a frontrunner a publicly timed starting gun. `noticeChecks` and
- * `unreserveRefusals` went with the bound.
+ * a frontrunner a publicly timed starting gun. `noticeChecks` went with the
+ * bound; `unreserveRefusals` came back with the §11.5 precheck (2026-08-17)
+ * and now also carries the reservation refusals below.
  *
  * **Which makes the dry run the whole of the fat-finger protection.** It was
  * one of two before — a mistyped name or awardee could at least be seen
@@ -42,6 +43,7 @@
  */
 
 import {
+  addressEquals,
   CONSTANTS,
   encodeUnreserve,
   formatAddress,
@@ -132,11 +134,13 @@ export function parseUnreserveArgs(argv: readonly string[]): UnreserveCommand {
 }
 
 /**
- * Build the transaction and read the head. Read-only: the single RPC call is
- * `getBlockNumber`. The builder runs first, with `sender` supplied, so
- * everything client-preventable — bad name, `BURN_ADDRESS`, and an award to
- * the admin address itself, which the network would drop as a silent
- * self-transaction — fails before the node hears anything.
+ * Build the transaction, read the head and the balance, and ask the API what
+ * the name currently is. Read-only: two RPC calls (`getBlockNumber`,
+ * `getAccountByAddress`) and one `GET /available/{name}`. The builder runs
+ * first, with `sender` supplied, so everything client-preventable — bad
+ * name, `BURN_ADDRESS`, and an award to the admin address itself, which the
+ * network would drop as a silent self-transaction — fails before the node
+ * hears anything.
  */
 export async function planUnreserve(
   rpc: AdminRpc,
@@ -204,7 +208,12 @@ export async function planUnreserve(
 
   return {
     params,
-    kind: params.recipient === null ? 'release' : 'award',
+    // From the built recipient, not from argv: the reducer decides release
+    // versus award by the recipient alone (§6 `U`), so an awardee spelled as
+    // `PROTOCOL_ADDRESS` is a release on the wire and must read as one here —
+    // the plan is the fat-finger protection, and it has to describe the
+    // bytes it built.
+    kind: addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS) ? 'release' : 'award',
     recipient: tx.recipient,
     data: tx.data,
     value: tx.value,

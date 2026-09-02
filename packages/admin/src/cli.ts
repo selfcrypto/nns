@@ -33,7 +33,7 @@ export class AdminRefusal extends Error {
   override readonly name = 'AdminRefusal'
 }
 
-/** Albatross targets one block per second — `GOVERNANCE_DELAY`'s 43,200 blocks read as ~12 h. */
+/** Albatross targets one block per second — `GOVERNANCE_DELAY`'s 86,400 blocks read as ~24 h. */
 export const BLOCKS_PER_HOUR = 3_600
 
 /** `~12.0 h`, unsigned — the caller says which direction it runs in. */
@@ -82,9 +82,9 @@ export function blockingChecks(checks: readonly AdminCheck[]): readonly AdminChe
  * **`p` only since r22.** It was shared with `u` for exactly one day: `u`
  * checked notice in its own copy, only warned, and broadcast a certain
  * `INSUFFICIENT_NOTICE` anyway, so the two were merged here — and then r22 took
- * `U` out of `GOVERNANCE_DELAY` altogether (§6 `U`). The type parameter below
- * is kept rather than inlined because `f` is not built yet and the shape of the
- * refusal is the part worth reusing.
+ * `U` out of `GOVERNANCE_DELAY` altogether (§6 `U`). `f` carries no height
+ * either, so `P` is the only message with a notice and {@link noticeChecks}
+ * names it outright.
  *
  * **Why an hour rather than the measured latency.** Three delays stack between
  * reading the head and landing in a block, and the one that is easy to measure
@@ -111,14 +111,10 @@ export const NOTICE_MARGIN = BLOCKS_PER_HOUR
 
 /**
  * §6 `P` notice. Empty when the notice clears `GOVERNANCE_DELAY` with the
- * margin.
- *
- * `type` is the message letter, so the refusal names the clause the operator
- * will be reading. `'U'` is deliberately not one of them: a `U` carries no
- * height since r22, so there is no notice to check and calling this for one
- * would be checking a bound that does not exist.
+ * margin. `P`'s alone: a `U` carries no height since r22 and an `F` never
+ * did, so there is no other message this bound could be checked for.
  */
-export function noticeChecks(type: 'P', effectiveHeight: number, head: number): AdminCheck[] {
+export function noticeChecks(effectiveHeight: number, head: number): AdminCheck[] {
   const notice = effectiveHeight - head
   const floor = CONSTANTS.GOVERNANCE_DELAY
   if (notice < floor) {
@@ -126,7 +122,7 @@ export function noticeChecks(type: 'P', effectiveHeight: number, head: number): 
       {
         severity: 'refuse',
         message:
-          `§6 ${type} notice: effective height is ${notice} blocks from head ${head}, under GOVERNANCE_DELAY ` +
+          `§6 P notice: effective height is ${notice} blocks from head ${head}, under GOVERNANCE_DELAY ` +
           `(${floor} blocks, ${hours(floor)}) — ` +
           'this forfeits INSUFFICIENT_NOTICE even if it is mined in the next block',
       },
@@ -137,7 +133,7 @@ export function noticeChecks(type: 'P', effectiveHeight: number, head: number): 
       {
         severity: 'refuse',
         message:
-          `§6 ${type} notice: effective height is ${notice} blocks from head ${head}, which clears ` +
+          `§6 P notice: effective height is ${notice} blocks from head ${head}, which clears ` +
           `GOVERNANCE_DELAY by ${notice - floor} blocks. Notice is measured from the block this lands in, not ` +
           `from now, so it forfeits if it waits longer than that between here and a block — use at least ` +
           `${head + floor + NOTICE_MARGIN} (${hours(NOTICE_MARGIN)} of margin)`,

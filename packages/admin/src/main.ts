@@ -150,7 +150,8 @@ async function runUnreserve(argv: readonly string[]): Promise<number> {
   const rpc = rpcFor(settings)
   const plan = await planUnreserve(rpc, createReservationSource(settings.apiUrl), settings.config, params)
   for (const line of describePlan(plan)) console.log(line)
-  // The one refusal left is §11.5's (added with `f`, 2026-08-17): r22 removed
+  // Two refusals reach here: §11.5's balance (added with `f`, 2026-08-17)
+  // and the reservation (2026-08-21, after `u nimiq` forfeited). r22 removed
   // the notice, and everything else client-preventable — a bad name,
   // `BURN_ADDRESS`, a self-award — throws inside the builder, in
   // `planUnreserve`, before the node hears anything. Past that, what remains

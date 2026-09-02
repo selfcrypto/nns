@@ -257,7 +257,7 @@ function check(
   if (outstanding <= 0n) {
     refuse(
       `nothing is owed: burned ${formatLuna(status.burned)} already covers owed ${formatLuna(status.owed)} ` +
-        `(20% of ${formatLuna(status.revenue)} accepted revenue, per ${status.url})`,
+        `(BURN_SHARE ${CONSTANTS.BURN_SHARE_BP / 100n}% of ${formatLuna(status.revenue)} accepted revenue, per ${status.url})`,
     )
   } else if (params.amount > outstanding) {
     refuse(

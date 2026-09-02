@@ -12,10 +12,11 @@
  * signing is checked before signing, and a plan carrying a refusal cannot be
  * broadcast at all.
  *
- * Three of those bounds are relative to state this process does not hold —
- * see `params.ts` for where the current prices and the last `P`'s height come
- * from. The bounds themselves are `core`'s `governanceBoundViolation`; if a
- * rule seems to be missing here, it lives there.
+ * One of those bounds — the commission step — is relative to state this
+ * process does not hold (three were, before r20 removed the price rate
+ * limits); see `params.ts` for where the current prices come from. The bounds
+ * themselves are `core`'s `governanceBoundViolation`; if a rule seems to be
+ * missing here, it lives there.
  */
 
 import {
@@ -208,10 +209,10 @@ function check(
   move('fee_standard', active.prices.feeStandard, params.feeStandard)
   move('fee_long', active.prices.feeLong, params.feeLong)
 
-  // §6 `P` notice, plus the margin the landing block makes necessary. Shared
-  // with `u` (`cli.ts`): the same bound is measured the same way for both, and
-  // two copies of it would eventually disagree.
-  checks.push(...noticeChecks('P', params.effectiveHeight, head))
+  // §6 `P` notice, plus the margin the landing block makes necessary. It
+  // lives in `cli.ts` from the day it was shared with `u`; since r22 `P` is
+  // the only message that has one.
+  checks.push(...noticeChecks(params.effectiveHeight, head))
 
   // §11.5 rule 1 — an unfunded sender fails by silence, not by error.
   if (balance < cost) {
