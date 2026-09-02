@@ -305,6 +305,57 @@ describe('checkpoint — §8.1 final clause', () => {
     expect(bytesEqual(pendingCommitment(withOffer), empty)).toBe(false)
   })
 
+  it('commits an open auction under 0x0B, and the standing bid moves it (r28)', () => {
+    const state = stateWith(record({ name: 'kikename' }))
+    const empty = pendingCommitment(state)
+    const u64 = (value: bigint): Uint8Array => {
+      const bytes = new Uint8Array(8)
+      new DataView(bytes.buffer).setBigUint64(0, value)
+      return bytes
+    }
+
+    const open = {
+      name: 'kikename',
+      seller: ALICE,
+      reserve: 40_000_000n,
+      endHeight: 100,
+      bidder: null,
+      bid: 0n,
+      bidRef: null,
+    }
+    const noBid = Object.freeze({ ...state, auctions: new Map([['kikename', open]]) })
+    expect(bytesEqual(pendingCommitment(noBid), empty)).toBe(false)
+
+    // The preimage, pinned by bytes rather than by a remembered digest: an
+    // unmet reserve is 20 zero bytes and a zero bid, so a client can prove
+    // "no bid stands" from the checkpoint alone.
+    expect(pendingCommitment(noBid)).toEqual(
+      keccak_256(
+        concatBytes(
+          Uint8Array.from([0x04, 0x0b, 8]),
+          new TextEncoder().encode('kikename'),
+          addressToBytes(ALICE),
+          u64(40_000_000n),
+          u64(100n),
+          new Uint8Array(20),
+          u64(0n),
+        ),
+      ),
+    )
+
+    // The standing bidder and the bid are in the entry; the bid's ref is not
+    // (§8.1 keeps settlement identity out), so two states differing only in
+    // `bidRef` commit identically.
+    const bid = { ...open, bidder: BOB, bid: 42_000_000n, bidRef: { height: 50, txIndex: 0 } }
+    const withBid = Object.freeze({ ...state, auctions: new Map([['kikename', bid]]) })
+    const otherRef = Object.freeze({
+      ...state,
+      auctions: new Map([['kikename', { ...bid, bidRef: { height: 51, txIndex: 3 } }]]),
+    })
+    expect(bytesEqual(pendingCommitment(withBid), pendingCommitment(noBid))).toBe(false)
+    expect(bytesEqual(pendingCommitment(withBid), pendingCommitment(otherRef))).toBe(true)
+  })
+
   it('also commits a pending P, which §8.1 does not enumerate', () => {
     const state = stateWith(record({ name: 'kikename' }))
     const empty = pendingCommitment(state)

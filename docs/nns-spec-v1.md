@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 27**
+**Protocol specification, v1 draft — revision 28**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -801,11 +801,12 @@ NNS1X<name>
 
 - **To:** the new owner, value `DUST_VALUE`
 - Sender must be the current owner
+- Forfeits `AUCTION_OPEN` while an auction is open on the name (§6 `A`)
 
 Takes effect at `height + XFER_TIMELOCK`. Until then the name still resolves
 as before and the current owner retains control. A second `X` supersedes the
-first and restarts the timelock. On taking effect the transfer resets the
-name's dependent state (§7.3).
+first and restarts the timelock; an `A` for the name voids it (§6 `A`). On
+taking effect the transfer resets the name's dependent state (§7.3).
 
 **What the timelock is for.** `XFER_TIMELOCK` is the window in which **the
 owner can cancel their own pending transfer** with a `K` (§6 `K`) — a
@@ -864,9 +865,12 @@ NNS1K<name>
 
 Vetoes a pending `X`, or withdraws an `O` past `OFFER_IRREVOCABLE` —
 all effective on inclusion, and **a single `K` cancels everything currently
-cancellable** on the name. A `K` with nothing to cancel forfeits with
-`NOTHING_TO_CANCEL`: the value at stake is `DUST_VALUE`, and the log then
-records why the message had no effect instead of a misleading `OK`. The r6 `CANCEL_DELAY` is gone: with escrowed
+cancellable** on the name. An open auction is not cancellable (§6 `A`) —
+bidders have committed money against the window — so a `K` on a name whose
+only pending item is an auction finds nothing. A `K` with nothing to cancel
+forfeits with `NOTHING_TO_CANCEL`: the value at stake is `DUST_VALUE`, and
+the log then records why the message had no effect instead of a misleading
+`OK`. The r6 `CANCEL_DELAY` is gone: with escrowed
 settlement (§6 `B`), a cancellation racing an incoming `B` costs the buyer a
 refund wait rather than their money, so the delay no longer bought anything.
 
@@ -922,9 +926,11 @@ NNS1O<name>|<price_in_luna>
   point: the floor is set by what a name costs, not by what arithmetic
   tolerates
 - Sender must be the current owner
+- Forfeits `AUCTION_OPEN` while an auction is open on the name (§6 `A`),
+  checked after the owner and before the price
 
 Irrevocable for `OFFER_IRREVOCABLE` blocks, then cancellable via `K`,
-auto-expiring at `OFFER_MAX_LIFETIME`.
+auto-expiring at `OFFER_MAX_LIFETIME`. An `A` for the name voids it (§6 `A`).
 
 ### `B` — Buy
 
@@ -946,6 +952,13 @@ The winning payment creates a debt: the marketplace owes the seller the
 price, discharged with `M`. Every other `B` — the race loser, a `B` against
 a cancelled or expired offer, a wrong value — creates the opposite debt: the
 marketplace owes its sender a refund, also discharged with `M` (§7.4).
+
+**A `B` on a name with an open auction is a bid** (§6 `A`, r28): its value is
+the bid, a bid short of what the auction requires refunds under
+`WRONG_PRICE`, and a bid that stands moves no ownership — the close does
+that, at the end height. State decides which kind of `B` a message is, and
+because an auction and an offer never coexist on a name, it decides
+unambiguously.
 
 This is the one deliberately custodial piece of NNS. The direct
 buyer-to-seller alternative was rejected in r7 because it let a race
@@ -1049,52 +1062,82 @@ NNS1A<name>|<reserve>|<end_height>
 
 - **Size:** 5 + 24 + 1 + 15 + 1 + 10 = **56 bytes** max
 - **To:** `PROTOCOL_ADDRESS`, value `DUST_VALUE`
-- Sender must be the current owner, or `ADMIN_ADDRESS` for a name in
-  `RESERVED_NAMES`
-- `end_height` must be at least `AUCTION_MIN_DURATION` ahead
+- Sender must be the current owner of a `REGISTERED` name, or
+  `ADMIN_ADDRESS` for a name still held in `RESERVED_NAMES` (§4.1) — the
+  two auctions are told apart by whether the name has a record, and that is
+  decided before the sender is looked at
+- `reserve` MUST be ≥ `MIN_PRICE`, for the reasons §6 `O` gives and one
+  more: the increment rule below is `⌊standing × AUCTION_MIN_INCREMENT⌋`, and
+  at a token reserve it rounds to zero, so the floor is what keeps a bid from
+  "raising" by nothing
+- `end_height` MUST be at least `AUCTION_MIN_DURATION` above the height of
+  the block the message landed in — measured from inclusion like `P`'s
+  notice, and forfeiting `INSUFFICIENT_NOTICE` on the same terms
 
-**v1 status: parsed, logged, and forfeited with `AUCTION_NOT_IN_V1`.** This
-is a protocol-version statement, not an implementation gap: a v1-conformant
-implementation MUST take that forfeit, because one that honoured auctions
-would derive a different root from one that did not. Activating `A` is a
-spec-version event from a stated height. A `B` naming a non-existent auction
-refunds under `OFFER_NOT_OPEN`. The `reserve` carries the same `MIN_PRICE`
-floor as an `O` price, for the same reasons, and the increment rule depends
-on it: at a token reserve the 5% raise rounds to zero and the auction
-becomes a dust-spam surface. In v1 no `A` reaches that check — a
-below-floor reserve still forfeits `AUCTION_NOT_IN_V1`, because the reason
-code goes into the log and the log is committed to (§8.2). The floor check
-precedes this one on the version that activates auctions.
+**Check order, after §5.3 routing:** name state (`NAME_NOT_REGISTERED` for a
+grace name, `NAME_NOT_FOUND` for a name nobody could auction), then the
+sender (`NOT_OWNER` / `NOT_ADMIN`), then `AUCTION_OPEN`, then the reserve
+floor, then the window — state, authority, pending status, payload, as `O`'s
+order already runs (§7.4).
 
-**One exception, and only one: routing still runs first.** An `A` sent
-anywhere but `PROTOCOL_ADDRESS` forfeits `WRONG_RECIPIENT`, not
-`AUCTION_NOT_IN_V1`. §5.3 routing precedes every type's own rules for every
-message in the protocol, and `A` is not carved out of that — a message at the
-wrong address has not reached the handler whose version status is in question.
-Read "every `A` forfeits `AUCTION_NOT_IN_V1`" as ranging over the `A`s that
-are correctly addressed; every other rule in this clause, the `MIN_PRICE`
-floor included, sits *after* the version forfeit rather than before it.
-Through r20 the sentence was absolute and the exception was implicit in §5.3,
-which left two defensible readings of a message that puts a different token in
-the log hash.
+**Opening voids the owner's own pending `X` and open `O`.** The auction is
+the latest statement of intent, which is the rule a later `O` or `X` already
+applies to its predecessor; neither holds anyone's money, so nothing is owed.
+From then until the close the auction is **exclusive**: `O`, `X` and a second
+`A` for the name forfeit `AUCTION_OPEN`, and `K` cannot cancel it — bidders
+have committed money against a window they were told in advance, and the
+owner set the reserve. `S`, `E`, `D` and `N` are unaffected.
 
-When active, `A` opens a bidding window instead of settling by ordering.
-Bids reuse `B`, naming the auction rather than an offer, and sit at
-`MARKETPLACE_ADDRESS` exactly as marketplace payments do.
+**Bids are `B`s.** A `B` to `MARKETPLACE_ADDRESS` whose name has an open
+auction is a bid, and its `value` is the bid. State decides which kind of
+`B` a message is, not the client: an auction and an offer never coexist on a
+name, so the same payload can only mean one thing at any height. The rules,
+all deterministic from the log:
 
-Rules, all deterministic from the log:
+- The first bid must meet the reserve; every later one must reach
+  `standing + ⌊standing × AUCTION_MIN_INCREMENT⌋`. Anything less is
+  `REFUND` under `WRONG_PRICE` — a losing bid can be a same-block race, so it
+  is never the bidder's fault
+- **A successful bid refunds the outbid bidder at once**, an obligation on
+  `MARKETPLACE_ADDRESS` keyed by the outbid bid's own `(height, tx_index)`.
+  The marketplace therefore holds exactly one bid per auction, never a pile,
+  and custody is bounded by the standing bid rather than by every bid for the
+  life of the window
+- After a successful bid, `end_height = max(end_height, bid_height +
+  AUCTION_EXTENSION)`: the end is never less than `AUCTION_EXTENSION` after
+  the last bid that stood. Without this, sniping the last block reproduces
+  the race the auction exists to avoid. A refunded bid moves nothing, and
+  there is no cap on extensions — each costs the extender at least
+  `AUCTION_MIN_INCREMENT` more, so the money runs out before the blocks do
+- Two bids in one block are ordered by §5.2; the first sets the standing bid
+  and the second must beat it by the increment, so a tie cannot occur
 
-- A bid must exceed the standing bid by at least `AUCTION_MIN_INCREMENT`, or
-  meet the reserve if it is the first. Anything else is `REFUND`
-- Each time a bid arrives within `AUCTION_EXTENSION` of `end_height`, the end
-  moves to `bid_height + AUCTION_EXTENSION`. Without this, sniping the last
-  block reproduces the race the auction exists to avoid
-- At the end height the highest bid wins; ties break by canonical order
-  (§5.2). The name transfers with the same dependent-state resets as `X`
-  (§7.3), the winning bid settles to the seller via `M` less commission, and
-  **every losing bid is refunded via `M`** — the machinery already exists
-- If the reserve is never met, the name stays with its owner and all bids
-  are refunded
+**The close is a height-driven effect (§7.3), not a message.** At
+`end_height` — as moved by extensions — and before that block's
+transactions, the standing bid wins: the name transfers with the same
+dependent-state resets as `X`, the winner inheriting the current expiry, and
+two legs are created against the **winning bid's** `(height, tx_index)`:
+`SALE_PROCEEDS` to the seller less `COMMISSION_RATE` as in effect at the close
+height (governance activation fires first, §7.3), and `COMMISSION` to
+`TREASURY_ADDRESS` — discharged by `M` exactly as a sale is (§6 `M`). For an
+admin auction of a still-reserved name the seller is `TREASURY_ADDRESS`, the
+close creates the registration on `U`'s award terms — a full `TERM_LENGTH`
+from the close height, nothing set — and the name enters the unreserved set
+(§8.1); both legs then land on the treasury and are told apart by amount, the
+case §6 `M` anticipated. With no standing bid the auction simply ends and the
+name stays where it was; a bid under the reserve was refunded when it
+arrived and never stood, so "the reserve was never met" is the same state
+as "nobody bid". A `B` arriving at or after the close refunds under
+`OFFER_NOT_OPEN`, the ordinary no-offer path.
+
+**There is no rule against an `A` whose end falls at or past the name's
+expiry.** The §7.3 grace reset cancels a running auction exactly as it
+cancels an `O` or an `X`, and — because a bid is money — refunds the
+standing bid by that bid's own ref. Extensions can push any end past expiry,
+so the reset is the backstop whatever the opening height was; expiry is
+provable from the checkpoint, so a client warns, and an owner who wants the
+sale renews first. One rule and one token fewer than a forfeit on the
+opening message would cost.
 
 **Why this is not how ordinary registration works.** Making the highest payer
 win a same-block race would be worse than ordering: today, taking a name from
@@ -1105,20 +1148,20 @@ converts front-running from a producer-only capability into a scripted one
 everyone in advance — price discovery where it is worth having, without
 turning a fixed-price registration into a blind bidding war.
 
-**Deliberately additive — by versioning, not by ignoring.** An unknown type
-character is not ignored: it is rejected with a logged `UNKNOWN_TYPE` verdict
-(§5.2, §7.4), so its lines are in the committed hash, and an implementation
-that started honouring a new type would replay the same history to a
-different log and a different state than one that did not. What makes an
-addition safe is the mechanism this clause already uses for activation: a new
-type arrives by spec revision **from a stated height** — below it every
+**How it got here.** Through r27 an `A` was parsed, logged and forfeited
+`AUCTION_NOT_IN_V1` — by protocol version, not by omission, so that an
+implementation honouring auctions could not silently derive a different root
+from one that did not — with activation deferred to "a spec revision from a
+stated height". r28 activated it before anything launched, when that height
+is simply `LAUNCH_HEIGHT`: every piece the clause leaned on already existed
+(the §7.3 effect engine, the §8.1 pending set, `M`), and the deferral had
+been a judgement about the first cycle's workload, not about the design. The
+token left the vocabulary under §7.4's own rule — no rule on any deployment
+can produce it now — and `AUCTION_OPEN` took its slot, so the count is
+unchanged. The versioning mechanism the old clause described remains the
+way a future type would arrive: below the stated height every
 implementation keeps the `UNKNOWN_TYPE` lines, at and above it every
-implementation honours the type, and no already-derived root moves. `A` is
-the one significant feature taking that path after the wire format freezes,
-and the natural mechanism for releasing the withheld 1–4 character names
-(§4.1). Through r22 this sentence credited §5.2's "ignored", which is not
-what happens to an unknown type — and would not have been sufficient if it
-were, since honouring a new type moves state whatever the log does.
+implementation honours the type, and no already-derived root moves.
 
 ### `P` — Governance
 
@@ -1395,6 +1438,7 @@ Consequences, stated so no implementation guesses:
 ```
 RESERVED ──U to PROTOCOL_ADDRESS───▶ AVAILABLE
 RESERVED ──U to any other address──▶ REGISTERED (awardee)
+RESERVED ──A + B… (close)──────────▶ REGISTERED (winner)
 
 AVAILABLE ──G──▶ REGISTERED ──expiry──▶ GRACE ──+30d──▶ AVAILABLE
                       │
@@ -1402,7 +1446,8 @@ AVAILABLE ──G──▶ REGISTERED ──expiry──▶ GRACE ──+30d─�
                       ├──S──────────────────▶ target changed
                       ├──E──────────────────▶ EVM address set/cleared
                       ├──D──────────────────▶ delegate host set/cleared
-                      └──O + B──────────────▶ REGISTERED (buyer)
+                      ├──O + B──────────────▶ REGISTERED (buyer)
+                      └──A + B… (close)─────▶ REGISTERED (winner)
 ```
 
 During `GRACE` the name does not resolve, dotted queries under it fail, and
@@ -1451,35 +1496,42 @@ almost every test and then commits a root containing an expired name still
 `REGISTERED` at any checkpoint taken during a quiet stretch.
 
 Effects due at one height fire **before that block's transactions**, in a
-fixed order: governance activation, maturing `X`, expiry to `GRACE`, grace
-release to `AVAILABLE`, offer expiry — ties within a category bytewise by
-name. The order is consensus-relevant: a maturing `X` colliding with an expiry
-genuinely diverges (transfer-first hands the name over and then places it in
-`GRACE`; expire-first voids the transfer). Transfer fires first because it was
-scheduled before the expiry came due, and because the grace reset exists to
-stop a lapsed name answering for subdomains, not to void a transfer already
-in flight.
+fixed order: governance activation, maturing `X`, **auction close** (§6 `A`,
+r28), expiry to `GRACE`, grace release to `AVAILABLE`, offer expiry — ties
+within a category bytewise by name. The order is consensus-relevant: a
+maturing `X` colliding with an expiry genuinely diverges (transfer-first hands
+the name over and then places it in `GRACE`; expire-first voids the transfer).
+Transfer fires first because it was scheduled before the expiry came due, and
+because the grace reset exists to stop a lapsed name answering for
+subdomains, not to void a transfer already in flight. The auction close sits
+directly after it on the same argument — expire-first would refund the winner
+and hand the seller a grace name — and after governance activation so the
+commission it owes is at the rate active at the close height, exactly as a
+`B` in that block would be charged. A close and a maturing `X` can never
+collide on one name: an open auction excludes `X`.
 
 **There is no unreserve step.** Through r21 this list had six categories, with
 unreserve activation second. r22 made a `U` take effect in the block it lands
 in (§6 `U`), so nothing about a release or an award is ever scheduled and there
-is nothing for a height to fire. The remaining five keep their relative order,
-which is the only thing consensus depends on; `P` activation is now the only
-governance effect driven by height at all.
+is nothing for a height to fire. The remaining five kept their relative order,
+which is the only thing consensus depends on, and r28 inserted the auction
+close as a sixth; `P` activation is the only governance effect driven by
+height at all.
 
 A `U` therefore competes with the transactions in its own block on the ordinary
 §7.2 ordering rather than preceding all of them — see §6 `U`, "Ordering inside
 the landing block", for what a same-block `G` sees from either side of it.
 
 **Dependent-state resets.** When a transfer takes effect (`X` after its
-timelock, or `B`): `owner` and `target` both become the new owner, the EVM
-address and the delegate host are cleared, open offers are cancelled, and
-any pending `X` is void. A clean slate is the safe default — in
+timelock, `B`, or an auction closing): `owner` and `target` both become the
+new owner, the EVM address and the delegate host are cleared, open offers are
+cancelled, and any pending `X` is void. A clean slate is the safe default — in
 particular, the old target must not keep receiving funds sent to the name,
 and the old owner's EVM key must not keep answering for it —
 and the new owner reconfigures explicitly. On entering `GRACE`: the delegate
 host is cleared (a lapsed name cannot keep answering for its subdomains),
-and open offers and any pending `X` are cancelled; the EVM address
+open offers and any pending `X` are cancelled, and an open auction is
+cancelled with its standing bid refunded (§6 `A`); the EVM address
 persists, like `owner` and `target`, so a grace-then-renew round trip does
 not force the owner to re-declare it. On falling to
 `AVAILABLE`, all state for the name is cleared.
@@ -1505,14 +1557,20 @@ the message before the race does.
 - `G` whose name is invalid per §4.1 or reserved — checkable offline
 - `G` for a name in `GRACE` — the status and its end height are provable
   from the checkpoint tree (§8.1), so a correct client prevents it
-- `S`, `O`, `D`, `E`, `X`, `K` from anyone other than the current owner
-- `O` whose price is below `MIN_PRICE` (§6 `O`). The floor is `FEE_LONG` as
+- `S`, `O`, `D`, `E`, `X`, `K`, `A` from anyone other than the current owner
+- `O` whose price, or `A` whose reserve, is below `MIN_PRICE` (§6 `O`, §6
+  `A`). The floor is `FEE_LONG` as
   in effect at that height, and the active prices are committed to in every
   checkpoint (§8.1), so a correct client can prove it before sending. The
   payload is checked before the value carried, exactly as a `G`'s name
   syntax is: a message whose own payload is unusable is rejected on that
   ground whatever it paid
-- `X`, `S`, `D`, `E` on an expired or grace-period name
+- `O`, `X` or a second `A` on a name with an open auction (§6 `A`, r28) —
+  the auction is in the committed pending set (§8.1), so a correct client
+  prevents it; and `A` from anyone but `ADMIN_ADDRESS` for a name still held
+  in `RESERVED_NAMES`, or for a name nobody could auction, or with less than
+  `AUCTION_MIN_DURATION` of window from the landing block
+- `X`, `S`, `D`, `E`, `A` on an expired or grace-period name
 - `D` whose host exceeds `MAX_HOST_LEN` or includes a scheme
 - `P` from any sender other than `ADMIN_ADDRESS`, violating a §10.6 bound, or
   carrying less than `GOVERNANCE_DELAY` notice — counted from the height of the
@@ -1549,6 +1607,11 @@ via `M` (§6):
 - Any `B` that does not win an open offer — the race loser, a `B` against a
   cancelled or expired offer, or a `B` whose value is not exactly the price
   — owed by `MARKETPLACE_ADDRESS`
+- Any bid that does not stand (§6 `A`) — short of the reserve or of the
+  increment over the standing bid, which can be a same-block race — and
+  **every bid that is outbid**, refunded the moment a higher one lands, owed
+  by `MARKETPLACE_ADDRESS` and keyed by the bid's own transaction. A bid
+  standing when the grace reset cancels the auction is refunded the same way
 
 Registration and purchase races are the same kind of loss and are handled
 the same way. Earlier revisions gave registration a *credit* ledger instead,
@@ -1607,17 +1670,17 @@ against a message of a listed type.
 | `INVALID_NAME` | `G` `U` | Name fails §4.1 rules 2–5 or the rule 1 ceiling. The floor never fires here: a 1–4 character name satisfying rules 2–5 is reserved by rule (§4.1), so a `G` for one takes `RESERVED_NAME` while it is held and is a normal registration once a `U` has released it. Rule 6 is inverted for `U`, since a `U`'s name must be *in* `RESERVED_NAMES` |
 | `RESERVED_NAME` | `G` | Name currently in `RESERVED_NAMES` — on the published list or reserved by rule (§4.1) — and not yet removed from it by a fired `U` |
 | `NAME_IN_GRACE` | `G` | Name exists in `GRACE` |
-| `NAME_NOT_REGISTERED` | `S` `X` `D` `E` `O` | Name absent, expired, or in `GRACE` — these types require `REGISTERED` |
-| `NAME_NOT_FOUND` | `K` `N` | Name has no record at all. Distinct from the row above because `K` and `N` are valid against a name in `GRACE` |
-| `NOT_OWNER` | `S` `X` `D` `E` `O` `K` | Sender is not the current owner |
+| `NAME_NOT_REGISTERED` | `S` `X` `D` `E` `O` `A` | Name absent, expired, or in `GRACE` — these types require `REGISTERED`. For `A`, a name *with a record* that is not `REGISTERED`; a name with none takes the row below |
+| `NAME_NOT_FOUND` | `K` `N` `A` | Name has no record at all. Distinct from the row above because `K` and `N` are valid against a name in `GRACE`. For `A`: no record and not held in `RESERVED_NAMES` either — nobody's to auction (§6 `A`) |
+| `NOT_OWNER` | `S` `X` `D` `E` `O` `K` `A` | Sender is not the current owner |
 | `INVALID_HOST` | `D` | Host fails any §6 `D` rule: over `MAX_HOST_LEN`, a character outside the §6 `D` alphabet (which is how a scheme is caught — `:` is not in it), or a leading/trailing/consecutive-character rule. Never `MALFORMED_PAYLOAD` — a bad host still splits into fields per §5.2, so the payload parses and the host is judged as content |
-| `NOT_ADMIN` | `P` `U` | Sender is not `ADMIN_ADDRESS` |
-| `INSUFFICIENT_NOTICE` | `P` | `effective_height` less than `GOVERNANCE_DELAY` above the height of the block the message landed in. **`P` only since r22** — `U` no longer carries a height |
+| `NOT_ADMIN` | `P` `U` `A` | Sender is not `ADMIN_ADDRESS` — for `A`, on a name still held in `RESERVED_NAMES` (§6 `A`) |
+| `INSUFFICIENT_NOTICE` | `P` `A` | `effective_height` less than `GOVERNANCE_DELAY` above the height of the block the message landed in; for `A` (r28), `end_height` less than `AUCTION_MIN_DURATION` above it. `U` left this row in r22 — it no longer carries a height |
 | `NAME_NOT_RESERVED` | `U` | Name is absent from `RESERVED_NAMES`, or a `U` for it has already fired. Since r22 this is also what a second `U` for the same name earns: the first one fired on landing, so there is nothing pending to collide with |
 | `GOVERNANCE_BOUND_VIOLATED` | `P` | A §10.6 bound exceeded, measured against the **active** prices |
 | `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no `O` past `OFFER_IRREVOCABLE` |
-| `BELOW_MIN_PRICE` | `O` | Price below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
-| `AUCTION_NOT_IN_V1` | `A` | Every `A` that survives the recipient check — it precedes every check on the payload, so a below-reserve `A` takes this token rather than `BELOW_MIN_PRICE` (§6 `A`) |
+| `BELOW_MIN_PRICE` | `O` `A` | Price, or reserve, below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
+| `AUCTION_OPEN` | `O` `X` `A` | An auction is open on the name (§6 `A`): the owner cannot list, transfer, or auction it again until the close. Checked after the owner row and before any payload row |
 | `BELOW_REFUND_FLOOR` | `G` `B` | A message that would otherwise be refundable, carrying less than `REFUND_FLOOR`. The only token that crosses columns |
 
 `OVER_LENGTH` is **unreachable on mainnet**. The network caps transaction
@@ -1630,7 +1693,7 @@ still forfeit here — but no mainnet log can ever contain it.
 
 That is an instance of the rule this vocabulary is maintained under: **a
 token is dropped when the protocol makes it unreachable, and kept when only
-the environment does.** `TOO_SOON` (r20) and `UNRESERVE_PENDING` (r22) went
+the environment does.** `TOO_SOON` (r20), `UNRESERVE_PENDING` (r22) and `AUCTION_NOT_IN_V1` (r28) went
 because after their revisions no rule on *any* deployment could produce them.
 The 64-byte cap is a measured Nimiq property, not an NNS constant: were a
 Nimiq upgrade to raise it, over-length payloads would start landing in blocks
@@ -1643,8 +1706,8 @@ by an `M` (§6).
 | Token | Types | Owed by | Condition |
 |---|---|---|---|
 | `LOST_REGISTRATION_RACE` | `G` | `TREASURY_ADDRESS` | Name was taken by a transaction ordered ahead of this one |
-| `OFFER_NOT_OPEN` | `B` | `MARKETPLACE_ADDRESS` | No open offer: the race loser, a cancelled or expired offer, or a bid against an auction. All refund identically, so the log does not distinguish them |
-| `WRONG_PRICE` | `B` | `MARKETPLACE_ADDRESS` | Value is not **exactly** the offer price — over as well as under (§10.5) |
+| `OFFER_NOT_OPEN` | `B` | `MARKETPLACE_ADDRESS` | Neither an open offer nor an open auction: the race loser, a cancelled or expired offer, or a `B` after an auction closed. All refund identically, so the log does not distinguish them |
+| `WRONG_PRICE` | `B` | `MARKETPLACE_ADDRESS` | Against an offer, value is not **exactly** the price — over as well as under (§10.5). Against an auction, the bid is short of the reserve or of the increment over the standing bid (§6 `A`) |
 
 **Check order.** A message can fail several of the rows above at once, and
 only the first one reached is written, so the order is as normative as the
@@ -1666,13 +1729,13 @@ each type runs its rows in this order:
 | `S` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
 | `E` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
 | `D` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `INVALID_HOST` |
-| `X` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
+| `X` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN` |
 | `K` | `NAME_NOT_FOUND`, `NOT_OWNER`, `NOTHING_TO_CANCEL` |
 | `N` | `NAME_NOT_FOUND`, `INSUFFICIENT_VALUE` |
-| `O` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE` |
-| `B` | `OFFER_NOT_OPEN`, `WRONG_PRICE` |
+| `O` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE` |
+| `B` | `OFFER_NOT_OPEN`, `WRONG_PRICE` — with an auction open, the bid path has only `WRONG_PRICE` (§6 `A`) |
 | `M`, `F` | `WRONG_SENDER` |
-| `A` | `AUCTION_NOT_IN_V1` |
+| `A` | `NAME_NOT_REGISTERED` / `NAME_NOT_FOUND` (which auction this is), `NOT_OWNER` / `NOT_ADMIN`, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE` — state, authority, pending status, payload (§6 `A`) |
 | `P` | `NOT_ADMIN`, `INSUFFICIENT_NOTICE`, `GOVERNANCE_BOUND_VIOLATED` |
 | `U` | `NOT_ADMIN`, `INVALID_RECIPIENT`, `INVALID_NAME`, `NAME_NOT_RESERVED` |
 
@@ -1791,9 +1854,11 @@ Three things beyond the name tree are consensus-relevant state and MUST be
 committed to in the checkpoint alongside it, or independent replays diverge:
 
 - The **active prices and commission rate** (§10.6).
-- The **pending set** — in-flight `X`, open offers, **and any pending `P`**,
-  each with its effective or expiry height. A pending `P` decides what a later
-  registration costs, and is as consensus-relevant as a pending transfer.
+- The **pending set** — in-flight `X`, open offers, open auctions (r28) **and
+  any pending `P`**, each with its effective, expiry or end height. A pending
+  `P` decides what a later registration costs, and is as consensus-relevant as
+  a pending transfer; an open auction decides what the next `B` on the name
+  means and who holds it at the close.
   Through r21 a pending `U` was a fourth category here; r22 made a `U` take
   effect on landing (§6 `U`), so nothing of the sort exists to commit.
 - The **unreserved set** — the names whose `U` has already taken effect.
@@ -1828,6 +1893,7 @@ the log hash and the height into the single value an anchor publishes (§9).
 | `0x08` | a pending `P` |
 | `0x09` | *retired* — carried a pending `U` through r21; see below |
 | `0x0A` | the unreserved set |
+| `0x0B` | an open `A` (r28) |
 
 Field conventions, throughout: heights and luna amounts are **`u64-BE`**;
 addresses are the raw **20 bytes**, never the `NQ` string, and an unset address
@@ -1840,7 +1906,7 @@ prices     = keccak256(0x03 ‖ fee_standard:u64-BE ‖ fee_long:u64-BE
 ```
 
 The pending set is one entry per pending item, concatenated **in category
-order** — transfers, offers, governance — and, inside a category,
+order** — transfers, offers, auctions, governance — and, inside a category,
 bytewise-lexicographically by name. There is at most one pending `P`, and it is
 the one entry carrying no name.
 
@@ -1849,6 +1915,8 @@ transfer   = 0x05 ‖ len(name):u8 ‖ name ‖ new_owner:20B
                   ‖ effective_height:u64-BE
 offer      = 0x07 ‖ len(name):u8 ‖ name ‖ seller:20B ‖ price:u64-BE
                   ‖ opened_height:u64-BE ‖ expiry_height:u64-BE
+auction    = 0x0B ‖ len(name):u8 ‖ name ‖ seller:20B ‖ reserve:u64-BE
+                  ‖ end_height:u64-BE ‖ bidder:20B ‖ bid:u64-BE
 governance = 0x08 ‖ prices(proposed):32B ‖ effective_height:u64-BE
 
 pending    = keccak256(0x04 ‖ entry₁ ‖ entry₂ ‖ … ‖ entryₙ)
@@ -1865,16 +1933,29 @@ a tag it no longer expects fails on a tag it knows, rather than misreading a
 renumbered one it thinks it understands. The pending `P` entry embeds the
 32-byte `prices` digest of the **proposed** prices rather than their fields.
 
-**Removing the unreserve category moves no bytes.** The concatenation above
-carries no separators and no entry count, so a category with no entries
-contributes nothing; through r21 the unreserves category was empty in every
-state with no `U` in flight, and under r22 it is empty in every state there is.
-A commitment derived under r22 is therefore byte-identical to the r21
-commitment over the same state, `COMMITMENT_LAYOUT` stays **`4`**, and no root
-already published becomes incomparable. What does change is the §8.2 log — a
-`U`'s `<data>` is 11 bytes shorter and its verdict may differ — so a database
-whose scanned range contains a `U` must be rebuilt even though the layout did
-not move.
+**The auction entry** (r28) carries the seller — the owner who opened it, or
+`TREASURY_ADDRESS` for an admin auction of a still-reserved name — the
+reserve, the end height *as moved by extensions*, and the standing bidder and
+bid: 20 zero bytes and 0 until a bid has met the reserve, so a client can
+prove "no bid stands" from the checkpoint alone. The standing bid's own
+`(height, tx_index)` — what the close's two `M` legs will name — is
+deliberately **not** in the entry: it is settlement identity, kept out of the
+commitment on the same terms as the obligations below.
+
+**Removing the unreserve category moved no bytes, and adding the auction
+category moves none either.** The concatenation above carries no separators
+and no entry count, so a category with no entries contributes nothing;
+through r21 the unreserves category was empty in every state with no `U` in
+flight, and under r22 it is empty in every state there is. A commitment
+derived under r22 is therefore byte-identical to the r21 commitment over the
+same state, and on the same argument every r28 commitment over a state with
+no auction open — which is every state any r27 implementation could reach —
+equals its r27 value. `COMMITMENT_LAYOUT` stayed **`4`** through r22 and
+stays **`5`** through r28, and no root already published becomes
+incomparable. What does change is the §8.2 log — a `U`'s `<data>` is 11 bytes
+shorter and its verdict may differ; an `A`'s verdict is no longer a forfeit
+and a `B` on an auctioned name is a bid — so a database whose scanned range
+contains one must be rebuilt even though the layout did not move.
 
 With nothing pending the concatenation is empty and `pending` is
 `keccak256(0x04)`, the hash of the lone tag byte. Note the asymmetry with the
@@ -1918,7 +1999,7 @@ The reference implementation's `merkle.json` conformance vectors pin every value
 above, all three empty forms included. They track this clause: `0x0A` and the
 six unreserved cases landed with r16, the pending `U`'s 20-byte `recipient`
 with r17, the name leaf lost `recovery:20B` with r20 and gained `evm:20B`
-with r26 — each regeneration
+with r26, and the open-auction entry landed with r28 — each regeneration
 recorded in the file's own `spec` field. r22 removes the pending-`U` cases:
 **every case whose state is still reachable keeps its r21 value, byte for
 byte**, which is the file-level form of the argument above. The two that existed
@@ -2564,7 +2645,7 @@ is unverifiable, because nobody can know which history to replay.
 
 | Length | Fee | Rationale |
 |---|---|---|
-| 1–4 | reserved | Auctioned later under a v2 spec |
+| 1–4 | reserved | Released by the admin — auctioned (§6 `A`) or awarded (§6 `U`) |
 | 5–11 | `FEE_STANDARD` — 2,000 NIM (~$1) | The desirable range |
 | 12+ | `FEE_LONG` — 400 NIM (~$0.20) | Effectively free to a user; still bounds the log |
 
@@ -3053,6 +3134,9 @@ functional on first use, not a prototype.
 6. Run-your-own-indexer tutorial, both paths
 7. EVM anchoring
 8. Marketplace (`O` + `B` + the `M` settlement service)
+9. Auctions (`A`, bids through `B`, the close as a §7.3 effect) — deferred to
+   "v2" until 2026-09-02, then found to lean on nothing step 8 had not
+   already built; `tasks/13-auction.md`
 
 Step 5 is small in code and large in pitch — it is the piece that makes the
 exchange story real, so it should not be cut before step 7 or 8.

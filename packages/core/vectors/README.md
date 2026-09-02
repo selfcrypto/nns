@@ -85,9 +85,15 @@ only; it defaults to empty.
   pending or unreserved set is `keccak256(0x04)` / `keccak256(0x0A)` — the tag
   byte alone.
 
-  **These commitments are r26** — the leaf gained `evm:20B` at r26
+  **These commitments are r28.** The leaf gained `evm:20B` at r26
   (`COMMITMENT_LAYOUT` 5; `evm_set_is_twenty_raw_bytes` pins the encoding),
   so every commitment over a state with a name in it moved at that bump.
+  r28 added the open-auction entry under tag `0x0B`, between offers and
+  governance — `one_open_auction_no_bid` pins the unmet-reserve form (20 zero
+  bytes and a zero bid), `one_open_auction_with_bid` the standing bid — and
+  moved **no other value**: an empty category contributes nothing, so
+  `COMMITMENT_LAYOUT` stays 5 on r22's argument, and `every_pending_category`
+  is again the one case whose value moved because its state did.
   The unreserved set (tag `0x0A`, r16) is the
   sixth component; an r15 implementation reproduces all four component digests
   and none of the commitments. `one_fired_unreserve` is the pair that shows
@@ -122,7 +128,8 @@ scenarios and produce a wrong root at any checkpoint taken during a quiet
 stretch.
 
 A `check` reads the state at that point. Beyond `names`, `resolves` and
-`prices` it may carry `absent`, `height`, `transfers`, `offers`,
+`prices` it may carry `absent`, `height`, `transfers`, `offers`, `auctions`
+(r28 — `bidder: null` asserts no bid has met the reserve),
 `pendingGovernance`, `unreserved`, `outstanding` and `logLines`
 (`pendingUnreserve` was one until r22 removed the pending `U`); a `null`
 value in any of the pending maps asserts the entry is **gone**, which is what
@@ -145,8 +152,8 @@ boundary scenarios below:
 
 ### The `boundary_*` scenarios — exact firing heights
 
-Seven scenarios, one per §7.3 height-driven effect, each asserting the
-transition at exactly `h` **and its absence at `h-1`**.
+One scenario per §7.3 height-driven category — six since r28 — each
+asserting the transition at exactly `h` **and its absence at `h-1`**.
 
 They exist because every other way of observing these effects is blind to a
 one-block error. A checkpoint is only taken every `CHECKPOINT_INTERVAL`
@@ -160,6 +167,7 @@ advance MUST never emit a §8.2 line.**
 | Scenario | Fires at | Stated by |
 |---|---|---|
 | `boundary_offer_expires_at_OFFER_MAX_LIFETIME` | `opened + OFFER_MAX_LIFETIME` | §6 `O` "auto-expiring at" |
+| `boundary_auction_closes_at_end_height` | `end_height`, as moved by extensions | §6 `A` (r28); sixth category, after the maturing `X` |
 | `boundary_transfer_matures_at_XFER_TIMELOCK` | `landing + XFER_TIMELOCK` | §6 `X` "Takes effect at" |
 | `boundary_governance_activates_at_effective_height` | `effective_height` | §6 `P` |
 | `boundary_expiry_grace_and_the_fall_to_available` | `expiry`, then `expiry + GRACE_PERIOD` | §7.3's interval table (r21) |
@@ -182,7 +190,7 @@ category" rather than quietly counting a vector that no longer pins a height.
 
 ### `checkOrder` — which check runs first
 
-Thirty-seven cases in `reduce.json`'s own section, not scenarios. Each is a
+Forty-two cases in `reduce.json`'s own section, not scenarios. Each is a
 message that satisfies **two** rejection conditions at once: `verdict` is the
 token the earlier check produces, and `insteadOf` is the same probe rebuilt to
 trip only the later one, run against the same pre-state and required to earn
@@ -191,17 +199,19 @@ expectation fails; delete the later check and the second does.
 
 `setup` names an entry in `checkOrder.setups`. `pinnedBy` names the clause
 fixing the order, or is `null`. `insteadOfUnreachable` replaces `insteadOf`
-where the later token cannot be produced at all (only `A`, whose §6 clause
-makes `BELOW_MIN_PRICE` unreachable by construction).
+where the later token cannot be produced at all (one row: with an auction
+open on a name, no `A` for it reaches the checks behind `AUCTION_OPEN`).
 
-**Eighteen of the thirty-seven orderings are fixed by the spec; nineteen are
-implementation choices.** §7.4 fixes `G`'s five-check order ("recipient, name
+**Twenty-three of the forty-two orderings are fixed by the spec; nineteen
+are implementation choices.** r28 activated `A` and stated its whole order
+in §7.4's table — name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`,
+`INSUFFICIENT_NOTICE` — and the `AUCTION_OPEN` row's place in `O` and `X`;
+its two version-forfeit rows went and seven citing that table came. §7.4 fixes `G`'s five-check order ("recipient, name
 syntax, reservation, **value, then availability**"), `REFUND_FLOOR` converting
 a refund into a forfeit, the parse chain ("hex → `NNS1` prefix → length →
 type → payload" — pinning the two `parse_*` rows since r23, below), and —
 since r21, shortened by r22 — a `U`'s four ("sender, recipient, name syntax,
-reservation"). §7.5 runs before a message is parsed, and §6 `A` puts its
-version forfeit ahead of the price floor and behind §5.3 routing. Everything
+reservation"). §7.5 runs before a message is parsed. Everything
 else is a bullet list read as an order it never claimed to be, and the tokens
 carried forward as PROVEN-AT-R19 still lean on it: `INVALID_HOST`,
 `NAME_NOT_FOUND`, `BELOW_MIN_PRICE`, `WRONG_SENDER` and `MALFORMED_PAYLOAD`
@@ -223,11 +233,11 @@ vectors are the evidence for the clause rather than a substitute for it:
   the recipient used to lead, without touching that reasoning: the pair is now
   `U_invalid_recipient_beats_invalid_name`, and the recipient leads the name
   rows instead.
-- **`A`'s routing before its version forfeit.** Through r20 "every `A` forfeits
-  `AUCTION_NOT_IN_V1`" was absolute and the §5.3 exception was implicit. r21
-  states it: an `A` at the wrong address earns `WRONG_RECIPIENT`, and that is
-  the only exception — the `MIN_PRICE` floor still sits behind the version
-  forfeit. `A_wrong_recipient_beats_auction_not_in_v1` is the pair.
+- **`A`'s routing before everything else.** Through r20 "every `A` forfeits
+  `AUCTION_NOT_IN_V1`" was absolute and the §5.3 exception was implicit; r21
+  stated it, and r28 removed the version forfeit altogether — the pair is now
+  `A_wrong_recipient_beats_name_not_found`, routing ahead of the name rows
+  exactly as for every other routed type.
 - **The two `parse_*` rows, since r23's §5.2 amendment.** Through r22 §5.2
   said an unknown type or an over-length payload is "ignored" while §7.4
   forfeited both and §8.2 logged them — so what the null marker recorded was
@@ -259,9 +269,15 @@ implementations fork *silently* if they read the clause differently:
 4. **A `G` is checked for sufficient value before availability**, so an
    underfunded registration for a taken name forfeits rather than refunds
    (§7.4).
-5. **`A` (auction) forfeits with `AUCTION_NOT_IN_V1`** — by protocol version,
-   not by omission. An implementation that honoured auctions would derive a
-   different root. A below-floor reserve takes the same forfeit (§6 `A`).
+5. **`A` (auction) is a v1 rule since r28.** Through r27 every `A` forfeited
+   `AUCTION_NOT_IN_V1` by protocol version, so that an implementation
+   honouring auctions could not silently derive a different root from one that
+   did not; r28 activated it before anything launched, when "a stated height"
+   is simply `LAUNCH_HEIGHT`. The six `auction_*` / `admin_auction_*` /
+   `grace_reset_cancels_an_auction_*` scenarios pin the rules: bids are `B`s
+   dispatched by state, the outbid bidder is refunded at once, a late bid
+   moves the end, the close is a height effect owing two legs by the winning
+   bid's ref, and the grace reset cancels with a refund.
 6. **Proof steps carry a side.** §8.3's pre-r15 bare hash array is not
    verifiable under odd-node promotion.
 7. **An `O` price below `MIN_PRICE` forfeits**, and `MIN_PRICE` is `FEE_LONG`

@@ -172,6 +172,15 @@ export function nameRows(state: NnsState): NameRow[] {
 }
 
 export function pendingRows(state: NnsState): PendingRow[] {
+  // r28 activated `A` in core, and an open auction is committed pending state
+  // (§8.1 tag 0x0B). Until migration 010 gives it a row, persisting a state
+  // that holds one would resume silently wrong — the kind of failure this
+  // package exists to refuse. Loud on purpose: tasks/13-auction.md, D2.
+  if (state.auctions.size > 0) {
+    throw new Error(
+      `state holds ${state.auctions.size} open auction(s) and the pending table cannot store them yet (tasks/13-auction.md, D2)`,
+    )
+  }
   const rows: PendingRow[] = []
   for (const item of state.transfers.values()) {
     rows.push({
@@ -353,6 +362,8 @@ export function stateFromRows(rows: StateRows): NnsState {
     names,
     transfers,
     offers,
+    // Nothing persists one yet (see `pendingRows`), so nothing can be read back.
+    auctions: new Map(),
     prices,
     pendingGovernance,
     lastGovernanceHeight:

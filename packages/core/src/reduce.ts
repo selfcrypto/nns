@@ -14,14 +14,21 @@
  *    effect that has come due.
  * 3. Parse, check §5.3 routing, then the §7.3 state machine and §7.4 verdicts.
  *
- * ## What is not here
+ * ## Auctions (r28)
  *
- * `A` (auction) has no bidding state machine in v1. §6 calls the type
- * "deliberately additive" and §13 puts it last in the build order. An `A` is
- * parsed and logged and takes a `AUCTION_NOT_IN_V1` forfeit — and **any
- * implementation claiming v1 conformance must do the same**, because an
- * implementation that honoured auctions would derive a different root from one
- * that did not. Enabling `A` is a spec-version change, not a feature flag.
+ * Through r27 an `A` was parsed, logged and forfeited `AUCTION_NOT_IN_V1`, by
+ * protocol version rather than by omission, with activation deferred to "a
+ * stated height" under a later spec. Before launch that height is simply
+ * `LAUNCH_HEIGHT`, and every piece the clause leaned on already existed here —
+ * the height-driven effect engine, the typed pending set, obligations
+ * discharged by `M` — so r28 makes `A` a v1 rule. The token is gone from the
+ * vocabulary: no rule on any deployment can produce it now (§7.4's own
+ * maintenance rule). `AUCTION_OPEN` took its slot.
+ *
+ * A bid is a `B` whose name has an open auction; a close is a height effect
+ * (`ORDER.AUCTION_CLOSE`), so the two legs it owes are the one place an
+ * obligation is created with no verdict to carry it — `outstanding` is the
+ * record, and a settlement replay reads it rather than the verdict stream.
  */
 
 import { type Address, addressEquals } from './address.js'
@@ -31,6 +38,7 @@ import type { NnsConfig } from './config.js'
 import { CONSTANTS } from './constants.js'
 import { feeBand, validateHost, validateName } from './name.js'
 import {
+  type Auction,
   type NameRecord,
   type NnsState,
   type Obligation,
@@ -114,7 +122,7 @@ export type ForfeitReason =
   | 'NOTHING_TO_CANCEL'
   | 'BELOW_REFUND_FLOOR'
   | 'BELOW_MIN_PRICE'
-  | 'AUCTION_NOT_IN_V1'
+  | 'AUCTION_OPEN'
 
 /** §7.4 refundable column — losses caused by concurrency, not by the client. */
 export type RefundReason = 'LOST_REGISTRATION_RACE' | 'OFFER_NOT_OPEN' | 'WRONG_PRICE'
@@ -141,6 +149,7 @@ interface Draft {
   names: Map<string, NameRecord>
   transfers: Map<string, PendingTransfer>
   offers: Map<string, Offer>
+  auctions: Map<string, Auction>
   prices: Prices
   pendingGovernance: PendingGovernance | null
   lastGovernanceHeight: number | null
@@ -154,6 +163,7 @@ const draftOf = (state: NnsState): Draft => ({
   names: new Map(state.names),
   transfers: new Map(state.transfers),
   offers: new Map(state.offers),
+  auctions: new Map(state.auctions),
   prices: state.prices,
   pendingGovernance: state.pendingGovernance,
   lastGovernanceHeight: state.lastGovernanceHeight,
@@ -177,6 +187,7 @@ function computeNextDue(draft: Draft): number {
   if (draft.pendingGovernance !== null) consider(draft.pendingGovernance.effectiveHeight)
   for (const item of draft.transfers.values()) consider(item.effectiveHeight)
   for (const item of draft.offers.values()) consider(item.expiryHeight)
+  for (const item of draft.auctions.values()) consider(item.endHeight)
   for (const record of draft.names.values()) {
     if (record.status === 'REGISTERED') consider(record.expiry)
     else consider(record.expiry + CONSTANTS.GRACE_PERIOD)
@@ -184,16 +195,41 @@ function computeNextDue(draft: Draft): number {
   return next
 }
 
+// ── Obligations ─────────────────────────────────────────────────────────────
+
+const obligation = (
+  ref: TxRef,
+  kind: Obligation['kind'],
+  owedBy: Address,
+  owedTo: Address,
+  amount: bigint,
+): Obligation => Object.freeze({ ref, kind, owedBy, owedTo, amount })
+
+/**
+ * Record a debt directly in the draft. {@link reduce} does this for the legs a
+ * verdict carries; the height-driven effects — an auction closing, or being
+ * cancelled by the grace reset — have no verdict, so they write here.
+ */
+function owe(draft: Draft, item: Obligation): void {
+  const key = refKey(item.ref)
+  draft.outstanding.set(key, [...(draft.outstanding.get(key) ?? []), item])
+}
+
 // ── §7.3 dependent-state resets ─────────────────────────────────────────────
 
 /**
- * §7.3: on a transfer taking effect (`X` after its timelock, or `B`), owner
- * and target both become the new owner, the EVM address and the delegate
- * host are cleared, open offers are cancelled, and any pending `X` is void.
+ * §7.3: on a transfer taking effect (`X` after its timelock, `B`, or an
+ * auction closing), owner and target both become the new owner, the EVM
+ * address and the delegate host are cleared, open offers are cancelled, and
+ * any pending `X` is void.
  *
  * A clean slate is the safe default — in particular the old target must not
  * keep receiving funds sent to the name, and the old owner's EVM key must
  * not keep answering for it — and the new owner reconfigures explicitly.
+ *
+ * An open auction is exclusive with `X` and `O` (§6 `A`), so a transfer never
+ * finds one to cancel except the close that is itself performing the
+ * transfer, which reads the auction before calling this.
  */
 function applyTransfer(draft: Draft, name: string, newOwner: Address): void {
   const record = draft.names.get(name)
@@ -201,13 +237,27 @@ function applyTransfer(draft: Draft, name: string, newOwner: Address): void {
   draft.names.set(name, { ...record, owner: newOwner, target: newOwner, host: '', evm: '' })
   draft.transfers.delete(name)
   draft.offers.delete(name)
+  draft.auctions.delete(name)
+}
+
+/**
+ * §6 `A`: cancel an open auction, refunding the standing bid if there is one.
+ * The refund is keyed by the bid's own ref, like every other refund of a `B`.
+ */
+function cancelAuction(draft: Draft, name: string): void {
+  const auction = draft.auctions.get(name)
+  if (auction === undefined) return
+  draft.auctions.delete(name)
+  if (auction.bidder === null || auction.bidRef === null) return
+  owe(draft, obligation(auction.bidRef, 'REFUND', CONSTANTS.MARKETPLACE_ADDRESS, auction.bidder, auction.bid))
 }
 
 /**
  * §7.3 on entering `GRACE`: the delegate host is cleared — a lapsed name
- * cannot keep answering for its subdomains — and open offers and any pending
- * `X` are cancelled. The EVM address persists, like `owner` and `target`,
- * so a grace-then-renew round trip does not force the owner to re-declare it.
+ * cannot keep answering for its subdomains — and open offers, any pending
+ * `X` and any open auction are cancelled (the standing bid refunded). The EVM
+ * address persists, like `owner` and `target`, so a grace-then-renew round
+ * trip does not force the owner to re-declare it.
  */
 function enterGrace(draft: Draft, name: string): void {
   const record = draft.names.get(name)
@@ -215,6 +265,7 @@ function enterGrace(draft: Draft, name: string): void {
   draft.names.set(name, { ...record, status: 'GRACE', host: '' })
   draft.transfers.delete(name)
   draft.offers.delete(name)
+  cancelAuction(draft, name)
   schedule(draft, record.expiry + CONSTANTS.GRACE_PERIOD)
 }
 
@@ -223,6 +274,50 @@ function release(draft: Draft, name: string): void {
   draft.names.delete(name)
   draft.transfers.delete(name)
   draft.offers.delete(name)
+  // Already cancelled on entering GRACE; nothing can reopen one on a grace name.
+  draft.auctions.delete(name)
+}
+
+/**
+ * §6 `A`: the least a bid must carry — the reserve until one has met it,
+ * then the standing bid plus `AUCTION_MIN_INCREMENT` of itself, floored.
+ * `MIN_PRICE` on the reserve is what keeps the increment from rounding to 0.
+ */
+export const requiredBid = (auction: Auction): bigint =>
+  auction.bidder === null ? auction.reserve : auction.bid + commissionOn(auction.bid, CONSTANTS.AUCTION_MIN_INCREMENT_BP)
+
+/**
+ * §6 `A` close: with a standing bid the name changes hands and two legs are
+ * owed against the winning bid's ref — proceeds to the seller less commission
+ * at the rate active at the close height, and the commission to the treasury.
+ * An admin auction of a still-reserved name creates the registration instead
+ * of transferring one, on `U`'s award terms, and the name enters the
+ * unreserved set. With no standing bid the auction simply ends.
+ */
+function closeAuction(draft: Draft, auction: Auction, height: number): void {
+  draft.auctions.delete(auction.name)
+  if (auction.bidder === null || auction.bidRef === null) return
+
+  if (draft.names.has(auction.name)) {
+    applyTransfer(draft, auction.name, auction.bidder)
+  } else {
+    draft.unreserved.add(auction.name)
+    const expiry = height + CONSTANTS.TERM_LENGTH
+    draft.names.set(auction.name, {
+      name: auction.name,
+      owner: auction.bidder,
+      target: auction.bidder,
+      expiry,
+      status: 'REGISTERED',
+      host: '',
+      evm: '',
+    })
+    schedule(draft, expiry)
+  }
+
+  const commission = commissionOn(auction.bid, draft.prices.commissionBp)
+  owe(draft, obligation(auction.bidRef, 'SALE_PROCEEDS', CONSTANTS.MARKETPLACE_ADDRESS, auction.seller, auction.bid - commission))
+  owe(draft, obligation(auction.bidRef, 'COMMISSION', CONSTANTS.MARKETPLACE_ADDRESS, CONSTANTS.TREASURY_ADDRESS, commission))
 }
 
 // ── Height-driven effects ───────────────────────────────────────────────────
@@ -230,8 +325,9 @@ function release(draft: Draft, name: string): void {
 /**
  * Categories of scheduled effect, in the order they fire when several come due
  * at the same height. **This list is §7.3's, in §7.3's order** — governance
- * activation, maturing `X`, expiry to `GRACE`, grace release to `AVAILABLE`,
- * offer expiry — with ties inside a category broken bytewise by name.
+ * activation, maturing `X`, auction close, expiry to `GRACE`, grace release to
+ * `AVAILABLE`, offer expiry — with ties inside a category broken bytewise by
+ * name.
  *
  * The whole batch fires **before that block's transactions**: {@link reduce}
  * calls {@link advanceTo} for `tx.blockNumber` before it parses anything, so a
@@ -254,13 +350,22 @@ function release(draft: Draft, name: string): void {
  * with the pending `U`; the remaining steps keep their relative order, which is
  * the only thing consensus depends on. `GOVERNANCE` is now the only
  * governance effect driven by height at all.
+ *
+ * r28 inserted `AUCTION_CLOSE` after `TRANSFER`, on the same argument that
+ * placed the transfer before the expiry: a sale whose window ended before the
+ * term did was scheduled first, and expire-first would refund the winner and
+ * hand the seller a grace name instead. It sits after `GOVERNANCE` so the
+ * commission a close owes is at the rate active at the close height, exactly
+ * as a `B` in that block would be charged. The two can never collide with a
+ * transfer on one name — an open auction excludes `X` (§6 `A`).
  */
 const ORDER = {
   GOVERNANCE: 0,
   TRANSFER: 1,
-  EXPIRE: 2,
-  RELEASE: 3,
-  OFFER_EXPIRE: 4,
+  AUCTION_CLOSE: 2,
+  EXPIRE: 3,
+  RELEASE: 4,
+  OFFER_EXPIRE: 5,
 } as const
 
 interface DueEffect {
@@ -301,6 +406,20 @@ function collectDue(draft: Draft, upto: number): DueEffect[] {
         const pending = d.transfers.get(item.name)
         if (pending === undefined || pending.effectiveHeight > upto) return
         applyTransfer(d, item.name, pending.newOwner)
+      },
+    })
+  }
+
+  for (const item of draft.auctions.values()) {
+    if (item.endHeight > upto) continue
+    due.push({
+      height: item.endHeight,
+      order: ORDER.AUCTION_CLOSE,
+      key: item.name,
+      apply: (d) => {
+        const auction = d.auctions.get(item.name)
+        if (auction === undefined || auction.endHeight > upto) return
+        closeAuction(d, auction, auction.endHeight)
       },
     })
   }
@@ -417,14 +536,6 @@ export const commissionOn = (price: bigint, commissionBp: bigint): bigint =>
   (price * commissionBp) / CONSTANTS.BASIS_POINTS
 
 // ── reduce ──────────────────────────────────────────────────────────────────
-
-const obligation = (
-  ref: TxRef,
-  kind: Obligation['kind'],
-  owedBy: Address,
-  owedTo: Address,
-  amount: bigint,
-): Obligation => Object.freeze({ ref, kind, owedBy, owedTo, amount })
 
 /**
  * §7.4: an amount below `REFUND_FLOOR` is forfeited rather than refunded.
@@ -590,6 +701,10 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       if (record === undefined || record.status !== 'REGISTERED') return keep(forfeit('NAME_NOT_REGISTERED'))
 
       if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
+      // §6 `A`: an open auction is exclusive — bidders have committed money
+      // against the window, so the owner cannot move the name out from under
+      // them by another route.
+      if (state.auctions.has(message.name)) return keep(forfeit('AUCTION_OPEN'))
 
       const effectiveHeight = tx.blockNumber + CONSTANTS.XFER_TIMELOCK
 
@@ -667,6 +782,10 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       const record = state.names.get(message.name)
       if (record === undefined || record.status !== 'REGISTERED') return keep(forfeit('NAME_NOT_REGISTERED'))
       if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
+      // §6 `A`: exclusive while open, for the same reason as `X` above — and
+      // because a `B` is a bid exactly when an auction is open, so an offer
+      // beside one would make the same payload mean two things.
+      if (state.auctions.has(message.name)) return keep(forfeit('AUCTION_OPEN'))
 
       // §6 `O`: the price MUST be ≥ MIN_PRICE, which is FEE_LONG **at this
       // message's height** — a governed value, so it is read from the active
@@ -699,11 +818,43 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
     case 'B': {
       if (!addressEquals(tx.recipient, CONSTANTS.MARKETPLACE_ADDRESS)) return keep(forfeit('WRONG_RECIPIENT'))
 
+      // §6 `A`: a `B` whose name has an open auction is a bid, and state is
+      // what decides that — an auction and an offer never coexist, so the
+      // same payload can only mean one thing at any height. The auction is in
+      // the map, therefore it is open: a close fires in `advanceTo` before
+      // this block's transactions, so nothing here has to compare heights.
+      const auction = state.auctions.get(message.name)
+      if (auction !== undefined) {
+        if (tx.value < requiredBid(auction)) {
+          return keep(refundOrForfeit(tx, 'WRONG_PRICE', CONSTANTS.MARKETPLACE_ADDRESS))
+        }
+        const draft = draftOf(state)
+        // The outbid bidder is refunded now, keyed by their own bid, so the
+        // marketplace holds one bid per auction rather than every bid for
+        // the life of the window.
+        const refunds: Obligation[] = []
+        if (auction.bidder !== null && auction.bidRef !== null) {
+          refunds.push(obligation(auction.bidRef, 'REFUND', CONSTANTS.MARKETPLACE_ADDRESS, auction.bidder, auction.bid))
+        }
+        // Anti-sniping: the end is never less than AUCTION_EXTENSION after
+        // the last successful bid.
+        const endHeight = Math.max(auction.endHeight, tx.blockNumber + CONSTANTS.AUCTION_EXTENSION)
+        draft.auctions.set(message.name, {
+          ...auction,
+          endHeight,
+          bidder: tx.sender,
+          bid: tx.value,
+          bidRef: ref,
+        })
+        draft.nextDueHeight = computeNextDue(draft)
+        return { state: freeze(draft), verdict: ok(refunds) }
+      }
+
       const offer = state.offers.get(message.name)
       const record = state.names.get(message.name)
-      // Covers the race loser, a cancelled or expired offer, and a bid against
-      // an auction — which v1 never opens. All are refunded identically, so
-      // the log does not need to tell them apart.
+      // Covers the race loser and a cancelled or expired offer — and, since
+      // r28, a `B` on a name whose auction has already closed. All are
+      // refunded identically, so the log does not need to tell them apart.
       if (offer === undefined || record === undefined || record.status !== 'REGISTERED') {
         return keep(refundOrForfeit(tx, 'OFFER_NOT_OPEN', CONSTANTS.MARKETPLACE_ADDRESS))
       }
@@ -760,16 +911,50 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
     // ── A — Auction (§6) ─────────────────────────────────────────────────────
     case 'A': {
       if (!addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS)) return keep(forfeit('WRONG_RECIPIENT'))
-      // Not implemented in v1, by protocol version rather than by omission.
-      // See the module docblock.
-      //
-      // §6 `A` gives the reserve the same MIN_PRICE floor as an `O` price, but
-      // no `A` reaches that check in v1: §6 requires *every* `A` to take this
-      // forfeit, so a below-floor one taking `BELOW_MIN_PRICE` instead would
-      // put a different reason code in the log than a conforming
-      // implementation. The floor is enforced in `encodeAuction`, and belongs
-      // here — ahead of this line — on the version that activates auctions.
-      return keep(forfeit('AUCTION_NOT_IN_V1'))
+
+      // Which auction this is, decided by the name's state before anything
+      // about the sender: a name with a record is the owner's to auction, a
+      // name still held in RESERVED_NAMES is the admin's. The name rows lead
+      // the sender rows for the reason §7.4 gives for `O` — a sender check
+      // against a name nobody could auction would be the less informative of
+      // two true answers.
+      const record = state.names.get(message.name)
+      let seller: Address
+      if (record !== undefined) {
+        if (record.status !== 'REGISTERED') return keep(forfeit('NAME_NOT_REGISTERED'))
+        if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
+        seller = tx.sender
+      } else {
+        if (!isReserved(state, message.name)) return keep(forfeit('NAME_NOT_FOUND'))
+        if (!addressEquals(tx.sender, CONSTANTS.ADMIN_ADDRESS)) return keep(forfeit('NOT_ADMIN'))
+        seller = CONSTANTS.TREASURY_ADDRESS
+      }
+      if (state.auctions.has(message.name)) return keep(forfeit('AUCTION_OPEN'))
+      // Payload after state and authority, as for `O`: the floor first —
+      // it is what keeps the increment rule from rounding to zero — then the
+      // window, measured from the landing block like `P`'s notice.
+      if (message.reserve < minPrice(state.prices)) return keep(forfeit('BELOW_MIN_PRICE'))
+      if (message.endHeight < tx.blockNumber + CONSTANTS.AUCTION_MIN_DURATION) {
+        return keep(forfeit('INSUFFICIENT_NOTICE'))
+      }
+
+      // Opening voids the owner's own pending X and open O: the auction is
+      // the latest statement of intent, the rule a later O or X already
+      // applies to its predecessor. Nothing is owed — neither holds money.
+      const draft = draftOf(state)
+      draft.transfers.delete(message.name)
+      draft.offers.delete(message.name)
+      draft.auctions.set(message.name, {
+        name: message.name,
+        seller,
+        reserve: message.reserve,
+        endHeight: message.endHeight,
+        bidder: null,
+        bid: 0n,
+        bidRef: null,
+      })
+      draft.nextDueHeight = computeNextDue(draft)
+      return { state: freeze(draft), verdict: ok() }
     }
 
     // ── P — Governance (§6, §10.6) ───────────────────────────────────────────

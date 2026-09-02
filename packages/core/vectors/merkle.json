@@ -1,7 +1,7 @@
 {
   "vectors": "nns/merkle",
   "version": 1,
-  "spec": "nns-spec-v1 draft r26, §8.1 and §8.3",
+  "spec": "nns-spec-v1 draft r28, §8.1 and §8.3",
   "description": "Checkpoint tree byte layout. `enc` is the §8.1 leaf preimage, `leaf` is keccak256(0x00 ‖ enc), internal nodes are keccak256(0x01 ‖ left ‖ right), odd nodes are promoted unchanged, and an empty tree is 32 zero bytes. All hex is lowercase and unprefixed.",
   "addresses": {
     "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
@@ -267,7 +267,8 @@
       "pendingOffer": "0x07",
       "pendingGovernance": "0x08",
       "pendingUnreserveRetired": "0x09 — retired (r22), not reused",
-      "unreserved": "0x0A"
+      "unreserved": "0x0A",
+      "pendingAuction": "0x0B"
     },
     "cases": [
       {
@@ -317,7 +318,7 @@
       },
       {
         "id": "every_pending_category",
-        "note": "One of each category the pending set still has: a pending X, an open O and a pending P. Tags 0x06 (pending R, r20) and 0x09 (pending U, r22) are retired and not reused. Entries are concatenated by category in §8.1's order and bytewise by name inside a category, then hashed once under 0x04. This case held a fourth entry through r21 and is the only one in this file whose value moved with r22 — because its state moved, not because the encoding did.",
+        "note": "One of each category the pending set has: a pending X, an open O, an open A (r28) and a pending P. Tags 0x06 (pending R, r20) and 0x09 (pending U, r22) are retired and not reused; 0x0B is the auction. Entries are concatenated by category in §8.1's order — transfers, offers, auctions, governance — and bytewise by name inside a category, then hashed once under 0x04. This case's value moves whenever the pending set gains a category, because its state does (r22 removed an entry, r28 adds one); every other case here keeps its value across both, which is the file-level form of §8.1's \"an empty category contributes nothing\".",
         "state": {
           "height": 58903520,
           "prices": {
@@ -371,14 +372,98 @@
               "commissionBp": "250"
             },
             "effectiveHeight": 58946720
-          }
+          },
+          "auctions": [
+            {
+              "name": "kikename",
+              "seller": "ALICE",
+              "reserve": "100000000",
+              "endHeight": 58929200,
+              "bidder": "CAROL",
+              "bid": "110250000"
+            }
+          ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "nameRoot": "c9a279f988933002ac3575bd0248cffeee29da2a21a9590c9889d55b65eb94cc",
         "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
-        "pendingRoot": "12b080187c9ceab6dc404ef90315407e15e62514a6ecf23262a8a20ea3079cef",
+        "pendingRoot": "7fa39ff97f50166ff511ca737ee2c5373fba71ba6a6d73c0d7fe1e9bfe9afdd8",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "1b6c400564c11951a179d8d1aa4543ac2773ea7f68419a4dbd940976b9351f6d"
+        "commitment": "ebc9ec6ee9e9c481375b7f291e05e8b507218a38a7920a51819e2c2800651875"
+      },
+      {
+        "id": "one_open_auction_no_bid",
+        "note": "An `A` nobody has bid on: the standing bidder is 20 zero bytes and the bid is 0, so a client can prove \"no bid stands\" from the checkpoint alone. Same names as one_open_offer's world, different pending root, same name root.",
+        "state": {
+          "height": 58903520,
+          "prices": {
+            "feeStandard": "200000000",
+            "feeLong": "40000000",
+            "commissionBp": "250"
+          },
+          "names": [
+            {
+              "name": "kikename",
+              "owner": "ALICE",
+              "target": "ALICE",
+              "expiry": 90378720,
+              "status": "REGISTERED",
+              "host": ""
+            }
+          ],
+          "auctions": [
+            {
+              "name": "kikename",
+              "seller": "ALICE",
+              "reserve": "100000000",
+              "endHeight": 58929200
+            }
+          ]
+        },
+        "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
+        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
+        "pendingRoot": "e5a8b09fa15aab9e7eed73a02e118a2eac88682e7fc067e9fe373022ccebe714",
+        "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
+        "commitment": "04f6021d702c6bcb441d98883de7b2ca0698842e5364139fdc61bb72a52f7406"
+      },
+      {
+        "id": "one_open_auction_with_bid",
+        "note": "The same auction after a bid met the reserve and one extension moved the end: bidder, bid and end height are all in the entry. The bid's transaction ref is not — §8.1 keeps settlement identity out of the commitment, on the same terms as the obligations — so two states differing only in that ref commit identically.",
+        "state": {
+          "height": 58903520,
+          "prices": {
+            "feeStandard": "200000000",
+            "feeLong": "40000000",
+            "commissionBp": "250"
+          },
+          "names": [
+            {
+              "name": "kikename",
+              "owner": "ALICE",
+              "target": "ALICE",
+              "expiry": 90378720,
+              "status": "REGISTERED",
+              "host": ""
+            }
+          ],
+          "auctions": [
+            {
+              "name": "kikename",
+              "seller": "ALICE",
+              "reserve": "100000000",
+              "endHeight": 58929300,
+              "bidder": "BOB",
+              "bid": "110250000"
+            }
+          ]
+        },
+        "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
+        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
+        "pendingRoot": "683a137113b4e1fda184412ccf62c6d50625c715cff54092e6e6a331fb9d196b",
+        "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
+        "commitment": "b3f7a6efcad073caec97e1b58ba216c3f93c39a7a2416931b24dd5f5cc272352"
       },
       {
         "id": "same_names_no_pending_set",
