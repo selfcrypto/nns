@@ -72,7 +72,7 @@ describe('GET /{parent}/{label}', () => {
   })
 
   it('reads a longer path as a mount, and the last two segments as the lookup', () => {
-    // Not a rejection, which is what it was through r25: with no marker to
+    // Not a rejection, which is what it was through r24: with no marker to
     // scan for, depth is exactly what a mount looks like. `/binance/shop/extra`
     // is therefore a lookup for `extra` under a parent `shop`, and 404s
     // because this file holds no such name — not because the shape is wrong.
