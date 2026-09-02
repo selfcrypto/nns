@@ -3,6 +3,7 @@ export {
   NotSyncedError,
   PgQueries,
   QueryError,
+  type ApiAuction,
   type ApiNameRecord,
   type ApiObligation,
   type ApiOffer,

@@ -127,9 +127,8 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
     // any more (migration 007 dropped the kind).
     expect((await queries.detail('legacy-brand')).value.unreserved).toBe(true)
 
-    // An r28 indexer writes an AUCTION row (migration 010). Until tasks/13
-    // D3 surfaces it, the route must tolerate it rather than throw — a name
-    // under auction still has to resolve.
+    // An r28 indexer writes an AUCTION row (migration 010); it reads back as
+    // core's own `Auction`, ref included — the close keys its legs by it.
     await pool.query(
       `INSERT INTO names (name, owner, target, expiry, status, host)
        VALUES ('carol-example', $1, $1, 215880000, 'REGISTERED', '')`,
@@ -144,6 +143,28 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
     expect(auctioned.value.record?.name).toBe('carol-example')
     expect(auctioned.value.offer).toBeNull()
     expect(auctioned.value.transfer).toBeNull()
+    expect(auctioned.value.auction).toEqual({
+      name: 'carol-example',
+      seller: B,
+      reserve: 50_000_000n,
+      endHeight: 58_276_400,
+      bidder: A,
+      bid: 52_500_000n,
+      bidRef: { height: 58_190_100, txIndex: 0 },
+    })
+    expect((await queries.detail('alice-example')).value.auction).toBeNull()
+
+    // No bid yet: null bidder, zero bid, no ref — the shape migration 010's
+    // check admits, read back without inventing a ref.
+    await pool.query(
+      `INSERT INTO pending (kind, name, seller, reserve, end_height, bidder, bid)
+       VALUES ('AUCTION', 'dave-example', $1, '60000000', 58276400, NULL, '0')`,
+      [B],
+    )
+    const auctions = await queries.auctions()
+    expect(auctions.value.map((a) => a.name)).toEqual(['carol-example', 'dave-example'])
+    expect(auctions.value[1]).toMatchObject({ bidder: null, bid: 0n, bidRef: null })
+    await pool.query(`DELETE FROM pending WHERE name = 'dave-example'`)
 
     const owned = await queries.byOwner(A)
     expect(owned.value.map((r) => r.name)).toEqual(['alice-example', 'bob-example'])
@@ -199,6 +220,7 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
       record: null,
       transfer: null,
       offer: null,
+      auction: null,
       unreserved: false,
     })
   })

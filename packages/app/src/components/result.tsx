@@ -5,13 +5,17 @@ import {
   RENDERED_ELSEWHERE,
   WARNING_TEXT,
   WARNING_TONE,
+  auctionLine,
   delegatedExplainer,
   delegatedLine,
   feeChangeLine,
   forSaleLine,
+  minimumBidLine,
+  noBidsLine,
   pendingTransferLine,
   proofPendingLine,
   resolverIdentityLine,
+  standingBidLine,
   verifiedByLine,
 } from '../lib/wording'
 import { Badge, Identicon, NameText, type RailTier } from './ui'
@@ -90,10 +94,10 @@ export function AddressRow({ address, full = false }: { address: string; full?: 
   )
 }
 
-/** §1 overlays on a registered name: pending transfer, open offer. */
+/** §1 overlays on a registered name: pending transfer, open offer, open auction. */
 export function Overlays({ info, nowMs }: { info: NameInfo; nowMs: number }) {
-  const { transfer, offer } = info.pending
-  if (transfer === null && offer === null) return null
+  const { transfer, offer, auction } = info.pending
+  if (transfer === null && offer === null && auction === null) return null
   return (
     <div className="overlays">
       {transfer !== null && (
@@ -105,6 +109,13 @@ export function Overlays({ info, nowMs }: { info: NameInfo; nowMs: number }) {
         </p>
       )}
       {offer !== null && <p className="overlay">{forSaleLine(lunaToNim(offer.price))}</p>}
+      {auction !== null && (
+        <p className="overlay">
+          {auctionLine(lunaToNim(auction.reserve), formatApproxDate(approxDate(auction.endHeight, info.height, nowMs)))}{' '}
+          {auction.bidder === null ? noBidsLine() : standingBidLine(lunaToNim(auction.bid), ellipsizeAddress(auction.bidder))}{' '}
+          {minimumBidLine(lunaToNim(auction.minimumBid))}
+        </p>
+      )}
     </div>
   )
 }

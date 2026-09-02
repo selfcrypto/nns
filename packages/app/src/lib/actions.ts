@@ -8,6 +8,7 @@
 
 import {
   CONSTANTS,
+  encodeAuction,
   encodeBuy,
   encodeCancel,
   encodeDelegate,
@@ -25,9 +26,9 @@ import {
   type BuiltTransaction,
 } from '@nns/core'
 import { getNameInfo, type ApiParams, type NameInfo } from './api'
-import { lunaToNim } from './format'
-import { soldByLine } from './wording'
-import { sameAddress, registrationFee } from './states'
+import { approxDate, blocksApprox, formatApproxDate, lunaToNim } from './format'
+import { auctionOutlivesTermLine, bidRefundLine, soldByLine } from './wording'
+import { auctionEndHeight, auctionOutlivesTerm, sameAddress, registrationFee } from './states'
 import type { AppAction } from './states'
 import type { SubmitRequest } from './wallet'
 
@@ -41,6 +42,8 @@ export type ActionInputs =
   | { readonly action: 'transfer'; readonly newOwner: string }
   | { readonly action: 'delegate'; readonly host: string }
   | { readonly action: 'offer'; readonly priceNim: string }
+  | { readonly action: 'auction'; readonly reserveNim: string; readonly durationDays: string }
+  | { readonly action: 'bid'; readonly bidNim: string }
 
 export interface PreparedAction {
   readonly action: AppAction
@@ -68,6 +71,26 @@ export const parseNimAmount = (text: string, what = 'Price'): bigint => {
 }
 
 const parseNimPrice = (text: string): bigint => parseNimAmount(text)
+
+/** The block clock's day, ~1 block/s — the same figure `format.ts` renders durations with. */
+const BLOCKS_PER_DAY = 86_400
+
+/**
+ * An auction duration typed in days, to blocks. Two decimals — a quarter day
+ * is the finest anyone plans a sale in — and never below `AUCTION_MIN_DURATION`,
+ * which §6 `A` forfeits on. The landing margin is added on top by
+ * `auctionEndHeight`, so the minimum typed here is a legal auction.
+ */
+export const parseAuctionDuration = (text: string): number => {
+  const match = /^([0-9]+)(?:[.,]([0-9]{1,2}))?$/.exec(text.trim())
+  if (match === null || match[1] === undefined) throw new ActionInputError('Duration must be a number of days, like 3 or 1.5')
+  const hundredths = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'))
+  const blocks = Math.round((hundredths * BLOCKS_PER_DAY) / 100)
+  if (blocks < CONSTANTS.AUCTION_MIN_DURATION) {
+    throw new ActionInputError(`An auction runs at least ${blocksApprox(CONSTANTS.AUCTION_MIN_DURATION)}`)
+  }
+  return blocks
+}
 
 const requireAddress = (input: string, what: string): string => {
   const parsed = tryParseAddress(input)
@@ -280,6 +303,68 @@ export function prepareAction(options: {
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null
           return rec !== null && ownedByViewer(rec.owner)
+        },
+      }
+    }
+
+    case 'auction': {
+      if (info === null || record === null) throw new ActionInputError('Couldn’t read this name’s record — try again')
+      const reserve = parseNimAmount(inputs.reserveNim, 'Reserve')
+      const endHeight = auctionEndHeight(info.height, parseAuctionDuration(inputs.durationDays))
+      const minPrice = needParams().minPrice
+      const when = (height: number): string => formatApproxDate(approxDate(height, info.height, Date.now()))
+      const extension = blocksApprox(CONSTANTS.AUCTION_EXTENSION)
+      const lines = [
+        `Opens an auction on ${name} with a ${lunaToNim(reserve)} NIM reserve, ending ${when(endHeight)}.`,
+        `Neither the auction nor a bid can be withdrawn — it runs to the end, and a bid in the last ${extension} extends it by ${extension}.`,
+        'The highest bid wins and the name transfers at the end; the proceeds arrive from the marketplace operator, less its commission.',
+      ]
+      // Opening voids both (§6 `A`) — the rule a later `O` or `X` already
+      // applies to its predecessor — so the review says what goes.
+      const pendingTransfer = info.pending.transfer
+      const pendingOffer = info.pending.offer
+      if (pendingTransfer !== null) lines.push(`Cancels the pending transfer to ${pendingTransfer.newOwner}.`)
+      if (pendingOffer !== null) lines.push(`Withdraws the ${lunaToNim(pendingOffer.price)} NIM offer.`)
+      if (auctionOutlivesTerm(endHeight, record.expiry)) lines.push(auctionOutlivesTermLine(when(record.expiry)))
+      return {
+        action: 'auction',
+        // `encodeAuction` refuses a reserve below `minPrice` (§6 `A`): the
+        // increment rule rounds to zero at a token reserve.
+        request: asRequest(encodeAuction({ name, reserve, endHeight, minPrice, sender })),
+        review: lines,
+        confirm: async () => {
+          const pending = (await infoNow())?.pending.auction ?? null
+          return pending !== null && pending.reserve === reserve
+        },
+      }
+    }
+
+    case 'bid': {
+      const auction = info?.pending.auction ?? null
+      if (info === null || auction === null) throw new ActionInputError('No open auction on this name')
+      if (viewers.some((address) => sameAddress(auction.seller, address))) {
+        throw new ActionInputError('This is your own auction')
+      }
+      const bid = parseNimAmount(inputs.bidNim, 'Bid')
+      if (bid < auction.minimumBid) {
+        throw new ActionInputError(`Bid must be at least ${lunaToNim(auction.minimumBid)} NIM`)
+      }
+      const when = (height: number): string => formatApproxDate(approxDate(height, info.height, Date.now()))
+      const extension = blocksApprox(CONSTANTS.AUCTION_EXTENSION)
+      return {
+        action: 'bid',
+        // The same `B` as a buy: state reads it as a bid because the auction
+        // is open (§6 `A`). The client only shows which one it is sending.
+        request: asRequest(encodeBuy({ name, price: bid, sender })),
+        review: [
+          `Bids ${lunaToNim(bid)} NIM on ${name}, held by the marketplace escrow until the auction ends ${when(auction.endHeight)}.`,
+          `A bid in the last ${extension} extends the auction by ${extension}.`,
+          bidRefundLine(),
+          soldByLine(auction.seller),
+        ],
+        confirm: async () => {
+          const now = (await infoNow())?.pending.auction ?? null
+          return now !== null && now.bidder !== null && ownedByViewer(now.bidder) && now.bid === bid
         },
       }
     }

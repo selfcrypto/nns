@@ -75,12 +75,13 @@ nothing — and it is also what stops the field hint scolding a half-typed name.
 Hints are computed off the settled value for that reason. Outcomes are
 `docs/app-states.md` §3, each a card. Beyond what is built today:
 
-**Buy offers acquisition only** — `register` and `buy`. A name one of the
+**Buy offers acquisition only** — `register`, `buy` and `bid` (the last two
+never together: state says which a `B` is, §6 `A`). A name one of the
 viewer's addresses owns gets "You own this name." and a **Manage it** button that
 hands off to My names, because acquiring and managing are different jobs and a
 screen called Buy offering to transfer your own name away is a contradiction. The
-owner's seven (`setTarget`, `setEvm`, `transfer`, `delegate`, `renew`, `offer`,
-`cancel`) are not rendered here at all. Legality is unchanged: `actionGates` and `signerFor`
+owner's eight (`setTarget`, `setEvm`, `transfer`, `delegate`, `renew`, `offer`,
+`auction`, `cancel`) are not rendered here at all. Legality is unchanged: `actionGates` and `signerFor`
 still decide what is possible — this decides what the screen is *for*.
 
 - **Taken name (resolved card)** gains a **"Message the owner"** row — the
@@ -144,9 +145,13 @@ revocation to wrap.
   empty-state naming the variable, same pattern as the resolver setup
   screen.
 
-**Market**: offer rows (name, price, seller identicon+address, expiry).
-Row → detail card. *Buy* enters the `B` flow (§5); until then the custodial
-disclosure rides on the listing, as now.
+**Market**: offer rows (name, price, seller identicon+address, expiry) and,
+since r28, auction rows (name with an *Auction* badge, the standing bid or
+the reserve, "No bids yet" or the highest bid, the minimum next bid, seller,
+"ends ≈ date") in one list — a buyer is looking for a name, not a mechanism.
+Row → detail card, where *Buy* or *Bid* enters the `B` flow (§5): never
+both, because state decides which a `B` is. The custodial disclosure rides
+on the listing as well.
 
 ### Pay — one payment to a name
 
@@ -236,8 +241,9 @@ compose ──▶ review (in-app) ──▶ Pay sheet (wallet UI) ──▶ conf
 
 **A sheet opens showing what it is about to change** (2026-08-23): `S` the
 current target, `E` the currently linked address (or that none is), `D` the
-current host (or that none is set), `N` the current expiry as `≈ date` on the
-~1 block/s clock. Before any input, from the record — the review lines below
+current host (or that none is set), `N` and `A` the current expiry as `≈ date`
+on the ~1 block/s clock (for `A`, because the end has to fall before it), a
+bid the standing bid and the minimum next one. Before any input, from the record — the review lines below
 still describe the *new* state once inputs are typed.
 
 | Flow | Compose needs | Review must say | Effect that confirms it |
@@ -251,6 +257,8 @@ still describe the *new* state once inputs are typed.
 | `K` cancel | Non-empty cancellable set | **Lists everything** it will cancel — one `K` cancels all of it | `/name` pending cleared |
 | `O` offer | Price ≥ `minPrice` from `/params` | Irrevocable ~2.4 h; auto-expiry ~15 d; commission on sale | `/name` pending.offer set |
 | `B` buy | Open offer; value = price exactly | Name, price, seller (the sheet won't); **custodial warning, explicit confirm, every time** | `/name` owner = me |
+| `A` auction (r28) | Reserve ≥ `minPrice` from `/params`; duration in days ≥ ~1 d, the ~1 h landing margin added on top (`states.ts`, `AUCTION_LANDING_MARGIN`) | Reserve and end as ≈ date; neither the auction nor a bid can be withdrawn, a late bid extends it ~10 min; commission on sale; what opening voids (pending `X`, open `O`); **the expiry warning when the end is at or past it** | `/name` pending.auction set |
+| `B` bid (r28) | Open auction; value ≥ its `minimumBid` (the API's `core.requiredBid`) | Bid, that escrow holds it until the end (≈ date), extension, the refund reading of a low or outbid bid, seller; **custodial warning in its bid form, explicit confirm, every time** | `/name` pending.auction.bidder = me at my bid |
 | NC message | Owner ≠ me; message fits budget | Public-forever notice; dust cost | Own message appears in history |
 
 ## 6. Pinning (§8.5) — the remaining read-side piece

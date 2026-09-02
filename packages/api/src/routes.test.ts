@@ -55,10 +55,33 @@ const EMPTY_DETAIL: NameDetail = {
   record: null,
   transfer: null,
   offer: null,
+  auction: null,
   unreserved: false,
 }
 
 const OFFER = { name: 'alice-example', seller: A, price: 50_000_000n, openedHeight: 58_190_000, expiryHeight: 59_486_000 }
+
+/** A standing bid of 525 NIM: the next must add 5% of it — 551.25 NIM (§6 `A`). */
+const AUCTION = {
+  name: 'carol-example',
+  seller: B,
+  reserve: 50_000_000n,
+  endHeight: 58_276_400,
+  bidder: A,
+  bid: 52_500_000n,
+  bidRef: { height: 58_190_100, txIndex: 0 },
+}
+
+const AUCTION_WIRE = {
+  name: 'carol-example',
+  seller: formatAddress(B),
+  reserve: '50000000',
+  endHeight: 58_276_400,
+  bidder: formatAddress(A),
+  bid: '52500000',
+  bidRef: { height: 58_190_100, txIndex: 0 },
+  minimumBid: '55125000',
+}
 
 const PARAMS = {
   feeStandard: 400_000_000n,
@@ -81,6 +104,7 @@ function queriesOf(partial: Partial<Queries>): Queries {
     detail: unstubbed,
     byOwner: unstubbed,
     offers: unstubbed,
+    auctions: unstubbed,
     params: unstubbed,
     latestCheckpoint: unstubbed,
     checkpointAt: unstubbed,
@@ -122,8 +146,8 @@ describe('routing', () => {
 
   it('maps NotSyncedError to 503 on every state route', async () => {
     const notSynced = () => Promise.reject(new NotSyncedError('the indexer has not written state yet'))
-    const handle = routes({ record: notSynced, detail: notSynced, byOwner: notSynced, offers: notSynced, params: notSynced })
-    for (const url of ['/resolve/alice-example', '/available/alice-example', '/name/alice-example', `/address/${encodeURIComponent(formatAddress(A))}/names`, '/offers', '/params']) {
+    const handle = routes({ record: notSynced, detail: notSynced, byOwner: notSynced, offers: notSynced, auctions: notSynced, params: notSynced })
+    for (const url of ['/resolve/alice-example', '/available/alice-example', '/name/alice-example', `/address/${encodeURIComponent(formatAddress(A))}/names`, '/offers', '/auctions', '/params']) {
       const response = await handle('GET', url)
       expect(response.status, url).toBe(503)
       expect((response.body as { error: string }).error).toBe('NOT_SYNCED')
@@ -282,6 +306,7 @@ describe('/name', () => {
       record: { ...RECORD, host: 'r.example.com' },
       transfer: { newOwner: B, effectiveHeight: 58_243_200 },
       offer: OFFER,
+      auction: null,
       unreserved: false,
     }
     const handle = routes({ detail: () => Promise.resolve(snap(detail)) })
@@ -309,10 +334,26 @@ describe('/name', () => {
             openedHeight: 58_190_000,
             expiryHeight: 59_486_000,
           },
+          auction: null,
         },
         height: HEIGHT,
       },
     })
+  })
+
+  it('serialises an open auction with its standing bid, ref and the minimum next bid (§6 `A`, r28)', async () => {
+    const detail: NameDetail = { ...EMPTY_DETAIL, record: { ...RECORD, name: 'carol-example', owner: B }, auction: AUCTION }
+    const handle = routes({ detail: () => Promise.resolve(snap(detail)) })
+    const response = await handle('GET', '/name/carol-example')
+    expect(response.status).toBe(200)
+    expect((response.body as { pending: { auction: unknown } }).pending.auction).toEqual(AUCTION_WIRE)
+  })
+
+  it('an auction with no bid yet asks for the reserve, and carries no bidder and no ref', async () => {
+    const fresh = { ...AUCTION, bidder: null, bid: 0n, bidRef: null }
+    const handle = routes({ detail: () => Promise.resolve(snap({ ...EMPTY_DETAIL, record: RECORD, auction: fresh })) })
+    const body = (await handle('GET', '/name/carol-example')).body as { pending: { auction: Record<string, unknown> } }
+    expect(body.pending.auction).toMatchObject({ bidder: null, bid: '0', bidRef: null, minimumBid: '50000000' })
   })
 
   it('reports a fired `U` as `unreserved`, and offers no pending unreserve at all (r22)', async () => {
@@ -325,7 +366,7 @@ describe('/name', () => {
     const handle = routes({ detail: () => Promise.resolve(snap(fired)) })
     const response = await handle('GET', '/name/nimiq')
     expect(response.body).toMatchObject({ unreserved: true, reserved: false })
-    expect(Object.keys((response.body as { pending: object }).pending)).toEqual(['transfer', 'offer'])
+    expect(Object.keys((response.body as { pending: object }).pending)).toEqual(['transfer', 'offer', 'auction'])
   })
 })
 
@@ -372,6 +413,16 @@ describe('/offers', () => {
         ],
         height: HEIGHT,
       },
+    })
+  })
+})
+
+describe('/auctions', () => {
+  it('lists open auctions with string amounts and the minimum next bid from core', async () => {
+    const handle = routes({ auctions: () => Promise.resolve(snap([AUCTION])) })
+    expect(await handle('GET', '/auctions')).toEqual({
+      status: 200,
+      body: { auctions: [AUCTION_WIRE], height: HEIGHT },
     })
   })
 })
@@ -812,6 +863,14 @@ describe('GET /log/decoded', () => {
     const entry = (response.body as { entries: Record<string, unknown>[] }).entries[0]
     expect(entry?.['message']).toBe('NNS1G%0a99999999 0 forged')
     expect(String(entry?.['message'])).not.toContain('\n')
+  })
+
+  it('types an `A` line as A — the codec parses it, so the view does (r28)', async () => {
+    // NNS1Acarol-example|50000000|58276400
+    const aHex = Buffer.from('NNS1Acarol-example|50000000|58276400', 'ascii').toString('hex')
+    const response = await decoded([`59185484 0 dd44 ${NQ_A} ${NQ_B} 1 ${aHex} OK`])('GET', '/log/decoded')
+    const body = response.body as { entries: { type: string | null; message: string | null }[] }
+    expect(body.entries[0]).toMatchObject({ type: 'A', message: 'NNS1Acarol-example|50000000|58276400' })
   })
 
   it('names the failure for a payload that does not parse, rather than dropping the line', async () => {

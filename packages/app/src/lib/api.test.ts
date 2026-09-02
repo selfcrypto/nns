@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ApiError, getBurn, getNameInfo, getOffers, getParams, type JsonFetch } from './api'
+import { ApiError, getAuctions, getBurn, getNameInfo, getOffers, getParams, type JsonFetch } from './api'
 
 const respond =
   (routes: Record<string, { status: number; body: unknown }>): JsonFetch =>
@@ -23,15 +23,15 @@ const nameBody = {
     status: 'REGISTERED',
     host: '',
   },
-  pending: { transfer: null, offer: null },
+  pending: { transfer: null, offer: null, auction: null },
   height: 1_500_000,
 }
 
 describe('getNameInfo', () => {
-  it('parses the r22 shape — pending is {transfer, offer}, no third key', async () => {
+  it('parses the r28 shape — pending is {transfer, offer, auction}, no unreserve key', async () => {
     const info = await getNameInfo('http://api', 'example', respond({ '/name/example': { status: 200, body: nameBody } }))
     expect(info?.record?.status).toBe('REGISTERED')
-    expect(info?.pending).toEqual({ transfer: null, offer: null })
+    expect(info?.pending).toEqual({ transfer: null, offer: null, auction: null })
   })
 
   it('404 NOT_FOUND is null — nothing known is an answer, not an error', async () => {
@@ -72,6 +72,27 @@ describe('luna amounts', () => {
       }),
     )
     expect(offers.offers[0]?.price).toBe(123_456_789_012_345n)
+  })
+
+  it('auctions parse every amount to bigint, and a fresh one carries no bidder', async () => {
+    const wire = {
+      name: 'a-name',
+      seller: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
+      reserve: '100000000',
+      endHeight: 1_100_000,
+      bidder: null,
+      bid: '0',
+      bidRef: null,
+      minimumBid: '100000000',
+    }
+    const auctions = await getAuctions('http://api', respond({ '/auctions': { status: 200, body: { auctions: [wire], height: 3 } } }))
+    expect(auctions.auctions[0]).toEqual({ name: 'a-name', seller: wire.seller, reserve: 100_000_000n, endHeight: 1_100_000, bidder: null, bid: 0n, minimumBid: 100_000_000n })
+    const info = await getNameInfo(
+      'http://api',
+      'example',
+      respond({ '/name/example': { status: 200, body: { ...nameBody, pending: { transfer: null, offer: null, auction: { ...wire, bidder: wire.seller, bid: '105000000', minimumBid: '110250000' } } } } }),
+    )
+    expect(info?.pending.auction?.minimumBid).toBe(110_250_000n)
   })
 
   it('a non-decimal luna string is refused', async () => {

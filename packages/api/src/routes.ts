@@ -30,6 +30,7 @@ import {
   parse,
   parseLogLine,
   parseQuery,
+  requiredBid,
   tryParseAddress,
   validateNameSyntax,
   type Address,
@@ -39,6 +40,7 @@ import {
 import { inclusionDocument, nonInclusionDocument, type ProofContext } from './proofs.js'
 import {
   NotSyncedError,
+  type ApiAuction,
   type ApiNameRecord,
   type ApiOffer,
   type LatestCheckpoint,
@@ -176,6 +178,7 @@ const displayAddress = (compact: string): string => {
  * directly.
  */
 export const ROUTES = Object.freeze([
+  '/auctions',
   '/available/{name}',
   '/address/{addr}/names',
   '/burn',
@@ -229,6 +232,26 @@ function serialiseOffer(offer: ApiOffer): Record<string, unknown> {
     price: offer.price.toString(),
     openedHeight: offer.openedHeight,
     expiryHeight: offer.expiryHeight,
+  }
+}
+
+/**
+ * An open auction, plus `minimumBid` — the least a `B` must carry to stand
+ * (§6 `A`): the reserve until a bid has met it, then the standing bid plus
+ * `AUCTION_MIN_INCREMENT` of itself, floored. Served for the same reason
+ * `/params` serves `minPrice`: a client cannot build a correct bid without
+ * it, and the rule is `core.requiredBid`, never restated here.
+ */
+function serialiseAuction(auction: ApiAuction): Record<string, unknown> {
+  return {
+    name: auction.name,
+    seller: formatAddress(auction.seller),
+    reserve: auction.reserve.toString(),
+    endHeight: auction.endHeight,
+    bidder: auction.bidder === null ? null : formatAddress(auction.bidder),
+    bid: auction.bid.toString(),
+    bidRef: auction.bidRef === null ? null : { height: auction.bidRef.height, txIndex: auction.bidRef.txIndex },
+    minimumBid: requiredBid(auction).toString(),
   }
 }
 
@@ -340,6 +363,7 @@ export function createRoutes(queries: Queries): RouteHandler {
       value.record === null &&
       value.transfer === null &&
       value.offer === null &&
+      value.auction === null &&
       !isReserved &&
       !value.unreserved
     if (nothingKnown) return respond(404, { error: 'NOT_FOUND', name, height })
@@ -358,6 +382,10 @@ export function createRoutes(queries: Queries): RouteHandler {
                 effectiveHeight: value.transfer.effectiveHeight,
               },
         offer: value.offer === null ? null : serialiseOffer(value.offer),
+        // r28 (§6 `A`): an open auction, never beside an offer. The close is
+        // a height effect, so once `height` reaches `endHeight` the key is
+        // null and the record's owner is whoever won.
+        auction: value.auction === null ? null : serialiseAuction(value.auction),
         // `unreserve` was a third key here through r21. r22 made a `U` execute
         // in its landing block (§6 `U`), so nothing about one is ever pending;
         // the top-level `unreserved` flag above is the whole of what a caller
@@ -630,6 +658,11 @@ export function createRoutes(queries: Queries): RouteHandler {
     return respond(200, { offers: value.map(serialiseOffer), height })
   }
 
+  async function auctionsRoute(): Promise<ApiResponse> {
+    const { height, value } = await queries.auctions()
+    return respond(200, { auctions: value.map(serialiseAuction), height })
+  }
+
   async function paramsRoute(): Promise<ApiResponse> {
     const { height, value } = await queries.params()
     const prices = {
@@ -691,6 +724,7 @@ export function createRoutes(queries: Queries): RouteHandler {
         return await addressRoute(a)
       }
       if (head === 'offers' && segments.length === 1) return await offersRoute()
+      if (head === 'auctions' && segments.length === 1) return await auctionsRoute()
       if (head === 'params' && segments.length === 1) return await paramsRoute()
       if (head === 'checkpoints' && a !== undefined && segments.length === 2) {
         return a === 'latest' ? await checkpointRoute() : await checkpointAtRoute(a)

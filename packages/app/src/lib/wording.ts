@@ -181,6 +181,45 @@ export const pendingTransferLine = (newOwner: string, whenDate: string): string 
 
 export const forSaleLine = (priceNim: string): string => `For sale at ${priceNim} NIM`
 
+// ── Auctions (§6 `A`, r28) ──────────────────────────────────────────────────
+
+export const auctionLine = (reserveNim: string, endDate: string): string =>
+  `Up for auction — reserve ${reserveNim} NIM, ends ${endDate}.`
+
+export const standingBidLine = (bidNim: string, bidder: string): string => `Highest bid ${bidNim} NIM from ${bidder}.`
+
+export const noBidsLine = (): string => 'No bids yet.'
+
+/** The API's `minimumBid` — `core.requiredBid`; a `B` below it refunds, it is not accepted. */
+export const minimumBidLine = (nim: string): string => `Next bid: at least ${nim} NIM.`
+
+/** Market row: what an auction is asking for while no bid stands. */
+export const reserveLine = (nim: string): string => `Reserve ${nim} NIM`
+
+export const auctionBadge = (): string => 'Auction'
+
+/** List-row form of the end: "ends ≈ date" — an auction ends, it does not expire. */
+export const auctionEndsLine = (whenDate: string): string => `ends ${whenDate}`
+
+/**
+ * §6 `A` has no rule against an end at or past expiry; the grace reset
+ * cancels the auction and refunds the bid instead. Said before the `A` is
+ * sent, because the owner's fix — renew first — is only available before.
+ */
+export const auctionOutlivesTermLine = (expiryDate: string): string =>
+  `This auction would still be running when the name expires (${expiryDate}). Expiry cancels it and refunds the bid — renew first.`
+
+/**
+ * The bid reading of `WRONG_PRICE`, and of being outbid: neither is a
+ * forfeit. Both are refunds, and both come from the operator (§8.5 #10).
+ */
+export const bidRefundLine = (): string =>
+  'A bid below the minimum is refunded rather than accepted — and so is your bid the moment a higher one lands.'
+
+/** §8.5 #10 for a bid: money is held for the whole window, not only in flight. */
+export const bidCustodialWarning = (): string =>
+  'Settlement is custodial: the marketplace operator holds your bid until the auction ends, and refunds it if it is outbid — auditable in the public log, but a promise, not a protocol rule.'
+
 export const feeChangeLine = (whenDate: string): string =>
   `Fees change ${whenDate} — a scheduled governance update.`
 
@@ -202,6 +241,8 @@ export const GATE_REASON_TEXT: Record<GateReason, string> = {
   'offer-irrevocable': 'The offer is in its irrevocable window.',
   'offer-open': 'An offer is already open — cancel it first.',
   'no-offer': 'No open offer on this name.',
+  'auction-open': 'An auction is running — it can’t be cancelled, and nothing else can be opened until it ends.',
+  'no-auction': 'No open auction on this name.',
   'state-unknown': 'Couldn’t read this name’s record — try again.',
 }
 
@@ -334,6 +375,8 @@ export const ACTION_LABEL: Record<AppAction, string> = {
   renew: 'Renew',
   offer: 'Put up for sale',
   buy: 'Buy',
+  auction: 'Put up for auction',
+  bid: 'Bid',
 }
 
 export const sendSubmittingLine = (): string => 'Waiting for the wallet…'
@@ -601,7 +644,7 @@ export const myNamesEmptyBody = (): string =>
 export const offersEmptyTitle = (): string => 'Nothing for sale'
 
 export const offersEmptyBody = (): string =>
-  'Owners list names here. When one is listed, this is where it shows.'
+  'Owners list names for sale or put them up for auction here. When one is listed, this is where it shows.'
 
 export const inboxNoWalletTitle = (): string => 'No wallet connected'
 

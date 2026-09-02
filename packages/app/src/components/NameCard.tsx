@@ -46,11 +46,11 @@ import { Composer } from './Composer'
 import { PinCheck } from './PinCheck'
 import { Badge, RailCard } from './ui'
 
-/** Discovery: what someone who does not own the name can do with it. */
-export const ACQUIRE_ACTIONS: readonly AppAction[] = ['register', 'buy']
+/** Discovery: what someone who does not own the name can do with it. `buy` and `bid` never both show — state decides (§6 `A`). */
+export const ACQUIRE_ACTIONS: readonly AppAction[] = ['register', 'buy', 'bid']
 
-/** Management: the owner's seven, which live in My names and nowhere else. */
-export const OWNER_ACTIONS: readonly AppAction[] = ['setTarget', 'setEvm', 'transfer', 'delegate', 'renew', 'offer', 'cancel']
+/** Management: the owner's eight, which live in My names and nowhere else. */
+export const OWNER_ACTIONS: readonly AppAction[] = ['setTarget', 'setEvm', 'transfer', 'delegate', 'renew', 'offer', 'auction', 'cancel']
 
 function Actions({
   actions,
@@ -76,7 +76,13 @@ function Actions({
     <div className="actions">
       {actions.map((action) => {
         const gate = gates[action]
-        if ((action === 'buy' && gate.reason === 'no-offer') || (action === 'register' && !gate.enabled)) return null
+        if (
+          (action === 'buy' && gate.reason === 'no-offer') ||
+          (action === 'bid' && gate.reason === 'no-auction') ||
+          (action === 'register' && !gate.enabled)
+        ) {
+          return null
+        }
         const signer = signerFor(action, view, viewers)
         const usable = gate.enabled && signer !== null && wallet !== null
         return (
