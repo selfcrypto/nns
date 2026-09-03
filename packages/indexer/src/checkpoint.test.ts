@@ -262,6 +262,42 @@ describe('checkpointRow', () => {
   })
 })
 
+describe('an open auction is committed — r28 §8.1, tag 0x0B', () => {
+  // The r16 bug class, guarded for the newest pending category: two indexers
+  // that disagree about whether an auction is open, or who holds the standing
+  // bid, must not derive the same commitment. Only `pending_root` may carry
+  // the difference — a bid moves no leaf.
+  const base = Object.freeze({ ...initialState(), height: LAUNCH + INTERVAL })
+  const auction = { name: 'nimiq', seller: compact(A), reserve: 100_000n, endHeight: base.height + 90_000, bidder: null, bid: 0n, bidRef: null }
+  const open = Object.freeze({ ...base, auctions: new Map([['nimiq', auction]]) })
+  const withBid = Object.freeze({
+    ...base,
+    auctions: new Map([['nimiq', { ...auction, bidder: compact(D), bid: 100_000n, bidRef: { height: base.height - 1, txIndex: 0 } }]]),
+  })
+  const higherBid = Object.freeze({
+    ...base,
+    auctions: new Map([['nimiq', { ...auction, bidder: compact(D), bid: 105_000n, bidRef: { height: base.height - 1, txIndex: 0 } }]]),
+  })
+  const components = (state: NnsState) => commitmentFor(state, base.height, logHash([]))
+  const commit = (state: NnsState) => hex(components(state).commitment)
+
+  it('commits differently once an A opens, once a bid stands, and once the bid changes', () => {
+    expect(commit(open)).not.toBe(commit(base))
+    expect(commit(withBid)).not.toBe(commit(open))
+    expect(commit(higherBid)).not.toBe(commit(withBid))
+  })
+
+  it('carries the difference in pending_root alone', () => {
+    expect(hex(components(open).pendingRoot)).not.toBe(hex(components(base).pendingRoot))
+    expect(hex(components(withBid).pendingRoot)).not.toBe(hex(components(open).pendingRoot))
+    for (const s of [open, withBid, higherBid]) {
+      expect(hex(components(s).nameRoot)).toBe(hex(components(base).nameRoot))
+      expect(hex(components(s).unreservedRoot)).toBe(hex(components(base).unreservedRoot))
+      expect(hex(components(s).pricesRoot)).toBe(hex(components(base).pricesRoot))
+    }
+  })
+})
+
 describe('the unreserved set is committed — r16 §8.1, tag 0x0A', () => {
   // Through r15, §8.1 committed a *pending* `U` (tag 0x09) but not a fired one,
   // so two indexers that disagreed about which reserved names had been released

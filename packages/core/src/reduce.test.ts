@@ -25,6 +25,7 @@ import {
   commissionOn,
   governanceBoundViolation,
   reduce,
+  requiredBid,
 } from './reduce.js'
 import { merkleProof, merkleRoot, verifyProof } from './merkle.js'
 import { type NnsState, LAUNCH_PRICES, initialState, lookup, minPrice, resolve } from './state.js'
@@ -127,11 +128,11 @@ describe('§7.5 — transactions the indexer must ignore', () => {
 
 // ── Canonical ordering ──────────────────────────────────────────────────────
 
-describe('§5.2 canonical ordering', () => {
+describe('reduce honours the caller-supplied txIndex — §5.2 ranks are computed upstream (rankMessages, r27)', () => {
   const registration = (sender: Address): BuiltTransaction =>
     encodeRegister({ name: 'kikename', fee: FEE })
 
-  it('gives the name to the earlier transaction in the block body array', () => {
+  it('gives the name to the lower txIndex', () => {
     const first = step(registration(ALICE), { sender: ALICE, at: LAUNCH + 10, txIndex: 0 })
     const second = step(registration(BOB), { sender: BOB, at: LAUNCH + 10, txIndex: 1 })
 
@@ -140,7 +141,7 @@ describe('§5.2 canonical ordering', () => {
     expect(lookup(state, 'kikename')?.owner).toBe(ALICE)
   })
 
-  it('reverses when the two transactions swap positions — order is load-bearing', () => {
+  it('reverses when the two transactions swap txIndex — the rank is load-bearing', () => {
     step(registration(BOB), { sender: BOB, at: LAUNCH + 10, txIndex: 0 })
     step(registration(ALICE), { sender: ALICE, at: LAUNCH + 10, txIndex: 1 })
     expect(lookup(state, 'kikename')?.owner).toBe(BOB)
@@ -503,8 +504,9 @@ describe('ordering of effects that come due at the same height', () => {
   })
 
   it('fires every §7.3 category due at one height, in §7.3 order, before that block’s transactions', () => {
-    // One height with all five categories due at once. §7.3 fixes the order —
-    // governance, maturing X, expiry, grace release, offer expiry — and fixes
+    // One height with all six categories due at once. §7.3 fixes the order —
+    // governance, maturing X, auction close (r28), expiry, grace release,
+    // offer expiry — and fixes
     // that the whole batch runs *before* the block's own transactions, which
     // is what the final `G` here checks. r22 removed the unreserve step: a `U`
     // executes in its landing block and schedules nothing.
@@ -531,6 +533,8 @@ describe('ordering of effects that come due at the same height', () => {
     // Both expire at H; `expirename` also carries a transfer maturing there.
     send1(encodeRegister({ name: 'expirename', fee: FEE }), at(H - CONSTANTS.TERM_LENGTH))
     send1(encodeRegister({ name: 'offername', fee: FEE }), at(H - CONSTANTS.TERM_LENGTH))
+    // An auction closing at H on a name that outlives it (registered 100 blocks later).
+    send1(encodeRegister({ name: 'closename', fee: FEE }), at(H - CONSTANTS.TERM_LENGTH + 100))
     // An offer expiring at H.
     send1(encodeOffer({ name: 'offername', price: FLOOR, minPrice: FLOOR }), {
       sender: ALICE,
@@ -539,6 +543,8 @@ describe('ordering of effects that come due at the same height', () => {
     // The `U` releasing `binance` is not scheduled at all since r22 — it fires
     // in its own block, well before H, and its only trace here is that the
     // final `G` for the name is registrable.
+    send1(encodeAuction({ name: 'closename', reserve: FLOOR, endHeight: H, minPrice: FLOOR }), at(H - CONSTANTS.AUCTION_MIN_DURATION - 5))
+    send1(encodeBuy({ name: 'closename', price: FLOOR }), { sender: BOB, at: H - CONSTANTS.AUCTION_MIN_DURATION - 4 })
     const notice = H - CONSTANTS.GOVERNANCE_DELAY
     send1(encodeUnreserve({ name: 'binance' }), { sender: ADMIN, at: notice })
     send1(
@@ -557,6 +563,12 @@ describe('ordering of effects that come due at the same height', () => {
     expect(state.prices.feeStandard).toBe(FEE * 2n) // governance activated
     expect(state.unreserved.has('binance')).toBe(true) // released back at `notice`
     expect(lookup(state, 'expirename')).toMatchObject({ owner: BOB, status: 'GRACE' }) // X before expiry
+    expect(state.auctions.has('closename')).toBe(false) // auction closed…
+    expect(lookup(state, 'closename')).toMatchObject({ owner: BOB, status: 'REGISTERED' }) // …to the bidder, still in term
+    // …at the commission rate that activated in this very block (§6 A: governance first)
+    expect(state.outstanding.get(`${H - CONSTANTS.AUCTION_MIN_DURATION - 4}:0`)?.find((leg) => leg.kind === 'COMMISSION')?.amount).toBe(
+      commissionOn(FLOOR, CONSTANTS.COMMISSION_RATE),
+    )
     expect(lookup(state, 'gracename')).toBeNull() // grace released
     expect(state.offers.has('offername')).toBe(false) // offer expired
 
@@ -1123,6 +1135,18 @@ describe('A — auction (§6, r28)', () => {
     step(encodeBuy({ name: 'kikename', price }), { sender, at, txIndex })
   const legsOf = (result: ReduceResult) => (result.verdict as { obligations?: readonly unknown[] }).obligations
 
+  it('requiredBid: the reserve until a bid stands, then standing + ⌊standing × AUCTION_MIN_INCREMENT⌋', () => {
+    const open = { name: 'kikename', seller: ALICE, reserve: RESERVE, endHeight: END, bidder: null, bid: 0n, bidRef: null } as const
+    const standing = (bid: bigint) => ({ ...open, bidder: BOB, bid, bidRef: { height: LAUNCH + 3, txIndex: 0 } })
+    expect(requiredBid(open)).toBe(RESERVE)
+    expect(requiredBid(standing(100n))).toBe(105n)
+    expect(requiredBid(standing(100_000n))).toBe(105_000n)
+    expect(requiredBid(standing(101n))).toBe(106n) // ⌊5.05⌋ = 5
+    // Below 20 luna the increment rounds to zero and a bid could "raise" by
+    // nothing — which is why the reserve floor is MIN_PRICE and not a token (§6 A).
+    expect(requiredBid(standing(19n))).toBe(19n)
+  })
+
   describe('opening', () => {
     it('opens for the owner, with no standing bid and the end as stated', () => {
       registerToAlice()
@@ -1276,6 +1300,34 @@ describe('A — auction (§6, r28)', () => {
   })
 
   describe('closing', () => {
+    it('closing exactly at the name’s own expiry: the close fires first (§7.3) and the winner holds a GRACE name', () => {
+      // §6 A permits an end at or past expiry; §7.3 orders the auction close
+      // before the expiry due at the same height. So at end == expiry the
+      // winner takes the name *and* it enters GRACE in the same advance —
+      // renewable by anyone, resolvable by nobody until then. One block
+      // later the grace reset would have cancelled the auction and refunded
+      // the bid instead. Pinned live by tasks/15 row 10.13 (2026-09-03).
+      registerToAlice()
+      const expiry = LAUNCH + CONSTANTS.TERM_LENGTH
+      step(auctionOf('kikename', RESERVE, expiry), { sender: ALICE, at: LAUNCH + 1 })
+      bid(RESERVE, BOB, LAUNCH + 2)
+      state = advanceTo(state, expiry - 1)
+      expect(lookup(state, 'kikename')).toMatchObject({ owner: ALICE, status: 'REGISTERED' })
+      expect(state.auctions.has('kikename')).toBe(true)
+      state = advanceTo(state, expiry)
+      expect(state.auctions.has('kikename')).toBe(false)
+      expect(lookup(state, 'kikename')).toMatchObject({ owner: BOB, target: BOB, status: 'GRACE', expiry })
+      const commission = commissionOn(RESERVE, CONSTANTS.COMMISSION_RATE)
+      expect(state.outstanding.get(`${LAUNCH + 2}:0`)?.map((leg) => [leg.kind, leg.amount])).toEqual([
+        ['SALE_PROCEEDS', RESERVE - commission],
+        ['COMMISSION', commission],
+      ])
+      // A renewal restores it to the winner, from the old expiry.
+      const renewed = step(encodeRenew({ name: 'kikename', fee: FEE }), { sender: CAROL, at: expiry + 1 })
+      expect(renewed.verdict.kind).toBe('OK')
+      expect(lookup(state, 'kikename')).toMatchObject({ owner: BOB, status: 'REGISTERED', expiry: expiry + CONSTANTS.TERM_LENGTH })
+    })
+
     it('fires at exactly end_height, before that block’s transactions: transfer resets plus two legs by the winning ref', () => {
       registerToAlice()
       step(encodeDelegate({ name: 'kikename', host: 'a.com' }), { sender: ALICE, at: LAUNCH + 1 })

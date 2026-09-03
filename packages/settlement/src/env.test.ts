@@ -28,9 +28,6 @@ describe('loadSettings', () => {
     expect(() => loadSettings({ ...BASE, NNS_API_URL: 'not a url' })).toThrow(/not a valid URL/)
   })
 
-  it('rejects a listing fee written in NIM', () => {
-  })
-
   it('rejects a network id that is not an integer', () => {
     expect(() => loadSettings({ ...BASE, NNS_NETWORK_ID: '5.5' })).toThrow(/must be an integer/)
   })
