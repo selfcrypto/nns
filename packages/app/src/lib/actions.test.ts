@@ -136,7 +136,7 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
       for (const bad of ['', 'abc', '-1', '1.234', '0']) expect(() => parseAuctionDuration(bad), bad).toThrow(ActionInputError)
     })
 
-    it('the review says what opening voids, and warns when the end outlives the term', () => {
+    it('the review says what opening voids, and refuses an end at or past the term (AUCTION_BEYOND_TERM)', () => {
       const withBoth = registered({
         transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 },
         offer: { name: 'example', seller: OWNER, price: 45_050_000n, openedHeight: 1, expiryHeight: 2_000_000 },
@@ -145,9 +145,8 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
       expect(prepared.review.some((line) => line.includes('transfer'))).toBe(true)
       expect(prepared.review.some((line) => line.includes('offer'))).toBe(true)
       expect(prepared.review.some((line) => line.includes('renew first'))).toBe(false)
-      // Expiry at 2_000_000; 12 days from 1_000_000 lands past it.
-      const long = prepare({ action: 'auction', reserveNim: '1000', durationDays: '12' })
-      expect(long.review.some((line) => line.includes('renew first'))).toBe(true)
+      // Expiry at 2_000_000; 12 days from 1_000_000 lands past it — the message would forfeit, so the sheet refuses.
+      expect(() => prepare({ action: 'auction', reserveNim: '1000', durationDays: '12' })).toThrow(/renew first/)
     })
 
     it('a bid is a B to the marketplace whose value is the bid — at least the minimum, never less', () => {

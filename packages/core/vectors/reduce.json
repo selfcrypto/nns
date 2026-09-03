@@ -2811,7 +2811,7 @@
     },
     {
       "id": "grace_reset_cancels_an_auction_and_refunds_the_standing_bid",
-      "note": "There is no rule against an `A` whose end falls past the name's expiry: the §7.3 grace reset cancels it exactly as it cancels an `O` or an `X`, and — because a bid is money — refunds the standing bid by that bid's own ref. Expiry is provable from the checkpoint, so a client warns; an owner who wants the sale renews. The one-block-early trap applies as everywhere: at expiry − 1 the auction stands.",
+      "note": "An `A` cannot open past the term (AUCTION_BEYOND_TERM, 2026-09-03), but a late bid can carry the end onto the expiry: here the standing bid lands exactly AUCTION_EXTENSION before the expiry, so the end moves to the expiry itself. §7.3 fires the expiry ahead of the close, the grace reset cancels the auction exactly as it cancels an `O` or an `X`, and — because a bid is money — refunds the standing bid by that bid's own ref. At expiry − 1 the auction stands.",
       "steps": [
         {
           "tx": {
@@ -2828,12 +2828,12 @@
         },
         {
           "tx": {
-            "blockNumber": 90292321,
+            "blockNumber": 90292300,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|100000000|90378721"
+            "text": "NNS1Akikename|100000000|90378719"
           },
           "verdict": {
             "kind": "OK"
@@ -2841,7 +2841,7 @@
         },
         {
           "tx": {
-            "blockNumber": 90292322,
+            "blockNumber": 90378120,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
@@ -2886,7 +2886,7 @@
               }
             },
             "outstanding": {
-              "90292322:0": [
+              "90378120:0": [
                 {
                   "kind": "REFUND",
                   "owedBy": "MARKETPLACE",
@@ -5444,6 +5444,38 @@
             "recipient": "PROTOCOL",
             "value": "1",
             "text": "NNS1Akikename|40000000|59000000"
+          }
+        }
+      },
+      {
+        "id": "A_insufficient_notice_beats_beyond_term",
+        "setup": "kikename_to_alice",
+        "pinnedBy": "§7.4 check-order table (r28, 2026-09-03) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM`",
+        "note": "Payload rows run floor, window length, then the window's end against the term. Ten blocks before the name expires, an `A` ending at the expiry is both too short and past the term; it is told the window is too short. The same `A` sent with a full-length window from that height reaches the term row.",
+        "tx": {
+          "blockNumber": 90378710,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Akikename|40000000|90378720"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "INSUFFICIENT_NOTICE"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "AUCTION_BEYOND_TERM"
+          },
+          "tx": {
+            "blockNumber": 90378710,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|40000000|90465110"
           }
         }
       },

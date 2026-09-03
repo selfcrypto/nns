@@ -325,7 +325,8 @@ export function prepareAction(options: {
       const pendingOffer = info.pending.offer
       if (pendingTransfer !== null) lines.push(`Cancels the pending transfer to ${pendingTransfer.newOwner}.`)
       if (pendingOffer !== null) lines.push(`Withdraws the ${lunaToNim(pendingOffer.price)} NIM offer.`)
-      if (auctionOutlivesTerm(endHeight, record.expiry)) lines.push(auctionOutlivesTermLine(when(record.expiry)))
+      // §6 A (2026-09-03): an auction sells the current term — an end at or past expiry forfeits AUCTION_BEYOND_TERM, so refuse here.
+      if (auctionOutlivesTerm(endHeight, record.expiry)) throw new ActionInputError(auctionOutlivesTermLine(when(record.expiry)))
       return {
         action: 'auction',
         // `encodeAuction` refuses a reserve below `minPrice` (§6 `A`): the

@@ -123,6 +123,7 @@ export type ForfeitReason =
   | 'BELOW_REFUND_FLOOR'
   | 'BELOW_MIN_PRICE'
   | 'AUCTION_OPEN'
+  | 'AUCTION_BEYOND_TERM'
 
 /** §7.4 refundable column — losses caused by concurrency, not by the client. */
 export type RefundReason = 'LOST_REGISTRATION_RACE' | 'OFFER_NOT_OPEN' | 'WRONG_PRICE'
@@ -351,20 +352,22 @@ function closeAuction(draft: Draft, auction: Auction, height: number): void {
  * the only thing consensus depends on. `GOVERNANCE` is now the only
  * governance effect driven by height at all.
  *
- * r28 inserted `AUCTION_CLOSE` after `TRANSFER`, on the same argument that
- * placed the transfer before the expiry: a sale whose window ended before the
- * term did was scheduled first, and expire-first would refund the winner and
- * hand the seller a grace name instead. It sits after `GOVERNANCE` so the
- * commission a close owes is at the rate active at the close height, exactly
- * as a `B` in that block would be charged. The two can never collide with a
- * transfer on one name — an open auction excludes `X` (§6 `A`).
+ * r28 added `AUCTION_CLOSE`. It sits after `GOVERNANCE` so the commission a
+ * close owes is at the rate active at the close height, exactly as a `B` in
+ * that block would be charged — and, since 2026-09-03, *after* the expiry
+ * and the grace release: an `A` may not open past the name's term
+ * (`AUCTION_BEYOND_TERM`), so a close and an expiry meet only when an
+ * extension pushed the end exactly onto the expiry, and then the seller who
+ * let the term lapse keeps a grace name while the bidder is refunded. The
+ * alternative handed the winner a name already in grace. A close can never
+ * collide with a transfer on one name — an open auction excludes `X` (§6 `A`).
  */
 const ORDER = {
   GOVERNANCE: 0,
   TRANSFER: 1,
-  AUCTION_CLOSE: 2,
-  EXPIRE: 3,
-  RELEASE: 4,
+  EXPIRE: 2,
+  RELEASE: 3,
+  AUCTION_CLOSE: 4,
   OFFER_EXPIRE: 5,
 } as const
 
@@ -937,6 +940,13 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       if (message.endHeight < tx.blockNumber + CONSTANTS.AUCTION_MIN_DURATION) {
         return keep(forfeit('INSUFFICIENT_NOTICE'))
       }
+      // An auction sells the current term: the owner's window must end
+      // before the name's expiry (2026-09-03). Expiry is in the checkpoint, so
+      // a correct client prevents this. An admin auction of a still-reserved
+      // name has no term to fit. An extension can still push an end to or
+      // past expiry — the §7.3 grace reset then cancels it with a refund,
+      // firing ahead of the close when the two are due at one height.
+      if (record !== undefined && message.endHeight >= record.expiry) return keep(forfeit('AUCTION_BEYOND_TERM'))
 
       // Opening voids the owner's own pending X and open O: the auction is
       // the latest statement of intent, the rule a later O or X already

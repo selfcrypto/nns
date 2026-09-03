@@ -646,7 +646,7 @@ describe('vectors/reduce.json', () => {
         N: 2,
         O: 3, // r28: NOT_OWNER before AUCTION_OPEN
         B: 3,
-        A: 5, // r28: routing, name state, sender, AUCTION_OPEN, floor, notice — the version forfeit is gone
+        A: 6, // r28: routing, name state, sender, AUCTION_OPEN, floor, notice, term (2026-09-03) — the version forfeit is gone
         P: 3,
         U: 3, // r22 removed the notice row, and the pair that ordered it
         F: 1,
@@ -669,7 +669,7 @@ describe('vectors/reduce.json', () => {
       const cases = section.cases as any[]
       const pinned = cases.filter((c) => c.pinnedBy !== null)
       const free = cases.filter((c) => c.pinnedBy === null)
-      expect(pinned).toHaveLength(23)
+      expect(pinned).toHaveLength(24)
       expect(free).toHaveLength(19)
       for (const testCase of cases) {
         expect(typeof testCase.note, `${testCase.id} needs a note`).toBe('string')
@@ -684,7 +684,7 @@ describe('vectors/reduce.json', () => {
     // The gap these close: every other observation of a height-driven effect
     // is a root taken at a CHECKPOINT_INTERVAL boundary, which cannot tell h
     // from h+1, and none of them earns a verdict token — so a replay can agree
-    // with a second implementation on all 26 tokens and still fire an effect a
+    // with a second implementation on all 27 tokens and still fire an effect a
     // block early. One vector per §7.3 category, each asserting both sides.
     //
     // The two `boundary_unreserve_*` vectors left with r22: a `U` executes in

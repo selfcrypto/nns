@@ -207,7 +207,7 @@ export const auctionEndsLine = (whenDate: string): string => `ends ${whenDate}`
  * sent, because the owner's fix — renew first — is only available before.
  */
 export const auctionOutlivesTermLine = (expiryDate: string): string =>
-  `This auction would still be running when the name expires (${expiryDate}). Expiry cancels it and refunds the bid — renew first.`
+  `This auction would end at or after the name expires (${expiryDate}), and an auction can only sell the current term — renew first, or choose a shorter duration.`
 
 /**
  * The bid reading of `WRONG_PRICE`, and of being outbid: neither is a

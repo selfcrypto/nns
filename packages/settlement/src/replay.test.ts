@@ -379,17 +379,19 @@ describe('replayLog — auctions (r28)', () => {
   })
 
   it('the grace reset cancels a running auction and refunds the standing bid, with no line to say so', () => {
-    // Opened as late as the notice rule allows, with an end past expiry.
-    // The client warns about exactly this; the rule is that the reset wins.
+    // An A cannot open past the term (AUCTION_BEYOND_TERM, 2026-09-03), so
+    // the end is carried onto the expiry by a bid landing exactly
+    // AUCTION_EXTENSION before it; §7.3 fires the expiry first and the reset
+    // cancels the auction with a refund — a leg with no line behind it.
     const expiry = HA.register + CONSTANTS.TERM_LENGTH
     const open = expiry - CONSTANTS.AUCTION_MIN_DURATION - 5
-    const bid = open + 1
+    const bid = expiry - CONSTANTS.AUCTION_EXTENSION
     const fee = feeFor(NAME, initialState().prices)
     const floor = minPrice(initialState().prices)
     const late = stageLog(
       [
         send(HA.register, 0, SELLER, encodeRegister({ name: NAME, fee })),
-        send(open, 0, SELLER, encodeAuction({ name: NAME, reserve: RESERVE, endHeight: expiry + 100, minPrice: floor })),
+        send(open, 0, SELLER, encodeAuction({ name: NAME, reserve: RESERVE, endHeight: expiry - 1, minPrice: floor })),
         send(bid, 0, WINNER, encodeBuy({ name: NAME, price: RESERVE })),
       ],
       config,

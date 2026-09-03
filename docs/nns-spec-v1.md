@@ -1073,12 +1073,17 @@ NNS1A<name>|<reserve>|<end_height>
 - `end_height` MUST be at least `AUCTION_MIN_DURATION` above the height of
   the block the message landed in — measured from inclusion like `P`'s
   notice, and forfeiting `INSUFFICIENT_NOTICE` on the same terms
+- For the owner's auction, `end_height` MUST be below the name's `expiry`
+  — an auction sells the current term, and the close hands over the current
+  expiry. Forfeits `AUCTION_BEYOND_TERM`; the expiry is in the checkpoint
+  tree (§8.1), so a correct client prevents it. An admin auction of a
+  still-reserved name has no term to fit
 
 **Check order, after §5.3 routing:** name state (`NAME_NOT_REGISTERED` for a
 grace name, `NAME_NOT_FOUND` for a name nobody could auction), then the
 sender (`NOT_OWNER` / `NOT_ADMIN`), then `AUCTION_OPEN`, then the reserve
-floor, then the window — state, authority, pending status, payload, as `O`'s
-order already runs (§7.4).
+floor, then the window's length, then its end against the term — state,
+authority, pending status, payload, as `O`'s order already runs (§7.4).
 
 **Opening voids the owner's own pending `X` and open `O`.** The auction is
 the latest statement of intent, which is the rule a later `O` or `X` already
@@ -1130,14 +1135,17 @@ arrived and never stood, so "the reserve was never met" is the same state
 as "nobody bid". A `B` arriving at or after the close refunds under
 `OFFER_NOT_OPEN`, the ordinary no-offer path.
 
-**There is no rule against an `A` whose end falls at or past the name's
-expiry.** The §7.3 grace reset cancels a running auction exactly as it
-cancels an `O` or an `X`, and — because a bid is money — refunds the
-standing bid by that bid's own ref. Extensions can push any end past expiry,
-so the reset is the backstop whatever the opening height was; expiry is
-provable from the checkpoint, so a client warns, and an owner who wants the
-sale renews first. One rule and one token fewer than a forfeit on the
-opening message would cost.
+**An auction cannot open past the name's term, but an extension can carry
+it there.** The opening rule above keeps the window inside the term; a late
+bid can still push the end to or past the expiry. The §7.3 grace reset then
+cancels the running auction exactly as it cancels an `O` or an `X`, and —
+because a bid is money — refunds the standing bid by that bid's own ref;
+when the end lands exactly on the expiry, the expiry fires first, so a
+winner never receives a name that is already in grace. An owner who wants
+the sale renews first. Through 2026-09-02 the opening rule did not exist
+and the close fired ahead of the expiry; the live battery showed the
+collision handing the winner a grace name, and that was judged the wrong
+side to protect.
 
 **Why this is not how ordinary registration works.** Making the highest payer
 win a same-block race would be worse than ordering: today, taking a name from
@@ -1496,19 +1504,22 @@ almost every test and then commits a root containing an expired name still
 `REGISTERED` at any checkpoint taken during a quiet stretch.
 
 Effects due at one height fire **before that block's transactions**, in a
-fixed order: governance activation, maturing `X`, **auction close** (§6 `A`,
-r28), expiry to `GRACE`, grace release to `AVAILABLE`, offer expiry — ties
+fixed order: governance activation, maturing `X`, expiry to `GRACE`, grace
+release to `AVAILABLE`, **auction close** (§6 `A`, r28), offer expiry — ties
 within a category bytewise by name. The order is consensus-relevant: a
 maturing `X` colliding with an expiry genuinely diverges (transfer-first hands
 the name over and then places it in `GRACE`; expire-first voids the transfer).
 Transfer fires first because it was scheduled before the expiry came due, and
 because the grace reset exists to stop a lapsed name answering for
 subdomains, not to void a transfer already in flight. The auction close sits
-directly after it on the same argument — expire-first would refund the winner
-and hand the seller a grace name — and after governance activation so the
-commission it owes is at the rate active at the close height, exactly as a
-`B` in that block would be charged. A close and a maturing `X` can never
-collide on one name: an open auction excludes `X`.
+after governance activation so the commission it owes is at the rate active
+at the close height, exactly as a `B` in that block would be charged, and
+**after the expiry and the grace release**: an `A` cannot open past the term
+(§6 `A`), so the two meet only when an extension pushed an end exactly onto
+the expiry, and there the seller who let the term lapse keeps a grace name
+while the bidder is refunded — closing first would have handed the winner a
+name already in grace. A close and a maturing `X` can never collide on one
+name: an open auction excludes `X`.
 
 **There is no unreserve step.** Through r21 this list had six categories, with
 unreserve activation second. r22 made a `U` take effect in the block it lands
@@ -1569,7 +1580,8 @@ the message before the race does.
   the auction is in the committed pending set (§8.1), so a correct client
   prevents it; and `A` from anyone but `ADMIN_ADDRESS` for a name still held
   in `RESERVED_NAMES`, or for a name nobody could auction, or with less than
-  `AUCTION_MIN_DURATION` of window from the landing block
+  `AUCTION_MIN_DURATION` of window from the landing block, or — the owner's
+  — with an end at or past the name's expiry
 - `X`, `S`, `D`, `E`, `A` on an expired or grace-period name
 - `D` whose host exceeds `MAX_HOST_LEN` or includes a scheme
 - `P` from any sender other than `ADMIN_ADDRESS`, violating a §10.6 bound, or
@@ -1681,6 +1693,7 @@ against a message of a listed type.
 | `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no `O` past `OFFER_IRREVOCABLE` |
 | `BELOW_MIN_PRICE` | `O` `A` | Price, or reserve, below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
 | `AUCTION_OPEN` | `O` `X` `A` | An auction is open on the name (§6 `A`): the owner cannot list, transfer, or auction it again until the close. Checked after the owner row and before any payload row |
+| `AUCTION_BEYOND_TERM` | `A` | The owner's `end_height` is at or past the name's `expiry` (§6 `A`): an auction sells the current term. The last payload row, after the window's length |
 | `BELOW_REFUND_FLOOR` | `G` `B` | A message that would otherwise be refundable, carrying less than `REFUND_FLOOR`. The only token that crosses columns |
 
 `OVER_LENGTH` is **unreachable on mainnet**. The network caps transaction
@@ -1735,7 +1748,7 @@ each type runs its rows in this order:
 | `O` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE` |
 | `B` | `OFFER_NOT_OPEN`, `WRONG_PRICE` — with an auction open, the bid path has only `WRONG_PRICE` (§6 `A`) |
 | `M`, `F` | `WRONG_SENDER` |
-| `A` | `NAME_NOT_REGISTERED` / `NAME_NOT_FOUND` (which auction this is), `NOT_OWNER` / `NOT_ADMIN`, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE` — state, authority, pending status, payload (§6 `A`) |
+| `A` | `NAME_NOT_REGISTERED` / `NAME_NOT_FOUND` (which auction this is), `NOT_OWNER` / `NOT_ADMIN`, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM` — state, authority, pending status, payload (§6 `A`) |
 | `P` | `NOT_ADMIN`, `INSUFFICIENT_NOTICE`, `GOVERNANCE_BOUND_VIOLATED` |
 | `U` | `NOT_ADMIN`, `INVALID_RECIPIENT`, `INVALID_NAME`, `NAME_NOT_RESERVED` |
 

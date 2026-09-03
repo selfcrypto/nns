@@ -505,8 +505,8 @@ describe('ordering of effects that come due at the same height', () => {
 
   it('fires every §7.3 category due at one height, in §7.3 order, before that block’s transactions', () => {
     // One height with all six categories due at once. §7.3 fixes the order —
-    // governance, maturing X, auction close (r28), expiry, grace release,
-    // offer expiry — and fixes
+    // governance, maturing X, expiry, grace release, auction close (r28,
+    // moved behind the expiry 2026-09-03), offer expiry — and fixes
     // that the whole batch runs *before* the block's own transactions, which
     // is what the final `G` here checks. r22 removed the unreserve step: a `U`
     // executes in its landing block and schedules nothing.
@@ -1300,32 +1300,35 @@ describe('A — auction (§6, r28)', () => {
   })
 
   describe('closing', () => {
-    it('closing exactly at the name’s own expiry: the close fires first (§7.3) and the winner holds a GRACE name', () => {
-      // §6 A permits an end at or past expiry; §7.3 orders the auction close
-      // before the expiry due at the same height. So at end == expiry the
-      // winner takes the name *and* it enters GRACE in the same advance —
-      // renewable by anyone, resolvable by nobody until then. One block
-      // later the grace reset would have cancelled the auction and refunded
-      // the bid instead. Pinned live by tasks/15 row 10.13 (2026-09-03).
+    it('an end pushed onto the expiry by an extension: the expiry fires first (§7.3), the auction is cancelled and the bid refunded', () => {
+      // An A may not *open* past the term (AUCTION_BEYOND_TERM, below), but a
+      // late bid can still carry the end to the expiry itself. Decided
+      // 2026-09-03: expiry wins, the seller keeps a grace name, the bidder gets
+      // the money back — a winner never receives a name already in grace.
       registerToAlice()
       const expiry = LAUNCH + CONSTANTS.TERM_LENGTH
-      step(auctionOf('kikename', RESERVE, expiry), { sender: ALICE, at: LAUNCH + 1 })
-      bid(RESERVE, BOB, LAUNCH + 2)
-      state = advanceTo(state, expiry - 1)
-      expect(lookup(state, 'kikename')).toMatchObject({ owner: ALICE, status: 'REGISTERED' })
-      expect(state.auctions.has('kikename')).toBe(true)
+      const opened = expiry - CONSTANTS.AUCTION_EXTENSION - CONSTANTS.AUCTION_MIN_DURATION - 10
+      step(auctionOf('kikename', RESERVE, expiry - 1), { sender: ALICE, at: opened })
+      bid(RESERVE, BOB, expiry - CONSTANTS.AUCTION_EXTENSION) // extends to exactly `expiry`
+      expect(state.auctions.get('kikename')?.endHeight).toBe(expiry)
       state = advanceTo(state, expiry)
       expect(state.auctions.has('kikename')).toBe(false)
-      expect(lookup(state, 'kikename')).toMatchObject({ owner: BOB, target: BOB, status: 'GRACE', expiry })
-      const commission = commissionOn(RESERVE, CONSTANTS.COMMISSION_RATE)
-      expect(state.outstanding.get(`${LAUNCH + 2}:0`)?.map((leg) => [leg.kind, leg.amount])).toEqual([
-        ['SALE_PROCEEDS', RESERVE - commission],
-        ['COMMISSION', commission],
+      expect(lookup(state, 'kikename')).toMatchObject({ owner: ALICE, status: 'GRACE', expiry })
+      expect(state.outstanding.get(`${expiry - CONSTANTS.AUCTION_EXTENSION}:0`)).toEqual([
+        { ref: { height: expiry - CONSTANTS.AUCTION_EXTENSION, txIndex: 0 }, kind: 'REFUND', owedBy: MARKETPLACE, owedTo: BOB, amount: RESERVE },
       ])
-      // A renewal restores it to the winner, from the old expiry.
-      const renewed = step(encodeRenew({ name: 'kikename', fee: FEE }), { sender: CAROL, at: expiry + 1 })
-      expect(renewed.verdict.kind).toBe('OK')
-      expect(lookup(state, 'kikename')).toMatchObject({ owner: BOB, status: 'REGISTERED', expiry: expiry + CONSTANTS.TERM_LENGTH })
+    })
+
+    it('an A whose end is at or past the expiry forfeits AUCTION_BEYOND_TERM, after the window rows', () => {
+      registerToAlice()
+      registerToAlice('othername')
+      const expiry = LAUNCH + CONSTANTS.TERM_LENGTH
+      expect(step(auctionOf('kikename', RESERVE, expiry), { sender: ALICE, at: LAUNCH + 1 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_BEYOND_TERM' })
+      expect(step(auctionOf('kikename', RESERVE, expiry + 1), { sender: ALICE, at: LAUNCH + 2 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_BEYOND_TERM' })
+      // One block inside the term opens.
+      expect(step(auctionOf('kikename', RESERVE, expiry - 1), { sender: ALICE, at: expiry - CONSTANTS.AUCTION_MIN_DURATION - 5 }).verdict.kind).toBe('OK')
+      // Too short *and* past the term: the window's length is judged first.
+      expect(step(auctionOf('othername', RESERVE, expiry), { sender: ALICE, at: expiry - 10 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'INSUFFICIENT_NOTICE' })
     })
 
     it('fires at exactly end_height, before that block’s transactions: transfer resets plus two legs by the winning ref', () => {
