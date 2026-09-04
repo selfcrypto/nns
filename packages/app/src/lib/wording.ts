@@ -183,8 +183,8 @@ export const forSaleLine = (priceNim: string): string => `For sale at ${priceNim
 
 // ── Auctions (§6 `A`, r28) ──────────────────────────────────────────────────
 
-export const auctionLine = (reserveNim: string, endDate: string): string =>
-  `Up for auction — reserve ${reserveNim} NIM, ends ${endDate}.`
+export const auctionLine = (startingPriceNim: string, endDate: string): string =>
+  `Up for auction — starting price ${startingPriceNim} NIM, ends ${endDate}.`
 
 export const standingBidLine = (bidNim: string, bidder: string): string => `Highest bid ${bidNim} NIM from ${bidder}.`
 
@@ -194,7 +194,7 @@ export const noBidsLine = (): string => 'No bids yet.'
 export const minimumBidLine = (nim: string): string => `Next bid: at least ${nim} NIM.`
 
 /** Market row: what an auction is asking for while no bid stands. */
-export const reserveLine = (nim: string): string => `Reserve ${nim} NIM`
+export const startingPriceLine = (nim: string): string => `Starting price ${nim} NIM`
 
 export const auctionBadge = (): string => 'Auction'
 

@@ -147,7 +147,7 @@ revocation to wrap.
 
 **Market**: offer rows (name, price, seller identicon+address, expiry) and,
 since r28, auction rows (name with an *Auction* badge, the standing bid or
-the reserve, "No bids yet" or the highest bid, the minimum next bid, seller,
+the starting price, "No bids yet" or the highest bid, the minimum next bid, seller,
 "ends ≈ date") in one list — a buyer is looking for a name, not a mechanism.
 Row → detail card, where *Buy* or *Bid* enters the `B` flow (§5): never
 both, because state decides which a `B` is. The custodial disclosure rides
@@ -257,7 +257,7 @@ still describe the *new* state once inputs are typed.
 | `K` cancel | Non-empty cancellable set | **Lists everything** it will cancel — one `K` cancels all of it | `/name` pending cleared |
 | `O` offer | Price ≥ `minPrice` from `/params` | Irrevocable ~2.4 h; auto-expiry ~15 d; commission on sale | `/name` pending.offer set |
 | `B` buy | Open offer; value = price exactly | Name, price, seller (the sheet won't); **custodial warning, explicit confirm, every time** | `/name` owner = me |
-| `A` auction (r28) | Reserve ≥ `minPrice` from `/params`; duration in days ≥ ~1 d, the ~1 h landing margin added on top (`states.ts`, `AUCTION_LANDING_MARGIN`) | Reserve and end as ≈ date; neither the auction nor a bid can be withdrawn, a late bid extends it ~10 min; commission on sale; what opening voids (pending `X`, open `O`); **the expiry warning when the end is at or past it** | `/name` pending.auction set |
+| `A` auction (r28) | Starting price ≥ `minPrice` from `/params`; duration in days ≥ ~1 d, the ~1 h landing margin added on top (`states.ts`, `AUCTION_LANDING_MARGIN`) | Starting price and end as ≈ date; neither the auction nor a bid can be withdrawn, a late bid extends it ~10 min; commission on sale; what opening voids (pending `X`, open `O`); **the expiry warning when the end is at or past it** | `/name` pending.auction set |
 | `B` bid (r28) | Open auction; value ≥ its `minimumBid` (the API's `core.requiredBid`) | Bid, that escrow holds it until the end (≈ date), extension, the refund reading of a low or outbid bid, seller; **custodial warning in its bid form, explicit confirm, every time** | `/name` pending.auction.bidder = me at my bid |
 | NC message | Owner ≠ me; message fits budget | Public-forever notice; dust cost | Own message appears in history |
 

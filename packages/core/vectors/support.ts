@@ -114,7 +114,7 @@ export interface BuildSpec {
   minPrice?: string
   payee?: string
   amount?: string
-  reserve?: string
+  startingPrice?: string
   endHeight?: number
   feeStandard?: string
   feeLong?: string
@@ -180,7 +180,7 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
     case 'auction':
       return encodeAuction({
         name,
-        reserve: BigInt(spec.reserve as string),
+        startingPrice: BigInt(spec.startingPrice as string),
         endHeight: spec.endHeight as number,
         minPrice: floorFor(spec),
         ...sender,
@@ -248,8 +248,8 @@ export interface VectorCheckpointState {
   names?: VectorRecord[]
   transfers?: Array<{ name: string; newOwner: string; effectiveHeight: number }>
   offers?: Array<{ name: string; seller: string; price: string; openedHeight: number; expiryHeight: number }>
-  /** Open auctions (§8.1 tag `0x0B`, r28). `bidder` absent or `null` means no bid has met the reserve. */
-  auctions?: Array<{ name: string; seller: string; reserve: string; endHeight: number; bidder?: string | null; bid?: string }>
+  /** Open auctions (§8.1 tag `0x0B`, r28). `bidder` absent or `null` means no bid has met the starting price. */
+  auctions?: Array<{ name: string; seller: string; startingPrice: string; endHeight: number; bidder?: string | null; bid?: string }>
   pendingGovernance?: { prices: VectorPrices; effectiveHeight: number } | null
   /** Names whose `U` has fired (§8.1 tag `0x0A`). Authored unsorted where the case is about ordering. */
   unreserved?: string[]
@@ -284,7 +284,7 @@ export function readCheckpointState(
       (raw.auctions ?? []).map((item) => ({
         name: item.name,
         seller: address(book, item.seller),
-        reserve: BigInt(item.reserve),
+        startingPrice: BigInt(item.startingPrice),
         endHeight: item.endHeight,
         bidder: item.bidder == null ? null : address(book, item.bidder),
         bid: BigInt(item.bid ?? '0'),

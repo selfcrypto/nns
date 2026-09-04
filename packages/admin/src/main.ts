@@ -4,7 +4,7 @@
  *   p <fee_standard> <fee_long> <commission_bp> <effective-height> [--send]
  *   u <name> [recipient] [--send]
  *   f <amount_luna> [--send]
- *   a <name> <reserve_luna> <end-height> [--send]
+ *   a <name> <starting_price_luna> <end-height> [--send]
  *
  * Dry-run by default: the plan is always printed, and nothing is broadcast
  * without `--send`.
@@ -25,7 +25,7 @@ import { describePlan, parseUnreserveArgs, planUnreserve } from './unreserve.js'
 const USAGE = `usage: p <fee_standard> <fee_long> <commission_bp> <effective-height> [--send]
        u <name> [recipient] [--send]
        f <amount_luna> [--send]
-       a <name> <reserve_luna> <end-height> [--send]
+       a <name> <starting_price_luna> <end-height> [--send]
 
 p builds a P (§6): the two prices — in luna — and the marketplace commission in
 basis points, all in one message, taking effect at the given height. It checks
@@ -61,7 +61,7 @@ has not counted). After --send it polls /burn until the attestation appears,
 and reports UNCONFIRMED honestly if it does not — a hash is not confirmation.
 
 a builds an A (§6, r28): the admin's auction of a name still held in
-RESERVED_NAMES — a reserve in luna (at least MIN_PRICE as in effect, read from
+RESERVED_NAMES — a starting price in luna (at least MIN_PRICE as in effect, read from
 GET /params) and the height the window ends at. At the close the standing bid
 wins: the name is REGISTERED to the bidder for a full term, leaves the reserved
 set, and both legs of the sale land on TREASURY_ADDRESS. It REFUSES a name
@@ -174,7 +174,7 @@ function runUnreserve(argv: readonly string[]): Promise<number> {
 function runAuction(argv: readonly string[]): Promise<number> {
   const { params, send } = parseAuctionArgs(argv)
   // Three reads, all chain state the message cannot speak for: MIN_PRICE as
-  // in effect (the reserve's floor, and the builder's argument), whether the
+  // in effect (the starting price's floor, and the builder's argument), whether the
   // name is still RESERVED, and whether an auction is already running on it.
   // The floor, a bad name and a self-send throw inside the builder; the rest
   // are refusals the printed plan carries.

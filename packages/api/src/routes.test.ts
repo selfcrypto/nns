@@ -65,7 +65,7 @@ const OFFER = { name: 'alice-example', seller: A, price: 50_000_000n, openedHeig
 const AUCTION = {
   name: 'carol-example',
   seller: B,
-  reserve: 50_000_000n,
+  startingPrice: 50_000_000n,
   endHeight: 58_276_400,
   bidder: A,
   bid: 52_500_000n,
@@ -75,7 +75,7 @@ const AUCTION = {
 const AUCTION_WIRE = {
   name: 'carol-example',
   seller: formatAddress(B),
-  reserve: '50000000',
+  startingPrice: '50000000',
   endHeight: 58_276_400,
   bidder: formatAddress(A),
   bid: '52500000',
@@ -349,7 +349,7 @@ describe('/name', () => {
     expect((response.body as { pending: { auction: unknown } }).pending.auction).toEqual(AUCTION_WIRE)
   })
 
-  it('an auction with no bid yet asks for the reserve, and carries no bidder and no ref', async () => {
+  it('an auction with no bid yet asks for the starting price, and carries no bidder and no ref', async () => {
     const fresh = { ...AUCTION, bidder: null, bid: 0n, bidRef: null }
     const handle = routes({ detail: () => Promise.resolve(snap({ ...EMPTY_DETAIL, record: RECORD, auction: fresh })) })
     const body = (await handle('GET', '/name/carol-example')).body as { pending: { auction: Record<string, unknown> } }

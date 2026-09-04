@@ -109,7 +109,7 @@ export type PendingRow = {
   fee_standard: string | null
   fee_long: string | null
   commission_bp: string | null
-  reserve: string | null
+  starting_price: string | null
   end_height: number | null
   bidder: string | null
   bid: string | null
@@ -167,7 +167,7 @@ const emptyPending = {
   fee_standard: null,
   fee_long: null,
   commission_bp: null,
-  reserve: null,
+  starting_price: null,
   end_height: null,
   bidder: null,
   bid: null,
@@ -218,7 +218,7 @@ export function pendingRows(state: NnsState): PendingRow[] {
       kind: 'AUCTION',
       name: item.name,
       seller: item.seller,
-      reserve: item.reserve.toString(10),
+      starting_price: item.startingPrice.toString(10),
       end_height: item.endHeight,
       bidder: item.bidder,
       bid: item.bid.toString(10),
@@ -357,7 +357,7 @@ export function stateFromRows(rows: StateRows): NnsState {
         auctions.set(name, {
           name,
           seller: toAddress(required(row.seller, 'pending.seller'), 'pending.seller'),
-          reserve: toLuna(required(row.reserve, 'pending.reserve'), 'pending.reserve'),
+          startingPrice: toLuna(required(row.starting_price, 'pending.starting_price'), 'pending.starting_price'),
           endHeight: toHeight(required(row.end_height, 'pending.end_height'), 'pending.end_height'),
           bidder,
           bid,

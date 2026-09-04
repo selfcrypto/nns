@@ -430,7 +430,7 @@ describe.skipIf(URL === undefined)('Store', () => {
     const noBid: Auction = {
       name: 'nimiq',
       seller: compact(D),
-      reserve: 50_000_000n,
+      startingPrice: 50_000_000n,
       endHeight: 58_181_040 + CONSTANTS.AUCTION_MIN_DURATION,
       bidder: null,
       bid: 0n,
@@ -468,7 +468,7 @@ describe.skipIf(URL === undefined)('Store', () => {
     // The table refuses a half-present bid, not just the mapping.
     await expect(
       pool.query(
-        `INSERT INTO pending (kind, name, seller, reserve, end_height, bid, bid_ref_height)
+        `INSERT INTO pending (kind, name, seller, starting_price, end_height, bid, bid_ref_height)
          VALUES ('AUCTION', 'wallet', $1, 50000000, 58267440, 0, 58181100)`,
         [compact(D)],
       ),

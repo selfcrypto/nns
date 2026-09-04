@@ -22,7 +22,7 @@ import {
   noBidsLine,
   offersEmptyBody,
   offersEmptyTitle,
-  reserveLine,
+  startingPriceLine,
   standingBidLine,
   unreachableLine,
 } from '../lib/wording'
@@ -59,7 +59,7 @@ function OfferRow({ offer, height, nowMs, onOpen }: { offer: ApiOffer; height: n
 }
 
 /**
- * The standing bid where one stands, the reserve where none does — the
+ * The standing bid where one stands, the starting price where none does — the
  * amount a bidder has to beat either way — with the minimum next bid the API
  * computed through `core.requiredBid`, and the end as an ≈ date.
  */
@@ -72,7 +72,7 @@ function AuctionRow({ auction, height, nowMs, onOpen }: { auction: ApiAuction; h
           <NameText>{auction.name}</NameText>
           <Badge tone="info">{auctionBadge()}</Badge>
         </span>
-        <span className="offer-price">{standing ? reserveLine(lunaToNim(auction.reserve)) : `${lunaToNim(auction.bid)} NIM`}</span>
+        <span className="offer-price">{standing ? startingPriceLine(lunaToNim(auction.startingPrice)) : `${lunaToNim(auction.bid)} NIM`}</span>
         <span className="offer-seller">
           <Identicon address={auction.seller} size={24} />
           <span className="nns-name">{ellipsizeAddress(auction.seller)}</span>

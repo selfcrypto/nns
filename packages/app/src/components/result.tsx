@@ -111,7 +111,7 @@ export function Overlays({ info, nowMs }: { info: NameInfo; nowMs: number }) {
       {offer !== null && <p className="overlay">{forSaleLine(lunaToNim(offer.price))}</p>}
       {auction !== null && (
         <p className="overlay">
-          {auctionLine(lunaToNim(auction.reserve), formatApproxDate(approxDate(auction.endHeight, info.height, nowMs)))}{' '}
+          {auctionLine(lunaToNim(auction.startingPrice), formatApproxDate(approxDate(auction.endHeight, info.height, nowMs)))}{' '}
           {auction.bidder === null ? noBidsLine() : standingBidLine(lunaToNim(auction.bid), ellipsizeAddress(auction.bidder))}{' '}
           {minimumBidLine(lunaToNim(auction.minimumBid))}
         </p>

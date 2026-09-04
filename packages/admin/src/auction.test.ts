@@ -72,7 +72,7 @@ const TAKEN: Partial<NameAvailability> = { reason: 'TAKEN', status: 'REGISTERED'
 const RUNNING: OpenAuction = Object.freeze({
   name: 'binance',
   seller: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
-  reserve: MIN_PRICE,
+  startingPrice: MIN_PRICE,
   endHeight: HEAD + 90_000,
   bidder: null,
   bid: 0n,
@@ -111,7 +111,7 @@ function fakeSources(overrides: Overrides = {}): AuctionSources & { fetched: str
   return { params, reservation, auctions, fetched }
 }
 
-const open = { name: 'binance', reserve: MIN_PRICE, endHeight: END }
+const open = { name: 'binance', startingPrice: MIN_PRICE, endHeight: END }
 
 async function plan(
   params: Partial<typeof open> = {},
@@ -149,24 +149,24 @@ describe('planAuction', () => {
     expect(sources.fetched).toEqual(['params', 'available', 'auctions'])
   })
 
-  it('builds the §6 A payload: name, reserve in luna, end height', async () => {
+  it('builds the §6 A payload: name, starting price in luna, end height', async () => {
     const built = await plan()
     expect(Buffer.from(built.data, 'hex').toString('ascii')).toBe(`NNS1Abinance|${MIN_PRICE}|${END}`)
   })
 
-  it('refuses a reserve under MIN_PRICE as in effect — the codec’s own error, before any other read', async () => {
+  it('refuses a starting price under MIN_PRICE as in effect — the codec’s own error, before any other read', async () => {
     const { rpc, calls } = fakeRpc()
     const sources = fakeSources()
-    await expect(planAuction(rpc, sources, { ...open, reserve: MIN_PRICE - 1n })).rejects.toThrow(CodecError)
+    await expect(planAuction(rpc, sources, { ...open, startingPrice: MIN_PRICE - 1n })).rejects.toThrow(CodecError)
     expect(calls).toEqual([])
     expect(sources.fetched).toEqual(['params'])
   })
 
   it('takes the floor from /params, not from the launch constant', async () => {
-    // A P halved the long band: a reserve that the launch FEE_LONG would
+    // A P halved the long band: a starting price that the launch FEE_LONG would
     // refuse is legal against the active one, and the plan says which it used.
     const halved = MIN_PRICE / 2n
-    const built = await plan({ reserve: halved }, { params: { prices: { ...ACTIVE.prices, feeLong: halved } } })
+    const built = await plan({ startingPrice: halved }, { params: { prices: { ...ACTIVE.prices, feeLong: halved } } })
     expect(built.checks).toEqual([])
     expect(describeAuctionPlan(built).join('\n')).toContain(`MIN_PRICE is ${halved} luna`)
   })
@@ -287,7 +287,7 @@ describe('describeAuctionPlan', () => {
     const built = await plan()
     const lines = describeAuctionPlan(built).join('\n')
     expect(lines).toContain('A admin auction: binance')
-    expect(lines).toContain(`decoded: name "binance", reserve ${MIN_PRICE} luna, end ${END}`)
+    expect(lines).toContain(`decoded: name "binance", starting price ${MIN_PRICE} luna, end ${END}`)
   })
 
   it('prints the state it checked, the floor, the end in hours and the earliest usable end', async () => {
@@ -338,9 +338,9 @@ describe('broadcast', () => {
 })
 
 describe('parseAuctionArgs', () => {
-  it('reads name, reserve in luna and end height; dry run unless --send', () => {
+  it('reads name, starting price in luna and end height; dry run unless --send', () => {
     expect(parseAuctionArgs(['binance', '40000000', '58200000'])).toEqual({
-      params: { name: 'binance', reserve: 40_000_000n, endHeight: 58_200_000 },
+      params: { name: 'binance', startingPrice: 40_000_000n, endHeight: 58_200_000 },
       send: false,
     })
     expect(parseAuctionArgs(['binance', '40000000', '58200000', '--send']).send).toBe(true)

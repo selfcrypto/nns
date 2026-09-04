@@ -237,7 +237,7 @@ function serialiseOffer(offer: ApiOffer): Record<string, unknown> {
 
 /**
  * An open auction, plus `minimumBid` — the least a `B` must carry to stand
- * (§6 `A`): the reserve until a bid has met it, then the standing bid plus
+ * (§6 `A`): the starting price until a bid has met it, then the standing bid plus
  * `AUCTION_MIN_INCREMENT` of itself, floored. Served for the same reason
  * `/params` serves `minPrice`: a client cannot build a correct bid without
  * it, and the rule is `core.requiredBid`, never restated here.
@@ -246,7 +246,7 @@ function serialiseAuction(auction: ApiAuction): Record<string, unknown> {
   return {
     name: auction.name,
     seller: formatAddress(auction.seller),
-    reserve: auction.reserve.toString(),
+    startingPrice: auction.startingPrice.toString(),
     endHeight: auction.endHeight,
     bidder: auction.bidder === null ? null : formatAddress(auction.bidder),
     bid: auction.bid.toString(),

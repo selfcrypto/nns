@@ -24,10 +24,10 @@
  *    `RESERVED` whether or not an auction is already running on it. `GET
  *    /auctions` is the one read that answers `state.auctions.has(name)`
  *    (`auctions.ts`).
- * 3. *The floor.* The reserve MUST be ≥ `MIN_PRICE`, which is `FEE_LONG` **as
+ * 3. *The floor.* The starting price MUST be ≥ `MIN_PRICE`, which is `FEE_LONG` **as
  *    in effect** — `/params`'s `minPrice`, not the launch constant. The
  *    builder takes that floor as an argument and refuses below it, so the
- *    `/params` read comes first and a low reserve fails as the codec's own
+ *    `/params` read comes first and a low starting price fails as the codec's own
  *    error, the way `BURN_ADDRESS` does for `u`.
  *
  * **The window is measured from the landing block** (§6 `A`: "measured from
@@ -78,7 +78,7 @@ import {
 export interface AuctionParams {
   readonly name: string
   /** Luna. */
-  readonly reserve: bigint
+  readonly startingPrice: bigint
   readonly endHeight: number
 }
 
@@ -107,7 +107,7 @@ export interface AuctionPlan {
   readonly head: number
   /** `ADMIN_ADDRESS`'s balance, in luna (§11.5). */
   readonly balance: bigint
-  /** The prices in effect — `minPrice` is the reserve's floor. */
+  /** The prices in effect — `minPrice` is the starting price's floor. */
   readonly active: ActiveParams
   /** What the name currently is, and the height that was read at. */
   readonly availability: NameAvailability
@@ -116,24 +116,24 @@ export interface AuctionPlan {
   readonly checks: readonly AdminCheck[]
 }
 
-/** `a <name> <reserve_luna> <end-height> [--send]`. */
+/** `a <name> <starting_price_luna> <end-height> [--send]`. */
 export function parseAuctionArgs(argv: readonly string[]): AuctionCommand {
   const flags = argv.filter((arg) => arg.startsWith('-'))
   for (const flag of flags) {
     if (flag !== '--send') throw new UsageError(`unknown flag ${JSON.stringify(flag)} — the only flag is --send`)
   }
-  const [name, reserve, endHeight, ...rest] = argv.filter((arg) => !arg.startsWith('-'))
-  if (name === undefined || reserve === undefined || endHeight === undefined || rest.length > 0) {
-    throw new UsageError('a takes a name, a reserve in luna and an end height')
+  const [name, startingPrice, endHeight, ...rest] = argv.filter((arg) => !arg.startsWith('-'))
+  if (name === undefined || startingPrice === undefined || endHeight === undefined || rest.length > 0) {
+    throw new UsageError('a takes a name, a starting price in luna and an end height')
   }
-  if (!/^\d+$/.test(reserve)) {
-    throw new UsageError(`reserve must be a whole number of luna (1 NIM = 100,000 luna), got ${JSON.stringify(reserve)}`)
+  if (!/^\d+$/.test(startingPrice)) {
+    throw new UsageError(`starting price must be a whole number of luna (1 NIM = 100,000 luna), got ${JSON.stringify(startingPrice)}`)
   }
   if (!/^\d+$/.test(endHeight) || !Number.isSafeInteger(Number(endHeight))) {
     throw new UsageError(`end-height must be a non-negative integer, got ${JSON.stringify(endHeight)}`)
   }
   return {
-    params: { name, reserve: BigInt(reserve), endHeight: Number(endHeight) },
+    params: { name, startingPrice: BigInt(startingPrice), endHeight: Number(endHeight) },
     send: flags.length > 0,
   }
 }
@@ -143,7 +143,7 @@ export function parseAuctionArgs(argv: readonly string[]): AuctionCommand {
  * the name's state and the open auctions. Read-only: two RPC calls
  * (`getBlockNumber`, `getAccountByAddress`) and three `GET`s. Unlike `u` and
  * `p` the builder does not run first: it needs `MIN_PRICE` as in effect,
- * which is `/params`'s to answer, so that read precedes it and a reserve
+ * which is `/params`'s to answer, so that read precedes it and a starting price
  * under the floor throws as the codec's own error before anything else is
  * fetched. A bad name throws there too.
  */
@@ -197,7 +197,7 @@ export async function planAuction(rpc: AdminRpc, sources: AuctionSources, params
       severity: 'refuse',
       message:
         `${JSON.stringify(params.name)} is already under auction: ${open.url} lists it at height ${open.height} — ` +
-        `reserve ${formatLuna(running.reserve)}, ends at ${running.endHeight}, ${standing}. A second A forfeits ` +
+        `starting price ${formatLuna(running.startingPrice)}, ends at ${running.endHeight}, ${standing}. A second A forfeits ` +
         'AUCTION_OPEN (§6 A), and K cannot cancel the running one',
     })
   }
@@ -237,7 +237,7 @@ export async function planAuction(rpc: AdminRpc, sources: AuctionSources, params
   }
   lag('the reservation', availability.url, availability.height, RESERVATION_LAG_LIMIT, 'a U accepted since is not reflected in it')
   lag('the open-auction list', open.url, open.height, RESERVATION_LAG_LIMIT, 'an A accepted since is not reflected in it')
-  lag('MIN_PRICE', active.url, active.height, PARAMS_LAG_LIMIT, 'a P activated since is not the floor this reserve was checked against')
+  lag('MIN_PRICE', active.url, active.height, PARAMS_LAG_LIMIT, 'a P activated since is not the floor this starting price was checked against')
 
   return {
     params,
@@ -257,7 +257,7 @@ export async function planAuction(rpc: AdminRpc, sources: AuctionSources, params
 /**
  * The plan as lines for a human to read *before* deciding to `--send`.
  *
- * Name, reserve and end are read back out of the built payload rather than
+ * Name, starting price and end are read back out of the built payload rather than
  * out of `params`, so what is printed is what will be on the wire — the only
  * thing between a typo and a window nobody can close early.
  */
@@ -267,7 +267,7 @@ export function describeAuctionPlan(plan: AuctionPlan): string[] {
     throw new Error(`built an A that does not parse back as one: ${plan.data}`)
   }
   const { head, active, availability } = plan
-  const { name, reserve, endHeight } = decoded.message
+  const { name, startingPrice, endHeight } = decoded.message
   const byRule = name.length < CONSTANTS.MIN_NAME_LEN
   return [
     `A admin auction: ${name}`,
@@ -278,14 +278,14 @@ export function describeAuctionPlan(plan: AuctionPlan): string[] {
       `read from ${availability.url} at height ${availability.height} (${head - availability.height} blocks behind head)`,
     `  auctions    ${plan.open.auctions.length} open at ${plan.open.url}, height ${plan.open.height} — ` +
       (auctionFor(plan.open, name) === null ? `none for ${JSON.stringify(name)}` : `ONE OF THEM IS ${JSON.stringify(name)}`),
-    `  reserve     ${formatLuna(reserve)} — MIN_PRICE is ${formatLuna(active.prices.feeLong)} at ${active.url}, height ${active.height}; ` +
-      'the first bid must reach the reserve, each later one the standing bid plus ' +
+    `  starting price  ${formatLuna(startingPrice)} — MIN_PRICE is ${formatLuna(active.prices.feeLong)} at ${active.url}, height ${active.height}; ` +
+      'the first bid must reach the starting price, each later one the standing bid plus ' +
       `${CONSTANTS.AUCTION_MIN_INCREMENT_BP} bp of itself`,
     `  ends at     height ${endHeight} — head is ${head}, so ${noticeInWords(endHeight, head)}; a bid inside the last ` +
       `${CONSTANTS.AUCTION_EXTENSION} blocks (${hours(CONSTANTS.AUCTION_EXTENSION)}) moves the end to that bid + ${CONSTANTS.AUCTION_EXTENSION}`,
     `  earliest usable ${head + CONSTANTS.AUCTION_MIN_DURATION + NOTICE_MARGIN} — AUCTION_MIN_DURATION (${CONSTANTS.AUCTION_MIN_DURATION}) ` +
       `plus ${NOTICE_MARGIN} blocks (${hours(NOTICE_MARGIN)}) of landing margin, since the window runs from the block this lands in`,
-    `  payload     ${plan.data} — decoded: name ${JSON.stringify(name)}, reserve ${reserve} luna, end ${endHeight}`,
+    `  payload     ${plan.data} — decoded: name ${JSON.stringify(name)}, starting price ${startingPrice} luna, end ${endHeight}`,
     `  to          ${formatAddress(plan.recipient)} (PROTOCOL_ADDRESS), value ${formatLuna(plan.value)}, fee 0`,
     `  from        ${formatAddress(plan.sender)} (ADMIN_ADDRESS), balance ${formatLuna(plan.balance)}`,
     `  seller      ${formatAddress(CONSTANTS.TREASURY_ADDRESS)} (TREASURY_ADDRESS) — at the close both legs land there: ` +

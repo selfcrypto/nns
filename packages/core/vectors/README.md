@@ -89,7 +89,7 @@ only; it defaults to empty.
   (`COMMITMENT_LAYOUT` 5; `evm_set_is_twenty_raw_bytes` pins the encoding),
   so every commitment over a state with a name in it moved at that bump.
   r28 added the open-auction entry under tag `0x0B`, between offers and
-  governance — `one_open_auction_no_bid` pins the unmet-reserve form (20 zero
+  governance — `one_open_auction_no_bid` pins the unmet-starting-price form (20 zero
   bytes and a zero bid), `one_open_auction_with_bid` the standing bid — and
   moved **no other value**: an empty category contributes nothing, so
   `COMMITMENT_LAYOUT` stays 5 on r22's argument, and `every_pending_category`
@@ -129,7 +129,7 @@ stretch.
 
 A `check` reads the state at that point. Beyond `names`, `resolves` and
 `prices` it may carry `absent`, `height`, `transfers`, `offers`, `auctions`
-(r28 — `bidder: null` asserts no bid has met the reserve),
+(r28 — `bidder: null` asserts no bid has met the starting price),
 `pendingGovernance`, `unreserved`, `outstanding` and `logLines`
 (`pendingUnreserve` was one until r22 removed the pending `U`); a `null`
 value in any of the pending maps asserts the entry is **gone**, which is what

@@ -25,7 +25,7 @@ import { LAUNCH_PRICES, minPrice } from './state.js'
 import { ALICE, BOB, MARKETPLACE, PROTOCOL, TREASURY, testConfig } from './test-fixtures.js'
 
 const config = testConfig()
-/** §3 `MIN_PRICE` at launch prices — the floor on an `O` price and an `A` reserve. */
+/** §3 `MIN_PRICE` at launch prices — the floor on an `O` price and an `A` starting price. */
 const FLOOR = minPrice(LAUNCH_PRICES)
 
 /** ASCII → lowercase hex, written independently of the implementation. */
@@ -89,8 +89,8 @@ describe('every message type round-trips encode → parse', () => {
     ],
     [
       'A',
-      encodeAuction({ name: 'kikename', reserve: 40_000_000n, endHeight: 58_200_000, minPrice: FLOOR }),
-      { type: 'A', name: 'kikename', reserve: 40_000_000n, endHeight: 58_200_000 },
+      encodeAuction({ name: 'kikename', startingPrice: 40_000_000n, endHeight: 58_200_000, minPrice: FLOOR }),
+      { type: 'A', name: 'kikename', startingPrice: 40_000_000n, endHeight: 58_200_000 },
     ],
     [
       'P',
@@ -141,7 +141,7 @@ describe('routing and value — §5.3, §5.4', () => {
     for (const tx of [
       encodeCancel({ name: 'kikename' }),
       encodeDelegate({ name: 'kikename', host: 'x.com' }),
-      encodeAuction({ name: 'kikename', reserve: FLOOR, endHeight: 1, minPrice: FLOOR }),
+      encodeAuction({ name: 'kikename', startingPrice: FLOOR, endHeight: 1, minPrice: FLOOR }),
       encodeGovernance({ feeStandard: 1n, feeLong: 1n, commissionBp: 0n, effectiveHeight: 1 }),
       encodeUnreserve({ name: 'kikename' }),
     ]) {
@@ -267,13 +267,13 @@ describe('builders fail loudly where the chain would fail silently', () => {
     expect(() => encodeRegister({ name: 'kikename', ref: 'a'.repeat(13), fee: 1n })).toThrow(/invalid ref/)
   })
 
-  it('rejects an O price or an A reserve below MIN_PRICE (§6 O, §6 A)', () => {
+  it('rejects an O price or an A starting price below MIN_PRICE (§6 O, §6 A)', () => {
     expect(() => encodeOffer({ name: 'kikename', price: FLOOR - 1n, minPrice: FLOOR })).toThrow(
       /below MIN_PRICE/,
     )
     expect(() => encodeOffer({ name: 'kikename', price: 0n, minPrice: FLOOR })).toThrow(/below MIN_PRICE/)
     expect(() =>
-      encodeAuction({ name: 'kikename', reserve: FLOOR - 1n, endHeight: 58_200_000, minPrice: FLOOR }),
+      encodeAuction({ name: 'kikename', startingPrice: FLOOR - 1n, endHeight: 58_200_000, minPrice: FLOOR }),
     ).toThrow(/below MIN_PRICE/)
     // Exactly at the floor is fine — the boundary is inclusive.
     expect(encodeOffer({ name: 'kikename', price: FLOOR, minPrice: FLOOR }).data).toBe(

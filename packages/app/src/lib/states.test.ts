@@ -247,7 +247,7 @@ describe('actionGates (app-states.md §4)', () => {
   })
 
   describe('an open auction is exclusive (§6 `A`, r28)', () => {
-    const auction = { name: 'a', seller: OWNER, reserve: 100_000n, endHeight: 1_100_000, bidder: null, bid: 0n, minimumBid: 100_000n }
+    const auction = { name: 'a', seller: OWNER, startingPrice: 100_000n, endHeight: 1_100_000, bidder: null, bid: 0n, minimumBid: 100_000n }
     const underAuction = registered({ pending: { transfer: null, offer: null, auction } })
 
     it('A needs the owner and no open auction; a pending X or an open O does not block it — opening voids them', () => {

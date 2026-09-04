@@ -78,7 +78,7 @@ describe('luna amounts', () => {
     const wire = {
       name: 'a-name',
       seller: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
-      reserve: '100000000',
+      startingPrice: '100000000',
       endHeight: 1_100_000,
       bidder: null,
       bid: '0',
@@ -86,7 +86,7 @@ describe('luna amounts', () => {
       minimumBid: '100000000',
     }
     const auctions = await getAuctions('http://api', respond({ '/auctions': { status: 200, body: { auctions: [wire], height: 3 } } }))
-    expect(auctions.auctions[0]).toEqual({ name: 'a-name', seller: wire.seller, reserve: 100_000_000n, endHeight: 1_100_000, bidder: null, bid: 0n, minimumBid: 100_000_000n })
+    expect(auctions.auctions[0]).toEqual({ name: 'a-name', seller: wire.seller, startingPrice: 100_000_000n, endHeight: 1_100_000, bidder: null, bid: 0n, minimumBid: 100_000_000n })
     const info = await getNameInfo(
       'http://api',
       'example',

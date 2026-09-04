@@ -101,7 +101,7 @@ describe('vectors/codec.json', () => {
     Object.fromEntries(
       Object.entries(message).map(([key, value]) => [
         key,
-        ['price', 'reserve', 'feeStandard', 'feeLong', 'commissionBp'].includes(key) ? BigInt(value as string) : value,
+        ['price', 'startingPrice', 'feeStandard', 'feeLong', 'commissionBp'].includes(key) ? BigInt(value as string) : value,
       ]),
     )
 
@@ -402,7 +402,7 @@ describe('vectors/reduce.json', () => {
         const value =
           key === 'newOwner' || key === 'seller' || key === 'recipient' || key === 'bidder'
             ? maybeAddress(want[key])
-            : key === 'price' || key === 'reserve' || key === 'bid'
+            : key === 'price' || key === 'startingPrice' || key === 'bid'
               ? BigInt(want[key])
               : want[key]
         expect(entry[key], `${label}.${name}.${key}`).toEqual(value)
@@ -470,7 +470,7 @@ describe('vectors/reduce.json', () => {
           ])
         }
         if (step.check.auctions !== undefined) {
-          checkPending('auctions', state.auctions, step.check.auctions, ['seller', 'reserve', 'endHeight', 'bidder', 'bid'])
+          checkPending('auctions', state.auctions, step.check.auctions, ['seller', 'startingPrice', 'endHeight', 'bidder', 'bid'])
         }
         if (step.check.pendingGovernance !== undefined) {
           if (step.check.pendingGovernance === null) expect(state.pendingGovernance).toBeNull()

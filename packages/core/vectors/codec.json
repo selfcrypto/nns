@@ -271,15 +271,15 @@
         "message": {
           "type": "A",
           "name": "kikename",
-          "reserve": "40000000",
+          "startingPrice": "40000000",
           "endHeight": 59042720
         },
         "build": {
           "builder": "auction",
-          "reserve": "40000000",
+          "startingPrice": "40000000",
           "endHeight": 59042720
         },
-        "note": "The reserve carries the same MIN_PRICE floor as an O price (§6 A), so the builder will not encode less than FEE_LONG.",
+        "note": "The startingPrice carries the same MIN_PRICE floor as an O price (§6 A), so the builder will not encode less than FEE_LONG.",
         "recipient": "PROTOCOL",
         "value": "1"
       },
@@ -427,7 +427,7 @@
       },
       {
         "id": "retired_R_is_unknown",
-        "note": "`R` carried the recovery address through r19. r20 removed it and did NOT reserve the letter: an `R` built by a pre-r20 client parses as an unknown type and forfeits (§6, §7.4).",
+        "note": "`R` carried the recovery address through r19. r20 removed it and did NOT startingPrice the letter: an `R` built by a pre-r20 client parses as an unknown type and forfeits (§6, §7.4).",
         "text": "NNS1Rkikename",
         "data": "4e4e5331526b696b656e616d65",
         "result": {
@@ -820,7 +820,7 @@
         "id": "A_reserve_below_MIN_PRICE",
         "builder": "auction",
         "name": "kikename",
-        "reserve": "39999999",
+        "startingPrice": "39999999",
         "endHeight": 59042720
       },
       {

@@ -228,7 +228,7 @@ check(
 
 // Auctions (§6 A, r28) — a window measured from the landing block, an
 // anti-sniping extension inside it, and an increment that must not round to
-// nothing at the smallest legal reserve.
+// nothing at the smallest legal starting price.
 check(
   'auction-extension-inside-duration',
   'AUCTION_EXTENSION < AUCTION_MIN_DURATION (§6 A — a late bid extends a window, it does not define one)',
@@ -245,7 +245,7 @@ check(
   const increment = (C.FEE_LONG * C.AUCTION_MIN_INCREMENT_BP) / C.BASIS_POINTS
   check(
     'trap/auction-increment-nonzero',
-    'the increment on a reserve at MIN_PRICE floors above zero (§6 A — the reason the reserve has a floor at all)',
+    'the increment on a starting price at MIN_PRICE floors above zero (§6 A — the reason the starting price has a floor at all)',
     increment > 0n,
     `floor(FEE_LONG ${luna(C.FEE_LONG)} × ${C.AUCTION_MIN_INCREMENT_BP} bp) = ${luna(increment)}` +
       '\n      at zero a second bid could "raise" by nothing, and the battery\'s outbid rows would never refund anyone',

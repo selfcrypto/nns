@@ -90,7 +90,7 @@ function populated(): NnsState {
         {
           name: 'bob-in-grace',
           seller: address(B),
-          reserve: 50_000_000n,
+          startingPrice: 50_000_000n,
           endHeight: 58_290_000,
           bidder: address(C),
           bid: 52_500_000n,
@@ -102,7 +102,7 @@ function populated(): NnsState {
         {
           name: 'nns',
           seller: address(A),
-          reserve: 400_000_000_000n,
+          startingPrice: 400_000_000_000n,
           endHeight: 58_300_000,
           bidder: null,
           bid: 0n,
@@ -181,7 +181,7 @@ describe('round trip', () => {
     const withBid = rows.find((row) => row.name === 'bob-in-grace')
     expect(withBid).toMatchObject({
       seller: address(B),
-      reserve: '50000000',
+      starting_price: '50000000',
       end_height: 58_290_000,
       bidder: address(C),
       bid: '52500000',

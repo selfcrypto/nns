@@ -135,7 +135,7 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
       [B],
     )
     await pool.query(
-      `INSERT INTO pending (kind, name, seller, reserve, end_height, bidder, bid, bid_ref_height, bid_ref_tx_index)
+      `INSERT INTO pending (kind, name, seller, starting_price, end_height, bidder, bid, bid_ref_height, bid_ref_tx_index)
        VALUES ('AUCTION', 'carol-example', $1, '50000000', 58276400, $2, '52500000', 58190100, 0)`,
       [B, A],
     )
@@ -146,7 +146,7 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
     expect(auctioned.value.auction).toEqual({
       name: 'carol-example',
       seller: B,
-      reserve: 50_000_000n,
+      startingPrice: 50_000_000n,
       endHeight: 58_276_400,
       bidder: A,
       bid: 52_500_000n,
@@ -157,7 +157,7 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
     // No bid yet: null bidder, zero bid, no ref — the shape migration 010's
     // check admits, read back without inventing a ref.
     await pool.query(
-      `INSERT INTO pending (kind, name, seller, reserve, end_height, bidder, bid)
+      `INSERT INTO pending (kind, name, seller, starting_price, end_height, bidder, bid)
        VALUES ('AUCTION', 'dave-example', $1, '60000000', 58276400, NULL, '0')`,
       [B],
     )

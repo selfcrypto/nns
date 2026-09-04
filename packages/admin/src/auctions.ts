@@ -22,7 +22,7 @@ import { AdminError } from './cli.js'
 export interface OpenAuction {
   readonly name: string
   readonly seller: string
-  readonly reserve: bigint
+  readonly startingPrice: bigint
   readonly endHeight: number
   /** `null` until the first bid stands. */
   readonly bidder: string | null
@@ -64,7 +64,7 @@ function parseAuction(value: unknown, index: number, url: string): OpenAuction {
   return Object.freeze({
     name: stringField(raw['name'], field('name'), url),
     seller: stringField(raw['seller'], field('seller'), url),
-    reserve: lunaField(raw['reserve'], field('reserve'), url),
+    startingPrice: lunaField(raw['startingPrice'], field('startingPrice'), url),
     endHeight: heightField(raw['endHeight'], field('endHeight'), url),
     bidder: bidder === null || bidder === undefined ? null : stringField(bidder, field('bidder'), url),
     bid: lunaField(raw['bid'], field('bid'), url),

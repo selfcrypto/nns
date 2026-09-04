@@ -377,7 +377,7 @@
             {
               "name": "kikename",
               "seller": "ALICE",
-              "reserve": "100000000",
+              "startingPrice": "100000000",
               "endHeight": 58929200,
               "bidder": "CAROL",
               "bid": "110250000"
@@ -415,7 +415,7 @@
             {
               "name": "kikename",
               "seller": "ALICE",
-              "reserve": "100000000",
+              "startingPrice": "100000000",
               "endHeight": 58929200
             }
           ]
@@ -429,7 +429,7 @@
       },
       {
         "id": "one_open_auction_with_bid",
-        "note": "The same auction after a bid met the reserve and one extension moved the end: bidder, bid and end height are all in the entry. The bid's transaction ref is not — §8.1 keeps settlement identity out of the commitment, on the same terms as the obligations — so two states differing only in that ref commit identically.",
+        "note": "The same auction after a bid met the startingPrice and one extension moved the end: bidder, bid and end height are all in the entry. The bid's transaction ref is not — §8.1 keeps settlement identity out of the commitment, on the same terms as the obligations — so two states differing only in that ref commit identically.",
         "state": {
           "height": 58903520,
           "prices": {
@@ -451,7 +451,7 @@
             {
               "name": "kikename",
               "seller": "ALICE",
-              "reserve": "100000000",
+              "startingPrice": "100000000",
               "endHeight": 58929300,
               "bidder": "BOB",
               "bid": "110250000"

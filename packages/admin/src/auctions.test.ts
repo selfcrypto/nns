@@ -11,7 +11,7 @@ const document_ = {
     {
       name: 'nns',
       seller: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
-      reserve: '100000',
+      startingPrice: '100000',
       endHeight: 59_200_000,
       bidder: null,
       bid: '0',
@@ -21,7 +21,7 @@ const document_ = {
     {
       name: 'binance',
       seller: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
-      reserve: '100000',
+      startingPrice: '100000',
       endHeight: 59_210_000,
       bidder: 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK',
       bid: '200000',
@@ -38,11 +38,11 @@ describe('parseAuctions', () => {
     expect(parsed.height).toBe(59_100_000)
     expect(parsed.url).toBe(URL_)
     expect(parsed.auctions).toEqual([
-      { name: 'nns', seller: document_.auctions[0]?.seller, reserve: 100_000n, endHeight: 59_200_000, bidder: null, bid: 0n },
+      { name: 'nns', seller: document_.auctions[0]?.seller, startingPrice: 100_000n, endHeight: 59_200_000, bidder: null, bid: 0n },
       {
         name: 'binance',
         seller: document_.auctions[1]?.seller,
-        reserve: 100_000n,
+        startingPrice: 100_000n,
         endHeight: 59_210_000,
         bidder: 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK',
         bid: 200_000n,

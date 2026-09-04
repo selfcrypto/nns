@@ -214,8 +214,8 @@ describe('takeSnapshot', () => {
 // ── The three refusals ──────────────────────────────────────────────────────
 
 describe('takeSnapshot — auctions (r28)', () => {
-  const RESERVE = PRICE
-  const WINNING = RESERVE + commissionOn(RESERVE, CONSTANTS.AUCTION_MIN_INCREMENT_BP)
+  const STARTING_PRICE = PRICE
+  const WINNING = STARTING_PRICE + commissionOn(STARTING_PRICE, CONSTANTS.AUCTION_MIN_INCREMENT_BP)
   const HA = { open: LAUNCH_HEIGHT + 20, first: LAUNCH_HEIGHT + 30, outbid: LAUNCH_HEIGHT + 31 } as const
   const END = HA.open + CONSTANTS.AUCTION_MIN_DURATION
   /** The first checkpoint boundary at or past the end height. */
@@ -225,8 +225,8 @@ describe('takeSnapshot — auctions (r28)', () => {
     const floor = minPrice(initialState().prices)
     return [
       send(H.register, 0, SELLER, encodeRegister({ name: NAME, fee })),
-      send(HA.open, 0, SELLER, encodeAuction({ name: NAME, reserve: RESERVE, endHeight: END, minPrice: floor })),
-      send(HA.first, 0, LOSER, encodeBuy({ name: NAME, price: RESERVE })),
+      send(HA.open, 0, SELLER, encodeAuction({ name: NAME, startingPrice: STARTING_PRICE, endHeight: END, minPrice: floor })),
+      send(HA.first, 0, LOSER, encodeBuy({ name: NAME, price: STARTING_PRICE })),
       send(HA.outbid, 0, WINNER, encodeBuy({ name: NAME, price: WINNING })),
     ]
   }
@@ -235,7 +235,7 @@ describe('takeSnapshot — auctions (r28)', () => {
     const { lines } = stageLog(auction(), config)
     const open = takeSnapshot(snapshotOf(lines, CP1), replayOf(lines, CP1))
     expect(open.due.map((leg) => leg.key)).toEqual([`${HA.first}:0:REFUND`])
-    expect(open.due[0]).toMatchObject({ owedBy: MARKETPLACE, owedTo: LOSER, amount: RESERVE })
+    expect(open.due[0]).toMatchObject({ owedBy: MARKETPLACE, owedTo: LOSER, amount: STARTING_PRICE })
 
     // No line after the bid: the close is a height effect, and the due set
     // has to grow across a checkpoint the log did not gain a line at.
@@ -248,7 +248,7 @@ describe('takeSnapshot — auctions (r28)', () => {
     const commission = commissionOn(WINNING, CONSTANTS.COMMISSION_RATE)
     expect(closed.due[1]).toMatchObject({ owedBy: MARKETPLACE, owedTo: TREASURY, amount: commission })
     expect(closed.due[2]).toMatchObject({ owedBy: MARKETPLACE, owedTo: SELLER, amount: WINNING - commission })
-    expect(closed.totalDue).toBe(RESERVE + WINNING)
+    expect(closed.totalDue).toBe(STARTING_PRICE + WINNING)
   })
 })
 

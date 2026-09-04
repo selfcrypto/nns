@@ -42,7 +42,7 @@ export type ActionInputs =
   | { readonly action: 'transfer'; readonly newOwner: string }
   | { readonly action: 'delegate'; readonly host: string }
   | { readonly action: 'offer'; readonly priceNim: string }
-  | { readonly action: 'auction'; readonly reserveNim: string; readonly durationDays: string }
+  | { readonly action: 'auction'; readonly startingPriceNim: string; readonly durationDays: string }
   | { readonly action: 'bid'; readonly bidNim: string }
 
 export interface PreparedAction {
@@ -309,13 +309,13 @@ export function prepareAction(options: {
 
     case 'auction': {
       if (info === null || record === null) throw new ActionInputError('Couldn’t read this name’s record — try again')
-      const reserve = parseNimAmount(inputs.reserveNim, 'Reserve')
+      const startingPrice = parseNimAmount(inputs.startingPriceNim, 'Starting price')
       const endHeight = auctionEndHeight(info.height, parseAuctionDuration(inputs.durationDays))
       const minPrice = needParams().minPrice
       const when = (height: number): string => formatApproxDate(approxDate(height, info.height, Date.now()))
       const extension = blocksApprox(CONSTANTS.AUCTION_EXTENSION)
       const lines = [
-        `Opens an auction on ${name} with a ${lunaToNim(reserve)} NIM reserve, ending ${when(endHeight)}.`,
+        `Opens an auction on ${name} with a starting price of ${lunaToNim(startingPrice)} NIM, ending ${when(endHeight)}.`,
         `Neither the auction nor a bid can be withdrawn — it runs to the end, and a bid in the last ${extension} extends it by ${extension}.`,
         'The highest bid wins and the name transfers at the end; the proceeds arrive from the marketplace operator, less its commission.',
       ]
@@ -329,13 +329,13 @@ export function prepareAction(options: {
       if (auctionOutlivesTerm(endHeight, record.expiry)) throw new ActionInputError(auctionOutlivesTermLine(when(record.expiry)))
       return {
         action: 'auction',
-        // `encodeAuction` refuses a reserve below `minPrice` (§6 `A`): the
-        // increment rule rounds to zero at a token reserve.
-        request: asRequest(encodeAuction({ name, reserve, endHeight, minPrice, sender })),
+        // `encodeAuction` refuses a starting price below `minPrice` (§6 `A`): the
+        // increment rule rounds to zero at a token starting price.
+        request: asRequest(encodeAuction({ name, startingPrice, endHeight, minPrice, sender })),
         review: lines,
         confirm: async () => {
           const pending = (await infoNow())?.pending.auction ?? null
-          return pending !== null && pending.reserve === reserve
+          return pending !== null && pending.startingPrice === startingPrice
         },
       }
     }

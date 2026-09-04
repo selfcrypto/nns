@@ -68,7 +68,7 @@ export interface ApiOffer {
 export interface ApiAuction {
   readonly name: string
   readonly seller: string
-  readonly reserve: bigint
+  readonly startingPrice: bigint
   readonly endHeight: number
   readonly bidder: string | null
   readonly bid: bigint
@@ -202,7 +202,7 @@ const readAuction = (value: unknown, path: string): ApiAuction => {
   return {
     name: str(body['name'], `${path}.name`),
     seller: str(body['seller'], `${path}.seller`),
-    reserve: luna(body['reserve'], `${path}.reserve`),
+    startingPrice: luna(body['startingPrice'], `${path}.startingPrice`),
     endHeight: num(body['endHeight'], `${path}.endHeight`),
     bidder: body['bidder'] === null ? null : str(body['bidder'], `${path}.bidder`),
     bid: luna(body['bid'], `${path}.bid`),

@@ -311,7 +311,7 @@ function auction(row: Row): ApiAuction {
   return {
     name: text(row, 'name'),
     seller: address(row, 'seller'),
-    reserve: toLuna(row['reserve'], 'reserve'),
+    startingPrice: toLuna(row['starting_price'], 'starting_price'),
     endHeight: toHeight(row['end_height'], 'end_height'),
     bidder,
     bid: toLuna(row['bid'], 'bid'),
@@ -324,7 +324,7 @@ function auction(row: Row): ApiAuction {
 
 const NAME_COLUMNS = 'name, owner, target, evm, expiry, status, host'
 
-const AUCTION_COLUMNS = 'name, seller, reserve, end_height, bidder, bid, bid_ref_height, bid_ref_tx_index'
+const AUCTION_COLUMNS = 'name, seller, starting_price, end_height, bidder, bid, bid_ref_height, bid_ref_tx_index'
 
 const CHECKPOINT_COLUMNS =
   'height, layout, name_root, prices_root, pending_root, unreserved_root, log_hash, commitment'
@@ -412,7 +412,7 @@ export class PgQueries implements Queries {
       const pending = await client.query(
         `SELECT kind, effective_height, new_owner,
                 seller, price, opened_height, expiry_height,
-                reserve, end_height, bidder, bid, bid_ref_height, bid_ref_tx_index
+                starting_price, end_height, bidder, bid, bid_ref_height, bid_ref_tx_index
            FROM pending WHERE name = $1`,
         [name],
       )

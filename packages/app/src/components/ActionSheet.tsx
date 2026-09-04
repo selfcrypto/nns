@@ -81,7 +81,7 @@ export function ActionSheet({
   const [newOwner, setNewOwner] = useState('')
   const [host, setHost] = useState('')
   const [priceNim, setPriceNim] = useState('')
-  const [reserveNim, setReserveNim] = useState('')
+  const [startingPriceNim, setStartingPriceNim] = useState('')
   const [durationDays, setDurationDays] = useState('')
   const [bidNim, setBidNim] = useState('')
   const [acknowledged, setAcknowledged] = useState(false)
@@ -101,7 +101,7 @@ export function ActionSheet({
       case 'offer':
         return { action, priceNim }
       case 'auction':
-        return { action, reserveNim, durationDays }
+        return { action, startingPriceNim, durationDays }
       case 'bid':
         return { action, bidNim }
       case 'register':
@@ -110,7 +110,7 @@ export function ActionSheet({
       case 'buy':
         return { action }
     }
-  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, priceNim, reserveNim, durationDays, bidNim])
+  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, priceNim, startingPriceNim, durationDays, bidNim])
 
   const inputsTouched = (() => {
     switch (action) {
@@ -123,7 +123,7 @@ export function ActionSheet({
       case 'offer':
         return priceNim.trim() !== ''
       case 'auction':
-        return reserveNim.trim() !== '' && durationDays.trim() !== ''
+        return startingPriceNim.trim() !== '' && durationDays.trim() !== ''
       case 'bid':
         return bidNim.trim() !== ''
       default:
@@ -292,9 +292,9 @@ export function ActionSheet({
           <input
             className="sheet-input"
             inputMode="decimal"
-            placeholder="Reserve in NIM"
-            value={reserveNim}
-            onChange={(event) => setReserveNim(event.target.value)}
+            placeholder="Starting price in NIM"
+            value={startingPriceNim}
+            onChange={(event) => setStartingPriceNim(event.target.value)}
           />
           <input
             className="sheet-input"

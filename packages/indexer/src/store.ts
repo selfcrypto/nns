@@ -70,7 +70,7 @@ const PENDING_COLUMNS = [
   'fee_standard',
   'fee_long',
   'commission_bp',
-  'reserve',
+  'starting_price',
   'end_height',
   'bidder',
   'bid',

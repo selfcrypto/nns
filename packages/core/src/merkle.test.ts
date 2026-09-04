@@ -317,7 +317,7 @@ describe('checkpoint — §8.1 final clause', () => {
     const open = {
       name: 'kikename',
       seller: ALICE,
-      reserve: 40_000_000n,
+      startingPrice: 40_000_000n,
       endHeight: 100,
       bidder: null,
       bid: 0n,
@@ -327,7 +327,7 @@ describe('checkpoint — §8.1 final clause', () => {
     expect(bytesEqual(pendingCommitment(noBid), empty)).toBe(false)
 
     // The preimage, pinned by bytes rather than by a remembered digest: an
-    // unmet reserve is 20 zero bytes and a zero bid, so a client can prove
+    // unmet starting price is 20 zero bytes and a zero bid, so a client can prove
     // "no bid stands" from the checkpoint alone.
     expect(pendingCommitment(noBid)).toEqual(
       keccak_256(

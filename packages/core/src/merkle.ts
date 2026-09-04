@@ -375,7 +375,7 @@ export function pendingCommitment(state: NnsState): Uint8Array {
 
   // r28: auctions sit between offers and governance, so the pending `P` stays
   // the last entry and the only one carrying no name. The standing bidder is
-  // 20 zero bytes and the bid 0 until the reserve is met. The bid's ref is
+  // 20 zero bytes and the bid 0 until the starting price is met. The bid's ref is
   // settlement identity and is deliberately not here (§8.1).
   for (const item of [...state.auctions.values()].sort((a, b) => compareNames(a.name, b.name))) {
     entries.push(
@@ -383,7 +383,7 @@ export function pendingCommitment(state: NnsState): Uint8Array {
         u8(TAG.PENDING_AUCTION),
         lengthPrefixed(item.name),
         addressToBytes(item.seller),
-        u64be(item.reserve),
+        u64be(item.startingPrice),
         u64be(item.endHeight),
         item.bidder === null ? new Uint8Array(ADDRESS_BYTES) : addressToBytes(item.bidder),
         u64be(item.bid),

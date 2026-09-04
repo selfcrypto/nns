@@ -1955,7 +1955,7 @@
     },
     {
       "id": "auction_lifecycle_open_bid_outbid_extend_close_settle",
-      "note": "§6 `A` (r28) end to end. The reserve is 1,000 NIM; a first bid one luna short refunds under WRONG_PRICE and leaves no standing bid; the first bid at the reserve stands and moves no ownership; the increment is floor(standing × 500 bp), so 104,999,999 is short and 105,000,000 raises — and the raise refunds BOB *at once*, keyed by BOB's own bid, so the marketplace holds one bid per auction. The late bid lands 500 blocks before the end and moves it to bid + AUCTION_EXTENSION. The close is a height effect: nothing at end − 1, and at the end the winner takes the name with the §7.3 transfer resets (the delegate host set before the auction is gone) and two legs are owed against the winning bid's ref — proceeds less commission at the rate active at the close, and the commission — discharged by two `M`s like any sale. No transaction ever emits the close, so the log line count does not move across it.",
+      "note": "§6 `A` (r28) end to end. The startingPrice is 1,000 NIM; a first bid one luna short refunds under WRONG_PRICE and leaves no standing bid; the first bid at the startingPrice stands and moves no ownership; the increment is floor(standing × 500 bp), so 104,999,999 is short and 105,000,000 raises — and the raise refunds BOB *at once*, keyed by BOB's own bid, so the marketplace holds one bid per auction. The late bid lands 500 blocks before the end and moves it to bid + AUCTION_EXTENSION. The close is a height effect: nothing at end − 1, and at the end the winner takes the name with the §7.3 transfer resets (the delegate host set before the auction is gone) and two legs are owed against the winning bid's ref — proceeds less commission at the rate active at the close, and the commission — discharged by two `M`s like any sale. No transaction ever emits the close, so the log line count does not move across it.",
       "steps": [
         {
           "tx": {
@@ -2002,7 +2002,7 @@
             "auctions": {
               "kikename": {
                 "seller": "ALICE",
-                "reserve": "100000000",
+                "startingPrice": "100000000",
                 "endHeight": 58929200,
                 "bidder": null,
                 "bid": "0"
@@ -2393,7 +2393,7 @@
     },
     {
       "id": "auction_with_no_bid_ends_and_owes_nothing",
-      "note": "A bid under the reserve is refunded and never stands, so \"the reserve was never met\" is the same state as \"nobody bid\": the auction leaves the pending set at its end, the name stays with the owner, and the only obligation in the ledger is the under-reserve refund. The owner may open another at the close height itself — the close fired before that block's transactions.",
+      "note": "A bid under the startingPrice is refunded and never stands, so \"the startingPrice was never met\" is the same state as \"nobody bid\": the auction leaves the pending set at its end, the name stays with the owner, and the only obligation in the ledger is the under-startingPrice refund. The owner may open another at the close height itself — the close fired before that block's transactions.",
       "steps": [
         {
           "tx": {
@@ -2726,7 +2726,7 @@
             "auctions": {
               "nim": {
                 "seller": "TREASURY",
-                "reserve": "100000000",
+                "startingPrice": "100000000",
                 "bidder": null
               }
             }
@@ -5547,7 +5547,7 @@
         "id": "A_auction_open_beats_below_min_price",
         "setup": "auction_open_at_1000_nim",
         "pinnedBy": "§7.4 check-order table (r28) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`",
-        "note": "State before payload. A one-luna reserve is far below `MIN_PRICE`, and the owner is still told the auction is open — the same message with a lawful reserve earns the same token, which is what makes the floor the later check.",
+        "note": "State before payload. A one-luna startingPrice is far below `MIN_PRICE`, and the owner is still told the auction is open — the same message with a lawful startingPrice earns the same token, which is what makes the floor the later check.",
         "tx": {
           "blockNumber": 58842721,
           "txIndex": 0,

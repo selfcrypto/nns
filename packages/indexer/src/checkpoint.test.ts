@@ -268,7 +268,7 @@ describe('an open auction is committed — r28 §8.1, tag 0x0B', () => {
   // bid, must not derive the same commitment. Only `pending_root` may carry
   // the difference — a bid moves no leaf.
   const base = Object.freeze({ ...initialState(), height: LAUNCH + INTERVAL })
-  const auction = { name: 'nimiq', seller: compact(A), reserve: 100_000n, endHeight: base.height + 90_000, bidder: null, bid: 0n, bidRef: null }
+  const auction = { name: 'nimiq', seller: compact(A), startingPrice: 100_000n, endHeight: base.height + 90_000, bidder: null, bid: 0n, bidRef: null }
   const open = Object.freeze({ ...base, auctions: new Map([['nimiq', auction]]) })
   const withBid = Object.freeze({
     ...base,

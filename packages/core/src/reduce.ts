@@ -280,12 +280,12 @@ function release(draft: Draft, name: string): void {
 }
 
 /**
- * §6 `A`: the least a bid must carry — the reserve until one has met it,
+ * §6 `A`: the least a bid must carry — the starting price until one has met it,
  * then the standing bid plus `AUCTION_MIN_INCREMENT` of itself, floored.
- * `MIN_PRICE` on the reserve is what keeps the increment from rounding to 0.
+ * `MIN_PRICE` on the starting price is what keeps the increment from rounding to 0.
  */
 export const requiredBid = (auction: Auction): bigint =>
-  auction.bidder === null ? auction.reserve : auction.bid + commissionOn(auction.bid, CONSTANTS.AUCTION_MIN_INCREMENT_BP)
+  auction.bidder === null ? auction.startingPrice : auction.bid + commissionOn(auction.bid, CONSTANTS.AUCTION_MIN_INCREMENT_BP)
 
 /**
  * §6 `A` close: with a standing bid the name changes hands and two legs are
@@ -936,7 +936,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // Payload after state and authority, as for `O`: the floor first —
       // it is what keeps the increment rule from rounding to zero — then the
       // window, measured from the landing block like `P`'s notice.
-      if (message.reserve < minPrice(state.prices)) return keep(forfeit('BELOW_MIN_PRICE'))
+      if (message.startingPrice < minPrice(state.prices)) return keep(forfeit('BELOW_MIN_PRICE'))
       if (message.endHeight < tx.blockNumber + CONSTANTS.AUCTION_MIN_DURATION) {
         return keep(forfeit('INSUFFICIENT_NOTICE'))
       }
@@ -957,7 +957,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       draft.auctions.set(message.name, {
         name: message.name,
         seller,
-        reserve: message.reserve,
+        startingPrice: message.startingPrice,
         endHeight: message.endHeight,
         bidder: null,
         bid: 0n,

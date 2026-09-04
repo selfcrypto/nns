@@ -266,7 +266,7 @@ describe('replayLog', () => {
  */
 describe('replayLog — auctions (r28)', () => {
   const config = testConfig()
-  const RESERVE = PRICE
+  const STARTING_PRICE = PRICE
   const UNDERBIDDER = testAddress(13)
   const HA = {
     register: LAUNCH_HEIGHT + 10,
@@ -277,7 +277,7 @@ describe('replayLog — auctions (r28)', () => {
   } as const
   const END = HA.open + CONSTANTS.AUCTION_MIN_DURATION
   /** `standing + ⌊standing × AUCTION_MIN_INCREMENT⌋` (§6 `A`), computed the way core does. */
-  const WINNING = RESERVE + commissionOn(RESERVE, CONSTANTS.AUCTION_MIN_INCREMENT_BP)
+  const WINNING = STARTING_PRICE + commissionOn(STARTING_PRICE, CONSTANTS.AUCTION_MIN_INCREMENT_BP)
   const CLOSE_COMMISSION = commissionOn(WINNING, CONSTANTS.COMMISSION_RATE)
   const FIRST_REF = { height: HA.first, txIndex: 0 }
   const WINNING_REF = { height: HA.outbid, txIndex: 0 }
@@ -288,11 +288,11 @@ describe('replayLog — auctions (r28)', () => {
     const floor = minPrice(initialState().prices)
     return [
       send(HA.register, 0, SELLER, encodeRegister({ name: NAME, fee })),
-      send(HA.open, 0, SELLER, encodeAuction({ name: NAME, reserve: RESERVE, endHeight: END, minPrice: floor })),
-      send(HA.first, 0, LOSER, encodeBuy({ name: NAME, price: RESERVE })),
+      send(HA.open, 0, SELLER, encodeAuction({ name: NAME, startingPrice: STARTING_PRICE, endHeight: END, minPrice: floor })),
+      send(HA.first, 0, LOSER, encodeBuy({ name: NAME, price: STARTING_PRICE })),
       send(HA.outbid, 0, WINNER, encodeBuy({ name: NAME, price: WINNING })),
       // Below the standing bid's increment: refunded under WRONG_PRICE.
-      send(HA.low, 0, UNDERBIDDER, encodeBuy({ name: NAME, price: RESERVE })),
+      send(HA.low, 0, UNDERBIDDER, encodeBuy({ name: NAME, price: STARTING_PRICE })),
     ]
   }
   const staged = stageLog(auctionScenario(), config)
@@ -307,11 +307,11 @@ describe('replayLog — auctions (r28)', () => {
 
     expect(result.created).toHaveLength(2)
     const outbid = result.created.find((leg) => refKey(leg.obligation.ref) === refKey(FIRST_REF))
-    expect(outbid?.obligation).toMatchObject({ kind: 'REFUND', owedBy: MARKETPLACE, owedTo: LOSER, amount: RESERVE })
+    expect(outbid?.obligation).toMatchObject({ kind: 'REFUND', owedBy: MARKETPLACE, owedTo: LOSER, amount: STARTING_PRICE })
     expect(outbid?.at).toEqual(WINNING_REF)
 
     const low = result.created.find((leg) => refKey(leg.obligation.ref) === refKey(LOW_REF))
-    expect(low?.obligation).toMatchObject({ kind: 'REFUND', owedTo: UNDERBIDDER, amount: RESERVE })
+    expect(low?.obligation).toMatchObject({ kind: 'REFUND', owedTo: UNDERBIDDER, amount: STARTING_PRICE })
     expect(low?.at).toEqual(LOW_REF)
 
     // Not closed yet: the auction stands, the name is still the seller's.
@@ -391,8 +391,8 @@ describe('replayLog — auctions (r28)', () => {
     const late = stageLog(
       [
         send(HA.register, 0, SELLER, encodeRegister({ name: NAME, fee })),
-        send(open, 0, SELLER, encodeAuction({ name: NAME, reserve: RESERVE, endHeight: expiry - 1, minPrice: floor })),
-        send(bid, 0, WINNER, encodeBuy({ name: NAME, price: RESERVE })),
+        send(open, 0, SELLER, encodeAuction({ name: NAME, startingPrice: STARTING_PRICE, endHeight: expiry - 1, minPrice: floor })),
+        send(bid, 0, WINNER, encodeBuy({ name: NAME, price: STARTING_PRICE })),
       ],
       config,
     )
@@ -408,7 +408,7 @@ describe('replayLog — auctions (r28)', () => {
       kind: 'REFUND',
       owedBy: MARKETPLACE,
       owedTo: WINNER,
-      amount: RESERVE,
+      amount: STARTING_PRICE,
     })
     expect(result.created[0]?.at).toBeNull()
     expect(result.state.auctions.size).toBe(0)

@@ -64,7 +64,7 @@ export interface Offer {
  * by whether the name has a record. `endHeight` moves: every successful bid
  * inside `AUCTION_EXTENSION` of it pushes it to `bid + AUCTION_EXTENSION`.
  * `bidder` is `null` and `bid` is `0n` until the first bid reaches the
- * reserve; from then on the marketplace holds exactly this one bid, every
+ * starting price; from then on the marketplace holds exactly this one bid, every
  * outbid one having been refunded the moment it was beaten.
  *
  * `bidRef` is the transaction the standing bid arrived in — the `(height,
@@ -75,7 +75,7 @@ export interface Offer {
 export interface Auction {
   readonly name: string
   readonly seller: Address
-  readonly reserve: bigint
+  readonly startingPrice: bigint
   readonly endHeight: number
   readonly bidder: Address | null
   readonly bid: bigint
@@ -104,7 +104,7 @@ export interface PendingGovernance {
  */
 
 /**
- * §3 `MIN_PRICE` — the floor on an `O` price and an `A` reserve (§6 `O`, §6 `A`).
+ * §3 `MIN_PRICE` — the floor on an `O` price and an `A` starting price (§6 `O`, §6 `A`).
  *
  * Defined **as `FEE_LONG`**, not as a luna amount, so it tracks the NIM price
  * through §10.6 instead of going stale. That makes it a *governed* value: it is

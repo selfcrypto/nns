@@ -287,7 +287,7 @@ NIM figures assume ~$0.0005/NIM.
 | `ANCHOR_STALENESS_LIMIT` | 48 h | Client warns beyond this (§8.5). One missed daily-floor anchor of margin (§9) |
 | `SEGMENT_LENGTH` | 3,153,600 blocks (~1 y) | Log segment boundary (§8.8) |
 | `AUCTION_MIN_INCREMENT` | 5% | Minimum raise over the standing bid (§6 `A`) |
-| `MIN_PRICE` | `FEE_LONG` | Floor on an `O` price and an `A` reserve (§6) |
+| `MIN_PRICE` | `FEE_LONG` | Floor on an `O` price and an `A` starting price (§6) |
 | `AUCTION_MIN_DURATION` | 86,400 blocks (~24 h) | Shortest permitted auction (§6 `A`) |
 | `AUCTION_EXTENSION` | 600 blocks (~10 min) | Anti-sniping extension (§6 `A`) |
 | `ADMIN_ADDRESS` | **OPEN** | Governance only; cold key, distinct from treasury |
@@ -1057,7 +1057,7 @@ accepting custody in §6 `B`.
 ### `A` — Auction
 
 ```
-NNS1A<name>|<reserve>|<end_height>
+NNS1A<name>|<starting_price>|<end_height>
 ```
 
 - **Size:** 5 + 24 + 1 + 15 + 1 + 10 = **56 bytes** max
@@ -1066,10 +1066,15 @@ NNS1A<name>|<reserve>|<end_height>
   `ADMIN_ADDRESS` for a name still held in `RESERVED_NAMES` (§4.1) — the
   two auctions are told apart by whether the name has a record, and that is
   decided before the sender is looked at
-- `reserve` MUST be ≥ `MIN_PRICE`, for the reasons §6 `O` gives and one
+- `starting_price` MUST be ≥ `MIN_PRICE`, for the reasons §6 `O` gives and one
   more: the increment rule below is `⌊standing × AUCTION_MIN_INCREMENT⌋`, and
-  at a token reserve it rounds to zero, so the floor is what keeps a bid from
+  at a token starting price it rounds to zero, so the floor is what keeps a bid from
   "raising" by nothing
+- `starting_price` is exactly that: the least a first bid can carry, public
+  in the pending entry (§8.1). A bid short of it is refunded on arrival and
+  never stands. The field was `reserve` until 2026-09-04; it was renamed
+  because an auction-house reserve is a hidden threshold that bids *below*
+  still stand under, which is the opposite of this rule. Bytes unchanged
 - `end_height` MUST be at least `AUCTION_MIN_DURATION` above the height of
   the block the message landed in — measured from inclusion like `P`'s
   notice, and forfeiting `INSUFFICIENT_NOTICE` on the same terms
@@ -1081,7 +1086,7 @@ NNS1A<name>|<reserve>|<end_height>
 
 **Check order, after §5.3 routing:** name state (`NAME_NOT_REGISTERED` for a
 grace name, `NAME_NOT_FOUND` for a name nobody could auction), then the
-sender (`NOT_OWNER` / `NOT_ADMIN`), then `AUCTION_OPEN`, then the reserve
+sender (`NOT_OWNER` / `NOT_ADMIN`), then `AUCTION_OPEN`, then the starting price
 floor, then the window's length, then its end against the term — state,
 authority, pending status, payload, as `O`'s order already runs (§7.4).
 
@@ -1091,7 +1096,7 @@ applies to its predecessor; neither holds anyone's money, so nothing is owed.
 From then until the close the auction is **exclusive**: `O`, `X` and a second
 `A` for the name forfeit `AUCTION_OPEN`, and `K` cannot cancel it — bidders
 have committed money against a window they were told in advance, and the
-owner set the reserve. `S`, `E`, `D` and `N` are unaffected.
+owner set the starting price. `S`, `E`, `D` and `N` are unaffected.
 
 **Bids are `B`s.** A `B` to `MARKETPLACE_ADDRESS` whose name has an open
 auction is a bid, and its `value` is the bid. State decides which kind of
@@ -1099,7 +1104,7 @@ auction is a bid, and its `value` is the bid. State decides which kind of
 name, so the same payload can only mean one thing at any height. The rules,
 all deterministic from the log:
 
-- The first bid must meet the reserve; every later one must reach
+- The first bid must meet the starting price; every later one must reach
   `standing + ⌊standing × AUCTION_MIN_INCREMENT⌋`. Anything less is
   `REFUND` under `WRONG_PRICE` — a losing bid can be a same-block race, so it
   is never the bidder's fault
@@ -1130,8 +1135,8 @@ close creates the registration on `U`'s award terms — a full `TERM_LENGTH`
 from the close height, nothing set — and the name enters the unreserved set
 (§8.1); both legs then land on the treasury and are told apart by amount, the
 case §6 `M` anticipated. With no standing bid the auction simply ends and the
-name stays where it was; a bid under the reserve was refunded when it
-arrived and never stood, so "the reserve was never met" is the same state
+name stays where it was; a bid under the starting price was refunded when it
+arrived and never stood, so "the starting price was never met" is the same state
 as "nobody bid". A `B` arriving at or after the close refunds under
 `OFFER_NOT_OPEN`, the ordinary no-offer path.
 
@@ -1293,7 +1298,7 @@ a period where the admin owns a name it was given to pass on.
 notice: an award reaches only `RESERVED_NAMES`, which by definition holds names
 with no owner, so it can never move, revoke or shorten a name somebody holds
 (§10.6). It cannot award to itself at all — that is a self-transaction, dropped
-silently by the network (§5.3). It spends the reserve one name and one public
+silently by the network (§5.3). It spends the starting price one name and one public
 transaction at a time. And the remedy was always a fork rather than a bound
 (§10.6): the notice bought hours in front of a response that takes days to
 coordinate, and it bought them for the attacker's opponent and the frontrunner
@@ -1569,7 +1574,7 @@ the message before the race does.
 - `G` for a name in `GRACE` — the status and its end height are provable
   from the checkpoint tree (§8.1), so a correct client prevents it
 - `S`, `O`, `D`, `E`, `X`, `K`, `A` from anyone other than the current owner
-- `O` whose price, or `A` whose reserve, is below `MIN_PRICE` (§6 `O`, §6
+- `O` whose price, or `A` whose starting price, is below `MIN_PRICE` (§6 `O`, §6
   `A`). The floor is `FEE_LONG` as
   in effect at that height, and the active prices are committed to in every
   checkpoint (§8.1), so a correct client can prove it before sending. The
@@ -1619,7 +1624,7 @@ via `M` (§6):
 - Any `B` that does not win an open offer — the race loser, a `B` against a
   cancelled or expired offer, or a `B` whose value is not exactly the price
   — owed by `MARKETPLACE_ADDRESS`
-- Any bid that does not stand (§6 `A`) — short of the reserve or of the
+- Any bid that does not stand (§6 `A`) — short of the starting price or of the
   increment over the standing bid, which can be a same-block race — and
   **every bid that is outbid**, refunded the moment a higher one lands, owed
   by `MARKETPLACE_ADDRESS` and keyed by the bid's own transaction. A bid
@@ -1691,7 +1696,7 @@ against a message of a listed type.
 | `NAME_NOT_RESERVED` | `U` | Name is absent from `RESERVED_NAMES`, or a `U` for it has already fired. Since r22 this is also what a second `U` for the same name earns: the first one fired on landing, so there is nothing pending to collide with |
 | `GOVERNANCE_BOUND_VIOLATED` | `P` | A §10.6 bound exceeded, measured against the **active** prices |
 | `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no `O` past `OFFER_IRREVOCABLE` |
-| `BELOW_MIN_PRICE` | `O` `A` | Price, or reserve, below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
+| `BELOW_MIN_PRICE` | `O` `A` | Price, or starting price, below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
 | `AUCTION_OPEN` | `O` `X` `A` | An auction is open on the name (§6 `A`): the owner cannot list, transfer, or auction it again until the close. Checked after the owner row and before any payload row |
 | `AUCTION_BEYOND_TERM` | `A` | The owner's `end_height` is at or past the name's `expiry` (§6 `A`): an auction sells the current term. The last payload row, after the window's length |
 | `BELOW_REFUND_FLOOR` | `G` `B` | A message that would otherwise be refundable, carrying less than `REFUND_FLOOR`. The only token that crosses columns |
@@ -1720,7 +1725,7 @@ by an `M` (§6).
 |---|---|---|---|
 | `LOST_REGISTRATION_RACE` | `G` | `TREASURY_ADDRESS` | Name was taken by a transaction ordered ahead of this one |
 | `OFFER_NOT_OPEN` | `B` | `MARKETPLACE_ADDRESS` | Neither an open offer nor an open auction: the race loser, a cancelled or expired offer, or a `B` after an auction closed. All refund identically, so the log does not distinguish them |
-| `WRONG_PRICE` | `B` | `MARKETPLACE_ADDRESS` | Against an offer, value is not **exactly** the price — over as well as under (§10.5). Against an auction, the bid is short of the reserve or of the increment over the standing bid (§6 `A`) |
+| `WRONG_PRICE` | `B` | `MARKETPLACE_ADDRESS` | Against an offer, value is not **exactly** the price — over as well as under (§10.5). Against an auction, the bid is short of the starting price or of the increment over the standing bid (§6 `A`) |
 
 **Check order.** A message can fail several of the rows above at once, and
 only the first one reached is written, so the order is as normative as the
@@ -1928,7 +1933,7 @@ transfer   = 0x05 ‖ len(name):u8 ‖ name ‖ new_owner:20B
                   ‖ effective_height:u64-BE
 offer      = 0x07 ‖ len(name):u8 ‖ name ‖ seller:20B ‖ price:u64-BE
                   ‖ opened_height:u64-BE ‖ expiry_height:u64-BE
-auction    = 0x0B ‖ len(name):u8 ‖ name ‖ seller:20B ‖ reserve:u64-BE
+auction    = 0x0B ‖ len(name):u8 ‖ name ‖ seller:20B ‖ starting_price:u64-BE
                   ‖ end_height:u64-BE ‖ bidder:20B ‖ bid:u64-BE
 governance = 0x08 ‖ prices(proposed):32B ‖ effective_height:u64-BE
 
@@ -1948,8 +1953,8 @@ renumbered one it thinks it understands. The pending `P` entry embeds the
 
 **The auction entry** (r28) carries the seller — the owner who opened it, or
 `TREASURY_ADDRESS` for an admin auction of a still-reserved name — the
-reserve, the end height *as moved by extensions*, and the standing bidder and
-bid: 20 zero bytes and 0 until a bid has met the reserve, so a client can
+starting price, the end height *as moved by extensions*, and the standing bidder and
+bid: 20 zero bytes and 0 until a bid has met the starting price, so a client can
 prove "no bid stands" from the checkpoint alone. The standing bid's own
 `(height, tx_index)` — what the close's two `M` legs will name — is
 deliberately **not** in the entry: it is settlement identity, kept out of the
@@ -2905,7 +2910,7 @@ touching the ownership of a name that *has* an owner, and *adding* to
 The ownership line is worth stating precisely, because the `U` award crosses
 part of it. Governance can give away a name in `RESERVED_NAMES`, which by
 construction nobody owns; it can never move, revoke, shorten, or expire a name
-somebody holds. An award is the namespace's reserve being spent, not a
+somebody holds. An award is the namespace's starting price being spent, not a
 registry entry being rewritten, and every one of them is public in the block it
 binds in.
 Changing validity or the length threshold retroactively would reprice or
