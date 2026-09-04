@@ -110,7 +110,6 @@ function Actions({
                 signer={signer ?? ''}
                 viewers={viewers}
                 wallet={wallet}
-                onClose={() => setOpen(null)}
                 onChanged={onChanged}
               />
             )}

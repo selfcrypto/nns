@@ -17,7 +17,10 @@ import {
   resolverIdentityLine,
   standingBidLine,
   verifiedByLine,
+  verifiedHint,
 } from '../lib/wording'
+import { Hint } from './Hint'
+import { CheckIcon, ClockIcon } from './icons'
 import { Badge, Identicon, NameText, type RailTier } from './ui'
 
 export const tierOf = (result: ResolveResult): RailTier => {
@@ -53,18 +56,27 @@ export function VerificationLine({ result }: { result: ResolveResult }) {
     case 'PROVEN':
       return (
         <div className="verify verify-proven">
-          <p>{verifiedByLine(result.quorum)}</p>
+          <p className="verify-head">
+            <CheckIcon />
+            <span>{verifiedByLine(result.quorum)}</span>
+            <Hint>{verifiedHint()}</Hint>
+          </p>
           <ResolverList quorum={result.quorum} />
         </div>
       )
     case 'PROOF_PENDING':
-      return <p className="verify verify-depth">{proofPendingLine()}</p>
+      return (
+        <p className="verify verify-depth verify-head">
+          <ClockIcon />
+          <span>{proofPendingLine()}</span>
+        </p>
+      )
     case 'DELEGATED':
       return (
-        <div className="verify verify-delegated">
+        <p className="verify verify-delegated verify-head">
           <Badge tone="delegated">{delegatedLine(result.name)}</Badge>
-          <p className="verify-note">{delegatedExplainer(result.name)}</p>
-        </div>
+          <Hint>{delegatedExplainer(result.name)}</Hint>
+        </p>
       )
   }
 }
@@ -101,19 +113,23 @@ export function Overlays({ info, nowMs }: { info: NameInfo; nowMs: number }) {
   return (
     <div className="overlays">
       {transfer !== null && (
-        <p className="overlay">
+        <p className="overlay overlay-transfer">
           {pendingTransferLine(
             ellipsizeAddress(transfer.newOwner),
             formatApproxDate(approxDate(transfer.effectiveHeight, info.height, nowMs)),
           )}
         </p>
       )}
-      {offer !== null && <p className="overlay">{forSaleLine(lunaToNim(offer.price))}</p>}
+      {offer !== null && <p className="overlay overlay-offer">{forSaleLine(lunaToNim(offer.price))}</p>}
       {auction !== null && (
-        <p className="overlay">
-          {auctionLine(lunaToNim(auction.startingPrice), formatApproxDate(approxDate(auction.endHeight, info.height, nowMs)))}{' '}
-          {auction.bidder === null ? noBidsLine() : standingBidLine(lunaToNim(auction.bid), ellipsizeAddress(auction.bidder))}{' '}
-          {minimumBidLine(lunaToNim(auction.minimumBid))}
+        <p className="overlay overlay-auction">
+          <span className="overlay-line">
+            {auctionLine(lunaToNim(auction.startingPrice), formatApproxDate(approxDate(auction.endHeight, info.height, nowMs)))}
+          </span>
+          <span className="overlay-line">
+            {auction.bidder === null ? noBidsLine() : standingBidLine(lunaToNim(auction.bid), ellipsizeAddress(auction.bidder))}{' '}
+            {minimumBidLine(lunaToNim(auction.minimumBid))}
+          </span>
         </p>
       )}
     </div>

@@ -1,0 +1,95 @@
+/**
+ * The app's few icons, drawn inline so no request leaves the device for them
+ * (§2.2 — the same reason there is no webfont). Stroke icons on a 24-box in
+ * `currentColor`, so each takes the colour of the text beside it and a tab or
+ * a verification line recolours them for free.
+ *
+ * Five for the tab bar and two for the verification line. Nothing else in
+ * the app earns a pictogram: the proof rail and the identicon already carry
+ * the meanings that matter, and a glyph beside every sentence would spend
+ * the reader's attention on decoration.
+ */
+
+import type { ReactNode } from 'react'
+
+function Glyph({ children, size = 22 }: { children: ReactNode; size?: number }) {
+  return (
+    <svg
+      className="icon"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      focusable="false"
+    >
+      {children}
+    </svg>
+  )
+}
+
+export type TabIconName = 'search' | 'pay' | 'names' | 'inbox' | 'market'
+
+export function TabIcon({ name }: { name: TabIconName }) {
+  switch (name) {
+    case 'search':
+      return (
+        <Glyph>
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="M16 16l4.5 4.5" />
+        </Glyph>
+      )
+    case 'pay':
+      return (
+        <Glyph>
+          <path d="M4 11.5l16-7.5-7.5 16-1.8-6.7L4 11.5z" />
+          <path d="M10.7 13.3L20 4" />
+        </Glyph>
+      )
+    case 'names':
+      return (
+        <Glyph>
+          <path d="M3.5 3.5h7.6l9.4 9.4-7.6 7.6-9.4-9.4V3.5z" />
+          <circle cx="8" cy="8" r="1.4" fill="currentColor" stroke="none" />
+        </Glyph>
+      )
+    case 'inbox':
+      return (
+        <Glyph>
+          <path d="M4 5.5h16v10.5H9.5L4.5 20v-4H4V5.5z" />
+        </Glyph>
+      )
+    case 'market':
+      return (
+        <Glyph>
+          <path d="M3 9.5l1.6-5h14.8L21 9.5H3z" />
+          <path d="M4.5 9.5V20h15V9.5" />
+          <path d="M10 20v-5.5h4V20" />
+        </Glyph>
+      )
+  }
+}
+
+/** The proven tick: a check inside a circle, sized to sit in a line of text. */
+export function CheckIcon() {
+  return (
+    <Glyph size={18}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 12.5l2.7 2.7L16 9.5" />
+    </Glyph>
+  )
+}
+
+/** Pending depth: a clock, because depth is time (§8.7), never a warning. */
+export function ClockIcon() {
+  return (
+    <Glyph size={18}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5V12l3 2" />
+    </Glyph>
+  )
+}

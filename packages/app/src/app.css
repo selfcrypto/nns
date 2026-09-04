@@ -1,39 +1,57 @@
 /*
- * One committed look: a light, cool-porcelain surface for a mobile WebView.
+ * One committed look: cool porcelain paper, white cards, Nimiq navy for ink
+ * and Nimiq gold for the one thing the reader can do next. A mobile WebView,
+ * portrait, one-handed.
+ *
  * No webfont and no third-party request of any kind — a stylesheet that
  * fetched a font would add a party who learns every user's IP to an app
  * whose whole product is fewer parties (§2.2). Names render through
- * @nns/resolver/rendering.css and land on the platform monospace.
+ * @nns/resolver/rendering.css and land on the platform monospace; the few
+ * icons are inline SVG (components/icons.tsx).
  *
- * The signature element is the proof rail: the left edge of every result
- * card encodes the verification tier. Solid green = proven; dashed slate =
- * pending depth; dotted indigo = delegated (different, not worse); solid
- * red = the rare halting failure. It repeats identically across Buy, Pay,
- * My names and Market, so it is learned once.
+ * Three surfaces, and the difference between them is information:
+ *   - a *card* floats: white on paper, lifted by a navy-tinted shadow, and
+ *     carries the proof rail. Cards are answers.
+ *   - a *row* is flat: white, a hairline, a chevron. Rows are lists you
+ *     tap into.
+ *   - a *sheet* is inset: paper inside a card. Sheets are forms.
+ *
+ * The signature element is the proof rail — the spine down the left of
+ * every result card encodes the verification tier. Solid green = proven;
+ * dashed slate = pending depth; dotted indigo = delegated (different, not
+ * worse); solid red = the rare halting failure. It repeats identically
+ * across Buy, Pay, My names and Market, so it is learned once.
  */
 
 :root {
-  --ink: #20242f;
-  --ink-soft: #5c6270;
-  --paper: #f4f6f8;
+  --ink: #1f2348;
+  --ink-soft: #5b6178;
+  --ink-faint: #8d93a8;
+  --paper: #eef1f6;
   --card: #ffffff;
-  --line: #e2e6ec;
-  --proven: #157a5c;
-  --proven-bg: #e7f3ee;
-  --depth: #66708a;
-  --depth-bg: #eef0f4;
-  --delegated: #4e56c9;
-  --delegated-bg: #eceefb;
+  --line: #e1e5ee;
+  --line-strong: #c9cfdd;
+  --proven: #0e7c5b;
+  --proven-bg: #e3f3ec;
+  --depth: #5f6a87;
+  --depth-bg: #eceff5;
+  --delegated: #4a52c4;
+  --delegated-bg: #eaecfb;
   --alarm: #b3261e;
-  --alarm-bg: #f9e9e7;
+  --alarm-bg: #fbeae8;
   --grace: #8a5a00;
-  --grace-bg: #f7eed9;
+  --grace-bg: #f8efd8;
   --accent: #e9b213;
+  --accent-deep: #d9a300;
   /* Own chat bubbles. Green and grey are spoken for: the proof rail spends
      them on 'proven' and 'pending depth', and one colour may mean one thing. */
   --accent-bg: #fdf4d8;
   --accent-line: #f0dda3;
+  --radius-card: 18px;
   --radius: 14px;
+  --radius-field: 12px;
+  --shadow-card: 0 1px 2px rgb(31 35 72 / 5%), 0 8px 24px -10px rgb(31 35 72 / 18%);
+  --shadow-panel: 0 12px 32px -8px rgb(31 35 72 / 28%);
   /* Space the host has already spent at each edge. `lib/chrome.ts` overwrites
      both before the first render; these are what a plain browser gets. */
   --chrome-top: env(safe-area-inset-top, 0px);
@@ -60,6 +78,28 @@ body {
   font-size: 16px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:disabled {
+  cursor: default;
+}
+
+/* One focus treatment for everything that takes focus. */
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.icon {
+  flex: none;
+  display: inline-block;
+  vertical-align: -0.2em;
 }
 
 /* ── Frame: masthead / content / tab bar, one-handed ── */
@@ -97,53 +137,232 @@ body {
 }
 
 .masthead {
-  padding: 14px 20px 10px;
+  padding: 14px 20px 8px;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
+}
+
+/*
+ * The masthead stays in Pay. It was hidden there for one build, on the
+ * reasoning that Pay's own bar already names the app — but the wordmark was
+ * never the problem (the grey strip was a bogus top reserve, since removed),
+ * and a search field welded to the top edge of the WebView reads as broken
+ * chrome rather than as a clean start (Kike, 2026-08-22). It carries no
+ * controls now, so nothing is at risk up here either way.
+ */
+
+.wordmark {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-family: ui-monospace, 'JetBrains Mono', 'IBM Plex Mono', monospace;
+}
+
+.wordmark::after {
+  content: '.';
+  color: var(--accent);
+}
+
+.masthead-sub {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 13px;
+  /* The tagline yields, the connector does not: at 320 px the row was wrapping
+     "Connect Wallet" onto two lines to keep three words of decoration whole. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Below this it yields entirely rather than by ellipsis. Sharing the row with
+   the connector, it truncated to "name…", and a fragment of a tagline reads as
+   a bug where no tagline at all reads as a decision. The address next to it is
+   the thing that has to stay legible. */
+@media (max-width: 380px) {
+  .masthead-sub {
+    display: none;
+  }
+
+  /* The room the tagline gave up goes to the address, which is what the corner
+     is for — 46vw of a 320 px screen cuts it to "NQ14 LU5…". */
+  .identity-top .identity-who {
+    max-width: 68vw;
+  }
+}
+
+/* A column, so a screen can fill it and push its footer (Buy's burn record)
+   to the foot of the viewport rather than leaving it adrift mid-screen. */
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 16px 28px;
+}
+
+.screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Tab bar ── */
+
+.tabbar {
+  /* Sticky to `--chrome-bottom`, not to 0: sticky resolves against the
+     scrollport, so a tab bar stuck to the viewport's own bottom edge is exactly
+     the one that sat behind the system navigation buttons. */
+  position: sticky;
+  bottom: var(--chrome-bottom);
+  flex: none;
+  display: flex;
+  z-index: 2;
+  padding: 6px 4px 8px;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+}
+
+/* The reserve below the bar is the host's — navigation buttons, viewport
+   slack — but sticky masks nothing, so page content scrolled past the bar
+   showed through the band and the bar read as floating mid-air (Kike's
+   screenshots, 2026-08-23). Paper over exactly that band. */
+.tabbar::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  height: var(--chrome-bottom);
+  background: var(--card);
+}
+
+/* An on-screen keyboard resizes the viewport, sticky resolves against the
+   resized one, and the bar lands mid-screen over the sheet being typed into.
+   Nobody switches tabs mid-keystroke; the bar returns with the viewport.
+   `data-keyboard` is maintained by chrome.ts's watchViewport. */
+[data-keyboard] .tabbar {
+  display: none;
+}
+
+/* Icon over label, five equal columns. Equal columns are possible now that
+   the label is 11 px under a glyph — "Buy/Search" fits a fifth of 320 px at
+   that size, where it did not at 15 px on a bare row. */
+.tab {
+  appearance: none;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  font: inherit;
+  font-size: clamp(10px, 2.9vw, 11.5px);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  padding: 6px 2px 4px;
+  border-radius: 12px;
+}
+
+.tab .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.tab-active {
+  color: var(--ink);
+}
+
+.tab-active .icon {
+  stroke-width: 2.2;
 }
 
 /* ── Search ── */
 
+/* One capsule: the field and its button share a white surface, so the pair
+   reads as a single control rather than a box beside a box. */
 .search-form {
   display: flex;
-  gap: 8px;
+  align-items: stretch;
+  gap: 6px;
+  padding: 5px 5px 5px 6px;
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
+}
+
+.search-form:focus-within {
+  box-shadow: var(--shadow-card), 0 0 0 2px var(--ink);
 }
 
 .search-input {
-  flex: 1;
   min-width: 0;
-  padding: 13px 14px;
-  border: 1.5px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--card);
+  padding: 11px 12px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
   color: var(--ink);
   font-size: 17px;
 }
 
-.search-input:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 1px;
-  border-color: var(--ink);
+.search-input::placeholder {
+  color: var(--ink-faint);
+}
+
+/* Inside the capsule the field takes the row, and the ring is drawn on the
+   capsule (`:focus-within`) — the field's own would double it. Pay's field
+   stands alone in a column and keeps its ring; `flex: 1` there would make it
+   grow *tall*, which it did for one build. */
+.search-form .search-input {
+  flex: 1;
+}
+
+.search-form .search-input:focus-visible {
+  outline: none;
+}
+
+.screen > .search-input {
+  flex: none;
+  padding: 15px 16px;
+  background: var(--card);
+  border-radius: 16px;
+  box-shadow: var(--shadow-card);
 }
 
 .search-go {
   appearance: none;
   border: none;
-  border-radius: var(--radius);
+  border-radius: 12px;
   background: var(--accent);
   color: var(--ink);
   font: inherit;
+  font-size: 15px;
   font-weight: 700;
   padding: 0 18px;
+  transition: background 120ms ease;
 }
 
 .search-go:disabled {
-  opacity: 0.45;
+  background: var(--depth-bg);
+  color: var(--ink-faint);
 }
 
 .field-error {
   margin: 0;
+  padding: 0 4px;
   color: var(--alarm);
   font-size: 14px;
 }
@@ -151,66 +370,88 @@ body {
 /* ── Cards and the proof rail ── */
 
 .card {
+  position: relative;
   background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 16px 16px 16px 18px;
+  border-radius: var(--radius-card);
+  padding: 20px 18px 18px 22px;
+  box-shadow: var(--shadow-card);
 }
 
-.rail {
-  border-left-width: 4px;
+/* Only the classless sentences — a reserved line, a grace line, an alarm body.
+   Anything with a class sets its own margin, and a bare `.card > p` would
+   outrank every one of them (it carries an extra type selector). */
+.card > p:not([class]) {
+  margin: 0;
 }
 
-.rail-proven {
-  border-left-color: var(--proven);
-  border-left-style: solid;
+.card > * + p:not([class]) {
+  margin-top: 8px;
 }
 
-.rail-depth {
-  border-left-color: var(--depth);
-  border-left-style: dashed;
+/* The rail is a spine inset from the card's corners rather than a border on
+   its edge — a border-left on a rounded box thins to nothing at the curves,
+   and the spine is what has to be seen. The dashed and dotted tiers draw as
+   a border on a zero-width box so the pattern stays the platform's. */
+.rail::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 18px;
+  bottom: 18px;
+  width: 4px;
+  border-radius: 0 3px 3px 0;
+  background: var(--line-strong);
 }
 
-.rail-delegated {
-  border-left-color: var(--delegated);
-  border-left-style: dotted;
-  border-left-width: 5px;
+.rail-proven::before {
+  background: var(--proven);
+}
+
+.rail-depth::before {
+  width: 0;
+  background: none;
+  border-left: 4px dashed var(--depth);
+}
+
+.rail-delegated::before {
+  width: 0;
+  background: none;
+  border-left: 5px dotted var(--delegated);
 }
 
 .rail-alarm {
-  border-left-color: var(--alarm);
-  border-left-style: solid;
   background: var(--alarm-bg);
 }
 
-.rail-plain {
-  border-left-color: var(--line);
-  border-left-style: solid;
+.rail-alarm::before {
+  background: var(--alarm);
 }
 
 .stack {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .result-name {
-  margin: 0 0 10px;
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   overflow-wrap: anywhere;
 }
 
 .address-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 6px 0;
+  gap: 12px;
+  margin: 8px 0;
 }
 
 .address {
-  font-size: 13px;
+  font-size: 13.5px;
+  line-height: 1.5;
   color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
@@ -225,11 +466,89 @@ body {
   background: var(--depth-bg);
 }
 
+/* ── The hint: "?" beside a line, its explanation on hover or tap ── */
+
+.hint {
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+.hint-btn {
+  appearance: none;
+  position: relative;
+  width: 18px;
+  height: 18px;
+  margin: 0 0 0 6px;
+  padding: 0;
+  border: 1.5px solid var(--ink-faint);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-faint);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* A 40 px thumb target around an 18 px glyph. */
+.hint-btn::before {
+  content: '';
+  position: absolute;
+  inset: -11px;
+}
+
+.hint-btn[aria-expanded='true'] {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.hint-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  appearance: none;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
+.hint-pop {
+  position: fixed;
+  z-index: 30;
+  display: block;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--ink);
+  color: var(--card);
+  font-size: 13.5px;
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: left;
+  overflow-wrap: anywhere;
+  box-shadow: var(--shadow-panel);
+}
+
 /* ── Verification lines, badges, notes ── */
 
 .verify {
-  margin: 8px 0 0;
+  margin: 10px 0 0;
   font-size: 14px;
+}
+
+.verify-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.verify-head .hint-btn {
+  margin-left: 0;
+}
+
+.verify-head .icon {
+  margin-top: 1px;
 }
 
 .verify-proven {
@@ -239,10 +558,11 @@ body {
 
 .verify-depth {
   color: var(--depth);
+  font-weight: 600;
 }
 
 .verify-delegated {
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 /* The proven line is a group now: headline plus the parties that agreed. */
@@ -255,7 +575,7 @@ body {
    unbreakable token on a phone, hence `anywhere`. */
 .verify-resolvers {
   list-style: none;
-  margin: 4px 0 0;
+  margin: 4px 0 0 25px;
   padding: 0;
   font-size: 12.5px;
   font-weight: 400;
@@ -267,17 +587,19 @@ body {
 }
 
 .verify-note {
-  margin: 6px 0 0;
-  font-size: 13px;
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.45;
   color: var(--ink-soft);
 }
 
 .badge {
   display: inline-block;
-  padding: 3px 10px;
+  padding: 4px 11px;
   border-radius: 999px;
   font-size: 12.5px;
   font-weight: 600;
+  line-height: 1.3;
 }
 
 .badge-proven {
@@ -317,8 +639,9 @@ body {
 }
 
 .note {
-  margin: 8px 0 0;
-  font-size: 13px;
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.45;
   color: var(--ink-soft);
 }
 
@@ -332,7 +655,7 @@ li.note {
 
 .alarm-title {
   margin: 0 0 8px;
-  font-size: 19px;
+  font-size: 20px;
   color: var(--alarm);
 }
 
@@ -348,21 +671,57 @@ li.note {
   font-size: 15px;
 }
 
+/* §1 overlays on a registered name — a pending transfer, an open offer, an
+   open auction. Facts about the name's near future, set apart from the
+   resolution above them on the neutral tint: slate, because green and gold
+   both already mean something on this card. */
+.overlays {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.overlay {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--depth-bg);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.overlay-line {
+  display: block;
+}
+
+.overlay-line + .overlay-line {
+  margin-top: 3px;
+  color: var(--ink-soft);
+}
+
+.expiry-line {
+  margin: 12px 0 0;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+
 /* ── Actions (visible, gated) ── */
 
 .actions {
-  margin-top: 14px;
+  margin-top: 16px;
   border-top: 1px solid var(--line);
-  padding-top: 4px;
 }
 
 .action-row {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
-  padding: 9px 0;
+  min-height: 52px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .action-row:last-child {
@@ -370,108 +729,143 @@ li.note {
 }
 
 .action-label {
+  flex: 1 1 auto;
   font-weight: 600;
 }
 
+/* The reason a row is gated: right-aligned and quiet, and it yields to the
+   label rather than the other way round. */
 .action-state {
-  color: var(--ink-soft);
+  flex: 0 1 50%;
+  color: var(--ink-faint);
+  font-size: 13px;
+  line-height: 1.35;
   text-align: right;
+}
+
+/* The row's button: ink when it opens a sheet, quiet when it closes one, so
+   the one row that is open reads differently from the rows that are not. */
+.action-go {
+  appearance: none;
+  flex: none;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--card);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 7px 16px;
+}
+
+.action-row:has(+ .sheet) .action-go {
+  background: transparent;
+  color: var(--ink);
 }
 
 /* ── Action sheets and the connect button ── */
 
-.action-go {
-  appearance: none;
-  border: 1px solid var(--ink);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--ink);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 4px 14px;
-}
-
 .sheet-current {
   margin: 0;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--ink-soft);
   overflow-wrap: anywhere;
 }
 
 .sheet {
   /* Opens inline under its action row, so it needs air on both sides. */
-  margin-top: 10px;
-  margin-bottom: 10px;
-  padding: 14px;
-  border: 1px solid var(--line);
+  margin: 4px 0 12px;
+  padding: 16px 14px;
   border-radius: var(--radius);
   background: var(--paper);
   display: flex;
   flex-direction: column;
-  gap: 10px;
-}
-
-.sheet-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.sheet-title {
-  margin: 0;
-  font-size: 16px;
+  gap: 12px;
 }
 
 .sheet-input {
   width: 100%;
-  padding: 11px 12px;
-  border: 1.5px solid var(--line);
-  border-radius: var(--radius);
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-field);
   background: var(--card);
   color: var(--ink);
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
+}
+
+.sheet-input::placeholder {
+  color: var(--ink-faint);
 }
 
 .sheet-input:focus-visible {
   outline: 2px solid var(--ink);
-  outline-offset: 1px;
+  outline-offset: 0;
+  border-color: var(--ink);
 }
 
 .sheet-check {
   display: flex;
-  gap: 8px;
+  gap: 10px;
   align-items: flex-start;
-  font-size: 14px;
+  font-size: 14.5px;
+  line-height: 1.4;
+}
+
+.sheet-check input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: var(--ink);
+}
+
+/* The wallet-address suggestion under the EVM field: an offer, not the action. */
+.sheet-suggest {
+  appearance: none;
+  align-self: flex-start;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 7px 14px;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .review {
   margin: 0;
-  padding: 10px 12px;
+  padding: 12px 14px;
   list-style: none;
   display: flex;
   flex-direction: column;
   gap: 6px;
   background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  font-size: 13.5px;
+  border-radius: var(--radius-field);
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .sheet-send {
   appearance: none;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-field);
   background: var(--accent);
   color: var(--ink);
   font: inherit;
+  font-size: 16px;
   font-weight: 700;
-  padding: 11px 0;
+  min-height: 48px;
+  padding: 12px 0;
 }
 
 .sheet-send:disabled {
-  opacity: 0.45;
+  background: var(--line);
+  color: var(--ink-faint);
 }
 
 .connect {
@@ -488,8 +882,8 @@ li.note {
 
 .connect-quiet {
   background: transparent;
-  color: var(--ink-soft);
-  border: 1px solid var(--line);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
   font-weight: 600;
   font-size: 14px;
   padding: 8px 16px;
@@ -590,7 +984,7 @@ li.note {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .identity-list li {
@@ -625,27 +1019,30 @@ li.note {
   flex: none;
   max-width: 46vw;
   gap: 6px;
-  padding: 4px 10px 4px 5px;
-  border: 1px solid var(--line);
+  padding: 4px 11px 4px 5px;
+  border: none;
   border-radius: 999px;
   background: var(--card);
+  box-shadow: var(--shadow-card);
 }
 
 .identity-top .identity-who[disabled] {
   /* No panel to open (one address, no connect, no disconnect) — the chip is
      then a label, and says so by not looking pressable. */
   background: transparent;
+  box-shadow: none;
   cursor: default;
 }
 
 .identity-top .identity-address {
   font-size: 12px;
+  color: var(--ink);
 }
 
 .identity-top .identity-connect {
   width: auto;
-  padding: 7px 14px;
-  font-size: 13px;
+  padding: 8px 15px;
+  font-size: 13.5px;
 }
 
 .identity-top .identity-note {
@@ -660,14 +1057,17 @@ li.note {
   z-index: 30;
   top: calc(100% + 8px);
   right: 0;
-  min-width: max(210px, 62vw);
+  min-width: max(220px, 62vw);
   max-width: min(320px, 88vw);
   margin-top: 0;
-  padding: 10px 12px;
+  padding: 10px;
   background: var(--card);
-  border: 1px solid var(--line);
   border-radius: var(--radius);
-  box-shadow: 0 10px 30px rgb(0 0 0 / 12%);
+  box-shadow: var(--shadow-panel);
+}
+
+.identity-top .identity-list {
+  padding: 4px 6px 8px;
 }
 
 /* Menu rows, not floating pills: the panel is a list of things you can do to
@@ -676,8 +1076,11 @@ li.note {
 .identity-top .identity-add {
   align-self: stretch;
   text-align: left;
+  border: none;
   border-radius: 10px;
-  padding: 8px 12px;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: var(--paper);
 }
 
 /* Catches the tap that closes the panel. Fixed, so it covers the tab bar too —
@@ -692,130 +1095,7 @@ li.note {
   background: transparent;
 }
 
-/*
- * The masthead stays in Pay. It was hidden there for one build, on the
- * reasoning that Pay's own bar already names the app — but the wordmark was
- * never the problem (the grey strip was a bogus top reserve, since removed),
- * and a search field welded to the top edge of the WebView reads as broken
- * chrome rather than as a clean start (Kike, 2026-08-22). It carries no
- * controls now, so nothing is at risk up here either way.
- */
-
-.wordmark {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  font-family: ui-monospace, 'JetBrains Mono', 'IBM Plex Mono', monospace;
-}
-
-.wordmark::after {
-  content: '.';
-  color: var(--accent);
-}
-
-.masthead-sub {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 13px;
-  /* The tagline yields, the connector does not: at 320 px the row was wrapping
-     "Connect Wallet" onto two lines to keep three words of decoration whole. */
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Below this it yields entirely rather than by ellipsis. Sharing the row with
-   the connector, it truncated to "name…", and a fragment of a tagline reads as
-   a bug where no tagline at all reads as a decision. The address next to it is
-   the thing that has to stay legible. */
-@media (max-width: 380px) {
-  .masthead-sub {
-    display: none;
-  }
-
-  /* The room the tagline gave up goes to the address, which is what the corner
-     is for — 46vw of a 320 px screen cuts it to "NQ14 LU5…". */
-  .identity-top .identity-who {
-    max-width: 68vw;
-  }
-}
-
-.content {
-  flex: 1;
-  padding: 4px 16px 24px;
-}
-
-.screen {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.tabbar {
-  /* Sticky to `--chrome-bottom`, not to 0: sticky resolves against the
-     scrollport, so a tab bar stuck to the viewport's own bottom edge is exactly
-     the one that sat behind the system navigation buttons. */
-  position: sticky;
-  bottom: var(--chrome-bottom);
-  flex: none;
-  display: flex;
-  z-index: 2;
-  /* Shrink-to-fit rather than five equal columns. "Buy/Search" is three times
-     the width of "Pay" and equal columns would either truncate it or force
-     every label down to its size. */
-  gap: 2px;
-  padding: 8px 8px 10px;
-  background: var(--paper);
-  border-top: 1px solid var(--line);
-}
-
-/* The reserve below the bar is the host's — navigation buttons, viewport
-   slack — but sticky masks nothing, so page content scrolled past the bar
-   showed through the band and the bar read as floating mid-air (Kike's
-   screenshots, 2026-08-23). Paper over exactly that band. */
-.tabbar::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  height: var(--chrome-bottom);
-  background: var(--paper);
-}
-
-/* An on-screen keyboard resizes the viewport, sticky resolves against the
-   resized one, and the bar lands mid-screen over the sheet being typed into.
-   Nobody switches tabs mid-keystroke; the bar returns with the viewport.
-   `data-keyboard` is maintained by chrome.ts's watchViewport. */
-[data-keyboard] .tabbar {
-  display: none;
-}
-
-.tab {
-  appearance: none;
-  flex: 1 1 auto;
-  min-width: 0;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--ink-soft);
-  font: inherit;
-  /* Five labels on one thumb row, the longest ten characters: the size has to
-     follow the screen or a 320 px phone truncates. */
-  font-size: clamp(11px, 3.1vw, 15px);
-  font-weight: 600;
-  white-space: nowrap;
-  padding: 10px 6px;
-  border-radius: 999px;
-}
-
-.tab-active {
-  background: var(--ink);
-  color: var(--card);
-}
-
-/* ── Lists (my names, market) ── */
+/* ── Lists (my names, market, inbox) ── */
 
 .name-list {
   margin: 0;
@@ -826,8 +1106,11 @@ li.note {
   gap: 8px;
 }
 
+/* A row is flat where a card floats: a hairline instead of a shadow, and a
+   chevron drawn by the row itself so no screen has to remember to add one. */
 .name-row {
   appearance: none;
+  position: relative;
   width: 100%;
   text-align: left;
   font: inherit;
@@ -835,15 +1118,27 @@ li.note {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 14px 16px;
+  padding: 14px 40px 14px 16px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 12px;
 }
 
-.name-row:focus-visible {
-  outline: 2px solid var(--ink);
+.name-row::after {
+  content: '';
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--ink-faint);
+  border-bottom: 2px solid var(--ink-faint);
+  transform: translateY(-50%) rotate(-45deg);
+}
+
+.name-row:active {
+  background: var(--paper);
 }
 
 .name-row-name {
@@ -862,6 +1157,7 @@ li.note {
 .offer-price {
   font-weight: 700;
   font-size: 15px;
+  font-variant-numeric: tabular-nums;
 }
 
 .offer-seller {
@@ -895,7 +1191,7 @@ li.note {
 
 .pin-mismatch {
   margin: 10px 0;
-  padding: 12px 14px;
+  padding: 14px;
   border: 1.5px solid var(--alarm);
   border-radius: var(--radius);
   background: var(--alarm-bg);
@@ -923,10 +1219,8 @@ li.note {
 
 .pin-side-label {
   grid-column: 1 / -1;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--ink-soft);
   margin-bottom: 3px;
 }
@@ -940,7 +1234,7 @@ li.note {
   font: inherit;
   font-size: 14px;
   font-weight: 600;
-  padding: 7px 16px;
+  padding: 8px 16px;
 }
 
 .pin-override-armed {
@@ -951,15 +1245,16 @@ li.note {
 /* ── NC chat: composer, threads, bubbles ── */
 
 .message-owner {
-  margin-top: 12px;
+  margin-top: 14px;
   border-top: 1px solid var(--line);
-  padding-top: 10px;
+  padding-top: 12px;
 }
 
 .message-owner summary {
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
+  padding: 4px 0;
 }
 
 .composer {
@@ -971,25 +1266,30 @@ li.note {
 
 .composer-to {
   margin: 0;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--ink-soft);
 }
 
 .composer-input {
   width: 100%;
   resize: vertical;
-  padding: 11px 12px;
-  border: 1.5px solid var(--line);
-  border-radius: var(--radius);
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-field);
   background: var(--card);
   color: var(--ink);
   font: inherit;
-  font-size: 15px;
+  font-size: 16px;
+}
+
+.composer-input::placeholder {
+  color: var(--ink-faint);
 }
 
 .composer-input:focus-visible {
   outline: 2px solid var(--ink);
-  outline-offset: 1px;
+  outline-offset: 0;
+  border-color: var(--ink);
 }
 
 .composer-meta {
@@ -1016,11 +1316,12 @@ li.note {
   color: var(--ink);
   font: inherit;
   font-weight: 700;
-  padding: 8px 22px;
+  padding: 9px 22px;
 }
 
 .composer-send:disabled {
-  opacity: 0.45;
+  background: var(--line);
+  color: var(--ink-faint);
 }
 
 .back {
@@ -1064,7 +1365,7 @@ li.note {
   display: flex;
   gap: 10px;
   align-items: center;
-  padding-bottom: 10px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -1092,7 +1393,8 @@ li.note {
   flex: 0 0 auto;
   align-self: flex-start;
   font-size: 11.5px;
-  color: var(--ink-soft);
+  color: var(--ink-faint);
+  font-variant-numeric: tabular-nums;
 }
 
 .bubbles {
@@ -1105,8 +1407,8 @@ li.note {
 .bubble {
   margin: 0;
   max-width: 82%;
-  padding: 9px 12px;
-  border-radius: 14px;
+  padding: 10px 13px;
+  border-radius: 16px;
   font-size: 15px;
   overflow-wrap: anywhere;
   /* Plain text is the rule (app-chat §5): no links, no formatting. */
@@ -1116,15 +1418,15 @@ li.note {
 .bubble-in {
   align-self: flex-start;
   background: var(--card);
-  border: 1px solid var(--line);
-  border-bottom-left-radius: 4px;
+  box-shadow: var(--shadow-card);
+  border-bottom-left-radius: 5px;
 }
 
 .bubble-out {
   align-self: flex-end;
   background: var(--accent-bg);
   border: 1px solid var(--accent-line);
-  border-bottom-right-radius: 4px;
+  border-bottom-right-radius: 5px;
 }
 
 .bubble-group {
@@ -1150,7 +1452,7 @@ li.note {
   display: block;
   margin-top: 3px;
   font-size: 10.5px;
-  color: var(--ink-soft);
+  color: var(--ink-faint);
 }
 
 .hidden-bucket {
@@ -1167,35 +1469,37 @@ li.note {
 /* ── Empty states, spinner ── */
 
 .empty {
-  padding: 40px 12px;
+  padding: 56px 12px 40px;
   text-align: center;
 }
 
 .empty-title {
-  margin: 0 0 6px;
-  font-size: 18px;
+  margin: 0 0 8px;
+  font-size: 20px;
   font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .empty-body {
   margin: 0 auto;
-  max-width: 34ch;
+  max-width: 32ch;
   color: var(--ink-soft);
-  font-size: 14px;
+  font-size: 14.5px;
+  line-height: 1.5;
 }
 
 .spinner {
   display: flex;
   justify-content: center;
-  padding: 32px;
+  padding: 40px;
 }
 
 .spinner span {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 3px solid var(--line);
-  border-top-color: var(--ink);
+  border-top-color: var(--accent);
   animation: spin 0.8s linear infinite;
 }
 
@@ -1219,8 +1523,8 @@ li.note {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid var(--line);
 }
 
@@ -1244,36 +1548,40 @@ li.note {
 
 /* ── Pay ── */
 
-/* Asset switch: two segments, same pill vocabulary as the tab bar. */
+/* Asset switch: a segmented control, two segments in one track. */
 .pay-mode {
   display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
+  align-self: flex-start;
+  gap: 2px;
+  padding: 3px;
+  background: var(--depth-bg);
+  border-radius: 999px;
 }
 
 .pay-mode-tab {
   appearance: none;
   flex: 0 1 auto;
-  border: 1px solid var(--line);
+  border: none;
   background: transparent;
   color: var(--ink-soft);
   font: inherit;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
-  padding: 7px 14px;
+  padding: 7px 16px;
   border-radius: 999px;
 }
 
 .pay-mode-active {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--paper);
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(31 35 72 / 12%);
 }
 
 .pay-balance {
-  margin: -6px 0 0;
-  font-size: 13px;
+  margin: -6px 0 0 4px;
+  font-size: 13.5px;
   color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
 }
 
 /* The §6 E record on the pay form: a 0x address has no spaced form and no
@@ -1288,11 +1596,11 @@ li.note {
 .pay-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 16px;
+  border-radius: var(--radius-card);
+  padding: 18px;
+  box-shadow: var(--shadow-card);
 }
 
 .pay-to {
@@ -1301,12 +1609,18 @@ li.note {
   font-size: 14px;
 }
 
+.pay-to .nns-name {
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 17px;
+}
+
 .pay-amount,
 .pay-from {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--ink-soft);
 }
@@ -1314,29 +1628,49 @@ li.note {
 .pay-input,
 .pay-select {
   appearance: none;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-field);
+  background: var(--card);
   color: var(--ink);
   font: inherit;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
   padding: 12px 14px;
   width: 100%;
   box-sizing: border-box;
 }
 
+.pay-select {
+  font-size: 14px;
+}
+
+.pay-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.pay-input:focus-visible,
+.pay-select:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 0;
+  border-color: var(--ink);
+}
+
 .pay-go {
   appearance: none;
   border: none;
-  border-radius: var(--radius);
+  border-radius: var(--radius-field);
   background: var(--accent);
   color: var(--ink);
   font: inherit;
+  font-size: 16px;
   font-weight: 700;
-  padding: 14px 18px;
+  min-height: 50px;
+  padding: 13px 18px;
 }
 
 .pay-go:disabled {
-  opacity: 0.45;
+  background: var(--line);
+  color: var(--ink-faint);
 }
 
 /* ── ?diag=1: the host readout (lib/chrome.ts's describeChrome) ── */
@@ -1370,25 +1704,20 @@ li.note {
   font-weight: 600;
 }
 
-/* ── Expiry on the detail card (states doc §1/§6; §10.4 reminder inside 60 d) ── */
-
-.expiry-line {
-  margin: 0;
-  font-size: 13px;
-  color: var(--ink-soft);
-}
-
-/* ── The burn record (§10.2 — Buy's footer until the visual pass) ── */
+/* ── The burn record (§10.2 — Buy's footer, a quiet fact) ── */
 
 .burn-figures {
   margin-top: auto;
-  padding-top: 24px;
+  padding: 20px 4px 0;
+  border-top: 1px solid var(--line);
   font-size: 13px;
   color: var(--ink-soft);
 }
 
 .burn-title {
-  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  margin: 0 0 6px;
   font-size: 13px;
   font-weight: 700;
   color: var(--ink);
@@ -1399,9 +1728,11 @@ li.note {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  line-height: 1.6;
 }
 
 .burn-amount {
   font-weight: 600;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }

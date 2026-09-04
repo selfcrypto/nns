@@ -49,7 +49,6 @@ export function ActionSheet({
   signer,
   viewers,
   wallet,
-  onClose,
   onChanged,
 }: {
   action: AppAction
@@ -60,7 +59,6 @@ export function ActionSheet({
    *  on the Pay path it is never the first. */
   viewers: readonly string[]
   wallet: Wallet
-  onClose: () => void
   onChanged: () => void
 }) {
   const paramsState = useAsync(() => getParams(apiBase()), [])
@@ -192,14 +190,9 @@ export function ActionSheet({
   })()
 
   return (
+    // No heading of its own: the sheet opens under the row that names the
+    // action, and that row's button is its Close.
     <div className="sheet">
-      <div className="sheet-head">
-        <h3 className="sheet-title">{ACTION_LABEL[action]}</h3>
-        <button type="button" className="back" onClick={onClose}>
-          Close
-        </button>
-      </div>
-
       {currentLine !== null && <p className="sheet-current">{currentLine}</p>}
 
       {action === 'setTarget' && (

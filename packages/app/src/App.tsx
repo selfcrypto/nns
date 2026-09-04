@@ -3,6 +3,7 @@ import { appConfig, ConfigParseError } from './config'
 import { applyHostChrome, describeChrome } from './lib/chrome'
 import { detectWallet, type Wallet } from './lib/wallet'
 import { IdentityBar } from './components/IdentityBar'
+import { TabIcon, type TabIconName } from './components/icons'
 import { BuyScreen } from './screens/Buy'
 import { InboxScreen } from './screens/Inbox'
 import { MyNamesScreen } from './screens/MyNames'
@@ -27,6 +28,14 @@ const TAB_LABEL: Record<Tab, string> = {
   names: 'My Names',
   inbox: 'Inbox',
   market: 'Market',
+}
+
+const TAB_ICON: Record<Tab, TabIconName> = {
+  buy: 'search',
+  pay: 'pay',
+  names: 'names',
+  inbox: 'inbox',
+  market: 'market',
 }
 
 /**
@@ -188,9 +197,11 @@ export function App() {
             key={entry}
             type="button"
             className={tab === entry ? 'tab tab-active' : 'tab'}
+            aria-current={tab === entry ? 'page' : undefined}
             onClick={() => setTab(entry)}
           >
-            {TAB_LABEL[entry]}
+            <TabIcon name={TAB_ICON[entry]} />
+            <span className="tab-label">{TAB_LABEL[entry]}</span>
           </button>
         ))}
       </nav>
