@@ -30,6 +30,7 @@ import {
   shortNameNoteLine,
   unreachableLine,
 } from '../lib/wording'
+import { Hint } from '../components/Hint'
 import { ACQUIRE_ACTIONS, NameCard } from '../components/NameCard'
 import { EmptyState, Spinner } from '../components/ui'
 
@@ -46,7 +47,10 @@ function BurnFigures() {
   const gap = owed - burned
   return (
     <section className="burn-figures">
-      <h3 className="burn-title">{burnTitle()}</h3>
+      <h3 className="burn-title">
+        {burnTitle()}
+        <Hint>{burnExplainer()}</Hint>
+      </h3>
       <p className="burn-row">
         <span>{burnBurnedLabel()}</span>
         <span className="burn-amount">{lunaToNim(burned)} NIM</span>
@@ -56,7 +60,6 @@ function BurnFigures() {
         <span className="burn-amount">{lunaToNim(owed)} NIM</span>
       </p>
       <p className="burn-row">{gap > 0n ? burnShortfallLine(lunaToNim(gap)) : gap < 0n ? burnSurplusLine(lunaToNim(-gap)) : burnEvenLine()}</p>
-      <p className="note note-info">{burnExplainer()}</p>
     </section>
   )
 }
@@ -132,7 +135,9 @@ export function BuyScreen({
       {outcome.status === 'idle' && <EmptyState title={buyEmptyTitle()} body={buyEmptyBody()} />}
       {outcome.status === 'loading' && <Spinner />}
       {outcome.status === 'error' && <p className="field-error">{unreachableLine()}</p>}
-      {outcome.status === 'done' && (
+      {/* An invalid query is already the hint above — the card would say the
+          same sentence a second time, and did until 2026-09-04. */}
+      {outcome.status === 'done' && outcome.value.kind !== 'invalid' && (
         <NameCard
           outcome={outcome.value}
           wallet={wallet}

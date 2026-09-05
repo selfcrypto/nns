@@ -78,7 +78,8 @@ deploying, you are in the right directory now; use one of the rows above.
 ## What every role shares
 
 **One image recipe.** All services build from `docker/Dockerfile`, parameterised
-by a `PKG` build arg (`indexer | api | relay | delegate | settlement`). The
+by a `PKG` build arg
+(`indexer | api | relay | delegate | settlement | anchor | chat-index`). The
 build context is the **repository root**, so clone the whole repo — not just
 `deploy/`. Everything compiles inside the image: the host needs Docker and
 nothing else, no Node, no pnpm.
@@ -207,7 +208,9 @@ file and a `docker compose up`. `docker compose down -v` is a supported, if
 slow, repair for a resolver.
 
 The ledger records payments that have already left a hot key and cannot be
-rebuilt from anywhere. `down -v` on `settlement/` is never routine.
+fully rebuilt — an in-flight attempt exists nowhere else, and a rebuild is a
+quarantine, not a keystroke (decisions.md 2026-08-17). `down -v` on
+`settlement/` is never routine.
 
 ## Two cases where a rebuild is required, not optional
 

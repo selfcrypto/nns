@@ -39,13 +39,24 @@ export function verifiedByLine(quorum: QuorumReport): string {
 export const resolverIdentityLine = (resolver: { readonly name: string; readonly url: string }): string =>
   `${resolver.name} — ${resolver.url}`
 
+/** The "?" beside a line — what a screen reader calls it. */
+export const hintLabel = (): string => 'More about this'
+
+/**
+ * Behind the "?" on the verified line: what the count rests on. The count
+ * and the resolver list stay on the card (states doc §5 #1); this is the
+ * mechanism, one tap away.
+ */
+export const verifiedHint = (): string =>
+  'Each resolver answered with a Merkle proof, and this app checked it against the resolver’s published checkpoint before showing the address.'
+
 export const proofPendingLine = (): string =>
   'Proof pending — checkpoints are cut every ~12 minutes. The name works now.'
 
 export const delegatedLine = (parent: string): string => `Resolved by ${parent}`
 
 export const delegatedExplainer = (parent: string): string =>
-  `${parent} is verified on-chain and designates this resolver. The address is ${parent}'s word — no proof covers it.`
+  `${parent} is verified and delegates this resolver. The address is ${parent}’s word — no proof covers it.`
 
 export const targetChangedLine = (): string =>
   'Repointed since the last checkpoint — the current address is newer than its proof.'
@@ -148,7 +159,7 @@ export const payThisLabel = (): string => 'Pay this address'
 export const messageSubdomainLabel = (): string => 'Message this address'
 
 export const messageSubdomainNote = (parent: string): string =>
-  `Goes to the address above, which ${parent}’s resolver gave — no proof covers it, and it may not be ${parent}’s owner.`
+  `Goes to the address above — ${parent}’s resolver gave it, and it may not be ${parent}’s owner.`
 
 // ── Name states (states doc §1) ─────────────────────────────────────────────
 
@@ -158,7 +169,7 @@ export const reservedLine = (): string =>
   'Reserved — held by the registry and not open for registration.'
 
 export const graceLine = (untilDate: string): string =>
-  `Expired — in grace until ${untilDate}. It still belongs to its owner and can be renewed. It is not available.`
+  `Expired — in grace until ${untilDate}. Still its owner’s to renew; not available.`
 
 /** `graceLine`'s date slot when no height is at hand to compute one. */
 export const graceEndsUnknownPhrase = (): string => 'its grace period ends'
@@ -177,9 +188,48 @@ export const parentNotRegisteredLine = (parent: string): string =>
   `${parent} isn’t registered, so nothing can answer for its subdomains.`
 
 export const pendingTransferLine = (newOwner: string, whenDate: string): string =>
-  `Transferring to ${newOwner}, ${whenDate}. Until then it stays under the current owner’s control.`
+  `Transferring to ${newOwner} ${whenDate}. The current owner stays in control until then.`
 
 export const forSaleLine = (priceNim: string): string => `For sale at ${priceNim} NIM`
+
+// ── Auctions (§6 `A`, r28) ──────────────────────────────────────────────────
+
+export const auctionLine = (startingPriceNim: string, endDate: string): string =>
+  `Up for auction — starting price ${startingPriceNim} NIM, ends ${endDate}.`
+
+export const standingBidLine = (bidNim: string, bidder: string): string => `Highest bid ${bidNim} NIM from ${bidder}.`
+
+export const noBidsLine = (): string => 'No bids yet.'
+
+/** The API's `minimumBid` — `core.requiredBid`; a `B` below it refunds, it is not accepted. */
+export const minimumBidLine = (nim: string): string => `Next bid: at least ${nim} NIM.`
+
+/** Market row: what an auction is asking for while no bid stands. */
+export const startingPriceLine = (nim: string): string => `Starting price ${nim} NIM`
+
+export const auctionBadge = (): string => 'Auction'
+
+/** List-row form of the end: "ends ≈ date" — an auction ends, it does not expire. */
+export const auctionEndsLine = (whenDate: string): string => `ends ${whenDate}`
+
+/**
+ * §6 `A` has no rule against an end at or past expiry; the grace reset
+ * cancels the auction and refunds the bid instead. Said before the `A` is
+ * sent, because the owner's fix — renew first — is only available before.
+ */
+export const auctionOutlivesTermLine = (expiryDate: string): string =>
+  `This auction would outlive the name’s term (${expiryDate}), and only the current term can be sold — renew first, or shorten it.`
+
+/**
+ * The bid reading of `WRONG_PRICE`, and of being outbid: neither is a
+ * forfeit. Both are refunds, and both come from the operator (§8.5 #10).
+ */
+export const bidRefundLine = (): string =>
+  'A bid below the minimum is refunded, not accepted — and so is yours the moment a higher one lands.'
+
+/** §8.5 #10 for a bid: money is held for the whole window, not only in flight. */
+export const bidCustodialWarning = (): string =>
+  'Settlement is custodial: the marketplace operator holds your bid until the auction ends, and refunds it if it is outbid — auditable in the public log, but a promise, not a protocol rule.'
 
 export const feeChangeLine = (whenDate: string): string =>
   `Fees change ${whenDate} — a scheduled governance update.`
@@ -202,6 +252,10 @@ export const GATE_REASON_TEXT: Record<GateReason, string> = {
   'offer-irrevocable': 'The offer is in its irrevocable window.',
   'offer-open': 'An offer is already open — cancel it first.',
   'no-offer': 'No open offer on this name.',
+  // One short line, because it appears on up to four rows at once — the
+  // auction's own facts are in the overlay above them.
+  'auction-open': 'Locked while the auction runs.',
+  'no-auction': 'No open auction on this name.',
   'state-unknown': 'Couldn’t read this name’s record — try again.',
 }
 
@@ -263,7 +317,7 @@ const LABEL_REASON_TEXT: Record<LabelInvalidReason, string> = {
  * language, so "deliberately released" is as specific as this gets.
  */
 export const shortNameNoteLine = (): string =>
-  `Names under ${CONSTANTS.MIN_NAME_LEN} characters are reserved by default — one is only registrable if it has been deliberately released.`
+  `Names under ${CONSTANTS.MIN_NAME_LEN} characters are reserved unless deliberately released.`
 
 /**
  * One sentence for a resolved `QueryFault`. The generic fallback is for a reason
@@ -334,6 +388,8 @@ export const ACTION_LABEL: Record<AppAction, string> = {
   renew: 'Renew',
   offer: 'Put up for sale',
   buy: 'Buy',
+  auction: 'Put up for auction',
+  bid: 'Bid',
 }
 
 export const sendSubmittingLine = (): string => 'Waiting for the wallet…'
@@ -356,7 +412,7 @@ export const sendDeclinedLine = (): string => 'Nothing was sent.'
  * flight, and a retry re-signs a different one and pays a second fee.
  */
 export const sendUnconfirmedLine = (): string =>
-  'Not confirmed — this transaction hasn’t appeared on chain. It may still arrive; check the name again before retrying.'
+  'Not confirmed — it hasn’t appeared on chain. It may still arrive; check the name before retrying.'
 
 /**
  * On chain and executed, with the effect not yet visible at the API. The
@@ -365,7 +421,7 @@ export const sendUnconfirmedLine = (): string =>
  * chain. Says nothing went wrong, because nothing did.
  */
 export const sendSettlingLine = (): string =>
-  'Sent and confirmed on chain — the registry is still catching up. It should show within a minute or two; no need to send again.'
+  'Confirmed on chain — the registry is catching up. It will show within a minute or two; no need to send again.'
 
 /**
  * In a block, and it did not execute. The one case where the transaction is
@@ -373,7 +429,7 @@ export const sendSettlingLine = (): string =>
  * either of the "check again" outcomes.
  */
 export const sendRejectedLine = (): string =>
-  'This transaction was included but did not execute. Nothing changed, and the fee is spent — check the name before trying again.'
+  'Included on chain but did not execute. Nothing changed and the fee is spent — check the name before trying again.'
 
 /**
  * The checker was down, not the send — a broken checker never reads as a
@@ -381,7 +437,7 @@ export const sendRejectedLine = (): string =>
  * different transaction and can pay a second fee.
  */
 export const sendUncheckedLine = (): string =>
-  'Sent to the wallet — couldn’t confirm, because the service didn’t answer. It may well have gone through; check again later.'
+  'Sent to the wallet, but the service didn’t answer, so it couldn’t be confirmed. It may well have gone through — check again later.'
 
 export const sendNoRpcLine = (): string =>
   'No RPC endpoint is configured (VITE_NNS_RPC), so nothing can be broadcast.'
@@ -499,7 +555,7 @@ export const payZeroLine = (): string => 'Enter an amount above zero.'
  * with a hash — so this is the only place it can be reported.
  */
 export const paySelfLine = (): string =>
-  'This name points at your own address. Nimiq drops a payment to yourself, so nothing would arrive.'
+  'This is your own address — Nimiq drops a payment to yourself, so nothing would arrive.'
 
 export const buyAcknowledgeLabel = (): string =>
   'I understand a refund would come from the marketplace operator'
@@ -550,7 +606,7 @@ export const inboxWindowLine = (sinceDate: string): string => `Messages since ${
  * about what someone else claimed.
  */
 export const notYourNameLine = (): string =>
-  'This names a name that isn’t yours at this address — the name in a message is the sender’s claim, nothing more.'
+  'Not one of your names — the name in a message is only the sender’s claim.'
 
 export const hiddenSendersLabel = (count: number): string => `Hidden (${count})`
 
@@ -559,14 +615,14 @@ export const hideSenderAction = (): string => 'Hide sender'
 export const unhideSenderAction = (): string => 'Unhide'
 
 export const inboxNoWalletLine = (): string =>
-  'Your inbox is read from your wallet address, and there’s no wallet here.'
+  'Connect a wallet to read the messages sent to its address.'
 
 export const inboxNotConfiguredLine = (): string =>
   'No RPC endpoint configured. Set VITE_NNS_RPC to the operator-run relay URL.'
 
 /** Attributed to the inbox service, never to resolvers — and nothing is lost. */
 export const inboxDownLine = (): string =>
-  'Couldn’t load messages — the inbox service didn’t answer. Your messages are on-chain and will appear when it returns.'
+  'Couldn’t load messages — the inbox service didn’t answer. They are on-chain and will appear when it returns.'
 
 export const inboxEmptyLine = (): string =>
   'When someone messages one of your names, it lands here.'
@@ -580,7 +636,7 @@ export const peerMoreNamesLine = (more: number): string => `+${more} more`
  * sender's claim, the names beside their address are the registry's answer.
  */
 export const peerNamesHint = (): string =>
-  'Names shown above an address are looked up in the registry, not taken from the message.'
+  'Names above an address come from the registry, not from the message.'
 
 // ── Empty states (one title + body per screen; components add nothing) ──────
 
@@ -596,12 +652,11 @@ export const myNamesNoWalletBody = (): string => 'Your names are listed by your 
 export const myNamesEmptyTitle = (): string => 'No names yet'
 
 export const myNamesEmptyBody = (): string =>
-  'Find a free name in Buy — it points at your address the moment it’s registered.'
+  'Register a free name in Buy — it points at your address from the moment it lands.'
 
 export const offersEmptyTitle = (): string => 'Nothing for sale'
 
-export const offersEmptyBody = (): string =>
-  'Owners list names here. When one is listed, this is where it shows.'
+export const offersEmptyBody = (): string => 'Names for sale and open auctions show here.'
 
 export const inboxNoWalletTitle = (): string => 'No wallet connected'
 
@@ -615,7 +670,7 @@ export const burnTitle = (): string => 'Fee burn'
 
 export const burnBurnedLabel = (): string => 'Burned so far'
 
-export const burnOwedLabel = (): string => 'Owed under the commitment'
+export const burnOwedLabel = (): string => 'Owed so far'
 
 export const burnShortfallLine = (nim: string): string => `Behind by ${nim} NIM — owed but not yet burned.`
 
@@ -630,4 +685,4 @@ export const burnEvenLine = (): string => 'Burned exactly what is owed.'
  * cannot move it, but a spec revision can.
  */
 export const burnExplainer = (): string =>
-  `${Number(CONSTANTS.BURN_SHARE_BP) / 100}% of what the registry earns is committed to be burned. These figures come from the public log, so the commitment is checkable, not taken on trust.`
+  `${Number(CONSTANTS.BURN_SHARE_BP) / 100}% of registry revenue is committed to be burned. The figures come from the public log, so anyone can check.`

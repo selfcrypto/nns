@@ -28,9 +28,6 @@ describe('loadSettings', () => {
     expect(() => loadSettings({ ...BASE, NNS_API_URL: 'not a url' })).toThrow(/not a valid URL/)
   })
 
-  it('rejects a listing fee written in NIM', () => {
-  })
-
   it('rejects a network id that is not an integer', () => {
     expect(() => loadSettings({ ...BASE, NNS_NETWORK_ID: '5.5' })).toThrow(/must be an integer/)
   })
@@ -78,6 +75,18 @@ describe('loadLedgerSettings', () => {
       loadLedgerSettings({
         ...BASE,
         NNS_DATABASE_URL: 'postgres://nns@localhost:5433/nns',
+        NNS_SETTLEMENT_DATABASE_URL: 'postgres://nns@localhost:5433/nns',
+      }),
+    ).toThrow(/its own/)
+  })
+
+  // Both sides compare trimmed: a raw NNS_DATABASE_URL that differs only by
+  // whitespace is the same database, not a different one.
+  it('refuses the indexer’s database when the raw values differ only by whitespace', () => {
+    expect(() =>
+      loadLedgerSettings({
+        ...BASE,
+        NNS_DATABASE_URL: ' postgres://nns@localhost:5433/nns\n',
         NNS_SETTLEMENT_DATABASE_URL: 'postgres://nns@localhost:5433/nns',
       }),
     ).toThrow(/its own/)

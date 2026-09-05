@@ -45,6 +45,8 @@ const TAG = {
   // renumbered one (§8.1).
   PENDING_OFFER: 0x07,
   PENDING_GOVERNANCE: 0x08,
+  /** An open `A` (r28). Sits after the retired `0x09` and the unreserved set's `0x0A`. */
+  PENDING_AUCTION: 0x0b,
   // 0x09 was PENDING_UNRESERVE through r21. r22 made a `U` execute on landing;
   // the tag is retired on the same terms as 0x06 above and must not be reused.
   UNRESERVED: 0x0a,
@@ -371,6 +373,24 @@ export function pendingCommitment(state: NnsState): Uint8Array {
     )
   }
 
+  // r28: auctions sit between offers and governance, so the pending `P` stays
+  // the last entry and the only one carrying no name. The standing bidder is
+  // 20 zero bytes and the bid 0 until the starting price is met. The bid's ref is
+  // settlement identity and is deliberately not here (§8.1).
+  for (const item of [...state.auctions.values()].sort((a, b) => compareNames(a.name, b.name))) {
+    entries.push(
+      concat([
+        u8(TAG.PENDING_AUCTION),
+        lengthPrefixed(item.name),
+        addressToBytes(item.seller),
+        u64be(item.startingPrice),
+        u64be(item.endHeight),
+        item.bidder === null ? new Uint8Array(ADDRESS_BYTES) : addressToBytes(item.bidder),
+        u64be(item.bid),
+      ]),
+    )
+  }
+
   if (state.pendingGovernance !== null) {
     entries.push(
       concat([
@@ -387,7 +407,8 @@ export function pendingCommitment(state: NnsState): Uint8Array {
   // concatenation carries no separators and no entry count, so a category with
   // no entries contributed nothing even when it existed. Every r21 commitment
   // over a state with no `U` in flight — which is now every state — keeps its
-  // value, and COMMITMENT_LAYOUT stays 4.
+  // value, and COMMITMENT_LAYOUT stayed 4 through r22 (r26's bump to 5 was
+  // the evm leaf field, unrelated to the pending set).
 
   return keccak_256(concat([u8(TAG.PENDING), ...entries]))
 }

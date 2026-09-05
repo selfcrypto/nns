@@ -12,8 +12,9 @@
  * **No notice, and no notice checks, since r22.** A `U` takes effect in the
  * block it lands in; `GOVERNANCE_DELAY` is `P`'s alone. §6 `U` says why: an
  * award has no counterparty to warn, and a release announced a day ahead hands
- * a frontrunner a publicly timed starting gun. `noticeChecks` and
- * `unreserveRefusals` went with the bound.
+ * a frontrunner a publicly timed starting gun. `noticeChecks` went with the
+ * bound; the §11.5 precheck (2026-08-17) and the reservation refusal below
+ * are what a plan can carry now.
  *
  * **Which makes the dry run the whole of the fat-finger protection.** It was
  * one of two before — a mistyped name or awardee could at least be seen
@@ -42,6 +43,7 @@
  */
 
 import {
+  addressEquals,
   CONSTANTS,
   encodeUnreserve,
   formatAddress,
@@ -49,13 +51,10 @@ import {
   parse,
   parseAddress,
   type Address,
-  type NnsConfig,
 } from '@nns/core'
 
 import {
   ADMIN_MIN_BALANCE,
-  AdminRefusal,
-  blockingChecks,
   UsageError,
   formatLuna,
   readBalance,
@@ -87,6 +86,7 @@ export interface UnreservePlan {
   readonly params: UnreserveParams
   readonly kind: 'release' | 'award'
   /** Where the transaction goes: `PROTOCOL_ADDRESS` or the awardee. */
+  readonly sender: Address
   readonly recipient: Address
   readonly data: string
   readonly value: bigint
@@ -97,13 +97,6 @@ export interface UnreservePlan {
   /** What the name currently is, and the height that was read at. */
   readonly availability: NameAvailability
   readonly checks: readonly AdminCheck[]
-}
-
-export interface UnreserveOutcome {
-  readonly kind: 'release' | 'award'
-  readonly recipient: Address
-  readonly validityStartHeight: number
-  readonly hash: string
 }
 
 /** `u <name> [recipient] [--send]` — omit the recipient to release. */
@@ -132,16 +125,17 @@ export function parseUnreserveArgs(argv: readonly string[]): UnreserveCommand {
 }
 
 /**
- * Build the transaction and read the head. Read-only: the single RPC call is
- * `getBlockNumber`. The builder runs first, with `sender` supplied, so
- * everything client-preventable — bad name, `BURN_ADDRESS`, and an award to
- * the admin address itself, which the network would drop as a silent
- * self-transaction — fails before the node hears anything.
+ * Build the transaction, read the head and the balance, and ask the API what
+ * the name currently is. Read-only: two RPC calls (`getBlockNumber`,
+ * `getAccountByAddress`) and one `GET /available/{name}`. The builder runs
+ * first, with `sender` supplied, so everything client-preventable — bad
+ * name, `BURN_ADDRESS`, and an award to the admin address itself, which the
+ * network would drop as a silent self-transaction — fails before the node
+ * hears anything.
  */
 export async function planUnreserve(
   rpc: AdminRpc,
   source: ReservationSource,
-  config: NnsConfig,
   params: UnreserveParams,
 ): Promise<UnreservePlan> {
   const tx = encodeUnreserve({ ...params, sender: CONSTANTS.ADMIN_ADDRESS })
@@ -204,7 +198,13 @@ export async function planUnreserve(
 
   return {
     params,
-    kind: params.recipient === null ? 'release' : 'award',
+    // From the built recipient, not from argv: the reducer decides release
+    // versus award by the recipient alone (§6 `U`), so an awardee spelled as
+    // `PROTOCOL_ADDRESS` is a release on the wire and must read as one here —
+    // the plan is the fat-finger protection, and it has to describe the
+    // bytes it built.
+    kind: addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS) ? 'release' : 'award',
+    sender: CONSTANTS.ADMIN_ADDRESS,
     recipient: tx.recipient,
     data: tx.data,
     value: tx.value,
@@ -249,44 +249,8 @@ export function describePlan(plan: UnreservePlan): string[] {
             `${head + CONSTANTS.TERM_LENGTH} — the term is half-open, and GRACE begins at the end height (§7.3)`,
         ]
       : []),
-    `  from      ${formatAddress(CONSTANTS.ADMIN_ADDRESS)} (ADMIN_ADDRESS), balance ${formatLuna(plan.balance)}`,
+    `  from      ${formatAddress(plan.sender)} (ADMIN_ADDRESS), balance ${formatLuna(plan.balance)}`,
     `  IRREVERSIBLE: a U cannot be recalled, and this is the last point it can be stopped.`,
     ...plan.checks.map(({ severity, message }) => `  ${severity === 'refuse' ? 'REFUSED' : 'WARNING'}: ${message}`),
   ]
-}
-
-/** Refusals only — what stands between this plan and a broadcast. */
-export function unreserveRefusals(plan: UnreservePlan): readonly AdminCheck[] {
-  return blockingChecks(plan.checks)
-}
-
-/**
- * Broadcast a plan. Sequence per `docs/rpc-reference.md` §5.2: unlock the
- * admin account by address — the key stays in the node's wallet — then send,
- * reusing the plan's head as `validityStartHeight`.
- */
-export async function broadcastUnreserve(
-  rpc: AdminRpc,
-  config: NnsConfig,
-  plan: UnreservePlan,
-): Promise<UnreserveOutcome> {
-  const blocking = unreserveRefusals(plan)
-  if (blocking.length > 0) {
-    throw new AdminRefusal(
-      `refusing to broadcast: ${blocking.length} check${blocking.length === 1 ? '' : 's'} failed — ` +
-        blocking.map((check) => check.message).join('; '),
-    )
-  }
-  await rpc.call('unlockAccount', [CONSTANTS.ADMIN_ADDRESS, null, null])
-  const hash = await rpc.call<string>('sendBasicTransactionWithData', [
-    CONSTANTS.ADMIN_ADDRESS,
-    plan.recipient,
-    plan.data,
-    // JSON has no bigint; the value is DUST_VALUE by construction, so the
-    // conversion cannot lose precision. fee 0 is accepted (§5.4).
-    Number(plan.value),
-    0,
-    plan.head,
-  ])
-  return { kind: plan.kind, recipient: plan.recipient, validityStartHeight: plan.head, hash }
 }

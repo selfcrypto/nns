@@ -33,7 +33,7 @@ export class AdminRefusal extends Error {
   override readonly name = 'AdminRefusal'
 }
 
-/** Albatross targets one block per second — `GOVERNANCE_DELAY`'s 43,200 blocks read as ~12 h. */
+/** Albatross targets one block per second — `GOVERNANCE_DELAY`'s 86,400 blocks read as ~24 h. */
 export const BLOCKS_PER_HOUR = 3_600
 
 /** `~12.0 h`, unsigned — the caller says which direction it runs in. */
@@ -68,23 +68,79 @@ export function blockingChecks(checks: readonly AdminCheck[]): readonly AdminChe
 }
 
 /**
- * Margin this CLI demands *above* `GOVERNANCE_DELAY`, in blocks (~1 h).
+ * What the send needs from a plan, whichever command built it: the bytes,
+ * the two addresses, the head it was planned against, and the checks. Every
+ * plan carries more; this is the slice {@link broadcast} reads.
+ */
+export interface SendablePlan {
+  readonly sender: Address
+  readonly recipient: Address
+  /** Hex, as the RPC takes it. */
+  readonly data: string
+  readonly value: bigint
+  readonly head: number
+  readonly checks: readonly AdminCheck[]
+}
+
+export interface Broadcast {
+  readonly validityStartHeight: number
+  readonly hash: string
+}
+
+/**
+ * The send, once. `p`, `u` and `f` each had a copy until 2026-09-02, alike
+ * to the line except for the sender — which the plan already knows.
  *
- * Notice is the one §10.6 bound that cannot be checked exactly. The reducer
- * measures it from the block the message **lands in** (§6 `P`); this process
- * only knows the head it planned against, and an `effective_height` at exactly
- * `head + GOVERNANCE_DELAY` therefore forfeits unless the message is mined in
- * the very next block. §6 `P` says clients MUST compute it "with margin above
- * `GOVERNANCE_DELAY`, never from the exact minimum"; this is that margin. It
- * is client policy rather than a protocol rule, which is why it lives here and
- * not in `core`.
+ * A plan carrying any refusal cannot be broadcast: the message would be
+ * forfeited or would never be mined. Then unlock by address (the key lives
+ * in the node's wallet, docs/rpc-reference.md §5) and send with the probed
+ * parameter order — `[wallet, recipient, dataHex, value, fee,
+ * validityStartHeight]`. The fee is 0 for every message here (§5.4 accepts
+ * it), and `validityStartHeight` is the head the plan was built against.
  *
- * **`p` only since r22.** It was shared with `u` for exactly one day: `u`
- * checked notice in its own copy, only warned, and broadcast a certain
- * `INSUFFICIENT_NOTICE` anyway, so the two were merged here — and then r22 took
- * `U` out of `GOVERNANCE_DELAY` altogether (§6 `U`). The type parameter below
- * is kept rather than inlined because `f` is not built yet and the shape of the
- * refusal is the part worth reusing.
+ * JSON has no bigint, so `value` crosses as a number. For the dust-valued
+ * commands the narrowing cannot lose precision; for `f` the value *is* the
+ * burn, and `planBurn` refuses any amount outside safe-integer range before
+ * this cast can be reached.
+ */
+export async function broadcast(rpc: AdminRpc, plan: SendablePlan): Promise<Broadcast> {
+  const blocking = blockingChecks(plan.checks)
+  if (blocking.length > 0) {
+    throw new AdminRefusal(
+      `refusing to broadcast: ${blocking.length} check${blocking.length === 1 ? '' : 's'} failed — ` +
+        blocking.map((check) => check.message).join('; '),
+    )
+  }
+  await rpc.call('unlockAccount', [plan.sender, null, null])
+  const hash = await rpc.call<string>('sendBasicTransactionWithData', [
+    plan.sender,
+    plan.recipient,
+    plan.data,
+    Number(plan.value),
+    0,
+    plan.head,
+  ])
+  return { validityStartHeight: plan.head, hash }
+}
+
+/**
+ * Margin this CLI demands *above* a landing-measured floor, in blocks (~1 h).
+ *
+ * Two messages carry a height the reducer measures from the block they
+ * **land in**: `P`'s `effective_height` against `GOVERNANCE_DELAY` (§6 `P`)
+ * and, since r28, `A`'s `end_height` against `AUCTION_MIN_DURATION` (§6 `A`,
+ * "measured from inclusion like `P`'s notice"). This process only knows the
+ * head it planned against, so a height at exactly `head + floor` forfeits
+ * unless the message is mined in the very next block. §6 `P` says clients
+ * MUST compute it "with margin above `GOVERNANCE_DELAY`, never from the exact
+ * minimum"; this is that margin, and the same one serves `A`. It is client
+ * policy rather than a protocol rule, which is why it lives here and not in
+ * `core`.
+ *
+ * **One check, parameterised by the floor.** It was `P`'s alone from r22
+ * (when `U` lost its height) until r28 gave `A` a window of the same shape;
+ * the day it was two copies, `u`'s only warned and broadcast a certain
+ * `INSUFFICIENT_NOTICE`, which is the argument for keeping it one.
  *
  * **Why an hour rather than the measured latency.** Three delays stack between
  * reading the head and landing in a block, and the one that is easy to measure
@@ -109,24 +165,46 @@ export function blockingChecks(checks: readonly AdminCheck[]): readonly AdminChe
  */
 export const NOTICE_MARGIN = BLOCKS_PER_HOUR
 
+/** A height the reducer measures from the landing block, and the floor it must clear. */
+export interface LandingBound {
+  /** How the plan names the rule — `§6 P notice`, `§6 A window`. */
+  readonly clause: string
+  /** The height field's name in the operator's words. */
+  readonly field: string
+  readonly floor: number
+  readonly floorName: string
+}
+
+/** `P`: `effective_height − landing ≥ GOVERNANCE_DELAY` (§6 `P`, §10.6). */
+export const GOVERNANCE_NOTICE: LandingBound = Object.freeze({
+  clause: '§6 P notice',
+  field: 'effective height',
+  floor: CONSTANTS.GOVERNANCE_DELAY,
+  floorName: 'GOVERNANCE_DELAY',
+})
+
+/** `A`: `end_height − landing ≥ AUCTION_MIN_DURATION` (§6 `A`), forfeiting the same token. */
+export const AUCTION_WINDOW: LandingBound = Object.freeze({
+  clause: '§6 A window',
+  field: 'end height',
+  floor: CONSTANTS.AUCTION_MIN_DURATION,
+  floorName: 'AUCTION_MIN_DURATION',
+})
+
 /**
- * §6 `P` notice. Empty when the notice clears `GOVERNANCE_DELAY` with the
- * margin.
- *
- * `type` is the message letter, so the refusal names the clause the operator
- * will be reading. `'U'` is deliberately not one of them: a `U` carries no
- * height since r22, so there is no notice to check and calling this for one
- * would be checking a bound that does not exist.
+ * The landing-measured bound. Empty when the target clears the floor with the
+ * margin; otherwise one refusal, because both shortfalls forfeit
+ * `INSUFFICIENT_NOTICE` and neither can be retracted.
  */
-export function noticeChecks(type: 'P', effectiveHeight: number, head: number): AdminCheck[] {
-  const notice = effectiveHeight - head
-  const floor = CONSTANTS.GOVERNANCE_DELAY
+export function noticeChecks(target: number, head: number, bound: LandingBound): AdminCheck[] {
+  const notice = target - head
+  const { clause, field, floor, floorName } = bound
   if (notice < floor) {
     return [
       {
         severity: 'refuse',
         message:
-          `§6 ${type} notice: effective height is ${notice} blocks from head ${head}, under GOVERNANCE_DELAY ` +
+          `${clause}: ${field} is ${notice} blocks from head ${head}, under ${floorName} ` +
           `(${floor} blocks, ${hours(floor)}) — ` +
           'this forfeits INSUFFICIENT_NOTICE even if it is mined in the next block',
       },
@@ -137,8 +215,8 @@ export function noticeChecks(type: 'P', effectiveHeight: number, head: number): 
       {
         severity: 'refuse',
         message:
-          `§6 ${type} notice: effective height is ${notice} blocks from head ${head}, which clears ` +
-          `GOVERNANCE_DELAY by ${notice - floor} blocks. Notice is measured from the block this lands in, not ` +
+          `${clause}: ${field} is ${notice} blocks from head ${head}, which clears ` +
+          `${floorName} by ${notice - floor} blocks. The window is measured from the block this lands in, not ` +
           `from now, so it forfeits if it waits longer than that between here and a block — use at least ` +
           `${head + floor + NOTICE_MARGIN} (${hours(NOTICE_MARGIN)} of margin)`,
       },

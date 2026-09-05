@@ -6,7 +6,9 @@
  * It drops and recreates its own schema, so point it at a throwaway
  * database. The schema comes from the indexer's own migrations — the API has
  * none of its own, which is the point: these tests read exactly the tables
- * the indexer writes, in the shape migration `004` leaves them.
+ * the indexer writes, in the shape the migrations through `008` leave them
+ * (`005`'s checkpoint_names, `007`'s kind drop and `008`'s evm are all
+ * load-bearing for this suite).
  *
  * **The schema is named, not `public`.** `packages/indexer`'s gated suite
  * points at the same `NNS_TEST_DATABASE_URL`, and vitest runs the two
@@ -125,6 +127,45 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
     // any more (migration 007 dropped the kind).
     expect((await queries.detail('legacy-brand')).value.unreserved).toBe(true)
 
+    // An r28 indexer writes an AUCTION row (migration 010); it reads back as
+    // core's own `Auction`, ref included — the close keys its legs by it.
+    await pool.query(
+      `INSERT INTO names (name, owner, target, expiry, status, host)
+       VALUES ('carol-example', $1, $1, 215880000, 'REGISTERED', '')`,
+      [B],
+    )
+    await pool.query(
+      `INSERT INTO pending (kind, name, seller, starting_price, end_height, bidder, bid, bid_ref_height, bid_ref_tx_index)
+       VALUES ('AUCTION', 'carol-example', $1, '50000000', 58276400, $2, '52500000', 58190100, 0)`,
+      [B, A],
+    )
+    const auctioned = await queries.detail('carol-example')
+    expect(auctioned.value.record?.name).toBe('carol-example')
+    expect(auctioned.value.offer).toBeNull()
+    expect(auctioned.value.transfer).toBeNull()
+    expect(auctioned.value.auction).toEqual({
+      name: 'carol-example',
+      seller: B,
+      startingPrice: 50_000_000n,
+      endHeight: 58_276_400,
+      bidder: A,
+      bid: 52_500_000n,
+      bidRef: { height: 58_190_100, txIndex: 0 },
+    })
+    expect((await queries.detail('alice-example')).value.auction).toBeNull()
+
+    // No bid yet: null bidder, zero bid, no ref — the shape migration 010's
+    // check admits, read back without inventing a ref.
+    await pool.query(
+      `INSERT INTO pending (kind, name, seller, starting_price, end_height, bidder, bid)
+       VALUES ('AUCTION', 'dave-example', $1, '60000000', 58276400, NULL, '0')`,
+      [B],
+    )
+    const auctions = await queries.auctions()
+    expect(auctions.value.map((a) => a.name)).toEqual(['carol-example', 'dave-example'])
+    expect(auctions.value[1]).toMatchObject({ bidder: null, bid: 0n, bidRef: null })
+    await pool.query(`DELETE FROM pending WHERE name = 'dave-example'`)
+
     const owned = await queries.byOwner(A)
     expect(owned.value.map((r) => r.name)).toEqual(['alice-example', 'bob-example'])
     expect(owned.value[1]?.status).toBe('GRACE')
@@ -179,6 +220,7 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
       record: null,
       transfer: null,
       offer: null,
+      auction: null,
       unreserved: false,
     })
   })

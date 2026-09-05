@@ -5,7 +5,8 @@
  *                        only with --send
  *
  * §9's cadence is **on change with a daily floor**: the run anchors when the
- * commitment differs from the last one this key anchored, unconditionally
+ * log digest differs from its own last anchor's (never the commitment — §8.1
+ * binds the height into it, so it moves every checkpoint), unconditionally
  * when its newest anchor is a day old, and otherwise reports "unchanged"
  * and exits clean — so the cron schedule is how often the publisher *looks*,
  * not how often it anchors.
@@ -105,7 +106,7 @@ async function publish(send: boolean): Promise<number> {
   }
   if (outcome.kind === 'unchanged') {
     console.log(
-      `unchanged: commitment ${outcome.commitment} equals the one anchored at height ` +
+      `unchanged: log digest ${outcome.logDigest} equals the newest own anchor's, at height ` +
         `${outcome.lastAnchoredHeight} ${Math.floor(outcome.ageSeconds / 3600)} h ago (tx ` +
         `${outcome.transactionHash}) — §9 anchors on change, or at the 24 h floor. Nothing to do`,
     )

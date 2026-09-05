@@ -63,7 +63,7 @@ export type Message =
   | { readonly type: 'O'; readonly name: string; readonly price: bigint }
   | { readonly type: 'B'; readonly name: string }
   | { readonly type: 'M'; readonly height: number; readonly txIndex: number }
-  | { readonly type: 'A'; readonly name: string; readonly reserve: bigint; readonly endHeight: number }
+  | { readonly type: 'A'; readonly name: string; readonly startingPrice: bigint; readonly endHeight: number }
   | {
       readonly type: 'P'
       readonly feeStandard: bigint
@@ -322,11 +322,11 @@ export function parse(recipientDataHex: string): ParseResult {
     case 'A': {
       const fields = payload.split('|')
       if (fields.length !== 3) return bad('MALFORMED_PAYLOAD')
-      const [name, reserveField, endField] = fields as [string, string, string]
-      const reserve = parseLuna(reserveField)
+      const [name, startingPriceField, endField] = fields as [string, string, string]
+      const startingPrice = parseLuna(startingPriceField)
       const endHeight = parseHeight(endField)
-      if (name.length === 0 || reserve === null || endHeight === null) return bad('MALFORMED_PAYLOAD')
-      return good({ type: 'A', name, reserve, endHeight })
+      if (name.length === 0 || startingPrice === null || endHeight === null) return bad('MALFORMED_PAYLOAD')
+      return good({ type: 'A', name, startingPrice, endHeight })
     }
 
     case 'P': {
@@ -580,16 +580,16 @@ export function encodeSettlement(
 /**
  * `A` — Auction (§6). Opens a bidding window; bids reuse `B`.
  *
- * The reserve carries the same `MIN_PRICE` floor as an `O` price, and for one
- * reason beyond parity: at a token reserve `floor(reserve ×
+ * The starting price carries the same `MIN_PRICE` floor as an `O` price, and for one
+ * reason beyond parity: at a token starting price `floor(starting price ×
  * AUCTION_MIN_INCREMENT)` is 0 and the increment rule stops existing.
  */
 export function encodeAuction(
-  params: { name: string; reserve: bigint; endHeight: number; minPrice: bigint } & SenderOption,
+  params: { name: string; startingPrice: bigint; endHeight: number; minPrice: bigint } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
-  requireAtLeastMinPrice('A reserve', params.reserve, params.minPrice)
-  const payload = `${name}|${formatLuna(params.reserve)}|${formatHeight(params.endHeight)}`
+  requireAtLeastMinPrice('A starting price', params.startingPrice, params.minPrice)
+  const payload = `${name}|${formatLuna(params.startingPrice)}|${formatHeight(params.endHeight)}`
   return build('A', payload, CONSTANTS.PROTOCOL_ADDRESS, CONSTANTS.DUST_VALUE, params.sender)
 }
 

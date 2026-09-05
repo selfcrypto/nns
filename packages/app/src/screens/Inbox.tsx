@@ -35,6 +35,7 @@ import {
   unhideSenderAction,
 } from '../lib/wording'
 import { Composer } from '../components/Composer'
+import { Hint } from '../components/Hint'
 import { EmptyState, Identicon, NameText, Spinner } from '../components/ui'
 
 /**
@@ -270,6 +271,7 @@ function ConversationView({
         <div className="thread-head-main">
           <p className="name-row-name">
             <PeerTitle address={conversation.peer} names={names} />
+            {names.length > 0 && <Hint>{peerNamesHint()}</Hint>}
           </p>
           {/* The address always stays visible: the names above it are a registry
               lookup, and the address is the thing that actually sent. */}
@@ -279,7 +281,6 @@ function ConversationView({
           {hidden ? unhideSenderAction() : hideSenderAction()}
         </button>
       </div>
-      {names.length > 0 && <p className="note note-info">{peerNamesHint()}</p>}
       <div className="bubbles">
         {subjectBreaks(conversation.messages).map(({ message, showSubject }) => (
           <div key={message.hash} className="bubble-group">

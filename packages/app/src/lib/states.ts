@@ -101,6 +101,10 @@ export type AppAction =
   | 'renew'
   | 'offer'
   | 'buy'
+  /** `A` — the owner opens a bidding window (r28). */
+  | 'auction'
+  /** A `B` on a name under auction: the same message as `buy`, read as a bid by state (§6 `A`). */
+  | 'bid'
 
 export type GateReason =
   | 'taken'
@@ -113,6 +117,9 @@ export type GateReason =
   | 'offer-irrevocable'
   | 'offer-open'
   | 'no-offer'
+  /** §6 `A` exclusivity: `O`, `X`, a second `A` forfeit `AUCTION_OPEN`; `K` cannot cancel it. */
+  | 'auction-open'
+  | 'no-auction'
   /** The name resolved, but `/name` did not answer — no record to act on. */
   | 'state-unknown'
 
@@ -173,6 +180,13 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
     }
   }
 
+  /**
+   * An open auction is exclusive (§6 `A`): opening it voided the owner's
+   * pending `X` and open `O`, and until the close `O`, `X` and a second `A`
+   * forfeit `AUCTION_OPEN` while `K` cannot cancel it — bids are commitments.
+   */
+  const unlessAuction = (gate: Gate): Gate => (gate.enabled && info?.pending.auction ? closed('auction-open') : gate)
+
   const cancel = (): Gate => {
     const base = ownerGate()
     if (!base.enabled) {
@@ -181,6 +195,9 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
       return view.kind === 'grace' ? closed('nothing-to-cancel') : base
     }
     const pending = info?.pending
+    // Nothing else can be pending beside it, and it is not cancellable: say
+    // which of the two that is, rather than "nothing is pending".
+    if (pending?.auction) return closed('auction-open')
     if (pending?.transfer) return open
     if (pending?.offer) {
       return head >= pending.offer.openedHeight + CONSTANTS.OFFER_IRREVOCABLE
@@ -195,7 +212,7 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
     view.kind === 'registered' || view.kind === 'grace' ? open : closed('no-record')
 
   const offer = (): Gate => {
-    const base = ownerGate()
+    const base = unlessAuction(ownerGate())
     if (!base.enabled) return base
     return info?.pending.offer ? closed('offer-open') : open
   }
@@ -206,16 +223,31 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
     return head < pendingOffer.expiryHeight ? open : closed('no-offer')
   }
 
+  // Legal with a pending `X` or an open `O` — opening voids both, the rule a
+  // later `O` or `X` already applies to its predecessor (§6 `A`).
+  const auction = (): Gate => unlessAuction(ownerGate())
+
+  const bid = (): Gate => {
+    const pendingAuction = info?.pending.auction
+    if (!pendingAuction) return closed('no-auction')
+    // A listed auction is open — the close is a height effect and the row is
+    // gone at `endHeight` — but the height the data carries is checked
+    // anyway, as `buy` checks an offer's expiry.
+    return head < pendingAuction.endHeight ? open : closed('no-auction')
+  }
+
   return {
     register: register(),
     setTarget: ownerGate(),
     setEvm: ownerGate(),
-    transfer: ownerGate(),
+    transfer: unlessAuction(ownerGate()),
     delegate: ownerGate(),
     cancel: cancel(),
     renew: renew(),
     offer: offer(),
     buy: buy(),
+    auction: auction(),
+    bid: bid(),
   }
 }
 
@@ -223,11 +255,11 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
  * Which address signs an action, from the identity set. Owner-routed
  * actions must be signed by the owning address — the protocol checks the
  * sender — so the answer is the record's owner when the set holds it.
- * Anyone-actions (`G`, `N`, `B`, an NC message) sign with the set's
- * primary address.
+ * Anyone-actions (`G`, `N`, `B` as a buy or a bid, an NC message) sign with
+ * the set's primary address.
  */
 export function signerFor(action: AppAction, view: NameView, viewers: readonly string[]): string | null {
-  const anyone = action === 'register' || action === 'renew' || action === 'buy'
+  const anyone = action === 'register' || action === 'renew' || action === 'buy' || action === 'bid'
   if (anyone) return viewers[0] ?? null
   const owner = view.info?.record?.owner
   if (owner === undefined) return null
@@ -251,6 +283,34 @@ export const offerCancellableAt = (openedHeight: number): number =>
 
 export const offerExpiresAt = (openedHeight: number): number =>
   openedHeight + CONSTANTS.OFFER_MAX_LIFETIME
+
+/**
+ * Blocks the Auction sheet adds between the head it planned against and the
+ * start of the duration the owner typed (~1 h). Client policy, not protocol.
+ *
+ * §6 `A` measures `AUCTION_MIN_DURATION` from the block the message **lands
+ * in**; the app only knows the API's height, which trails the chain by up to
+ * a batch, plus the wallet sheet, the mempool and the user reading the
+ * review. An end at exactly `head + duration` therefore forfeits
+ * `INSUFFICIENT_NOTICE` unless the message lands at once — for a duration
+ * typed as the minimum, which is the one people type. The margin goes on
+ * top of the duration rather than into a floor on it, so "1 day" is a
+ * legal auction that runs about a day from landing and the review shows the
+ * real end; the same hour `packages/admin`'s `p` adds above a `P`'s notice.
+ */
+export const AUCTION_LANDING_MARGIN = 3_600
+
+/** Where an auction opened now against `head` ends, for a duration the owner chose in blocks. */
+export const auctionEndHeight = (head: number, durationBlocks: number): number =>
+  head + AUCTION_LANDING_MARGIN + durationBlocks
+
+/**
+ * §6 `A` has no rule against an end at or past expiry — the §7.3 grace reset
+ * cancels the auction and refunds the standing bid instead, so the client
+ * warns and the owner renews first. Half-open: the name is in `GRACE` **at**
+ * `expiry`, so an end there is already past the last resolving block.
+ */
+export const auctionOutlivesTerm = (endHeight: number, expiry: number): boolean => endHeight >= expiry
 
 /** The exact §10.5 value a `G` or `N` for this name must carry, from `/params`. */
 export function registrationFee(name: string, params: ApiParams): bigint {

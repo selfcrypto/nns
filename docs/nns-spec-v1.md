@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 27**
+**Protocol specification, v1 draft — revision 28**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -21,1008 +21,11 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > changelog id. A change that touches a section an open revision already
 > touches goes into that revision's note — it does not open a new one.
 
-> **Changes in revision 27 — canonical order becomes the hash rank, and
-> block bodies leave the node requirements.** A reducer-rule change: any
-> block carrying two or more NNS messages can reorder under the new rule, so
-> the §8.2 log and every root from the first such block move — every
-> database rebuilds.
->
-> - **§5.2 — canonical order is `(block_number ascending, transaction hash
->   ascending, bytewise)`.** `tx_index` is redefined, not removed: it is the
->   transaction's zero-based **rank** in that order within its block, so §6
->   `M`'s `(height, tx_index)` identity, the §8.2 log line's second field
->   and the obligation ledger's `TxRef` keep their shapes while every value
->   moves. The rank's universe is pinned exactly: every transaction in the
->   block whose `recipientData` begins with `NNS1`, taken **before** any
->   §7.5 discard — the only set derivable from the batch response alone.
-> - **Why.** The old second coordinate — position in the block body array —
->   exists only in bodies: the RPC transaction object carries no index
->   field, so every NNS-bearing block cost a `getBlockByNumber(h, true)`
->   call and the node had to retain **bodies** across the scan range, a
->   strictly stronger requirement than serving the transaction stream and
->   one measured to exclude real endpoints (`rpc-mainnet.nimiqscan.com`,
->   2026-08-22). The tiebreak's only real requirement is determinism, and
->   the hash is already on every object `getTransactionsByBatchNumber`
->   returns. The reward-inherent counting hazard — inherents in the batch
->   response shifting counted positions — disappears with the count, and
->   the rule becomes a pure function in `core` instead of a clause every
->   indexer re-implements against an RPC quirk.
-> - **§6.2 — hash grinding, stated and accepted.** A same-block sender can
->   grind a transaction with a low hash to sort ahead without out-bidding
->   fees. No regression: §6.2 accepts front-running wholesale, and body
->   position never protected against it — the validator orders the body
->   freely.
-> - **§11.1 — node requirements.** Block bodies are required nowhere; what
->   remains is the transaction stream over the scan range, plus header
->   reads near the head for calibration and the horizon guard.
-
-> **Changes in revision 26 — a name can carry an EVM address.** One new
-> message type and one new leaf field, on-chain and consensus-relevant:
->
-> - **§6 `E` — Set EVM address.** `NNS1E<name>|<evm>`: the owner binds one
->   20-byte EVM address to the name — base64url unpadded, 27 characters,
->   canonical form only, empty to clear. To `PROTOCOL_ADDRESS` with
->   `DUST_VALUE`, owner-only, effective on inclusion, no timelock: a
->   mistyped `E` is repaired like a mistyped `S`, by sending another. One
->   record covers every EVM chain, by the derivation convention multicoin
->   wallets share. The record is **self-declared** — the protocol proves the
->   *name owner* said it; control of the EVM key is demonstrated on the EVM
->   side by that key itself, transacting.
-> - **§8.1 — `evm:20B` enters the leaf**, between `target` and `expiry`,
->   20 zero bytes when unset. `COMMITMENT_LAYOUT` is **`5`** and every root
->   changes. A reducer and layout change: every database rebuilds.
-> - **§7.3 — lifecycle.** The record persists through `GRACE` and renewal,
->   like `target`; it is cleared when a transfer takes effect (`X` or `B`)
->   and on the fall to `AVAILABLE` — it authorizes a foreign-chain key, and
->   the authorization must not outlive the ownership that granted it.
-> - **§7.4 — no new verdict tokens.** `E` reuses `WRONG_RECIPIENT`,
->   `NAME_NOT_REGISTERED` and `NOT_OWNER`, in the `S` check order. A
->   canonicality violation in the `evm` field — wrong length, a character
->   outside the alphabet, nonzero trailing bits, the all-zero address — is
->   `MALFORMED_PAYLOAD`, like a non-canonical number: the field is a
->   fixed-width encoding of a value, not structured content like a `D`
->   host. The vocabulary stays 26 tokens. The `UNKNOWN_TYPE` row's type
->   count had been stale at 14 since r20 retired `R`; with `E`, §6 has 14
->   types again and the number is true once more.
-> - **Why the leaf, and why only EVM.** The tree is keccak256, so an §8.3
->   proof verifies cheaply inside an EVM contract; `evm` in the leaf is
->   what lets a contract bind a name to `msg.sender` trustlessly — the
->   trust root for any on-chain ecosystem layer, none of which is protocol.
->   No other chain enters the protocol: a bech32m address cannot fit the
->   §5.1 budget beside a name, per-chain address validation in the reducer
->   is a consensus surface, and no other chain brings an on-chain verifier
->   to serve. Every other per-chain or per-name record composes on the EVM
->   side, authorized transitively through this one.
-
-> **Changes in revision 25 — the delegate endpoint keeps neither its `v1`
-> segment nor its prefix.** §8.6 only, and §6 `D`'s note on the short path.
-> **Entirely off-chain and outside consensus**: no constant changes value, no
-> reducer rule moves, nothing enters the §8.1 preimage or the §8.2 log hash,
-> every r24 root is unchanged and an r24 database resumes. What changes is one
-> URL:
->
->     r24:  GET https://<host>/delegated/v1/<parent>/<label>
->     r25:  GET https://<host>/<parent>/<label>
->
-> The `v1` was there so a later shape could be a new route rather than a
-> guess about what the box on the other end speaks — a real argument for a
-> third party's long-lived deployment, and the reason the segment survived
-> r23's rewrite of the path. It does not apply yet. Nothing is deployed that
-> a version marker would protect, v1 of the protocol is still a draft, and a
-> compatibility affordance carried through a development phase is one carried
-> forever. **The question is deliberately reopened at the launch freeze**
-> (`tasks/08-launch-freeze.md`): the day a delegate is a third party's
-> long-lived deployment is the day the argument for versioning the endpoint
-> becomes the argument it was written to be.
->
-> **The `delegated` segment went with it, and for a plainer reason: it was
-> never the protocol's to spend.** It was r23's replacement for
-> `/nns/v1/resolve/`, and it did say on the wire what the client reports in
-> `verification: 'DELEGATED'`. What it also did was own a path segment on a
-> host NNS does not run. The registry API is mounted either at
-> `api.example.com/resolve/alice` or at `example.com/api/resolve/alice`,
-> operator's choice, because the word naming the **service** and the word
-> naming the **route** are different words. A delegate had one word doing both
-> jobs and the client appended it unconditionally, so an operator who named the
-> host after the service got it twice — which is what
-> `delegated.example.com/delegated/alice/shop` is. The word is now theirs to
-> place once, in the host or in §6 `D`'s short path, or to leave out.
->
-> **There is no fallback in either direction, and the rule is unchanged from
-> r23.** A client MUST NOT retry a retired path on a 404, and a delegate MUST
-> NOT serve two request shapes: that is the shared-namespace failure of r22 in
-> a new costume, and a downgrade on error is one anyone able to force an error
-> can take. An un-migrated delegate stops answering, loudly, which is a
-> diagnosis rather than a wrong payment address.
->
-> **What that rule does not cover, and the difference matters.** r22 → r23
-> changed *what the request carried*, so an un-migrated party answered the
-> wrong question. Dropping `delegated/v1` changes only where the request is
-> addressed; the (parent, label) pair is identical. A delegate reads the two of
-> them as the **last two segments** of the path and ignores whatever precedes
-> them — which is how it has tolerated §6 `D`'s short path all along — so an
-> r24 URL arrives as that same lookup under a mount spelled `delegated/v1` and
-> is answered. That is one shape reached two ways, not two shapes served. The
-> break that stays loud is r22's label-only path, which carries no parent at
-> all, and an r25 client against an r24 delegate still scanning for a marker.
->
-> **`/healthz` is now the whole path or it is not the probe.** With no marker
-> to separate them, a one-segment request is the only thing that cannot be a
-> lookup, and the ambiguity has to fall that way: `healthz` is a valid §4.4
-> label, an owner may hold `healthz.alice`, and answering that lookup with a
-> health body is a wrong address returned silently. Behind a mount a proxy does
-> not strip, the probe reads as a lookup and 404s.
->
-> **The reference host now serves many names from one file**, which is what
-> r23's parent segment was for and what §6 `D`'s short path is explicitly not
-> for. That is an implementation change, not a protocol one — §8.6 has
-> permitted it since r23 — but the note under §6 `D` is sharpened so the
-> short path is not read as the mechanism for two names sharing a host.
-
-> **Changes in revision 24 — §10.2's burn base is defined over the log, and
-> the balance sentence is demoted to the approximation it always was.** §10.2
-> only. Prose only, **entirely off-chain**: the burn base feeds no consensus
-> rule — no constant changes value, nothing enters the §8.1 preimage or the
-> §8.2 log hash, every r23 root is unchanged, an r23 database resumes.
->
-> The section claimed "the treasury's balance *is* its revenue — the burn
-> base needs no adjustment", and that was wrong, not merely loose: the
-> balance also holds dust from `S`/`X` messages that name the treasury as
-> counterparty, refund-class money in flight between the §7.4 verdict and
-> the `M` that pays it back, forfeited junk, and wrongly-sent amounts. None
-> of that is revenue, so a base read off the balance and a base computed
-> from the log diverge — and the first implementation to compute the owed
-> half (the `/burn` route, 2026-08-17) had to pick one, which is exactly the
-> silent-divergence setup this document exists to prevent. Found in review
-> of that implementation; the operator's ruling: revenue is computed from
-> the index with settlements in mind, and where the balance sentence
-> disagrees, the sentence is what is wrong.
->
-> The base is now normative and log-computable: **Σ `value` of `OK`-verdict
-> `G`, `N`, `O` and `M` lines whose recipient is `TREASURY_ADDRESS`**, with
-> `owed = ⌊BURN_SHARE × base⌋`. Commission is counted when its `M` lands (an
-> `M` *to* the treasury is a commission by construction; refunds run the
-> other way and never enter). Forfeited inflows stay outside the base
-> deliberately — the treasury keeps them, but a commitment computed over
-> accidents would make *owed* depend on other people's mistakes; the chosen
-> direction only ever under-obligates, and an operator may always burn more.
-
-> **Changes in revision 23 — the delegate request carries the parent.** §8.6
-> and §16.5, plus a note in §6 `D`. **No bytes move**: no constant changes
-> value, nothing enters the §8.1 preimage or the §8.2 log hash, every root
-> derived under r22 is unchanged, and an r22 database resumes without a
-> rebuild. What changes is off-chain — the HTTP request a client builds *from*
-> the host it read out of a proven record, and the optional response format.
->
-> The revision opened by writing down a consequence of the r22 request shape:
-> it carried **only the label**, so a delegate could not tell which name asked,
-> and two names delegating to one bare host shared a single label namespace —
-> `shop.a` and `shop.b` were the same question and one answer served both.
-> Stating it made the cost legible rather than defensible. The failure is
-> **silent**, its wrong answer is **a payment address**, and it fires in the
-> expected deployment rather than an exotic one: an exchange with several
-> names, or any host serving several owners. The stated remedy, §6 `D`'s
-> optional short path, does not stretch — `MAX_HOST_LEN` bounds host and path
-> together, which suits one owner on a short domain and fails for a host
-> serving customers by name. Nothing in the document ever argued *for* the
-> label-only shape; it was inherited from an early draft and never defended,
-> so this closes a question rather than reopening one.
->
-> So the request is now `GET https://<host>/delegated/v1/<parent>/<label>`,
-> the client cache keys on `host`, `parent` and `label`, the optional
-> signature covers the parent — closing a replay between two names **one**
-> owner holds — and the route is named for what it is: `/resolve` on a
-> resolver takes a name and answers with a proof, while this takes a label and
-> answers with an assertion nothing vouches for. **The retired path is not a
-> fallback**: a client that retried it on failure would keep the shared
-> namespace reachable and hand out a downgrade, so an un-migrated delegate
-> stops answering entirely. That break is free exactly once, while no delegate
-> is deployed at a real host.
-
-> **Amended within r23, 2026-08-16 — "ignored" is §7.5's word, and the `NNS1`
-> prefix is the boundary.** Prose only; **no bytes move**, because every
-> existing log was produced under the reading being ratified. §5.2 said a
-> message with an unknown type character or an over-length payload is
-> "ignored"; §7.4 forfeits both (`UNKNOWN_TYPE`, `OVER_LENGTH`) and §7.6 +
-> §8.2 log them. An ignore and a forfeit are the same message to a user — no
-> effect on the registry either way — and opposite facts to the log hash, so
-> two implementations reading different clauses derive different roots with
-> no error and no verdict mismatch anywhere. **The reachable member is the
-> dangerous one:** an unknown type lands on mainnet today for dust — any
-> `NNS1` payload with a spare letter, including the `R` that r20 retired to
-> `UNKNOWN_TYPE` — so the fork was live, not latent. Over-length is
-> unreachable while Nimiq's data cap equals the §5.1 budget, which is exactly
-> why no test on this chain would ever have surfaced the contradiction.
-> Ratified: the §7.4/§7.6/§8.2 reading, which the reference implementation
-> and the conformance vectors already took — §8.2 defines the consensus
-> artifact and already gave every `NNS1`-prefixed transaction a line, and
-> §7.5's discard list is closed without a length row. Four edits: §5.2 states
-> the prefix boundary and reserves "ignored" for §7.5 discards; §1's
-> fail-closed principle logs its evidence; §6 `A`'s additivity leans on
-> stated-height activation rather than an ignore that never happens (and
-> would not suffice if it did); and §7.4's `OVER_LENGTH` note carries the
-> vocabulary rule — a token is dropped when the protocol makes it
-> unreachable, kept when only the environment does.
-
-> **Amended within r23, 2026-08-16 — an `M` discharges on an exact
-> four-coordinate match, or not at all.** Prose only; **no bytes move under
-> either reading**, which is precisely the finding. §6 `M` never defined
-> "matching": an `M` references a transaction by `(height, tx_index)`, so
-> by-reference matching was a defensible reading under which an underpaying
-> `M` matches the leg and an implementer must invent what the wrong amount
-> does — full discharge, partial, or nothing. Every reading produces the same
-> `OK` line, and §8.1 deliberately keeps obligations out of the commitment,
-> so two implementations disagreeing about discharge derive byte-identical
-> logs and roots **forever** — unlike the §5.2 fork above, which the first
-> hostile message would have surfaced as a root mismatch. The disagreement
-> lands instead in the derived number the §6 `B` custody argument rests on
-> (*settled vs. owed*) and in the settlement ledger's definition of a
-> confirmed payment. Prose is the only defence there is. Ratified: the
-> reference reducer's rule — discharge requires the reference, `owedBy` =
-> sender, `owedTo` = recipient, and the exact amount; everything else is
-> accepted, `OK`, and discharges nothing, evaluated at the `M`'s own position
-> in canonical order. Partial discharge does not exist (§10.5's rule on the
-> way out — and the amount is a *selector*: two legs of a winning `B` share
-> one reference). The cross-purse `M` — treasury paying a marketplace debt or
-> the reverse — is named as a non-match rather than left between §7.4's
-> sender gate and nothing. "One `M` per settled transaction" is re-labelled
-> operator guidance, since the discharge rule makes a duplicate harmless.
-
-> **Changes in revision 22 — `U` executes on landing, and `GOVERNANCE_DELAY`
-> governs `P` alone.** A notice period protects parties who can act on the
-> warning. A `U` has none. An **award** has no counterparty at all — the name is
-> reserved, nobody may register it, and the admin hands it to a chosen address;
-> the notice warns nobody because there is nobody to warn. A **release** does
-> have an interested party, and it is a frontrunner: broadcasting a release
-> `GOVERNANCE_DELAY` blocks ahead means a sniper never has to watch the mempool.
-> Tracking `ADMIN_ADDRESS`, reading the transaction and extracting the name
-> turns an uncertain race into a certain one with the starting gun publicly
-> timed. Fat-finger protection was the last argument for the delay, and it now
-> lives in the admin CLI, where a dry run and an explicit confirmation catch the
-> mistake without publishing it. So:
-> - **§6 `U` loses `effective_height`.** The payload is `NNS1U<name>` — one
->   field, 29 bytes max, down from 40. A `U` takes effect **in the block it
->   lands in, at its own position in that block**, like every other message.
-> - **There is no pending `U`.** §8.1's pending set loses its fourth category
->   and tag `0x09` is **retired, not reused**, exactly as `0x06` was in r20.
-> - **The verdict vocabulary drops to 26 tokens.** `UNRESERVE_PENDING` is
->   unreachable — nothing can be pending — and `INSUFFICIENT_NOTICE` narrows to
->   `P`. `U`'s check order becomes sender, recipient, name syntax, reservation;
->   the recipient still leads, for r21's reason, which the removal does not
->   touch.
-> - **§7.3 loses the unreserve-activation step.** Six height-driven categories
->   become five, and the remaining five keep their relative order.
->
-> **What moves, and what does not.** The §8.1 preimage does **not** change: the
-> pending set concatenates its categories with no separators and no count, so an
-> empty category contributes zero bytes, and no state reachable under r22 can
-> hold a pending `U`. **Every root derived under r21 over a state with nothing
-> pending in that category is unchanged**, and `COMMITMENT_LAYOUT` stays `4`.
-> What does move is the §8.2 log: a `U`'s `<data>` is 11 bytes shorter, an
-> r21-format `U` replayed under r22 is `MALFORMED_PAYLOAD`, and any `U` at all in
-> a scanned range replays to a different verdict and a different effect height.
-> **Any database whose range contains a `U` must be rebuilt, not resumed** —
-> `configFingerprint` does not cover a rule change, so nothing refuses the
-> resume for you.
->
-> **What the notice was actually buying, and where it went.** §10.6's answer to
-> a stolen admin key is a fork, not a bound, and that is unchanged: an award is
-> still one name at a time, still confined to `RESERVED_NAMES`, still unable to
-> touch a name that has an owner, and still unable to award to itself. What it
-> loses is a day of warning that the same day of warning handed to a
-> frontrunner. A rogue key that awards a reserved name to itself-by-proxy is
-> visible the moment it lands, which is when the fork starts being drafted
-> either way; a release that is visible only on landing is a race the honest
-> party can still enter.
-
-> **Changes in revision 21 — three unstated readings become stated.** Prose
-> only. **No bytes move**: nothing here enters the §8.1 preimage or the §8.2
-> log hash, no constant changes value, and **every root derived under r20 is
-> unchanged** — an r20 database resumes without a rebuild. What changes is that
-> three things the reference implementation had to decide for itself, and which
-> two honest implementations could have decided differently, are now written
-> down. All three affect a **verdict token or a leaf field**, which §8.2 and
-> §8.1 commit, so each was a silent fork waiting for the right message.
-> - **§7.3 — every window is half-open, `[start, end)`.** A constant named as
->   a number of blocks is the *length* of its window, so a name registered at
->   `h` is `REGISTERED` over `h … h + TERM_LENGTH - 1` and is already in
->   `GRACE` at `expiry`; grace runs `[expiry, expiry + GRACE_PERIOD)` and the
->   name is `AVAILABLE` at `expiry + GRACE_PERIOD`. Through r20 §6 `G` fixed
->   the *value* of `expiry` and §7.3 drew the arrows, but nothing said whether
->   an arrow fired at that height or the block after — a one-block
->   disagreement about `status` in the §8.1 leaf, and so about every root for
->   a full block. This is the same "at" §6 `X`, §6 `U` and §6 `O` already
->   state outright, it is the only reading under which §3's block counts are
->   the lengths it calls them, and it is what §7.3's own same-height collision
->   between a maturing `X` and an expiry already presumed.
-> - **§7.4 — a `U`'s check order is fixed, and the recipient leads the
->   notice.** Sender, recipient, notice, name syntax, reservation, pending.
->   Through r20 the bullet listed notice before the recipient and never
->   claimed to be an order at all. The recipient leads because §5.3 already
->   makes it an *operand* rather than a route — `PROTOCOL_ADDRESS` releases,
->   anything else awards — so a `U` naming `BURN_ADDRESS` is neither
->   operation, and `INSUFFICIENT_NOTICE` would describe a defect it does not
->   have. **Amended by r22**, which removes the notice and pending rows: the
->   order is now sender, recipient, name syntax, reservation. The reason the
->   recipient leads is unchanged and load-bearing — it is still the row that
->   decides which of two operations the message is, and it now leads the name
->   rows instead of the notice.
-> - **§6 `A` — routing is the one exception to the version forfeit.** An `A`
->   at any address but `PROTOCOL_ADDRESS` forfeits `WRONG_RECIPIENT`, not
->   `AUCTION_NOT_IN_V1`. §5.3 routing precedes every type's own rules and `A`
->   is not carved out; "every `A` forfeits `AUCTION_NOT_IN_V1`" ranges over
->   the correctly addressed ones. Every other rule in that clause, the
->   `MIN_PRICE` floor included, still sits *after* the version forfeit.
->
-> Still open after r21, and deliberately: **§7.4's verdict list does not claim
-> to state a full check order.** Only `G`'s five checks, `REFUND_FLOOR`'s
-> conversion of a refund into a forfeit, §7.5 running before the parse, and now
-> `U` and `A` are fixed by this document. Every other precedence in the
-> reducer — `D`'s host after ownership, `N`'s existence before value, `P`'s
-> notice before the §10.6 bounds, and twenty more — is an implementation
-> choice that `packages/core/vectors/reduce.json`'s `checkOrder` section pins
-> and marks `pinnedBy: null`. Whether the clause should adopt them wholesale is
-> a separate decision and has not been taken.
-
-> **Changes in revision 20 — the recovery address is removed, four §3 numbers
-> move, and governance loses its rate limits.** One message type deleted, one §3 constant gone, and it moves
-> bytes: the §8.1 name leaf loses a 20-byte field, so **every root changes** and
-> `COMMITMENT_LAYOUT` goes to `4`. The four constants at the end of this list
-> move no bytes of their own — no layout, no message, no migration — but the
-> reducer computes expiries and fee comparisons from them, so they change every
-> root a second time.
-> - **§6 — `R` is deleted, and with it the recovery address.** The mechanism
->   did not survive its own threat model. A holder of the owner key — the
->   party recovery exists to defend against — deletes a pending
->   recovery-initiated `X` with a bare `K` at `DUST_VALUE`, indefinitely:
->   `K` cancels everything currently cancellable and takes no account of who
->   scheduled it. The thief needs **one** unopposed `XFER_TIMELOCK` window;
->   the recovery holder must win **every** round for `RECOVERY_TIMELOCK` to
->   ever complete a reclaim. Worse, a second `X` supersedes the first
->   regardless of sender, and the owner's replacement matures on the shorter
->   `XFER_TIMELOCK` — so the thief's transfer lands ~215,940 blocks *before*
->   the recovery attempt it overwrote. Neither is tunable by moving constants:
->   any ordering that fixes it must let the recovery address outrank the
->   owner, which is a strictly worse trust model than having no recovery
->   address at all. Separately, `O` + `B` moves a name in **two blocks** with
->   no timelock and clears the recovery field outright (§7.3). A protection
->   that a careful reading of this document defeats is worse than none,
->   because it is advertised.
-> - **§2 — a lost owner key is a lost name**, stated plainly, as in ENS. The
->   `X` timelock stays, but it is now scoped honestly: it protects against a
->   **mistyped recipient**, not against a thief, since `O` + `B` bypasses it.
-> - **§3 — `RECOVERY_TIMELOCK` is gone.** Every `X` waits `XFER_TIMELOCK`.
-> - **§8.1 — the name leaf drops `recovery:20B`, and the pending-recovery
->   entry (tag `0x06`) is deleted.** The pending-transfer entry (tag `0x05`)
->   drops its trailing `via_recovery:u8`, which could only ever be `0x00`
->   now. Tags are **not renumbered**: `0x06` is retired and left as a hole, so
->   an implementation written against r19 mismatches loudly on a tag it knows
->   rather than silently on one it thinks it understands.
-> - **§8.3 — the proof document drops `recovery`.** The rule it was added to
->   demonstrate in r19 is unchanged and still load-bearing: the document
->   carries *every* field the §8.1 leaf encodes, and `delegate` is now the
->   field that witnesses it.
-> - **§7.4 — `NOT_OWNER_OR_RECOVERY` collapses into `NOT_OWNER`.** With one
->   authorised sender there is nothing for the longer token to distinguish.
-> - **§5.3 — one sentinel operation, not two.** Clearing a recovery address
->   was the second operation that needed `PROTOCOL_ADDRESS` to dodge the
->   self-transaction rule; only `S` resetting a target to the owner's own
->   address remains.
-> - **`R` is removed from the wire, not reserved.** `NNS1R…` now takes
->   `UNKNOWN_TYPE` and forfeits like any unrecognised type. Nothing has
->   launched, so there is no deployed client to keep a slot for.
-> - **§3, §10.4 — `TERM_LENGTH` 157,680,000 → 31,536,000 blocks (~5 y → ~1 y).**
->   At five years nothing expires until 2031: expiry, grace, the fall to
->   `AVAILABLE` and re-registration would sit unexercised through the entire
->   formative period. A one-year term runs them in front of real owners inside
->   the first year. The consequence §10.4 now states rather than deferring:
->   renewal has one year of runway, so `N` must be reachable in the client and
->   the §10.4 reminder must fire before the launch cohort comes due.
-> - **§3, §7.3, §10.4 — `GRACE_PERIOD` 7,776,000 → 2,592,000 blocks
->   (90 d → 30 d)**, paired to the shorter term. Its role is unchanged: a
->   window to notice a missed renewal in, not a second term. The client
->   reminder is still `GRACE_PERIOD` × 2 before expiry, now 60 days.
-> - **§3, §10.1 — `FEE_STANDARD` 4,000 → 2,000 NIM (~$1/year at ~$0.0005/NIM).**
->   Governable as before, and the launch figure only.
-> - **`FEE_LONG` is unchanged at 400 NIM**, and `MIN_PRICE` with it. It is the
->   anti-spam floor that bounds the log (§8.2), and §10.1's argument for it is
->   untouched by the standard band moving.
-> - **§3, §10.6 — `PRICE_MAX_FACTOR` and `PRICE_MIN_INTERVAL` are removed
->   entirely.** A rate limit loose enough not to obstruct legitimate repricing
->   during NIM volatility is also loose enough for an attacker to walk through:
->   there is no setting that both protects and permits. What protects is the
->   notice window — a hostile `P` is public before it bites — and past that, a
->   fork, since `ADMIN_ADDRESS` is a §3 constant and cannot be rotated in-band.
->   ENS avoids the whole problem by pricing in USD through an oracle, which a
->   chain with no smart contracts cannot do; §10.6 now says so rather than
->   implying the limits stood in for it.
-> - **§3 — `GOVERNANCE_DELAY` 43,200 → 86,400 blocks (~12 h → ~24 h),** because
->   it is now the whole of the protection rather than one bound among several.
-> - **`PRICE_FLOOR` and `PRICE_CEILING` stay**, restated as fat-finger rails
->   against a misplaced decimal in an honest `P` — never as attack protection.
-> - **§7.4 — `TOO_SOON` is removed from the vocabulary**, being unreachable
->   without a frequency bound, and `GOVERNANCE_BOUND_VIOLATED` loses its
->   price-step arm. The verdict vocabulary is **27 tokens** (`OK`, 23 forfeit,
->   3 refund), of which `OVER_LENGTH` stays unreachable on mainnet.
-
-> **Changes in revision 19 — the launch freeze, as far as it can go.** Prose
-> only. **No bytes move**: nothing here enters the §8.1 preimage or the §8.2
-> log hash, and every root derived under r18 is unchanged.
-> - **§3, §4.1 — `RESERVED_NAMES`'s published half is published**, in
->   `packages/core/src/constants.ts`, and is a constant rather than a
->   deployment setting: every honest implementation on the same network must
->   agree on it byte for byte, so an injected list was a silent-divergence
->   surface. It is **not final** — additions are free until `LAUNCH_HEIGHT`
->   and out of governance scope afterwards (§10.6), so completing it is a
->   blocking pre-launch step, listed in §12 beside the five §3 values that
->   are still **OPEN**.
-> - **§3, §6 `O`, §10.6, §12 item 3 — the `O` listing fee is settled at
->   `LISTING_FEE` = 0**, taking §12 item 3's second option. No `P` field
->   carries it, so it was never governable; an ungovernable price is the one
->   price that cannot track NIM, and §10.6's own argument says a fixed luna
->   amount goes stale. A listing that never settles should cost nothing beyond
->   the network fee, and one that does settle is already charged
->   `COMMISSION_RATE` at the moment money moves (§10.3). Consequences: an `O`
->   carries `DUST_VALUE`, since §5.4 rejects a `value` of 0; and
->   `INSUFFICIENT_VALUE` is unreachable for `O` at this value. Raising it is a
->   spec revision from a stated height, like any other frozen §3 number.
-> - **`LAUNCH_HEIGHT` and the four §3 addresses stay OPEN** and stay injected
->   through deployment configuration until they are supplied. `networkId` is
->   the one value that stays configuration on the merits — mainnet and testnet
->   honestly differ.
-
-> **Changes in revision 18 — short names are reserved, not invalid.** One
-> change, reverting one r17 rule, and it moves bytes — pre-launch, with no
-> real registration behind any existing root:
-> - **§4.1 — every 1–4 character name satisfying rules 2–5 is a member of
->   `RESERVED_NAMES` at launch, by rule rather than enumeration.** Membership
->   is checked by measuring the length and running rules 2–5, never by
->   materialising the ~1.7 million short names into a list; the published
->   list carries only the named entries (`nimiq`, exchanges, brands). Rule
->   1's floor binds only while a name is still reserved: once a fired `U`
->   removes a short name from the reserved set, it is a normal name — a `G`
->   registers it at the normal fee, and every owner operation works on it.
-> - **§6 `U`, §7.4 — the r17 narrowing of `INVALID_NAME` to `U` is
->   reverted.** r17 forfeited any `U` naming a 1–4 character name, on the
->   premise that a short name can never be a valid registration. Under §4.1
->   as amended that premise no longer holds — and under r17's own rules it
->   had quietly turned "held for later auction" into *lost*: `MIN_NAME_LEN`
->   blocked every `G`, the narrowing blocked every `U`, and `A` is deferred,
->   so nothing in the protocol could ever release or award a short name. A
->   `U` now works on a short name exactly as on any other reserved name —
->   release and award both. Awards are a designed feature here as for long
->   names: handing `nq` to an exchange so it can run a delegate host is
->   handing `binance` to Binance, two characters shorter. `U`'s name check
->   is rules 2–5 plus the rule 1 ceiling; the floor never binds a `U`,
->   because every well-formed short name is reserved by rule.
-> - **What moves.** No layout changes and `COMMITMENT_LAYOUT` does not bump:
->   the same state still commits the same bytes. What changes is which
->   messages are *accepted* — a `U` naming a short name was a forfeit line
->   and is now `OK`; a `G` for a still-held short name writes
->   `RESERVED_NAME` where it wrote `INVALID_NAME`; an awarded or released
->   short name puts a leaf in the checkpoint tree that r17 said could not
->   exist. Log-hash class, not layout class — replaying the same chain under
->   r17 and r18 rules diverges at the first short-name `U` or `G`.
-
-> **Changes in revision 17 — `U` can award a name, not only release it.**
-> One change, in one message type, and it moves bytes:
-> - **§6 `U`, §7.3, §5.3 — a `U` has two behaviours now, and the transaction
->   recipient picks between them.** Sent to `PROTOCOL_ADDRESS` it *releases*
->   the name to `AVAILABLE` at `effective_height`, exactly as in r16. Sent to
->   any other address it *awards* it: at `effective_height` the name becomes
->   `REGISTERED` to that address, `owner` and `target` both set to it, a full
->   `TERM_LENGTH`, and it leaves `RESERVED_NAMES`. No fee — a name given away
->   is a gift. The reason is §6.2: releasing a reserved name and hoping the
->   intended holder registers it first is a race against everyone watching the
->   chain, and the `U` itself announces the name `GOVERNANCE_DELAY` blocks in
->   advance. Handing `binance` to Binance has to skip `AVAILABLE` entirely.
->   The payload is untouched, so no message grew.
-> - **The notice period is unchanged and still does the work.**
->   `GOVERNANCE_DELAY` is measured from the landing block as in r16, so an
->   award is public for twelve hours before it binds and a compromised admin
->   key cannot take the reserved namespace instantly — nor take it directly at
->   all: an award to `ADMIN_ADDRESS` is a self-transaction, which the network
->   drops silently (§5.3).
-> - **§8.1 — the pending `U` entry (tag `0x09`) now commits a `recipient`.**
->   It encoded `len(name) ‖ name ‖ effective_height`, which is enough to agree
->   that a name is being unreserved and not enough to agree *who gets it*: two
->   indexers reading the same `U` differently would have derived identical
->   checkpoints right up until it fired. A release commits **20 zero bytes**, an
->   award the awardee's 20 — the "unset address" convention already used for a
->   cleared recovery. **This changes the commitment**: any checkpoint with a
->   pending `U` in it has a different value under r17 than under r16.
-> - **§7.4 — three new forfeit tokens, one widened, and `U` leaves
->   `WRONG_RECIPIENT`.**
->   `INVALID_RECIPIENT` rejects an award to `BURN_ADDRESS`, which has no key
->   and is also the all-zero address that §8.1 uses to mean *no* recipient —
->   permitting it would give a release and an award to it the same bytes.
->   `NAME_NOT_RESERVED` rejects a `U` naming a name that was never reserved or
->   was already released — under r16 that was an odd no-op, under r17 it would
->   hand away a name somebody may own. `UNRESERVE_PENDING` rejects a second
->   `U` for a name that already has one pending, which is what makes a pending
->   `U` fire against exactly the state it was validated against. `U` no longer
->   has a routed recipient to be wrong about, so its recipient is checked as
->   the operand it now is.
-> - **§7.4, §6 `U` — `INVALID_NAME` widens to `U`, rules 1–5 of §4.1.** This
->   one narrows r16: a `U` naming a 1–4 character name used to be a legal
->   release, and is now a forfeit. Those names are reserved *and* below
->   `MIN_NAME_LEN`, so releasing one only ever produced a name nothing could
->   register — but an **award** of one would put a leaf in the checkpoint tree
->   for a name §4.1 says cannot exist and every conforming client rejects
->   before it queries. A message type that can create a registration has to
->   respect the rules on what a registration may be. Rule 6 stays inverted for
->   `U`: its name must be reserved.
-
-> **Amended within r17, 2026-08-13, on corrections from the Nimiq team.**
-> Deferred-to-v2 material and one open question only; no bytes move. §16.2
-> had the fee-gate blocked by Nimiq Pay's size-derived fee tiers topping out
-> around 276 luna — those tiers are the **web wallet's**. The mini-app
-> provider's `sendBasicTransaction` takes a `fee` parameter, while the
-> native Nimiq Pay UI sets the fee to 0 and does not let a user edit it, so
-> whether an app-supplied fee survives to signing is the remaining question
-> (§12), pending one send test once consensus returns. And network fees go
-> to the **validators** — pooled per batch, paid at the next macro block —
-> which promotes the fee-gate from one mechanism of three to the *preferred*
-> v2 anti-spam mechanism: the money leaves the system, so no
-> `PROTOCOL_ADDRESS` accumulation, no periodic burn, no `F` ceremony.
-
-> **Amended within r17, 2026-08-13 — two §7.4 clarifications, no bytes
-> move.** `INVALID_HOST`'s condition now names every §6 `D` host rule,
-> character set included: the row granted the token only for over-length and
-> scheme hosts while `MALFORMED_PAYLOAD` claimed "does not parse per §6", so
-> two conforming implementations could token a bad-character host differently
-> and fork the log hash. `core` already read it the way the row now states.
-> And a note records that `OVER_LENGTH` is unreachable on mainnet — the
-> network's 64-byte data cap equals the §5.1 budget, so the token stays in
-> the vocabulary but can never appear in a real log.
-
-> **Amended within r17, 2026-08-14 — §8.3's proof document was missing a
-> leaf field. No bytes move.** The example document had no `recovery`, but
-> the §8.1 leaf *encodes* the recovery address, so a client following §8.5 —
-> which rebuilds the leaf preimage from the document's fields and recombines
-> it with the proof — could not build the preimage for any record with a
-> recovery address set. The document was unverifiable exactly where it
-> mattered, and a verifier that checks a hash it was handed instead of one it
-> rebuilt is verifying nothing about the fields beside it. The example now
-> carries `"recovery": null`, and a paragraph states the rule the example was
-> only ever implying: **a proof document carries every field the §8.1 leaf
-> encodes.** Nothing about the leaf preimage, the tree or the commitment
-> changed — this is the wire format catching up with §8.1, which is why it is
-> an amendment and not a revision. Found by `packages/api` when its first
-> verification test tried to rebuild a leaf; the served documents,
-> `openapi.yaml` and a test that strips `recovery` and expects verification
-> to fail all followed the same day.
-
-> **Amended within r17, 2026-08-14 — §9 anchoring is permissionless, and the
-> allowlist was two contracts at once. No bytes move.** §9 described two
-> incompatible designs: `anchor()` was `onlyPublisher` and callable "by any
-> registered publisher" — a contract-level allowlist — while the same section
-> called `ANCHOR_PUBLISHERS` a client-side list and not a protocol constant,
-> and §10.7 said publisher admission was by allowlist. Resolved **in favour
-> of permissionless**, which is also what r9 introduced multi-publisher
-> anchoring as ("any indexer may anchor its own root"); `onlyPublisher` was
-> the later inconsistency.
-> - **§9 — `anchor()` loses `onlyPublisher` and takes no access control.**
->   With no publisher registry the contract needs no owner, no admin function
->   and no upgrade path: it is an append-only event emitter with one external
->   function. §2.1's trust signal is that *independent* parties agree, and a
->   contract-level allowlist would hand the operator the power to exclude a
->   dissenting publisher — silencing the disagreement anchoring exists to
->   expose — while buying nothing, since the same operator ships the client
->   that holds the list either way (§2.2).
-> - **§9 — the `Anchored` event gains `address indexed publisher`,
->   `msg.sender`.** This closes a contradiction recorded but not amended
->   during the resolver session: §9's prose said the event carried the
->   publisher and its Solidity signature did not, which cost a client an
->   `eth_getTransactionByHash` per anchor to learn who published it. `root`
->   and `publisher` are both `indexed` so a permissionless contract's spam
->   costs a client nothing — junk roots never match the topic filter.
->   `nimiqHeight` stays unindexed: the client knows the height it is asking
->   about and MUST check the field against it.
-> - **§8.5 #1 — "publisher" is now defined as an address on the client's
->   `ANCHOR_PUBLISHERS` list.** Required by the change above: with anyone able
->   to emit an anchor, an undefined "`ANCHOR_QUORUM` independent publishers"
->   would be satisfiable by two addresses an attacker created. Unknown
->   publishers are ignored — not counted, and not a mismatch either.
-> - **§10.7 — the stipend roster is treasury policy, not contract
->   permission.** The free-riding mitigation is unchanged in substance and
->   only ever needed to be a payment decision: an allowlist never excluded a
->   mirroring free-rider anyway, since qualifying for the stipend makes them a
->   known party by construction. Not paying someone is unilateral and
->   reversible; excluding them from the contract is neither.
->
-> Nothing here enters the §8.1 preimage or the §8.2 log hash. The event's
-> signature hash changes, which would be a breaking ABI change against a
-> deployed contract — `packages/anchor` is unwritten and nothing is deployed,
-> so the cost is zero today and would not be later.
-
-> **Amended within r17, 2026-08-14 — §9 names its chain, and says what that
-> chain does not give you. No bytes move.** Building `packages/anchor` needed
-> a chain, and §9 offered "a cheap L2 (Base or Arbitrum), monthly to L1
-> mainnet" — a decision deferred by listing options.
-> - **§9 — v1 anchors to Polygon PoS (chain id 137), hourly, and to nothing
->   else.** Explicitly the PoS chain, not Polygon zkEVM. Chosen because Nimiq
->   already runs its stablecoin rails there, which makes it the chain the team
->   and community already operate and makes the most likely first independent
->   publisher — the Nimiq team — one that already has keys, funding and
->   monitoring on it. Anchoring is worth what the number of independent
->   publishers makes it worth (§2.1), so that number is the only thing the
->   choice should optimise. Base was the alternative and was picked on RPC
->   availability, which optimises nothing that matters here.
-> - **§9 — monthly Ethereum L1 anchoring is dropped.** A second chain doubles
->   what every publisher must fund, key and monitor, and it was buying a
->   data-availability property §9 now declines to claim (below). Adding it
->   later is a deployment decision, not a revision.
-> - **§9 — a new subsection states that the chain is not a protocol rule.**
->   Chain id, address and RPC are configuration; the contract is chain-neutral
->   Solidity and takes one `CREATE2` address anywhere EVM. Written down
->   explicitly so no later session treats the chain as load-bearing and
->   "corrects" it back into the protocol.
-> - **§9 — the sidechain tradeoff is stated rather than implied.** Polygon PoS
->   checkpoints state roots to Ethereum but does not post transaction data
->   there, so its anchors are **not** reconstructible from L1 the way a
->   rollup's are. §9 now says so, next to the three things that bound the
->   cost: the anchor is one tier beside §8.4 replay and §8.2 IPFS publication,
->   its failure mode is a loud client warning, and it is one config value away
->   from a different chain. Claiming rollup-grade availability for a sidechain
->   is exactly the overclaim §2.1 exists to prevent.
-> - **§9 — the injected-provider chain list is withdrawn, not updated.** It
->   enumerated mainnet, Base, Arbitrum, Optimism, BNB Chain and Sepolia; per
->   Nimiq's developer documentation the reachable set is whatever their RPC
->   provider supports, extensible without a client change, and it includes
->   Polygon PoS. A list in a spec goes stale silently, so §9 states the rule
->   and tells future editors not to re-add one.
-> - **§8.5 #3, §9 — "root" is disambiguated.** What §9 anchors is the §8.1
->   **checkpoint commitment**; an inclusion proof verifies against the
->   **name root**, one of its six components. §8.5 #3 read as though they were
->   one value. It now specifies both steps — commitment against the anchor,
->   then proof against that document's `nameRoot` — because checking a proof
->   against an unverified `nameRoot` establishes only that one party is
->   internally consistent, which §2.1 says it always is. §9 also states that a
->   publisher takes the commitment verbatim and never recomputes it.
-> - Headings and cross-references move from "Ethereum anchoring" to **"EVM
->   anchoring"** (§9, §2, §8.4, §8.5, §8.7, §12, §14), since neither the
->   anchor chain nor the requirement is Ethereum specific.
->
-> Nothing here touches the §8.1 preimage, the §8.2 log hash or the event
-> signature. `packages/anchor` deliverable 1 — the contract — lands against
-> this text.
-
-> **Amended within r17, 2026-08-14 — the CID is a locator, not a verifier.
-> No bytes move.** §8.2 and §8.4 read as though clients re-derive the root
-> CID from fetched bytes as a verification step. They do not, and nothing
-> needs them to: integrity rests on the keccak256 `log_hash` committed inside
-> the anchored checkpoint, and the IPFS transport itself refuses content that
-> does not match the CID it was asked for. The DAG parameter table stays
-> normative as the flag set the *producer* — the party doing the add — must
-> use (with a note that kubo's `--cid-version=1` flips raw leaves on by
-> default, so `--raw-leaves=false` must be explicit), and the only CID
-> computation a client performs is rebuilding the CID **string** from the
-> event's 32-byte digest, every other component being a constant of §8.2. A
-> wrong CID in an anchor costs discoverability, never integrity, and the
-> mitigation is operational: a publisher adds each snapshot through two
-> independent implementations and anchors only when the CIDs agree. This
-> cancels the planned UnixFS/dag-pb derivation in `core` — reimplementing
-> the reference implementation in order to check the reference
-> implementation is inverted. See "The CID is a locator, not a verifier" in
-> `docs/decisions.md`.
-
-> **Amended within r17, 2026-08-14 — cadence is on change with a daily
-> floor, superseding hourly; `ANCHOR_STALENESS_LIMIT` becomes 48 h. No bytes
-> move.** Building the publisher showed what the hourly cadence actually
-> buys and what it actually costs. Gas was never the cost — r12 established
-> that when it moved daily to hourly. The costs are **pin churn and
-> operational noise**: every anchor obligates a log snapshot pinned on two
-> independent services (§8.2), so an hourly schedule mints ~8,700 pinned
-> snapshots a year per publisher — almost all of them anchoring a commitment
-> identical to the last, since registry traffic is bursty and mostly absent.
-> §9 now reads: the publisher runs on a schedule, anchors **when the current
-> commitment differs from the one it last anchored**, and anchors
-> **unconditionally when its newest anchor is older than 24 h**, so a live
-> quiet registry still produces a fresh attestation daily and §8.5 #8's
-> staleness check stays meaningful. `ANCHOR_STALENESS_LIMIT` moves 2 h →
-> **48 h** — the same one-missed-anchor margin at the new scale. What bounds
-> the wider window: a day-wide not-yet-anchored gap is proportionate because
-> every prior anchor already chains the history (the commitment binds
-> `log_hash`, cumulative), §8.7 says anchoring never gated usability anyway,
-> and the §8.4 tiers above the anchor are untouched. Corollary, recorded in
-> `docs/decisions.md`: pin retention is **keep-all** — at a daily ceiling
-> the retention question dissolves rather than needing an answer.
-
-> **Changes in revision 16 — what building the indexer and sending on
-> mainnet found.** Six changes. One moves bytes, three close holes that made
-> a divergence invisible, and two are lessons that cost real transactions to
-> learn:
-> - **§8.1 — the unreserved set joins the commitment, under tag `0x0A`.**
->   Tags ran `0x00`–`0x09` and `0x09` is a *pending* `U`; a `U` that had
->   already fired was committed nowhere. The released name has no leaf in
->   the name tree either, so two indexers disagreeing about whether a
->   reserved name is released derived **identical checkpoints** — and went
->   on doing so until somebody registered the name. Encoded as a flat
->   bytewise-ordered name list, empty form `keccak256(0x0A)`. **This
->   changes the commitment**: r16 roots do not match r15 roots.
-> - **§8.1 — checkpoint heights are absolute multiples of
->   `CHECKPOINT_INTERVAL`**, from block zero, never offsets from
->   `LAUNCH_HEIGHT`. `LAUNCH_HEIGHT` is still **OPEN**, and an anchor that
->   moves with an unsettled config value is an anchor two operators can
->   disagree about while both implementing the clause honestly.
-> - **§6 `P`/`U`, §10.6, §7.4 — `GOVERNANCE_DELAY` runs from the block the
->   message lands in**, not from when it was built. "Current height" read as
->   send time; an indexer cannot see send time and two indexers could not
->   agree on it. §6 `P` was also missing the notice bound entirely — it was
->   only ever stated for `U` and in §10.6. Verified the expensive way on
->   mainnet 2026-08-13: a `P` and a `U` carrying `head + 10,000` forfeited
->   `INSUFFICIENT_NOTICE` and are on-chain permanently. **A governance
->   message is unretractable**, which is now said out loud.
-> - **§5.3, §11.5 — an unfunded sender is a third silent-drop route**,
->   alongside self-transactions (§5.3) and over-length payloads (§5.1). The
->   RPC accepts, returns a hash, and the transaction is never mined. Since
->   every message carries at least `DUST_VALUE`, `MARKETPLACE_ADDRESS` and
->   `ADMIN_ADDRESS` — which sign but have no income — go quiet rather than
->   erroring when they drain. New §11.5 requires a balance precheck before
->   signing and an alert threshold well above zero.
-> - **§7.4 — the verdict vocabulary is now enumerated, normative and
->   closed.** §7.4 described forfeit and refund in prose while §8.2 committed
->   the `<verdict>` *token* into the log hash; the 26 exact strings existed
->   only in the reference implementation. Two implementations could agree
->   about every rejection and still derive different log hashes by spelling
->   one differently — the gap §8.1's layout had before r15. Each token now
->   has a row naming its exact string, the message types that may carry it,
->   and its condition, plus the within-message check order that decides which
->   token a message earns. No token changed, so **this does not move bytes**;
->   it makes the bytes reproducible from the spec alone. Also corrects §7.4's
->   first forfeit bullet, which listed un-prefixed data as a forfeit when
->   §7.5 discards it unlogged.
-> - **§8.2 — the IPFS clause said two incompatible things and is rewritten.**
->   It specified the `raw` codec, which addresses a *single block* hashed
->   over its own bytes, and in the same sentence a fixed chunk size, which
->   only means anything for a multi-block DAG whose root hashes over
->   structure. A ~15 MB log is also far past what a raw block can hold. It is
->   now a **UnixFS file, `dag-pb` root, CIDv1, sha2-256**, with every
->   DAG-shaping parameter pinned in a table — chunker **262,144 bytes**,
->   balanced layout, 174 links per node, **raw leaves off**. Raw leaves are
->   off because with them on, a log small enough to fit one chunk has a `raw`
->   root: the codec would vary with file size, and reconstructing a CID from
->   a bare digest requires it to be a constant. §9's `logDigest` is
->   correspondingly the digest of the snapshot's **root CID**, not of the log
->   bytes — it is not the keccak256 log hash, which is a different digest
->   over different bytes and is already committed inside `root`. **No
->   consensus bytes move**: no root, no log hash, and nothing has been
->   anchored yet.
->
-> **Changes in revision 15 — ratifying what the reference implementation
-> found.** `packages/core` (441 tests) surfaced nine spec gaps, four of which
-> change bytes: two conforming implementations reading them differently
-> would derive different roots. All are now pinned:
-> - **§8.2:** the log line's `<data>` field is **lowercase hex**, never raw
->   text — a raw payload containing a newline would forge an entire log
->   line and silently change the checkpoint. Addresses in log lines use the
->   compact 36-character `NQ` form for the same reason.
-> - **§7.3:** height-driven effects due at one height fire in a fixed order
->   (governance, unreserve, maturing `X`, maturing `R`, expiry, grace
->   release, offer expiry; ties bytewise by name), and **before that
->   block's transactions**. State also advances on height alone —
->   implementations must apply due effects at least every
->   `CHECKPOINT_INTERVAL`, not only when a message arrives.
-> - **§5.2:** numeric wire fields are canonical decimal — no sign, no
->   leading zeros, or the message is malformed.
-> - **§8.1:** the checkpoint commitment enumeration gains pending `P` and
->   pending `U`, and the byte-exact layout — tag bytes, field encodings,
->   ordering, and how the components combine — is written out in the clause
->   itself, so an independent implementation never has to read ours. The
->   conformance vectors now pin that layout rather than defining it.
-> - **§8.3:** proof steps carry `{hash, side}` plus the leaf index — a bare
->   hash array is unverifiable under odd-node promotion.
-> - **§7.4:** `G` checks value before availability, so an underfunded `G`
->   for a taken name forfeits (client-preventable) rather than refunds.
-> - **§6 `O`:** price MUST be ≥ `MIN_PRICE` (= `FEE_LONG`), and the same
->   floor applies to `A`'s reserve. A price of 0 was unsatisfiable; a floor
->   of 1 luna, considered first, was worse than useless — it sits below
->   `REFUND_FLOOR`, so losing bidders would have been *forfeited* rather
->   than refunded, and `floor(1 × 5%) = 0` erases the auction increment
->   rule entirely, admitting unlimited dust bids each carrying a refund
->   obligation.
-> - **§6 `A` v1 status:** parsed, logged, forfeited `AUCTION_NOT_IN_V1`.
->   An implementation honouring auctions would derive a different root, so
->   deferral must be a protocol version, not an omission.
-> - Smaller readings pinned: `K` cancels everything currently cancellable
->   and forfeits `NOTHING_TO_CANCEL` when idle; an `M` matching no
->   outstanding leg is accepted and changes nothing (the debt stays
->   visible). `R`/`U` payload typo (`<n>` → `<name>`); §4.2's short
->   examples annotated as digit-rule illustrations below `MIN_NAME_LEN`.
->
-> **Changes in revision 14 — `PROTOCOL_ADDRESS`.**
-> - **Signals are separated from money.** A new `PROTOCOL_ADDRESS` receives
->   every `DUST_VALUE`-only message (`K`, `D`, `P`, `U`, and the `S`-reset
->   and `R`-clear sentinels). `TREASURY_ADDRESS` now receives **fees and
->   nothing else** (§5.3, §5.4).
-> - This makes §10.2's burn base exact rather than approximate: every luna
->   arriving at the treasury is revenue, so *balance* and *revenue* stop
->   diverging by an unbounded pile of protocol dust.
-> - It also gives explorers a single address to tag as **"NNS Protocol"**,
->   which is where all protocol signalling is visible in one place — and a
->   better sentinel than the treasury, since nobody would ever legitimately
->   resolve a name to a protocol sink (§5.3).
-> - The key is generated and kept in cold storage, never imported into any
->   node: it is needed to prove control for explorer tagging, and to return
->   funds someone eventually misdirects there (§11).
-> - **Everything moved off the 64-byte ceiling.** `MAX_NAME_LEN` 32 → 24,
->   `MAX_REF_LEN` 26 → 12, `MAX_HOST_LEN` 40 → 30, and `D`'s combined
->   name-plus-host limit 58 → 52. The largest message in the protocol is now
->   `D` at 58 bytes; `G` with a referrer is 42. Previously both `G` and `D`
->   could hit exactly 64. Sitting on the ceiling was dangerous because the
->   over-limit failure is silent (§5.1) — a client counting one byte
->   differently would lose the longest messages with no error anywhere.
-> - §4.1 now records **why the separator is `-` and not `_`**, so the
->   question is answered in the document rather than re-argued later.
-> - **Credits removed entirely.** A losing `G` is now refunded from
->   `TREASURY_ADDRESS` through the same `M` settlement message the
->   marketplace uses (§6 `M`, §7.4). The argument for credits was that a
->   ledger entry needs no key — but the treasury already spends, since the
->   burn share is forwarded from it, so refunds add no new class of hot key.
->   For a ~$2 registration fee, consensus-state arithmetic, a committed
->   ledger, an expiry policy and overpayment rules were a large amount of
->   machinery bought at the wrong price. §7.4 now has two outcome columns
->   instead of three, and §10.5 is gone.
-> - **A refund floor** (`REFUND_FLOOR`) stops an attacker from converting
->   cheap invalid messages into an unbounded pile of refund transactions
->   (§7.4).
-> - **From external review**: `tx_index` stated as zero-based (§8.2);
->   anchor-staleness warning (§8.5); client preflight against the size
->   ceiling (§8.5); renewal reminders as required client behaviour (§10.4);
->   an explicit MEV re-evaluation trigger rather than a vague future concern
->   (§6.2); the delegate response signature format defined now so delegates
->   can opt in later without a spec revision (§8.6); and test vectors named
->   as a deliverable (§14).
-> - **v1 scope cut back.** Anti-spam machinery — signalling fees, ownership
->   and no-op filters, per-name rate windows — was specified and then
->   removed. Each is a rule every independent implementation must match
->   exactly, added against an attack nobody has run, on a protocol with no
->   users. §7.6 is now one sentence; the analysis moved to §16 so it can be
->   adopted whole if spam ever appears.
-> - **New §16 — deferred to v2**, recording what was considered, why it was
->   cut, and what would trigger revisiting it. Registration remains the only
->   economic gate in v1.
-> - **New §8.8 — segments and snapshots**, specified but not implemented in
->   v1: the format must be agreed before anyone depends on it, but the first
->   boundary is a year out.
-> - **New §6 `A` — auctions.** Price-discovery for contested names, with a
->   bidding window instead of an ordering race. Deliberately additive: an
->   unknown message type is ignored (§5.2), so `A` can ship after the wire
->   format freezes without breaking any indexer.
->
-> **Changes in revision 13 — first empirical results.**
-> Probed against mainnet on 2026-08-06 from our own node. Four assumptions
-> tested; three confirmed, one wrong, and one constraint found that the
-> specification had missed entirely.
-> - **`value: 0` is rejected by the network** (§5.4). `DUST_VALUE` is now
->   justified by evidence rather than caution, and the OPEN item is closed.
-> - **64-byte data limit confirmed at the protocol level** (§5.1): 64 bytes
->   was included in a block, 65 and 128 never were — even though the node
->   will happily *construct* a 256-byte transaction locally. The wallet's
->   64-character cap is a byte budget, verified with multi-byte characters.
-> - **Transaction data is hex over RPC** in both directions, UTF-8 bytes
->   underneath (§5.1). Non-ASCII round-trips byte-identically.
-> - **No transaction index exists on the RPC object** (§5.2, §7.2).
->   Canonical order is `(block_number, position in the block body array)`.
->   Confirmed with three blocks that each carried two of our transactions.
-> - **New §7.5 — transactions the indexer must ignore**: failed executions
->   (`executionResult: false`), reward transactions, and any transaction
->   whose `networkId` is not ours. Albatross includes failed transactions in
->   blocks, so without this rule a failed `G` could take a name.
-> - **Sender and recipient must differ** (§5.3) — Nimiq rejects
->   self-transactions, silently: the RPC accepts them and returns a hash,
->   then the network drops them. This broke two message types as specified.
->   `S` pointing a name back at the owner's own address, and `R` clearing
->   the recovery address, are both now sent to `TREASURY_ADDRESS` as a
->   sentinel recipient (§6 `S`, §6 `R`).
->
-> **Changes in revision 12.**
-> - **Anchoring moves from daily to hourly** on the L2 (§9). At ~30k gas an
->   anchor costs fractions of a cent, so a daily cadence was frugality with
->   nothing to be frugal about. It shrinks the not-yet-anchored window from
->   24 h to at most 1 h.
-> - **New §8.7 states explicitly that anchoring never gates usability.** A
->   name resolves as soon as its registration is final; checkpoints and
->   anchors add verification depth on top of a name that already works.
->   The spec implied this everywhere and said it nowhere.
-> - Client wording for a recent registration reworded as a **depth
->   indicator rather than a warning** (§8.5). Alarming language is reserved
->   for genuine mismatches.
->
-> **Changes in revision 11 — the log becomes fetchable without us.**
-> - **The NNS log is published to IPFS** and addressed by CID (§8.2). The
->   log hash was already committed in every checkpoint, so tampering was
->   already detectable; what IPFS adds is **availability independent of the
->   operator** — Tier 1 verification no longer starts by downloading a file
->   from the party being checked (§8.4).
-> - **`Anchored` carries the log CID** alongside the root and height (§9).
->   One attestation now covers both *what the state was* and *where the
->   evidence lives*. With multi-publisher anchoring, divergent publishers
->   each anchor their own log, so anyone can diff them and identify the
->   exact transaction mishandled — divergence stops being "someone
->   deviated" and becomes "here is where".
-> - CIDs are carried as a 43-character base64url digest, not a URL and
->   never a shortener: a shortener is a mutable indirection controlled by
->   somebody, which destroys the property being sought (§8.2).
-> - **Pinning stated honestly** (§8.2): IPFS gives integrity, not
->   persistence. Unpinned content disappears, so the guarantee is only as
->   good as the pinning commitments behind it.
->
-> **Changes in revision 10.**
-> - **New §2.2 — client delivery.** A hostile frontend defeats every
->   client-side check in §8.5, because the checking code is served by the
->   same party. Stated plainly, with the mitigations ranked: wallet-native
->   resolution is the real fix; third-party adoption of the resolver package
->   limits the blast radius meanwhile.
-> - **Referrer field on `G`** (§6 `G`): `NNS1G<name>|<ref>`, optional,
->   recording which integrator drove a registration so a share can be paid.
->   Added now because adding a wire field after the format freeze is a spec
->   version (§10.7).
-> - **Integrator share and independent-publisher stipend** (§10.7), both
->   treasury policy rather than protocol rules — and the stipend reframed:
->   anchoring gas is a few dollars a year, so the cost being recognised is
->   operational attention, not money.
->
-> **Changes in revision 9 — what the trust model actually guarantees.**
-> - **New §2.1** states the guarantee honestly: proofs and anchoring stop
->   *equivocation and retroactive rewriting*, not fraud. A single operator
->   who is both state producer and sole anchor publisher can serve a
->   globally consistent lie. What defeats it is that correct state is
->   **recomputable from the chain without the operator**.
-> - **Resolver quorum (§8.5).** The app MUST query at least
->   `RESOLVER_QUORUM` independent resolvers and hard-fail on disagreement.
->   This is what turns third-party detection into per-user protection.
-> - **Multi-publisher anchoring (§9).** Any indexer may anchor its own root;
->   clients treat matching roots from independent publishers as the trust
->   signal, not any single anchor. `ANCHOR_PUBLISHERS` is a client-side
->   list, and the reference publisher key SHOULD be a multisig.
-> - **First-use pinning promoted from SHOULD to MUST** (§8.5) — the
->   strongest per-user defence against a mass redirect.
-> - §2 gains rows for the operator-forges-state attack and for API-level
->   censorship, which replay detects but cannot prevent.
->
-> **Changes in revision 8.**
-> - **Marketplace commission**, now that escrow gives the protocol a point of
->   interception. `M` settling a winning `B` pays the seller
->   `price − floor(price × COMMISSION_RATE)` and forwards the remainder to
->   `TREASURY_ADDRESS` (§6 `M`). Refunds are never deducted from.
-> - **The rate is on-chain, carried by `P`** as a third field with its own
->   bounds (§6 `P`, §10.6). A config-file commission would have been the
->   first operator-private setting to affect publicly-owed amounts, breaking
->   the *settled vs. owed* audit that justifies the custody.
-> - Commission counts toward the `BURN_SHARE` base — all NNS revenue burns
->   20% (§10.2).
-> - Table of contents added; `§` references resolve to the numbered
->   headings below (non-normative).
-> - **Correction to r7:** Nimiq Pay *does* inject `window.ethereum` and
->   supports Base, Arbitrum, Optimism, and Sepolia. Anchors are read through
->   the injected provider, cross-checked against an independent public RPC
->   (§9). The r7 claim that no EVM provider exists was wrong.
->
-> **Changes in revision 7.**
-> - **Escrowed marketplace.** `B` now pays `MARKETPLACE_ADDRESS`, not the
->   seller. Ownership still moves deterministically on the first valid `B`,
->   but every losing or invalid `B` is now *refundable* — a new §7.4 class —
->   instead of forfeited to the seller. A new `M` (settlement) message
->   discharges each debt on-chain, making *settled vs. owed* auditable
->   exactly like the burn share. Direct buyer-to-seller payment let a race
->   loser's money land in the seller's pocket with no recourse; that outcome
->   is rejected outright, at the acknowledged cost of one custodial hot
->   wallet (§6 `B`).
-> - `CANCEL_DELAY` (introduced in r6) removed: with escrow, a seller's
->   cancel-front-run costs the buyer a refund wait, not their money.
-> - **Governance retuned for NIM price regimes:** `PRICE_FLOOR` 100 → 1 NIM
->   and `PRICE_MIN_INTERVAL` ~30 d → ~7 d, so fees can track a fast market
->   move in weeks rather than months; the bounds themselves are documented
->   as versioned spec constants, with sustained regime change handled by a
->   spec revision (§10.6).
->
-> Earlier: r6 hardened the marketplace and determinism (grace names in the
-> tree, `R`/`U` messages, exact encodings, `0`/`1` boundary clause adopted);
-> r5 added delegated subdomains and two-band pricing; r4 removed
-> commit–reveal; r3 added the positional digit rule; r2 confirmed SDK
-> feasibility.
+> **Change notes live out of line.** The per-revision "Changes in revision N"
+> notes (r7 → r27, verbatim) are `docs/history/spec-changelog.md`; the
+> condensed narratives are `docs/history/revisions.md` (r15 → r27). This
+> document states only the current rules — a revision note never overrides a
+> section's text.
 
 ## Contents
 
@@ -1256,10 +259,12 @@ Mitigations, strongest first:
    their own bundles from their own domains, so their users are outside the
    operator's reach entirely. Wide adoption of the package is therefore a
    security property, not only a distribution strategy.
-3. **Content-hash pinning by the host**, if the mini-app framework can pin a
-   build rather than a live URL. **OPEN:** to be asked of the Nimiq team.
-4. **Independent deployments.** The frontend is MIT; anyone may host it, and
+3. **Independent deployments.** The frontend is MIT; anyone may host it, and
    users who prefer not to trust the operator's domain can use another.
+
+(A fourth — content-hash pinning of the build by the mini-app framework —
+was listed through 2026-08-29 and dropped without being asked: hard to
+implement, questionable result, and nobody would deploy it.)
 
 This is the ordinary trust boundary of every web frontend in the ecosystem,
 but it deserves stating here because NNS is a system whose entire product is
@@ -1282,7 +287,7 @@ NIM figures assume ~$0.0005/NIM.
 | `ANCHOR_STALENESS_LIMIT` | 48 h | Client warns beyond this (§8.5). One missed daily-floor anchor of margin (§9) |
 | `SEGMENT_LENGTH` | 3,153,600 blocks (~1 y) | Log segment boundary (§8.8) |
 | `AUCTION_MIN_INCREMENT` | 5% | Minimum raise over the standing bid (§6 `A`) |
-| `MIN_PRICE` | `FEE_LONG` | Floor on an `O` price and an `A` reserve (§6) |
+| `MIN_PRICE` | `FEE_LONG` | Floor on an `O` price and an `A` starting price (§6) |
 | `AUCTION_MIN_DURATION` | 86,400 blocks (~24 h) | Shortest permitted auction (§6 `A`) |
 | `AUCTION_EXTENSION` | 600 blocks (~10 min) | Anti-sniping extension (§6 `A`) |
 | `ADMIN_ADDRESS` | **OPEN** | Governance only; cold key, distinct from treasury |
@@ -1796,11 +801,12 @@ NNS1X<name>
 
 - **To:** the new owner, value `DUST_VALUE`
 - Sender must be the current owner
+- Forfeits `AUCTION_OPEN` while an auction is open on the name (§6 `A`)
 
 Takes effect at `height + XFER_TIMELOCK`. Until then the name still resolves
 as before and the current owner retains control. A second `X` supersedes the
-first and restarts the timelock. On taking effect the transfer resets the
-name's dependent state (§7.3).
+first and restarts the timelock; an `A` for the name voids it (§6 `A`). On
+taking effect the transfer resets the name's dependent state (§7.3).
 
 **What the timelock is for.** `XFER_TIMELOCK` is the window in which **the
 owner can cancel their own pending transfer** with a `K` (§6 `K`) — a
@@ -1859,9 +865,12 @@ NNS1K<name>
 
 Vetoes a pending `X`, or withdraws an `O` past `OFFER_IRREVOCABLE` —
 all effective on inclusion, and **a single `K` cancels everything currently
-cancellable** on the name. A `K` with nothing to cancel forfeits with
-`NOTHING_TO_CANCEL`: the value at stake is `DUST_VALUE`, and the log then
-records why the message had no effect instead of a misleading `OK`. The r6 `CANCEL_DELAY` is gone: with escrowed
+cancellable** on the name. An open auction is not cancellable (§6 `A`) —
+bidders have committed money against the window — so a `K` on a name whose
+only pending item is an auction finds nothing. A `K` with nothing to cancel
+forfeits with `NOTHING_TO_CANCEL`: the value at stake is `DUST_VALUE`, and
+the log then records why the message had no effect instead of a misleading
+`OK`. The r6 `CANCEL_DELAY` is gone: with escrowed
 settlement (§6 `B`), a cancellation racing an incoming `B` costs the buyer a
 refund wait rather than their money, so the delay no longer bought anything.
 
@@ -1917,9 +926,11 @@ NNS1O<name>|<price_in_luna>
   point: the floor is set by what a name costs, not by what arithmetic
   tolerates
 - Sender must be the current owner
+- Forfeits `AUCTION_OPEN` while an auction is open on the name (§6 `A`),
+  checked after the owner and before the price
 
 Irrevocable for `OFFER_IRREVOCABLE` blocks, then cancellable via `K`,
-auto-expiring at `OFFER_MAX_LIFETIME`.
+auto-expiring at `OFFER_MAX_LIFETIME`. An `A` for the name voids it (§6 `A`).
 
 ### `B` — Buy
 
@@ -1941,6 +952,13 @@ The winning payment creates a debt: the marketplace owes the seller the
 price, discharged with `M`. Every other `B` — the race loser, a `B` against
 a cancelled or expired offer, a wrong value — creates the opposite debt: the
 marketplace owes its sender a refund, also discharged with `M` (§7.4).
+
+**A `B` on a name with an open auction is a bid** (§6 `A`, r28): its value is
+the bid, a bid short of what the auction requires refunds under
+`WRONG_PRICE`, and a bid that stands moves no ownership — the close does
+that, at the end height. State decides which kind of `B` a message is, and
+because an auction and an offer never coexist on a name, it decides
+unambiguously.
 
 This is the one deliberately custodial piece of NNS. The direct
 buyer-to-seller alternative was rejected in r7 because it let a race
@@ -2039,57 +1057,100 @@ accepting custody in §6 `B`.
 ### `A` — Auction
 
 ```
-NNS1A<name>|<reserve>|<end_height>
+NNS1A<name>|<starting_price>|<end_height>
 ```
 
 - **Size:** 5 + 24 + 1 + 15 + 1 + 10 = **56 bytes** max
 - **To:** `PROTOCOL_ADDRESS`, value `DUST_VALUE`
-- Sender must be the current owner, or `ADMIN_ADDRESS` for a name in
-  `RESERVED_NAMES`
-- `end_height` must be at least `AUCTION_MIN_DURATION` ahead
+- Sender must be the current owner of a `REGISTERED` name, or
+  `ADMIN_ADDRESS` for a name still held in `RESERVED_NAMES` (§4.1) — the
+  two auctions are told apart by whether the name has a record, and that is
+  decided before the sender is looked at
+- `starting_price` MUST be ≥ `MIN_PRICE`, for the reasons §6 `O` gives and one
+  more: the increment rule below is `⌊standing × AUCTION_MIN_INCREMENT⌋`, and
+  at a token starting price it rounds to zero, so the floor is what keeps a bid from
+  "raising" by nothing
+- `starting_price` is exactly that: the least a first bid can carry, public
+  in the pending entry (§8.1). A bid short of it is refunded on arrival and
+  never stands. The field was `reserve` until 2026-09-04; it was renamed
+  because an auction-house reserve is a hidden threshold that bids *below*
+  still stand under, which is the opposite of this rule. Bytes unchanged
+- `end_height` MUST be at least `AUCTION_MIN_DURATION` above the height of
+  the block the message landed in — measured from inclusion like `P`'s
+  notice, and forfeiting `INSUFFICIENT_NOTICE` on the same terms
+- For the owner's auction, `end_height` MUST be below the name's `expiry`
+  — an auction sells the current term, and the close hands over the current
+  expiry. Forfeits `AUCTION_BEYOND_TERM`; the expiry is in the checkpoint
+  tree (§8.1), so a correct client prevents it. An admin auction of a
+  still-reserved name has no term to fit
 
-**v1 status: parsed, logged, and forfeited with `AUCTION_NOT_IN_V1`.** This
-is a protocol-version statement, not an implementation gap: a v1-conformant
-implementation MUST take that forfeit, because one that honoured auctions
-would derive a different root from one that did not. Activating `A` is a
-spec-version event from a stated height. A `B` naming a non-existent auction
-refunds under `OFFER_NOT_OPEN`. The `reserve` carries the same `MIN_PRICE`
-floor as an `O` price, for the same reasons, and the increment rule depends
-on it: at a token reserve the 5% raise rounds to zero and the auction
-becomes a dust-spam surface. In v1 no `A` reaches that check — a
-below-floor reserve still forfeits `AUCTION_NOT_IN_V1`, because the reason
-code goes into the log and the log is committed to (§8.2). The floor check
-precedes this one on the version that activates auctions.
+**Check order, after §5.3 routing:** name state (`NAME_NOT_REGISTERED` for a
+grace name, `NAME_NOT_FOUND` for a name nobody could auction), then the
+sender (`NOT_OWNER` / `NOT_ADMIN`), then `AUCTION_OPEN`, then the starting price
+floor, then the window's length, then its end against the term — state,
+authority, pending status, payload, as `O`'s order already runs (§7.4).
 
-**One exception, and only one: routing still runs first.** An `A` sent
-anywhere but `PROTOCOL_ADDRESS` forfeits `WRONG_RECIPIENT`, not
-`AUCTION_NOT_IN_V1`. §5.3 routing precedes every type's own rules for every
-message in the protocol, and `A` is not carved out of that — a message at the
-wrong address has not reached the handler whose version status is in question.
-Read "every `A` forfeits `AUCTION_NOT_IN_V1`" as ranging over the `A`s that
-are correctly addressed; every other rule in this clause, the `MIN_PRICE`
-floor included, sits *after* the version forfeit rather than before it.
-Through r20 the sentence was absolute and the exception was implicit in §5.3,
-which left two defensible readings of a message that puts a different token in
-the log hash.
+**Opening voids the owner's own pending `X` and open `O`.** The auction is
+the latest statement of intent, which is the rule a later `O` or `X` already
+applies to its predecessor; neither holds anyone's money, so nothing is owed.
+From then until the close the auction is **exclusive**: `O`, `X` and a second
+`A` for the name forfeit `AUCTION_OPEN`, and `K` cannot cancel it — bidders
+have committed money against a window they were told in advance, and the
+owner set the starting price. `S`, `E`, `D` and `N` are unaffected.
 
-When active, `A` opens a bidding window instead of settling by ordering.
-Bids reuse `B`, naming the auction rather than an offer, and sit at
-`MARKETPLACE_ADDRESS` exactly as marketplace payments do.
+**Bids are `B`s.** A `B` to `MARKETPLACE_ADDRESS` whose name has an open
+auction is a bid, and its `value` is the bid. State decides which kind of
+`B` a message is, not the client: an auction and an offer never coexist on a
+name, so the same payload can only mean one thing at any height. The rules,
+all deterministic from the log:
 
-Rules, all deterministic from the log:
+- The first bid must meet the starting price; every later one must reach
+  `standing + ⌊standing × AUCTION_MIN_INCREMENT⌋`. Anything less is
+  `REFUND` under `WRONG_PRICE` — a losing bid can be a same-block race, so it
+  is never the bidder's fault
+- **A successful bid refunds the outbid bidder at once**, an obligation on
+  `MARKETPLACE_ADDRESS` keyed by the outbid bid's own `(height, tx_index)`.
+  The marketplace therefore holds exactly one bid per auction, never a pile,
+  and custody is bounded by the standing bid rather than by every bid for the
+  life of the window
+- After a successful bid, `end_height = max(end_height, bid_height +
+  AUCTION_EXTENSION)`: the end is never less than `AUCTION_EXTENSION` after
+  the last bid that stood. Without this, sniping the last block reproduces
+  the race the auction exists to avoid. A refunded bid moves nothing, and
+  there is no cap on extensions — each costs the extender at least
+  `AUCTION_MIN_INCREMENT` more, so the money runs out before the blocks do
+- Two bids in one block are ordered by §5.2; the first sets the standing bid
+  and the second must beat it by the increment, so a tie cannot occur
 
-- A bid must exceed the standing bid by at least `AUCTION_MIN_INCREMENT`, or
-  meet the reserve if it is the first. Anything else is `REFUND`
-- Each time a bid arrives within `AUCTION_EXTENSION` of `end_height`, the end
-  moves to `bid_height + AUCTION_EXTENSION`. Without this, sniping the last
-  block reproduces the race the auction exists to avoid
-- At the end height the highest bid wins; ties break by canonical order
-  (§5.2). The name transfers with the same dependent-state resets as `X`
-  (§7.3), the winning bid settles to the seller via `M` less commission, and
-  **every losing bid is refunded via `M`** — the machinery already exists
-- If the reserve is never met, the name stays with its owner and all bids
-  are refunded
+**The close is a height-driven effect (§7.3), not a message.** At
+`end_height` — as moved by extensions — and before that block's
+transactions, the standing bid wins: the name transfers with the same
+dependent-state resets as `X`, the winner inheriting the current expiry, and
+two legs are created against the **winning bid's** `(height, tx_index)`:
+`SALE_PROCEEDS` to the seller less `COMMISSION_RATE` as in effect at the close
+height (governance activation fires first, §7.3), and `COMMISSION` to
+`TREASURY_ADDRESS` — discharged by `M` exactly as a sale is (§6 `M`). For an
+admin auction of a still-reserved name the seller is `TREASURY_ADDRESS`, the
+close creates the registration on `U`'s award terms — a full `TERM_LENGTH`
+from the close height, nothing set — and the name enters the unreserved set
+(§8.1); both legs then land on the treasury and are told apart by amount, the
+case §6 `M` anticipated. With no standing bid the auction simply ends and the
+name stays where it was; a bid under the starting price was refunded when it
+arrived and never stood, so "the starting price was never met" is the same state
+as "nobody bid". A `B` arriving at or after the close refunds under
+`OFFER_NOT_OPEN`, the ordinary no-offer path.
+
+**An auction cannot open past the name's term, but an extension can carry
+it there.** The opening rule above keeps the window inside the term; a late
+bid can still push the end to or past the expiry. The §7.3 grace reset then
+cancels the running auction exactly as it cancels an `O` or an `X`, and —
+because a bid is money — refunds the standing bid by that bid's own ref;
+when the end lands exactly on the expiry, the expiry fires first, so a
+winner never receives a name that is already in grace. An owner who wants
+the sale renews first. Through 2026-09-02 the opening rule did not exist
+and the close fired ahead of the expiry; the live battery showed the
+collision handing the winner a grace name, and that was judged the wrong
+side to protect.
 
 **Why this is not how ordinary registration works.** Making the highest payer
 win a same-block race would be worse than ordering: today, taking a name from
@@ -2100,20 +1161,20 @@ converts front-running from a producer-only capability into a scripted one
 everyone in advance — price discovery where it is worth having, without
 turning a fixed-price registration into a blind bidding war.
 
-**Deliberately additive — by versioning, not by ignoring.** An unknown type
-character is not ignored: it is rejected with a logged `UNKNOWN_TYPE` verdict
-(§5.2, §7.4), so its lines are in the committed hash, and an implementation
-that started honouring a new type would replay the same history to a
-different log and a different state than one that did not. What makes an
-addition safe is the mechanism this clause already uses for activation: a new
-type arrives by spec revision **from a stated height** — below it every
+**How it got here.** Through r27 an `A` was parsed, logged and forfeited
+`AUCTION_NOT_IN_V1` — by protocol version, not by omission, so that an
+implementation honouring auctions could not silently derive a different root
+from one that did not — with activation deferred to "a spec revision from a
+stated height". r28 activated it before anything launched, when that height
+is simply `LAUNCH_HEIGHT`: every piece the clause leaned on already existed
+(the §7.3 effect engine, the §8.1 pending set, `M`), and the deferral had
+been a judgement about the first cycle's workload, not about the design. The
+token left the vocabulary under §7.4's own rule — no rule on any deployment
+can produce it now — and `AUCTION_OPEN` took its slot, so the count is
+unchanged. The versioning mechanism the old clause described remains the
+way a future type would arrive: below the stated height every
 implementation keeps the `UNKNOWN_TYPE` lines, at and above it every
-implementation honours the type, and no already-derived root moves. `A` is
-the one significant feature taking that path after the wire format freezes,
-and the natural mechanism for releasing the withheld 1–4 character names
-(§4.1). Through r22 this sentence credited §5.2's "ignored", which is not
-what happens to an unknown type — and would not have been sufficient if it
-were, since honouring a new type moves state whatever the log does.
+implementation honours the type, and no already-derived root moves.
 
 ### `P` — Governance
 
@@ -2237,7 +1298,7 @@ a period where the admin owns a name it was given to pass on.
 notice: an award reaches only `RESERVED_NAMES`, which by definition holds names
 with no owner, so it can never move, revoke or shorten a name somebody holds
 (§10.6). It cannot award to itself at all — that is a self-transaction, dropped
-silently by the network (§5.3). It spends the reserve one name and one public
+silently by the network (§5.3). It spends the starting price one name and one public
 transaction at a time. And the remedy was always a fork rather than a bound
 (§10.6): the notice bought hours in front of a response that takes days to
 coordinate, and it bought them for the attacker's opponent and the frontrunner
@@ -2390,6 +1451,7 @@ Consequences, stated so no implementation guesses:
 ```
 RESERVED ──U to PROTOCOL_ADDRESS───▶ AVAILABLE
 RESERVED ──U to any other address──▶ REGISTERED (awardee)
+RESERVED ──A + B… (close)──────────▶ REGISTERED (winner)
 
 AVAILABLE ──G──▶ REGISTERED ──expiry──▶ GRACE ──+30d──▶ AVAILABLE
                       │
@@ -2397,7 +1459,8 @@ AVAILABLE ──G──▶ REGISTERED ──expiry──▶ GRACE ──+30d─�
                       ├──S──────────────────▶ target changed
                       ├──E──────────────────▶ EVM address set/cleared
                       ├──D──────────────────▶ delegate host set/cleared
-                      └──O + B──────────────▶ REGISTERED (buyer)
+                      ├──O + B──────────────▶ REGISTERED (buyer)
+                      └──A + B… (close)─────▶ REGISTERED (winner)
 ```
 
 During `GRACE` the name does not resolve, dotted queries under it fail, and
@@ -2447,34 +1510,44 @@ almost every test and then commits a root containing an expired name still
 
 Effects due at one height fire **before that block's transactions**, in a
 fixed order: governance activation, maturing `X`, expiry to `GRACE`, grace
-release to `AVAILABLE`, offer expiry — ties within a category bytewise by
-name. The order is consensus-relevant: a maturing `X` colliding with an expiry
-genuinely diverges (transfer-first hands the name over and then places it in
-`GRACE`; expire-first voids the transfer). Transfer fires first because it was
-scheduled before the expiry came due, and because the grace reset exists to
-stop a lapsed name answering for subdomains, not to void a transfer already
-in flight.
+release to `AVAILABLE`, **auction close** (§6 `A`, r28), offer expiry — ties
+within a category bytewise by name. The order is consensus-relevant: a
+maturing `X` colliding with an expiry genuinely diverges (transfer-first hands
+the name over and then places it in `GRACE`; expire-first voids the transfer).
+Transfer fires first because it was scheduled before the expiry came due, and
+because the grace reset exists to stop a lapsed name answering for
+subdomains, not to void a transfer already in flight. The auction close sits
+after governance activation so the commission it owes is at the rate active
+at the close height, exactly as a `B` in that block would be charged, and
+**after the expiry and the grace release**: an `A` cannot open past the term
+(§6 `A`), so the two meet only when an extension pushed an end exactly onto
+the expiry, and there the seller who let the term lapse keeps a grace name
+while the bidder is refunded — closing first would have handed the winner a
+name already in grace. A close and a maturing `X` can never collide on one
+name: an open auction excludes `X`.
 
 **There is no unreserve step.** Through r21 this list had six categories, with
 unreserve activation second. r22 made a `U` take effect in the block it lands
 in (§6 `U`), so nothing about a release or an award is ever scheduled and there
-is nothing for a height to fire. The remaining five keep their relative order,
-which is the only thing consensus depends on; `P` activation is now the only
-governance effect driven by height at all.
+is nothing for a height to fire. The remaining five kept their relative order,
+which is the only thing consensus depends on, and r28 inserted the auction
+close as a sixth; `P` activation is the only governance effect driven by
+height at all.
 
 A `U` therefore competes with the transactions in its own block on the ordinary
 §7.2 ordering rather than preceding all of them — see §6 `U`, "Ordering inside
 the landing block", for what a same-block `G` sees from either side of it.
 
 **Dependent-state resets.** When a transfer takes effect (`X` after its
-timelock, or `B`): `owner` and `target` both become the new owner, the EVM
-address and the delegate host are cleared, open offers are cancelled, and
-any pending `X` is void. A clean slate is the safe default — in
+timelock, `B`, or an auction closing): `owner` and `target` both become the
+new owner, the EVM address and the delegate host are cleared, open offers are
+cancelled, and any pending `X` is void. A clean slate is the safe default — in
 particular, the old target must not keep receiving funds sent to the name,
 and the old owner's EVM key must not keep answering for it —
 and the new owner reconfigures explicitly. On entering `GRACE`: the delegate
 host is cleared (a lapsed name cannot keep answering for its subdomains),
-and open offers and any pending `X` are cancelled; the EVM address
+open offers and any pending `X` are cancelled, and an open auction is
+cancelled with its standing bid refunded (§6 `A`); the EVM address
 persists, like `owner` and `target`, so a grace-then-renew round trip does
 not force the owner to re-declare it. On falling to
 `AVAILABLE`, all state for the name is cleared.
@@ -2500,14 +1573,21 @@ the message before the race does.
 - `G` whose name is invalid per §4.1 or reserved — checkable offline
 - `G` for a name in `GRACE` — the status and its end height are provable
   from the checkpoint tree (§8.1), so a correct client prevents it
-- `S`, `O`, `D`, `E`, `X`, `K` from anyone other than the current owner
-- `O` whose price is below `MIN_PRICE` (§6 `O`). The floor is `FEE_LONG` as
+- `S`, `O`, `D`, `E`, `X`, `K`, `A` from anyone other than the current owner
+- `O` whose price, or `A` whose starting price, is below `MIN_PRICE` (§6 `O`, §6
+  `A`). The floor is `FEE_LONG` as
   in effect at that height, and the active prices are committed to in every
   checkpoint (§8.1), so a correct client can prove it before sending. The
   payload is checked before the value carried, exactly as a `G`'s name
   syntax is: a message whose own payload is unusable is rejected on that
   ground whatever it paid
-- `X`, `S`, `D`, `E` on an expired or grace-period name
+- `O`, `X` or a second `A` on a name with an open auction (§6 `A`, r28) —
+  the auction is in the committed pending set (§8.1), so a correct client
+  prevents it; and `A` from anyone but `ADMIN_ADDRESS` for a name still held
+  in `RESERVED_NAMES`, or for a name nobody could auction, or with less than
+  `AUCTION_MIN_DURATION` of window from the landing block, or — the owner's
+  — with an end at or past the name's expiry
+- `X`, `S`, `D`, `E`, `A` on an expired or grace-period name
 - `D` whose host exceeds `MAX_HOST_LEN` or includes a scheme
 - `P` from any sender other than `ADMIN_ADDRESS`, violating a §10.6 bound, or
   carrying less than `GOVERNANCE_DELAY` notice — counted from the height of the
@@ -2544,6 +1624,11 @@ via `M` (§6):
 - Any `B` that does not win an open offer — the race loser, a `B` against a
   cancelled or expired offer, or a `B` whose value is not exactly the price
   — owed by `MARKETPLACE_ADDRESS`
+- Any bid that does not stand (§6 `A`) — short of the starting price or of the
+  increment over the standing bid, which can be a same-block race — and
+  **every bid that is outbid**, refunded the moment a higher one lands, owed
+  by `MARKETPLACE_ADDRESS` and keyed by the bid's own transaction. A bid
+  standing when the grace reset cancels the auction is refunded the same way
 
 Registration and purchase races are the same kind of loss and are handled
 the same way. Earlier revisions gave registration a *credit* ledger instead,
@@ -2602,17 +1687,18 @@ against a message of a listed type.
 | `INVALID_NAME` | `G` `U` | Name fails §4.1 rules 2–5 or the rule 1 ceiling. The floor never fires here: a 1–4 character name satisfying rules 2–5 is reserved by rule (§4.1), so a `G` for one takes `RESERVED_NAME` while it is held and is a normal registration once a `U` has released it. Rule 6 is inverted for `U`, since a `U`'s name must be *in* `RESERVED_NAMES` |
 | `RESERVED_NAME` | `G` | Name currently in `RESERVED_NAMES` — on the published list or reserved by rule (§4.1) — and not yet removed from it by a fired `U` |
 | `NAME_IN_GRACE` | `G` | Name exists in `GRACE` |
-| `NAME_NOT_REGISTERED` | `S` `X` `D` `E` `O` | Name absent, expired, or in `GRACE` — these types require `REGISTERED` |
-| `NAME_NOT_FOUND` | `K` `N` | Name has no record at all. Distinct from the row above because `K` and `N` are valid against a name in `GRACE` |
-| `NOT_OWNER` | `S` `X` `D` `E` `O` `K` | Sender is not the current owner |
+| `NAME_NOT_REGISTERED` | `S` `X` `D` `E` `O` `A` | Name absent, expired, or in `GRACE` — these types require `REGISTERED`. For `A`, a name *with a record* that is not `REGISTERED`; a name with none takes the row below |
+| `NAME_NOT_FOUND` | `K` `N` `A` | Name has no record at all. Distinct from the row above because `K` and `N` are valid against a name in `GRACE`. For `A`: no record and not held in `RESERVED_NAMES` either — nobody's to auction (§6 `A`) |
+| `NOT_OWNER` | `S` `X` `D` `E` `O` `K` `A` | Sender is not the current owner |
 | `INVALID_HOST` | `D` | Host fails any §6 `D` rule: over `MAX_HOST_LEN`, a character outside the §6 `D` alphabet (which is how a scheme is caught — `:` is not in it), or a leading/trailing/consecutive-character rule. Never `MALFORMED_PAYLOAD` — a bad host still splits into fields per §5.2, so the payload parses and the host is judged as content |
-| `NOT_ADMIN` | `P` `U` | Sender is not `ADMIN_ADDRESS` |
-| `INSUFFICIENT_NOTICE` | `P` | `effective_height` less than `GOVERNANCE_DELAY` above the height of the block the message landed in. **`P` only since r22** — `U` no longer carries a height |
+| `NOT_ADMIN` | `P` `U` `A` | Sender is not `ADMIN_ADDRESS` — for `A`, on a name still held in `RESERVED_NAMES` (§6 `A`) |
+| `INSUFFICIENT_NOTICE` | `P` `A` | `effective_height` less than `GOVERNANCE_DELAY` above the height of the block the message landed in; for `A` (r28), `end_height` less than `AUCTION_MIN_DURATION` above it. `U` left this row in r22 — it no longer carries a height |
 | `NAME_NOT_RESERVED` | `U` | Name is absent from `RESERVED_NAMES`, or a `U` for it has already fired. Since r22 this is also what a second `U` for the same name earns: the first one fired on landing, so there is nothing pending to collide with |
 | `GOVERNANCE_BOUND_VIOLATED` | `P` | A §10.6 bound exceeded, measured against the **active** prices |
 | `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no `O` past `OFFER_IRREVOCABLE` |
-| `BELOW_MIN_PRICE` | `O` | Price below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
-| `AUCTION_NOT_IN_V1` | `A` | Every `A` that survives the recipient check — it precedes every check on the payload, so a below-reserve `A` takes this token rather than `BELOW_MIN_PRICE` (§6 `A`) |
+| `BELOW_MIN_PRICE` | `O` `A` | Price, or starting price, below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
+| `AUCTION_OPEN` | `O` `X` `A` | An auction is open on the name (§6 `A`): the owner cannot list, transfer, or auction it again until the close. Checked after the owner row and before any payload row |
+| `AUCTION_BEYOND_TERM` | `A` | The owner's `end_height` is at or past the name's `expiry` (§6 `A`): an auction sells the current term. The last payload row, after the window's length |
 | `BELOW_REFUND_FLOOR` | `G` `B` | A message that would otherwise be refundable, carrying less than `REFUND_FLOOR`. The only token that crosses columns |
 
 `OVER_LENGTH` is **unreachable on mainnet**. The network caps transaction
@@ -2625,7 +1711,7 @@ still forfeit here — but no mainnet log can ever contain it.
 
 That is an instance of the rule this vocabulary is maintained under: **a
 token is dropped when the protocol makes it unreachable, and kept when only
-the environment does.** `TOO_SOON` (r20) and `UNRESERVE_PENDING` (r22) went
+the environment does.** `TOO_SOON` (r20), `UNRESERVE_PENDING` (r22) and `AUCTION_NOT_IN_V1` (r28) went
 because after their revisions no rule on *any* deployment could produce them.
 The 64-byte cap is a measured Nimiq property, not an NNS constant: were a
 Nimiq upgrade to raise it, over-length payloads would start landing in blocks
@@ -2638,8 +1724,8 @@ by an `M` (§6).
 | Token | Types | Owed by | Condition |
 |---|---|---|---|
 | `LOST_REGISTRATION_RACE` | `G` | `TREASURY_ADDRESS` | Name was taken by a transaction ordered ahead of this one |
-| `OFFER_NOT_OPEN` | `B` | `MARKETPLACE_ADDRESS` | No open offer: the race loser, a cancelled or expired offer, or a bid against an auction. All refund identically, so the log does not distinguish them |
-| `WRONG_PRICE` | `B` | `MARKETPLACE_ADDRESS` | Value is not **exactly** the offer price — over as well as under (§10.5) |
+| `OFFER_NOT_OPEN` | `B` | `MARKETPLACE_ADDRESS` | Neither an open offer nor an open auction: the race loser, a cancelled or expired offer, or a `B` after an auction closed. All refund identically, so the log does not distinguish them |
+| `WRONG_PRICE` | `B` | `MARKETPLACE_ADDRESS` | Against an offer, value is not **exactly** the price — over as well as under (§10.5). Against an auction, the bid is short of the starting price or of the increment over the standing bid (§6 `A`) |
 
 **Check order.** A message can fail several of the rows above at once, and
 only the first one reached is written, so the order is as normative as the
@@ -2661,13 +1747,13 @@ each type runs its rows in this order:
 | `S` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
 | `E` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
 | `D` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `INVALID_HOST` |
-| `X` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
+| `X` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN` |
 | `K` | `NAME_NOT_FOUND`, `NOT_OWNER`, `NOTHING_TO_CANCEL` |
 | `N` | `NAME_NOT_FOUND`, `INSUFFICIENT_VALUE` |
-| `O` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE` |
-| `B` | `OFFER_NOT_OPEN`, `WRONG_PRICE` |
+| `O` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE` |
+| `B` | `OFFER_NOT_OPEN`, `WRONG_PRICE` — with an auction open, the bid path has only `WRONG_PRICE` (§6 `A`) |
 | `M`, `F` | `WRONG_SENDER` |
-| `A` | `AUCTION_NOT_IN_V1` |
+| `A` | `NAME_NOT_REGISTERED` / `NAME_NOT_FOUND` (which auction this is), `NOT_OWNER` / `NOT_ADMIN`, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM` — state, authority, pending status, payload (§6 `A`) |
 | `P` | `NOT_ADMIN`, `INSUFFICIENT_NOTICE`, `GOVERNANCE_BOUND_VIOLATED` |
 | `U` | `NOT_ADMIN`, `INVALID_RECIPIENT`, `INVALID_NAME`, `NAME_NOT_RESERVED` |
 
@@ -2706,6 +1792,7 @@ Applied before any other rule, and before a message is even parsed:
 | `executionResult` is `false` | **Albatross includes failed transactions in blocks.** Without this rule a failed `G` could take a name, and two implementations disagreeing about it would produce different roots |
 | Reward transactions | `getTransactionsByBatchNumber` returns them alongside user transactions; they carry no `NNS1` payload but must not be counted in ordering either |
 | `networkId` is not ours | Guards against a misconfigured node fed by a different network |
+| Height below `LAUNCH_HEIGHT` | Nothing before launch is protocol material. §7.1's scan starts at `LAUNCH_HEIGHT`; a pre-launch `NNS1`-shaped payload a node serves anyway must not become a message |
 | `recipientData` does not begin with `NNS1` | The ordinary case — most chain traffic is not NNS |
 
 The `executionResult` rule is the one that matters: it is invisible in the
@@ -2785,9 +1872,11 @@ Three things beyond the name tree are consensus-relevant state and MUST be
 committed to in the checkpoint alongside it, or independent replays diverge:
 
 - The **active prices and commission rate** (§10.6).
-- The **pending set** — in-flight `X`, open offers, **and any pending `P`**,
-  each with its effective or expiry height. A pending `P` decides what a later
-  registration costs, and is as consensus-relevant as a pending transfer.
+- The **pending set** — in-flight `X`, open offers, open auctions (r28) **and
+  any pending `P`**, each with its effective, expiry or end height. A pending
+  `P` decides what a later registration costs, and is as consensus-relevant as
+  a pending transfer; an open auction decides what the next `B` on the name
+  means and who holds it at the close.
   Through r21 a pending `U` was a fourth category here; r22 made a `U` take
   effect on landing (§6 `U`), so nothing of the sort exists to commit.
 - The **unreserved set** — the names whose `U` has already taken effect.
@@ -2822,6 +1911,7 @@ the log hash and the height into the single value an anchor publishes (§9).
 | `0x08` | a pending `P` |
 | `0x09` | *retired* — carried a pending `U` through r21; see below |
 | `0x0A` | the unreserved set |
+| `0x0B` | an open `A` (r28) |
 
 Field conventions, throughout: heights and luna amounts are **`u64-BE`**;
 addresses are the raw **20 bytes**, never the `NQ` string, and an unset address
@@ -2834,7 +1924,7 @@ prices     = keccak256(0x03 ‖ fee_standard:u64-BE ‖ fee_long:u64-BE
 ```
 
 The pending set is one entry per pending item, concatenated **in category
-order** — transfers, offers, governance — and, inside a category,
+order** — transfers, offers, auctions, governance — and, inside a category,
 bytewise-lexicographically by name. There is at most one pending `P`, and it is
 the one entry carrying no name.
 
@@ -2843,6 +1933,8 @@ transfer   = 0x05 ‖ len(name):u8 ‖ name ‖ new_owner:20B
                   ‖ effective_height:u64-BE
 offer      = 0x07 ‖ len(name):u8 ‖ name ‖ seller:20B ‖ price:u64-BE
                   ‖ opened_height:u64-BE ‖ expiry_height:u64-BE
+auction    = 0x0B ‖ len(name):u8 ‖ name ‖ seller:20B ‖ starting_price:u64-BE
+                  ‖ end_height:u64-BE ‖ bidder:20B ‖ bid:u64-BE
 governance = 0x08 ‖ prices(proposed):32B ‖ effective_height:u64-BE
 
 pending    = keccak256(0x04 ‖ entry₁ ‖ entry₂ ‖ … ‖ entryₙ)
@@ -2859,16 +1951,29 @@ a tag it no longer expects fails on a tag it knows, rather than misreading a
 renumbered one it thinks it understands. The pending `P` entry embeds the
 32-byte `prices` digest of the **proposed** prices rather than their fields.
 
-**Removing the unreserve category moves no bytes.** The concatenation above
-carries no separators and no entry count, so a category with no entries
-contributes nothing; through r21 the unreserves category was empty in every
-state with no `U` in flight, and under r22 it is empty in every state there is.
-A commitment derived under r22 is therefore byte-identical to the r21
-commitment over the same state, `COMMITMENT_LAYOUT` stays **`4`**, and no root
-already published becomes incomparable. What does change is the §8.2 log — a
-`U`'s `<data>` is 11 bytes shorter and its verdict may differ — so a database
-whose scanned range contains a `U` must be rebuilt even though the layout did
-not move.
+**The auction entry** (r28) carries the seller — the owner who opened it, or
+`TREASURY_ADDRESS` for an admin auction of a still-reserved name — the
+starting price, the end height *as moved by extensions*, and the standing bidder and
+bid: 20 zero bytes and 0 until a bid has met the starting price, so a client can
+prove "no bid stands" from the checkpoint alone. The standing bid's own
+`(height, tx_index)` — what the close's two `M` legs will name — is
+deliberately **not** in the entry: it is settlement identity, kept out of the
+commitment on the same terms as the obligations below.
+
+**Removing the unreserve category moved no bytes, and adding the auction
+category moves none either.** The concatenation above carries no separators
+and no entry count, so a category with no entries contributes nothing;
+through r21 the unreserves category was empty in every state with no `U` in
+flight, and under r22 it is empty in every state there is. A commitment
+derived under r22 is therefore byte-identical to the r21 commitment over the
+same state, and on the same argument every r28 commitment over a state with
+no auction open — which is every state any r27 implementation could reach —
+equals its r27 value. `COMMITMENT_LAYOUT` stayed **`4`** through r22 and
+stays **`5`** through r28, and no root already published becomes
+incomparable. What does change is the §8.2 log — a `U`'s `<data>` is 11 bytes
+shorter and its verdict may differ; an `A`'s verdict is no longer a forfeit
+and a `B` on an auctioned name is a bid — so a database whose scanned range
+contains one must be rebuilt even though the layout did not move.
 
 With nothing pending the concatenation is empty and `pending` is
 `keccak256(0x04)`, the hash of the lone tag byte. Note the asymmetry with the
@@ -2912,7 +2017,7 @@ The reference implementation's `merkle.json` conformance vectors pin every value
 above, all three empty forms included. They track this clause: `0x0A` and the
 six unreserved cases landed with r16, the pending `U`'s 20-byte `recipient`
 with r17, the name leaf lost `recovery:20B` with r20 and gained `evm:20B`
-with r26 — each regeneration
+with r26, and the open-auction entry landed with r28 — each regeneration
 recorded in the file's own `spec` field. r22 removes the pending-`U` cases:
 **every case whose state is still reachable keeps its r21 value, byte for
 byte**, which is the file-level form of the argument above. The two that existed
@@ -3388,13 +2493,17 @@ Events rather than storage — logs live in the receipt trie, are independently
 verifiable, and cost a fraction of an `SSTORE`.
 
 Cadence: **on change, with a daily floor**, to one chain. The publisher
-runs on a schedule (every few hours), anchors when the current commitment
-differs from the one it last anchored — which it already reads from the
+runs on a schedule (every few hours), anchors when the log digest differs
+from the one its own last anchor carries — which it already reads from the
 chain for idempotency — and anchors **unconditionally when its newest
 anchor is older than 24 hours**, so a live publisher over a quiet registry
 still attests daily and a stale anchor still means what §8.5 #8 needs it to
-mean: the publisher stopped, not the registry. Every root also published to
-the NNS API and the repo.
+mean: the publisher stopped, not the registry. The log digest, not the
+commitment, is the change signal: §8.1 binds the checkpoint height into
+the commitment, so it differs at every checkpoint even over an unchanged
+registry, while an unchanged log means an unchanged registry — state moves
+only through logged messages. Every root is also served by
+the NNS API's checkpoint documents.
 
 An anchor is an event emission of roughly 30k gas — fractions of a cent on
 any cheap EVM chain — so gas was never the constraint; even hourly would
@@ -3417,8 +2526,10 @@ in gas and remains the wrong trade for the same churn reason.
 **Nothing in this specification depends on which chain the anchor contract
 lives on.** Chain id, contract address and RPC endpoints are client and
 publisher *configuration*; the contract below is plain Solidity with no
-chain-specific opcode, precompile or assumption, and deployed through
-`CREATE2` with a fixed salt it takes the same address on any EVM chain.
+chain-specific opcode, precompile or assumption, so it deploys unchanged on
+any EVM chain — and whether a configured address holds it is checked against
+the committed bytecode with one `eth_getCode`, never inferred from how the
+address was derived.
 Moving to a different chain, or anchoring to a second one in parallel, is a
 deployment decision and a change to a config value — it needs **no revision
 of this document**. A future reader should treat the chain named below as
@@ -3552,7 +2663,7 @@ is unverifiable, because nobody can know which history to replay.
 
 | Length | Fee | Rationale |
 |---|---|---|
-| 1–4 | reserved | Auctioned later under a v2 spec |
+| 1–4 | reserved | Released by the admin — auctioned (§6 `A`) or awarded (§6 `U`) |
 | 5–11 | `FEE_STANDARD` — 2,000 NIM (~$1) | The desirable range |
 | 12+ | `FEE_LONG` — 400 NIM (~$0.20) | Effectively free to a user; still bounds the log |
 
@@ -3799,7 +2910,7 @@ touching the ownership of a name that *has* an owner, and *adding* to
 The ownership line is worth stating precisely, because the `U` award crosses
 part of it. Governance can give away a name in `RESERVED_NAMES`, which by
 construction nobody owns; it can never move, revoke, shorten, or expire a name
-somebody holds. An award is the namespace's reserve being spent, not a
+somebody holds. An award is the namespace's starting price being spent, not a
 registry entry being rewritten, and every one of them is public in the block it
 binds in.
 Changing validity or the length threshold retroactively would reprice or
@@ -3986,17 +3097,14 @@ Decisions pending:
    should ever become REQUIRED rather than optional
 5. Whether the Mopsus "name your address by burning 1 Luna" feature from the
    PoW chain still exists, and whether to acknowledge it as prior art
-6. **Two mini-app SDK questions, testable with the SDK probe already
-   built:** can a mini app set the transaction **value** (every fee-bearing
-   message depends on it), and does a mini-app-supplied **fee** survive to
-   signing (decides whether §16.2's fee-gate is viable)? The provider's
-   `sendBasicTransaction` takes a `fee` parameter, but the native Nimiq Pay
-   UI sets the fee to 0 and does not let a user edit it (Nimiq team,
-   2026-08-13) — one send test once consensus returns settles it. Plus, for
-   the Nimiq team: can the
-   framework pin a build by **content hash** rather than a live URL (§2.2,
-   mitigation 3) — the only thing that would narrow the client-delivery
-   hole without wallet-native resolution
+6. ~~Two mini-app SDK questions~~ — **answered on device 2026-08-21**: the
+   §10.5 probe ran on a post-fork Nimiq Pay build and the confirmation
+   sheet honours the app's **value** and **fee** exactly, so every
+   fee-bearing message is sendable from the mini app and §16.2's fee-gate
+   is viable. The content-hash-pinning half is **closed 2026-08-29,
+   dropped without asking**: hard to implement, questionable result, and
+   nobody would deploy it — §2.2's remaining mitigations stand on their
+   own
 7. Integrator share rate and `ref` issuance process (§10.7)
 8. Whether the publisher stipend exists in v1 at all (§10.7)
 9. Whether a Nimiq-side log attestation message (an `L` type carrying the
@@ -4005,11 +3113,15 @@ Decisions pending:
    §1's simplicity principle argues against a message type that buys nothing
    new — but it would make the log addressable to a client with no EVM
    access at all
-10. What the client does at launch, when `RESOLVER_QUORUM` independent
-    resolvers do not yet exist. Options: ship with quorum 1 and a visible
-    *unverified — single resolver* banner until a second operator appears,
-    or run a second resolver on separate infrastructure as an interim
-    (weaker: same party, but survives a single-host compromise)
+10. ~~What the client does at launch, when `RESOLVER_QUORUM` independent
+    resolvers do not yet exist~~ — **decided 2026-08-14** (decisions.md,
+    "Launch quorum is 1, the operator is named, and the path to 2 is
+    written down"): launch is quorum 1 with "Verified by 1 resolver" and
+    the party named — alarm vocabulary stays reserved for halting
+    failures, so no *unverified* banner — and since 2026-08-28 every
+    agreeing resolver is named by its endpoint URL. The interim
+    same-owner second resolver exists too (weaker: same party, but it
+    survives a single-host compromise)
 
 (Resolved in r6: the `0`/`1` boundary clause was adopted, and the
 recovery-address mechanism became the `R` message — **undone in r20, which
@@ -4040,6 +3152,9 @@ functional on first use, not a prototype.
 6. Run-your-own-indexer tutorial, both paths
 7. EVM anchoring
 8. Marketplace (`O` + `B` + the `M` settlement service)
+9. Auctions (`A`, bids through `B`, the close as a §7.3 effect) — deferred to
+   "v2" until 2026-09-02, then found to lean on nothing step 8 had not
+   already built; `tasks/13-auction.md`
 
 Step 5 is small in code and large in pitch — it is the piece that makes the
 exchange story real, so it should not be cut before step 7 or 8.
@@ -4072,7 +3187,7 @@ exchange story real, so it should not be cut before step 7 or 8.
   §2.2 argument for why an app should ship its own client rather than
   iframe someone else's
 - **Delegate resolver reference implementation** — a ~100-line service an
-  exchange can deploy to answer `/nns/v1/resolve/<label>`, plus a one-page
+  exchange can deploy to answer `GET /<parent>/<label>` (§8.6), plus a one-page
   integration guide. This is what turns the exchange story from a claim into
   something a partner can adopt in an afternoon.
 - **Run-your-own-indexer tutorial, two paths:**

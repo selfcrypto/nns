@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   CONSTANTS,
   commissionOn,
+  encodeAuction,
   encodeBuy,
   encodeOffer,
   encodeRegister,
@@ -72,7 +73,7 @@ const hex = (bytes: Uint8Array): string => Array.from(bytes, (b) => b.toString(1
 const snapshotOf = (lines: readonly string[], checkpointHeight: number, bound = true): LogSnapshot =>
   Object.freeze({ lines, checkpointHeight, logHash: hex(logHash(lines)), boundToCheckpoint: bound })
 
-const replayOf = (lines: readonly string[]) => replayLog(lines, initialState(), config)
+const replayOf = (lines: readonly string[], through: number = CP1) => replayLog(lines, initialState(), config, through)
 
 // ── A stub API whose checkpoint and log can be moved between polls ───────────
 
@@ -179,7 +180,7 @@ describe('takeSnapshot', () => {
   it('ages a leg against the checkpoint, not against a clock', () => {
     const lines = stageLog(saleScenario(config), config).lines
     const early = takeSnapshot(snapshotOf(lines, CP1), replayOf(lines))
-    const later = takeSnapshot(snapshotOf(lines, CP2), replayOf(lines))
+    const later = takeSnapshot(snapshotOf(lines, CP2), replayOf(lines, CP2))
 
     const age = (s: typeof early): number => s.due[0]?.ageBlocks ?? -1
     expect(age(early)).toBe(CP1 - H.buy)
@@ -211,6 +212,45 @@ describe('takeSnapshot', () => {
 })
 
 // ── The three refusals ──────────────────────────────────────────────────────
+
+describe('takeSnapshot — auctions (r28)', () => {
+  const STARTING_PRICE = PRICE
+  const WINNING = STARTING_PRICE + commissionOn(STARTING_PRICE, CONSTANTS.AUCTION_MIN_INCREMENT_BP)
+  const HA = { open: LAUNCH_HEIGHT + 20, first: LAUNCH_HEIGHT + 30, outbid: LAUNCH_HEIGHT + 31 } as const
+  const END = HA.open + CONSTANTS.AUCTION_MIN_DURATION
+  /** The first checkpoint boundary at or past the end height. */
+  const CLOSE_CP = Math.ceil(END / CONSTANTS.CHECKPOINT_INTERVAL) * CONSTANTS.CHECKPOINT_INTERVAL
+  const auction = () => {
+    const fee = feeFor(NAME, initialState().prices)
+    const floor = minPrice(initialState().prices)
+    return [
+      send(H.register, 0, SELLER, encodeRegister({ name: NAME, fee })),
+      send(HA.open, 0, SELLER, encodeAuction({ name: NAME, startingPrice: STARTING_PRICE, endHeight: END, minPrice: floor })),
+      send(HA.first, 0, LOSER, encodeBuy({ name: NAME, price: STARTING_PRICE })),
+      send(HA.outbid, 0, WINNER, encodeBuy({ name: NAME, price: WINNING })),
+    ]
+  }
+
+  it('owes the outbid bidder at the checkpoint that passes the outbidding B, and the close at the one that passes the end', () => {
+    const { lines } = stageLog(auction(), config)
+    const open = takeSnapshot(snapshotOf(lines, CP1), replayOf(lines, CP1))
+    expect(open.due.map((leg) => leg.key)).toEqual([`${HA.first}:0:REFUND`])
+    expect(open.due[0]).toMatchObject({ owedBy: MARKETPLACE, owedTo: LOSER, amount: STARTING_PRICE })
+
+    // No line after the bid: the close is a height effect, and the due set
+    // has to grow across a checkpoint the log did not gain a line at.
+    const closed = takeSnapshot(snapshotOf(lines, CLOSE_CP), replayOf(lines, CLOSE_CP))
+    expect(closed.due.map((leg) => leg.key)).toEqual([
+      `${HA.first}:0:REFUND`,
+      `${HA.outbid}:0:COMMISSION`,
+      `${HA.outbid}:0:SALE_PROCEEDS`,
+    ])
+    const commission = commissionOn(WINNING, CONSTANTS.COMMISSION_RATE)
+    expect(closed.due[1]).toMatchObject({ owedBy: MARKETPLACE, owedTo: TREASURY, amount: commission })
+    expect(closed.due[2]).toMatchObject({ owedBy: MARKETPLACE, owedTo: SELLER, amount: WINNING - commission })
+    expect(closed.totalDue).toBe(STARTING_PRICE + WINNING)
+  })
+})
 
 describe('takeSnapshot refuses to derive a payment from', () => {
   const lines = stageLog(saleScenario(config), config).lines

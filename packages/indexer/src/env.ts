@@ -1,13 +1,14 @@
 /**
  * Environment → indexer settings.
  *
- * The five §3 values that are still **OPEN** (`LAUNCH_HEIGHT` and the four
- * addresses) are read here and handed to `core`'s `defineConfig`, which
- * validates them. That is the whole reason they are injected: a placeholder
- * cannot survive quietly into a mainnet build if it has to come from the
- * environment of the machine running it. `RESERVED_NAMES` and the `O` listing
- * fee took the opposite route at the launch freeze — they are `CONSTANTS` now,
- * and there is deliberately no environment variable that can set them.
+ * No §3 value comes from here. The launch freeze moved them all —
+ * `LAUNCH_HEIGHT`, the four addresses, `RESERVED_NAMES`, the `O` listing
+ * fee — into `core`'s `CONSTANTS`, and there is deliberately no environment
+ * variable that can set one: what cannot be configured cannot be
+ * misconfigured. `defineConfig` takes `networkId` alone. What the
+ * environment holds is deployment shape — RPC endpoint and credentials,
+ * database, poll cadence, log level, the `NNS_START_MODE` bootstrap block —
+ * and a missing required value is an `EnvError` that names it.
  *
  * No secrets in the repo: `NNS_RPC_PASSWORD` and `NNS_DATABASE_URL` come from
  * the environment, and `.env` is gitignored. `.env.example` is the committed

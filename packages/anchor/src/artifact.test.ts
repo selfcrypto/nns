@@ -40,10 +40,11 @@ describe('the committed artifact is the compilation of the committed source', ()
   })
 
   it('pins the compiler settings that decide the bytecode', () => {
-    // Every one of these is an input to the bytecode and therefore to the
-    // CREATE2 address. `paris` in particular is a deliberate choice, not a
-    // default: it keeps the contract free of PUSH0 and the Cancun opcodes,
-    // which is what lets §9 say it deploys unchanged anywhere EVM.
+    // Every one of these is an input to the bytecode, which is the identity
+    // `verify` and the publisher check deployments against. `paris` in
+    // particular is a deliberate choice, not a default: it keeps the
+    // contract free of PUSH0 and the Cancun opcodes, which is what lets §9
+    // say it deploys unchanged anywhere EVM.
     expect(ARTIFACT.solcVersion).toMatch(/^0\.8\.30\+commit\./)
     expect(ARTIFACT.evmVersion).toBe('paris')
     expect(ARTIFACT.evmVersion).toBe(SETTINGS.evmVersion)
@@ -134,8 +135,9 @@ describe('the contract has no surface beyond anchor()', () => {
 
   it('has no constructor', () => {
     // Two reasons. No constructor arguments means the init code is the same
-    // bytes for everyone, so CREATE2 gives one address on every chain. And a
-    // constructor is where an owner would be set.
+    // bytes for everyone, so any deployment of it is byte-identical and
+    // checkable against the committed artifact. And a constructor is where
+    // an owner would be set.
     expect(abi.some((e) => e.type === 'constructor')).toBe(false)
   })
 
@@ -149,9 +151,9 @@ describe('the contract has no surface beyond anchor()', () => {
 
 describe('deployment identity', () => {
   it('initCodeHash is keccak256 of the creation bytecode', () => {
-    // With no constructor arguments the creation bytecode *is* the init code,
-    // so this hash is the CREATE2 input: address = keccak256(0xff ‖ deployer
-    // ‖ salt ‖ initCodeHash)[12..]. One salt, one address, every EVM chain.
+    // With no constructor arguments the creation bytecode *is* the init
+    // code. The hash is kept for factory (CREATE2) deployments by third
+    // parties; this package's own deploy is plain CREATE.
     expect(INIT_CODE_HASH).toBe(keccakHex(hexToBytes(ARTIFACT.bytecode.slice(2))))
   })
 

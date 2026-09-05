@@ -226,6 +226,32 @@ check(
   'advisory',
 )
 
+// Auctions (§6 A, r28) — a window measured from the landing block, an
+// anti-sniping extension inside it, and an increment that must not round to
+// nothing at the smallest legal starting price.
+check(
+  'auction-extension-inside-duration',
+  'AUCTION_EXTENSION < AUCTION_MIN_DURATION (§6 A — a late bid extends a window, it does not define one)',
+  C.AUCTION_EXTENSION < C.AUCTION_MIN_DURATION,
+  `${C.AUCTION_EXTENSION} < ${C.AUCTION_MIN_DURATION}`,
+)
+check(
+  'auction-closes-inside-term',
+  'AUCTION_MIN_DURATION < TERM_LENGTH — an auction that cannot close before the name expires is only ever cancelled by the grace reset',
+  C.AUCTION_MIN_DURATION < C.TERM_LENGTH,
+  `${C.AUCTION_MIN_DURATION} < ${C.TERM_LENGTH}`,
+)
+{
+  const increment = (C.FEE_LONG * C.AUCTION_MIN_INCREMENT_BP) / C.BASIS_POINTS
+  check(
+    'trap/auction-increment-nonzero',
+    'the increment on a starting price at MIN_PRICE floors above zero (§6 A — the reason the starting price has a floor at all)',
+    increment > 0n,
+    `floor(FEE_LONG ${luna(C.FEE_LONG)} × ${C.AUCTION_MIN_INCREMENT_BP} bp) = ${luna(increment)}` +
+      '\n      at zero a second bid could "raise" by nothing, and the battery\'s outbid rows would never refund anyone',
+  )
+}
+
 // Checkpoints and the launch height (§8.1, §8.8, §0.3/§0.5 of tasks/09).
 check(
   'launch-height-on-boundary',
@@ -292,6 +318,8 @@ for (const key of [
   'GOVERNANCE_DELAY',
   'OFFER_IRREVOCABLE',
   'OFFER_MAX_LIFETIME',
+  'AUCTION_MIN_DURATION',
+  'AUCTION_EXTENSION',
 ]) {
   console.log(`    ${key.padEnd(20)} ${C[key]}`)
 }

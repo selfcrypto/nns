@@ -22,10 +22,10 @@
 openapi: 3.1.0
 info:
   title: NNS resolver API
-  version: 0.2.0
+  version: 0.3.0
   description: >
     Read-only HTTP over the NNS indexer's database: resolution, availability,
-    name detail, ownership listings, offers, parameters, §8.3 Merkle proofs,
+    name detail, ownership listings, offers, auctions, parameters, §8.3 Merkle proofs,
     the §8.2 log, checkpoints, settlements and the burn record. No writes, no
     keys, no protocol rules — every rule and every hash comes from @nns/core.
 
@@ -125,13 +125,14 @@ paths:
       responses:
         '200':
           description: >
-            The record (null when unregistered) plus pending items — transfer
-            and open offer — and the reserved / unreserved flags. Served
-            whenever anything is known, including a bare reserved-list entry.
-            The pending object lost its third key, unreserve, in r22: a U
-            executes in the block it lands in, so nothing about one is ever
-            pending, and the top-level unreserved flag is the whole of what
-            this route reports about a U.
+            The record (null when unregistered) plus pending items — transfer,
+            open offer, open auction — and the reserved / unreserved flags.
+            Served whenever anything is known, including a bare reserved-list
+            entry. offer and auction are never both set: an auction is
+            exclusive while open (§6 A, r28). The pending object lost its
+            unreserve key in r22: a U executes in the block it lands in, so
+            nothing about one is ever pending, and the top-level unreserved
+            flag is the whole of what this route reports about a U.
           content:
             application/json:
               schema:
@@ -151,12 +152,14 @@ paths:
                       - type: 'null'
                   pending:
                     type: object
-                    required: [transfer, offer]
+                    required: [transfer, offer, auction]
                     properties:
                       transfer:
                         oneOf: [{ $ref: '#/components/schemas/PendingTransfer' }, { type: 'null' }]
                       offer:
                         oneOf: [{ $ref: '#/components/schemas/Offer' }, { type: 'null' }]
+                      auction:
+                        oneOf: [{ $ref: '#/components/schemas/Auction' }, { type: 'null' }]
                   height: { $ref: '#/components/schemas/Height' }
         '400':
           description: INVALID_NAME with the §4.1 reason.
@@ -224,6 +227,32 @@ paths:
                   offers:
                     type: array
                     items: { $ref: '#/components/schemas/Offer' }
+                  height: { $ref: '#/components/schemas/Height' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
+  /auctions:
+    get:
+      summary: All open auctions
+      description: >
+        The pending set's open A messages, sorted by name (§6 A, r28). Each
+        carries minimumBid — the least a B must carry to stand, computed by
+        core (the reserve until a bid has met it, then the standing bid plus
+        AUCTION_MIN_INCREMENT of itself, floored) — because a bid below it is
+        refunded, not accepted. An auction listed here is open: the close is
+        a height effect at endHeight, applied before that block's messages,
+        so a bid sent at or after endHeight refunds under OFFER_NOT_OPEN.
+      responses:
+        '200':
+          description: The open auctions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [auctions, height]
+                properties:
+                  auctions:
+                    type: array
+                    items: { $ref: '#/components/schemas/Auction' }
                   height: { $ref: '#/components/schemas/Height' }
         '503': { $ref: '#/components/responses/NotSynced' }
 
@@ -723,6 +752,36 @@ components:
         price: { $ref: '#/components/schemas/Luna' }
         openedHeight: { $ref: '#/components/schemas/Height' }
         expiryHeight: { $ref: '#/components/schemas/Height' }
+    Auction:
+      type: object
+      description: >
+        An open auction (§6 A). bidder is null, bid "0" and bidRef null until
+        the first bid stands; a standing bid's ref is the (height, txIndex)
+        an outbid refund and the close's two legs are keyed by, so a bidder
+        can find their own money in /settlements. endHeight moves: a bid
+        landing within AUCTION_EXTENSION of it pushes it out.
+      required: [name, seller, reserve, endHeight, bidder, bid, bidRef, minimumBid]
+      properties:
+        name: { type: string }
+        seller:
+          allOf: [{ $ref: '#/components/schemas/Address' }]
+          description: The owner, or TREASURY_ADDRESS for an admin auction of a still-reserved name.
+        reserve: { $ref: '#/components/schemas/Luna' }
+        endHeight: { $ref: '#/components/schemas/Height' }
+        bidder:
+          oneOf: [{ $ref: '#/components/schemas/Address' }, { type: 'null' }]
+        bid: { $ref: '#/components/schemas/Luna' }
+        bidRef:
+          oneOf:
+            - type: object
+              required: [height, txIndex]
+              properties:
+                height: { $ref: '#/components/schemas/Height' }
+                txIndex: { type: integer, description: The §5.2 rank within the block. }
+            - type: 'null'
+        minimumBid:
+          allOf: [{ $ref: '#/components/schemas/Luna' }]
+          description: The least value the next B must carry to stand — core.requiredBid.
     Prices:
       type: object
       required: [feeStandard, feeLong, commissionBp]

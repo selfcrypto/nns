@@ -6,15 +6,13 @@ const FULL: EnvSource = {
   NNS_RPC_URL: 'http://127.0.0.1:6488',
   NNS_RPC_USER: 'admin',
   NNS_RPC_PASSWORD: 'hunter2',
-  NNS_NETWORK_ID: '24',
 }
 
 describe('loadSettings', () => {
-  it('loads a full environment through defineConfig', () => {
+  it('loads a full environment', () => {
     const settings = loadSettings(FULL)
     expect(settings.rpcUrl).toBe('http://127.0.0.1:6488')
     expect(settings.rpcUser).toBe('admin')
-    expect(settings.config.networkId).toBe(24)
     expect(Object.isFrozen(settings)).toBe(true)
   })
 
@@ -24,26 +22,20 @@ describe('loadSettings', () => {
     expect(settings.rpcUrl).toBe('http://10.0.0.5:6488')
   })
 
-  it('requires the network id and reports the variable by name', () => {
-    const { NNS_NETWORK_ID: _omitted, ...rest } = FULL
-    expect(() => loadSettings(rest)).toThrow(/NNS_NETWORK_ID/)
+  it('has no variable for a frozen §3 value or a network id, so an operator cannot set one', () => {
+    // The freeze deleted NNS_LAUNCH_HEIGHT and the four address vars; the
+    // 2026-09-02 dedupe deleted NNS_NETWORK_ID, which nothing read. Setting
+    // any of them is inert rather than honoured.
+    const settings = loadSettings({ ...FULL, NNS_ADMIN_ADDRESS: 'NQ00 NOT A REAL ADDRESS', NNS_NETWORK_ID: '1.5' })
+    expect(Object.keys(settings).sort()).toEqual(['apiUrl', 'rpcPassword', 'rpcUrl', 'rpcUser'])
   })
 
-  it("wraps core's validation into EnvError, so a bad value fails at startup", () => {
-    expect(() => loadSettings({ ...FULL, NNS_NETWORK_ID: '1.5' })).toThrow(EnvError)
+  it('reports a missing RPC URL by variable name, as an EnvError', () => {
+    expect(() => loadSettings({})).toThrow(EnvError)
+    expect(() => loadSettings({})).toThrow(/NNS_RPC_URL/)
   })
 
-  it('has no variable for a frozen §3 value, so an operator cannot set one', () => {
-    // The freeze's second half deleted NNS_LAUNCH_HEIGHT and the four address
-    // vars from this loader; setting them is inert rather than honoured.
-    const settings = loadSettings({ ...FULL, NNS_ADMIN_ADDRESS: 'NQ00 NOT A REAL ADDRESS' })
-    expect(Object.keys(settings.config)).toEqual(['networkId'])
-  })
-
-  it('rejects a fractional listing fee — a NIM/luna mix-up', () => {
-  })
-
-  it('leaves NNS_API_URL unset rather than failing — only p needs it', () => {
+  it('leaves NNS_API_URL unset rather than failing — each command demands it on entry', () => {
     expect(loadSettings(FULL).apiUrl).toBeUndefined()
     expect(loadSettings({ ...FULL, NNS_API_URL: 'http://127.0.0.1:8080' }).apiUrl).toBe('http://127.0.0.1:8080')
   })

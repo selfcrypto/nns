@@ -3,9 +3,10 @@
  *
  * What is in here is fixed by §8.1: the name records that become Merkle
  * leaves, plus the two pieces the spec adds explicitly — "the **active prices
- * and commission rate**" and "the **pending set** — in-flight `X`/`R` and open
- * offers, each with its effective or expiry height" — because both are
- * consensus-relevant and independent replays diverge without them.
+ * and commission rate**" and "the **pending set** — in-flight `X`, open
+ * offers, open auctions and any pending `P`, each with its effective, expiry
+ * or end height" — because both are consensus-relevant and independent
+ * replays diverge without them.
  *
  * Settlement obligations are also tracked. They are *not* part of the §8.1
  * commitment: §6 `M` says settled-versus-owed is computable from the log, so
@@ -55,6 +56,32 @@ export interface Offer {
   readonly expiryHeight: number
 }
 
+/**
+ * An open `A` (§6 `A`, r28).
+ *
+ * `seller` is the owner who opened it, or `TREASURY_ADDRESS` for an admin
+ * auction of a name still held in `RESERVED_NAMES` — the two are told apart
+ * by whether the name has a record. `endHeight` moves: every successful bid
+ * inside `AUCTION_EXTENSION` of it pushes it to `bid + AUCTION_EXTENSION`.
+ * `bidder` is `null` and `bid` is `0n` until the first bid reaches the
+ * starting price; from then on the marketplace holds exactly this one bid, every
+ * outbid one having been refunded the moment it was beaten.
+ *
+ * `bidRef` is the transaction the standing bid arrived in — the `(height,
+ * tx_index)` the close's two `M` legs will name. It is settlement identity,
+ * so §8.1 commits everything here **except** it, on the same terms as the
+ * obligations themselves.
+ */
+export interface Auction {
+  readonly name: string
+  readonly seller: Address
+  readonly startingPrice: bigint
+  readonly endHeight: number
+  readonly bidder: Address | null
+  readonly bid: bigint
+  readonly bidRef: TxRef | null
+}
+
 /** The three governable parameters, always moved together (§6 `P`). */
 export interface Prices {
   readonly feeStandard: bigint
@@ -77,7 +104,7 @@ export interface PendingGovernance {
  */
 
 /**
- * §3 `MIN_PRICE` — the floor on an `O` price and an `A` reserve (§6 `O`, §6 `A`).
+ * §3 `MIN_PRICE` — the floor on an `O` price and an `A` starting price (§6 `O`, §6 `A`).
  *
  * Defined **as `FEE_LONG`**, not as a luna amount, so it tracks the NIM price
  * through §10.6 instead of going stale. That makes it a *governed* value: it is
@@ -116,6 +143,8 @@ export interface NnsState {
   readonly names: ReadonlyMap<string, NameRecord>
   readonly transfers: ReadonlyMap<string, PendingTransfer>
   readonly offers: ReadonlyMap<string, Offer>
+  /** Open auctions, keyed by name (§6 `A`, r28). Committed under tag `0x0B`. */
+  readonly auctions: ReadonlyMap<string, Auction>
   readonly prices: Prices
   readonly pendingGovernance: PendingGovernance | null
   /**
@@ -163,6 +192,7 @@ export function initialState(): NnsState {
     names: new Map<string, NameRecord>(),
     transfers: new Map<string, PendingTransfer>(),
     offers: new Map<string, Offer>(),
+    auctions: new Map<string, Auction>(),
     prices: LAUNCH_PRICES,
     pendingGovernance: null,
     lastGovernanceHeight: null,

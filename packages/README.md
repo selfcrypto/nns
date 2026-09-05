@@ -1,6 +1,6 @@
 # Packages
 
-Ten packages in one pnpm workspace. They divide along one line: **`core` decides
+Twelve packages in one pnpm workspace. They divide along one line: **`core` decides
 what the protocol means, and nothing else is allowed to.**
 
 Every rule — what a valid name is, which verdict a message earns, what bytes go
@@ -15,14 +15,14 @@ somebody's client. That is the failure mode the whole design exists to prevent.
 |---|---|---|---|
 | **`core`** | The rules: encode/decode, validation, the reducer, the Merkle tree, the canonical log | no | **nothing** — pure |
 | **`indexer`** | Tails the node, replays messages through `core`, writes state and checkpoints to Postgres | no | node (read), Postgres |
-| **`api`** | Read-only REST over the indexer's database: eleven endpoints, §8.3 proofs | no | Postgres |
+| **`api`** | Read-only REST over the indexer's database: twelve endpoints, §8.3 proofs | no | Postgres |
 | **`resolver`** | Client library: asks several APIs, checks quorum, verifies proofs, follows §8.6 delegation | no | any NNS API |
 | **`app`** | The Nimiq Pay mini app — search, register, manage. Static Vite bundle | no | `resolver`, relay |
 | **`relay`** | RPC proxy for the app: five allowlisted node methods, rate limits, CORS | **node credential** | node |
 | **`delegate`** | Reference §8.6 host: answers `shop.alice` for one name's owner | no | nothing |
-| **`settlement`** | Watches obligations and issues `M` — payouts, commission, refunds | **two hot keys** | any NNS API, node (wallet) |
+| **`settlement`** | Watches obligations and issues `M` — payouts, commission, refunds; since r28 the auction's outbid refunds and its close's two legs, which no log line announces | **two hot keys** | any NNS API, node (wallet) |
 | **`anchor`** | The §9 EVM contract, its publisher, and a browser-safe reader | funded EVM key | an EVM chain, IPFS |
-| **`admin`** | Cold-key CLI for `P` (governance), `U` (unreserve), `F` (burn attestation) | **cold key** (in the node's wallet) | node, an NNS API |
+| **`admin`** | Cold-key CLI for `P` (governance), `U` (unreserve), `F` (burn attestation), `A` (the admin's auction of a reserved name, r28) | **cold key** (in the node's wallet) | node, an NNS API |
 | **`chat`** | The NC message convention (`docs/app-chat.md`): wire format, inbox derivation. **Not protocol** | no | **nothing** — pure |
 | **`chat-index`** | Optional: indexes NC messages and serves them by address, so the Inbox is a lookup rather than a full-history pull | no | node (read), its own Postgres |
 
@@ -47,10 +47,10 @@ deploy it, and the registry is unchanged.
      indexer            resolver            settlement
    chain → Postgres    client-side          watches what is
         │              quorum + proofs      owed, issues M
-        │                   │                (the only hot key)
+        │                   │                (the only hot keys)
         ▼                   ▼
        api ──────────────► app ◄──────── relay ──► node
-   read-only REST      mini app       4 methods, the
+   read-only REST      mini app       5 methods, the
                                       node credential
 
    delegate    answers one owner's subdomains. No node, no database,
@@ -59,7 +59,7 @@ deploy it, and the registry is unchanged.
    anchor      publishes checkpoint roots to an EVM chain, so past
                claims cannot be quietly rewritten.
 
-   admin       sends P / U / F from the cold key.
+   admin       sends P / U / F / A from the cold key.
 ```
 
 `relay` is the odd one: it has **no workspace dependencies at all**, because it
@@ -93,6 +93,7 @@ Most people run one or two. `deploy/` has a directory per role — compose file,
 | Both of those, on one box | `deploy/collaborator` | `indexer`, `api`, `delegate` |
 | Host the app and its RPC proxy | `deploy/service` | + `relay`, `app` |
 | Pay what the protocol owes | `deploy/settlement` | `settlement` |
+| Anchor checkpoint roots to an EVM chain | `deploy/anchor` | `anchor` |
 
 Embedding NNS in your own app needs none of them — `npm i @nns/resolver` and
 point it at other people's endpoints.
@@ -119,12 +120,12 @@ point it at other people's endpoints.
 ## Finding your way in
 
 Each package has its own `CLAUDE.md` with the spec sections it implements and
-the invariants that are easy to break. `core` and `indexer` also have a
-`MAP.md` listing every exported symbol with its file — check there before
-grepping `src/`.
+the invariants that are easy to break. Six — `core`, `indexer`, `api`,
+`resolver`, `relay` and `delegate` — also have a `MAP.md` listing every
+exported symbol with its file: check there before grepping `src/`.
 
 Start from the spec, though: `docs/nns-spec-v1.md` is authoritative, and if code
-and spec disagree the spec wins. It is ~27k tokens, so navigate it rather than
+and spec disagree the spec wins. It is ~180 KB, so navigate it rather than
 reading it:
 
 ```bash

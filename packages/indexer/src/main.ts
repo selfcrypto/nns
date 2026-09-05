@@ -1,7 +1,7 @@
 /**
  * Entrypoint.
  *
- *   pnpm --filter @nns/indexer dev      # node --env-file=.env src/main.ts
+ *   pnpm --filter @nns/indexer dev      # builds, then node --env-file=.env dist/main.js
  *
  * Reads `.env` (see `.env.example`), migrates the database, reloads state and
  * the cursor, then tails batches up to the last finalised macro block —

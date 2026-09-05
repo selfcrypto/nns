@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Reference §8.6 delegate host: answers subdomain lookups for one name, on its owner's behalf. Not registry infrastructure.",
+  "description": "Reference §8.6 delegate host: answers subdomain lookups for the names its owner points at it. Not registry infrastructure.",
   "license": "MIT",
   "exports": {
     ".": {

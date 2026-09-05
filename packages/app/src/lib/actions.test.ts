@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CONSTANTS, LUNA_PER_NIM, parse } from '@nns/core'
-import { ActionInputError, parseNimAmount, prepareAction, type ActionInputs } from './actions'
+import { ActionInputError, parseAuctionDuration, parseNimAmount, prepareAction, type ActionInputs } from './actions'
 import type { ApiParams, NameInfo } from './api'
 
 const OWNER = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
@@ -19,7 +19,7 @@ const registered = (over?: Partial<NameInfo['pending']>): NameInfo => ({
   reserved: false,
   unreserved: false,
   record: { name: 'example', owner: OWNER, target: OWNER, evm: '', expiry: 2_000_000, status: 'REGISTERED', host: '' },
-  pending: { transfer: null, offer: null, ...over },
+  pending: { transfer: null, offer: null, auction: null, ...over },
   height: 1_000_000,
 })
 
@@ -109,6 +109,65 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     const prepared = prepare({ action: 'cancel' }, both)
     expect(prepared.review.some((line) => line.includes('transfer'))).toBe(true)
     expect(prepared.review.some((line) => line.includes('offer'))).toBe(true)
+  })
+
+  describe('auction and bid (§6 `A`, r28)', () => {
+    const auction = { name: 'example', seller: OWNER, startingPrice: 100_000_000n, endHeight: 1_100_000, bidder: null, bid: 0n, minimumBid: 100_000_000n }
+    const underAuction = registered({ auction })
+
+    it('an A carries dust to PROTOCOL_ADDRESS, the starting price exactly, and an end past the typed duration by the landing margin', async () => {
+      const { AUCTION_LANDING_MARGIN } = await import('./states')
+      const prepared = prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '2' })
+      expect(prepared.request.recipient).toBe(CONSTANTS.PROTOCOL_ADDRESS)
+      expect(prepared.request.value).toBe(CONSTANTS.DUST_VALUE)
+      const parsed = parse(prepared.request.dataHex)
+      expect(parsed.ok && parsed.message.type === 'A' && parsed.message.startingPrice === 1000n * LUNA_PER_NIM).toBe(true)
+      expect(parsed.ok && parsed.message.type === 'A' && parsed.message.endHeight).toBe(1_000_000 + AUCTION_LANDING_MARGIN + 2 * 86_400)
+    })
+
+    it('a starting price below MIN_PRICE never reaches the chain — core refuses to build it', () => {
+      expect(() => prepare({ action: 'auction', startingPriceNim: '1', durationDays: '2' })).toThrow(/MIN_PRICE|starting price/i)
+    })
+
+    it('a duration under AUCTION_MIN_DURATION is refused before any transaction exists', () => {
+      expect(() => prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '0.5' })).toThrow(ActionInputError)
+      expect(parseAuctionDuration('1')).toBe(CONSTANTS.AUCTION_MIN_DURATION)
+      expect(parseAuctionDuration('1,5')).toBe(129_600)
+      for (const bad of ['', 'abc', '-1', '1.234', '0']) expect(() => parseAuctionDuration(bad), bad).toThrow(ActionInputError)
+    })
+
+    it('the review says what opening voids, and refuses an end at or past the term (AUCTION_BEYOND_TERM)', () => {
+      const withBoth = registered({
+        transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 },
+        offer: { name: 'example', seller: OWNER, price: 45_050_000n, openedHeight: 1, expiryHeight: 2_000_000 },
+      })
+      const prepared = prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '2' }, withBoth)
+      expect(prepared.review.some((line) => line.includes('transfer'))).toBe(true)
+      expect(prepared.review.some((line) => line.includes('offer'))).toBe(true)
+      expect(prepared.review.some((line) => line.includes('renew first'))).toBe(false)
+      // Expiry at 2_000_000; 12 days from 1_000_000 lands past it — the message would forfeit, so the sheet refuses.
+      expect(() => prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '12' })).toThrow(/renew first/)
+    })
+
+    it('a bid is a B to the marketplace whose value is the bid — at least the minimum, never less', () => {
+      const prepared = prepare({ action: 'bid', bidNim: '1000' }, underAuction, OTHER)
+      expect(prepared.request.recipient).toBe(CONSTANTS.MARKETPLACE_ADDRESS)
+      expect(prepared.request.value).toBe(1000n * LUNA_PER_NIM)
+      const parsed = parse(prepared.request.dataHex)
+      expect(parsed.ok && parsed.message.type === 'B').toBe(true)
+      expect(() => prepare({ action: 'bid', bidNim: '999.99999' }, underAuction, OTHER)).toThrow(/at least 1000 NIM/)
+    })
+
+    it('the bid review names the seller and the refund reading of WRONG_PRICE', () => {
+      const prepared = prepare({ action: 'bid', bidNim: '1000' }, underAuction, OTHER)
+      expect(prepared.review.some((line) => line.includes(OWNER))).toBe(true)
+      expect(prepared.review.some((line) => line.includes('refunded'))).toBe(true)
+    })
+
+    it('bidding on your own auction is refused, and there is nothing to bid on without one', () => {
+      expect(() => prepare({ action: 'bid', bidNim: '1000' }, underAuction, OWNER)).toThrow(ActionInputError)
+      expect(() => prepare({ action: 'bid', bidNim: '1000' }, registered(), OTHER)).toThrow(ActionInputError)
+    })
   })
 
   it('a malformed price never reaches an encoder', () => {

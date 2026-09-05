@@ -104,6 +104,15 @@ describe('CONSTANTS — §3', () => {
     expect(CONSTANTS.OFFER_IRREVOCABLE).toBeLessThan(CONSTANTS.OFFER_MAX_LIFETIME)
   })
 
+  it('keeps the anti-sniping extension inside the shortest auction (§6 A, r28)', () => {
+    // A late bid moves the end to `bid + AUCTION_EXTENSION`; an extension at
+    // or past AUCTION_MIN_DURATION would let one bid define a longer window
+    // than the opener was allowed to. A relation, so it survives a tempo
+    // profile — `scripts/check-tempo-relations.mjs` runs it at fork time.
+    expect(CONSTANTS.AUCTION_EXTENSION).toBeLessThan(CONSTANTS.AUCTION_MIN_DURATION)
+    expect(CONSTANTS.AUCTION_MIN_DURATION).toBeLessThan(CONSTANTS.TERM_LENGTH)
+  })
+
   it('equals the mainnet values, field for field', () => {
     // Every value restated as an inline literal — never derived from
     // constants.ts, or an edit there would move both sides. Compressed-tempo

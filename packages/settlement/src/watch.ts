@@ -1,11 +1,13 @@
 /**
- * The verdict watcher: what the log says is owed, and nothing else.
+ * The obligation watcher: what the log says is owed, and nothing else.
  *
- * `B` and `G` verdicts are what create debts (§6 `B`, §7.4), but this file
- * never looks for a `B` or a `G`. It replays the log through `core.reduce` and
- * reads `state.outstanding` — so *which* verdicts owe money stays `core`'s
- * decision, and a message type that starts creating obligations tomorrow is
- * watched without a line changing here.
+ * `B` and `G` verdicts are what create most debts (§6 `B`, §7.4), and since
+ * r28 an auction's close creates two with no verdict at all (§6 `A`, §7.3) —
+ * but this file never looks for a `B`, a `G` or a close. It replays the log
+ * through `core.reduce`, advances to the checkpoint height, and reads
+ * `state.outstanding` — so *which* verdicts and effects owe money stays
+ * `core`'s decision, and a message type that starts creating obligations
+ * tomorrow is watched without a line changing here.
  *
  * No key, no broadcast, no database. The output is a list of legs and the
  * height they were true at; issuing against it is the next deliverable.
@@ -60,11 +62,16 @@ export class WatchError extends Error {
  * A leg's stable identity: `<height>:<txIndex>:<KIND>`.
  *
  * The idempotency key the issuer and its ledger will settle by. `(ref, kind)`
- * is unique because a `B` owes either one `REFUND` or a `SALE_PROCEEDS` and a
- * `COMMISSION`, and a `G` owes one `REFUND` — one leg per kind per transaction.
- * {@link takeSnapshot} asserts it rather than trusting it: were `core` ever to
- * create two legs of one kind for one transaction, the key would silently
- * collapse them and the issuer would underpay by exactly one leg.
+ * is unique because every path a transaction can take owes at most one leg
+ * per kind: a `B` on an offer owes one `REFUND` or a `SALE_PROCEEDS` and a
+ * `COMMISSION`; a `B` that is a bid (r28) owes one `REFUND` — under
+ * `WRONG_PRICE` on its own line, or by its own ref when it is outbid or the
+ * grace reset cancels the auction — *or*, as the winning bid, the
+ * `SALE_PROCEEDS` and `COMMISSION` the close creates, never both; a `G` owes
+ * one `REFUND`. {@link takeSnapshot} asserts it rather than trusting it: were
+ * `core` ever to create two legs of one kind for one transaction, the key
+ * would silently collapse them and the issuer would underpay by exactly one
+ * leg.
  */
 export const obligationKey = (obligation: Obligation): string =>
   `${refKey(obligation.ref)}:${obligation.kind}`
@@ -281,7 +288,7 @@ export function createWatcher(options: WatcherOptions): Watcher {
         )
       }
 
-      const snapshot = takeSnapshot(log, replayLog(log.lines, initial, config))
+      const snapshot = takeSnapshot(log, replayLog(log.lines, initial, config, log.checkpointHeight))
       lastSeen = snapshot.checkpointHeight
       lastHash = snapshot.logHash
       return { kind: 'snapshot', snapshot }

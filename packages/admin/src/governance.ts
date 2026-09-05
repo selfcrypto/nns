@@ -12,10 +12,11 @@
  * signing is checked before signing, and a plan carrying a refusal cannot be
  * broadcast at all.
  *
- * Three of those bounds are relative to state this process does not hold —
- * see `params.ts` for where the current prices and the last `P`'s height come
- * from. The bounds themselves are `core`'s `governanceBoundViolation`; if a
- * rule seems to be missing here, it lives there.
+ * One of those bounds — the commission step — is relative to state this
+ * process does not hold (three were, before r20 removed the price rate
+ * limits); see `params.ts` for where the current prices come from. The bounds
+ * themselves are `core`'s `governanceBoundViolation`; if a rule seems to be
+ * missing here, it lives there.
  */
 
 import {
@@ -24,13 +25,11 @@ import {
   formatAddress,
   governanceBoundViolation,
   type Address,
-  type NnsConfig,
 } from '@nns/core'
 
 import {
   ADMIN_MIN_BALANCE,
-  AdminRefusal,
-  blockingChecks,
+  GOVERNANCE_NOTICE,
   NOTICE_MARGIN,
   UsageError,
   formatLuna,
@@ -95,16 +94,6 @@ export interface GovernancePlan {
   readonly checks: readonly GovernanceCheck[]
 }
 
-export interface GovernanceOutcome {
-  readonly validityStartHeight: number
-  readonly hash: string
-}
-
-/** The checks that stop a broadcast. Empty means `--send` adds nothing but the send. */
-export function refusals(plan: GovernancePlan): readonly GovernanceCheck[] {
-  return blockingChecks(plan.checks)
-}
-
 function amount(raw: string | undefined, label: string): bigint {
   if (raw === undefined) throw new UsageError(`p takes ${label}`)
   if (!/^\d+$/.test(raw)) {
@@ -146,7 +135,6 @@ export function parseGovernanceArgs(argv: readonly string[]): GovernanceCommand 
 export async function planGovernance(
   rpc: AdminRpc,
   source: ParamsSource,
-  config: NnsConfig,
   params: GovernanceParams,
 ): Promise<GovernancePlan> {
   const tx = encodeGovernance({ ...params, sender: CONSTANTS.ADMIN_ADDRESS })
@@ -208,10 +196,11 @@ function check(
   move('fee_standard', active.prices.feeStandard, params.feeStandard)
   move('fee_long', active.prices.feeLong, params.feeLong)
 
-  // §6 `P` notice, plus the margin the landing block makes necessary. Shared
-  // with `u` (`cli.ts`): the same bound is measured the same way for both, and
-  // two copies of it would eventually disagree.
-  checks.push(...noticeChecks('P', params.effectiveHeight, head))
+  // §6 `P` notice, plus the margin the landing block makes necessary. It
+  // lives in `cli.ts` from the day it was shared with `u`; since r28 `A`'s
+  // window is the other bound of that shape, and the check is one function
+  // parameterised by the floor.
+  checks.push(...noticeChecks(params.effectiveHeight, head, GOVERNANCE_NOTICE))
 
   // §11.5 rule 1 — an unfunded sender fails by silence, not by error.
   if (balance < cost) {
@@ -267,39 +256,4 @@ export function describeGovernancePlan(plan: GovernancePlan): string[] {
     lines.push(`  ${severity === 'refuse' ? 'REFUSED' : 'WARNING'}: ${message}`)
   }
   return lines
-}
-
-/**
- * Broadcast a plan. Sequence per `docs/rpc-reference.md` §5.2: unlock the
- * admin account by address — the key stays in the node's wallet — then send,
- * reusing the plan's head as `validityStartHeight`.
- *
- * It refuses a plan carrying a refusal rather than trusting the caller to have
- * looked: this is the only function in the module that can spend, and the
- * message it would send is unretractable.
- */
-export async function broadcastGovernance(
-  rpc: AdminRpc,
-  config: NnsConfig,
-  plan: GovernancePlan,
-): Promise<GovernanceOutcome> {
-  const blocking = refusals(plan)
-  if (blocking.length > 0) {
-    throw new AdminRefusal(
-      `refusing to broadcast: ${blocking.length} check${blocking.length === 1 ? '' : 's'} failed — ` +
-        blocking.map((check) => check.message).join('; '),
-    )
-  }
-  await rpc.call('unlockAccount', [CONSTANTS.ADMIN_ADDRESS, null, null])
-  const hash = await rpc.call<string>('sendBasicTransactionWithData', [
-    CONSTANTS.ADMIN_ADDRESS,
-    plan.recipient,
-    plan.data,
-    // JSON has no bigint; the value is DUST_VALUE by construction, so the
-    // conversion cannot lose precision. fee 0 is accepted (§5.4).
-    Number(plan.value),
-    0,
-    plan.head,
-  ])
-  return { validityStartHeight: plan.head, hash }
 }

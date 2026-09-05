@@ -26,11 +26,12 @@ export const CONTRACT_FILE = 'NnsAnchor.sol'
 export const CONTRACT_NAME = 'NnsAnchor'
 
 /**
- * Compiler settings. Every field here is an input to the bytecode, so every
- * field here is an input to the CREATE2 address — changing one silently
- * relocates the contract on a chain where the old address is already in
- * clients' `ANCHOR_PUBLISHERS`-adjacent config. They are committed into the
- * artifact and asserted by `artifact.test.ts` for exactly that reason.
+ * Compiler settings. Every field here is an input to the bytecode, and the
+ * bytecode is the contract's identity — `verify` and the publisher's
+ * pre-spend check both compare deployed code against the committed artifact,
+ * so changing one silently unmatches every already-deployed contract. They
+ * are committed into the artifact and asserted by `artifact.test.ts` for
+ * exactly that reason.
  */
 export const SETTINGS = {
   /**
@@ -92,10 +93,10 @@ export interface Artifact {
   /** Runtime bytecode, what lands at the address. */
   readonly deployedBytecode: string
   /**
-   * keccak256 of {@link bytecode}. With no constructor arguments this *is*
-   * the CREATE2 init-code hash, so address = keccak256(0xff ‖ deployer ‖
-   * salt ‖ initCodeHash)[12..32] — the whole of what makes one address on
-   * every chain checkable before anything is deployed.
+   * keccak256 of {@link bytecode} — with no constructor arguments, the
+   * CREATE2 init-code hash. Kept for third parties deploying through a
+   * factory; this package's own deploy is plain `CREATE`
+   * (`docs/decisions.md`, "CREATE2 dropped with the second chain").
    */
   readonly initCodeHash: string
   /** `keccak256("Anchored(bytes32,address,uint64,uint64,bytes32)")`. */

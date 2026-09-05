@@ -15,6 +15,7 @@ import {
   sameAddress,
   viewFor,
 } from './states'
+import * as states from './states'
 
 const OWNER = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
 const OTHER = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
@@ -24,7 +25,7 @@ const info = (overrides: Partial<NameInfo> & { record?: NameInfo['record'] }): N
   reserved: false,
   unreserved: false,
   record: null,
-  pending: { transfer: null, offer: null },
+  pending: { transfer: null, offer: null, auction: null },
   height: 1_000_000,
   ...overrides,
 })
@@ -182,7 +183,7 @@ describe('actionGates (app-states.md §4)', () => {
 
   it('a pending X leaves the owner in control: S stays legal', () => {
     const pendingTransfer = registered({
-      pending: { transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 }, offer: null },
+      pending: { transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 }, offer: null, auction: null },
     })
     const gates = actionGates({ view: nameView('a', pendingTransfer, 'available'), viewers: [OWNER], head: 1_000_000 })
     expect(gates.setTarget.enabled).toBe(true)
@@ -201,6 +202,7 @@ describe('actionGates (app-states.md §4)', () => {
       pending: {
         transfer: null,
         offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: opened, expiryHeight: opened + CONSTANTS.OFFER_MAX_LIFETIME },
+        auction: null,
       },
     })
     const boundary = offerCancellableAt(opened)
@@ -224,6 +226,7 @@ describe('actionGates (app-states.md §4)', () => {
       pending: {
         transfer: null,
         offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: 1, expiryHeight: 2_000_000 },
+        auction: null,
       },
     })
     expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OWNER], head: 0 }).offer.enabled).toBe(true)
@@ -235,11 +238,56 @@ describe('actionGates (app-states.md §4)', () => {
       pending: {
         transfer: null,
         offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: 1, expiryHeight: 1_500_000 },
+        auction: null,
       },
     })
     expect(actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OTHER], head: 1_000_000 }).buy.enabled).toBe(true)
     expect(actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OTHER], head: 1_500_000 }).buy.reason).toBe('no-offer')
     expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OTHER], head: 0 }).buy.reason).toBe('no-offer')
+  })
+
+  describe('an open auction is exclusive (§6 `A`, r28)', () => {
+    const auction = { name: 'a', seller: OWNER, startingPrice: 100_000n, endHeight: 1_100_000, bidder: null, bid: 0n, minimumBid: 100_000n }
+    const underAuction = registered({ pending: { transfer: null, offer: null, auction } })
+
+    it('A needs the owner and no open auction; a pending X or an open O does not block it — opening voids them', () => {
+      expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OWNER], head: 0 }).auction.enabled).toBe(true)
+      expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OTHER], head: 0 }).auction.reason).toBe('not-owner')
+      expect(actionGates({ view: nameView('a', underAuction, 'available'), viewers: [OWNER], head: 0 }).auction.reason).toBe('auction-open')
+      const withBoth = registered({
+        pending: {
+          transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 },
+          offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: 1, expiryHeight: 2_000_000 },
+          auction: null,
+        },
+      })
+      expect(actionGates({ view: nameView('a', withBoth, 'available'), viewers: [OWNER], head: 0 }).auction.enabled).toBe(true)
+    })
+
+    it('O, X and K close on auction-open; S, E, D, N stay open', () => {
+      const gates = actionGates({ view: nameView('a', underAuction, 'available'), viewers: [OWNER], head: 1_000_000 })
+      expect(gates.offer.reason).toBe('auction-open')
+      expect(gates.transfer.reason).toBe('auction-open')
+      // Not "nothing to cancel": something is pending, and it is the thing K cannot touch.
+      expect(gates.cancel.reason).toBe('auction-open')
+      expect(gates.setTarget.enabled).toBe(true)
+      expect(gates.setEvm.enabled).toBe(true)
+      expect(gates.delegate.enabled).toBe(true)
+      expect(gates.renew.enabled).toBe(true)
+    })
+
+    it('bid needs an open auction whose end the data has not reached; buy is no-offer meanwhile', () => {
+      expect(actionGates({ view: nameView('a', underAuction, 'available'), viewers: [OTHER], head: 1_000_000 }).bid.enabled).toBe(true)
+      expect(actionGates({ view: nameView('a', underAuction, 'available'), viewers: [OTHER], head: 1_100_000 }).bid.reason).toBe('no-auction')
+      expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OTHER], head: 0 }).bid.reason).toBe('no-auction')
+      expect(actionGates({ view: nameView('a', underAuction, 'available'), viewers: [OTHER], head: 1_000_000 }).buy.reason).toBe('no-offer')
+    })
+
+    it('bid is an anyone-action: it signs with the primary address', async () => {
+      const { signerFor } = await import('./states')
+      expect(signerFor('bid', nameView('a', underAuction, 'available'), [OTHER, OWNER])).toBe(OTHER)
+      expect(signerFor('auction', nameView('a', underAuction, 'available'), [OTHER, OWNER])).toBe(OWNER)
+    })
   })
 
   it('no wallet identity closes the owner actions with no-viewer, not not-owner', () => {
@@ -275,6 +323,14 @@ describe('clocks', () => {
     expect(renewalUrgency(expiry, expiry - 2 * CONSTANTS.GRACE_PERIOD - 1)).toBe('none')
     expect(renewalUrgency(expiry, expiry - 2 * CONSTANTS.GRACE_PERIOD)).toBe('due')
     expect(renewalUrgency(expiry, expiry)).toBe('grace')
+  })
+
+  it('an auction end carries the landing margin on top of the typed duration, and outlives the term from expiry itself', () => {
+    const { AUCTION_LANDING_MARGIN, auctionEndHeight, auctionOutlivesTerm } = states
+    expect(auctionEndHeight(1_000_000, CONSTANTS.AUCTION_MIN_DURATION)).toBe(1_000_000 + AUCTION_LANDING_MARGIN + CONSTANTS.AUCTION_MIN_DURATION)
+    // Half-open §7.3: the name is in GRACE *at* expiry, so an end there is already past the last resolving block.
+    expect(auctionOutlivesTerm(2_000_000, 2_000_000)).toBe(true)
+    expect(auctionOutlivesTerm(1_999_999, 2_000_000)).toBe(false)
   })
 
   it('registrationFee picks the band from the name length', () => {

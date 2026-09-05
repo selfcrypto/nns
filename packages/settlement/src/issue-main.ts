@@ -1,5 +1,5 @@
 /**
- * `issue` — settle what the log says is owed. **The system's only hot key.**
+ * `issue` — settle what the log says is owed. **The system's only hot keys.**
  *
  * Deliverable 2 of `tasks/04`, and the first command in this repository that
  * can move money on its own. Everything it pays comes from the ledger, which

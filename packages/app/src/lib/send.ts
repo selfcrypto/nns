@@ -118,7 +118,7 @@ export async function performSend(options: {
 
 /**
  * What the chain says about a hash, asked only once the effect poll has run
- * out. `getTransactionByHash` is one of the relay's four allowed methods, and
+ * out. `getTransactionByHash` is one of the relay's five allowed methods, and
  * it sees a transaction as soon as it is in a block — long before the
  * batch-scanning indexer puts the effect behind the API.
  */

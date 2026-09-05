@@ -12,7 +12,7 @@
  * "as of block" stamp the RPC's `metadata` gives state reads.
  */
 
-import { BURN_ADDRESS, CONSTANTS, merkleRoot, parseAddress, type Address, type NameStatus } from '@nns/core'
+import { BURN_ADDRESS, CONSTANTS, merkleRoot, parseAddress, type Address, type Auction, type NameStatus } from '@nns/core'
 import { logLineFromRow, toHeight, toLuna, type LogRow } from '@nns/indexer'
 import type { Pool, PoolClient } from 'pg'
 
@@ -51,6 +51,16 @@ export interface ApiPendingTransfer {
   readonly effectiveHeight: number
 }
 
+/**
+ * An open `A` from the pending set (§6 `A`, r28) — `core`'s `Auction`
+ * itself, so `core.requiredBid` can be applied to it unchanged. `bidder` is
+ * `null` with `bid` 0 and `bidRef` null until the first bid stands. The ref
+ * is settlement identity: not committed (§8.1), but it is what the close's
+ * two legs and an outbid refund are keyed by, so a bidder can find their
+ * own money in `/settlements`.
+ */
+export type ApiAuction = Auction
+
 /*
  * `ApiPendingUnreserve` lived here through r21, and `NameDetail` carried an
  * `unreserve` field beside it. r22 made a `U` execute in the block it lands in
@@ -63,6 +73,8 @@ export interface NameDetail {
   readonly record: ApiNameRecord | null
   readonly transfer: ApiPendingTransfer | null
   readonly offer: ApiOffer | null
+  /** Never set beside `offer`: an auction and an offer do not coexist (§6 `A`). */
+  readonly auction: ApiAuction | null
   /** The name's `U` has fired — it is off the reserved list for good. */
   readonly unreserved: boolean
 }
@@ -224,6 +236,7 @@ export interface Queries {
   detail(name: string): Promise<Snapshot<NameDetail>>
   byOwner(owner: Address): Promise<Snapshot<readonly ApiNameRecord[]>>
   offers(): Promise<Snapshot<readonly ApiOffer[]>>
+  auctions(): Promise<Snapshot<readonly ApiAuction[]>>
   params(): Promise<Snapshot<ParamsSnapshot>>
   /** `null` while no checkpoint exists yet. */
   latestCheckpoint(): Promise<Snapshot<LatestCheckpoint | null>>
@@ -283,7 +296,35 @@ function offer(row: Row): ApiOffer {
   }
 }
 
+/**
+ * Migration 010's row. The shape check refuses a half-present bid, so a
+ * non-null `bidder` here always comes with its ref — but this reader still
+ * checks, because a row read is not a row written.
+ */
+function auction(row: Row): ApiAuction {
+  const bidder = nullableAddress(row, 'bidder')
+  const refHeight = row['bid_ref_height']
+  const refIndex = row['bid_ref_tx_index']
+  if (bidder !== null && (refHeight === null || refIndex === null)) {
+    throw new QueryError(`pending: AUCTION row for ${JSON.stringify(row['name'])} has a bidder but no bid ref`)
+  }
+  return {
+    name: text(row, 'name'),
+    seller: address(row, 'seller'),
+    startingPrice: toLuna(row['starting_price'], 'starting_price'),
+    endHeight: toHeight(row['end_height'], 'end_height'),
+    bidder,
+    bid: toLuna(row['bid'], 'bid'),
+    bidRef:
+      bidder === null
+        ? null
+        : { height: toHeight(refHeight, 'bid_ref_height'), txIndex: toHeight(refIndex, 'bid_ref_tx_index') },
+  }
+}
+
 const NAME_COLUMNS = 'name, owner, target, evm, expiry, status, host'
+
+const AUCTION_COLUMNS = 'name, seller, starting_price, end_height, bidder, bid, bid_ref_height, bid_ref_tx_index'
 
 const CHECKPOINT_COLUMNS =
   'height, layout, name_root, prices_root, pending_root, unreserved_root, log_hash, commitment'
@@ -370,7 +411,8 @@ export class PgQueries implements Queries {
       const names = await client.query(`SELECT ${NAME_COLUMNS} FROM names WHERE name = $1`, [name])
       const pending = await client.query(
         `SELECT kind, effective_height, new_owner,
-                seller, price, opened_height, expiry_height
+                seller, price, opened_height, expiry_height,
+                starting_price, end_height, bidder, bid, bid_ref_height, bid_ref_tx_index
            FROM pending WHERE name = $1`,
         [name],
       )
@@ -379,6 +421,7 @@ export class PgQueries implements Queries {
       const record: Row | undefined = names.rows[0]
       let transfer: ApiPendingTransfer | null = null
       let openOffer: ApiOffer | null = null
+      let openAuction: ApiAuction | null = null
 
       for (const row of pending.rows as Row[]) {
         switch (text(row, 'kind')) {
@@ -399,6 +442,9 @@ export class PgQueries implements Queries {
             // Keyed on the empty name, so no §4.1-valid name can match it —
             // but this query must not rely on the caller having validated.
             break
+          case 'AUCTION':
+            openAuction = auction({ ...row, name })
+            break
           default:
             throw new QueryError(`pending row of unknown kind ${JSON.stringify(row['kind'])}`)
         }
@@ -408,6 +454,7 @@ export class PgQueries implements Queries {
         record: record === undefined ? null : nameRecord(record),
         transfer,
         offer: openOffer,
+        auction: openAuction,
         unreserved: unreserved.rows.length > 0,
       }
     })
@@ -430,6 +477,15 @@ export class PgQueries implements Queries {
            FROM pending WHERE kind = 'OFFER' ORDER BY name`,
       )
       return (result.rows as Row[]).map(offer)
+    })
+  }
+
+  async auctions(): Promise<Snapshot<readonly ApiAuction[]>> {
+    return this.#snapshot(async (client) => {
+      const result = await client.query(
+        `SELECT ${AUCTION_COLUMNS} FROM pending WHERE kind = 'AUCTION' ORDER BY name`,
+      )
+      return (result.rows as Row[]).map(auction)
     })
   }
 

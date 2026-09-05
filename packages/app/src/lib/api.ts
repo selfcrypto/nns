@@ -1,6 +1,6 @@
 /**
  * Raw NNS API reads, for non-address data only: `/name`, `/address/{addr}/names`,
- * `/offers`, `/params`, `/burn`. Anything an address or an availability verdict
+ * `/offers`, `/auctions`, `/params`, `/burn`. Anything an address or an availability verdict
  * comes out of goes through `@nns/resolver` (`src/lib/nns.ts`) — never through here.
  *
  * Luna amounts arrive as decimal strings (the API's rule: `bigint` does not
@@ -58,7 +58,24 @@ export interface ApiOffer {
   readonly expiryHeight: number
 }
 
-/** `/name/{name}` — the pending object is `{transfer, offer}` since r22. */
+/**
+ * An open auction (§6 `A`, r28). `bidder` is null with `bid` 0 until the
+ * first bid stands. `minimumBid` is the API's `core.requiredBid` — the least
+ * a `B` must carry to stand — and is what the Bid sheet builds against; the
+ * app never restates the increment rule. The bid's ref is served too but not
+ * read here: nothing on screen keys on it.
+ */
+export interface ApiAuction {
+  readonly name: string
+  readonly seller: string
+  readonly startingPrice: bigint
+  readonly endHeight: number
+  readonly bidder: string | null
+  readonly bid: bigint
+  readonly minimumBid: bigint
+}
+
+/** `/name/{name}` — the pending object is `{transfer, offer, auction}` since r28. */
 export interface NameInfo {
   readonly name: string
   readonly reserved: boolean
@@ -67,6 +84,8 @@ export interface NameInfo {
   readonly pending: {
     readonly transfer: ApiPendingTransfer | null
     readonly offer: ApiOffer | null
+    /** Never set beside `offer`: an auction is exclusive while open. */
+    readonly auction: ApiAuction | null
   }
   readonly height: number
 }
@@ -87,6 +106,11 @@ export interface OwnedNames {
 
 export interface OpenOffers {
   readonly offers: readonly ApiOffer[]
+  readonly height: number
+}
+
+export interface OpenAuctions {
+  readonly auctions: readonly ApiAuction[]
   readonly height: number
 }
 
@@ -173,6 +197,19 @@ const readOffer = (value: unknown, path: string): ApiOffer => {
   }
 }
 
+const readAuction = (value: unknown, path: string): ApiAuction => {
+  const body = record(value, path)
+  return {
+    name: str(body['name'], `${path}.name`),
+    seller: str(body['seller'], `${path}.seller`),
+    startingPrice: luna(body['startingPrice'], `${path}.startingPrice`),
+    endHeight: num(body['endHeight'], `${path}.endHeight`),
+    bidder: body['bidder'] === null ? null : str(body['bidder'], `${path}.bidder`),
+    bid: luna(body['bid'], `${path}.bid`),
+    minimumBid: luna(body['minimumBid'], `${path}.minimumBid`),
+  }
+}
+
 const readPrices = (value: unknown, path: string): FeePrices => {
   const body = record(value, path)
   return {
@@ -225,6 +262,7 @@ export async function getNameInfo(base: string, name: string, fetchJson: JsonFet
               }
             })(),
       offer: pending['offer'] === null ? null : readOffer(pending['offer'], 'pending.offer'),
+      auction: pending['auction'] === null ? null : readAuction(pending['auction'], 'pending.auction'),
     },
     height: num(top['height'], 'height'),
   }
@@ -256,6 +294,16 @@ export async function getOffers(base: string, fetchJson: JsonFetch = jsonFetch):
   if (!Array.isArray(offers)) throw shape('offers')
   return {
     offers: offers.map((entry, index) => readOffer(entry, `offers[${index}]`)),
+    height: num(body['height'], 'height'),
+  }
+}
+
+export async function getAuctions(base: string, fetchJson: JsonFetch = jsonFetch): Promise<OpenAuctions> {
+  const body = record(await request(fetchJson, base, '/auctions'), 'response')
+  const auctions = body['auctions']
+  if (!Array.isArray(auctions)) throw shape('auctions')
+  return {
+    auctions: auctions.map((entry, index) => readAuction(entry, `auctions[${index}]`)),
     height: num(body['height'], 'height'),
   }
 }

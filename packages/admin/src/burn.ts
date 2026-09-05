@@ -50,13 +50,10 @@ import {
   formatAddress,
   parse,
   type Address,
-  type NnsConfig,
 } from '@nns/core'
 
 import {
   AdminError,
-  AdminRefusal,
-  blockingChecks,
   UsageError,
   formatLuna,
   hours,
@@ -64,6 +61,7 @@ import {
   type AdminCheck,
   type AdminRpc,
 } from './cli.js'
+import { apiBase, getJson, heightField, lunaField } from './api.js'
 
 /** `NNS1F` in the lowercase hex the node returns as `recipientData`. */
 const F_PREFIX = '4e4e533146'
@@ -127,6 +125,7 @@ export interface UncountedBurn {
 export interface BurnPlan {
   readonly params: BurnParams
   /** `BURN_ADDRESS`, from the builder — never restated here. */
+  readonly sender: Address
   readonly recipient: Address
   readonly data: string
   readonly value: bigint
@@ -139,11 +138,6 @@ export interface BurnPlan {
   /** `false` when the sweep window did not provably reach the snapshot. */
   readonly sweepConclusive: boolean
   readonly checks: readonly AdminCheck[]
-}
-
-export interface BurnOutcome {
-  readonly validityStartHeight: number
-  readonly hash: string
 }
 
 /** `f <amount_luna> [--send]`. */
@@ -257,7 +251,7 @@ function check(
   if (outstanding <= 0n) {
     refuse(
       `nothing is owed: burned ${formatLuna(status.burned)} already covers owed ${formatLuna(status.owed)} ` +
-        `(20% of ${formatLuna(status.revenue)} accepted revenue, per ${status.url})`,
+        `(BURN_SHARE ${CONSTANTS.BURN_SHARE_BP / 100n}% of ${formatLuna(status.revenue)} accepted revenue, per ${status.url})`,
     )
   } else if (params.amount > outstanding) {
     refuse(
@@ -306,7 +300,6 @@ function check(
 export async function planBurn(
   rpc: AdminRpc,
   source: BurnSource,
-  config: NnsConfig,
   params: BurnParams,
 ): Promise<BurnPlan> {
   const tx = encodeBurn({ amount: params.amount, sender: CONSTANTS.TREASURY_ADDRESS })
@@ -319,6 +312,7 @@ export async function planBurn(
   const sweep = await sweepUncounted(rpc, status.height)
   return {
     params,
+    sender: CONSTANTS.TREASURY_ADDRESS,
     recipient: tx.recipient,
     data: tx.data,
     value: tx.value,
@@ -360,7 +354,7 @@ export function describeBurnPlan(plan: BurnPlan): string[] {
   const lines = [
     `F burn: ${formatLuna(plan.value)}`,
     `  to            ${formatAddress(plan.recipient)} (BURN_ADDRESS — no key exists; §10.2)`,
-    `  from          ${formatAddress(CONSTANTS.TREASURY_ADDRESS)} (TREASURY_ADDRESS), balance ${formatLuna(plan.balance)}`,
+    `  from          ${formatAddress(plan.sender)} (TREASURY_ADDRESS), balance ${formatLuna(plan.balance)}`,
     `  payload       ${plan.data} — decoded: F, no fields; the value above is the whole operand`,
     `  ceiling from  ${status.url} at height ${status.height} — head is ${plan.head}, so ${staleness}:`,
     `    revenue     ${formatLuna(status.revenue)} accepted (§10.2 base)`,
@@ -382,40 +376,6 @@ export function describeBurnPlan(plan: BurnPlan): string[] {
   return lines
 }
 
-/** Refusals only — what stands between this plan and a broadcast. */
-export function burnRefusals(plan: BurnPlan): readonly AdminCheck[] {
-  return blockingChecks(plan.checks)
-}
-
-/**
- * Broadcast a plan. Sequence per `docs/rpc-reference.md` §5.2: unlock the
- * treasury account by address — the key stays in the node's wallet — then
- * send, reusing the plan's head as `validityStartHeight`. Re-checks rather
- * than trusting the caller: this is the only function in the module that can
- * spend, and what it spends cannot come back.
- */
-export async function broadcastBurn(rpc: AdminRpc, config: NnsConfig, plan: BurnPlan): Promise<BurnOutcome> {
-  const blocking = burnRefusals(plan)
-  if (blocking.length > 0) {
-    throw new AdminRefusal(
-      `refusing to broadcast: ${blocking.length} check${blocking.length === 1 ? '' : 's'} failed — ` +
-        blocking.map((check) => check.message).join('; '),
-    )
-  }
-  await rpc.call('unlockAccount', [CONSTANTS.TREASURY_ADDRESS, null, null])
-  const hash = await rpc.call<string>('sendBasicTransactionWithData', [
-    CONSTANTS.TREASURY_ADDRESS,
-    plan.recipient,
-    plan.data,
-    // JSON has no bigint. Unlike the dust-valued commands this narrowing is
-    // load-bearing, so the plan refuses any amount outside safe-integer range
-    // and this cast is guarded, not assumed.
-    Number(plan.value),
-    0,
-    plan.head,
-  ])
-  return { validityStartHeight: plan.head, hash }
-}
 
 /**
  * Confirm by effect (§5.3): poll `/burn` until an attestation with this hash
@@ -441,35 +401,6 @@ export async function confirmBurn(
 }
 
 // ── The API source ───────────────────────────────────────────────────────────
-
-function lunaField(value: unknown, field: string, url: string): bigint {
-  if (typeof value !== 'string' || !/^\d+$/.test(value)) {
-    throw new AdminError(`${url} answered ${field} = ${JSON.stringify(value)} — expected a decimal string of luna`)
-  }
-  return BigInt(value)
-}
-
-function heightField(value: unknown, field: string, url: string): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw new AdminError(`${url} answered ${field} = ${JSON.stringify(value)} — expected a block height`)
-  }
-  return value
-}
-
-async function getJson(url: string): Promise<unknown> {
-  let response: Response
-  try {
-    response = await fetch(url, { headers: { accept: 'application/json' } })
-  } catch (cause) {
-    throw new AdminError(`GET ${url} failed: ${cause instanceof Error ? cause.message : String(cause)}`)
-  }
-  if (!response.ok) throw new AdminError(`GET ${url} answered ${response.status} ${response.statusText}`)
-  try {
-    return await response.json()
-  } catch (cause) {
-    throw new AdminError(`GET ${url} did not answer JSON: ${cause instanceof Error ? cause.message : String(cause)}`)
-  }
-}
 
 export function parseBurnStatus(body: unknown, url: string): BurnStatus {
   if (typeof body !== 'object' || body === null) {
@@ -501,7 +432,7 @@ export function parseBurnStatus(body: unknown, url: string): BurnStatus {
  * §10.2's own economics.
  */
 export function createBurnSource(baseUrl: string): BurnSource {
-  const base = baseUrl.replace(/\/+$/, '')
+  const base = apiBase(baseUrl)
   const treasury = formatAddress(CONSTANTS.TREASURY_ADDRESS)
   return {
     async fetchBurn(): Promise<BurnStatus> {

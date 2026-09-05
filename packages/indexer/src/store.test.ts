@@ -27,6 +27,7 @@ import {
   initialState,
   logHash,
   parseAddress,
+  type Auction,
   type NameRecord,
   type NnsState,
   type Obligation,
@@ -409,6 +410,69 @@ describe.skipIf(URL === undefined)('Store', () => {
       nameRoot: hex(awardCp.nameRoot),
       commitment: hex(awardCp.commitment),
     })
+  })
+
+  it('an open auction survives a restart through Postgres, standing bid and ref included — r28', async () => {
+    // The round trip is pinned in `rows.test.ts`; this stages it through the
+    // table because that is where the r28 columns actually live (migration
+    // 010) and where a NUMERIC or BIGINT comes back as a string. The bid's
+    // ref is the field a restart can least afford to lose: it is not in the
+    // §8.1 entry, and the close owes both legs by it.
+    const record = {
+      name: 'nimiq',
+      owner: compact(D),
+      target: compact(D),
+      expiry: 58_181_040 + CONSTANTS.TERM_LENGTH,
+      status: 'REGISTERED' as const,
+      evm: '',
+      host: '',
+    }
+    const noBid: Auction = {
+      name: 'nimiq',
+      seller: compact(D),
+      startingPrice: 50_000_000n,
+      endHeight: 58_181_040 + CONSTANTS.AUCTION_MIN_DURATION,
+      bidder: null,
+      bid: 0n,
+      bidRef: null,
+    }
+    const withBid: Auction = { ...noBid, bidder: compact(C), bid: 52_500_000n, bidRef: { height: 58_181_100, txIndex: 0 } }
+    const opened = Object.freeze({
+      ...initialState(),
+      names: new Map([['nimiq', record]]),
+      auctions: new Map([['nimiq', noBid]]),
+    })
+    const bidOn = Object.freeze({ ...opened, auctions: new Map([['nimiq', withBid]]) })
+
+    await store.commitBatch({
+      before: initialState(),
+      after: Object.freeze({ ...opened, height: 58_181_040 }),
+      logRows: [],
+      checkpoints: [],
+      nextBatch: 912_042,
+      scannedThrough: 58_181_040,
+    })
+    expect((await store.loadState()).auctions.get('nimiq')).toMatchObject({ bidder: null, bid: 0n, bidRef: null })
+
+    await store.commitBatch({
+      before: Object.freeze({ ...opened, height: 58_181_040 }),
+      after: Object.freeze({ ...bidOn, height: 58_181_100 }),
+      logRows: [],
+      checkpoints: [],
+      nextBatch: 912_043,
+      scannedThrough: 58_181_100,
+    })
+    const restored = await store.loadState()
+    expect(restored.auctions.get('nimiq')).toEqual(withBid)
+
+    // The table refuses a half-present bid, not just the mapping.
+    await expect(
+      pool.query(
+        `INSERT INTO pending (kind, name, seller, starting_price, end_height, bid, bid_ref_height)
+         VALUES ('AUCTION', 'wallet', $1, 50000000, 58267440, 0, 58181100)`,
+        [compact(D)],
+      ),
+    ).rejects.toThrow(/pending_auction_shape/)
   })
 
   it('accepts no UNRESERVE pending row — migration 007 dropped the kind (r22)', async () => {

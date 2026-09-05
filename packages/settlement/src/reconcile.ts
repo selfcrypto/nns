@@ -58,7 +58,7 @@ export interface StandingLeg {
   readonly owedBy: Address
   readonly owedTo: Address
   readonly amount: bigint
-  /** Blocks between the debt's own height and the end of the log. */
+  /** Blocks between the debt's own height and the checkpoint the log was served through. */
   readonly ageBlocks: number
 }
 
@@ -151,7 +151,9 @@ export function reconcile(input: ReconcileInput): Report {
 
   const balanced = lines.every((line) => line.created === line.settled + line.outstanding)
 
-  const head = replay.lastLineHeight ?? 0
+  // The height the replayed state is current at — the checkpoint the log
+  // was served through, which is also what the watcher ages by.
+  const head = replay.state.height
   const standing: StandingLeg[] = replay.outstanding.map((leg) => ({
     ref: leg.obligation.ref,
     kind: leg.obligation.kind,

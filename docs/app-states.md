@@ -43,13 +43,16 @@ first at which an `N` earns `NAME_NOT_FOUND`.
 |---|---|---|
 | **Pending transfer** | `pending.transfer` | "Transferring to `<newOwner>` ≈ date" (matures at `effectiveHeight` = send height + `XFER_TIMELOCK`, ~12 h). Until maturity the name resolves as before and the current owner retains full control. Cancellable with `K`. A second `X` supersedes and restarts the clock |
 | **Open offer** | `pending.offer` | "For sale at `<price>` NIM." Irrevocable until `openedHeight + OFFER_IRREVOCABLE` (~2.4 h) — show that plainly to the seller *before* §4's `O` is sent and while it holds; cancellable with `K` after; auto-expires at `openedHeight + OFFER_MAX_LIFETIME` (~15 d) |
+| **Open auction** (r28) | `pending.auction` | "Up for auction — starting price `<starting_price>` NIM, ends ≈ date." followed by the standing bid ("Highest bid `<bid>` NIM from `<bidder>`") or "No bids yet.", and "Next bid: at least `<minimumBid>` NIM." — the API's figure, `core.requiredBid`, never computed in the app. **Never beside an offer** (§6 `A` exclusivity). Not cancellable, does not expire by itself: it ends at `endHeight`, which a late bid moves out by `AUCTION_EXTENSION` (~10 min). An end at or past expiry is not refused — the grace reset cancels it and refunds the bid — so the Auction sheet warns *before* the `A` goes out |
 | **Pending fee change** | `/params` `pendingGovernance` | Registration/renewal price display shows the change and its ≈ effective date when one is scheduled. Not a name overlay strictly, but it bites anyone about to pay |
 
-On a transfer taking effect (`X` maturity or a winning `B`): owner and target
-both become the new owner, the delegate host is cleared, open offers are
-cancelled, any pending `X` is void. On entering GRACE: host cleared, offers
-and pending `X` cancelled. The detail screen must not keep showing state the
-reset has already destroyed.
+On a transfer taking effect (`X` maturity, a winning `B`, or an auction
+close with a standing bid): owner and target both become the new owner, the
+delegate host is cleared, open offers are cancelled, any pending `X` is void.
+On entering GRACE: host cleared, offers, pending `X` and a running auction
+cancelled (the standing bid refunded). Opening an auction voids the owner's
+own pending `X` and open `O`. The detail screen must not keep showing state
+the reset has already destroyed.
 
 ---
 
@@ -149,20 +152,22 @@ consensus being established. `M`, `P`, `U`, `F` never appear in the app.
 
 Every action below takes a **name**. None of them applies to a dotted query:
 the label is the delegate host's business and NNS holds no record of it, so a
-delegated card carries the address actions (pay, message the parent's owner)
-and none of these.
+delegated card carries the address actions (pay this address, message this
+address — the one the host resolved to, §3) and none of these.
 
 | Action | Who | Legal when | Never when | Notes |
 |---|---|---|---|---|
 | `G` register | Anyone | Name AVAILABLE (incl. released-by-`U`) | REGISTERED (`LOST_REGISTRATION_RACE` — a refund, but the UI never offers it), GRACE (`NAME_IN_GRACE`), reserved (`RESERVED_NAME`) | Value = the band fee from `/params` **exactly** (§10.5). A same-block race is possible even after an availability check (`LOST_REGISTRATION_RACE` refunds) |
 | `S` set target | Owner | REGISTERED | GRACE, absent (`NAME_NOT_REGISTERED`) | Legal with a pending `X` — the owner retains control until maturity. Reset-to-self routes to `PROTOCOL_ADDRESS` (§5.3 sentinel); the UI offers it as "point back at my address" |
 | `E` link EVM address | Owner | REGISTERED | GRACE, absent (`NAME_NOT_REGISTERED`) | Input is `0x` + 40 hex; mixed-case MUST pass EIP-55 (`core.tryParseEvmAddress`) — the only checksum the record ever gets. One address covers every EVM chain; say so. Empty/clear removes it. Best-effort pre-fill from `window.ethereum` when the host injects one; the user still reviews |
-| `X` transfer | Owner | REGISTERED | GRACE, absent | Matures at height + `XFER_TIMELOCK` (~12 h). A second `X` supersedes the first and restarts the clock. The timelock guards a mistyped recipient, not a thief — never describe it as security against a stolen key |
+| `X` transfer | Owner | REGISTERED, no open auction | GRACE, absent, auction open (`AUCTION_OPEN`) | Matures at height + `XFER_TIMELOCK` (~12 h). A second `X` supersedes the first and restarts the clock. The timelock guards a mistyped recipient, not a thief — never describe it as security against a stolen key |
 | `D` delegate | Owner | REGISTERED | GRACE, absent | Host per §6 `D` (`core.validateHost`); name + host ≤ 52 chars combined. Empty host clears delegation |
-| `K` cancel | Owner | Cancellable set non-empty: a pending `X`, or an offer past `OFFER_IRREVOCABLE` | Nothing cancellable (`NOTHING_TO_CANCEL`) — incl. all of GRACE, whose entry already cancelled everything | One `K` cancels **everything** currently cancellable; the confirm step lists what will go |
+| `K` cancel | Owner | Cancellable set non-empty: a pending `X`, or an offer past `OFFER_IRREVOCABLE` | Nothing cancellable (`NOTHING_TO_CANCEL`) — incl. all of GRACE, whose entry already cancelled everything, and an open auction, which `K` cannot touch (bids are commitments; say *that*, not "nothing pending") | One `K` cancels **everything** currently cancellable; the confirm step lists what will go |
 | `N` renew | **Anyone** | REGISTERED or GRACE | AVAILABLE (`NAME_NOT_FOUND` — the record is gone) | Extends from current expiry, not from now — early renewal is never penalised; say so. Value = band fee exactly |
-| `O` offer | Owner | REGISTERED, no open offer | GRACE, absent | Price ≥ `minPrice` (`FEE_LONG` at the current height, from `/params` — never a constant). Carries `DUST_VALUE` (listing fee is 0). Disclose the irrevocable window **before** sending |
+| `O` offer | Owner | REGISTERED, no open offer, no open auction | GRACE, absent, auction open (`AUCTION_OPEN`) | Price ≥ `minPrice` (`FEE_LONG` at the current height, from `/params` — never a constant). Carries `DUST_VALUE` (listing fee is 0). Disclose the irrevocable window **before** sending |
 | `B` buy | Anyone (the buyer) | Offer open | No open offer / expired (`OFFER_NOT_OPEN`) | Value = offer price **exactly**. Custodial warning (§8.5 #10) with explicit confirmation, every time. The wallet dialog shows the marketplace address, so the app itself presents name, price and seller (§5.3) |
+| `A` auction (r28) | Owner | REGISTERED, no open auction — a pending `X` or open `O` does not block it (opening voids both; the review says so) | GRACE, absent, auction open (`AUCTION_OPEN`) | Starting price ≥ `minPrice` — `encodeAuction` refuses less, and the reason (the increment rounds to zero at a token starting price) is core's, not the app's. Duration in days, floor `AUCTION_MIN_DURATION` (~1 d), with `AUCTION_LANDING_MARGIN` (~1 h) added on top because §6 `A` measures from the landing block. Carries `DUST_VALUE`. Says that neither the auction nor a bid can be withdrawn, and **refuses an end at or past expiry** (`AUCTION_BEYOND_TERM` since 2026-09-03 — renew first) |
+| `B` bid (r28) | Anyone (the bidder) | Auction open | No open auction / ended (`OFFER_NOT_OPEN`), own auction (refused in-app; the chain would take the money) | The same `B` as a buy — **state decides which it is**, the app only shows which one it is sending. Value = the bid, ≥ the API's `minimumBid` (`core.requiredBid`); below it the chain refunds under `WRONG_PRICE`, and the sheet refuses first. Custodial warning in its bid form (the operator holds the bid for the whole window and refunds it if outbid), explicit confirmation, every time. Name, standing bid, minimum, end and seller presented in-app (§5.3) |
 
 **Cross-cutting:** a returned hash is not confirmation — three silent-drop
 routes (§5.3). Every send is followed by polling the API until the effect
@@ -206,6 +211,18 @@ include this transaction", never "sent".
    the resolved address** beside any address a user might pay — it is a
    picture of what will actually be paid.
 10. **Grace is neither gone nor free** — see §1's GRACE wording.
+11. **The §10.2 burn readout is a quiet fact, never a promise banner** —
+    Buy's footer shows burned, owed, and behind/ahead/even (`/burn`; the
+    share computed from `CONSTANTS.BURN_SHARE_BP`, never hardcoded), and
+    shows nothing when the API does not answer, so an unreachable record
+    never reads as a broken promise. (Decided 2026-08-17, built at the
+    2026-08-26 audit; its footer placement is provisional until the visual
+    pass.)
+12. **Empty states and date lines are neutral tone, and live in
+    `wording.ts`** like every other sentence — the Buy / My names / Offers /
+    Inbox empty-state titles and bodies, `justRegisteredLine`,
+    `parentNotRegisteredLine`, `graceEndsUnknownPhrase` and the expiry date
+    lines (centralised at the 2026-08-26 audit). None is a warning.
 
 ---
 
@@ -213,16 +230,16 @@ include this transaction", never "sent".
 
 | Screen | Must render |
 |---|---|
-| **Buy** | Every §3 outcome; every §2 verification value, warning tone and halting error; §1 states with overlays. Acquisition actions only — a name the viewer owns is the handoff, not the toolbox |
+| **Buy** | Every §3 outcome; every §2 verification value, warning tone and halting error; §1 states with overlays. Acquisition actions only — a name the viewer owns is the handoff, not the toolbox. The §10.2 burn readout in the footer (§5 rule 11) |
 | **Name detail** (in My names; one component, shared with Buy) | §1 REGISTERED/GRACE with all overlays; §2 badges; expiry ≈ date; renewal reminder from 60 d; owner actions gated per §4 (visible but disabled states carry the *reason* they are disabled) |
 | **My names** | `/address/{addr}/names` (REGISTERED and GRACE); expiry sort; the 60-day reminder; empty state ("no names yet") and the no-wallet state; a row opens that name's detail **in place**; Connect Wallet / Add another address / Disconnect |
 | **Pay** | §7 |
 | **Inbox** (NC chat, `docs/app-chat.md`) | Threads keyed (peer, name), owned-name threads first and the rest muted; messages as plain text from an **address**, never a reverse-resolved name; the honest history window ("since ≈ date"); the composer with byte budget, the public-forever notice, and the "this name is yours" refusal; setup states for no wallet / no history endpoint |
-| **Marketplace** | `/offers`; each offer's name, price, seller (with identicon); the custodial nature disclosed on the buy path (§4 `B`) |
+| **Marketplace** | `/offers` and `/auctions` in one list; each offer's name, price, seller (with identicon); each auction's name, an "Auction" badge, the standing bid or the starting price, the minimum next bid, the seller and the end as ≈ date; the custodial nature disclosed on the buy and bid paths (§4 `B`) |
 
-Send flows (`G S X D K N O B` confirmations and the post-send confirm loop)
-are specified by §4 and §5 but blocked on the value/fee probe — see
-`packages/app/CLAUDE.md`, "Open".
+Send flows (`G S E X D K N O A B` confirmations and the post-send confirm
+loop) are specified by §4 and §5; both adapters send since 2026-08-21
+(`packages/app/CLAUDE.md`).
 
 ## 7. Pay states (app-ux §3)
 

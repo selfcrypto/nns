@@ -101,7 +101,7 @@ describe('vectors/codec.json', () => {
     Object.fromEntries(
       Object.entries(message).map(([key, value]) => [
         key,
-        ['price', 'reserve', 'feeStandard', 'feeLong', 'commissionBp'].includes(key) ? BigInt(value as string) : value,
+        ['price', 'startingPrice', 'feeStandard', 'feeLong', 'commissionBp'].includes(key) ? BigInt(value as string) : value,
       ]),
     )
 
@@ -400,9 +400,9 @@ describe('vectors/reduce.json', () => {
       for (const key of fields) {
         if (want[key] === undefined) continue
         const value =
-          key === 'newOwner' || key === 'seller' || key === 'recipient'
+          key === 'newOwner' || key === 'seller' || key === 'recipient' || key === 'bidder'
             ? maybeAddress(want[key])
-            : key === 'price'
+            : key === 'price' || key === 'startingPrice' || key === 'bid'
               ? BigInt(want[key])
               : want[key]
         expect(entry[key], `${label}.${name}.${key}`).toEqual(value)
@@ -468,6 +468,9 @@ describe('vectors/reduce.json', () => {
             'openedHeight',
             'expiryHeight',
           ])
+        }
+        if (step.check.auctions !== undefined) {
+          checkPending('auctions', state.auctions, step.check.auctions, ['seller', 'startingPrice', 'endHeight', 'bidder', 'bid'])
         }
         if (step.check.pendingGovernance !== undefined) {
           if (step.check.pendingGovernance === null) expect(state.pendingGovernance).toBeNull()
@@ -637,13 +640,13 @@ describe('vectors/reduce.json', () => {
         G: 5, // §7.4's fixed five-check order, four adjacent pairs plus grace
         S: 1,
         E: 2, // r26: recipient before state (pinned), state before sender (free, like S)
-        X: 1,
+        X: 2, // r28: NOT_OWNER before AUCTION_OPEN
         D: 3,
         K: 3,
         N: 2,
-        O: 2,
+        O: 3, // r28: NOT_OWNER before AUCTION_OPEN
         B: 3,
-        A: 2,
+        A: 6, // r28: routing, name state, sender, AUCTION_OPEN, floor, notice, term (2026-09-03) — the version forfeit is gone
         P: 3,
         U: 3, // r22 removed the notice row, and the pair that ordered it
         F: 1,
@@ -660,11 +663,13 @@ describe('vectors/reduce.json', () => {
       // rows — through r22 §5.2 called an unknown type and an over-length
       // payload "ignored", so the dispute was over the tokens' existence, not
       // their order, and the rows could not cite a clause both halves of the
-      // spec agreed with.
+      // spec agreed with. r28 activated `A`: its two version-forfeit rows
+      // went, and seven rows citing the r28 check-order table came — five for
+      // `A`'s own order, one each for the `AUCTION_OPEN` row in `O` and `X`.
       const cases = section.cases as any[]
       const pinned = cases.filter((c) => c.pinnedBy !== null)
       const free = cases.filter((c) => c.pinnedBy === null)
-      expect(pinned).toHaveLength(18)
+      expect(pinned).toHaveLength(24)
       expect(free).toHaveLength(19)
       for (const testCase of cases) {
         expect(typeof testCase.note, `${testCase.id} needs a note`).toBe('string')
@@ -679,7 +684,7 @@ describe('vectors/reduce.json', () => {
     // The gap these close: every other observation of a height-driven effect
     // is a root taken at a CHECKPOINT_INTERVAL boundary, which cannot tell h
     // from h+1, and none of them earns a verdict token — so a replay can agree
-    // with a second implementation on all 26 tokens and still fire an effect a
+    // with a second implementation on all 27 tokens and still fire an effect a
     // block early. One vector per §7.3 category, each asserting both sides.
     //
     // The two `boundary_unreserve_*` vectors left with r22: a `U` executes in
@@ -691,6 +696,7 @@ describe('vectors/reduce.json', () => {
     // that no longer pins a height.
     const boundary = file.scenarios.filter((s: any) => s.id.startsWith('boundary_'))
     expect(boundary.map((s: any) => s.id).sort()).toEqual([
+      'boundary_auction_closes_at_end_height',
       'boundary_expiry_grace_and_the_fall_to_available',
       'boundary_governance_activates_at_effective_height',
       'boundary_offer_expires_at_OFFER_MAX_LIFETIME',

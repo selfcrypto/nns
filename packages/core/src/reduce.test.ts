@@ -3,6 +3,7 @@ import type { Address } from './address.js'
 import {
   BURN_ADDRESS,
   type BuiltTransaction,
+  encodeAuction,
   encodeBurn,
   encodeBuy,
   encodeCancel,
@@ -24,6 +25,7 @@ import {
   commissionOn,
   governanceBoundViolation,
   reduce,
+  requiredBid,
 } from './reduce.js'
 import { merkleProof, merkleRoot, verifyProof } from './merkle.js'
 import { type NnsState, LAUNCH_PRICES, initialState, lookup, minPrice, resolve } from './state.js'
@@ -126,11 +128,11 @@ describe('§7.5 — transactions the indexer must ignore', () => {
 
 // ── Canonical ordering ──────────────────────────────────────────────────────
 
-describe('§5.2 canonical ordering', () => {
+describe('reduce honours the caller-supplied txIndex — §5.2 ranks are computed upstream (rankMessages, r27)', () => {
   const registration = (sender: Address): BuiltTransaction =>
     encodeRegister({ name: 'kikename', fee: FEE })
 
-  it('gives the name to the earlier transaction in the block body array', () => {
+  it('gives the name to the lower txIndex', () => {
     const first = step(registration(ALICE), { sender: ALICE, at: LAUNCH + 10, txIndex: 0 })
     const second = step(registration(BOB), { sender: BOB, at: LAUNCH + 10, txIndex: 1 })
 
@@ -139,7 +141,7 @@ describe('§5.2 canonical ordering', () => {
     expect(lookup(state, 'kikename')?.owner).toBe(ALICE)
   })
 
-  it('reverses when the two transactions swap positions — order is load-bearing', () => {
+  it('reverses when the two transactions swap txIndex — the rank is load-bearing', () => {
     step(registration(BOB), { sender: BOB, at: LAUNCH + 10, txIndex: 0 })
     step(registration(ALICE), { sender: ALICE, at: LAUNCH + 10, txIndex: 1 })
     expect(lookup(state, 'kikename')?.owner).toBe(BOB)
@@ -502,8 +504,9 @@ describe('ordering of effects that come due at the same height', () => {
   })
 
   it('fires every §7.3 category due at one height, in §7.3 order, before that block’s transactions', () => {
-    // One height with all five categories due at once. §7.3 fixes the order —
-    // governance, maturing X, expiry, grace release, offer expiry — and fixes
+    // One height with all six categories due at once. §7.3 fixes the order —
+    // governance, maturing X, expiry, grace release, auction close (r28,
+    // moved behind the expiry 2026-09-03), offer expiry — and fixes
     // that the whole batch runs *before* the block's own transactions, which
     // is what the final `G` here checks. r22 removed the unreserve step: a `U`
     // executes in its landing block and schedules nothing.
@@ -530,6 +533,8 @@ describe('ordering of effects that come due at the same height', () => {
     // Both expire at H; `expirename` also carries a transfer maturing there.
     send1(encodeRegister({ name: 'expirename', fee: FEE }), at(H - CONSTANTS.TERM_LENGTH))
     send1(encodeRegister({ name: 'offername', fee: FEE }), at(H - CONSTANTS.TERM_LENGTH))
+    // An auction closing at H on a name that outlives it (registered 100 blocks later).
+    send1(encodeRegister({ name: 'closename', fee: FEE }), at(H - CONSTANTS.TERM_LENGTH + 100))
     // An offer expiring at H.
     send1(encodeOffer({ name: 'offername', price: FLOOR, minPrice: FLOOR }), {
       sender: ALICE,
@@ -538,6 +543,8 @@ describe('ordering of effects that come due at the same height', () => {
     // The `U` releasing `binance` is not scheduled at all since r22 — it fires
     // in its own block, well before H, and its only trace here is that the
     // final `G` for the name is registrable.
+    send1(encodeAuction({ name: 'closename', startingPrice: FLOOR, endHeight: H, minPrice: FLOOR }), at(H - CONSTANTS.AUCTION_MIN_DURATION - 5))
+    send1(encodeBuy({ name: 'closename', price: FLOOR }), { sender: BOB, at: H - CONSTANTS.AUCTION_MIN_DURATION - 4 })
     const notice = H - CONSTANTS.GOVERNANCE_DELAY
     send1(encodeUnreserve({ name: 'binance' }), { sender: ADMIN, at: notice })
     send1(
@@ -556,6 +563,12 @@ describe('ordering of effects that come due at the same height', () => {
     expect(state.prices.feeStandard).toBe(FEE * 2n) // governance activated
     expect(state.unreserved.has('binance')).toBe(true) // released back at `notice`
     expect(lookup(state, 'expirename')).toMatchObject({ owner: BOB, status: 'GRACE' }) // X before expiry
+    expect(state.auctions.has('closename')).toBe(false) // auction closed…
+    expect(lookup(state, 'closename')).toMatchObject({ owner: BOB, status: 'REGISTERED' }) // …to the bidder, still in term
+    // …at the commission rate that activated in this very block (§6 A: governance first)
+    expect(state.outstanding.get(`${H - CONSTANTS.AUCTION_MIN_DURATION - 4}:0`)?.find((leg) => leg.kind === 'COMMISSION')?.amount).toBe(
+      commissionOn(FLOOR, CONSTANTS.COMMISSION_RATE),
+    )
     expect(lookup(state, 'gracename')).toBeNull() // grace released
     expect(state.offers.has('offername')).toBe(false) // offer expired
 
@@ -1112,24 +1125,301 @@ describe('U — unreserve (§6)', () => {
 
 // ── A and F ─────────────────────────────────────────────────────────────────
 
-describe('A — auction (§6), not in v1', () => {
-  it('parses, logs, and forfeits by protocol version rather than by omission', () => {
-    const built = { ...encodeCancel({ name: 'kikename' }), data: hexOf('NNS1Akikename|1000|58200000') }
-    expect(step(built, { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_NOT_IN_V1' })
+describe('A — auction (§6, r28)', () => {
+  const STARTING_PRICE = 100_000_000n
+  /** Far enough out that an `A` landing anywhere in the first ten blocks clears `AUCTION_MIN_DURATION`. */
+  const END = LAUNCH + 10 + CONSTANTS.AUCTION_MIN_DURATION
+  const auctionOf = (name = 'kikename', startingPrice = STARTING_PRICE, endHeight = END): BuiltTransaction =>
+    encodeAuction({ name, startingPrice, endHeight, minPrice: FLOOR })
+  const bid = (price: bigint, sender: Address, at: number, txIndex = 0): ReduceResult =>
+    step(encodeBuy({ name: 'kikename', price }), { sender, at, txIndex })
+  const legsOf = (result: ReduceResult) => (result.verdict as { obligations?: readonly unknown[] }).obligations
+
+  it('requiredBid: the starting price until a bid stands, then standing + ⌊standing × AUCTION_MIN_INCREMENT⌋', () => {
+    const open = { name: 'kikename', seller: ALICE, startingPrice: STARTING_PRICE, endHeight: END, bidder: null, bid: 0n, bidRef: null } as const
+    const standing = (bid: bigint) => ({ ...open, bidder: BOB, bid, bidRef: { height: LAUNCH + 3, txIndex: 0 } })
+    expect(requiredBid(open)).toBe(STARTING_PRICE)
+    expect(requiredBid(standing(100n))).toBe(105n)
+    expect(requiredBid(standing(100_000n))).toBe(105_000n)
+    expect(requiredBid(standing(101n))).toBe(106n) // ⌊5.05⌋ = 5
+    // Below 20 luna the increment rounds to zero and a bid could "raise" by
+    // nothing — which is why the starting price floor is MIN_PRICE and not a token (§6 A).
+    expect(requiredBid(standing(19n))).toBe(19n)
   })
 
-  it('forfeits AUCTION_NOT_IN_V1 even below MIN_PRICE, because §6 requires that reason', () => {
-    // §6 `A` gives the reserve the same MIN_PRICE floor, but every `A` in v1
-    // takes this forfeit — a below-floor one answering `BELOW_MIN_PRICE`
-    // instead would write a different reason code into the log than a
-    // conforming implementation, and the log is committed to (§8.2).
-    for (const reserve of [1n, FLOOR - 1n, FLOOR]) {
-      const built = {
-        ...encodeCancel({ name: 'kikename' }),
-        data: hexOf(`NNS1Akikename|${reserve}|58200000`),
-      }
-      expect(step(built, { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_NOT_IN_V1' })
-    }
+  describe('opening', () => {
+    it('opens for the owner, with no standing bid and the end as stated', () => {
+      registerToAlice()
+      const result = step(auctionOf(), { sender: ALICE, at: LAUNCH + 1 })
+      expect(result.verdict).toEqual({ kind: 'OK', obligations: [] })
+      expect(state.auctions.get('kikename')).toEqual({
+        name: 'kikename',
+        seller: ALICE,
+        startingPrice: STARTING_PRICE,
+        endHeight: END,
+        bidder: null,
+        bid: 0n,
+        bidRef: null,
+      })
+      expect(state.nextDueHeight).toBeLessThanOrEqual(END)
+    })
+
+    it('routes to PROTOCOL_ADDRESS, before anything else', () => {
+      registerToAlice()
+      const built = { ...auctionOf(), recipient: TREASURY }
+      expect(step(built, { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'WRONG_RECIPIENT' })
+    })
+
+    it('forfeits NAME_NOT_REGISTERED for a grace name and NOT_OWNER for a stranger', () => {
+      registerToAlice()
+      expect(step(auctionOf(), { sender: BOB, at: LAUNCH + 1 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'NOT_OWNER' })
+      const expiry = LAUNCH + CONSTANTS.TERM_LENGTH
+      expect(
+        step(auctionOf('kikename', STARTING_PRICE, expiry + CONSTANTS.AUCTION_MIN_DURATION), { sender: ALICE, at: expiry })
+          .verdict,
+      ).toEqual({ kind: 'FORFEIT', reason: 'NAME_NOT_REGISTERED' })
+    })
+
+    it('forfeits NAME_NOT_FOUND for an unregistered ordinary name, NOT_ADMIN for a held one from a stranger', () => {
+      expect(step(auctionOf(), { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'NAME_NOT_FOUND' })
+      expect(step(auctionOf('nim'), { sender: ALICE }).verdict).toEqual({ kind: 'FORFEIT', reason: 'NOT_ADMIN' })
+      // A released short name has no record and is no longer held: NAME_NOT_FOUND, even from the admin.
+      step(encodeUnreserve({ name: 'nim', recipient: null }), { sender: ADMIN })
+      expect(step(auctionOf('nim'), { sender: ADMIN, at: LAUNCH + 1 }).verdict).toEqual({
+        kind: 'FORFEIT',
+        reason: 'NAME_NOT_FOUND',
+      })
+    })
+
+    it('forfeits AUCTION_OPEN on a second A, BELOW_MIN_PRICE under the floor, INSUFFICIENT_NOTICE under the duration', () => {
+      registerToAlice()
+      // The builder refuses a below-floor starting price, so the probe is hand-built.
+      const belowFloor = { ...auctionOf(), data: hexOf(`NNS1Akikename|${FLOOR - 1n}|${END}`) }
+      expect(step(belowFloor, { sender: ALICE, at: LAUNCH + 1 }).verdict).toEqual({
+        kind: 'FORFEIT',
+        reason: 'BELOW_MIN_PRICE',
+      })
+      expect(step(auctionOf('kikename', STARTING_PRICE, LAUNCH + CONSTANTS.AUCTION_MIN_DURATION), { sender: ALICE, at: LAUNCH + 1 }).verdict).toEqual({
+        kind: 'FORFEIT',
+        reason: 'INSUFFICIENT_NOTICE',
+      })
+      expect(step(auctionOf('kikename', FLOOR), { sender: ALICE, at: LAUNCH + 2 }).verdict.kind).toBe('OK')
+      expect(step(auctionOf(), { sender: ALICE, at: LAUNCH + 3 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_OPEN' })
+    })
+
+    it('voids the owner’s own pending X and open O — the latest statement of intent wins', () => {
+      registerToAlice()
+      step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 1 })
+      step(encodeOffer({ name: 'kikename', price: STARTING_PRICE, minPrice: FLOOR }), { sender: ALICE, at: LAUNCH + 2 })
+      expect(step(auctionOf(), { sender: ALICE, at: LAUNCH + 3 }).verdict.kind).toBe('OK')
+      expect(state.transfers.has('kikename')).toBe(false)
+      expect(state.offers.has('kikename')).toBe(false)
+      // And the voided X never matures.
+      state = advanceTo(state, LAUNCH + 1 + CONSTANTS.XFER_TIMELOCK)
+      expect(lookup(state, 'kikename')?.owner).toEqual(ALICE)
+    })
+
+    it('is exclusive while open: O and X forfeit AUCTION_OPEN, K finds nothing to cancel', () => {
+      registerToAlice()
+      step(auctionOf(), { sender: ALICE, at: LAUNCH + 1 })
+      expect(step(encodeOffer({ name: 'kikename', price: STARTING_PRICE, minPrice: FLOOR }), { sender: ALICE, at: LAUNCH + 2 }).verdict).toEqual({
+        kind: 'FORFEIT',
+        reason: 'AUCTION_OPEN',
+      })
+      expect(step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 2 }).verdict).toEqual({
+        kind: 'FORFEIT',
+        reason: 'AUCTION_OPEN',
+      })
+      expect(step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: LAUNCH + 2 }).verdict).toEqual({
+        kind: 'FORFEIT',
+        reason: 'NOTHING_TO_CANCEL',
+      })
+      // Signalling that a transfer would reset anyway stays allowed.
+      expect(step(encodeSetTarget({ name: 'kikename', target: CAROL }), { sender: ALICE, at: LAUNCH + 2 }).verdict.kind).toBe('OK')
+    })
+  })
+
+  describe('bidding', () => {
+    beforeEach(() => {
+      registerToAlice()
+      step(auctionOf(), { sender: ALICE, at: LAUNCH + 1 })
+    })
+
+    it('refunds a first bid under the starting price as WRONG_PRICE, and takes one at the starting price', () => {
+      const low = bid(STARTING_PRICE - 1n, BOB, LAUNCH + 2)
+      expect(low.verdict).toMatchObject({ kind: 'REFUND', reason: 'WRONG_PRICE' })
+      expect(legsOf(low)).toEqual([
+        { ref: { height: LAUNCH + 2, txIndex: 0 }, kind: 'REFUND', owedBy: MARKETPLACE, owedTo: BOB, amount: STARTING_PRICE - 1n },
+      ])
+      expect(state.auctions.get('kikename')?.bidder).toBeNull()
+
+      const first = bid(STARTING_PRICE, BOB, LAUNCH + 3)
+      expect(first.verdict).toEqual({ kind: 'OK', obligations: [] })
+      expect(state.auctions.get('kikename')).toMatchObject({ bidder: BOB, bid: STARTING_PRICE, bidRef: { height: LAUNCH + 3, txIndex: 0 } })
+      // Ownership has not moved — that is the close's job.
+      expect(lookup(state, 'kikename')?.owner).toEqual(ALICE)
+    })
+
+    it('requires the standing bid plus 5%, floored, and refunds the outbid bidder at once by their own ref', () => {
+      bid(STARTING_PRICE, BOB, LAUNCH + 3)
+      const increment = commissionOn(STARTING_PRICE, CONSTANTS.AUCTION_MIN_INCREMENT_BP)
+      expect(increment).toBe(5_000_000n)
+
+      const short = bid(STARTING_PRICE + increment - 1n, CAROL, LAUNCH + 4)
+      expect(short.verdict).toMatchObject({ kind: 'REFUND', reason: 'WRONG_PRICE' })
+      expect(state.auctions.get('kikename')?.bidder).toEqual(BOB)
+
+      const raise = bid(STARTING_PRICE + increment, CAROL, LAUNCH + 5)
+      expect(raise.verdict).toEqual({
+        kind: 'OK',
+        obligations: [{ ref: { height: LAUNCH + 3, txIndex: 0 }, kind: 'REFUND', owedBy: MARKETPLACE, owedTo: BOB, amount: STARTING_PRICE }],
+      })
+      expect(state.outstanding.get(`${LAUNCH + 3}:0`)).toHaveLength(1)
+      expect(state.auctions.get('kikename')).toMatchObject({ bidder: CAROL, bid: STARTING_PRICE + increment })
+    })
+
+    it('extends the end only when a successful bid lands inside AUCTION_EXTENSION of it', () => {
+      const ext = CONSTANTS.AUCTION_EXTENSION
+      bid(STARTING_PRICE, BOB, END - ext)
+      expect(state.auctions.get('kikename')?.endHeight).toBe(END)
+      // One block later the bid + extension exceeds the end by one.
+      bid(STARTING_PRICE * 2n, CAROL, END - ext + 1)
+      expect(state.auctions.get('kikename')?.endHeight).toBe(END + 1)
+      // A refunded bid moves nothing.
+      bid(STARTING_PRICE * 2n, BOB, END)
+      expect(state.auctions.get('kikename')?.endHeight).toBe(END + 1)
+      expect(state.nextDueHeight).toBe(END + 1)
+    })
+
+    it('refunds a B that arrives after the close as OFFER_NOT_OPEN, the ordinary no-offer path', () => {
+      bid(STARTING_PRICE, BOB, LAUNCH + 3)
+      const late = bid(STARTING_PRICE * 2n, CAROL, END)
+      expect(late.verdict).toMatchObject({ kind: 'REFUND', reason: 'OFFER_NOT_OPEN' })
+      expect(lookup(state, 'kikename')?.owner).toEqual(BOB)
+    })
+  })
+
+  describe('closing', () => {
+    it('an end pushed onto the expiry by an extension: the expiry fires first (§7.3), the auction is cancelled and the bid refunded', () => {
+      // An A may not *open* past the term (AUCTION_BEYOND_TERM, below), but a
+      // late bid can still carry the end to the expiry itself. Decided
+      // 2026-09-03: expiry wins, the seller keeps a grace name, the bidder gets
+      // the money back — a winner never receives a name already in grace.
+      registerToAlice()
+      const expiry = LAUNCH + CONSTANTS.TERM_LENGTH
+      const opened = expiry - CONSTANTS.AUCTION_EXTENSION - CONSTANTS.AUCTION_MIN_DURATION - 10
+      step(auctionOf('kikename', STARTING_PRICE, expiry - 1), { sender: ALICE, at: opened })
+      bid(STARTING_PRICE, BOB, expiry - CONSTANTS.AUCTION_EXTENSION) // extends to exactly `expiry`
+      expect(state.auctions.get('kikename')?.endHeight).toBe(expiry)
+      state = advanceTo(state, expiry)
+      expect(state.auctions.has('kikename')).toBe(false)
+      expect(lookup(state, 'kikename')).toMatchObject({ owner: ALICE, status: 'GRACE', expiry })
+      expect(state.outstanding.get(`${expiry - CONSTANTS.AUCTION_EXTENSION}:0`)).toEqual([
+        { ref: { height: expiry - CONSTANTS.AUCTION_EXTENSION, txIndex: 0 }, kind: 'REFUND', owedBy: MARKETPLACE, owedTo: BOB, amount: STARTING_PRICE },
+      ])
+    })
+
+    it('an A whose end is at or past the expiry forfeits AUCTION_BEYOND_TERM, after the window rows', () => {
+      registerToAlice()
+      registerToAlice('othername')
+      const expiry = LAUNCH + CONSTANTS.TERM_LENGTH
+      expect(step(auctionOf('kikename', STARTING_PRICE, expiry), { sender: ALICE, at: LAUNCH + 1 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_BEYOND_TERM' })
+      expect(step(auctionOf('kikename', STARTING_PRICE, expiry + 1), { sender: ALICE, at: LAUNCH + 2 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_BEYOND_TERM' })
+      // One block inside the term opens.
+      expect(step(auctionOf('kikename', STARTING_PRICE, expiry - 1), { sender: ALICE, at: expiry - CONSTANTS.AUCTION_MIN_DURATION - 5 }).verdict.kind).toBe('OK')
+      // Too short *and* past the term: the window's length is judged first.
+      expect(step(auctionOf('othername', STARTING_PRICE, expiry), { sender: ALICE, at: expiry - 10 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'INSUFFICIENT_NOTICE' })
+    })
+
+    it('fires at exactly end_height, before that block’s transactions: transfer resets plus two legs by the winning ref', () => {
+      registerToAlice()
+      step(encodeDelegate({ name: 'kikename', host: 'a.com' }), { sender: ALICE, at: LAUNCH + 1 })
+      step(auctionOf(), { sender: ALICE, at: LAUNCH + 2 })
+      bid(STARTING_PRICE, BOB, LAUNCH + 3)
+
+      state = advanceTo(state, END - 1)
+      expect(state.auctions.has('kikename')).toBe(true)
+      expect(lookup(state, 'kikename')?.owner).toEqual(ALICE)
+
+      state = advanceTo(state, END)
+      expect(state.auctions.has('kikename')).toBe(false)
+      expect(lookup(state, 'kikename')).toMatchObject({ owner: BOB, target: BOB, host: '', evm: '', status: 'REGISTERED' })
+      const commission = commissionOn(STARTING_PRICE, CONSTANTS.COMMISSION_RATE)
+      expect(state.outstanding.get(`${LAUNCH + 3}:0`)).toEqual([
+        { ref: { height: LAUNCH + 3, txIndex: 0 }, kind: 'SALE_PROCEEDS', owedBy: MARKETPLACE, owedTo: ALICE, amount: STARTING_PRICE - commission },
+        { ref: { height: LAUNCH + 3, txIndex: 0 }, kind: 'COMMISSION', owedBy: MARKETPLACE, owedTo: TREASURY, amount: commission },
+      ])
+
+      // The legs discharge like any other (§6 M).
+      step(encodeSettlement({ height: LAUNCH + 3, txIndex: 0, payee: ALICE, amount: STARTING_PRICE - commission }), {
+        sender: MARKETPLACE,
+        at: END + 1,
+      })
+      expect(state.outstanding.get(`${LAUNCH + 3}:0`)).toHaveLength(1)
+    })
+
+    it('ends with nothing owed and the name where it was when no bid met the starting price', () => {
+      registerToAlice()
+      step(auctionOf(), { sender: ALICE, at: LAUNCH + 1 })
+      bid(STARTING_PRICE - 1n, BOB, LAUNCH + 2)
+      state = advanceTo(state, END)
+      expect(state.auctions.has('kikename')).toBe(false)
+      expect(lookup(state, 'kikename')?.owner).toEqual(ALICE)
+      expect(state.outstanding.size).toBe(1) // the under-startingPrice refund only
+      // And the owner can open another.
+      expect(step(auctionOf('kikename', STARTING_PRICE, END + CONSTANTS.AUCTION_MIN_DURATION), { sender: ALICE, at: END }).verdict.kind).toBe('OK')
+    })
+
+    it('charges the commission at the rate active at the close height — governance fires first', () => {
+      registerToAlice()
+      step(auctionOf(), { sender: ALICE, at: LAUNCH + 1 })
+      bid(STARTING_PRICE, BOB, LAUNCH + 2)
+      // A P effective exactly at END, moving the commission by the max step.
+      const raised = CONSTANTS.COMMISSION_RATE + CONSTANTS.COMMISSION_MAX_STEP
+      step(
+        encodeGovernance({ feeStandard: FEE, feeLong: FLOOR, commissionBp: raised, effectiveHeight: END }),
+        { sender: ADMIN, at: END - CONSTANTS.GOVERNANCE_DELAY },
+      )
+      state = advanceTo(state, END)
+      expect(state.prices.commissionBp).toBe(raised)
+      expect(state.outstanding.get(`${LAUNCH + 2}:0`)?.[1]?.amount).toBe(commissionOn(STARTING_PRICE, raised))
+    })
+
+    it('awards a still-reserved name on U’s terms: fresh term from the close, unreserved set, both legs to the treasury', () => {
+      expect(step(auctionOf('nim'), { sender: ADMIN }).verdict).toEqual({ kind: 'OK', obligations: [] })
+      expect(state.auctions.get('nim')?.seller).toEqual(TREASURY)
+      step(encodeBuy({ name: 'nim', price: STARTING_PRICE }), { sender: BOB, at: LAUNCH + 1 })
+      state = advanceTo(state, END)
+      expect(lookup(state, 'nim')).toEqual({
+        name: 'nim',
+        owner: BOB,
+        target: BOB,
+        expiry: END + CONSTANTS.TERM_LENGTH,
+        status: 'REGISTERED',
+        host: '',
+        evm: '',
+      })
+      expect(state.unreserved.has('nim')).toBe(true)
+      const commission = commissionOn(STARTING_PRICE, CONSTANTS.COMMISSION_RATE)
+      expect(state.outstanding.get(`${LAUNCH + 1}:0`)?.map((leg) => [leg.kind, leg.owedTo, leg.amount])).toEqual([
+        ['SALE_PROCEEDS', TREASURY, STARTING_PRICE - commission],
+        ['COMMISSION', TREASURY, commission],
+      ])
+    })
+
+    it('is cancelled by the grace reset, refunding the standing bid, when the end falls past expiry', () => {
+      registerToAlice()
+      const expiry = LAUNCH + CONSTANTS.TERM_LENGTH
+      const opened = expiry - CONSTANTS.AUCTION_MIN_DURATION + 1
+      step(auctionOf('kikename', STARTING_PRICE, opened + CONSTANTS.AUCTION_MIN_DURATION), { sender: ALICE, at: opened })
+      bid(STARTING_PRICE, BOB, opened + 1)
+      state = advanceTo(state, expiry)
+      expect(lookup(state, 'kikename')?.status).toBe('GRACE')
+      expect(state.auctions.has('kikename')).toBe(false)
+      expect(state.outstanding.get(`${opened + 1}:0`)).toEqual([
+        { ref: { height: opened + 1, txIndex: 0 }, kind: 'REFUND', owedBy: MARKETPLACE, owedTo: BOB, amount: STARTING_PRICE },
+      ])
+    })
   })
 })
 

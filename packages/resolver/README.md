@@ -290,7 +290,7 @@ entries for that reason.
 | Status | Meaning | Hard stop? |
 |---|---|---|
 | `verified` | Enough listed publishers anchored this exact checkpoint | No — the good case, and it warns about nothing unless the anchor is stale |
-| `not-checked` | The check did not run. `result.anchor.reason` says why: no policy, no publishers listed, no proof to anchor, or the operator could not supply the checkpoint document | No |
+| `not-checked` | The check did not run. `result.anchor.reason` says why (no policy, no proof to anchor, or the operator could not supply the checkpoint document) — except with no publishers listed, where the reader itself declined and says so at `result.anchor.check.reason` | No |
 | `unavailable` | Fewer than two RPC endpoints answered | No |
 | `rpc-disagreement` | The endpoints contradict each other about what is on chain, so nothing was confirmed | No |
 | `quorum-not-met` | Fewer publishers have anchored this checkpoint than required, so far | No — pending depth |

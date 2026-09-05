@@ -1,7 +1,7 @@
 {
   "vectors": "nns/reduce",
   "version": 1,
-  "spec": "nns-spec-v1 draft r26, §7.3, §7.4 and §7.5",
+  "spec": "nns-spec-v1 draft r28, §7.3, §7.4 and §7.5",
   "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`), a bare height advance (`advanceTo`), or a `check` against the state at that point. A `check` may also carry `label`, which snapshots the four §8.1 component digests (`nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` — the commitment minus the height and the log hash), and `since` + `changed`, which compares them against an earlier label: every component **not** listed in `changed` MUST be byte-identical. `logLines` is the number of §8.2 lines emitted so far, and a height advance MUST never add one.",
   "addresses": {
     "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
@@ -29,7 +29,11 @@
     "XFER_TIMELOCK": 43200,
     "GOVERNANCE_DELAY": 86400,
     "OFFER_IRREVOCABLE": 8640,
-    "OFFER_MAX_LIFETIME": 1296000
+    "OFFER_MAX_LIFETIME": 1296000,
+    "AUCTION_MIN_INCREMENT": "500 bp of the standing bid, floored",
+    "AUCTION_MIN_DURATION": 86400,
+    "AUCTION_EXTENSION": 600,
+    "COMMISSION_RATE": "250 bp"
   },
   "scenarios": [
     {
@@ -1950,21 +1954,20 @@
       }
     },
     {
-      "id": "auction_is_not_in_v1",
-      "note": "By protocol version, not by omission: an implementation that honoured A would derive a different root, so v1 conformance requires this same forfeit. §6 A gives the reserve the same MIN_PRICE floor as an O price, but no A reaches that check in v1 — a below-floor reserve still answers AUCTION_NOT_IN_V1, because a different reason code here would change the log and therefore the checkpoint (§8.2).",
+      "id": "auction_lifecycle_open_bid_outbid_extend_close_settle",
+      "note": "§6 `A` (r28) end to end. The startingPrice is 1,000 NIM; a first bid one luna short refunds under WRONG_PRICE and leaves no standing bid; the first bid at the startingPrice stands and moves no ownership; the increment is floor(standing × 500 bp), so 104,999,999 is short and 105,000,000 raises — and the raise refunds BOB *at once*, keyed by BOB's own bid, so the marketplace holds one bid per auction. The late bid lands 500 blocks before the end and moves it to bid + AUCTION_EXTENSION. The close is a height effect: nothing at end − 1, and at the end the winner takes the name with the §7.3 transfer resets (the delegate host set before the auction is gone) and two legs are owed against the winning bid's ref — proceeds less commission at the rate active at the close, and the commission — discharged by two `M`s like any sale. No transaction ever emits the close, so the log line count does not move across it.",
       "steps": [
         {
           "tx": {
             "blockNumber": 58842720,
             "txIndex": 0,
             "sender": "ALICE",
-            "recipient": "PROTOCOL",
-            "value": "1",
-            "text": "NNS1Akikename|1000|59042720"
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
           },
           "verdict": {
-            "kind": "FORFEIT",
-            "reason": "AUCTION_NOT_IN_V1"
+            "kind": "OK"
           }
         },
         {
@@ -1974,16 +1977,937 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|40000000|59042720"
+            "text": "NNS1Dkikename|a.com"
           },
           "verdict": {
-            "kind": "FORFEIT",
-            "reason": "AUCTION_NOT_IN_V1"
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|100000000|58929200"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "logLines": 3,
+            "auctions": {
+              "kikename": {
+                "seller": "ALICE",
+                "startingPrice": "100000000",
+                "endHeight": 58929200,
+                "bidder": null,
+                "bid": "0"
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842722,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "99999999",
+            "text": "NNS1Bkikename"
+          },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "WRONG_PRICE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "MARKETPLACE",
+                "owedTo": "BOB",
+                "amount": "99999999"
+              }
+            ]
+          }
+        },
+        {
+          "check": {
+            "auctions": {
+              "kikename": {
+                "bidder": null,
+                "bid": "0"
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842723,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "100000000",
+            "text": "NNS1Bkikename"
+          },
+          "verdict": {
+            "kind": "OK",
+            "obligations": []
+          }
+        },
+        {
+          "check": {
+            "auctions": {
+              "kikename": {
+                "bidder": "BOB",
+                "bid": "100000000",
+                "endHeight": 58929200
+              }
+            },
+            "names": {
+              "kikename": {
+                "owner": "ALICE",
+                "host": "a.com"
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842724,
+            "txIndex": 0,
+            "sender": "CAROL",
+            "recipient": "MARKETPLACE",
+            "value": "104999999",
+            "text": "NNS1Bkikename"
+          },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "WRONG_PRICE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "MARKETPLACE",
+                "owedTo": "CAROL",
+                "amount": "104999999"
+              }
+            ]
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842724,
+            "txIndex": 1,
+            "sender": "CAROL",
+            "recipient": "MARKETPLACE",
+            "value": "105000000",
+            "text": "NNS1Bkikename"
+          },
+          "verdict": {
+            "kind": "OK",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "MARKETPLACE",
+                "owedTo": "BOB",
+                "amount": "100000000"
+              }
+            ]
+          }
+        },
+        {
+          "check": {
+            "auctions": {
+              "kikename": {
+                "bidder": "CAROL",
+                "bid": "105000000",
+                "endHeight": 58929200
+              }
+            },
+            "outstanding": {
+              "58842723:0": [
+                {
+                  "kind": "REFUND",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "BOB",
+                  "amount": "100000000"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58928700,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "110250000",
+            "text": "NNS1Bkikename"
+          },
+          "verdict": {
+            "kind": "OK",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "MARKETPLACE",
+                "owedTo": "CAROL",
+                "amount": "105000000"
+              }
+            ]
+          }
+        },
+        {
+          "check": {
+            "logLines": 8,
+            "auctions": {
+              "kikename": {
+                "bidder": "BOB",
+                "bid": "110250000",
+                "endHeight": 58929300
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 58929299
+        },
+        {
+          "check": {
+            "label": "before_close",
+            "logLines": 8,
+            "auctions": {
+              "kikename": {
+                "bidder": "BOB"
+              }
+            },
+            "names": {
+              "kikename": {
+                "owner": "ALICE",
+                "host": "a.com"
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 58929300
+        },
+        {
+          "check": {
+            "since": "before_close",
+            "changed": [
+              "nameRoot",
+              "pendingRoot"
+            ],
+            "logLines": 8,
+            "auctions": {
+              "kikename": null
+            },
+            "names": {
+              "kikename": {
+                "owner": "BOB",
+                "host": ""
+              }
+            },
+            "outstanding": {
+              "58928700:0": [
+                {
+                  "kind": "SALE_PROCEEDS",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "ALICE",
+                  "amount": "107493750"
+                },
+                {
+                  "kind": "COMMISSION",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "TREASURY",
+                  "amount": "2756250"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58929301,
+            "txIndex": 0,
+            "sender": "MARKETPLACE",
+            "recipient": "ALICE",
+            "value": "107493750",
+            "text": "NNS1M58928700|0"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "outstanding": {
+              "58928700:0": [
+                {
+                  "kind": "COMMISSION",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "TREASURY",
+                  "amount": "2756250"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58929301,
+            "txIndex": 1,
+            "sender": "MARKETPLACE",
+            "recipient": "TREASURY",
+            "value": "2756250",
+            "text": "NNS1M58928700|0"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "outstanding": {
+              "58928700:0": null
+            }
           }
         }
       ],
       "expect": {
-        "names": {}
+        "names": {
+          "kikename": {
+            "owner": "BOB"
+          }
+        },
+        "resolves": {
+          "kikename": "BOB"
+        },
+        "logLines": 10
+      }
+    },
+    {
+      "id": "boundary_auction_closes_at_end_height",
+      "note": "The sixth §7.3 height-driven category (r28). The auction closes at exactly `end_height`, before that block's transactions: at end − 1 every component is byte-identical to the label, at the end the name root (owner moved) and the pending root (entry gone) change and nothing else does, and no §8.2 line is written on either side of the crossing.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|100000000|58929120"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "100000000",
+            "text": "NNS1Bkikename"
+          },
+          "verdict": {
+            "kind": "OK",
+            "obligations": []
+          }
+        },
+        {
+          "check": {
+            "label": "bid_stands",
+            "logLines": 3
+          }
+        },
+        {
+          "advanceTo": 58929119
+        },
+        {
+          "check": {
+            "since": "bid_stands",
+            "changed": [],
+            "label": "armed",
+            "logLines": 3,
+            "auctions": {
+              "kikename": {
+                "bidder": "BOB",
+                "endHeight": 58929120
+              }
+            },
+            "names": {
+              "kikename": {
+                "owner": "ALICE"
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 58929120
+        },
+        {
+          "check": {
+            "since": "armed",
+            "changed": [
+              "nameRoot",
+              "pendingRoot"
+            ],
+            "logLines": 3,
+            "auctions": {
+              "kikename": null
+            },
+            "names": {
+              "kikename": {
+                "owner": "BOB"
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "BOB"
+          }
+        },
+        "logLines": 3
+      }
+    },
+    {
+      "id": "auction_with_no_bid_ends_and_owes_nothing",
+      "note": "A bid under the startingPrice is refunded and never stands, so \"the startingPrice was never met\" is the same state as \"nobody bid\": the auction leaves the pending set at its end, the name stays with the owner, and the only obligation in the ledger is the under-startingPrice refund. The owner may open another at the close height itself — the close fired before that block's transactions.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|100000000|58929120"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "99999999",
+            "text": "NNS1Bkikename"
+          },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "WRONG_PRICE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "MARKETPLACE",
+                "owedTo": "BOB",
+                "amount": "99999999"
+              }
+            ]
+          }
+        },
+        {
+          "advanceTo": 58929120
+        },
+        {
+          "check": {
+            "auctions": {
+              "kikename": null
+            },
+            "names": {
+              "kikename": {
+                "owner": "ALICE"
+              }
+            },
+            "outstanding": {
+              "58842721:0": [
+                {
+                  "kind": "REFUND",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "BOB",
+                  "amount": "99999999"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58929120,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|100000000|59015520"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58929120,
+            "txIndex": 1,
+            "sender": "CAROL",
+            "recipient": "MARKETPLACE",
+            "value": "100000000",
+            "text": "NNS1Bkikename"
+          },
+          "verdict": {
+            "kind": "OK",
+            "obligations": []
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "ALICE"
+          }
+        },
+        "logLines": 5
+      }
+    },
+    {
+      "id": "auction_is_exclusive_and_voids_what_it_replaces",
+      "note": "Opening voids the owner's own pending `X` and open `O` — the auction is the latest statement of intent, the rule a later `O` or `X` already applies to its predecessor — and the voided `X` never matures. While the auction is open `O`, `X` and a second `A` forfeit AUCTION_OPEN and `K` finds nothing to cancel (bids are commitments); `S` still works. A `B` is a bid exactly because an auction is open — exclusivity is what makes the same payload mean one thing.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Xkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842722,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Okikename|100000000"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "transfers": {
+              "kikename": {
+                "newOwner": "CAROL"
+              }
+            },
+            "offers": {
+              "kikename": {
+                "seller": "ALICE"
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842723,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|100000000|58929200"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "transfers": {
+              "kikename": null
+            },
+            "offers": {
+              "kikename": null
+            },
+            "auctions": {
+              "kikename": {
+                "seller": "ALICE"
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842724,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Okikename|100000000"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "AUCTION_OPEN"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842724,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Xkikename"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "AUCTION_OPEN"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842724,
+            "txIndex": 2,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|200000000|58929200"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "AUCTION_OPEN"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842724,
+            "txIndex": 3,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Kkikename"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOTHING_TO_CANCEL"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842724,
+            "txIndex": 4,
+            "sender": "ALICE",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Skikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "advanceTo": 58885921
+        },
+        {
+          "check": {
+            "names": {
+              "kikename": {
+                "owner": "ALICE"
+              }
+            },
+            "auctions": {
+              "kikename": {
+                "seller": "ALICE",
+                "endHeight": 58929200
+              }
+            }
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "ALICE"
+          }
+        },
+        "resolves": {
+          "kikename": "CAROL"
+        },
+        "logLines": 9
+      }
+    },
+    {
+      "id": "admin_auction_awards_a_reserved_name",
+      "note": "A name still held in RESERVED_NAMES (here `nim`, reserved by rule) is the admin's to auction: a stranger's `A` is NOT_ADMIN, and a `G` for it while the auction runs is still RESERVED_NAME. The seller is TREASURY_ADDRESS. The close creates the registration on `U`'s award terms — a full TERM_LENGTH from the close height, nothing set — and the name enters the unreserved set. Both legs then land on the treasury and are told apart by amount, the case §6 `M` anticipated.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Anim|100000000|58929120"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOT_ADMIN"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Anim|100000000|58929120"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "auctions": {
+              "nim": {
+                "seller": "TREASURY",
+                "startingPrice": "100000000",
+                "bidder": null
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gnim"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "RESERVED_NAME"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 1,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "100000000",
+            "text": "NNS1Bnim"
+          },
+          "verdict": {
+            "kind": "OK",
+            "obligations": []
+          }
+        },
+        {
+          "advanceTo": 58929120
+        },
+        {
+          "check": {
+            "auctions": {
+              "nim": null
+            },
+            "names": {
+              "nim": {
+                "owner": "BOB",
+                "expiry": 90465120,
+                "host": ""
+              }
+            },
+            "unreserved": {
+              "nim": true
+            },
+            "outstanding": {
+              "58842721:1": [
+                {
+                  "kind": "SALE_PROCEEDS",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "TREASURY",
+                  "amount": "97500000"
+                },
+                {
+                  "kind": "COMMISSION",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "TREASURY",
+                  "amount": "2500000"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "nim": {
+            "owner": "BOB"
+          }
+        },
+        "resolves": {
+          "nim": "BOB"
+        },
+        "logLines": 4
+      }
+    },
+    {
+      "id": "grace_reset_cancels_an_auction_and_refunds_the_standing_bid",
+      "note": "An `A` cannot open past the term (AUCTION_BEYOND_TERM, 2026-09-03), but a late bid can carry the end onto the expiry: here the standing bid lands exactly AUCTION_EXTENSION before the expiry, so the end moves to the expiry itself. §7.3 fires the expiry ahead of the close, the grace reset cancels the auction exactly as it cancels an `O` or an `X`, and — because a bid is money — refunds the standing bid by that bid's own ref. At expiry − 1 the auction stands.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 90292300,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|100000000|90378719"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 90378120,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "100000000",
+            "text": "NNS1Bkikename"
+          },
+          "verdict": {
+            "kind": "OK",
+            "obligations": []
+          }
+        },
+        {
+          "advanceTo": 90378719
+        },
+        {
+          "check": {
+            "auctions": {
+              "kikename": {
+                "bidder": "BOB"
+              }
+            },
+            "names": {
+              "kikename": {
+                "owner": "ALICE",
+                "status": "REGISTERED"
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 90378720
+        },
+        {
+          "check": {
+            "auctions": {
+              "kikename": null
+            },
+            "names": {
+              "kikename": {
+                "owner": "ALICE",
+                "status": "GRACE"
+              }
+            },
+            "outstanding": {
+              "90378120:0": [
+                {
+                  "kind": "REFUND",
+                  "owedBy": "MARKETPLACE",
+                  "owedTo": "BOB",
+                  "amount": "100000000"
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "ALICE"
+          }
+        },
+        "resolves": {
+          "kikename": null
+        },
+        "logLines": 3
       }
     },
     {
@@ -3631,6 +4555,28 @@
             "text": "NNS1Nothername"
           }
         }
+      ],
+      "auction_open_at_1000_nim": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|100000000|58929120"
+          }
+        }
       ]
     },
     "cases": [
@@ -4470,10 +5416,10 @@
         }
       },
       {
-        "id": "A_wrong_recipient_beats_auction_not_in_v1",
+        "id": "A_wrong_recipient_beats_name_not_found",
         "setup": "empty",
-        "pinnedBy": "§6 `A` — routing is the one exception to the version forfeit (r21)",
-        "note": "§6 `A` said \"every `A` forfeits AUCTION_NOT_IN_V1\" with no qualification through r20, while §5.3 routing ran first as it does for every type — two readings, two tokens in the log hash. r21 states the exception and confines it to routing: the `MIN_PRICE` floor still sits behind the version forfeit, which is the case below.",
+        "pinnedBy": "§7.4 — the recipient check precedes every other check on the types that have one",
+        "note": "Routing first, as for every routed type. Through r27 this pair pinned routing ahead of the version forfeit; r28 removed the forfeit and the name rows moved up behind the same recipient check.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,
@@ -4489,7 +5435,7 @@
         "insteadOf": {
           "verdict": {
             "kind": "FORFEIT",
-            "reason": "AUCTION_NOT_IN_V1"
+            "reason": "NAME_NOT_FOUND"
           },
           "tx": {
             "blockNumber": 58842720,
@@ -4502,12 +5448,108 @@
         }
       },
       {
-        "id": "A_auction_not_in_v1_beats_below_min_price",
+        "id": "A_insufficient_notice_beats_beyond_term",
+        "setup": "kikename_to_alice",
+        "pinnedBy": "§7.4 check-order table (r28, 2026-09-03) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM`",
+        "note": "Payload rows run floor, window length, then the window's end against the term. Ten blocks before the name expires, an `A` ending at the expiry is both too short and past the term; it is told the window is too short. The same `A` sent with a full-length window from that height reaches the term row.",
+        "tx": {
+          "blockNumber": 90378710,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Akikename|40000000|90378720"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "INSUFFICIENT_NOTICE"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "AUCTION_BEYOND_TERM"
+          },
+          "tx": {
+            "blockNumber": 90378710,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|40000000|90465110"
+          }
+        }
+      },
+      {
+        "id": "A_name_not_found_beats_not_admin",
         "setup": "empty",
-        "pinnedBy": "§6 `A`",
-        "note": "A reserve of one luna is far below `MIN_PRICE`, and the message still takes the version forfeit: §6 requires *every* `A` to earn this token, so a below-floor one earning `BELOW_MIN_PRICE` would put a different reason in the log than a conforming implementation.",
+        "pinnedBy": "§7.4 check-order table (r28) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`",
+        "note": "Which auction this is — the owner's or the admin's — is decided by the name's state before the sender is consulted: an unregistered ordinary name is nobody's to auction, so a stranger's `A` for it reports the name, not the sender. The same stranger's `A` for a name still held in RESERVED_NAMES reaches the sender row.",
         "tx": {
           "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Akikename|40000000|59000000"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NAME_NOT_FOUND"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NOT_ADMIN"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Anim|40000000|59000000"
+          }
+        }
+      },
+      {
+        "id": "A_not_owner_beats_auction_open",
+        "setup": "auction_open_at_1000_nim",
+        "pinnedBy": "§7.4 check-order table (r28) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`",
+        "note": "Authority before the name's pending status, as `O`'s order already has it: a stranger is told they do not own the name, the owner is told an auction is already open.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Akikename|40000000|59000000"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NOT_OWNER"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "AUCTION_OPEN"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|40000000|59000000"
+          }
+        }
+      },
+      {
+        "id": "A_auction_open_beats_below_min_price",
+        "setup": "auction_open_at_1000_nim",
+        "pinnedBy": "§7.4 check-order table (r28) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`",
+        "note": "State before payload. A one-luna startingPrice is far below `MIN_PRICE`, and the owner is still told the auction is open — the same message with a lawful startingPrice earns the same token, which is what makes the floor the later check.",
+        "tx": {
+          "blockNumber": 58842721,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "PROTOCOL",
@@ -4516,9 +5558,105 @@
         },
         "verdict": {
           "kind": "FORFEIT",
-          "reason": "AUCTION_NOT_IN_V1"
+          "reason": "AUCTION_OPEN"
         },
-        "insteadOfUnreachable": "No `A` reaches the floor check in v1, by §6's own requirement, so `BELOW_MIN_PRICE` is unreachable for `A` rather than merely later."
+        "insteadOfUnreachable": "With an auction open on the name no check after AUCTION_OPEN can be reached by any `A` for it, so BELOW_MIN_PRICE is unreachable here rather than merely later; the order is pinned from the other side by `A_below_min_price_beats_insufficient_notice`."
+      },
+      {
+        "id": "A_below_min_price_beats_insufficient_notice",
+        "setup": "kikename_to_alice",
+        "pinnedBy": "§7.4 check-order table (r28) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`",
+        "note": "Payload rows run floor first: the floor is what keeps `floor(bid × AUCTION_MIN_INCREMENT)` from rounding to zero (§6 `O`), and the window is measured from the landing block like `P`'s notice. An `A` a block short on both counts reports the floor.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Akikename|1|58929120"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "BELOW_MIN_PRICE"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "INSUFFICIENT_NOTICE"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|40000000|58929120"
+          }
+        }
+      },
+      {
+        "id": "O_not_owner_beats_auction_open",
+        "setup": "auction_open_at_1000_nim",
+        "pinnedBy": "§7.4 check-order table (r28) — `O`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE`",
+        "note": "The AUCTION_OPEN row sits after authority and before the price, in `O` as in `A`.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "TREASURY",
+          "value": "1",
+          "text": "NNS1Okikename|40000000"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NOT_OWNER"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "AUCTION_OPEN"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Okikename|40000000"
+          }
+        }
+      },
+      {
+        "id": "X_not_owner_beats_auction_open",
+        "setup": "auction_open_at_1000_nim",
+        "pinnedBy": "§7.4 check-order table (r28) — `X`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`",
+        "note": "Same shape for the transfer: a stranger is refused as a stranger, the owner is refused because bidders have committed money against the window.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "CAROL",
+          "value": "1",
+          "text": "NNS1Xkikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NOT_OWNER"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "AUCTION_OPEN"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Xkikename"
+          }
+        }
       },
       {
         "id": "P_wrong_recipient_beats_not_admin",

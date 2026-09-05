@@ -4,9 +4,9 @@
 
 ### Human-readable names on Nimiq. No smart contracts.
 
-[![Spec](https://img.shields.io/badge/spec-v1%20draft%20r24-0582CA?style=flat-square)](docs/nns-spec-v1.md)
+[![Spec](https://img.shields.io/badge/spec-v1%20draft%20r27-0582CA?style=flat-square)](docs/nns-spec-v1.md)
 [![Status](https://img.shields.io/badge/status-all%20packages%20built-EC991C?style=flat-square)](docs/status.md)
-[![Tests](https://img.shields.io/badge/tests-1529-1F2348?style=flat-square)](#building-and-testing)
+[![Tests](https://img.shields.io/badge/tests-1867-1F2348?style=flat-square)](#building-and-testing)
 [![License](https://img.shields.io/badge/license-MIT-1F2348?style=flat-square)](LICENSE)
 [![Nimiq](https://img.shields.io/badge/chain-Nimiq%20Albatross-0582CA?style=flat-square)](https://nimiq.com)
 
@@ -33,7 +33,7 @@ so anyone can run them.
 |---|---|
 | **No contracts required** | Works on Nimiq as it exists today. Nothing to deploy, nothing to upgrade |
 | **Independently verifiable** | Anyone with a Nimiq node can replay the same history and derive the same state. Not "trust our API" |
-| **Anchored** | Checkpoint roots are published hourly to an EVM L2 and monthly to Ethereum, so past claims cannot be quietly rewritten |
+| **Anchored** | Checkpoint roots are published to an EVM chain on every change, with a daily floor, so past claims cannot be quietly rewritten |
 | **Delegated subdomains** | An exchange registers one name and issues `user.exchange` addresses for free, with zero on-chain state |
 | **Cheap** | Two pricing bands, floored and governed within published bounds |
 
@@ -49,7 +49,7 @@ so anyone can run them.
 └────────────────┘      └───────┬────────┘      └──────────────────┘
                                 │
                                 ▼
-                     root → Ethereum L2 (hourly)
+                     root → EVM chain (on change)
                      log  → IPFS (content-addressed)
 ```
 
@@ -59,7 +59,7 @@ Three clocks, and only the first decides whether a name works:
 |---|---|---|
 | Finality | ~minutes | **The name is registered and resolves** |
 | Checkpoint | ~12 min | A Merkle proof exists for it |
-| Anchor | ~1 h | The root is notarised on Ethereum |
+| Anchor | on change, daily floor | The root is notarised on an EVM chain |
 
 ## Verification, in three tiers
 
@@ -83,13 +83,13 @@ Nimiq's 64-byte transaction data limit.
 
 | | | | |
 |---|---|---|---|
-| `G` register | `S` set target | `X` transfer | `D` delegate |
-| `K` cancel | `N` renew | `O` offer | `B` buy |
-| `A` auction | `M` settlement | `P` governance | `U` unreserve |
-| `F` burn attestation | | | |
+| `G` register | `S` set target | `E` link EVM address | `X` transfer |
+| `D` delegate | `K` cancel | `N` renew | `O` offer |
+| `B` buy | `A` auction | `M` settlement | `P` governance |
+| `U` unreserve | `F` burn attestation | | |
 
-Thirteen types. There is no recovery message: `R` was removed in r24's
-predecessor r20, because every version of it the owner key could cancel was
+Fourteen types. There is no recovery message: `R` was removed in r20,
+because every version of it the owner key could cancel was
 theatre, and every version it could not outranked the owner. A lost owner key
 is a lost name, as in ENS.
 
@@ -102,8 +102,8 @@ is a lost name, as in ENS.
 | `docs/decisions.md` | Every reading taken where the spec was silent, with the argument |
 | `docs/status.md` | What is built, what is next. Where a new session starts |
 | `docs/history/` | Revision narratives, the session journal, battery records |
-| `docs/runbooks/` | `operators.md` (the role map) and `testing.md` (the mainnet battery) |
-| **`packages/`** | **Ten packages — [`packages/README.md`](packages/README.md) explains each one and how they stack** |
+| `docs/runbooks/` | `operators.md` (the role map), `testing.md` (the mainnet battery), `deploy.md` (how a change reaches the deployed boxes) |
+| **`packages/`** | **Twelve packages — [`packages/README.md`](packages/README.md) explains each one and how they stack** |
 | **`deploy/`** | **One directory per operator role — [`deploy/README.md`](deploy/README.md) picks the right one and covers what they share** |
 | `tasks/` | One brief per package, naming the spec sections it needs |
 
@@ -113,8 +113,8 @@ package, dependency versions pinned once in the workspace catalog. Amounts are
 
 ## Status
 
-**Pre-launch.** All ten packages are built and conform to spec r24. The wire
-format is settled and empirically verified against mainnet. 1,526 tests pass
+**Pre-launch.** All twelve packages are built and conform to spec r27. The wire
+format is settled and empirically verified against mainnet. 1,867 tests pass
 with a database attached, none skipped.
 
 What remains before a mainnet launch is deployment and one irreversible input,
@@ -128,13 +128,13 @@ in the protocol itself.
 r15: it surfaced **ten places where two conforming implementations would have
 derived different roots** — same-height effect order, the log's `<data>` field,
 the checkpoint layout byte for byte, seven more. All ten are pinned in the spec
-and held by a vector, and twenty further check-order choices stay deliberately
+and held by a vector, and nineteen further check-order choices stay deliberately
 unratified, pinned only by `packages/core/vectors/reduce.json`. The argument for
 each is in [`docs/decisions.md`](docs/decisions.md); that this list exists at all
 is the best evidence available that the design is being taken seriously.
 
 Spec revisions are numbered and narrated: `docs/history/revisions.md` has the
-r15 → r24 story, and is explicit about which ones moved bytes — those required
+r15 → r27 story, and is explicit about which ones moved bytes — those required
 every database derived under the old rules to be rebuilt, because
 `configFingerprint` covers configuration and not rules, so nothing refuses the
 resume for you.
@@ -183,8 +183,12 @@ belonging to a role they do not run:
 - **The service** (`deploy/service`) — our own deployment: the resolver stack
   plus the RPC relay the mini app needs and the app bundle itself.
 - **Settlement** (`deploy/settlement`) — pays what the protocol owes. Holds the
-  system's only hot key, needs no inbound reachability, and must not share a
+  system's only hot keys, needs no inbound reachability, and must not share a
   machine with the service.
+- **An anchor publisher** (`deploy/anchor`) — notarises checkpoint roots on the
+  EVM contract. The contract is permissionless on purpose: a second,
+  independent party anchoring is what turns timestamping into §8.5's anchor
+  quorum, and recruiting one is a launch deliverable.
 
 [`docs/runbooks/operators.md`](docs/runbooks/operators.md) is the map: what each
 role is, what it needs, and the things that are easy to get wrong — starting
@@ -196,7 +200,7 @@ a server (`packages/api`) and the client library that queries several of them
 
 ```bash
 pnpm install
-pnpm test         # one Vitest run over every package — 1,529 tests
+pnpm test         # one Vitest run over every package — 1,867 tests
 pnpm typecheck    # strict, and wider than the build: tests and tooling too
 pnpm build
 ```

@@ -3,7 +3,7 @@ import { prepareAction, ActionInputError, type ActionInputs } from '../lib/actio
 import { getParams, type NameInfo } from '../lib/api'
 import { defaultTransport } from '../lib/history'
 import { apiBase } from '../lib/nns'
-import { approxDate, formatApproxDate } from '../lib/format'
+import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
 import { discoverEvmProvider, probeHostEvmAddress, requestHostEvmAddress } from '../lib/sdk'
 import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
@@ -11,6 +11,7 @@ import type { AppAction } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import {
   ACTION_LABEL,
+  bidCustodialWarning,
   buyAcknowledgeLabel,
   connectEvmFailedLine,
   connectEvmLabel,
@@ -19,8 +20,11 @@ import {
   currentHostLine,
   currentTargetLine,
   custodialWarning,
+  minimumBidLine,
+  noBidsLine,
   noEvmLine,
   noHostLine,
+  standingBidLine,
   suggestedEvmLabel,
   sendConfirmedLine,
   sendConfirmingLine,
@@ -34,7 +38,7 @@ import {
 } from '../lib/wording'
 
 /**
- * One sheet for all eight flows (docs/app-ux.md §4–§5): inputs → in-app
+ * One sheet for all ten flows (docs/app-ux.md §4–§5): inputs → in-app
  * review (everything the wallet screen will not say) → the wallet → the
  * confirm-by-effect loop, honest at every exit.
  */
@@ -45,7 +49,6 @@ export function ActionSheet({
   signer,
   viewers,
   wallet,
-  onClose,
   onChanged,
 }: {
   action: AppAction
@@ -56,7 +59,6 @@ export function ActionSheet({
    *  on the Pay path it is never the first. */
   viewers: readonly string[]
   wallet: Wallet
-  onClose: () => void
   onChanged: () => void
 }) {
   const paramsState = useAsync(() => getParams(apiBase()), [])
@@ -77,6 +79,9 @@ export function ActionSheet({
   const [newOwner, setNewOwner] = useState('')
   const [host, setHost] = useState('')
   const [priceNim, setPriceNim] = useState('')
+  const [startingPriceNim, setStartingPriceNim] = useState('')
+  const [durationDays, setDurationDays] = useState('')
+  const [bidNim, setBidNim] = useState('')
   const [acknowledged, setAcknowledged] = useState(false)
   const [progress, setProgress] = useState<'idle' | 'submitting' | 'confirming'>('idle')
   const [result, setResult] = useState<SendResult | null>(null)
@@ -93,13 +98,17 @@ export function ActionSheet({
         return { action, host }
       case 'offer':
         return { action, priceNim }
+      case 'auction':
+        return { action, startingPriceNim, durationDays }
+      case 'bid':
+        return { action, bidNim }
       case 'register':
       case 'renew':
       case 'cancel':
       case 'buy':
         return { action }
     }
-  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, priceNim])
+  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, priceNim, startingPriceNim, durationDays, bidNim])
 
   const inputsTouched = (() => {
     switch (action) {
@@ -111,6 +120,10 @@ export function ActionSheet({
         return newOwner.trim() !== ''
       case 'offer':
         return priceNim.trim() !== ''
+      case 'auction':
+        return startingPriceNim.trim() !== '' && durationDays.trim() !== ''
+      case 'bid':
+        return bidNim.trim() !== ''
       default:
         return true
     }
@@ -125,7 +138,8 @@ export function ActionSheet({
     }
   }, [inputs, inputsTouched, name, info, signer, viewers, params])
 
-  const needsAcknowledge = action === 'buy'
+  // Both `B`s: a buy and a bid hand money to the marketplace (§8.5 #10).
+  const needsAcknowledge = action === 'buy' || action === 'bid'
   const ready = prepared?.ok === true && (!needsAcknowledge || acknowledged) && progress === 'idle' && result === null
 
   const send = async () => {
@@ -157,23 +171,28 @@ export function ActionSheet({
       case 'delegate':
         return record.host === '' ? noHostLine() : currentHostLine(record.host)
       case 'renew':
+      // The expiry decides whether the auction's end is safe (§6 `A` has no
+      // rule against an end past it — the grace reset cancels it instead).
+      case 'auction':
         return info === null
           ? null
           : currentExpiryLine(formatApproxDate(approxDate(record.expiry, info.height, Date.now())))
+      case 'bid': {
+        const auction = info?.pending.auction ?? null
+        if (auction === null) return null
+        const standing =
+          auction.bidder === null ? noBidsLine() : standingBidLine(lunaToNim(auction.bid), ellipsizeAddress(auction.bidder))
+        return `${standing} ${minimumBidLine(lunaToNim(auction.minimumBid))}`
+      }
       default:
         return null
     }
   })()
 
   return (
+    // No heading of its own: the sheet opens under the row that names the
+    // action, and that row's button is its Close.
     <div className="sheet">
-      <div className="sheet-head">
-        <h3 className="sheet-title">{ACTION_LABEL[action]}</h3>
-        <button type="button" className="back" onClick={onClose}>
-          Close
-        </button>
-      </div>
-
       {currentLine !== null && <p className="sheet-current">{currentLine}</p>}
 
       {action === 'setTarget' && (
@@ -261,6 +280,35 @@ export function ActionSheet({
           onChange={(event) => setPriceNim(event.target.value)}
         />
       )}
+      {action === 'auction' && (
+        <>
+          <input
+            className="sheet-input"
+            inputMode="decimal"
+            placeholder="Starting price in NIM"
+            value={startingPriceNim}
+            onChange={(event) => setStartingPriceNim(event.target.value)}
+          />
+          <input
+            className="sheet-input"
+            inputMode="decimal"
+            placeholder="Duration in days (at least 1)"
+            value={durationDays}
+            onChange={(event) => setDurationDays(event.target.value)}
+          />
+        </>
+      )}
+      {action === 'bid' && (
+        <input
+          className="sheet-input"
+          inputMode="decimal"
+          placeholder={
+            info?.pending.auction ? `Bid in NIM — at least ${lunaToNim(info.pending.auction.minimumBid)}` : 'Bid in NIM'
+          }
+          value={bidNim}
+          onChange={(event) => setBidNim(event.target.value)}
+        />
+      )}
 
       {prepared !== null && !prepared.ok && <p className="field-error">{prepared.message}</p>}
 
@@ -273,9 +321,9 @@ export function ActionSheet({
         </ul>
       )}
 
-      {action === 'buy' && (
+      {needsAcknowledge && (
         <>
-          <p className="note note-info">{custodialWarning()}</p>
+          <p className="note note-info">{action === 'bid' ? bidCustodialWarning() : custodialWarning()}</p>
           <label className="sheet-check">
             <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
             {buyAcknowledgeLabel()}

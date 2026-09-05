@@ -5,7 +5,8 @@
 -- all, and the only party a scheduled release warns is a frontrunner, who gets
 -- a publicly timed starting gun out of it. See docs/decisions.md.
 --
--- **This is NOT a layout migration.** `COMMITMENT_LAYOUT` stays 4, and every
+-- **This is NOT a layout migration.** `COMMITMENT_LAYOUT` stayed 4 here
+-- (r26's bump to 5 is migration 008's `evm` leaf field), and every
 -- root this database ever wrote is still reproducible under r22 rules. §8.1's
 -- pending set concatenates its categories with no separators and no entry
 -- count, so a category with no entries contributes zero bytes — removing it
