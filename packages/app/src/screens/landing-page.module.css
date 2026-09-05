@@ -1,0 +1,935 @@
+/* Unified Parallax Wrapper for Hero and Features (Light Theme) */
+.lightThemeWrapper {
+  margin-top: -64px;
+  /* Pulls the wrapper up behind the masthead */
+  background-color: #FFFFFF;
+  background-image:
+    /* Soft Sunrise Glow (Top Center) */
+    radial-gradient(ellipse at 50% -10%, rgba(246, 133, 27, 0.08) 0%, rgba(233, 178, 19, 0.05) 40%, transparent 70%),
+    /* Nimiq Orange glow (Left) */
+    radial-gradient(circle at 10% 20%, rgba(246, 133, 27, 0.05) 0%, transparent 40%),
+    /* Nimiq Gold glow (Right) */
+    radial-gradient(circle at 90% 20%, rgba(233, 178, 19, 0.05) 0%, transparent 40%),
+    /* Continuous base gradient spanning BOTH sections (White to very soft warm grey) */
+    linear-gradient(to bottom, #FFFFFF 0%, #FFFDF8 30%, #F9FAFC 100%);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Dynamic Mesh Gradient Orbs */
+.lightThemeWrapper::before {
+  content: "";
+  position: absolute;
+  top: -100px;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(233, 178, 19, 0.15) 0%, transparent 70%);
+  /* Nimiq Gold */
+  filter: blur(100px);
+  z-index: 0;
+  pointer-events: none;
+  animation: floatOrb 25s infinite alternate ease-in-out;
+}
+
+.lightThemeWrapper::after {
+  content: "";
+  position: absolute;
+  top: 20%;
+  left: -10%;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(246, 133, 27, 0.1) 0%, transparent 70%);
+  /* Nimiq Orange */
+  filter: blur(120px);
+  z-index: 0;
+  pointer-events: none;
+  animation: floatOrb 20s infinite alternate-reverse ease-in-out;
+}
+
+.heroSection {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+  background: transparent;
+  color: #1F2348;
+  /* Dark navy text for light theme */
+  margin-top: 0;
+  padding: 88px 16px 20px;
+  min-height: calc(100vh - 56px);
+  min-height: calc(100svh - 56px);
+  box-sizing: border-box;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.heroSection::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: var(--pattern-honeycomb);
+  background-size: 84px 150px;
+  background-attachment: fixed;
+  pointer-events: none;
+  opacity: 0.8;
+  z-index: 0;
+}
+
+/* Hero Content Typography & Spacing */
+.heroContent {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  max-width: 760px;
+  gap: 0;
+  padding: 0 16px;
+  flex: 1;
+}
+
+.heroTitle {
+  margin: 0;
+  padding-bottom: 0;
+  font-size: min(12vw, 68px);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+  color: #1F2348;
+}
+
+.heroDescription {
+  margin: 10px 0 0 0;
+  font-size: 20px;
+  line-height: 1.4;
+  max-width: 580px;
+  color: rgba(31, 35, 72, 0.7);
+  font-weight: 500;
+}
+
+.heroSearch {
+  margin: 36px 0 0 0;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.highlightText {
+  color: #F6851B;
+  /* Nimiq Orange */
+  background: linear-gradient(90deg, #F6851B 0%, #E9B213 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-fill-color: transparent;
+  animation: gradientShift 6s ease-in-out infinite alternate;
+  background-size: 200% auto;
+  display: inline-block;
+}
+
+@keyframes mastheadGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+/* 
+ * Scoped Global Overrides for the Navbar (masthead) when on the Home screen.
+ * This makes the navbar and the hero section look like one unified animated block.
+ */
+
+:global(.frame.is-home .masthead:not(.is-scrolled)) {
+  background: transparent;
+  border-bottom: 1px solid transparent;
+}
+
+/* Light Glassmorphism for the scrolled navbar to match the premium light theme */
+:global(.frame.is-home .masthead.is-scrolled) {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Ensure text and icons are dark navy whether scrolled or not on the light theme */
+:global(.frame.is-home .masthead .wordmark) {
+  color: #1F2348;
+}
+
+:global(.frame.is-home .masthead .wordmark::after) {
+  color: rgba(31, 35, 72, 0.7);
+}
+
+:global(.frame.is-home .masthead .masthead-sub) {
+  color: rgba(31, 35, 72, 0.85);
+}
+
+/* Wallet connect pill (vibrant Nimiq orange) */
+:global(.frame.is-home .masthead .identity-top .identity-who) {
+  border: 1px solid rgba(246, 133, 27, 0.2);
+  background: rgba(246, 133, 27, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(246, 133, 27, 0.2);
+}
+
+:global(.frame.is-home .masthead .identity-top .identity-address) {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:global(.frame.is-home .masthead .identity-top .identity-connect) {
+  color: #FFFFFF;
+}
+
+:global(.frame.is-home .masthead .identity-top .identity-note) {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* Search bar frosted glass styling (Light Theme) */
+.searchWrapper {
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 40px rgba(246, 133, 27, 0.08);
+  transition: all 0.3s ease;
+  padding: 6px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.searchIcon {
+  color: rgba(31, 35, 72, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 12px;
+  padding-right: 4px;
+}
+
+.searchWrapper:focus-within {
+  background: #FFFFFF;
+  border-color: #F6851B;
+  box-shadow: 0 20px 40px rgba(246, 133, 27, 0.12), 0 0 0 4px rgba(246, 133, 27, 0.1);
+}
+
+.searchInput {
+  background: transparent;
+  color: #1F2348;
+  /* Dark ink */
+  padding: 12px 12px;
+  border: none;
+  outline: none;
+  flex: 1;
+  font-size: 16px;
+}
+
+.searchInput::placeholder {
+  color: rgba(31, 35, 72, 0.5);
+}
+
+.searchBtn {
+  background: #1F2348;
+  /* Dark Navy */
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-weight: 500;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.searchBtn:hover:not(:disabled) {
+  background: #2D336B;
+  /* Lighter Navy */
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(31, 35, 72, 0.2);
+}
+
+.searchBtn:disabled {
+  background: #1F2348;
+  color: #ffffff;
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Borderless Typographic Trust Line (Option 2) */
+.trustLine {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 28px;
+  margin-bottom: 26px;
+  width: 100%;
+  max-width: 520px;
+}
+
+.trustItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1F2348;
+  white-space: nowrap;
+}
+
+.trustIcon {
+  color: #F6851B;
+  flex-shrink: 0;
+}
+
+.trustDot {
+  color: rgba(31, 35, 72, 0.25);
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* --- Address-to-Card Marquee Synchronization --- */
+.marqueeContainer {
+  position: relative;
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  margin-top: auto;
+  margin-bottom: 12px;
+  transform: translateY(16px);
+  height: 280px;
+  /* Restored height to prevent cards from being cut off */
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+/* Redesigned separator for light theme (Sharp Magical Laser) */
+.marqueeLaserContainer {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  /* Sharp thin line */
+  height: 320px;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+/* The actual center line (Vibrant Orange) */
+.marqueeLaserContainer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, rgba(246, 133, 27, 0) 0%, rgba(246, 133, 27, 1) 50%, rgba(246, 133, 27, 0) 100%);
+  box-shadow: 0 0 10px rgba(246, 133, 27, 0.8), 0 0 20px rgba(226, 88, 34, 0.6);
+  border: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-radius: 0;
+  animation: pulseLine 2.4s infinite;
+  animation-delay: 1.7s;
+}
+
+/* Directional burst to the right (Orange to Dark Orange) */
+.laserBurst {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 120px;
+  height: 320px;
+  background: radial-gradient(ellipse at left center, rgba(246, 133, 27, 0.6) 0%, rgba(226, 88, 34, 0.2) 40%, transparent 70%);
+  transform-origin: left center;
+  animation: pulseBurst 2.4s infinite;
+  animation-delay: 1.7s;
+}
+
+/* Inner white-hot core of the magic burst */
+.laserBurstInner {
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 300px;
+  background: radial-gradient(ellipse at left center, rgba(255, 255, 255, 0.9) 0%, rgba(246, 133, 27, 0.4) 50%, transparent 80%);
+  transform-origin: left center;
+  animation: pulseBurst 2.4s infinite;
+  animation-delay: 1.7s;
+}
+
+@keyframes pulseLine {
+  0% {
+    opacity: 0;
+  }
+
+  30% {
+    opacity: 0.1;
+  }
+
+  45% {
+    opacity: 1;
+  }
+
+  88% {
+    opacity: 0.8;
+  }
+
+  /* Hold the line visible even longer */
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pulseBurst {
+  0% {
+    transform: translateY(-50%) scaleX(0.1) scaleY(0.7);
+    opacity: 0;
+  }
+
+  30% {
+    transform: translateY(-50%) scaleX(0.3) scaleY(0.85);
+    opacity: 0.1;
+  }
+
+  45% {
+    transform: translateY(-50%) scaleX(1) scaleY(1);
+    opacity: 1;
+  }
+
+  88% {
+    transform: translateY(-50%) scaleX(0.8) scaleY(1);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: translateY(-50%) scaleX(0.1) scaleY(0.7);
+    opacity: 0;
+  }
+}
+
+/* Marquee Tracks */
+.marqueeTrack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.marqueeContent {
+  display: flex;
+  align-items: center;
+  margin-left: 50%;
+  /* This anchors the start position to the exact center line, decoupling the animation phase from the screen width! */
+  /* Animate 10% (1 copy of 5 items) every 12s -> 2.4s per card! */
+  animation: marqueeScroll 12s linear infinite;
+  width: max-content;
+  flex-shrink: 0;
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+@keyframes marqueeScroll {
+
+  /* Scroll from left to right: Start at -60% and move to -50% */
+  0% {
+    transform: translateX(-60%);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Track B: The Cards - Masked to only show on the right side! */
+.trackCards {
+  z-index: 5;
+  clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+  -webkit-clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+}
+
+/* Track A: Raw Addresses - Masked to only show on the left side! */
+.trackRaw {
+  z-index: 1;
+  clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
+  -webkit-clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
+}
+
+/* Wrapper ensures equal horizontal footprint for perfect syncing */
+.marqueeItemWrapper {
+  width: 300px;
+  flex: none;
+  display: flex;
+  justify-content: center;
+}
+
+/* Raw Address */
+.rawAddressItem {
+  font-family: ui-monospace, 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  color: rgba(31, 35, 72, 0.4);
+  /* Dark faint text */
+  letter-spacing: 2px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.5;
+  word-break: break-all;
+  padding: 0 20px;
+}
+
+/* Profile Card (Light Theme) */
+.profileCard {
+  width: 240px;
+  background: #FFFFFF;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(246, 133, 27, 0.08), 0 4px 12px rgba(0, 0, 0, 0.03);
+  /* Rich, warm drop shadow */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #1F2348;
+  /* Dark ink */
+  text-align: left;
+}
+
+.cardHeader {
+  height: 60px;
+  background: rgba(0, 0, 0, 0.02);
+  position: relative;
+}
+
+.cardAvatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  position: absolute;
+  bottom: -25px;
+  left: 20px;
+  border: 3px solid #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.cardBody {
+  padding: 35px 20px 15px;
+}
+
+.cardName {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.cardStats {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  gap: 12px;
+}
+
+.cardStats b {
+  color: white;
+}
+
+.cardFooter {
+  padding: 12px 20px;
+  background: rgba(31, 35, 72, 0.05);
+  /* Very light grey */
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.cardAddressLabel {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(31, 35, 72, 0.5);
+  /* Dark grey */
+  margin-bottom: 4px;
+}
+
+.cardAddressValue {
+  font-family: ui-monospace, 'JetBrains Mono', 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  color: rgba(31, 35, 72, 0.7);
+  /* Dark text */
+  background: rgba(31, 35, 72, 0.05);
+  /* Light grey background */
+  padding: 4px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   Responsive Overrides (Placed at end so they cleanly override base styles)
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .highlightText {
+    display: block;
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    margin-top: 2px;
+    -webkit-text-stroke: 0.5px #F6851B;
+  }
+
+  .heroSection {
+    padding: 84px 16px 20px;
+    min-height: calc(100vh - 52px);
+    min-height: calc(100svh - 52px);
+    box-sizing: border-box;
+  }
+
+  .heroContent {
+    padding: 0;
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+
+  .heroTitle {
+    font-size: clamp(46px, 12vw, 58px);
+    font-weight: 900;
+    line-height: 1.06;
+    letter-spacing: -0.045em;
+    -webkit-text-stroke: 0.5px #1F2348;
+  }
+
+  .heroDescription {
+    font-size: 18px;
+    line-height: 1.45;
+    margin: 10px 0 0 0;
+    max-width: 480px;
+  }
+
+  .heroDescription br {
+    display: none;
+  }
+
+  .heroSearch {
+    margin: 24px auto 0 auto;
+    max-width: 100%;
+  }
+
+  .searchWrapper {
+    max-width: 100%;
+    padding: 5px;
+  }
+
+  .searchInput {
+    padding: 10px 10px;
+    font-size: 15px;
+  }
+
+  .searchBtn {
+    padding: 10px 22px;
+    font-size: 14px;
+  }
+
+  .trustLine {
+    margin-top: 26px;
+    margin-bottom: 0;
+    gap: 12px;
+  }
+
+  .trustItem {
+    font-size: 13px;
+  }
+
+  /* Scaled-down Marquee / Slider (Tablet) */
+  .marqueeContainer {
+    height: 250px;
+    margin-top: auto;
+    margin-bottom: 0;
+    transform: translateY(20px);
+  }
+
+  .marqueeItemWrapper {
+    width: 250px;
+  }
+
+  .profileCard {
+    width: 215px;
+    border-radius: 14px;
+  }
+
+  .cardHeader {
+    height: 52px;
+  }
+
+  .cardAvatar {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    bottom: -22px;
+    left: 14px;
+  }
+
+  .cardBody {
+    padding: 28px 16px 8px;
+  }
+
+  .cardName {
+    font-size: 16px;
+    margin-bottom: 3px;
+  }
+
+  .cardFooter {
+    padding: 8px 16px;
+  }
+
+  .cardAddressLabel {
+    font-size: 8.5px;
+    margin-bottom: 2px;
+  }
+
+  .cardAddressValue {
+    font-size: 8.5px;
+    padding: 2px 4px;
+  }
+
+  .rawAddressItem {
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    padding: 0 10px;
+    max-width: 200px;
+    line-height: 1.4;
+  }
+
+  .marqueeLaserContainer {
+    height: 270px;
+  }
+
+  .laserBurst {
+    height: 270px;
+    width: 70px;
+  }
+
+  .laserBurstInner {
+    height: 250px;
+    width: 30px;
+  }
+}
+
+@media (max-width: 480px) {
+  .highlightText {
+    -webkit-text-stroke: 0.6px #F6851B;
+  }
+
+  .heroSection {
+    padding: 112px 16px 24px;
+    min-height: calc(100vh - 49px);
+    min-height: calc(100svh - 49px);
+    box-sizing: border-box;
+  }
+
+  .heroContent {
+    padding: 0;
+    max-width: 100%;
+    justify-content: flex-start;
+    padding-top: 4px;
+  }
+
+  .heroTitle {
+    font-size: clamp(42px, 11.5vw, 52px);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.045em;
+    -webkit-text-stroke: 0.6px #1F2348;
+  }
+
+  .heroDescription {
+    font-size: 17px;
+    line-height: 1.45;
+    margin-top: 10px;
+  }
+
+  .heroSearch {
+    margin: 20px auto 0 auto;
+  }
+
+  .searchWrapper {
+    padding: 4px;
+  }
+
+  .searchIcon {
+    padding-left: 8px;
+    padding-right: 0;
+  }
+
+  .searchIcon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .searchInput {
+    padding: 8px 6px;
+    font-size: 13.5px;
+  }
+
+  .searchInput::placeholder {
+    font-size: 13px;
+  }
+
+  .searchBtn {
+    padding: 8px 14px;
+    font-size: 13px;
+    border-radius: 7px;
+  }
+
+  .trustLine {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 28px;
+    margin-bottom: 0;
+    gap: 8px;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+
+  .trustItem {
+    font-size: 11.5px;
+    gap: 4px;
+    font-weight: 600;
+    color: rgba(31, 35, 72, 0.75);
+  }
+
+  .trustIcon {
+    width: 13px;
+    height: 13px;
+  }
+
+  .trustDot {
+    font-size: 11px;
+    color: rgba(31, 35, 72, 0.25);
+  }
+
+  /* Slider Card for Mobile Phone (+15% size) */
+  .marqueeContainer {
+    height: 265px;
+    margin-top: auto;
+    margin-bottom: 0;
+    transform: translateY(20px);
+  }
+
+  .marqueeItemWrapper {
+    width: 260px;
+  }
+
+  .profileCard {
+    width: 220px;
+    border-radius: 14px;
+    box-shadow: 0 14px 32px rgba(246, 133, 27, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  .cardHeader {
+    height: 55px;
+  }
+
+  .cardAvatar {
+    width: 46px;
+    height: 46px;
+    font-size: 21px;
+    bottom: -23px;
+    left: 15px;
+    border-width: 2.5px;
+  }
+
+  .cardBody {
+    padding: 30px 16px 8px;
+  }
+
+  .cardName {
+    font-size: 17.5px;
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+
+  .cardFooter {
+    padding: 8px 16px;
+  }
+
+  .cardAddressLabel {
+    font-size: 9px;
+    margin-bottom: 2px;
+  }
+
+  .cardAddressValue {
+    font-size: 9.5px;
+    padding: 2px 4px;
+    border-radius: 4px;
+  }
+
+  .rawAddressItem {
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    padding: 0 8px;
+    max-width: 200px;
+    line-height: 1.35;
+  }
+
+  .marqueeLaserContainer {
+    height: 265px;
+  }
+
+  .laserBurst {
+    height: 265px;
+    width: 50px;
+  }
+
+  .laserBurstInner {
+    height: 245px;
+    width: 24px;
+  }
+}

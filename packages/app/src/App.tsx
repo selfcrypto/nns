@@ -20,6 +20,7 @@ type Tab = 'home' | 'buy' | 'pay' | 'names' | 'inbox' | 'market'
 const TABS: readonly Tab[] = ['buy', 'pay', 'names', 'inbox', 'market']
 
 const TAB_LABEL: Record<Tab, string> = {
+  home: 'Home',
   // "Buy/Search" rather than "Buy": the tab is still named for the job, but the
   // job people arrive with is looking a name up, and a tab called Buy reads as
   // a shop you have to enter before you may ask a question.
@@ -159,7 +160,7 @@ export function App() {
   }, [])
 
   return (
-    <div className="frame">
+    <div className={`frame ${tab === 'home' ? 'is-home' : ''}`}>
       <header className={`masthead ${isScrolled ? 'is-scrolled' : ''}`}>
         <h1 className="wordmark">nns</h1>
         <p className="masthead-sub">names on Nimiq</p>
