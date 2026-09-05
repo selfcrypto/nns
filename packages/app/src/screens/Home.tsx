@@ -4,7 +4,7 @@ import { getBurn } from '../lib/api'
 import { apiBase } from '../lib/nns'
 import { lunaToNim } from '../lib/format'
 import styles from './landing-page.module.css'
-import './landing-page.css'
+
 
 const MOCK_PROFILES = [
   { name: 'rico', address: 'NQ14 9V83 P2K1 U5L4 7T9Y 6X4M 2A1B 3C5D', evm: '0x71C84976722883446059F2e616238b9C5E4EcB29', color: '#F6851B' }, // Orange
