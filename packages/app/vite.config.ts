@@ -11,6 +11,7 @@ export default defineConfig({
   // the API has been open to any origin since 2026-08-17, so pointing
   // VITE_NNS_RESOLVERS straight at http://127.0.0.1:8635 works too.
   server: {
+    allowedHosts: true,
     proxy: {
       '/nns-api': {
         target: 'http://127.0.0.1:8635',

@@ -43,6 +43,8 @@
   --grace-bg: #f8efd8;
   --accent: #e9b213;
   --accent-deep: #d9a300;
+  --nimiq-blue: #0582CA;
+  --pattern-honeycomb: url("data:image/svg+xml,%3Csvg width='56' height='100' viewBox='0 0 56 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='%23E9B213' stroke-width='1.5' stroke-opacity='0.15'/%3E%3Cpath d='M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34' fill='none' stroke='%23E9B213' stroke-width='1.5' stroke-opacity='0.15'/%3E%3C/svg%3E");
   /* Own chat bubbles. Green and grey are spoken for: the proof rail spends
      them on 'proven' and 'pending depth', and one colour may mean one thing. */
   --accent-bg: #fdf4d8;
@@ -141,6 +143,33 @@ button:disabled {
   display: flex;
   align-items: center;
   gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.masthead.is-scrolled {
+  background: rgba(244, 246, 248, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+@media (max-width: 768px) {
+  .masthead {
+    padding: 12px 16px 8px;
+  }
+
+  .wordmark {
+    font-size: 24px;
+  }
+
+  .masthead-sub {
+    font-size: 12px;
+  }
 }
 
 /*
@@ -201,6 +230,10 @@ button:disabled {
   display: flex;
   flex-direction: column;
   padding: 6px 16px 28px;
+}
+
+.frame.is-home .content {
+  padding: 0;
 }
 
 .screen {
@@ -566,7 +599,7 @@ button:disabled {
 }
 
 /* The proven line is a group now: headline plus the parties that agreed. */
-.verify > p {
+.verify>p {
   margin: 0;
 }
 
@@ -1687,7 +1720,7 @@ li.note {
   overflow-wrap: anywhere;
 }
 
-.diag > div {
+.diag>div {
   display: flex;
   gap: 8px;
 }
@@ -1736,3 +1769,4 @@ li.note {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
+

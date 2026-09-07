@@ -4,6 +4,7 @@ import { applyHostChrome, describeChrome } from './lib/chrome'
 import { detectWallet, type Wallet } from './lib/wallet'
 import { IdentityBar } from './components/IdentityBar'
 import { TabIcon, type TabIconName } from './components/icons'
+import { HomeScreen } from './screens/Home'
 import { BuyScreen } from './screens/Buy'
 import { InboxScreen } from './screens/Inbox'
 import { MyNamesScreen } from './screens/MyNames'
@@ -15,11 +16,13 @@ import { PayScreen } from './screens/Pay'
  * the same thing the UI does. Discovery is Buy, management is My names — a name
  * you own is never handled from Buy (docs/app-ux.md §2).
  */
-type Tab = 'buy' | 'pay' | 'names' | 'inbox' | 'market'
+type Tab = 'home' | 'buy' | 'pay' | 'names' | 'inbox' | 'market'
+type NavTab = Exclude<Tab, 'home'>
 
-const TABS: readonly Tab[] = ['buy', 'pay', 'names', 'inbox', 'market']
+const TABS: readonly NavTab[] = ['buy', 'pay', 'names', 'inbox', 'market']
 
 const TAB_LABEL: Record<Tab, string> = {
+  home: 'Home',
   // "Buy/Search" rather than "Buy": the tab is still named for the job, but the
   // job people arrive with is looking a name up, and a tab called Buy reads as
   // a shop you have to enter before you may ask a question.
@@ -30,7 +33,7 @@ const TAB_LABEL: Record<Tab, string> = {
   market: 'Market',
 }
 
-const TAB_ICON: Record<Tab, TabIconName> = {
+const TAB_ICON: Record<NavTab, TabIconName> = {
   buy: 'search',
   pay: 'pay',
   names: 'names',
@@ -72,7 +75,7 @@ function configProblem(): string | null {
 }
 
 export function App() {
-  const [tab, setTab] = useState<Tab>('buy')
+  const [tab, setTab] = useState<Tab>('home')
   const [seed, setSeed] = useState('')
   /** A name Buy handed to My names to manage, cleared when My names is done with it. */
   const [manage, setManage] = useState<string | null>(null)
@@ -156,10 +159,20 @@ export function App() {
           setIdentityNonce((value) => value + 1)
         }
 
+  const [isScrolled, setIsScrolled] = useState(false)
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
   return (
-    <div className="frame">
-      <header className="masthead">
-        <h1 className="wordmark">nns</h1>
+    <div className={`frame ${tab === 'home' ? 'is-home' : ''}`}>
+      <header className={`masthead ${isScrolled ? 'is-scrolled' : ''}`}>
+        <h1 className="wordmark" onClick={() => setTab('home')} style={{ cursor: 'pointer' }}>nns</h1>
         <p className="masthead-sub">names on Nimiq</p>
         <IdentityBar
           placement="top"
@@ -172,6 +185,7 @@ export function App() {
       </header>
       <main className="content">
         {diagnostic && <ChromeDiagnostic wallet={wallet} />}
+        {tab === 'home' && <HomeScreen onSearch={(q) => { setSeed(q); setTab('buy'); }} />}
         {tab === 'buy' && (
           <BuyScreen
             key={seed}
@@ -191,20 +205,22 @@ export function App() {
         {tab === 'inbox' && <InboxScreen wallet={wallet} />}
         {tab === 'market' && <OffersScreen onOpen={openName} />}
       </main>
-      <nav className="tabbar" aria-label="Sections">
-        {TABS.map((entry) => (
-          <button
-            key={entry}
-            type="button"
-            className={tab === entry ? 'tab tab-active' : 'tab'}
-            aria-current={tab === entry ? 'page' : undefined}
-            onClick={() => setTab(entry)}
-          >
-            <TabIcon name={TAB_ICON[entry]} />
-            <span className="tab-label">{TAB_LABEL[entry]}</span>
-          </button>
-        ))}
-      </nav>
+      {tab !== 'home' && (
+        <nav className="tabbar" aria-label="Sections">
+          {TABS.map((entry) => (
+            <button
+              key={entry}
+              type="button"
+              className={tab === entry ? 'tab tab-active' : 'tab'}
+              aria-current={tab === entry ? 'page' : undefined}
+              onClick={() => setTab(entry)}
+            >
+              <TabIcon name={TAB_ICON[entry]} />
+              <span className="tab-label">{TAB_LABEL[entry]}</span>
+            </button>
+          ))}
+        </nav>
+      )}
     </div>
   )
 }
