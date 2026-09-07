@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { appConfig, ConfigParseError } from './config'
-import { applyHostChrome, describeChrome } from './lib/chrome'
+import { applyHostChrome, describeChrome, isHostedWebView } from './lib/chrome'
 import { detectWallet, type Wallet } from './lib/wallet'
 import { IdentityBar } from './components/IdentityBar'
 import { TabIcon, type TabIconName } from './components/icons'
@@ -75,7 +75,10 @@ function configProblem(): string | null {
 }
 
 export function App() {
-  const [tab, setTab] = useState<Tab>('home')
+  // The landing page is for a browser. Inside Nimiq Pay the person already
+  // chose the app, so the front door is Buy — `isHostedWebView` can miss the
+  // provider before the first paint, and `detectWallet` corrects it below.
+  const [tab, setTab] = useState<Tab>(() => (isHostedWebView(window) ? 'buy' : 'home'))
   const [seed, setSeed] = useState('')
   /** A name Buy handed to My names to manage, cleared when My names is done with it. */
   const [manage, setManage] = useState<string | null>(null)
@@ -105,6 +108,7 @@ export function App() {
       } catch {
         /* keep whatever the first pass decided */
       }
+      if (detected.identity.kind === 'pay') setTab((current) => (current === 'home' ? 'buy' : current))
       setWallet(detected)
     })
     return () => {

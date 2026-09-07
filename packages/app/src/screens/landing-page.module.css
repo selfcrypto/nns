@@ -56,7 +56,7 @@
   justify-content: space-between;
   text-align: center;
   background: transparent;
-  color: #1F2348;
+  color: var(--ink);
   /* Dark navy text for light theme */
   margin-top: 0;
   padding: 88px 16px 20px;
@@ -103,7 +103,7 @@
   font-weight: 900;
   line-height: 1.1;
   letter-spacing: -0.04em;
-  color: #1F2348;
+  color: var(--ink);
 }
 
 .heroDescription {
@@ -127,7 +127,7 @@
 .highlightText {
   color: #F6851B;
   /* Nimiq Orange */
-  background: linear-gradient(90deg, #F6851B 0%, #E9B213 100%);
+  background: linear-gradient(90deg, #F6851B 0%, var(--accent) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -181,7 +181,7 @@
 
 /* Ensure text and icons are dark navy whether scrolled or not on the light theme */
 :global(.frame.is-home .masthead .wordmark) {
-  color: #1F2348;
+  color: var(--ink);
 }
 
 :global(.frame.is-home .masthead .wordmark::after) {
@@ -210,8 +210,9 @@
   color: #FFFFFF;
 }
 
+/* The detecting line sits on the hero, not in the pill: ink, not white. */
 :global(.frame.is-home .masthead .identity-top .identity-note) {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--ink-soft);
 }
 
 /* Search bar frosted glass styling (Light Theme) */
@@ -246,7 +247,7 @@
 
 .searchInput {
   background: transparent;
-  color: #1F2348;
+  color: var(--ink);
   /* Dark ink */
   padding: 12px 12px;
   border: none;
@@ -260,7 +261,7 @@
 }
 
 .searchBtn {
-  background: #1F2348;
+  background: var(--ink);
   /* Dark Navy */
   color: #ffffff;
   border: none;
@@ -280,7 +281,7 @@
 }
 
 .searchBtn:disabled {
-  background: #1F2348;
+  background: var(--ink);
   color: #ffffff;
   opacity: 0.7;
   cursor: not-allowed;
@@ -304,7 +305,7 @@
   gap: 6px;
   font-size: 13.5px;
   font-weight: 600;
-  color: #1F2348;
+  color: var(--ink);
   white-space: nowrap;
 }
 
@@ -534,7 +535,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  color: #1F2348;
+  color: var(--ink);
   /* Dark ink */
   text-align: left;
 }
@@ -642,7 +643,7 @@
     font-weight: 900;
     line-height: 1.06;
     letter-spacing: -0.045em;
-    -webkit-text-stroke: 0.5px #1F2348;
+    -webkit-text-stroke: 0.5px var(--ink);
   }
 
   .heroDescription {
@@ -785,7 +786,7 @@
     font-weight: 900;
     line-height: 1.05;
     letter-spacing: -0.045em;
-    -webkit-text-stroke: 0.6px #1F2348;
+    -webkit-text-stroke: 0.6px var(--ink);
   }
 
   .heroDescription {
@@ -1481,7 +1482,7 @@
   gap: 8px;
   background: rgba(5, 130, 202, 0.08);
   border: 1px solid rgba(5, 130, 202, 0.2);
-  color: #0582CA;
+  color: var(--nimiq-blue);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -1492,8 +1493,8 @@
 }
 
 :global(.badge-pulse.pulse-blue) {
-  background: #0582CA;
-  box-shadow: 0 0 8px #0582CA;
+  background: var(--nimiq-blue);
+  box-shadow: 0 0 8px var(--nimiq-blue);
 }
 
 :global(.cross-chain-content .section-title) {
@@ -1507,8 +1508,8 @@
 }
 
 :global(.text-highlight-blue) {
-  color: #0582CA;
-  background: linear-gradient(135deg, #0582CA 0%, #0368A3 100%);
+  color: var(--nimiq-blue);
+  background: linear-gradient(135deg, var(--nimiq-blue) 0%, #0368A3 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -1543,7 +1544,7 @@
 }
 
 :global(.security-icon.icon-blue) {
-  background: linear-gradient(135deg, #0582CA 0%, #0368A3 100%);
+  background: linear-gradient(135deg, var(--nimiq-blue) 0%, #0368A3 100%);
   box-shadow: 0 4px 14px rgba(5, 130, 202, 0.25);
 }
 
@@ -1743,7 +1744,7 @@
 }
 
 :global(.burn-flame) {
-  font-size: 20px;
+  color: #F6851B;
   display: inline-block;
   animation: flameFlicker 1.8s infinite alternate ease-in-out;
 }
@@ -1880,8 +1881,8 @@
 }
 
 :global(.badge-pulse.pulse-gold) {
-  background: #E9B213;
-  box-shadow: 0 0 8px #E9B213;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
 }
 
 :global(.cta-title) {
@@ -1889,13 +1890,13 @@
   font-weight: 800;
   margin-bottom: 20px;
   letter-spacing: -0.025em;
-  color: #1F2348;
+  color: var(--ink);
   line-height: 1.15;
 }
 
 :global(.text-highlight-gold) {
   color: #D49200;
-  background: linear-gradient(135deg, #E9B213 0%, #B87A00 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, #B87A00 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -2524,7 +2525,7 @@
 
 :global(.arrow-blue) {
   background: #E2F2FC;
-  color: #0582CA;
+  color: var(--nimiq-blue);
 }
 
 :global(.arrow-coral) {

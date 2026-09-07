@@ -45,6 +45,13 @@ the fallback where `visualViewport` does not exist. The tab bar hides while
 an on-screen keyboard is up (`data-keyboard`, both keyboard modes detected).
 `?chrome=<top>,<bottom>` and `?diag=1` remain the on-device instruments.
 
+**A browser opens on a landing page first** (`screens/Home.tsx`, since
+2026-09-07, Bakar's PR #1): marketing, full-width, the tab bar hidden, and
+one way in — its search hands the query to Buy. Inside Nimiq Pay the
+person already chose the app, so the front door there is Buy
+(`isHostedWebView`, corrected by `detectWallet` if the provider arrived
+late). The wordmark returns to the landing page.
+
 Five tabs, and the first two are named for jobs rather than mechanisms:
 **Buy/Search** is discovery and acquisition, **Pay** sends NIM to a name —
 and, since 2026-08-23, **USDT over Polygon** to the name's §6 `E` record: an

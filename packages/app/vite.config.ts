@@ -11,7 +11,10 @@ export default defineConfig({
   // the API has been open to any origin since 2026-08-17, so pointing
   // VITE_NNS_RESOLVERS straight at http://127.0.0.1:8635 works too.
   server: {
-    allowedHosts: true,
+    // Extra Host headers the dev server answers (a tunnel or a phone on the
+    // LAN, comma-separated). `true` answered any host, which is a dev server
+    // open to DNS rebinding for the sake of one test.
+    allowedHosts: process.env['NNS_DEV_HOSTS']?.split(',') ?? [],
     proxy: {
       '/nns-api': {
         target: 'http://127.0.0.1:8635',

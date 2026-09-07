@@ -686,3 +686,79 @@ export const burnEvenLine = (): string => 'Burned exactly what is owed.'
  */
 export const burnExplainer = (): string =>
   `${Number(CONSTANTS.BURN_SHARE_BP) / 100}% of registry revenue is committed to be burned. The figures come from the public log, so anyone can check.`
+
+// ── The landing page (a browser's front door; Pay opens on Buy) ─────────────
+
+/**
+ * Marketing copy, kept here for the same reason as the rest: a component
+ * that invents a sentence is a component that drifts from the states doc.
+ * Short on purpose — the app's own screens explain, behind a "?", what a
+ * word means; the landing page only has to say which job each tab does.
+ */
+export const LANDING = {
+  hero: {
+    title: 'Your name on',
+    titleAccent: 'Nimiq',
+    sub: 'One name instead of an address.',
+    placeholder: 'Search for a name',
+    go: 'Search',
+    trust: ['On-chain', 'Self-custody', 'No smart contracts'],
+  },
+  marquee: { linked: 'Linked addresses' },
+  features: {
+    title: 'One name.',
+    titleAccent: 'Everything',
+    titleTail: 'you need.',
+    cards: [
+      { title: 'Search & register', body: 'Find a free name and register it.' },
+      { title: 'Manage records', body: 'Point it at your address, link an EVM address, delegate subdomains.' },
+      { title: 'Market', body: 'Buy and sell names, or bid in an auction.' },
+      { title: 'Pay by name', body: 'Send NIM to a name.' },
+      { title: 'Messages', body: 'Write to a name’s owner, on-chain.' },
+    ],
+  },
+  steps: {
+    title: 'How it works',
+    items: [
+      { title: 'Search & register', body: 'Pick a free name and register it on-chain.' },
+      { title: 'Link addresses', body: 'Set your Nimiq address; add an EVM address for USDC and USDT.' },
+      { title: 'Get paid', body: 'People send to the name. It resolves to you.' },
+    ],
+  },
+  chains: {
+    badge: 'One name, every chain',
+    title: 'One name.',
+    titleAccent: 'Every chain',
+    titleTail: '.',
+    items: [
+      { title: 'You own it', body: 'Held by your key on the Nimiq chain. No contract, no custodian.' },
+      { title: 'EVM payments', body: 'One linked 0x address works on every EVM chain. USDT over Polygon in Nimiq Pay today.' },
+      { title: 'Subdomains', body: 'Delegate pay.yourname and the rest to a host you run.' },
+    ],
+  },
+  burn: {
+    badge: 'Fee burn',
+    title: 'Fees burn',
+    titleAccent: 'NIM',
+    sub: `${Number(CONSTANTS.BURN_SHARE_BP) / 100}% of every fee is burned. The figures come from the public log.`,
+    revenue: { label: 'Fees collected', sub: 'Paid to the treasury' },
+    burned: { label: burnBurnedLabel(), sub: 'Removed from supply' },
+    owed: { label: burnOwedLabel(), sub: 'Committed, not yet burned' },
+  },
+  cta: {
+    badge: 'Names on Nimiq',
+    title: 'Claim your',
+    titleAccent: 'name',
+    go: 'Find your name',
+    perks: ['One-year terms', 'Every EVM chain', 'Self-custody'],
+  },
+  footer: {
+    tagline: 'Names on Nimiq.',
+    columns: [
+      { title: 'Ecosystem', links: [['Nimiq Wallet', 'https://wallet.nimiq.com'], ['Cryptocity', 'https://cryptocity.com'], ['Oasis', 'https://oasis.nimiq.com']] },
+      { title: 'Resources', links: [['Developer docs', 'https://nimiq.com/developers'], ['GitHub', 'https://github.com/selfcrypto/nns'], ['Nimiq', 'https://nimiq.com']] },
+      { title: 'Community', links: [['X', 'https://x.com/nimiq'], ['Discord', 'https://discord.gg/nimiq'], ['Telegram', 'https://t.me/Nimiq']] },
+    ],
+    copyright: (year: number): string => `© ${year} nns · MIT`,
+  },
+} as const

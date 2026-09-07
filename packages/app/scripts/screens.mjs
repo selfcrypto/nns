@@ -86,10 +86,19 @@ const helpers = `
   true
 `
 
-const load = async () => {
+// A browser opens on the landing page, whose only way into the app is its
+// search (the tab bar is hidden there); Pay opens on Buy directly. Every
+// scenario but `home` starts from Buy, so `load` goes through the hero.
+const landing = async () => {
   await send('Page.navigate', { url: URL })
   await sleep(1500)
   await evaluate(helpers)
+}
+const load = async () => {
+  await landing()
+  await evaluate(`__type('.hero-search-input', 'nns')`)
+  await evaluate(`__click('.hero-search-go')`)
+  await sleep(1000)
 }
 const shot = async (name, full = false) => {
   const params = { format: 'png' }
@@ -120,8 +129,12 @@ const loadAsOwner = async () => {
   await send('Page.navigate', { url: URL })
   await sleep(2000)
   await evaluate(helpers)
+  await evaluate(`__type('.hero-search-input', 'nns')`)
+  await evaluate(`__click('.hero-search-go')`)
+  await sleep(1000)
 }
 const scenarios = {
+  'home': async () => { await landing(); await sleep(1500); await shot('home', true) },
   'owner-names': async () => { await loadAsOwner(); await tab('My Names'); await sleep(2500); await shot('owner-names') },
   'owner-detail': async () => {
     await loadAsOwner(); await tab('My Names'); await sleep(2500)
