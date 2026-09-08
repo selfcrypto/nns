@@ -237,6 +237,7 @@ button:disabled {
 .frame.is-home .content,
 .frame.is-buy .content,
 .frame.is-pay .content,
+.frame.is-inbox .content,
 .frame.is-market .content {
   padding: 0;
 }
