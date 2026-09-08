@@ -234,11 +234,11 @@
   cursor: not-allowed;
 }
 
-/* Idle Content: Suggestion chips & trust badges */
+/* Idle Content: Suggestion chips */
 .buyIdleContent {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 16px;
   margin-top: 16px;
   animation: fadeIn 0.4s ease-out forwards;
 }
@@ -278,23 +278,23 @@
   transform: translateY(-1px);
 }
 
-.buyTrustLine {
+/* Trust Bar */
+.trustBar {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16px;
-  padding: 16px 0;
-  border-top: 1px solid rgba(31, 35, 72, 0.06);
-  border-bottom: 1px solid rgba(31, 35, 72, 0.06);
+  flex-wrap: wrap;
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-weight: 500;
 }
 
 .trustItem {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-soft);
 }
 
 .trustIcon {
@@ -302,8 +302,8 @@
 }
 
 .trustDot {
-  color: rgba(31, 35, 72, 0.2);
-  font-size: 14px;
+  color: var(--ink-faint);
+  font-size: 10px;
 }
 
 /* Override the RailCard inside the Dashboard Panel to blend smoothly */

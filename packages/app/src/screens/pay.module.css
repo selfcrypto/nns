@@ -1,0 +1,926 @@
+/* ── Pay Screen Styles ── */
+
+@keyframes floatOrb {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(30px, -20px) scale(1.08);
+  }
+  100% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Light theme wrapper with ambient decorative background gradients */
+.lightThemeWrapper {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper);
+  min-height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.lightThemeWrapper::before {
+  content: "";
+  position: absolute;
+  top: -100px;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(233, 178, 19, 0.12) 0%, transparent 70%);
+  filter: blur(100px);
+  z-index: 0;
+  pointer-events: none;
+  animation: floatOrb 25s infinite alternate ease-in-out;
+}
+
+.lightThemeWrapper::after {
+  content: "";
+  position: absolute;
+  top: 20%;
+  left: -10%;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(246, 133, 27, 0.08) 0%, transparent 70%);
+  filter: blur(120px);
+  z-index: 0;
+  pointer-events: none;
+  animation: floatOrb 20s infinite alternate-reverse ease-in-out;
+}
+
+.heroSection {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  background: transparent;
+  color: var(--ink);
+  margin-top: 0;
+  padding: 40px 16px calc(var(--chrome-bottom) + 96px);
+  min-height: 100%;
+  flex: 1;
+  box-sizing: border-box;
+  z-index: 1;
+  width: 100%;
+}
+
+.heroSection::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-image: var(--pattern-honeycomb);
+  background-size: 84px 150px;
+  background-repeat: repeat;
+  pointer-events: none;
+  opacity: 0.8;
+  z-index: 0;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: 600px;
+  gap: 0;
+  flex: 1;
+}
+
+/* Pay Hero Header */
+.payHeader {
+  text-align: center;
+  margin-bottom: 24px;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.payTitle {
+  font-size: clamp(32px, 7vw, 44px);
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin: 0 0 8px 0;
+}
+
+.paySubtitle {
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Main Panel (Glassmorphism card) */
+.payPanel {
+  width: 100%;
+  max-width: 580px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 28px;
+  padding: 24px 20px;
+  box-shadow: 0 12px 40px rgba(31, 35, 72, 0.06), 0 4px 12px rgba(31, 35, 72, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: fadeIn 0.4s ease-out forwards;
+  box-sizing: border-box;
+}
+
+@media (min-width: 480px) {
+  .payPanel {
+    padding: 28px 24px;
+  }
+}
+
+/* Top Toolbar: Asset Switch (Left) & Balance (Right) on the same row */
+.topToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+/* Segmented Asset Switch (Compact pill track on the left) */
+.assetSwitchTrack {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 3px;
+  border-radius: 12px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.assetTab {
+  position: relative;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.assetTab:hover:not(.assetTabActive) {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.assetTabActive {
+  background: var(--card);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(31, 35, 72, 0.08);
+}
+
+.assetBadgeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Asset icons on tabs */
+.assetTabIcon,
+.polygonTabIcon {
+  width: 15px;
+  height: 15px;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+/* Balance Badge: Horizontally aligned with tabs on the right */
+.balanceBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  box-shadow: 0 1px 4px rgba(31, 35, 72, 0.03);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.balanceIcon {
+  color: var(--ink-faint);
+  display: flex;
+  align-items: center;
+}
+
+.balanceLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.balanceAmount {
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  margin-left: 2px;
+}
+
+.balanceTicker {
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+.balanceMuted {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+/* Search Wrapper */
+.searchForm {
+  width: 100%;
+  margin: 0;
+}
+
+.searchWrapper {
+  background: var(--card);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 14px rgba(31, 35, 72, 0.04);
+  transition: all 0.25s ease;
+  padding: 4px 6px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.searchWrapper:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 4px 18px rgba(246, 133, 27, 0.12), 0 0 0 3px rgba(246, 133, 27, 0.1);
+}
+
+.searchIcon {
+  color: var(--ink-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 10px;
+  padding-right: 6px;
+  flex: none;
+}
+
+.searchInput {
+  background: transparent !important;
+  color: var(--ink);
+  padding: 10px 4px;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  font-size: 16px;
+  font-weight: 500;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.searchInput:focus,
+.searchInput:focus-visible {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.searchInput::placeholder {
+  color: var(--ink-faint);
+  font-family: inherit;
+}
+
+.searchClearBtn {
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.searchClearBtn:hover {
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.searchSubmitBtn {
+  background: var(--ink);
+  color: var(--card);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-weight: 500;
+  font-size: 14.5px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  flex: none;
+  white-space: nowrap;
+}
+
+.searchSubmitBtn:disabled {
+  background: var(--ink);
+  color: var(--card);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.searchSubmitBtn:hover:not(:disabled) {
+  background: var(--ink-soft);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(31, 35, 72, 0.2);
+}
+
+/* Idle State Content */
+.idleContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  padding: 8px 0 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.idleCard {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px dashed rgba(0, 0, 0, 0.1);
+  border-radius: 18px;
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.idleIconWrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  color: var(--accent-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.idleTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 6px 0;
+}
+
+.idleBody {
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin: 0;
+  max-width: 360px;
+}
+
+/* Trust Bar */
+.trustBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.trustItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trustIcon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.trustDot {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+
+/* Loading wrapper */
+.loadingWrap {
+  padding: 30px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+/* Payment Form Container */
+.payForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--card);
+  border-radius: 20px;
+  padding: 22px;
+  box-shadow: 0 4px 20px rgba(31, 35, 72, 0.05);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  width: 100%;
+  box-sizing: border-box;
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Recipient Info Card */
+.recipientCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.recipientHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.recipientTitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-faint);
+  margin: 0;
+}
+
+.recipientNameBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.evmAddressBox {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+  color: var(--ink-soft);
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+/* Sender Selector */
+.fieldLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  width: 100%;
+}
+
+.selectWrap {
+  position: relative;
+  width: 100%;
+}
+
+.paySelect {
+  appearance: none;
+  width: 100%;
+  background: var(--card);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  padding: 10px 36px 10px 12px;
+  font-size: 13.5px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.paySelect:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(246, 133, 27, 0.1);
+}
+
+.selectChevron {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--ink-faint);
+}
+
+/* Amount Input Group */
+.amountHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.amountLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.maxBtn {
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.maxBtn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: var(--ink);
+}
+
+.amountInputContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: var(--card);
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  border-radius: 14px;
+  padding: 4px 12px;
+  transition: all 0.2s ease;
+}
+
+.amountInputContainer:focus-within {
+  border-color: var(--nimiq-blue);
+  box-shadow: 0 0 0 3px rgba(5, 130, 202, 0.12);
+}
+
+.amountInput {
+  flex: 1;
+  border: none !important;
+  background: transparent !important;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 8px 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  font-variant-numeric: tabular-nums;
+  width: 100%;
+  min-width: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.amountInput:focus,
+.amountInput:focus-visible {
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+.amountInput::placeholder {
+  color: var(--ink-faint);
+  font-weight: 500;
+}
+
+.currencyPill {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 4px 8px;
+  border-radius: 8px;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+/* Pay Submit Button (Nimiq Blue primary CTA) */
+.payBtn {
+  appearance: none;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--nimiq-blue) 0%, #0368A3 100%);
+  color: var(--card);
+  font: inherit;
+  font-size: 15.5px;
+  font-weight: 700;
+  min-height: 50px;
+  padding: 13px 20px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(5, 130, 202, 0.25);
+  width: 100%;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+.payBtn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0368A3 0%, #025E8C 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(5, 130, 202, 0.32);
+}
+
+.payBtn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(5, 130, 202, 0.2);
+}
+
+.payBtn:disabled {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--ink-faint);
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.payBtn :global(.spinner) span {
+  background: var(--card);
+}
+
+/* Status and feedback notes */
+.statusBanner {
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.statusInfo {
+  background: rgba(5, 130, 202, 0.08);
+  border: 1px solid rgba(5, 130, 202, 0.15);
+  color: var(--nimiq-blue);
+}
+
+.statusSuccess {
+  background: var(--proven-bg);
+  border: 1px solid rgba(14, 124, 91, 0.2);
+  color: var(--proven);
+  font-weight: 600;
+}
+
+.statusError {
+  background: var(--alarm-bg);
+  border: 1px solid rgba(179, 38, 30, 0.2);
+  color: var(--alarm);
+  font-weight: 500;
+}
+
+.txLink {
+  color: var(--nimiq-blue);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+}
+
+.txLink:hover {
+  color: var(--nimiq-blue);
+  opacity: 0.85;
+}
+
+/* Mobile-First Responsive Breakpoints */
+@media (max-width: 600px) {
+  .heroSection {
+    padding: 32px 14px calc(var(--chrome-bottom) + 90px);
+  }
+
+  .payTitle {
+    font-size: 32px;
+  }
+
+  .payPanel {
+    padding: 22px 16px;
+    border-radius: 22px;
+    gap: 16px;
+  }
+
+  .searchWrapper {
+    padding: 4px;
+    border-radius: 12px;
+  }
+
+  .searchIcon {
+    padding-left: 8px;
+    padding-right: 2px;
+  }
+
+  .searchIcon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .searchInput {
+    font-size: 14.5px;
+    padding: 9px 6px;
+  }
+
+  .searchSubmitBtn {
+    padding: 9px 16px;
+    font-size: 13.5px;
+  }
+
+  .payForm {
+    padding: 18px 14px;
+    border-radius: 18px;
+  }
+
+  .amountInput {
+    font-size: 20px;
+  }
+
+  .payBtn {
+    min-height: 48px;
+    font-size: 15px;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 440px) {
+  .heroSection {
+    padding: 24px 10px calc(var(--chrome-bottom) + 80px);
+  }
+
+  .payHeader {
+    margin-bottom: 18px;
+  }
+
+  .payTitle {
+    font-size: 28px;
+  }
+
+  .paySubtitle {
+    font-size: 14px;
+  }
+
+  .payPanel {
+    padding: 18px 12px;
+    border-radius: 18px;
+    gap: 14px;
+  }
+
+  .assetTab {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  .polygonTabIcon {
+    width: 14px;
+    height: 14px;
+  }
+
+  .balanceBadge {
+    padding: 5px 9px;
+    font-size: 12px;
+  }
+
+  .balanceLabel {
+    display: none;
+  }
+
+  .balanceAmount {
+    font-size: 12.5px;
+  }
+
+  .searchWrapper {
+    padding: 3px;
+    border-radius: 10px;
+  }
+
+  .searchIcon {
+    padding-left: 6px;
+    padding-right: 2px;
+  }
+
+  .searchIcon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .searchInput {
+    font-size: 13.5px;
+    padding: 8px 4px;
+  }
+
+  .searchSubmitBtn {
+    padding: 8px 12px;
+    font-size: 13px;
+    border-radius: 7px;
+  }
+
+  .payForm {
+    padding: 15px 12px;
+    border-radius: 16px;
+    gap: 12px;
+  }
+
+  .recipientCard {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .recipientNameBadge {
+    font-size: 15px;
+  }
+
+  .evmAddressBox {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+
+  .amountInput {
+    font-size: 18px;
+  }
+
+  .payBtn {
+    min-height: 46px;
+    font-size: 14.5px;
+    border-radius: 12px;
+  }
+}

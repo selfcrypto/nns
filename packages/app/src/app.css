@@ -236,6 +236,7 @@ button:disabled {
 
 .frame.is-home .content,
 .frame.is-buy .content,
+.frame.is-pay .content,
 .frame.is-market .content {
   padding: 0;
 }
@@ -2861,8 +2862,8 @@ li.note {
   color: var(--ink-soft);
 }
 
-.pay-input,
-.pay-select {
+.pay-input:not([class*="amountInput"]),
+.pay-select:not([class*="paySelect"]) {
   appearance: none;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-field);
@@ -2876,7 +2877,7 @@ li.note {
   box-sizing: border-box;
 }
 
-.pay-select {
+.pay-select:not([class*="paySelect"]) {
   font-size: 14px;
 }
 
@@ -2884,8 +2885,8 @@ li.note {
   color: var(--ink-faint);
 }
 
-.pay-input:focus-visible,
-.pay-select:focus-visible {
+.pay-input:not([class*="amountInput"]):focus-visible,
+.pay-select:not([class*="paySelect"]):focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 0;
   border-color: var(--ink);
