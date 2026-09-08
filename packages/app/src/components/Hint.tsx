@@ -20,6 +20,7 @@
  */
 
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { hintLabel } from '../lib/wording'
 
 type Opened = 'tap' | 'hover'
@@ -33,6 +34,14 @@ export function Hint({ children, label }: { children: ReactNode; label?: string 
   const [placed, setPlaced] = useState<CSSProperties | null>(null)
   const button = useRef<HTMLButtonElement>(null)
   const pop = useRef<HTMLSpanElement>(null)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const clearTimer = () => {
+    if (closeTimer.current !== null) {
+      clearTimeout(closeTimer.current)
+      closeTimer.current = null
+    }
+  }
 
   useLayoutEffect(() => {
     if (open === null) {
@@ -64,8 +73,25 @@ export function Hint({ children, label }: { children: ReactNode; label?: string 
       window.removeEventListener('scroll', close, { capture: true })
       window.removeEventListener('resize', close)
       window.removeEventListener('keydown', onKey)
+      clearTimer()
     }
   }, [open])
+
+  const handlePointerEnter = (event: React.PointerEvent) => {
+    if (event.pointerType === 'mouse') {
+      clearTimer()
+      if (open === null) setOpen('hover')
+    }
+  }
+
+  const handlePointerLeave = (event: React.PointerEvent) => {
+    if (event.pointerType === 'mouse') {
+      clearTimer()
+      closeTimer.current = setTimeout(() => {
+        setOpen((prev) => (prev === 'hover' ? null : prev))
+      }, 120)
+    }
+  }
 
   return (
     <span className="hint">
@@ -75,29 +101,35 @@ export function Hint({ children, label }: { children: ReactNode; label?: string 
         className="hint-btn"
         aria-label={label ?? hintLabel()}
         aria-expanded={open !== null}
-        onClick={() => setOpen(open === 'tap' ? null : 'tap')}
-        onPointerEnter={(event) => {
-          if (event.pointerType === 'mouse' && open === null) setOpen('hover')
+        onClick={() => {
+          clearTimer()
+          setOpen(open === 'tap' ? null : 'tap')
         }}
-        onPointerLeave={(event) => {
-          if (event.pointerType === 'mouse' && open === 'hover') setOpen(null)
-        }}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
       >
         ?
       </button>
-      {open === 'tap' && <button type="button" className="hint-scrim" aria-label="Close" onClick={() => setOpen(null)} />}
-      {open !== null && (
-        <span
-          ref={pop}
-          role="tooltip"
-          className="hint-pop"
-          // Measured on the first paint, then placed; hidden until then so the
-          // unplaced frame never flashes at the viewport's corner.
-          style={placed ?? { left: 0, top: 0, width: Math.min(MAX_WIDTH, window.innerWidth - MARGIN * 2), visibility: 'hidden' }}
-        >
-          {children}
-        </span>
-      )}
+      {typeof document !== 'undefined' &&
+        open !== null &&
+        createPortal(
+          <>
+            {open === 'tap' && <button type="button" className="hint-scrim" aria-label="Close" onClick={() => setOpen(null)} />}
+            <span
+              ref={pop}
+              role="tooltip"
+              className="hint-pop"
+              onPointerEnter={handlePointerEnter}
+              onPointerLeave={handlePointerLeave}
+              // Measured on the first paint, then placed; hidden until then so the
+              // unplaced frame never flashes at the viewport's corner.
+              style={placed ?? { left: 0, top: 0, width: Math.min(MAX_WIDTH, window.innerWidth - MARGIN * 2), visibility: 'hidden' }}
+            >
+              {children}
+            </span>
+          </>,
+          document.body,
+        )}
     </span>
   )
 }

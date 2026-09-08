@@ -11,7 +11,7 @@
 import { Fragment, useState } from 'react'
 import { CONSTANTS } from '@nns/core'
 import { primaryAddress } from '../lib/identity'
-import { approxDate, formatApproxDate } from '../lib/format'
+import { approxDate, formatApproxDate, lunaToNim } from '../lib/format'
 import type { SearchOutcome } from '../lib/search'
 import { actionGates, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
@@ -27,6 +27,7 @@ import {
   graceLine,
   justRegisteredLine,
   manageOwnNameLabel,
+  manageThisLabel,
   messageOwnerLabel,
   messageSubdomainLabel,
   messageSubdomainNote,
@@ -42,7 +43,7 @@ import {
 } from '../lib/wording'
 import { AddressRow, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from './result'
 import { ActionSheet } from './ActionSheet'
-import { Composer } from './Composer'
+import { MessageModal } from './MessageModal'
 import { PinCheck } from './PinCheck'
 import { Badge, RailCard } from './ui'
 
@@ -57,6 +58,9 @@ function Actions({
   view,
   wallet,
   onChanged,
+  onConnect,
+  ctaMode,
+  onMarket,
 }: {
   actions: readonly AppAction[]
   /**
@@ -66,42 +70,105 @@ function Actions({
   view: NameView
   wallet: Wallet | null
   onChanged: () => void
+  onConnect?: (() => void) | null | undefined
+  /** When true, the button text IS the action label (e.g. "Register") rendered
+   *  as a single full-width CTA instead of a label + "Details" pair. */
+  ctaMode?: boolean
+  onMarket?: ((name?: string) => void) | null | undefined
 }) {
   const [open, setOpen] = useState<AppAction | null>(null)
   const { name, info } = view
   const viewers = wallet?.identity.addresses ?? []
   const gates = actionGates({ view, viewers, head: info?.height ?? 0 })
 
+  const handleActionClick = (action: AppAction) => {
+    setOpen(open === action ? null : action)
+  }
+
+  const visibleActions = actions.filter((action) => {
+    const gate = gates[action]
+    if (action === 'buy' && gate.reason === 'no-offer') return false
+    if (action === 'bid' && gate.reason === 'no-auction') return false
+    if (action === 'register' && !gate.enabled) return false
+    return true
+  })
+
+  if (visibleActions.length === 0) return null
+
   return (
     <div className="actions">
-      {actions.map((action) => {
+      {visibleActions.map((action) => {
         const gate = gates[action]
-        if (
-          (action === 'buy' && gate.reason === 'no-offer') ||
-          (action === 'bid' && gate.reason === 'no-auction') ||
-          (action === 'register' && !gate.enabled)
-        ) {
-          return null
-        }
         const signer = signerFor(action, view, viewers)
         const usable = gate.enabled && signer !== null && wallet !== null
+
+        const isMarketplaceAction = (action === 'buy' || action === 'bid') && ctaMode
+
+        if (isMarketplaceAction) {
+          const offer = info?.pending.offer
+          const auction = info?.pending.auction
+
+          let priceStr = ''
+          let isAuction = false
+
+          if (action === 'buy' && offer) {
+            priceStr = `${lunaToNim(offer.price)} NIM`
+          } else if (action === 'bid' && auction) {
+            isAuction = true
+            priceStr =
+              auction.bidder === null
+                ? `${lunaToNim(auction.startingPrice)} NIM`
+                : `${lunaToNim(auction.bid)} NIM`
+          }
+
+          const handleCheckNow = () => {
+            if (onMarket) {
+              onMarket(name)
+            }
+          }
+
+          return (
+            <Fragment key={action}>
+              <div className="action-row-marketplace">
+                <span className="marketplace-listing-line">
+                  {isAuction
+                    ? `Listed at the marketplace for bidding (${priceStr}). `
+                    : `Listed at the marketplace for ${priceStr}. `}
+                  <button
+                    type="button"
+                    className="marketplace-check-now"
+                    onClick={handleCheckNow}
+                  >
+                    Check now.
+                  </button>
+                </span>
+              </div>
+            </Fragment>
+          )
+        }
+
         return (
-          // A fragment, not a wrapper div: the rows stay siblings so
-          // `.action-row:last-child` keeps trimming the final border, and the
-          // sheet opens *under the row that was tapped* — it rendered after
-          // the whole list until 2026-08-23, which put every sheet under the
-          // last row (Kike, on the first live use of the ninth action).
           <Fragment key={action}>
-            <div className="action-row">
-              <span className="action-label">{ACTION_LABEL[action]}</span>
-              {usable ? (
-                <button type="button" className="action-go" onClick={() => setOpen(open === action ? null : action)}>
-                  {open === action ? 'Close' : 'Open'}
-                </button>
-              ) : (
-                <span className="action-state">{gate.reason !== null ? GATE_REASON_TEXT[gate.reason] : GATE_REASON_TEXT['no-viewer']}</span>
-              )}
-            </div>
+            {(!ctaMode || open !== action) && (
+              <div className={`action-row ${ctaMode ? 'action-row-cta' : ''}`}>
+                {!ctaMode && <span className="action-label">{ACTION_LABEL[action]}</span>}
+                {usable ? (
+                  <button
+                    type="button"
+                    className="action-go"
+                    onClick={() => handleActionClick(action)}
+                  >
+                    {open === action ? 'Close' : ctaMode ? ACTION_LABEL[action] : 'Details'}
+                  </button>
+                ) : onConnect ? (
+                  <button type="button" className="action-go action-connect" onClick={onConnect}>
+                    {ctaMode ? `Connect to ${ACTION_LABEL[action]}` : 'Connect Wallet'}
+                  </button>
+                ) : (
+                  <span className="action-state">{gate.reason !== null ? GATE_REASON_TEXT[gate.reason] : GATE_REASON_TEXT['no-viewer']}</span>
+                )}
+              </div>
+            )}
             {open === action && wallet !== null && (
               <ActionSheet
                 action={action}
@@ -111,6 +178,7 @@ function Actions({
                 viewers={viewers}
                 wallet={wallet}
                 onChanged={onChanged}
+                onClose={() => setOpen(null)}
               />
             )}
           </Fragment>
@@ -132,14 +200,17 @@ export function NameCard({
   nowMs,
   actions,
   onChanged,
+  onConnect,
   onManage,
   onPay,
+  onMarket,
 }: {
   outcome: SearchOutcome
   wallet: Wallet | null
   nowMs: number
   actions: readonly AppAction[]
   onChanged: () => void
+  onConnect?: (() => void) | null | undefined
   /**
    * Buy passes this: a name the viewer already owns gets a handoff to My names
    * instead of the owner toolbox. Managing what you own is a different job from
@@ -156,7 +227,9 @@ export function NameCard({
    * inside a send flow (Pay) or a management list (My names).
    */
   onPay: ((query: string) => void) | null
+  onMarket?: ((name?: string) => void) | null | undefined
 }) {
+  const [messageOpen, setMessageOpen] = useState(false)
   const sender = wallet === null ? null : primaryAddress(wallet.identity)
   const viewers = wallet?.identity.addresses ?? []
 
@@ -172,70 +245,132 @@ export function NameCard({
       const mine = view !== null && onManage !== null && ownedByViewer(outcome, viewers)
       const record = outcome.info?.record ?? null
       const height = outcome.info?.height ?? null
+      // Verification and expiry details are shown in My Names management detail, not on the Buy / Search discovery card.
+      const showMeta = onManage === null && actions === OWNER_ACTIONS
+
+      const canMessageOwner = outcome.info !== null && outcome.info.record !== null && !mine
+      const canMessageSubdomain = view === null
+      const canMessage = canMessageOwner || canMessageSubdomain
+      const messageRecipient = canMessageOwner ? outcome.info.record.owner : canMessageSubdomain ? outcome.result.address : null
+      const messageTargetName = canMessageOwner ? outcome.info.name : outcome.result.query
+      const subdomainNote = canMessageSubdomain ? messageSubdomainNote(outcome.result.delegate?.parent ?? outcome.result.name) : null
+      const messageLabel = canMessageSubdomain ? messageSubdomainLabel() : messageOwnerLabel()
+
       return (
         <RailCard tier={tierOf(outcome.result)}>
-          <TitleName name={outcome.result.query} />
-          <PinCheck query={outcome.result.query} address={outcome.result.address} />
-          <AddressRow address={outcome.result.address} full />
-          <VerificationLine result={outcome.result} />
-          {outcome.info !== null && <Overlays info={outcome.info} nowMs={nowMs} />}
-          {/* States doc §1/§6: expiry as ≈ date on the detail card, turning into
-              the §10.4 renewal reminder inside the 60-day window — the list row
-              in My names says it too, but the card is where a name is *looked at*. */}
-          {record !== null && height !== null && record.status === 'REGISTERED' && (
-            <p className="expiry-line">
-              {renewalUrgency(record.expiry, height) === 'due' ? (
-                <Badge tone="couldnt-check">{renewDueLine(formatApproxDate(approxDate(record.expiry, height, nowMs)))}</Badge>
-              ) : (
-                expiresLine(formatApproxDate(approxDate(record.expiry, height, nowMs)))
-              )}
-            </p>
-          )}
-          <WarningNotes warnings={outcome.result.warnings} />
-          {/* Its own `.actions` group: one rule above it, and `:last-child`
-              trims the row's own border. A delegated card's only action; on a
-              plain one it sits above the name actions as a second group. */}
-          {onPay !== null && (
-            <div className="actions">
-              <div className="action-row">
-                <span className="action-label">{payThisLabel()}</span>
-                <button type="button" className="action-go" onClick={() => onPay(outcome.result.query)}>
-                  Open
-                </button>
+          <div className="resolved-card-premium">
+            <div className="resolved-header">
+              <div className="available-title-row">
+                <TitleName name={outcome.result.query} />
+                {mine ? (
+                  <span className="owner-status-tag">
+                    <span className="owner-dot" aria-hidden="true" />
+                    You own this
+                  </span>
+                ) : (
+                  <span className="resolved-status-tag">
+                    <span className="resolved-dot" aria-hidden="true" />
+                    Registered
+                  </span>
+                )}
               </div>
             </div>
-          )}
-          {view === null ? (
-            <p className="note note-info">{subdomainNotRegistrableLine(outcome.result.delegate?.parent ?? outcome.result.name)}</p>
-          ) : mine ? (
-            <div className="own-name">
-              <p className="own-name-line">{ownNameLine()}</p>
-              <button type="button" className="action-go" onClick={() => onManage(name)}>
-                {manageOwnNameLabel()}
-              </button>
+            <PinCheck query={outcome.result.query} address={outcome.result.address} />
+            <div className="address-card-wrap">
+              <AddressRow address={outcome.result.address} full />
             </div>
-          ) : (
-            <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} />
-          )}
-          {outcome.info !== null && outcome.info.record !== null && !mine && (
-            <details className="message-owner">
-              <summary>{messageOwnerLabel()}</summary>
-              <Composer name={outcome.info.name} recipient={outcome.info.record.owner} wallet={wallet} sender={sender} />
-            </details>
-          )}
-          {/* A subdomain's message goes to the address it resolved to, with
-              the dotted query as its subject. There is no owner to write to —
-              §8.6 gives a label no record — and the parent's owner is a
-              different party: whoever runs the host, not whoever holds the
-              label (Kike, 2026-08-28). The address is the host's word, which
-              the card already says above the composer. */}
-          {view === null && (
-            <details className="message-owner">
-              <summary>{messageSubdomainLabel()}</summary>
-              <p className="note note-info">{messageSubdomainNote(outcome.result.delegate?.parent ?? outcome.result.name)}</p>
-              <Composer name={outcome.result.query} recipient={outcome.result.address} wallet={wallet} sender={sender} />
-            </details>
-          )}
+            {showMeta && (
+              <div className="resolved-meta-section">
+                <VerificationLine result={outcome.result} />
+                {record !== null && height !== null && record.status === 'REGISTERED' && (
+                  <p className="expiry-line">
+                    {renewalUrgency(record.expiry, height) === 'due' ? (
+                      <Badge tone="couldnt-check">{renewDueLine(formatApproxDate(approxDate(record.expiry, height, nowMs)))}</Badge>
+                    ) : (
+                      expiresLine(formatApproxDate(approxDate(record.expiry, height, nowMs)))
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
+            {outcome.info !== null && <Overlays info={outcome.info} nowMs={nowMs} hideMarketplace={actions === ACQUIRE_ACTIONS || !mine} />}
+            <WarningNotes warnings={outcome.result.warnings} />
+            {mine ? (
+              <div className="resolved-actions-grid">
+                {onPay !== null && (
+                  <button
+                    type="button"
+                    className="btn-action-primary"
+                    onClick={() => onPay(outcome.result.query)}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <line x1="7" y1="17" x2="17" y2="7" />
+                      <polyline points="7 7 17 7 17 17" />
+                    </svg>
+                    <span>{payThisLabel()}</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-action-secondary"
+                  onClick={() => onManage(name)}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                  <span>{manageThisLabel()}</span>
+                </button>
+              </div>
+            ) : (
+              <div className="resolved-actions-stack">
+                <div className="resolved-actions-grid">
+                  {onPay !== null && (
+                    <button
+                      type="button"
+                      className="btn-action-primary"
+                      onClick={() => onPay(outcome.result.query)}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <line x1="7" y1="17" x2="17" y2="7" />
+                        <polyline points="7 7 17 7 17 17" />
+                      </svg>
+                      <span>{payThisLabel()}</span>
+                    </button>
+                  )}
+                  {canMessage && (
+                    <button
+                      type="button"
+                      className="btn-action-secondary message-owner-btn"
+                      onClick={() => setMessageOpen(true)}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                      <span>{messageLabel}</span>
+                    </button>
+                  )}
+                </div>
+                {view === null ? (
+                  <p className="note note-info">{subdomainNotRegistrableLine(outcome.result.delegate?.parent ?? outcome.result.name)}</p>
+                ) : (
+                  <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} onConnect={onConnect} ctaMode onMarket={onMarket} />
+                )}
+              </div>
+            )}
+            {canMessage && (
+              <MessageModal
+                isOpen={messageOpen}
+                onClose={() => setMessageOpen(false)}
+                name={messageTargetName}
+                recipient={messageRecipient}
+                wallet={wallet}
+                sender={sender}
+                subdomainNote={subdomainNote}
+                onConnect={onConnect}
+              />
+            )}
+          </div>
         </RailCard>
       )
     }
@@ -246,25 +381,70 @@ export function NameCard({
         if (availability.reason === 'RESERVED') {
           return (
             <RailCard tier="plain">
-              <TitleName name={outcome.name} />
-              <p>{reservedLine()}</p>
+              <div className="reserved-card-premium">
+                <div className="reserved-header">
+                  <div className="available-title-row">
+                    <TitleName name={outcome.name} />
+                    <span className="reserved-status-tag">
+                      <span className="reserved-dot" aria-hidden="true" />
+                      Reserved
+                    </span>
+                  </div>
+                </div>
+                <div className="reserved-info-box">
+                  <div className="reserved-icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                  </div>
+                  <p className="reserved-text">{reservedLine()}</p>
+                </div>
+                <WarningNotes warnings={availability.warnings} />
+              </div>
             </RailCard>
           )
         }
         return (
           <RailCard tier="plain">
-            <TitleName name={outcome.name} />
-            <p>{justRegisteredLine()}</p>
+            <div className="reserved-card-premium">
+              <div className="reserved-header">
+                <div className="available-title-row">
+                  <TitleName name={outcome.name} />
+                  <span className="taken-status-tag">
+                    <span className="taken-dot" aria-hidden="true" />
+                    Taken
+                  </span>
+                </div>
+              </div>
+              <div className="reserved-info-box">
+                <p className="reserved-text">{justRegisteredLine()}</p>
+              </div>
+              <WarningNotes warnings={availability.warnings} />
+            </div>
           </RailCard>
         )
       }
       const view = viewFor(outcome)
       return (
         <RailCard tier={availability.verification === 'PROVEN' ? 'proven' : 'depth'}>
-          <TitleName name={outcome.name} />
-          <p className="available-line">{availableLine()}</p>
-          <WarningNotes warnings={availability.warnings} />
-          {view !== null && <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} />}
+          <div className="available-card-premium">
+            <div className="available-header">
+              <div className="available-title-row">
+                <TitleName name={outcome.name} />
+                <span className="available-status-tag">
+                  <span className="available-dot" aria-hidden="true" />
+                  {availableLine()}
+                </span>
+              </div>
+            </div>
+            <WarningNotes warnings={availability.warnings} />
+            {view !== null && (
+              <div className="available-actions">
+                <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} onConnect={onConnect} ctaMode onMarket={onMarket} />
+              </div>
+            )}
+          </div>
         </RailCard>
       )
     }
@@ -280,18 +460,56 @@ export function NameCard({
       const view = viewFor(outcome)
       return (
         <RailCard tier="plain">
-          <TitleName name={outcome.name} />
-          <p>{graceLine(until)}</p>
-          {mine ? (
-            <div className="own-name">
-              <p className="own-name-line">{ownNameLine()}</p>
-              <button type="button" className="action-go" onClick={() => onManage(outcome.name)}>
-                {manageOwnNameLabel()}
-              </button>
+          <div className="grace-card-premium">
+            <div className="grace-header">
+              <div className="available-title-row">
+                <TitleName name={outcome.name} />
+                {mine ? (
+                  <span className="owner-status-tag">
+                    <span className="owner-dot" aria-hidden="true" />
+                    You own this
+                  </span>
+                ) : (
+                  <span className="grace-status-tag">
+                    <span className="grace-dot" aria-hidden="true" />
+                    In Grace
+                  </span>
+                )}
+              </div>
             </div>
-          ) : (
-            view !== null && <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} />
-          )}
+
+            <div className="grace-info-box">
+              <div className="grace-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <p className="grace-text">{graceLine(until)}</p>
+            </div>
+
+            {mine ? (
+              <div className="resolved-actions-grid" style={{ marginTop: '16px' }}>
+                <button
+                  type="button"
+                  className="btn-action-secondary"
+                  onClick={() => onManage(outcome.name)}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+                  </svg>
+                  <span>{manageThisLabel()}</span>
+                </button>
+              </div>
+            ) : (
+              view !== null && (
+                <div className="available-actions" style={{ marginTop: '16px' }}>
+                  <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} onConnect={onConnect} ctaMode onMarket={onMarket} />
+                </div>
+              )
+            )}
+          </div>
         </RailCard>
       )
     }
@@ -299,12 +517,31 @@ export function NameCard({
     case 'parent-state':
       return (
         <RailCard tier="plain">
-          <TitleName name={outcome.parent} />
-          <p>
-            {outcome.code === 'NOT_FOUND'
-              ? parentNotRegisteredLine(outcome.parent)
-              : graceLine(graceEndsUnknownPhrase())}
-          </p>
+          <div className="reserved-card-premium">
+            <div className="reserved-header">
+              <div className="available-title-row">
+                <TitleName name={outcome.parent} />
+                <span className="taken-status-tag">
+                  <span className="taken-dot" aria-hidden="true" />
+                  {outcome.code === 'NOT_FOUND' ? 'Not Registered' : 'In Grace'}
+                </span>
+              </div>
+            </div>
+            <div className="reserved-info-box">
+              <div className="reserved-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="8" x2="12" y2="12"></line>
+                  <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+              </div>
+              <p className="reserved-text">
+                {outcome.code === 'NOT_FOUND'
+                  ? parentNotRegisteredLine(outcome.parent)
+                  : graceLine(graceEndsUnknownPhrase())}
+              </p>
+            </div>
+          </div>
         </RailCard>
       )
 
@@ -312,18 +549,49 @@ export function NameCard({
       return (
         <div className="stack">
           <RailCard tier="plain">
-            <TitleName name={outcome.query} />
-            <p>
-              {outcome.code === 'PARENT_NOT_DELEGATING'
-                ? parentNotDelegatingLine(outcome.parent?.name ?? outcome.query.split('.')[1] ?? '')
-                : delegateFailedLine(outcome.parent?.name ?? outcome.query.split('.')[1] ?? '')}
-            </p>
+            <div className="reserved-card-premium">
+              <div className="reserved-header">
+                <div className="available-title-row">
+                  <TitleName name={outcome.query} />
+                  <span className="taken-status-tag">
+                    <span className="taken-dot" aria-hidden="true" />
+                    Subdomain Error
+                  </span>
+                </div>
+              </div>
+              <div className="reserved-info-box">
+                <div className="reserved-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                </div>
+                <p className="reserved-text">
+                  {outcome.code === 'PARENT_NOT_DELEGATING'
+                    ? parentNotDelegatingLine(outcome.parent?.name ?? outcome.query.split('.')[1] ?? '')
+                    : delegateFailedLine(outcome.parent?.name ?? outcome.query.split('.')[1] ?? '')}
+                </p>
+              </div>
+            </div>
           </RailCard>
           {outcome.parent !== null && (
             <RailCard tier={tierOf(outcome.parent)}>
-              <TitleName name={outcome.parent.name} />
-              <AddressRow address={outcome.parent.address} full />
-              <VerificationLine result={outcome.parent} />
+              <div className="resolved-card-premium">
+                <div className="resolved-header">
+                  <div className="available-title-row">
+                    <TitleName name={outcome.parent.name} />
+                    <span className="resolved-status-tag">
+                      <span className="resolved-dot" aria-hidden="true" />
+                      Parent Name
+                    </span>
+                  </div>
+                </div>
+                <div className="address-card-wrap">
+                  <AddressRow address={outcome.parent.address} full />
+                </div>
+                <VerificationLine result={outcome.parent} />
+              </div>
             </RailCard>
           )}
         </div>
@@ -332,16 +600,41 @@ export function NameCard({
     case 'alarm':
       return (
         <RailCard tier="alarm">
-          <h2 className="alarm-title">{alarmHeadline()}</h2>
-          <p>{alarmBody(outcome.code)}</p>
-          <p className="note note-info">{outcome.message}</p>
+          <div className="reserved-card-premium" style={{ background: 'transparent' }}>
+            <div className="reserved-header">
+              <div className="available-title-row">
+                <h2 className="result-name" style={{ color: 'var(--alarm)' }}>{alarmHeadline()}</h2>
+                <span className="taken-status-tag" style={{ color: 'var(--alarm)', borderColor: 'var(--alarm)' }}>
+                  <span className="taken-dot" style={{ background: 'var(--alarm)' }} aria-hidden="true" />
+                  Security Alarm
+                </span>
+              </div>
+            </div>
+            <div className="reserved-info-box">
+              <p className="reserved-text">{alarmBody(outcome.code)}</p>
+            </div>
+            <p className="note note-info" style={{ marginTop: '12px' }}>{outcome.message}</p>
+          </div>
         </RailCard>
       )
 
     case 'unreachable':
       return (
         <RailCard tier="plain">
-          <p>{unreachableLine()}</p>
+          <div className="reserved-card-premium">
+            <div className="reserved-header">
+              <div className="available-title-row">
+                <h2 className="result-name">Registry</h2>
+                <span className="taken-status-tag">
+                  <span className="taken-dot" aria-hidden="true" />
+                  Unreachable
+                </span>
+              </div>
+            </div>
+            <div className="reserved-info-box">
+              <p className="reserved-text">{unreachableLine()}</p>
+            </div>
+          </div>
         </RailCard>
       )
   }

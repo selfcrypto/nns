@@ -134,10 +134,13 @@ export function App() {
     )
   }
 
-  /** Market → a name's card, which is discovery: Buy. */
-  const openName = (name: string) => {
-    setSeed(name)
-    setTab('buy')
+  /** A name handed from Buy ("Check now.") to Market, opened inline in the market list. */
+  const [openMarketName, setOpenMarketName] = useState<string | null>(null)
+
+  /** Buy ("Check now.") → Market tab, auto-expanding that offer or auction. */
+  const openMarket = (name?: string) => {
+    if (name) setOpenMarketName(name)
+    setTab('market')
   }
 
   /** Buy → "Manage it": management lives in My names, so go there. */
@@ -174,7 +177,7 @@ export function App() {
   }, [])
 
   return (
-    <div className={`frame ${tab === 'home' ? 'is-home' : ''}`}>
+    <div className={`frame is-${tab} ${tab === 'home' ? 'is-home' : ''}`}>
       <header className={`masthead ${isScrolled ? 'is-scrolled' : ''}`}>
         <h1 className="wordmark" onClick={() => setTab('home')} style={{ cursor: 'pointer' }}>nns</h1>
         <p className="masthead-sub">names on Nimiq</p>
@@ -200,6 +203,8 @@ export function App() {
               setPayFor(query)
               setTab('pay')
             }}
+            onConnect={connect}
+            onMarket={openMarket}
           />
         )}
         {tab === 'pay' && <PayScreen key={payFor} wallet={wallet} seed={payFor} />}
@@ -207,7 +212,14 @@ export function App() {
           <MyNamesScreen wallet={wallet} manage={manage} onManageHandled={() => setManage(null)} />
         )}
         {tab === 'inbox' && <InboxScreen wallet={wallet} />}
-        {tab === 'market' && <OffersScreen onOpen={openName} />}
+        {tab === 'market' && (
+          <OffersScreen
+            wallet={wallet}
+            onConnect={connect}
+            initialOpenName={openMarketName}
+            onClearInitial={() => setOpenMarketName(null)}
+          />
+        )}
       </main>
       {tab !== 'home' && (
         <nav className="tabbar" aria-label="Sections">
@@ -217,7 +229,10 @@ export function App() {
               type="button"
               className={tab === entry ? 'tab tab-active' : 'tab'}
               aria-current={tab === entry ? 'page' : undefined}
-              onClick={() => setTab(entry)}
+              onClick={() => {
+                if (entry !== 'market') setOpenMarketName(null)
+                setTab(entry)
+              }}
             >
               <TabIcon name={TAB_ICON[entry]} />
               <span className="tab-label">{TAB_LABEL[entry]}</span>

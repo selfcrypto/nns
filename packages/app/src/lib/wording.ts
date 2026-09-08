@@ -151,6 +151,9 @@ export const subdomainNotRegistrableLine = (parent: string): string =>
 /** The handoff from a resolved card to the Pay tab, seeded with the query. */
 export const payThisLabel = (): string => 'Pay this address'
 
+/** The handoff from a resolved card to My names when the viewer owns the name. */
+export const manageThisLabel = (): string => 'Manage this address'
+
 /**
  * Messaging a subdomain goes to the address it resolved to — the only party
  * `label.parent` designates. Not the parent's owner: that is whoever runs the
