@@ -267,7 +267,7 @@
 }
 
 .filterBtnActive {
-  background: #ffffff;
+  background: var(--card);
   color: var(--ink);
   box-shadow: 0 2px 8px rgba(31, 35, 72, 0.08);
 }
@@ -298,7 +298,7 @@
 
 /* Listing Card */
 .marketCard {
-  background: #ffffff;
+  background: var(--card);
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 20px;
   box-shadow: 0 4px 16px rgba(31, 35, 72, 0.04);
@@ -376,7 +376,7 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--proven);
-  background: rgba(14, 124, 91, 0.08);
+  background: var(--proven-bg);
   border: 1px solid rgba(14, 124, 91, 0.2);
   border-radius: 999px;
   white-space: nowrap;
@@ -497,7 +497,7 @@
 .cardActionBtn {
   appearance: none;
   background: linear-gradient(135deg, var(--nimiq-blue) 0%, #0368A3 100%);
-  color: #ffffff;
+  color: var(--card);
   border: none;
   border-radius: 12px;
   padding: 10px 18px;
@@ -539,7 +539,7 @@
 /* Inline Action Sheet Dropdown Container */
 .dropdownWrap {
   border-top: 1px solid rgba(5, 130, 202, 0.18);
-  background: #fdfdfd;
+  background: var(--card);
   padding: 18px 20px 20px;
   animation: fadeIn 0.25s ease-out forwards;
 }
