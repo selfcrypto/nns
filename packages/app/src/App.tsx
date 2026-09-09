@@ -89,9 +89,20 @@ export function App() {
   const [identityOpen, setIdentityOpen] = useState(false)
   // Hub connects mutate the wallet's identity in place; this counter re-renders on them.
   const [, setIdentityNonce] = useState(0)
+  /** A name handed from Buy ("Check now.") to Market, opened inline in the market list. */
+  const [openMarketName, setOpenMarketName] = useState<string | null>(null)
+  const [isScrolled, setIsScrolled] = useState(false)
 
   const problem = useMemo(configProblem, [])
   const diagnostic = useMemo(() => new URLSearchParams(window.location.search).get('diag') === '1', [])
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   useEffect(() => {
     if (problem !== null) return
@@ -134,9 +145,6 @@ export function App() {
     )
   }
 
-  /** A name handed from Buy ("Check now.") to Market, opened inline in the market list. */
-  const [openMarketName, setOpenMarketName] = useState<string | null>(null)
-
   /** Buy ("Check now.") → Market tab, auto-expanding that offer or auction. */
   const openMarket = (name?: string) => {
     if (name) setOpenMarketName(name)
@@ -166,20 +174,19 @@ export function App() {
           setIdentityNonce((value) => value + 1)
         }
 
-  const [isScrolled, setIsScrolled] = useState(false)
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10)
-    }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
   return (
-    <div className={`frame is-${tab} ${tab === 'home' ? 'is-home' : ''}`}>
+    <div className={`frame is-${tab}`}>
       <header className={`masthead ${isScrolled ? 'is-scrolled' : ''}`}>
-        <h1 className="wordmark" onClick={() => setTab('home')} style={{ cursor: 'pointer' }}>nns</h1>
+        <h1
+          className="wordmark"
+          onClick={() => {
+            setOpenMarketName(null)
+            setTab('home')
+          }}
+          style={{ cursor: 'pointer' }}
+        >
+          nns
+        </h1>
         <p className="masthead-sub">names on Nimiq</p>
         <IdentityBar
           placement="top"
