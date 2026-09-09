@@ -9,6 +9,7 @@ import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
 import type { AppAction } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
+import { Spinner } from './ui'
 import {
   ACTION_LABEL,
   bidCustodialWarning,
@@ -30,9 +31,9 @@ import {
   sendConfirmingLine,
   sendDeclinedLine,
   sendNoRpcLine,
-  sendSubmittingLine,
   sendRejectedLine,
   sendSettlingLine,
+  sendSubmittingLine,
   sendUncheckedLine,
   sendUnconfirmedLine,
 } from '../lib/wording'
@@ -50,6 +51,7 @@ export function ActionSheet({
   viewers,
   wallet,
   onChanged,
+  onClose,
 }: {
   action: AppAction
   name: string
@@ -60,6 +62,7 @@ export function ActionSheet({
   viewers: readonly string[]
   wallet: Wallet
   onChanged: () => void
+  onClose?: () => void
 }) {
   const paramsState = useAsync(() => getParams(apiBase()), [])
   const params = paramsState.status === 'done' ? paramsState.value : null
@@ -128,19 +131,24 @@ export function ActionSheet({
         return true
     }
   })()
+  const needsParams = action === 'register' || action === 'renew' || action === 'offer' || action === 'auction'
+  const loadingParams = needsParams && paramsState.status !== 'done' && paramsState.status !== 'error'
+
   const prepared = useMemo(() => {
     if (!inputsTouched) return null
+    if (loadingParams) return null
     try {
       return { ok: true as const, value: prepareAction({ inputs, name, info, signer, viewers, params, apiBase: apiBase() }) }
     } catch (error) {
       if (error instanceof ActionInputError) return { ok: false as const, message: error.message }
       return { ok: false as const, message: error instanceof Error ? error.message : String(error) }
     }
-  }, [inputs, inputsTouched, name, info, signer, viewers, params])
+  }, [inputs, inputsTouched, loadingParams, name, info, signer, viewers, params])
 
   // Both `B`s: a buy and a bid hand money to the marketplace (§8.5 #10).
   const needsAcknowledge = action === 'buy' || action === 'bid'
-  const ready = prepared?.ok === true && (!needsAcknowledge || acknowledged) && progress === 'idle' && result === null
+  const terminalSuccess = result?.status === 'confirmed' || result?.status === 'settling'
+  const ready = prepared?.ok === true && (!needsAcknowledge || acknowledged) && progress === 'idle' && !terminalSuccess
 
   const send = async () => {
     if (prepared?.ok !== true) return
@@ -193,6 +201,17 @@ export function ActionSheet({
     // No heading of its own: the sheet opens under the row that names the
     // action, and that row's button is its Close.
     <div className="sheet">
+      {onClose && (
+        <div className="sheet-header">
+          <span className="sheet-title">{ACTION_LABEL[action]} {name}</span>
+          <button type="button" className="sheet-close" onClick={onClose} aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      )}
       {currentLine !== null && <p className="sheet-current">{currentLine}</p>}
 
       {action === 'setTarget' && (
@@ -310,6 +329,12 @@ export function ActionSheet({
         />
       )}
 
+      {loadingParams && (
+        <div className="sheet-loading">
+          <Spinner />
+        </div>
+      )}
+
       {prepared !== null && !prepared.ok && <p className="field-error">{prepared.message}</p>}
 
       {prepared?.ok === true && (
@@ -317,7 +342,10 @@ export function ActionSheet({
           {prepared.value.review.map((line) => (
             <li key={line}>{line}</li>
           ))}
-          <li>Signs with {signer}.</li>
+          <li className="review-signer">
+            <span>Signs with</span>
+            <span className="signer-address nns-name">{signer}</span>
+          </li>
         </ul>
       )}
 
@@ -355,9 +383,17 @@ export function ActionSheet({
         </p>
       )}
 
-      <button type="button" className="sheet-send" disabled={!ready} onClick={() => void send()}>
-        {ACTION_LABEL[action]}
-      </button>
+      <div className={`sheet-actions-grid ${onClose ? 'has-cancel' : ''}`}>
+        <button type="button" className="sheet-send" disabled={!ready} onClick={() => void send()}>
+          {progress === 'submitting' ? 'Submitting…' : progress === 'confirming' ? 'Confirming…' : ACTION_LABEL[action]}
+        </button>
+
+        {onClose && (
+          <button type="button" className="sheet-cancel" onClick={onClose}>
+            Cancel
+          </button>
+        )}
+      </div>
     </div>
   )
 }

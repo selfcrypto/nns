@@ -1,0 +1,518 @@
+/* ── My Names Screen Styles ── */
+
+@keyframes floatOrb {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(30px, -20px) scale(1.08);
+  }
+  100% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Ambient canvas wrapper */
+.lightThemeWrapper {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper);
+  min-height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.lightThemeWrapper::before {
+  content: "";
+  position: absolute;
+  top: -80px;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(233, 178, 19, 0.12) 0%, transparent 70%);
+  filter: blur(100px);
+  z-index: 0;
+  pointer-events: none;
+  animation: floatOrb 25s infinite alternate ease-in-out;
+}
+
+.lightThemeWrapper::after {
+  content: "";
+  position: absolute;
+  top: 30%;
+  left: -10%;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(5, 130, 202, 0.08) 0%, transparent 70%);
+  filter: blur(120px);
+  z-index: 0;
+  pointer-events: none;
+  animation: floatOrb 22s infinite alternate-reverse ease-in-out;
+}
+
+.heroSection {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  background: transparent;
+  color: var(--ink);
+  margin-top: 0;
+  padding: 36px 16px calc(var(--chrome-bottom) + 96px);
+  min-height: 100%;
+  flex: 1;
+  box-sizing: border-box;
+  z-index: 1;
+  width: 100%;
+}
+
+.heroSection::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-image: var(--pattern-honeycomb);
+  background-size: 84px 150px;
+  background-repeat: repeat;
+  pointer-events: none;
+  opacity: 0.8;
+  z-index: 0;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: 640px;
+  gap: 0;
+}
+
+/* Header */
+.namesHeader {
+  text-align: center;
+  margin-bottom: 24px;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.titleRow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 0 8px 0;
+}
+
+.namesTitle {
+  font-size: clamp(32px, 7vw, 44px);
+  font-weight: 900;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin: 0;
+}
+
+.countBadge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(5, 130, 202, 0.1);
+  color: var(--nimiq-blue);
+  border: 1px solid rgba(5, 130, 202, 0.2);
+}
+
+.namesSubtitle {
+  font-size: 16px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Main Glassmorphism Panel */
+.namesPanel {
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 28px;
+  padding: 24px 20px;
+  box-shadow: 0 12px 40px rgba(31, 35, 72, 0.06), 0 4px 12px rgba(31, 35, 72, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: fadeIn 0.4s ease-out forwards;
+  box-sizing: border-box;
+}
+
+@media (min-width: 480px) {
+  .namesPanel {
+    padding: 28px 24px;
+  }
+}
+
+.detailCard {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  box-shadow: 0 12px 40px rgba(31, 35, 72, 0.05), 0 4px 12px rgba(31, 35, 72, 0.02);
+}
+
+.detailNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 8px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+  gap: 12px;
+}
+
+.backBtn {
+  appearance: none;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 3px rgba(31, 35, 72, 0.03);
+  flex-shrink: 0;
+}
+
+.backBtn:hover {
+  border-color: var(--nimiq-blue);
+  color: var(--nimiq-blue);
+  background: rgba(5, 130, 202, 0.03);
+  transform: translateX(-1px);
+}
+
+.backBtnText {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.detailNavRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.expiryBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--grace-bg);
+  color: var(--grace);
+  border: 1px solid var(--grace-border);
+  white-space: nowrap;
+}
+
+.expiryBadge svg {
+  color: var(--grace);
+  flex-shrink: 0;
+}
+
+.expiryBadge.isDue {
+  background: var(--accent-bg);
+  color: var(--grace);
+  border-color: var(--accent-line);
+}
+
+.expiryBadge.isDue svg {
+  color: var(--grace);
+}
+
+.expiryBadge.isGrace {
+  background: var(--grace-bg);
+  color: var(--grace);
+  border-color: var(--grace-border);
+}
+
+.expiryBadge.isGrace svg {
+  color: var(--grace);
+}
+
+/* Name List */
+.nameList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nameItem {
+  margin: 0;
+  padding: 0;
+}
+
+.nameRow {
+  width: 100%;
+  appearance: none;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  box-shadow: 0 2px 6px rgba(31, 35, 72, 0.02);
+  box-sizing: border-box;
+}
+
+.nameRow:hover {
+  border-color: var(--nimiq-blue);
+  background: var(--card);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(5, 130, 202, 0.09);
+}
+
+.nameAvatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(5, 130, 202, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid rgba(5, 130, 202, 0.15);
+}
+
+.nameInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.nameHeading {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.nameMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.expiryText {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.chevronIcon {
+  color: var(--ink-faint);
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: transform 0.15s ease, opacity 0.15s ease, color 0.15s ease;
+}
+
+.nameRow:hover .chevronIcon {
+  opacity: 1;
+  transform: translateX(3px);
+  color: var(--nimiq-blue);
+}
+
+/* Empty States */
+.emptyCard {
+  text-align: center;
+  padding: 44px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.emptyIcon {
+  width: 58px;
+  height: 58px;
+  border-radius: 18px;
+  background: rgba(5, 130, 202, 0.08);
+  color: var(--nimiq-blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.emptyTitle {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0;
+}
+
+.emptyBody {
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 380px;
+  margin: 0;
+}
+
+.emptyActionBtn {
+  appearance: none;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--nimiq-blue) 0%, var(--nimiq-blue-deep) 100%);
+  color: var(--card);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 22px;
+  cursor: pointer;
+  margin-top: 8px;
+  box-shadow: 0 4px 14px rgba(5, 130, 202, 0.25);
+  transition: all 0.15s ease;
+}
+
+.emptyActionBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(5, 130, 202, 0.35);
+}
+
+/* Trust Bar (Aligned below the card) */
+.trustBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.trustItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trustIcon {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.trustDot {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+
+@media (max-width: 600px) {
+  .heroSection {
+    padding: 32px 14px calc(var(--chrome-bottom) + 90px);
+  }
+
+  .namesPanel {
+    padding: 20px 14px;
+    border-radius: 22px;
+  }
+
+  .namesTitle {
+    font-size: 32px;
+  }
+
+  .detailNav {
+    padding-bottom: 10px;
+    gap: 8px;
+  }
+
+  .detailNavRight {
+    gap: 6px;
+  }
+
+  .expiryBadge {
+    padding: 5px 9px;
+    font-size: 11px;
+  }
+
+  .backBtnText {
+    display: none;
+  }
+
+  .backBtn {
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    justify-content: center;
+  }
+
+  .nameRow {
+    padding: 12px 14px;
+    gap: 12px;
+  }
+
+  .trustBar {
+    gap: 8px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 440px) {
+  .trustBar {
+    gap: 6px;
+    font-size: 11.5px;
+  }
+}

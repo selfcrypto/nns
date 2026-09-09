@@ -44,7 +44,11 @@ function ResolverList({ quorum }: { quorum: ResolveResult['quorum'] }) {
   return (
     <ul className="verify-resolvers">
       {quorum.resolvers.map((resolver) => (
-        <li key={resolver.url}>{resolverIdentityLine(resolver)}</li>
+        <li key={resolver.url}>
+          <span className="resolver-pill">{resolver.name}</span>
+          <span className="resolver-sep">—</span>
+          <span className="resolver-url">{resolver.url}</span>
+        </li>
       ))}
     </ul>
   )
@@ -107,9 +111,17 @@ export function AddressRow({ address, full = false }: { address: string; full?: 
 }
 
 /** §1 overlays on a registered name: pending transfer, open offer, open auction. */
-export function Overlays({ info, nowMs }: { info: NameInfo; nowMs: number }) {
+export function Overlays({
+  info,
+  nowMs,
+  hideMarketplace = false,
+}: {
+  info: NameInfo
+  nowMs: number
+  hideMarketplace?: boolean
+}) {
   const { transfer, offer, auction } = info.pending
-  if (transfer === null && offer === null && auction === null) return null
+  if (transfer === null && (hideMarketplace || (offer === null && auction === null))) return null
   return (
     <div className="overlays">
       {transfer !== null && (
@@ -120,8 +132,8 @@ export function Overlays({ info, nowMs }: { info: NameInfo; nowMs: number }) {
           )}
         </p>
       )}
-      {offer !== null && <p className="overlay overlay-offer">{forSaleLine(lunaToNim(offer.price))}</p>}
-      {auction !== null && (
+      {!hideMarketplace && offer !== null && <p className="overlay overlay-offer">{forSaleLine(lunaToNim(offer.price))}</p>}
+      {!hideMarketplace && auction !== null && (
         <p className="overlay overlay-auction">
           <span className="overlay-line">
             {auctionLine(lunaToNim(auction.startingPrice), formatApproxDate(approxDate(auction.endHeight, info.height, nowMs)))}

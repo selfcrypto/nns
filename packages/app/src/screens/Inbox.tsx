@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   chatConversations,
   chatMessages,
@@ -31,27 +31,49 @@ import {
   inboxWindowLine,
   notYourNameLine,
   peerMoreNamesLine,
-  peerNamesHint,
   unhideSenderAction,
 } from '../lib/wording'
 import { Composer } from '../components/Composer'
-import { Hint } from '../components/Hint'
-import { EmptyState, Identicon, NameText, Spinner } from '../components/ui'
+import { Identicon, NameText, Spinner } from '../components/ui'
+import styles from './inbox.module.css'
+
+/**
+ * Clean relative date formatting for inbox conversation cards:
+ * - "9:42 AM" if today
+ * - "Yesterday" if yesterday
+ * - "Sep 9" if earlier this year
+ */
+function formatThreadDate(timestampMs: number): string {
+  const date = new Date(timestampMs)
+  const now = new Date()
+  const isToday = date.toDateString() === now.toDateString()
+  if (isToday) {
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  }
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  if (date.toDateString() === yesterday.toDateString()) {
+    return 'Yesterday'
+  }
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
+/** Concise timestamp for chat bubbles (e.g. "4:14 AM" or "Sep 9, 4:14 AM") */
+function formatBubbleTimestamp(timestampMs: number): string {
+  const date = new Date(timestampMs)
+  const now = new Date()
+  const isToday = date.toDateString() === now.toDateString()
+  const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+  if (isToday) return timeStr
+  return `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${timeStr}`
+}
 
 /**
  * The NC inbox (docs/app-chat.md §4), across the whole identity set: one
  * history fetch per address, merged and deduped in `chatMessages`.
  *
- * **One conversation per peer**, as any messenger has. It used to be one per
- * (peer, name), split into "yours" and a collapsed "other messages" bucket by
- * whether the subject name was owned here — a test that assumed every message
- * was incoming, and so filed conversations the reader had *started* under a
- * spoofing warning. The doubt now sits on the single incoming message it is
- * true of, and the reader gets a hide list for the rest.
- *
- * Who a peer is comes from the registry (`/address/{addr}/names`), never from
- * the payload: the subject name is the sender's claim, the names beside an
- * address are the indexer's answer.
+ * **One conversation per peer**, as any messenger has.
+ * Redesigned to match the modern glassmorphism discovery theme of Buy, Pay, and Market.
  */
 export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
   const viewers = wallet?.identity.addresses ?? []
@@ -62,6 +84,46 @@ export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
   const source = index !== null ? 'index' : transport !== null ? 'chain' : null
   const [openPeer, setOpenPeer] = useState<string | null>(null)
   const [hidden, setHidden] = useState<readonly string[]>(() => loadHiddenSenders(localStorage))
+
+  const [reloadNonce, setReloadNonce] = useState(0)
+  const retryTimersRef = useRef<ReturnType<typeof setTimeout>[]>([])
+  const expectedMsgCountRef = useRef<number | null>(null)
+
+  const clearRetryTimers = useCallback(() => {
+    retryTimersRef.current.forEach(clearTimeout)
+    retryTimersRef.current = []
+    expectedMsgCountRef.current = null
+  }, [])
+
+  const handleMessageSent = useCallback((_peer: string, currentCount: number) => {
+    clearRetryTimers()
+    expectedMsgCountRef.current = currentCount + 1
+
+    // 1. Immediate refetch
+    setReloadNonce((n) => n + 1)
+
+    // 2. Refetch every 5 seconds, up to 3 times (5s, 10s, 15s), then stop
+    const t1 = setTimeout(() => {
+      setReloadNonce((n) => n + 1)
+    }, 5000)
+
+    const t2 = setTimeout(() => {
+      setReloadNonce((n) => n + 1)
+    }, 10000)
+
+    const t3 = setTimeout(() => {
+      setReloadNonce((n) => n + 1)
+      clearRetryTimers()
+    }, 15000)
+
+    retryTimersRef.current = [t1, t2, t3]
+  }, [clearRetryTimers])
+
+  useEffect(() => {
+    return () => {
+      clearRetryTimers()
+    }
+  }, [clearRetryTimers])
 
   const data = useAsync(
     viewers.length === 0 || source === null
@@ -95,12 +157,27 @@ export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
             height: ownedPages[0]?.height ?? 0,
           }
         },
-    [viewers.join(' '), transport === null],
+    [viewers.join(' '), transport === null, reloadNonce],
   )
 
+  const [cachedData, setCachedData] = useState<{
+    txs: ChatTx[]
+    oldestBlock: number | null
+    ownedNames: Set<string>
+    height: number
+  } | null>(null)
+
+  useEffect(() => {
+    if (data.status === 'done') {
+      setCachedData(data.value)
+    }
+  }, [data])
+
+  const activeData = data.status === 'done' ? data.value : cachedData
+
   const conversations = useMemo(
-    () => (data.status === 'done' ? chatConversations(chatMessages(data.value.txs, viewers)) : []),
-    [data, viewers],
+    () => (activeData !== null ? chatConversations(chatMessages(activeData.txs, viewers)) : []),
+    [activeData, viewers],
   )
 
   const peers = useMemo(() => [...new Set(conversations.map((one) => one.peer))].sort(), [conversations])
@@ -120,73 +197,140 @@ export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
   const namesFor = (address: string): readonly PeerName[] =>
     peerNames.status === 'done' ? (peerNames.value.get(address) ?? []) : []
 
-  if (viewers.length === 0) {
-    return (
-      <div className="screen">
-        <EmptyState title={inboxNoWalletTitle()} body={inboxNoWalletLine()} />
-      </div>
-    )
-  }
-  if (source === null) {
-    return (
-      <div className="screen">
-        <EmptyState title={inboxNotConfiguredTitle()} body={inboxNotConfiguredLine()} />
-      </div>
-    )
-  }
-  if (data.status === 'loading' || data.status === 'idle') {
-    return (
-      <div className="screen">
-        <Spinner />
-      </div>
-    )
-  }
-  if (data.status === 'error') {
-    // The inbox service, not the resolvers — and nothing is lost.
-    return (
-      <div className="screen">
-        <p className="field-error">{inboxDownLine()}</p>
-      </div>
-    )
-  }
+  const ownedNames = activeData !== null ? activeData.ownedNames : new Set<string>()
+  const height = activeData !== null ? activeData.height : 0
+  const oldestBlock = activeData !== null ? activeData.oldestBlock : null
 
-  const { ownedNames, height, oldestBlock } = data.value
   const selected = conversations.find((one) => one.peer === openPeer) ?? null
   const shown = conversations.filter((one) => !hidden.includes(one.peer))
   const muted = conversations.filter((one) => hidden.includes(one.peer))
 
-  if (selected !== null) {
-    return (
-      <div className="screen">
-        <button type="button" className="back" onClick={() => setOpenPeer(null)}>
-          ‹ Inbox
-        </button>
-        <ConversationView
-          conversation={selected}
-          names={namesFor(selected.peer)}
-          ownedNames={ownedNames}
-          wallet={wallet}
-          hidden={hidden.includes(selected.peer)}
-          onHide={() => setHidden(hideSender(localStorage, selected.peer))}
-          onUnhide={() => setHidden(unhideSender(localStorage, selected.peer))}
-        />
-      </div>
-    )
-  }
+  // Stop retries as soon as the expected message appears in the conversation
+  useEffect(() => {
+    if (expectedMsgCountRef.current !== null && selected) {
+      if (selected.messages.length >= expectedMsgCountRef.current) {
+        clearRetryTimers()
+      }
+    }
+  }, [conversations, selected, clearRetryTimers])
 
   return (
-    <div className="screen">
-      {conversations.length === 0 && <EmptyState title={inboxEmptyTitle()} body={inboxEmptyLine()} />}
-      <ConversationList conversations={shown} namesFor={namesFor} onOpen={setOpenPeer} />
-      {muted.length > 0 && (
-        <details className="hidden-bucket">
-          <summary>{hiddenSendersLabel(muted.length)}</summary>
-          <ConversationList conversations={muted} namesFor={namesFor} onOpen={setOpenPeer} />
-        </details>
-      )}
-      {oldestBlock !== null && (
-        <p className="note note-info">{inboxWindowLine(formatApproxDate(approxDate(oldestBlock, height, Date.now())))}</p>
-      )}
+    <div className={`screen inbox-screen ${styles.lightThemeWrapper}`}>
+      <div className={styles.heroSection}>
+        <div className={styles.heroContent}>
+          {/* Header */}
+          <div className={styles.inboxHeader}>
+            <h1 className={styles.inboxTitle}>Inbox</h1>
+            <p className={styles.inboxSubtitle}>
+              On-chain, wallet-to-wallet decentralized messaging on Nimiq.
+            </p>
+          </div>
+
+          {/* Main Glassmorphism Panel */}
+          <div className={styles.inboxPanel}>
+            {viewers.length === 0 ? (
+              <div className={styles.emptyCard}>
+                <div className={styles.emptyIcon}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="4" width="20" height="16" rx="2" />
+                    <path d="M7 15h0M2 10h20" />
+                  </svg>
+                </div>
+                <h3 className={styles.emptyTitle}>{inboxNoWalletTitle()}</h3>
+                <p className={styles.emptyBody}>{inboxNoWalletLine()}</p>
+              </div>
+            ) : source === null ? (
+              <div className={styles.emptyCard}>
+                <div className={styles.emptyIcon}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                  </svg>
+                </div>
+                <h3 className={styles.emptyTitle}>{inboxNotConfiguredTitle()}</h3>
+                <p className={styles.emptyBody}>{inboxNotConfiguredLine()}</p>
+              </div>
+            ) : activeData === null && (data.status === 'loading' || data.status === 'idle') ? (
+              <div className={styles.loadingWrap}>
+                <Spinner />
+              </div>
+            ) : activeData === null && data.status === 'error' ? (
+              <p className={styles.errorBanner}>{inboxDownLine()}</p>
+            ) : selected !== null ? (
+              <ConversationView
+                conversation={selected}
+                names={namesFor(selected.peer)}
+                ownedNames={ownedNames}
+                wallet={wallet}
+                hidden={hidden.includes(selected.peer)}
+                onSent={handleMessageSent}
+                onBack={() => setOpenPeer(null)}
+                onHide={() => setHidden(hideSender(localStorage, selected.peer))}
+                onUnhide={() => setHidden(unhideSender(localStorage, selected.peer))}
+              />
+            ) : (
+              <>
+                {conversations.length === 0 && (
+                  <div className={styles.emptyCard}>
+                    <div className={styles.emptyIcon}>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                    </div>
+                    <h3 className={styles.emptyTitle}>{inboxEmptyTitle()}</h3>
+                    <p className={styles.emptyBody}>{inboxEmptyLine()}</p>
+                  </div>
+                )}
+                <ConversationList conversations={shown} namesFor={namesFor} onOpen={setOpenPeer} />
+                {muted.length > 0 && (
+                  <details className={styles.hiddenBucket}>
+                    <summary className={styles.hiddenSummary}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                      <span>{hiddenSendersLabel(muted.length)}</span>
+                    </summary>
+                    <div style={{ marginTop: '10px' }}>
+                      <ConversationList conversations={muted} namesFor={namesFor} onOpen={setOpenPeer} />
+                    </div>
+                  </details>
+                )}
+                {oldestBlock !== null && (
+                  <p className={styles.retentionBox}>
+                    {inboxWindowLine(formatApproxDate(approxDate(oldestBlock, height, Date.now())))}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Trust Bar (Persistent below the card) */}
+          <div className={styles.trustBar}>
+            <div className={styles.trustItem}>
+              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+              <span>100% On-Chain</span>
+            </div>
+            <span className={styles.trustDot}>•</span>
+            <div className={styles.trustItem}>
+              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+              <span>Wallet-Signed</span>
+            </div>
+            <span className={styles.trustDot}>•</span>
+            <div className={styles.trustItem}>
+              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              <span>Decentralized Chat</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -203,11 +347,11 @@ function PeerTitle({ address, names }: { address: string; names: readonly PeerNa
     <>
       {identity.shown.map((name, index) => (
         <span key={name}>
-          {index > 0 && <span className="peer-sep"> · </span>}
+          {index > 0 && <span> · </span>}
           <NameText>{name}</NameText>
         </span>
       ))}
-      {identity.more > 0 && <span className="peer-more">{peerMoreNamesLine(identity.more)}</span>}
+      {identity.more > 0 && <span style={{ fontSize: '11px', opacity: 0.7, marginLeft: '4px' }}>{peerMoreNamesLine(identity.more)}</span>}
     </>
   )
 }
@@ -223,22 +367,31 @@ function ConversationList({
 }) {
   if (conversations.length === 0) return null
   return (
-    <ul className="name-list">
+    <ul className={styles.threadList}>
       {conversations.map((conversation) => {
         const last = conversation.messages[conversation.messages.length - 1]
         const names = namesFor(conversation.peer)
         return (
           <li key={conversation.peer}>
-            <button type="button" className="name-row thread-row" onClick={() => onOpen(conversation.peer)}>
-              <Identicon address={conversation.peer} size={32} />
-              <span className="thread-main">
-                <span className="name-row-name">
-                  <PeerTitle address={conversation.peer} names={names} />
-                </span>
-                {names.length > 0 && <span className="thread-peer nns-name">{ellipsizeAddress(conversation.peer)}</span>}
-                <span className="thread-preview">{last?.message}</span>
-              </span>
-              <span className="thread-time">{new Date(conversation.lastTimestamp).toLocaleDateString()}</span>
+            <button
+              type="button"
+              className={styles.threadCard}
+              onClick={() => onOpen(conversation.peer)}
+            >
+              <div className={styles.threadAvatar}>
+                <Identicon address={conversation.peer} size={40} />
+              </div>
+              <div className={styles.threadMain}>
+                <div className={styles.threadTopRow}>
+                  <div className={styles.threadName}>
+                    <PeerTitle address={conversation.peer} names={names} />
+                  </div>
+                  <span className={styles.threadTime}>
+                    {formatThreadDate(conversation.lastTimestamp)}
+                  </span>
+                </div>
+                <p className={styles.threadPreview}>{last?.message}</p>
+              </div>
             </button>
           </li>
         )
@@ -247,12 +400,30 @@ function ConversationList({
   )
 }
 
+async function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+  document.execCommand('copy')
+  document.body.removeChild(textarea)
+}
+
 function ConversationView({
   conversation,
   names,
   ownedNames,
   wallet,
   hidden,
+  onSent,
+  onBack,
   onHide,
   onUnhide,
 }: {
@@ -261,52 +432,169 @@ function ConversationView({
   ownedNames: ReadonlySet<string>
   wallet: Wallet | null
   hidden: boolean
+  onSent?: ((peer: string, currentCount: number) => void) | undefined
+  onBack: () => void
   onHide: () => void
   onUnhide: () => void
 }) {
+  const [copied, setCopied] = useState(false)
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const bubblesEndRef = useRef<HTMLDivElement | null>(null)
+
+  const handleCopyAddress = useCallback(() => {
+    if (!conversation.peer) return
+    copyToClipboard(conversation.peer).then(() => {
+      setCopied(true)
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopied(false)
+      }, 2000)
+    }).catch(() => {
+      // ignore
+    })
+  }, [conversation.peer])
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      // 1. Scroll the chat bubbles container to the bottom
+      const container = bubblesEndRef.current?.parentElement
+      if (container) container.scrollTop = container.scrollHeight
+      // 2. Single smooth scroll: bring the trust bar into view + 100px for the tab bar
+      const trustBar = document.querySelector('[class*="trustBar"]')
+      if (trustBar) {
+        const rect = trustBar.getBoundingClientRect()
+        const target = window.scrollY + rect.bottom + 100 - window.innerHeight
+        if (target > window.scrollY) {
+          window.scrollTo({ top: target, behavior: 'smooth' })
+        }
+      }
+    })
+  }, [conversation.messages.length])
+
   return (
-    <div className="thread">
-      <div className="thread-head">
-        <Identicon address={conversation.peer} size={32} />
-        <div className="thread-head-main">
-          <p className="name-row-name">
-            <PeerTitle address={conversation.peer} names={names} />
-            {names.length > 0 && <Hint>{peerNamesHint()}</Hint>}
-          </p>
-          {/* The address always stays visible: the names above it are a registry
-              lookup, and the address is the thing that actually sent. */}
-          <p className="thread-peer nns-name">{conversation.peer}</p>
+    <div className={styles.conversationView}>
+      {/* Cohesive, left-aligned header bar */}
+      <div className={styles.threadHeader}>
+        <div className={styles.threadPeerInfo}>
+          <button type="button" className={styles.backBtn} onClick={onBack} aria-label="Back to inbox" title="Back to inbox">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
+            </svg>
+            <span className={styles.backBtnText}>Inbox</span>
+          </button>
+          <div className={styles.threadAvatar}>
+            <Identicon address={conversation.peer} size={36} />
+          </div>
+          <div className={styles.peerHeaderMain}>
+            <div className={styles.peerHeaderTitle}>
+              <PeerTitle address={conversation.peer} names={names} />
+            </div>
+            <div className={styles.peerAddressRow}>
+              <span className={styles.peerHeaderAddress}>
+                {ellipsizeAddress(conversation.peer)}
+              </span>
+              <button
+                type="button"
+                className={`${styles.copyAddressBtn} ${copied ? styles.isCopied : ''}`}
+                onClick={handleCopyAddress}
+                title={copied ? 'Copied to clipboard!' : 'Copy full address'}
+                aria-label={copied ? 'Address copied to clipboard' : 'Copy full address'}
+              >
+                {copied ? (
+                  <>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span className={styles.copiedFeedback}>Copied</span>
+                  </>
+                ) : (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                  </svg>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-        <button type="button" className="back-link" onClick={hidden ? onUnhide : onHide}>
-          {hidden ? unhideSenderAction() : hideSenderAction()}
+
+        <button
+          type="button"
+          className={styles.muteActionBtn}
+          onClick={() => {
+            if (hidden) {
+              onUnhide()
+            } else {
+              onHide()
+              onBack() // Returns to inbox where sender is neatly moved to hidden bucket
+            }
+          }}
+          title={hidden ? 'Show messages from this sender' : 'Hide messages from this sender'}
+        >
+          {hidden ? (
+            <>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span>{unhideSenderAction()}</span>
+            </>
+          ) : (
+            <>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                <line x1="1" y1="1" x2="23" y2="23" />
+              </svg>
+              <span>{hideSenderAction()}</span>
+            </>
+          )}
         </button>
       </div>
-      <div className="bubbles">
+
+      {/* Message stream */}
+      <div className={styles.bubblesArea}>
         {subjectBreaks(conversation.messages).map(({ message, showSubject }) => (
-          <div key={message.hash} className="bubble-group">
+          <div key={message.hash} className={styles.bubbleGroup}>
             {showSubject && (
-              <p className="subject-break">
-                about <NameText>{message.name}</NameText>
-              </p>
+              <div className={styles.subjectDivider}>
+                <div className={styles.subjectLine} />
+                <div className={styles.subjectChip}>
+                  <span>about</span> <NameText>{message.name}</NameText>
+                </div>
+                <div className={styles.subjectLine} />
+              </div>
             )}
-            <p className={message.direction === 'in' ? 'bubble bubble-in' : 'bubble bubble-out'}>
-              {message.message}
-              <span className="bubble-time">{new Date(message.timestamp).toLocaleString()}</span>
-            </p>
+            <div className={message.direction === 'in' ? styles.bubbleIn : styles.bubbleOut}>
+              <span>{message.message}</span>
+              <span className={styles.bubbleTime}>{formatBubbleTimestamp(message.timestamp)}</span>
+            </div>
             {/* Only an incoming message can be wrong about whose name it is. */}
             {message.direction === 'in' && !ownedNames.has(message.name) && (
-              <p className="note note-info bubble-note">{notYourNameLine()}</p>
+              <p className={styles.bubbleWarning}>{notYourNameLine()}</p>
             )}
           </div>
         ))}
+        <div ref={bubblesEndRef} />
       </div>
-      <Composer
-        name={conversation.lastName}
-        recipient={conversation.peer}
-        wallet={wallet}
-        sender={wallet === null ? null : primaryAddress(wallet.identity)}
-        heading="Reply"
-      />
+
+      {/* Clean reply composer */}
+      <div className={styles.composerBox}>
+        <Composer
+          name={conversation.lastName}
+          recipient={conversation.peer}
+          wallet={wallet}
+          sender={wallet === null ? null : primaryAddress(wallet.identity)}
+          heading=""
+          onSent={onSent ? () => onSent(conversation.peer, conversation.messages.length) : undefined}
+        />
+      </div>
     </div>
   )
 }

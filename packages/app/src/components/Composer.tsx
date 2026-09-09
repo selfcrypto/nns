@@ -35,6 +35,7 @@ export function Composer({
   wallet,
   sender,
   heading,
+  onSent,
 }: {
   name: string
   /** The owner's address (or the thread peer). Null when unknown — composing stays possible, sending does not. */
@@ -42,7 +43,8 @@ export function Composer({
   wallet: Wallet | null
   /** The signing address — the identity set's primary. */
   sender: string | null
-  heading?: string
+  heading?: string | undefined
+  onSent?: ((result: SendResult) => void) | undefined
 }) {
   const [text, setText] = useState('')
   const [progress, setProgress] = useState<'idle' | 'submitting' | 'confirming'>('idle')
@@ -79,6 +81,9 @@ export function Composer({
     setProgress('idle')
     setResult(outcome)
     if (outcome.status === 'confirmed') setText('')
+    if (outcome.status === 'confirmed' || outcome.status === 'settling') {
+      onSent?.(outcome)
+    }
   }
 
   return (

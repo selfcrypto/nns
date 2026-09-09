@@ -9,60 +9,19 @@
  */
 
 import { useMemo, useState } from 'react'
-import { getBurn } from '../lib/api'
-import { lunaToNim } from '../lib/format'
-import { apiBase } from '../lib/nns'
 import { isShortName, queryFault, search } from '../lib/search'
 import { useAsync } from '../lib/useAsync'
 import { useDebounced } from '../lib/useDebounced'
 import type { Wallet } from '../lib/wallet'
 import {
-  burnBurnedLabel,
-  burnEvenLine,
-  burnExplainer,
-  burnOwedLabel,
-  burnShortfallLine,
-  burnSurplusLine,
-  burnTitle,
-  buyEmptyBody,
-  buyEmptyTitle,
   queryFaultLine,
   shortNameNoteLine,
   unreachableLine,
 } from '../lib/wording'
-import { Hint } from '../components/Hint'
 import { ACQUIRE_ACTIONS, NameCard } from '../components/NameCard'
-import { EmptyState, Spinner } from '../components/ui'
+import { Spinner } from '../components/ui'
+import styles from './buysearch.module.css'
 
-/**
- * §10.2's burn record, both halves — burned means nothing without owed
- * (packages/app/CLAUDE.md, "Show the burned quantities"). At the bottom of the
- * front door until the visual pass finds it a home; quiet when the API does
- * not answer, because an unreachable record must not read as a broken promise.
- */
-function BurnFigures() {
-  const burn = useAsync(() => getBurn(apiBase()), [])
-  if (burn.status !== 'done') return null
-  const { burned, owed } = burn.value
-  const gap = owed - burned
-  return (
-    <section className="burn-figures">
-      <h3 className="burn-title">
-        {burnTitle()}
-        <Hint>{burnExplainer()}</Hint>
-      </h3>
-      <p className="burn-row">
-        <span>{burnBurnedLabel()}</span>
-        <span className="burn-amount">{lunaToNim(burned)} NIM</span>
-      </p>
-      <p className="burn-row">
-        <span>{burnOwedLabel()}</span>
-        <span className="burn-amount">{lunaToNim(owed)} NIM</span>
-      </p>
-      <p className="burn-row">{gap > 0n ? burnShortfallLine(lunaToNim(gap)) : gap < 0n ? burnSurplusLine(lunaToNim(-gap)) : burnEvenLine()}</p>
-    </section>
-  )
-}
 
 /**
  * Long enough that a word typed at speed is one query, not one per character —
@@ -76,12 +35,16 @@ export function BuyScreen({
   seed,
   onManage,
   onPay,
+  onConnect,
+  onMarket,
 }: {
   wallet: Wallet | null
   seed: string
   onManage: (name: string) => void
   /** Hands the query, as typed, to the Pay tab — the one action a delegated card has. */
   onPay: (query: string) => void
+  onConnect?: (() => void) | null
+  onMarket?: ((name?: string) => void) | null
 }) {
   const [text, setText] = useState(seed)
   const [nonce, setNonce] = useState(0)
@@ -102,53 +65,122 @@ export function BuyScreen({
   const outcome = useAsync(query === '' ? null : () => search(query), [query, nonce])
 
   return (
-    <div className="screen">
-      <form
-        className="search-form"
-        onSubmit={(event) => {
-          event.preventDefault()
-          // Explicit intent: don't make them wait out the settle.
-          if (trimmed !== '') {
-            flushQuery()
-            setNonce((value) => value + 1)
-          }
-        }}
-      >
-        <input
-          className="search-input nns-name"
-          type="text"
-          inputMode="text"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          placeholder="name, or label.name"
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          aria-label="Search names"
-        />
-        <button className="search-go" type="submit" disabled={trimmed === ''}>
-          Lookup
-        </button>
-      </form>
-      {hint !== null && <p className={hint.tone}>{hint.text}</p>}
+    <div className={`screen buy-screen ${styles.lightThemeWrapper}`}>
+      <div className={styles.heroSection}>
+        <div className={styles.heroContent}>
+          <div className={styles.buyHeroHeader}>
+            <h1 className={styles.buyHeroTitle}>Find your name</h1>
+          </div>
 
-      {outcome.status === 'idle' && <EmptyState title={buyEmptyTitle()} body={buyEmptyBody()} />}
-      {outcome.status === 'loading' && <Spinner />}
-      {outcome.status === 'error' && <p className="field-error">{unreachableLine()}</p>}
-      {/* An invalid query is already the hint above — the card would say the
-          same sentence a second time, and did until 2026-09-04. */}
-      {outcome.status === 'done' && outcome.value.kind !== 'invalid' && (
-        <NameCard
-          outcome={outcome.value}
-          wallet={wallet}
-          nowMs={Date.now()}
-          actions={ACQUIRE_ACTIONS}
-          onChanged={() => setNonce((value) => value + 1)}
-          onManage={onManage}
-          onPay={onPay}
-        />
-      )}
-      <BurnFigures />
+          <div className={styles.dashboardPanel}>
+            <form
+              className={styles.dashboardSearch}
+              onSubmit={(event) => {
+                event.preventDefault()
+                // Explicit intent: don't make them wait out the settle.
+                if (trimmed !== '') {
+                  flushQuery()
+                  setNonce((value) => value + 1)
+                }
+              }}
+            >
+              <div className={styles.searchWrapper}>
+                <div className={styles.searchIcon}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                </div>
+                <input
+                  className={`nns-name ${styles.searchInput}`}
+                  type="text"
+                  inputMode="text"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="name, or label.name"
+                  value={text}
+                  onChange={(event) => setText(event.target.value)}
+                  aria-label="Search names"
+                />
+                <button className={styles.searchBtn} type="submit" disabled={trimmed === ''}>
+                  Lookup
+                </button>
+              </div>
+            </form>
+            {hint !== null && <p className={hint.tone} style={{ textAlign: 'center', margin: '0' }}>{hint.text}</p>}
+
+            {outcome.status === 'idle' && (
+              <div className={styles.buyIdleContent}>
+                <div className={styles.suggestionChips}>
+                  <span className={styles.suggestionLabel}>Try:</span>
+                  {['alice', 'david', 'sarah', 'james'].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      className={styles.suggestionChip}
+                      onClick={() => {
+                        setText(suggestion)
+                      }}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {outcome.status === 'loading' && (
+              <div style={{ padding: '20px 0' }}>
+                <Spinner />
+              </div>
+            )}
+            {outcome.status === 'error' && <p className="field-error" style={{ textAlign: 'center' }}>{unreachableLine()}</p>}
+            {outcome.status === 'done' && outcome.value.kind !== 'invalid' && (
+              <div style={{ width: '100%', animation: 'fadeIn 0.3s ease-in' }}>
+                <NameCard
+                  outcome={outcome.value}
+                  wallet={wallet}
+                  nowMs={Date.now()}
+                  actions={ACQUIRE_ACTIONS}
+                  onChanged={() => setNonce((value) => value + 1)}
+                  onManage={onManage}
+                  onPay={onPay}
+                  onConnect={onConnect}
+                  onMarket={onMarket}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Trust Bar */}
+          <div className={styles.trustBar}>
+            <div className={styles.trustItem}>
+              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+              <span>100% On-Chain</span>
+            </div>
+            <span className={styles.trustDot}>•</span>
+            <div className={styles.trustItem}>
+              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+              <span>Self-Custody</span>
+            </div>
+            <span className={styles.trustDot}>•</span>
+            <div className={styles.trustItem}>
+              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                <line x1="12" y1="22.08" x2="12" y2="12" />
+              </svg>
+              <span>Zero Contracts</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
+

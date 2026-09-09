@@ -1,0 +1,427 @@
+/* ── Buy / Search Screen Styles ── */
+
+@keyframes floatOrb {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(30px, -20px) scale(1.08);
+  }
+  100% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Light theme wrapper with ambient decorative background gradients */
+.lightThemeWrapper {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper);
+  min-height: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.lightThemeWrapper::before {
+  content: "";
+  position: absolute;
+  top: -100px;
+  right: -10%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(233, 178, 19, 0.12) 0%, transparent 70%);
+  filter: blur(100px);
+  z-index: 0;
+  pointer-events: none;
+  animation: floatOrb 25s infinite alternate ease-in-out;
+}
+
+.lightThemeWrapper::after {
+  content: "";
+  position: absolute;
+  top: 20%;
+  left: -10%;
+  width: 700px;
+  height: 700px;
+  background: radial-gradient(circle, rgba(246, 133, 27, 0.08) 0%, transparent 70%);
+  filter: blur(120px);
+  z-index: 0;
+  pointer-events: none;
+  animation: floatOrb 20s infinite alternate-reverse ease-in-out;
+}
+
+.heroSection {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  text-align: center;
+  background: transparent;
+  color: var(--ink);
+  margin-top: 0;
+  padding: 40px 16px calc(var(--chrome-bottom) + 96px);
+  min-height: 100%;
+  flex: 1;
+  box-sizing: border-box;
+  z-index: 1;
+  width: 100%;
+}
+
+.heroSection::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background-image: var(--pattern-honeycomb);
+  background-size: 84px 150px;
+  background-repeat: repeat;
+  pointer-events: none;
+  opacity: 0.8;
+  z-index: 0;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: 600px;
+  gap: 0;
+  flex: 1;
+}
+
+/* Hero Header */
+.buyHeroHeader {
+  text-align: center;
+  margin-bottom: 32px;
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.buyHeroTitle {
+  font-size: clamp(36px, 8vw, 48px);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin: 0 0 8px 0;
+}
+
+.buyHeroSubtitle {
+  font-size: 18px;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Dashboard Panel (Glassmorphism card containing search + card result) */
+.dashboardPanel {
+  width: 100%;
+  max-width: 580px;
+  margin: 0 auto;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 28px;
+  padding: 32px 24px;
+  box-shadow: 0 12px 40px rgba(31, 35, 72, 0.06), 0 4px 12px rgba(31, 35, 72, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.dashboardSearch {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+}
+
+/* Search bar styling */
+.searchWrapper {
+  background: var(--card);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 40px rgba(246, 133, 27, 0.08);
+  transition: all 0.3s ease;
+  padding: 6px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.searchWrapper:focus-within {
+  background: var(--card);
+  border-color: var(--accent);
+  box-shadow: 0 20px 40px rgba(246, 133, 27, 0.12), 0 0 0 4px rgba(246, 133, 27, 0.1);
+}
+
+.searchIcon {
+  color: var(--ink-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 12px;
+  padding-right: 4px;
+  flex: none;
+}
+
+.searchInput {
+  background: transparent;
+  color: var(--ink);
+  padding: 12px 12px;
+  border: none;
+  outline: none;
+  flex: 1 1 0%;
+  min-width: 0;
+  font-size: 16px;
+}
+
+.searchInput:focus,
+.searchInput:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.searchInput::placeholder {
+  color: var(--ink-faint);
+}
+
+.searchBtn {
+  background: var(--ink);
+  color: var(--card);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-weight: 500;
+  font-size: 15px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  flex: none;
+  white-space: nowrap;
+}
+
+.searchBtn:hover:not(:disabled) {
+  background: var(--ink-soft);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px rgba(31, 35, 72, 0.2);
+}
+
+.searchBtn:disabled {
+  background: var(--ink);
+  color: var(--card);
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* Idle Content: Suggestion chips */
+.buyIdleContent {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+  animation: fadeIn 0.4s ease-out forwards;
+}
+
+.suggestionChips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.suggestionLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-right: 4px;
+}
+
+.suggestionChip {
+  background: rgba(31, 35, 72, 0.04);
+  border: 1px solid rgba(31, 35, 72, 0.08);
+  border-radius: 16px;
+  padding: 6px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: ui-monospace, 'JetBrains Mono', 'IBM Plex Mono', monospace;
+}
+
+.suggestionChip:hover {
+  background: rgba(246, 133, 27, 0.08);
+  border-color: rgba(246, 133, 27, 0.3);
+  color: var(--accent-deep);
+  transform: translateY(-1px);
+}
+
+/* Trust Bar */
+.trustBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 24px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.trustItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.trustIcon {
+  color: var(--accent);
+}
+
+.trustDot {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+
+/* Override the RailCard inside the Dashboard Panel to blend smoothly */
+:global(.buy-screen .rail) {
+  border-radius: 20px;
+  box-shadow: 0 4px 16px rgba(31, 35, 72, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  background: var(--card);
+  margin: 0;
+}
+
+@media (max-width: 600px) {
+  .dashboardPanel {
+    padding: 24px 16px;
+    border-radius: 20px;
+  }
+
+  .buyHeroTitle {
+    font-size: 32px;
+  }
+
+  .searchWrapper {
+    padding: 4px;
+  }
+
+  .searchIcon {
+    padding-left: 8px;
+    padding-right: 2px;
+  }
+
+  .searchIcon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .searchInput {
+    font-size: 15px;
+    padding: 10px 8px;
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+
+  .searchBtn {
+    padding: 10px 18px;
+    font-size: 14px;
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .trustBar {
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .dashboardPanel :global(.available-title-row .result-name),
+  .dashboardPanel :global(.available-title-row .nns-name),
+  .dashboardPanel :global(.result-name .nns-name) {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 440px) {
+  .heroSection {
+    padding: 32px 12px calc(var(--chrome-bottom) + 96px);
+  }
+
+  .dashboardPanel {
+    padding: 20px 12px;
+    border-radius: 18px;
+  }
+
+  .searchWrapper {
+    padding: 3px;
+  }
+
+  .searchIcon {
+    padding-left: 6px;
+    padding-right: 2px;
+  }
+
+  .searchIcon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .searchInput {
+    font-size: 14px;
+    padding: 8px 6px;
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+
+  .searchBtn {
+    padding: 8px 14px;
+    font-size: 13.5px;
+    border-radius: 7px;
+    flex: none;
+    white-space: nowrap;
+  }
+
+  .suggestionChips {
+    gap: 6px;
+  }
+
+  .suggestionChip {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .trustBar {
+    gap: 6px;
+    font-size: 11.5px;
+  }
+}
