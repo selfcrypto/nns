@@ -191,7 +191,7 @@
 
 .searchBox:focus-within {
   border-color: var(--nimiq-blue);
-  box-shadow: 0 0 0 3px rgba(5, 130, 202, 0.12);
+  box-shadow: 0 0 0 3px var(--nimiq-blue-glow);
 }
 
 .searchIcon {
@@ -211,6 +211,13 @@
   flex: 1;
   font-size: 15px;
   font-family: inherit;
+}
+
+.searchInput:focus,
+.searchInput:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 .searchInput::placeholder {

@@ -111,6 +111,7 @@ export function MessageModal({
     <>
       <div className="modal-scrim" onClick={() => progress === 'idle' && onClose()} aria-hidden="true" />
       <div className="modal-container" role="dialog" aria-modal="true" aria-labelledby="message-modal-title">
+        <div className="modal-handle" aria-hidden="true" />
         <div className="modal-header">
           <div className="modal-header-left">
             <div className="modal-icon-badge" aria-hidden="true">
@@ -237,17 +238,19 @@ export function MessageModal({
               </div>
             )}
 
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="modal-btn-cancel"
-                onClick={onClose}
-                disabled={progress !== 'idle'}
-              >
-                {result?.status === 'confirmed' ? 'Done' : 'Cancel'}
-              </button>
-              {result?.status !== 'confirmed' && (
-                wallet === null ? (
+            {result?.status === 'confirmed' ? (
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="modal-btn-send"
+                  onClick={onClose}
+                >
+                  Done
+                </button>
+              </div>
+            ) : (
+              <div className={`modal-footer ${wallet !== null || Boolean(onConnect) ? 'has-cancel' : ''}`}>
+                {wallet === null ? (
                   onConnect && (
                     <button
                       type="button"
@@ -279,9 +282,17 @@ export function MessageModal({
                       'Send message'
                     )}
                   </button>
-                )
-              )}
-            </div>
+                )}
+                <button
+                  type="button"
+                  className="modal-btn-cancel"
+                  onClick={onClose}
+                  disabled={progress !== 'idle'}
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

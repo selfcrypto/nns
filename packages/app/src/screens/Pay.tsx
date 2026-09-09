@@ -479,21 +479,16 @@ export function PayScreen({ wallet, seed }: { wallet: Wallet | null; seed: strin
                   </p>
                 )}
 
-                <button
-                  className={`pay-go ${styles.payBtn}`}
-                  type="button"
-                  disabled={!canPayUsdt}
-                  onClick={() => void payUsdt()}
-                >
-                  {usdtSending ? (
-                    <>
-                      <Spinner />
-                      <span>Sending...</span>
-                    </>
-                  ) : (
-                    usdtButtonLabel(usdtUnits === null ? null : formatUsdt(usdtUnits))
-                  )}
-                </button>
+                {!usdtSending && (
+                  <button
+                    className={`pay-go ${styles.payBtn}`}
+                    type="button"
+                    disabled={!canPayUsdt}
+                    onClick={() => void payUsdt()}
+                  >
+                    {usdtButtonLabel(usdtUnits === null ? null : formatUsdt(usdtUnits))}
+                  </button>
+                )}
 
                 {usdtSending && (
                   <div className={`${styles.statusBanner} ${styles.statusInfo}`}>
@@ -619,21 +614,16 @@ export function PayScreen({ wallet, seed }: { wallet: Wallet | null; seed: strin
                   <p className="field-error" style={{ margin: 0 }}>{paySelfLine()}</p>
                 )}
 
-                <button
-                  className={`pay-go ${styles.payBtn}`}
-                  type="button"
-                  disabled={!canPay}
-                  onClick={() => void pay()}
-                >
-                  {progress === 'submitting' || progress === 'confirming' ? (
-                    <>
-                      <Spinner />
-                      <span>{progress === 'submitting' ? 'Submitting...' : 'Confirming...'}</span>
-                    </>
-                  ) : (
-                    luna === null ? payButtonLabel(null) : payButtonLabel(lunaToNim(luna))
-                  )}
-                </button>
+                {progress === 'idle' && (
+                  <button
+                    className={`pay-go ${styles.payBtn}`}
+                    type="button"
+                    disabled={!canPay}
+                    onClick={() => void pay()}
+                  >
+                    {luna === null ? payButtonLabel(null) : payButtonLabel(lunaToNim(luna))}
+                  </button>
+                )}
 
                 {progress === 'submitting' && (
                   <div className={`${styles.statusBanner} ${styles.statusInfo}`}>

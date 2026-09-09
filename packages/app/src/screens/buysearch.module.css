@@ -203,6 +203,13 @@
   font-size: 16px;
 }
 
+.searchInput:focus,
+.searchInput:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
 .searchInput::placeholder {
   color: var(--ink-faint);
 }
@@ -356,6 +363,12 @@
   .trustBar {
     gap: 8px;
     font-size: 12px;
+  }
+
+  .dashboardPanel :global(.available-title-row .result-name),
+  .dashboardPanel :global(.available-title-row .nns-name),
+  .dashboardPanel :global(.result-name .nns-name) {
+    font-size: 20px;
   }
 }
 

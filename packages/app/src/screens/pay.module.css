@@ -570,10 +570,11 @@
   box-sizing: border-box;
 }
 
+.paySelect:focus,
 .paySelect:focus-visible {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(246, 133, 27, 0.1);
+  border-color: var(--nimiq-blue);
+  box-shadow: 0 0 0 3px var(--nimiq-blue-glow);
 }
 
 .selectChevron {
@@ -732,22 +733,35 @@
   gap: 10px;
 }
 
+.statusBanner :global(.spinner) {
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.statusBanner :global(.spinner) span {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+  border-color: var(--nimiq-blue-border);
+  border-top-color: var(--nimiq-blue);
+}
+
 .statusInfo {
-  background: rgba(5, 130, 202, 0.08);
-  border: 1px solid rgba(5, 130, 202, 0.15);
+  background: var(--nimiq-blue-tint);
+  border: 1px solid var(--nimiq-blue-border);
   color: var(--nimiq-blue);
 }
 
 .statusSuccess {
   background: var(--proven-bg);
-  border: 1px solid rgba(14, 124, 91, 0.2);
+  border: 1px solid var(--proven-border);
   color: var(--proven);
   font-weight: 600;
 }
 
 .statusError {
   background: var(--alarm-bg);
-  border: 1px solid rgba(179, 38, 30, 0.2);
+  border: 1px solid var(--alarm-border);
   color: var(--alarm);
   font-weight: 500;
 }

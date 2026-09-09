@@ -622,7 +622,7 @@
 
 .composerBox:focus-within {
   border-color: var(--nimiq-blue);
-  box-shadow: 0 0 0 3px rgba(5, 130, 202, 0.12), 0 4px 16px rgba(31, 35, 72, 0.06);
+  box-shadow: 0 0 0 3px var(--nimiq-blue-glow), 0 4px 16px rgba(31, 35, 72, 0.06);
 }
 
 .composerBox :global(.composer) {
@@ -650,6 +650,13 @@
   box-sizing: border-box;
   outline: none;
   line-height: 1.45;
+}
+
+.composerBox :global(.composer-input:focus),
+.composerBox :global(.composer-input:focus-visible) {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 .composerBox :global(.composer-meta) {

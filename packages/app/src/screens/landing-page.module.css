@@ -356,6 +356,13 @@
   font-size: 16px;
 }
 
+.searchInput:focus,
+.searchInput:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
 .searchInput::placeholder {
   color: rgba(31, 35, 72, 0.5);
 }

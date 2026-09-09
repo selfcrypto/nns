@@ -44,7 +44,11 @@ function ResolverList({ quorum }: { quorum: ResolveResult['quorum'] }) {
   return (
     <ul className="verify-resolvers">
       {quorum.resolvers.map((resolver) => (
-        <li key={resolver.url}>{resolverIdentityLine(resolver)}</li>
+        <li key={resolver.url}>
+          <span className="resolver-pill">{resolver.name}</span>
+          <span className="resolver-sep">—</span>
+          <span className="resolver-url">{resolver.url}</span>
+        </li>
       ))}
     </ul>
   )
