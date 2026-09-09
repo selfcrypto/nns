@@ -104,6 +104,7 @@ The 27 words that can end a log line. Two implementations that disagreed by one 
 | `LOST_REGISTRATION_RACE` | An earlier registration in block order took the name |
 | `OFFER_NOT_OPEN` | No open offer or auction to buy or bid on |
 | `WRONG_PRICE` | Not exactly the offer price, or a bid below the minimum |
+| `INSUFFICIENT_VALUE` | Less than the fee a registration or renewal owes |
 
 **Forfeited** — the value stays where it was sent:
 
@@ -115,7 +116,6 @@ The 27 words that can end a log line. Two implementations that disagreed by one 
 | `WRONG_RECIPIENT` | Not the address this type is routed to |
 | `INVALID_RECIPIENT` | An award to the burn address |
 | `WRONG_SENDER` | A settlement or burn attestation from the wrong address |
-| `INSUFFICIENT_VALUE` | Less than the fee owed |
 | `INVALID_NAME` | Fails a name rule |
 | `RESERVED_NAME` | Currently reserved |
 | `NAME_IN_GRACE` | Registration of a name in grace |

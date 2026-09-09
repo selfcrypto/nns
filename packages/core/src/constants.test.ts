@@ -134,7 +134,7 @@ describe('CONSTANTS — §3', () => {
       MAX_HOST_LEN: 30,
       MAX_REF_LEN: 12,
       DUST_VALUE: 1n,
-      REFUND_FLOOR: 10_000n,
+      REFUND_FLOOR: 100_000n,
       LISTING_FEE: 0n,
       FEE_STANDARD: 200_000_000n, //         2,000 NIM
       FEE_LONG: 40_000_000n, //                400 NIM
@@ -155,7 +155,7 @@ describe('CONSTANTS — §3', () => {
       AUCTION_MIN_DURATION: 86_400,
       AUCTION_EXTENSION: 600,
       CHECKPOINT_INTERVAL: 720,
-      SEGMENT_LENGTH: 3_153_600,
+      SEGMENT_LENGTH: 31_536_000,
       RESOLVER_QUORUM: 2,
       ANCHOR_QUORUM: 2,
       ANCHOR_STALENESS_LIMIT_SEC: 172_800,

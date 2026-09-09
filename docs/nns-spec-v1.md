@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 28**
+**Protocol specification, v1 draft — revision 29**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -283,9 +283,9 @@ NIM figures assume ~$0.0005/NIM.
 | `LAUNCH_HEIGHT` | **OPEN** | Indexers start here, not at genesis |
 | `TREASURY_ADDRESS` | **OPEN** | Receives fees — and only fees |
 | `PROTOCOL_ADDRESS` | **OPEN** | Receives dust-only signalling messages and acts as the §5.3 sentinel; key held cold, never in a node |
-| `REFUND_FLOOR` | 10,000 luna | Below this, a refundable amount is forfeited instead (§7.4) |
+| `REFUND_FLOOR` | 1 NIM (100,000 luna) | Below this, a refundable amount is forfeited instead (§7.4). 10,000 luna through r28 |
 | `ANCHOR_STALENESS_LIMIT` | 48 h | Client warns beyond this (§8.5). One missed daily-floor anchor of margin (§9) |
-| `SEGMENT_LENGTH` | 3,153,600 blocks (~1 y) | Log segment boundary (§8.8) |
+| `SEGMENT_LENGTH` | 31,536,000 blocks (~1 y) | Log segment boundary (§8.8). Read 3,153,600 — a tenth of its own label — through r28; nothing derives from it yet |
 | `AUCTION_MIN_INCREMENT` | 5% | Minimum raise over the standing bid (§6 `A`) |
 | `MIN_PRICE` | `FEE_LONG` | Floor on an `O` price and an `A` starting price (§6) |
 | `AUCTION_MIN_DURATION` | 86,400 blocks (~24 h) | Shortest permitted auction (§6 `A`) |
@@ -1555,13 +1555,18 @@ not force the owner to re-declare it. On falling to
 ### 7.4 Rejection: forfeit versus refund
 
 **Refund for losses caused by concurrency, forfeit for losses the client could
-have prevented or the user chose.**
+have prevented or the user chose** — with one exception since r29: **an
+underpayment is refunded.** The treasury received money for nothing, and an
+honest client can underpay without a mistake of its own — a `P` activates at
+a height, and a `G` priced correctly when it was built and delayed past that
+height lands short.
 
 Where one message could fall in both columns, the check order decides — and
 for `G` it is fixed: recipient, name syntax, reservation, **value, then
-availability**. An underfunded `G` for an already-taken name therefore
-forfeits: underpaying is the client's own preventable error, and it claims
-the message before the race does.
+availability**. An underfunded `G` for an already-taken name is therefore
+logged as `INSUFFICIENT_VALUE`, not as a lost race: both are refunds owed by
+the treasury, so the order chooses only the token, and the underpayment is
+the more informative of two true answers.
 
 **Forfeit** — value not recoverable through the protocol:
 
@@ -1569,7 +1574,6 @@ the message before the race does.
   or more than 64 bytes. Data *not* prefixed `NNS1` is not a forfeit — §7.5
   discards it before it is parsed, and it earns no log line
 - Wrong recipient for the message type
-- Insufficient value for a fee-bearing message
 - `G` whose name is invalid per §4.1 or reserved — checkable offline
 - `G` for a name in `GRACE` — the status and its end height are provable
   from the checkpoint tree (§8.1), so a correct client prevents it
@@ -1621,6 +1625,11 @@ via `M` (§6):
 - `G` for a name that was `AVAILABLE` when the client checked but was
   registered by a transaction ordered ahead of this one — owed by
   `TREASURY_ADDRESS`
+- `G`, `N` or `O` carrying less than the fee it owes — the full value sent,
+  owed by `TREASURY_ADDRESS` (r29). Through r28 this forfeited as
+  client-preventable; it moved because the treasury keeps nothing it did not
+  earn, and because a governance activation can leave a correctly built
+  message short through no fault of its sender
 - Any `B` that does not win an open offer — the race loser, a `B` against a
   cancelled or expired offer, or a `B` whose value is not exactly the price
   — owed by `MARKETPLACE_ADDRESS`
@@ -1637,8 +1646,8 @@ treasury already spends (the burn share is forwarded from it), so refunds
 introduce no new class of hot key, and the machinery was disproportionate to
 a fee of a couple of dollars.
 
-**`REFUND_FLOOR`.** An amount below `REFUND_FLOOR` is forfeited rather than
-refunded. Without a floor, an attacker could send thousands of trivially
+**`REFUND_FLOOR`.** An amount below `REFUND_FLOOR` — 1 NIM since r29 — is
+forfeited rather than refunded. Without a floor, an attacker could send thousands of trivially
 underfunded messages and convert them into an obligation to broadcast
 thousands of transactions. Nothing an honest user does falls below it.
 
@@ -1683,7 +1692,6 @@ against a message of a listed type.
 | `WRONG_RECIPIENT` | `G` `D` `E` `K` `N` `O` `B` `A` `P` `F` | Not the recipient §5.3 routes this type to |
 | `INVALID_RECIPIENT` | `U` | Recipient is `BURN_ADDRESS` — the one address a name may not be awarded to (§6 `U`) |
 | `WRONG_SENDER` | `M` `F` | `M` from neither `MARKETPLACE_ADDRESS` nor `TREASURY_ADDRESS`; `F` from other than `TREASURY_ADDRESS` |
-| `INSUFFICIENT_VALUE` | `G` `N` `O` | Value below the fee this message owes: the band fee for the name at this message's height for `G` and `N` (§10.1), the listing fee for `O` (§6 `O`) — unreachable for `O` while `LISTING_FEE` is 0 |
 | `INVALID_NAME` | `G` `U` | Name fails §4.1 rules 2–5 or the rule 1 ceiling. The floor never fires here: a 1–4 character name satisfying rules 2–5 is reserved by rule (§4.1), so a `G` for one takes `RESERVED_NAME` while it is held and is a normal registration once a `U` has released it. Rule 6 is inverted for `U`, since a `U`'s name must be *in* `RESERVED_NAMES` |
 | `RESERVED_NAME` | `G` | Name currently in `RESERVED_NAMES` — on the published list or reserved by rule (§4.1) — and not yet removed from it by a fired `U` |
 | `NAME_IN_GRACE` | `G` | Name exists in `GRACE` |
@@ -1699,7 +1707,7 @@ against a message of a listed type.
 | `BELOW_MIN_PRICE` | `O` `A` | Price, or starting price, below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
 | `AUCTION_OPEN` | `O` `X` `A` | An auction is open on the name (§6 `A`): the owner cannot list, transfer, or auction it again until the close. Checked after the owner row and before any payload row |
 | `AUCTION_BEYOND_TERM` | `A` | The owner's `end_height` is at or past the name's `expiry` (§6 `A`): an auction sells the current term. The last payload row, after the window's length |
-| `BELOW_REFUND_FLOOR` | `G` `B` | A message that would otherwise be refundable, carrying less than `REFUND_FLOOR`. The only token that crosses columns |
+| `BELOW_REFUND_FLOOR` | `G` `N` `O` `B` | A message that would otherwise be refundable, carrying less than `REFUND_FLOOR`. The only token that crosses columns |
 
 `OVER_LENGTH` is **unreachable on mainnet**. The network caps transaction
 data at 64 bytes — the same number as the §5.1 budget — so an over-length
@@ -1726,6 +1734,7 @@ by an `M` (§6).
 | `LOST_REGISTRATION_RACE` | `G` | `TREASURY_ADDRESS` | Name was taken by a transaction ordered ahead of this one |
 | `OFFER_NOT_OPEN` | `B` | `MARKETPLACE_ADDRESS` | Neither an open offer nor an open auction: the race loser, a cancelled or expired offer, or a `B` after an auction closed. All refund identically, so the log does not distinguish them |
 | `WRONG_PRICE` | `B` | `MARKETPLACE_ADDRESS` | Against an offer, value is not **exactly** the price — over as well as under (§10.5). Against an auction, the bid is short of the starting price or of the increment over the standing bid (§6 `A`) |
+| `INSUFFICIENT_VALUE` | `G` `N` `O` | `TREASURY_ADDRESS` | Value below the fee this message owes: the band fee for the name at this message's height for `G` and `N` (§10.1), the listing fee for `O` (§6 `O`) — unreachable for `O` while `LISTING_FEE` is 0. The full value sent is owed back. A forfeit through r28 |
 
 **Check order.** A message can fail several of the rows above at once, and
 only the first one reached is written, so the order is as normative as the
@@ -2795,7 +2804,9 @@ behind lost keys never return, so the namespace only degrades.
 
 A fee-bearing message succeeds iff `value ≥ fee` at that transaction's block
 height. There is no credit ledger and no partial payment: the arithmetic is
-a comparison, and the whole of it lives in §7.4's two columns.
+a comparison, and the whole of it lives in §7.4's two columns — below the
+fee the message has no effect and its value is refunded in full (r29), at or
+above it the message takes effect.
 
 **Overpayment on a successful message is forfeited.** A correct client sends
 the exact fee — the price in effect is published and provable (§10.6) — so

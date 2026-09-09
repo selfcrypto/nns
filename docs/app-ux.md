@@ -92,8 +92,10 @@ nothing — and it is also what stops the field hint scolding a half-typed name.
 Hints are computed off the settled value for that reason. Outcomes are
 `docs/app-states.md` §3, each a card. Beyond what is built today:
 
-**Buy offers acquisition only** — `register` as a full-width action that
-opens the `G` sheet, and for a name that is for sale or under auction a line
+**Buy offers acquisition — and one gift.** `register` as a full-width action that
+opens the `G` sheet; **Gift a renewal** (`N`, which anyone may send, §6) on a
+registered or grace name the viewer does not hold, with a review line saying
+the name stays its owner's (Kike, 2026-09-09); and for a name that is for sale or under auction a line
 saying so with **Check now.**, which hands the name to Market
 (`#/market/<name>`), where the `B` flow lives since the redesign (2026-09-09,
 Bakar's PR #2; `buy` and `bid` are never both, because state says which a

@@ -18,6 +18,9 @@ Both are reserved: every name of 1–4 characters by rule, and a curated list of
 **Can someone front-run my registration?**
 In principle, yes: a registration is one transaction, and a watcher could race it. This is accepted rather than mitigated, because the prize is thin (short names are reserved) and Nimiq has no established MEV tooling. The specification records the triggers that would reopen the decision. [How you know the answer is right](trust).
 
+**Can I renew a name I don't own?**
+Yes. Renewal is a payment naming the name, and anyone can make it. On another person's name the app calls it *Gift a renewal* and says before you sign that the name stays theirs. [Using the app](app).
+
 **What happens when my name expires?**
 It enters a {{dur:GRACE_PERIOD}} grace period: it stops resolving, but nobody else can register it and a renewal — by anyone — brings it back with its records. After grace it is available to anyone and the old record is gone. The app reminds you from 60 days before. [Prices](prices).
 

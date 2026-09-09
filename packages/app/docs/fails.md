@@ -12,6 +12,7 @@ The value sits at the address that received it, which owes you a refund. The set
 
 | What happened | Log reason | Refunded by |
 |---|---|---|
+| You registered or renewed and paid less than the price in effect — including when a price change landed while your transaction was on its way | `INSUFFICIENT_VALUE` | The treasury |
 | You registered a name that someone else's registration reached first, in block order | `LOST_REGISTRATION_RACE` | The treasury |
 | You bought a name whose offer was gone — sold to someone ahead of you, cancelled, or expired — or bid after an auction closed | `OFFER_NOT_OPEN` | The marketplace |
 | You paid the wrong amount for an offer (more *or* less than the exact price), or bid below the minimum | `WRONG_PRICE` | The marketplace |
@@ -39,7 +40,6 @@ The value stays where it was sent. Every row here is checkable before sending, f
 |---|---|
 | The name breaks a rule in [Names](names) | `INVALID_NAME` |
 | The name is reserved | `RESERVED_NAME` |
-| Paid less than the band price | `INSUFFICIENT_VALUE` |
 | Registered a name that is in grace | `NAME_IN_GRACE` |
 | Renewed a name that has no record at all | `NAME_NOT_FOUND` |
 
@@ -88,4 +88,4 @@ The app never reports "the network refused it", because it never observes that. 
 
 ## Reading the log yourself
 
-Every line of the public log ends with `OK` or one of the reasons above, beside the block, the transaction hash, the sender, the recipient and the value. `/log/decoded` on any resolver's API renders the data field as text. Two implementations that disagreed about which word to write would produce different logs and therefore different checkpoints, so the vocabulary is fixed, closed, and exactly 27 words: `OK`, 23 forfeit reasons, and 3 refund reasons. [Reference](reference) lists them all.
+Every line of the public log ends with `OK` or one of the reasons above, beside the block, the transaction hash, the sender, the recipient and the value. `/log/decoded` on any resolver's API renders the data field as text. Two implementations that disagreed about which word to write would produce different logs and therefore different checkpoints, so the vocabulary is fixed, closed, and exactly 27 words: `OK`, 22 forfeit reasons, and 4 refund reasons. [Reference](reference) lists them all.

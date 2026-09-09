@@ -26,8 +26,8 @@ import {
   type BuiltTransaction,
 } from '@nns/core'
 import { getNameInfo, type ApiParams, type NameInfo } from './api'
-import { approxDate, blocksApprox, formatApproxDate, lunaToNim } from './format'
-import { auctionOutlivesTermLine, bidRefundLine, soldByLine } from './wording'
+import { approxDate, blocksApprox, ellipsizeAddress, formatApproxDate, lunaToNim } from './format'
+import { auctionOutlivesTermLine, bidRefundLine, giftRenewalLine, soldByLine } from './wording'
 import { auctionEndHeight, auctionOutlivesTerm, sameAddress, registrationFee } from './states'
 import type { AppAction } from './states'
 import type { SubmitRequest } from './wallet'
@@ -162,6 +162,9 @@ export function prepareAction(options: {
         review: [
           `Pays ${lunaToNim(fee)} NIM.`,
           'Extends from the current expiry, not from today — renewing early costs nothing extra.',
+          // A gift: anyone may renew (§6 `N`), and the payer must see that the
+          // name stays where it is before the wallet opens.
+          ...(record !== null && !ownedByViewer(record.owner) ? [giftRenewalLine(ellipsizeAddress(record.owner))] : []),
         ],
         confirm: async () => {
           const now = await infoNow()

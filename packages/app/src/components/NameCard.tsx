@@ -58,6 +58,7 @@ import {
   reservedLine,
   subdomainNotRegistrableLine,
   unreachableLine,
+  giftRenewalLabel,
 } from '../lib/wording'
 import { AddressRow, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from './result'
 import { ActionSheet } from './ActionSheet'
@@ -66,7 +67,8 @@ import { PinCheck } from './PinCheck'
 import { Badge, RailCard, type RailTier } from './ui'
 
 /** Discovery: what someone who does not own the name can do with it. `buy` and `bid` never both show — state decides (§6 `A`). */
-export const ACQUIRE_ACTIONS: readonly AppAction[] = ['register', 'buy', 'bid']
+/** `renew` here is the gift: anyone may send an `N` (§6), and the label says so. */
+export const ACQUIRE_ACTIONS: readonly AppAction[] = ['register', 'renew', 'buy', 'bid']
 
 /** Management: the owner's eight, which live in My names and nowhere else. */
 export const OWNER_ACTIONS: readonly AppAction[] = ['setTarget', 'setEvm', 'transfer', 'delegate', 'renew', 'offer', 'auction', 'cancel']
@@ -118,6 +120,14 @@ function Actions({
     if (action === 'bid' && gate.reason === 'no-auction') return false
     if (action === 'register' && !gate.enabled) return false
     if (action === 'cancel' && gate.reason === 'nothing-to-cancel') return false
+    // The gift renewal (Buy) is offered only where it is a gift: a name that
+    // exists and that none of the viewer's addresses holds. On My names the
+    // owner's own renew tile stays visible with its reason, like every tile.
+    if (action === 'renew' && actions !== OWNER_ACTIONS) {
+      const owner = info?.record?.owner
+      if (!gate.enabled || owner === undefined) return false
+      if (viewers.some((viewer) => sameAddress(owner, viewer))) return false
+    }
     return true
   })
 
@@ -341,6 +351,7 @@ function Actions({
         const gate = gates[action]
         const signer = signerFor(action, view, viewers)
         const usable = gate.enabled && signer !== null && wallet !== null
+        const label = action === 'renew' && actions !== OWNER_ACTIONS ? giftRenewalLabel() : ACTION_LABEL[action]
 
         const isMarketplaceAction = (action === 'buy' || action === 'bid') && ctaMode
 
@@ -386,18 +397,18 @@ function Actions({
           <Fragment key={action}>
             {(!ctaMode || open !== action) && (
               <div className={`action-row ${ctaMode ? 'action-row-cta' : ''}`}>
-                {!ctaMode && <span className="action-label">{ACTION_LABEL[action]}</span>}
+                {!ctaMode && <span className="action-label">{label}</span>}
                 {usable ? (
                   <button
                     type="button"
                     className="action-go"
                     onClick={() => handleActionClick(action)}
                   >
-                    {open === action ? closeLabel() : ctaMode ? ACTION_LABEL[action] : detailsLabel()}
+                    {open === action ? closeLabel() : ctaMode ? label : detailsLabel()}
                   </button>
                 ) : wallet === null && onConnect ? (
                   <button type="button" className="action-go action-connect" onClick={onConnect}>
-                    {ctaMode ? connectToLabel(ACTION_LABEL[action]) : connectWalletLabel()}
+                    {ctaMode ? connectToLabel(label) : connectWalletLabel()}
                   </button>
                 ) : (
                   <span className="action-state">{gate.reason !== null ? GATE_REASON_TEXT[gate.reason] : GATE_REASON_TEXT['no-viewer']}</span>

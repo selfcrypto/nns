@@ -104,8 +104,12 @@ export const CONSTANTS = Object.freeze({
    * `value` of 0, verified twice on mainnet 2026-08-06.
    */
   DUST_VALUE: 1n,
-  /** Below this, a refundable amount is forfeited instead (§7.4). */
-  REFUND_FLOOR: 10_000n,
+  /**
+   * Below this, a refundable amount is forfeited instead (§7.4). 1 NIM since
+   * r29 (was 10,000 luna): a whole number reads in every price and every
+   * document, and nothing an honest client sends is a fraction of a NIM.
+   */
+  REFUND_FLOOR: nim(1n),
   /**
    * Listing fee on `O` (§6 `O`, §10.3). **Zero** — §12 item 3 settled by
    * taking its second option, dropping the fee rather than inventing a `P`
@@ -193,8 +197,8 @@ export const CONSTANTS = Object.freeze({
   // ── State and verification (§8) ───────────────────────────────────────────
   /** Root recomputed and published every this many blocks. ~12 min. */
   CHECKPOINT_INTERVAL: 720,
-  /** Log segment boundary (§8.8). ~1 y. */
-  SEGMENT_LENGTH: 3_153_600,
+  /** Log segment boundary (§8.8). ~1 y — was 3,153,600 (~36 days) through r28, a tenth of what the label said; nothing reads it yet. */
+  SEGMENT_LENGTH: 31_536_000,
   /** Independent resolvers a client must agree before acting (§8.5). */
   RESOLVER_QUORUM: 2,
   /** Independent publishers whose roots must match (§9). */

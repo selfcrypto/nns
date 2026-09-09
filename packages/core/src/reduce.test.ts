@@ -188,7 +188,20 @@ describe('G — register (§6, §7.4)', () => {
     )
     expect(
       step(encodeRegister({ name: 'kikename', fee: CONSTANTS.FEE_LONG }), { sender: BOB }).verdict,
-    ).toEqual({ kind: 'FORFEIT', reason: 'INSUFFICIENT_VALUE' })
+    ).toMatchObject({ kind: 'REFUND', reason: 'INSUFFICIENT_VALUE' })
+  })
+
+  it('refunds an underpayment from the treasury, for the full value sent (§7.4, r29)', () => {
+    const short = FEE - 1n
+    const result = step(encodeRegister({ name: 'kikename', fee: short }), { sender: BOB })
+    expect(result.verdict).toEqual({
+      kind: 'REFUND',
+      reason: 'INSUFFICIENT_VALUE',
+      obligations: [
+        { ref: { height: LAUNCH, txIndex: 0 }, kind: 'REFUND', owedBy: TREASURY, owedTo: BOB, amount: short },
+      ],
+    })
+    expect(lookup(result.state, 'kikename')).toBeNull()
   })
 
   it('accepts an overpayment and forfeits the excess (§10.5)', () => {
@@ -265,9 +278,9 @@ describe('G — register (§6, §7.4)', () => {
       { ...send(cheap, { sender: BOB, at: LAUNCH, txIndex: 1 }), value: CONSTANTS.REFUND_FLOOR - 1n },
       free,
     )
-    // Underpaid, so it never reaches the race: the forfeit column claims it
-    // first, exactly as an underfunded message should be treated.
-    expect(loser.verdict).toEqual({ kind: 'FORFEIT', reason: 'INSUFFICIENT_VALUE' })
+    // Underpaid, so it never reaches the race — and since r29 an underpayment
+    // is a refund, which the floor turns into a forfeit below one NIM.
+    expect(loser.verdict).toEqual({ kind: 'FORFEIT', reason: 'BELOW_REFUND_FLOOR' })
   })
 
   it('forfeits a G sent anywhere but the treasury', () => {
@@ -575,7 +588,7 @@ describe('ordering of effects that come due at the same height', () => {
     // …and all of it before H's own transactions: this `G` is only sufficient
     // at the raised fee, which is the height-driven governance step landing
     // ahead of the block body.
-    expect(send1(registerBinance(FEE), at(H)).verdict).toEqual({ kind: 'FORFEIT', reason: 'INSUFFICIENT_VALUE' })
+    expect(send1(registerBinance(FEE), at(H)).verdict).toMatchObject({ kind: 'REFUND', reason: 'INSUFFICIENT_VALUE' })
     expect(send1(registerBinance(FEE * 2n), at(H)).verdict.kind).toBe('OK')
   })
 })
@@ -842,8 +855,8 @@ describe('P — governance (§6, §10.6)', () => {
     expect(step(encodeRegister({ name: 'kikename', fee: FEE }), { sender: ALICE, at: effective - 1 }).verdict.kind).toBe(
       'OK',
     )
-    expect(step(encodeRegister({ name: 'othername', fee: FEE }), { sender: ALICE, at: effective }).verdict).toEqual(
-      { kind: 'FORFEIT', reason: 'INSUFFICIENT_VALUE' },
+    expect(step(encodeRegister({ name: 'othername', fee: FEE }), { sender: ALICE, at: effective }).verdict).toMatchObject(
+      { kind: 'REFUND', reason: 'INSUFFICIENT_VALUE' },
     )
   })
 

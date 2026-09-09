@@ -4,7 +4,7 @@
 
 ### Human-readable names on Nimiq. No smart contracts.
 
-[![Spec](https://img.shields.io/badge/spec-v1%20draft%20r27-0582CA?style=flat-square)](docs/nns-spec-v1.md)
+[![Spec](https://img.shields.io/badge/spec-v1%20draft%20r29-0582CA?style=flat-square)](docs/nns-spec-v1.md)
 [![Status](https://img.shields.io/badge/status-all%20packages%20built-EC991C?style=flat-square)](docs/status.md)
 [![Tests](https://img.shields.io/badge/tests-1867-1F2348?style=flat-square)](#building-and-testing)
 [![License](https://img.shields.io/badge/license-MIT-1F2348?style=flat-square)](LICENSE)
@@ -113,7 +113,7 @@ package, dependency versions pinned once in the workspace catalog. Amounts are
 
 ## Status
 
-**Pre-launch.** All twelve packages are built and conform to spec r27. The wire
+**Pre-launch.** All twelve packages are built and conform to spec r29. The wire
 format is settled and empirically verified against mainnet. 1,867 tests pass
 with a database attached, none skipped.
 
@@ -134,7 +134,7 @@ each is in [`docs/decisions.md`](docs/decisions.md); that this list exists at al
 is the best evidence available that the design is being taken seriously.
 
 Spec revisions are numbered and narrated: `docs/history/revisions.md` has the
-r15 → r27 story, and is explicit about which ones moved bytes — those required
+r15 → r29 story, and is explicit about which ones moved bytes — those required
 every database derived under the old rules to be rebuilt, because
 `configFingerprint` covers configuration and not rules, so nothing refuses the
 resume for you.

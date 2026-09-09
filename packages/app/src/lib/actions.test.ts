@@ -35,6 +35,14 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     expect(prepared.request.recipient).toBe(CONSTANTS.TREASURY_ADDRESS)
   })
 
+  it('a renewal by someone other than the owner reviews as a gift, and the owner\'s does not', () => {
+    const gift = prepare({ action: 'renew' }, registered(), OTHER)
+    expect(gift.request.recipient).toBe(CONSTANTS.TREASURY_ADDRESS)
+    expect(gift.review.some((line) => line.includes('don’t own'))).toBe(true)
+    const own = prepare({ action: 'renew' })
+    expect(own.review.some((line) => line.includes('don’t own'))).toBe(false)
+  })
+
   it('set target reset routes to the PROTOCOL_ADDRESS sentinel and expects the signer', () => {
     const prepared = prepare({ action: 'setTarget', target: 'reset' })
     expect(prepared.request.recipient).toBe(CONSTANTS.PROTOCOL_ADDRESS)

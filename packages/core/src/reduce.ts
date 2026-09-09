@@ -107,7 +107,6 @@ export type ForfeitReason =
   | 'WRONG_RECIPIENT'
   | 'INVALID_RECIPIENT'
   | 'WRONG_SENDER'
-  | 'INSUFFICIENT_VALUE'
   | 'INVALID_NAME'
   | 'RESERVED_NAME'
   | 'NAME_IN_GRACE'
@@ -125,8 +124,13 @@ export type ForfeitReason =
   | 'AUCTION_OPEN'
   | 'AUCTION_BEYOND_TERM'
 
-/** §7.4 refundable column — losses caused by concurrency, not by the client. */
-export type RefundReason = 'LOST_REGISTRATION_RACE' | 'OFFER_NOT_OPEN' | 'WRONG_PRICE'
+/**
+ * §7.4 refundable column. Three are losses caused by concurrency; the fourth,
+ * `INSUFFICIENT_VALUE` (r29), is money the treasury received for nothing —
+ * an honest client underpays when a `P` activates while its `G` sits in the
+ * mempool, and the protocol keeps nothing it did not earn.
+ */
+export type RefundReason = 'LOST_REGISTRATION_RACE' | 'OFFER_NOT_OPEN' | 'WRONG_PRICE' | 'INSUFFICIENT_VALUE'
 
 export type Verdict =
   | { readonly kind: 'IGNORED'; readonly reason: IgnoredReason }
@@ -638,10 +642,13 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
         return keep(forfeit(check.reason === 'RESERVED' ? 'RESERVED_NAME' : 'INVALID_NAME'))
       }
 
-      // Value is checked before availability: underpaying is the client's own
-      // fault and belongs in the forfeit column, while losing a race does not.
-      // §7.4 does not fix this order — see docs/decisions.md.
-      if (tx.value < feeFor(message.name, state.prices)) return keep(forfeit('INSUFFICIENT_VALUE'))
+      // Value is checked before availability. Since r29 both are refunds owed
+      // by the treasury, so the order decides only which token the log carries
+      // — §7.4 fixes it, and `INSUFFICIENT_VALUE` is the more informative of
+      // two true answers about a message that underpaid for a taken name.
+      if (tx.value < feeFor(message.name, state.prices)) {
+        return keep(refundOrForfeit(tx, 'INSUFFICIENT_VALUE', CONSTANTS.TREASURY_ADDRESS))
+      }
 
       const existing = state.names.get(message.name)
       if (existing !== undefined) {
@@ -765,7 +772,9 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // Sender: anyone. A grace name can still be renewed by its former owner.
       const record = state.names.get(message.name)
       if (record === undefined) return keep(forfeit('NAME_NOT_FOUND'))
-      if (tx.value < feeFor(message.name, state.prices)) return keep(forfeit('INSUFFICIENT_VALUE'))
+      if (tx.value < feeFor(message.name, state.prices)) {
+        return keep(refundOrForfeit(tx, 'INSUFFICIENT_VALUE', CONSTANTS.TREASURY_ADDRESS))
+      }
 
       // Extends from the current expiry, not the renewal height, so early
       // renewal is never penalised.
@@ -801,7 +810,9 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // Frozen at zero (§12 item 3), so this never fires today — kept because
       // the rule is the rule, and the day a spec revision moves the fee the
       // check must already be in the right place relative to the floor above.
-      if (tx.value < CONSTANTS.LISTING_FEE) return keep(forfeit('INSUFFICIENT_VALUE'))
+      if (tx.value < CONSTANTS.LISTING_FEE) {
+        return keep(refundOrForfeit(tx, 'INSUFFICIENT_VALUE', CONSTANTS.TREASURY_ADDRESS))
+      }
 
       const expiryHeight = tx.blockNumber + CONSTANTS.OFFER_MAX_LIFETIME
       const draft = draftOf(state)

@@ -227,8 +227,9 @@ describe('replayLog', () => {
   })
 
   it('a forfeited registration creates no obligation', () => {
-    // Underfunded: §7.4 puts INSUFFICIENT_VALUE in the forfeit column, so the
-    // value is not recoverable and nothing is owed.
+    // One luna against a 2,000 NIM band: an underpayment is a refund since
+    // r29, but REFUND_FLOOR turns one this small into a forfeit, so nothing
+    // is owed.
     const underfunded = stageLog(
       [send(H.register, 0, SELLER, { recipient: TREASURY, value: 1n, data: encodeRegister({ name: NAME, fee: feeFor(NAME, initialState().prices) }).data })],
       config,
@@ -237,6 +238,18 @@ describe('replayLog', () => {
     expect(result.mismatches).toEqual([])
     expect(result.created).toEqual([])
     expect(result.outstanding).toEqual([])
+  })
+
+  it('an underpaid G at or above REFUND_FLOOR is owed back by the treasury (r29)', () => {
+    const short = feeFor(NAME, initialState().prices) - 1n
+    const underpaid = stageLog(
+      [send(H.register, 0, SELLER, { recipient: TREASURY, value: short, data: encodeRegister({ name: NAME, fee: feeFor(NAME, initialState().prices) }).data })],
+      config,
+    )
+    const result = replayLog(underpaid.lines, initialState(), config, HEAD)
+    expect(result.mismatches).toEqual([])
+    expect(result.created).toHaveLength(1)
+    expect(result.created[0]?.obligation).toMatchObject({ kind: 'REFUND', owedBy: TREASURY, owedTo: SELLER, amount: short })
   })
 
   it('a G that loses a registration race is owed by the treasury, not the marketplace', () => {

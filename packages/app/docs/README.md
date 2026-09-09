@@ -14,7 +14,7 @@ unknown key or an unknown format.
 
 | Placeholder | Renders as | Example |
 |---|---|---|
-| `{{nim:FEE_STANDARD}}` | luna → NIM, thousands separator | `2,000 NIM` |
+| `{{nim:FEE_STANDARD}}` | luna → NIM, thousands separator (every §3 amount is a whole NIM since r29) | `2,000 NIM` |
 | `{{dur:TERM_LENGTH}}` | blocks → approximate duration at ~1 block/s | `~1 year` |
 | `{{blocks:TERM_LENGTH}}` | the block count | `31,536,000 blocks` |
 | `{{sec:ANCHOR_STALENESS_LIMIT_SEC}}` | seconds → duration | `48 hours` |

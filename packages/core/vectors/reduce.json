@@ -257,8 +257,8 @@
       }
     },
     {
-      "id": "G_underpaid_forfeits",
-      "note": "The long band is cheaper, but a standard-band name priced at the long-band fee is still underpaid.",
+      "id": "G_underpaid_refunds",
+      "note": "The long band is cheaper, but a standard-band name priced at the long-band fee is still underpaid — and since r29 the treasury owes the whole value back, keyed by the message's own ref.",
       "steps": [
         {
           "tx": {
@@ -270,8 +270,16 @@
             "text": "NNS1Gkikename"
           },
           "verdict": {
-            "kind": "FORFEIT",
-            "reason": "INSUFFICIENT_VALUE"
+            "kind": "REFUND",
+            "reason": "INSUFFICIENT_VALUE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "ALICE",
+                "amount": "40000000"
+              }
+            ]
           }
         }
       ],
@@ -1673,8 +1681,16 @@
             "text": "NNS1Gothername"
           },
           "verdict": {
-            "kind": "FORFEIT",
-            "reason": "INSUFFICIENT_VALUE"
+            "kind": "REFUND",
+            "reason": "INSUFFICIENT_VALUE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "BOB",
+                "amount": "200000000"
+              }
+            ]
           }
         }
       ],
@@ -1691,7 +1707,7 @@
     },
     {
       "id": "governance_activates_before_the_transactions_in_its_block",
-      "note": "§7.3: effects due at height H fire before block H's transactions. Both G messages sit in block 58885920, the P's own effective height — so both are priced at the new FEE_STANDARD, and the one paying the old fee forfeits. An implementation that applied the activation after the block would accept the first and reject the second.",
+      "note": "§7.3: effects due at height H fire before block H's transactions. Both G messages sit in block 58885920, the P's own effective height — so both are priced at the new FEE_STANDARD, and the one paying the old fee is refunded (r29) rather than registered. An implementation that applied the activation after the block would accept the first and reject the second.",
       "steps": [
         {
           "tx": {
@@ -1716,8 +1732,16 @@
             "text": "NNS1Gkikename"
           },
           "verdict": {
-            "kind": "FORFEIT",
-            "reason": "INSUFFICIENT_VALUE"
+            "kind": "REFUND",
+            "reason": "INSUFFICIENT_VALUE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "ALICE",
+                "amount": "200000000"
+              }
+            ]
           }
         },
         {
@@ -4811,7 +4835,7 @@
         "id": "G_invalid_name_beats_insufficient_value",
         "setup": "empty",
         "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
-        "note": "Second and fourth of the five. A leading digit breaks §4.2, and the message also pays one luna against a 2,000 NIM band.",
+        "note": "Second and fourth of the five. A leading digit breaks §4.2, and the message also pays one NIM against a 2,000 NIM band.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,
@@ -4826,7 +4850,7 @@
         },
         "insteadOf": {
           "verdict": {
-            "kind": "FORFEIT",
+            "kind": "REFUND",
             "reason": "INSUFFICIENT_VALUE"
           },
           "tx": {
@@ -4834,7 +4858,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "1",
+            "value": "100000",
             "text": "NNS1Gkikename"
           }
         }
@@ -4858,7 +4882,7 @@
         },
         "insteadOf": {
           "verdict": {
-            "kind": "FORFEIT",
+            "kind": "REFUND",
             "reason": "INSUFFICIENT_VALUE"
           },
           "tx": {
@@ -4866,7 +4890,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "1",
+            "value": "100000",
             "text": "NNS1Gkikename"
           }
         }
@@ -4875,17 +4899,17 @@
         "id": "G_insufficient_value_beats_lost_registration_race",
         "setup": "kikename_to_alice",
         "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
-        "note": "Fourth and fifth — the case §7.4 spells out in words: \"An underfunded `G` for an already-taken name therefore forfeits\". This is the only place the spec puts a forfeit ahead of a refund, and the money goes to different places under the two readings.",
+        "note": "Fourth and fifth. Since r29 both readings are refunds owed by the treasury, so the order decides only the token the log carries — and §7.4 fixes it: the underpayment is named, not the race.",
         "tx": {
           "blockNumber": 58842721,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "TREASURY",
-          "value": "1",
+          "value": "100000",
           "text": "NNS1Gkikename"
         },
         "verdict": {
-          "kind": "FORFEIT",
+          "kind": "REFUND",
           "reason": "INSUFFICIENT_VALUE"
         },
         "insteadOf": {
@@ -4913,11 +4937,11 @@
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "TREASURY",
-          "value": "1",
+          "value": "100000",
           "text": "NNS1Gkikename"
         },
         "verdict": {
-          "kind": "FORFEIT",
+          "kind": "REFUND",
           "reason": "INSUFFICIENT_VALUE"
         },
         "insteadOf": {
@@ -5242,7 +5266,7 @@
         },
         "insteadOf": {
           "verdict": {
-            "kind": "FORFEIT",
+            "kind": "REFUND",
             "reason": "INSUFFICIENT_VALUE"
           },
           "tx": {
@@ -5250,7 +5274,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "1",
+            "value": "100000",
             "text": "NNS1Nkikename"
           }
         }

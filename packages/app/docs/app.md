@@ -20,9 +20,9 @@ Type a name, or `label.name`. The search runs by itself a second after you stop 
 | Outcome | What the card shows | What you can do |
 |---|---|---|
 | **Available** | The price for its band | **Register** |
-| **Registered** | The owner, the address it points to, the expiry, and the verification line | **Pay this address**, **Message the owner** |
+| **Registered** | The owner, the address it points to, the expiry, and the verification line | **Pay this address**, **Message the owner**, **Gift a renewal** |
 | **You own this** | The same card, marked as yours | **Manage this name**, which opens it in My names |
-| **In grace** | "Expired — in grace until ≈ date." Not available, still the owner's to renew | Nothing here; renewal lives in My names |
+| **In grace** | "Expired — in grace until ≈ date." Not available, still the owner's to renew | **Gift a renewal** — anyone can renew a name, and it stays the owner's |
 | **Reserved** | "Reserved — held by the registry and not open for registration." | Nothing. See [Names](names) |
 | **For sale or under auction** | The listing, with **Check now** | Hands you to Market |
 | **A subdomain** (`shop.kike`) | The parent's verified card, then the address the parent's host gave, marked *Subdomain* | **Pay this address**, **Message this address**. No registration: subdomains are not registered on NNS |
@@ -72,7 +72,7 @@ Your names, soonest expiry first, with a badge from 60 days before expiry ("Rene
 
 **Ownership & renewal**
 
-- **Renew registration.** Extends the expiry by {{dur:TERM_LENGTH}} from the current expiry, at the current price. Renewing early never costs you time.
+- **Renew registration.** Extends the expiry by {{dur:TERM_LENGTH}} from the current expiry, at the current price. Renewing early never costs you time. Anyone can renew any name: on someone else's card in Buy the same action is called **Gift a renewal**, and the review says plainly that the name stays theirs.
 - **Transfer ownership.** Names the new owner. The transfer takes effect after **{{dur:XFER_TIMELOCK}}**; until then you keep full control, the name resolves as before, and **Cancel** undoes it. A second transfer replaces the first and restarts the clock. The wallet's sheet shows the recipient's address and identicon, so check it there. When the transfer completes, the new owner gets the name pointing at themselves, the linked EVM address and subdomain host are cleared, and any open offer is cancelled. **The waiting period is for a mistyped address, not a stolen key**: someone holding your key does not need a transfer at all.
 - **Cancel what's pending.** One cancel undoes everything currently cancellable on the name — a pending transfer, and an offer that is past its irrevocable window. The sheet lists what will go. An auction cannot be cancelled, because bidders have committed money against a window they were told in advance.
 

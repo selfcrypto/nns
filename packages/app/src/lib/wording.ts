@@ -394,6 +394,17 @@ export const ACTION_LABEL: Record<AppAction, string> = {
   bid: 'Bid',
 }
 
+/**
+ * `N` on Buy, for a name the viewer does not hold (Kike, 2026-09-09: "Lets
+ * allow it as gift"). Anyone may renew (§6 `N`); the label says what the
+ * payer gets — nothing — so the button cannot read as a way to acquire.
+ */
+export const giftRenewalLabel = (): string => 'Gift a renewal'
+
+/** The review line that makes the gift explicit before the wallet opens. */
+export const giftRenewalLine = (owner: string): string =>
+  `You don’t own this name — it stays ${owner}’s, and the term extends for them.`
+
 export const sendSubmittingLine = (): string => 'Waiting for the wallet…'
 
 export const sendConfirmingLine = (): string => 'Sent — confirming…'
