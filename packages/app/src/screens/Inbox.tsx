@@ -14,11 +14,18 @@ import { fetchChatIndex, type ChatIndexPage } from '../lib/chatIndex'
 import { hideSender, loadHiddenSenders, unhideSender } from '../lib/hidden'
 import { defaultTransport, fetchHistory } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
+import { formatBubbleTimestamp, formatThreadDate } from '../lib/dates'
 import { approxDate, ellipsizeAddress, formatApproxDate } from '../lib/format'
 import { apiBase } from '../lib/nns'
 import { useAsync } from '../lib/useAsync'
 import type { Wallet } from '../lib/wallet'
 import {
+  SCREEN_SUB,
+  SCREEN_TITLE,
+  backToInboxAria,
+  backToInboxLabel,
+  copiedLabel,
+  copyAddressLabel,
   hiddenSendersLabel,
   hideSenderAction,
   inboxDownLine,
@@ -31,49 +38,21 @@ import {
   inboxWindowLine,
   notYourNameLine,
   peerMoreNamesLine,
+  peerNamesHint,
+  subjectAboutLabel,
   unhideSenderAction,
 } from '../lib/wording'
 import { Composer } from '../components/Composer'
+import { Hint } from '../components/Hint'
+import { TrustBar } from '../components/TrustBar'
 import { Identicon, NameText, Spinner } from '../components/ui'
 import styles from './inbox.module.css'
-
-/**
- * Clean relative date formatting for inbox conversation cards:
- * - "9:42 AM" if today
- * - "Yesterday" if yesterday
- * - "Sep 9" if earlier this year
- */
-function formatThreadDate(timestampMs: number): string {
-  const date = new Date(timestampMs)
-  const now = new Date()
-  const isToday = date.toDateString() === now.toDateString()
-  if (isToday) {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  }
-  const yesterday = new Date(now)
-  yesterday.setDate(now.getDate() - 1)
-  if (date.toDateString() === yesterday.toDateString()) {
-    return 'Yesterday'
-  }
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
-
-/** Concise timestamp for chat bubbles (e.g. "4:14 AM" or "Sep 9, 4:14 AM") */
-function formatBubbleTimestamp(timestampMs: number): string {
-  const date = new Date(timestampMs)
-  const now = new Date()
-  const isToday = date.toDateString() === now.toDateString()
-  const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  if (isToday) return timeStr
-  return `${date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${timeStr}`
-}
 
 /**
  * The NC inbox (docs/app-chat.md §4), across the whole identity set: one
  * history fetch per address, merged and deduped in `chatMessages`.
  *
  * **One conversation per peer**, as any messenger has.
- * Redesigned to match the modern glassmorphism discovery theme of Buy, Pay, and Market.
  */
 export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
   const viewers = wallet?.identity.addresses ?? []
@@ -220,14 +199,15 @@ export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
         <div className={styles.heroContent}>
           {/* Header */}
           <div className={styles.inboxHeader}>
-            <h1 className={styles.inboxTitle}>Inbox</h1>
-            <p className={styles.inboxSubtitle}>
-              On-chain, wallet-to-wallet decentralized messaging on Nimiq.
-            </p>
+            <h1 className={styles.inboxTitle}>{SCREEN_TITLE.inbox}</h1>
+            <p className={styles.inboxSubtitle}>{SCREEN_SUB.inbox}</p>
           </div>
 
           {/* Main Glassmorphism Panel */}
           <div className={styles.inboxPanel}>
+            {/* A refresh that failed over a list already shown: the list stays, the
+                failure is said — silently stale was the redesign's default. */}
+            {data.status === 'error' && activeData !== null && <p className={styles.errorBanner}>{inboxDownLine()}</p>}
             {viewers.length === 0 ? (
               <div className={styles.emptyCard}>
                 <div className={styles.emptyIcon}>
@@ -305,30 +285,7 @@ export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
             )}
           </div>
 
-          {/* Trust Bar (Persistent below the card) */}
-          <div className={styles.trustBar}>
-            <div className={styles.trustItem}>
-              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-              <span>100% On-Chain</span>
-            </div>
-            <span className={styles.trustDot}>•</span>
-            <div className={styles.trustItem}>
-              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                <path d="m9 12 2 2 4-4" />
-              </svg>
-              <span>Wallet-Signed</span>
-            </div>
-            <span className={styles.trustDot}>•</span>
-            <div className={styles.trustItem}>
-              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-              </svg>
-              <span>Decentralized Chat</span>
-            </div>
-          </div>
+          <TrustBar screen="inbox" />
         </div>
       </div>
     </div>
@@ -366,6 +323,7 @@ function ConversationList({
   onOpen: (peer: string) => void
 }) {
   if (conversations.length === 0) return null
+  const nowMs = Date.now()
   return (
     <ul className={styles.threadList}>
       {conversations.map((conversation) => {
@@ -387,7 +345,7 @@ function ConversationList({
                     <PeerTitle address={conversation.peer} names={names} />
                   </div>
                   <span className={styles.threadTime}>
-                    {formatThreadDate(conversation.lastTimestamp)}
+                    {formatThreadDate(conversation.lastTimestamp, nowMs)}
                   </span>
                 </div>
                 <p className={styles.threadPreview}>{last?.message}</p>
@@ -460,34 +418,28 @@ function ConversationView({
     }
   }, [])
 
+  // The newest bubble into view when the thread opens or grows. The bubbles
+  // box scrolls on its own; the page is left where the reader put it.
   useEffect(() => {
     requestAnimationFrame(() => {
-      // 1. Scroll the chat bubbles container to the bottom
       const container = bubblesEndRef.current?.parentElement
       if (container) container.scrollTop = container.scrollHeight
-      // 2. Single smooth scroll: bring the trust bar into view + 100px for the tab bar
-      const trustBar = document.querySelector('[class*="trustBar"]')
-      if (trustBar) {
-        const rect = trustBar.getBoundingClientRect()
-        const target = window.scrollY + rect.bottom + 100 - window.innerHeight
-        if (target > window.scrollY) {
-          window.scrollTo({ top: target, behavior: 'smooth' })
-        }
-      }
     })
   }, [conversation.messages.length])
+
+  const nowMs = Date.now()
 
   return (
     <div className={styles.conversationView}>
       {/* Cohesive, left-aligned header bar */}
       <div className={styles.threadHeader}>
         <div className={styles.threadPeerInfo}>
-          <button type="button" className={styles.backBtn} onClick={onBack} aria-label="Back to inbox" title="Back to inbox">
+          <button type="button" className={styles.backBtn} onClick={onBack} aria-label={backToInboxAria()} title={backToInboxAria()}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <line x1="19" y1="12" x2="5" y2="12" />
               <polyline points="12 19 5 12 12 5" />
             </svg>
-            <span className={styles.backBtnText}>Inbox</span>
+            <span className={styles.backBtnText}>{backToInboxLabel()}</span>
           </button>
           <div className={styles.threadAvatar}>
             <Identicon address={conversation.peer} size={36} />
@@ -495,6 +447,7 @@ function ConversationView({
           <div className={styles.peerHeaderMain}>
             <div className={styles.peerHeaderTitle}>
               <PeerTitle address={conversation.peer} names={names} />
+              <Hint>{peerNamesHint()}</Hint>
             </div>
             <div className={styles.peerAddressRow}>
               <span className={styles.peerHeaderAddress}>
@@ -504,15 +457,15 @@ function ConversationView({
                 type="button"
                 className={`${styles.copyAddressBtn} ${copied ? styles.isCopied : ''}`}
                 onClick={handleCopyAddress}
-                title={copied ? 'Copied to clipboard!' : 'Copy full address'}
-                aria-label={copied ? 'Address copied to clipboard' : 'Copy full address'}
+                title={copied ? copiedLabel() : copyAddressLabel()}
+                aria-label={copied ? copiedLabel() : copyAddressLabel()}
               >
                 {copied ? (
                   <>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
-                    <span className={styles.copiedFeedback}>Copied</span>
+                    <span className={styles.copiedFeedback}>{copiedLabel()}</span>
                   </>
                 ) : (
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -536,7 +489,7 @@ function ConversationView({
               onBack() // Returns to inbox where sender is neatly moved to hidden bucket
             }
           }}
-          title={hidden ? 'Show messages from this sender' : 'Hide messages from this sender'}
+          title={hidden ? unhideSenderAction() : hideSenderAction()}
         >
           {hidden ? (
             <>
@@ -566,14 +519,14 @@ function ConversationView({
               <div className={styles.subjectDivider}>
                 <div className={styles.subjectLine} />
                 <div className={styles.subjectChip}>
-                  <span>about</span> <NameText>{message.name}</NameText>
+                  <span>{subjectAboutLabel()}</span> <NameText>{message.name}</NameText>
                 </div>
                 <div className={styles.subjectLine} />
               </div>
             )}
             <div className={message.direction === 'in' ? styles.bubbleIn : styles.bubbleOut}>
               <span>{message.message}</span>
-              <span className={styles.bubbleTime}>{formatBubbleTimestamp(message.timestamp)}</span>
+              <span className={styles.bubbleTime}>{formatBubbleTimestamp(message.timestamp, nowMs)}</span>
             </div>
             {/* Only an incoming message can be wrong about whose name it is. */}
             {message.direction === 'in' && !ownedNames.has(message.name) && (

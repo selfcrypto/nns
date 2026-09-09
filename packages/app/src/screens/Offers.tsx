@@ -21,15 +21,41 @@ import { BurnFigures } from '../components/BurnFigures'
 import { PinCheck } from '../components/PinCheck'
 import { AddressRow, VerificationLine } from '../components/result'
 import {
+  MARKET_FILTER,
+  SCREEN_SUB,
+  SCREEN_TITLE,
   auctionEndsLine,
+  bidSheetTitle,
+  buyNowLabel,
+  buySheetTitle,
+  clearLabel,
+  closeLabel,
+  connectToBidLine,
+  connectToBuyLine,
+  connectWalletLabel,
   custodialWarning,
   expiryUntilLine,
+  fixedPriceLabel,
+  listedByLabel,
+  listingLoadFailedLine,
+  liveAuctionLabel,
+  marketFilterAria,
+  marketFilterPlaceholder,
+  marketNoMatchLine,
+  marketNoMatchTitle,
   minimumBidLine,
   noBidsLine,
+  offersEmptyBody,
+  offersEmptyTitle,
+  placeBidLabel,
+  soldByLabel,
+  standingBidLabel,
+  startingPriceLabel,
   startingPriceLine,
   standingBidLine,
   unreachableLine,
 } from '../lib/wording'
+import { TrustBar } from '../components/TrustBar'
 import { Identicon, NameText, Spinner } from '../components/ui'
 import styles from './market.module.css'
 
@@ -43,6 +69,24 @@ interface Market {
 async function loadMarket(base: string): Promise<Market> {
   const [open, running] = await Promise.all([getOffers(base), getAuctions(base)])
   return { offers: open.offers, offersHeight: open.height, auctions: running.auctions, auctionsHeight: running.height }
+}
+
+/** The sheet's frame while it has no proof to show: a title and a close. */
+function SheetShell({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="sheet">
+      <div className="sheet-header">
+        <span className="sheet-title">{title}</span>
+        <button type="button" className="sheet-close" onClick={onClose} aria-label={closeLabel()}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      {children}
+    </div>
+  )
 }
 
 function MarketActionSheetWrapper({
@@ -64,61 +108,36 @@ function MarketActionSheetWrapper({
   // `/name`: the sheet has to show who verified the name before taking money.
   const outcome = useAsync(() => search(name), [name])
 
+  const title = action === 'buy' ? buySheetTitle(name) : bidSheetTitle(name)
+
   if (wallet === null) {
     return (
-      <div className="sheet">
-        <div className="sheet-header">
-          <span className="sheet-title">{action === 'buy' ? 'Buy' : 'Bid on'} {name}</span>
-          <button type="button" className="sheet-close" onClick={onClose} aria-label="Close">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        <p className="sheet-current">Connect your wallet to {action === 'buy' ? 'buy' : 'place a bid on'} {name}.</p>
+      <SheetShell title={title} onClose={onClose}>
+        <p className="sheet-current">{action === 'buy' ? connectToBuyLine(name) : connectToBidLine(name)}</p>
         {onConnect && (
           <button type="button" className="action-go action-connect" onClick={onConnect} style={{ width: '100%', marginTop: '8px' }}>
-            Connect Wallet
+            {connectWalletLabel()}
           </button>
         )}
-      </div>
+      </SheetShell>
     )
   }
 
   if (outcome.status === 'loading' || outcome.status === 'idle') {
     return (
-      <div className="sheet">
-        <div className="sheet-header">
-          <span className="sheet-title">{action === 'buy' ? 'Buy' : 'Bid on'} {name}</span>
-          <button type="button" className="sheet-close" onClick={onClose} aria-label="Close">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
+      <SheetShell title={title} onClose={onClose}>
         <div className="sheet-loading">
           <Spinner />
         </div>
-      </div>
+      </SheetShell>
     )
   }
 
   if (outcome.status === 'error' || outcome.value.kind !== 'resolved' || outcome.value.info === null) {
     return (
-      <div className="sheet">
-        <div className="sheet-header">
-          <span className="sheet-title">{action === 'buy' ? 'Buy' : 'Bid on'} {name}</span>
-          <button type="button" className="sheet-close" onClick={onClose} aria-label="Close">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
-        </div>
-        <p className="field-error">Could not load details for {name} — try again.</p>
-      </div>
+      <SheetShell title={title} onClose={onClose}>
+        <p className="field-error">{listingLoadFailedLine(name)}</p>
+      </SheetShell>
     )
   }
 
@@ -204,13 +223,13 @@ function OfferCard({
           </div>
           <span className={styles.tagSale}>
             <span className={styles.statusDot} aria-hidden="true" />
-            Buy Now
+            {buyNowLabel()}
           </span>
         </div>
 
         <div className={styles.cardGrid}>
           <div className={styles.cardPriceGroup}>
-            <span className={styles.cardPriceLabel}>Fixed Price</span>
+            <span className={styles.cardPriceLabel}>{fixedPriceLabel()}</span>
             <div className={styles.cardPriceValue}>
               {lunaToNim(offer.price)}
               <span className={styles.cardPriceUnit}>NIM</span>
@@ -224,7 +243,7 @@ function OfferCard({
               onToggle()
             }}
           >
-            {isOpen ? 'Close' : 'Buy Now'}
+            {isOpen ? closeLabel() : buyNowLabel()}
             {!isOpen && <ArrowRightIcon />}
           </button>
         </div>
@@ -234,7 +253,7 @@ function OfferCard({
             <span className={styles.metaIcon}>
               <Identicon address={offer.seller} size={16} />
             </span>
-            <span>Sold by <strong className="nns-name">{ellipsizeAddress(offer.seller)}</strong></span>
+            <span>{soldByLabel()} <strong className="nns-name">{ellipsizeAddress(offer.seller)}</strong></span>
           </div>
           <div className={styles.metaItem}>
             <span className={styles.metaIcon}><ClockIcon /></span>
@@ -284,13 +303,13 @@ function AuctionCard({
           </div>
           <span className={styles.tagAuction}>
             <span className={styles.statusDot} aria-hidden="true" />
-            Live Auction
+            {liveAuctionLabel()}
           </span>
         </div>
 
         <div className={styles.cardGrid}>
           <div className={styles.cardPriceGroup}>
-            <span className={styles.cardPriceLabel}>{standing ? 'Starting Price' : 'Standing Bid'}</span>
+            <span className={styles.cardPriceLabel}>{standing ? startingPriceLabel() : standingBidLabel()}</span>
             <div className={styles.cardPriceValue}>
               {standing ? lunaToNim(auction.startingPrice) : lunaToNim(auction.bid)}
               <span className={styles.cardPriceUnit}>NIM</span>
@@ -307,7 +326,7 @@ function AuctionCard({
               onToggle()
             }}
           >
-            {isOpen ? 'Close' : 'Place Bid'}
+            {isOpen ? closeLabel() : placeBidLabel()}
             {!isOpen && <ArrowRightIcon />}
           </button>
         </div>
@@ -317,7 +336,7 @@ function AuctionCard({
             <span className={styles.metaIcon}>
               <Identicon address={auction.seller} size={16} />
             </span>
-            <span>Listed by <strong className="nns-name">{ellipsizeAddress(auction.seller)}</strong></span>
+            <span>{listedByLabel()} <strong className="nns-name">{ellipsizeAddress(auction.seller)}</strong></span>
           </div>
           <div className={styles.metaItem}>
             <span className={styles.metaIcon}><ClockIcon /></span>
@@ -423,10 +442,8 @@ export function OffersScreen({
         <div className={styles.heroContent}>
           {/* Header */}
           <div className={styles.marketHeader}>
-            <h1 className={styles.marketTitle}>Marketplace</h1>
-            <p className={styles.marketSubtitle}>
-              Acquire registered NNS names or place bids on live auctions.
-            </p>
+            <h1 className={styles.marketTitle}>{SCREEN_TITLE.market}</h1>
+            <p className={styles.marketSubtitle}>{SCREEN_SUB.market}</p>
           </div>
 
           {/* Main Glassmorphism Panel */}
@@ -443,17 +460,17 @@ export function OffersScreen({
                 <input
                   type="text"
                   className={styles.searchInput}
-                  placeholder="Filter listings by name..."
+                  placeholder={marketFilterPlaceholder()}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  aria-label="Filter listings by name"
+                  aria-label={marketFilterAria()}
                 />
                 {searchQuery.trim() !== '' && (
                   <button
                     type="button"
                     className={styles.searchClear}
                     onClick={() => setSearchQuery('')}
-                    aria-label="Clear filter"
+                    aria-label={clearLabel()}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="18" y1="6" x2="6" y2="18" />
@@ -464,30 +481,19 @@ export function OffersScreen({
               </div>
 
               <div className={styles.filterPills}>
-                <button
-                  type="button"
-                  className={`${styles.filterBtn} ${tab === 'all' ? styles.filterBtnActive : ''}`}
-                  onClick={() => setTab('all')}
-                >
-                  All
-                  <span className={styles.filterBadge}>{totalListings}</span>
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.filterBtn} ${tab === 'offers' ? styles.filterBtnActive : ''}`}
-                  onClick={() => setTab('offers')}
-                >
-                  Buy Now
-                  <span className={styles.filterBadge}>{totalOffersCount}</span>
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.filterBtn} ${tab === 'auctions' ? styles.filterBtnActive : ''}`}
-                  onClick={() => setTab('auctions')}
-                >
-                  Auctions
-                  <span className={styles.filterBadge}>{totalAuctionsCount}</span>
-                </button>
+                {(['all', 'offers', 'auctions'] as const).map((entry) => (
+                  <button
+                    key={entry}
+                    type="button"
+                    className={`${styles.filterBtn} ${tab === entry ? styles.filterBtnActive : ''}`}
+                    onClick={() => setTab(entry)}
+                  >
+                    {MARKET_FILTER[entry]}
+                    <span className={styles.filterBadge}>
+                      {entry === 'all' ? totalListings : entry === 'offers' ? totalOffersCount : totalAuctionsCount}
+                    </span>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -500,10 +506,8 @@ export function OffersScreen({
                     <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
                   </svg>
                 </div>
-                <h3 className={styles.emptyTitle}>No names listed yet</h3>
-                <p className={styles.emptyBody}>
-                  There are currently no names listed for direct sale or active auction on the marketplace.
-                </p>
+                <h3 className={styles.emptyTitle}>{offersEmptyTitle()}</h3>
+                <p className={styles.emptyBody}>{offersEmptyBody()}</p>
               </div>
             ) : totalDisplayed === 0 ? (
               <div className={styles.emptyCard}>
@@ -513,10 +517,8 @@ export function OffersScreen({
                     <line x1="21" y1="21" x2="16.65" y2="16.65" />
                   </svg>
                 </div>
-                <h3 className={styles.emptyTitle}>No matching listings</h3>
-                <p className={styles.emptyBody}>
-                  No names matched &ldquo;{searchQuery}&rdquo; under the {tab === 'all' ? 'current' : tab === 'offers' ? 'Buy Now' : 'Auctions'} filter.
-                </p>
+                <h3 className={styles.emptyTitle}>{marketNoMatchTitle()}</h3>
+                <p className={styles.emptyBody}>{marketNoMatchLine(searchQuery.trim(), tab === 'all' ? null : MARKET_FILTER[tab])}</p>
               </div>
             ) : (
               <ul className={styles.cardsList}>
@@ -582,31 +584,7 @@ export function OffersScreen({
             <BurnFigures />
           </div>
 
-          {/* Trust Bar */}
-          <div className={styles.trustBar}>
-            <div className={styles.trustItem}>
-              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-              <span>100% On-Chain Escrow</span>
-            </div>
-            <span className={styles.trustDot}>•</span>
-            <div className={styles.trustItem}>
-              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                <path d="m9 12 2 2 4-4" />
-              </svg>
-              <span>Direct Settlement</span>
-            </div>
-            <span className={styles.trustDot}>•</span>
-            <div className={styles.trustItem}>
-              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              <span>Anti-Sniping Extension</span>
-            </div>
-          </div>
+          <TrustBar screen="market" />
         </div>
       </div>
     </div>

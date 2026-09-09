@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ellipsizeAddress } from '../lib/format'
 import type { Wallet } from '../lib/wallet'
-import { connectWalletLabel, GATE_REASON_TEXT, messageOwnerLabel, messageSubdomainLabel } from '../lib/wording'
+import { closeLabel, connectWalletLabel, GATE_REASON_TEXT, messageOwnerLabel, messageSubdomainLabel, toLabel } from '../lib/wording'
 import { Composer } from './Composer'
 
 /**
@@ -68,12 +68,12 @@ export function MessageModal({
                 {subdomainNote ? messageSubdomainLabel() : messageOwnerLabel()}
               </h3>
               <p className="modal-subtitle">
-                To: <span className="modal-recipient-name">{name}</span>
+                {toLabel()} <span className="modal-recipient-name">{name}</span>
                 {recipient && <span className="modal-recipient-addr"> · {ellipsizeAddress(recipient)}</span>}
               </p>
             </div>
           </div>
-          <button type="button" className="modal-close-btn" onClick={close} aria-label="Close" disabled={busy}>
+          <button type="button" className="modal-close-btn" onClick={close} aria-label={closeLabel()} disabled={busy}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>

@@ -52,15 +52,6 @@ export function RailCard({ tier, children }: { tier: RailTier; children: ReactNo
   return <section className={`card rail rail-${tier}`}>{children}</section>
 }
 
-export function EmptyState({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="empty">
-      <p className="empty-title">{title}</p>
-      <p className="empty-body">{body}</p>
-    </div>
-  )
-}
-
 export function Spinner() {
   return (
     <div className="spinner" role="status" aria-label="Loading">

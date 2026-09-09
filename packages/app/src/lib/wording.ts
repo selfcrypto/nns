@@ -152,7 +152,7 @@ export const subdomainNotRegistrableLine = (parent: string): string =>
 export const payThisLabel = (): string => 'Pay this address'
 
 /** The handoff from a resolved card to My names when the viewer owns the name. */
-export const manageThisLabel = (): string => 'Manage this address'
+export const manageThisLabel = (): string => 'Manage this name'
 
 /**
  * Messaging a subdomain goes to the address it resolved to — the only party
@@ -210,7 +210,6 @@ export const minimumBidLine = (nim: string): string => `Next bid: at least ${nim
 /** Market row: what an auction is asking for while no bid stands. */
 export const startingPriceLine = (nim: string): string => `Starting price ${nim} NIM`
 
-export const auctionBadge = (): string => 'Auction'
 
 /** List-row form of the end: "ends ≈ date" — an auction ends, it does not expire. */
 export const auctionEndsLine = (whenDate: string): string => `ends ${whenDate}`
@@ -477,7 +476,7 @@ export const ownNameLine = (): string => 'You own this name.'
 
 export const manageOwnNameLabel = (): string => 'Manage it'
 
-export const backToNamesLabel = (): string => '‹ My Names'
+export const backToNamesLabel = (): string => 'My Names'
 
 // ── Pay (docs/app-ux.md §4) ────────────────────────────────────────────────
 
@@ -493,7 +492,9 @@ export const payButtonLabel = (nim: string | null): string => (nim === null ? 'P
 
 export const payModeNimLabel = (): string => 'NIM'
 
-export const payModeUsdtLabel = (): string => 'USDT · Polygon'
+export const payModeUsdtLabel = (): string => 'USDT'
+/** The accessible name of the USDT tab: the chain matters to a screen reader that cannot see the Polygon mark. */
+export const payModeUsdtAria = (): string => 'USDT on Polygon'
 
 export const payUsdtEmptyBody = (): string =>
   'Type a name to send USDT on Polygon to the address its owner linked.'
@@ -538,9 +539,6 @@ export const usdtNoGasLine = (): string =>
  * and hands over the one thing that can be tracked.
  */
 export const usdtAcceptedLine = (): string => 'The wallet accepted it — track it on Polygonscan:'
-
-/** One shape for both assets: "Balance: 123.45 NIM", "Balance: 12.5 USDT". */
-export const balanceLine = (amount: string, symbol: string): string => `Balance: ${amount} ${symbol}`
 
 /**
  * A known account whose balance no endpoint would answer. Shown in the
@@ -642,11 +640,6 @@ export const peerNamesHint = (): string =>
   'Names above an address come from the registry, not from the message.'
 
 // ── Empty states (one title + body per screen; components add nothing) ──────
-
-export const buyEmptyTitle = (): string => 'Every name is an address'
-
-export const buyEmptyBody = (): string =>
-  'Look one up to see where it pays, or find a free one to register.'
 
 export const myNamesNoWalletTitle = (): string => 'No wallet connected'
 
@@ -765,3 +758,162 @@ export const LANDING = {
     copyright: (year: number): string => `© ${year} nns · MIT`,
   },
 } as const
+
+// ── The redesign's chrome (2026-09-09, Bakar's PR #2) ───────────────────────
+//
+// Headlines, pills, tiles and the trust bars the redesign put on every
+// screen, moved here from the components. The copy is Bakar's, edited by
+// Kike. The claims are true as design — where a name points is read from
+// chain data and the client verifies the proof, so "decentralized" and
+// "100% on-chain" are facts, not marketing — and a claim is reworded only
+// where it names a mechanism the code does not have: Market's "escrow" sat
+// under the note saying the operator holds the money.
+
+export type AppScreen = 'buy' | 'names' | 'pay' | 'inbox' | 'market'
+
+export const SCREEN_TITLE: Record<AppScreen, string> = {
+  buy: 'Find your name',
+  names: 'My Names',
+  pay: 'Pay a Name',
+  inbox: 'Inbox',
+  market: 'Marketplace',
+}
+
+export const SCREEN_SUB: Record<Exclude<AppScreen, 'buy'>, string> = {
+  names: 'Manage your on-chain identities, records, and marketplace listings',
+  pay: 'Send NIM or Polygon USDT directly to any verified NNS address.',
+  inbox: 'On-chain, wallet-to-wallet decentralized messaging on Nimiq.',
+  market: 'Acquire registered NNS names or place bids on live auctions.',
+}
+
+/** The claims a trust bar can carry. Every one is what the code does. */
+export const TRUST_CLAIM = {
+  onChain: '100% On-Chain',
+  selfCustody: 'Self-Custody',
+  zeroContracts: 'Zero Contracts',
+  zeroIntermediaries: 'Zero Intermediaries',
+  merkleVerified: 'Merkle Verified',
+  walletSigned: 'Wallet-Signed',
+  decentralizedChat: 'Decentralized Chat',
+  onChainSettlement: 'On-Chain Settlement',
+  publicAuditLog: 'Public Audit Log',
+  antiSniping: 'Anti-Sniping Extension',
+} as const
+export type TrustClaim = keyof typeof TRUST_CLAIM
+
+/** Three claims per screen, under the panel. */
+export const TRUST_CLAIMS: Record<AppScreen, readonly [TrustClaim, TrustClaim, TrustClaim]> = {
+  buy: ['onChain', 'selfCustody', 'zeroContracts'],
+  names: ['onChain', 'selfCustody', 'zeroIntermediaries'],
+  pay: ['onChain', 'merkleVerified', 'selfCustody'],
+  inbox: ['onChain', 'walletSigned', 'decentralizedChat'],
+  market: ['onChainSettlement', 'publicAuditLog', 'antiSniping'],
+}
+
+/** Buy's idle chips: names to try. */
+export const BUY_SUGGESTIONS: readonly string[] = ['alice', 'david', 'sarah', 'james']
+export const tryLabel = (): string => 'Try:'
+
+/**
+ * The pill beside a card's title. An available name's pill is
+ * `availableLine()`. A delegated answer is a `subdomain`, never `registered`:
+ * NNS holds no record of a label, only of the parent that hosts it.
+ */
+export const STATUS_TAG = {
+  owned: 'You own this',
+  registered: 'Registered',
+  subdomain: 'Subdomain',
+  reserved: 'Reserved',
+  taken: 'Taken',
+  grace: 'In Grace',
+  notRegistered: 'Not Registered',
+  subdomainError: 'Subdomain Error',
+  parent: 'Parent Name',
+  alarm: 'Security Alarm',
+  unreachable: 'Unreachable',
+} as const
+
+/** The title of the card that stands in for a registry that did not answer. */
+export const registryHeading = (): string => 'Registry'
+
+// The owner's eight as tiles, in three groups (My names).
+export const OWNER_GROUP_TITLE = {
+  records: 'Routing & Records',
+  ownership: 'Ownership & Renewal',
+  market: 'Marketplace',
+} as const
+
+/** A tile's title, and the line under it while the record has nothing to show. */
+export const OWNER_TILE: Record<
+  'setTarget' | 'setEvm' | 'delegate' | 'renew' | 'transfer' | 'offer' | 'auction' | 'cancel',
+  { readonly title: string; readonly hint: string }
+> = {
+  setTarget: { title: 'Target Address', hint: 'Point to a Nimiq address' },
+  setEvm: { title: 'EVM Resolution', hint: 'Link a USDC / USDT address' },
+  delegate: { title: 'Subdomain Host', hint: 'Configure a custom host' },
+  renew: { title: 'Renew Registration', hint: 'Extend the registration' },
+  transfer: { title: 'Transfer Ownership', hint: 'Send to a new Nimiq owner' },
+  offer: { title: 'Sell (Fixed Price)', hint: 'List for direct buy-now' },
+  auction: { title: 'Start Auction', hint: 'Timed public bidding' },
+  cancel: { title: 'Cancel Listing', hint: 'Cancel the listing' },
+}
+export const offerActiveLine = (nim: string): string => `Active: ${nim} NIM`
+export const auctionStandingLine = (nim: string): string => `Standing bid: ${nim} NIM`
+export const auctionStartingLine = (nim: string): string => `Starting price: ${nim} NIM`
+export const cancelOfferHint = (): string => 'Cancel fixed price offer'
+export const cancelAuctionHint = (): string => 'Cancel active auction'
+export const connectWalletHint = (): string => 'Connect wallet'
+
+// Buy's card: a name for sale or under auction hands off to Market.
+export const listedForSaleLine = (nim: string): string => `Listed at the marketplace for ${nim} NIM. `
+export const listedForBiddingLine = (nim: string): string => `Listed at the marketplace for bidding (${nim} NIM). `
+export const checkNowLabel = (): string => 'Check now.'
+export const detailsLabel = (): string => 'Details'
+export const connectToLabel = (action: string): string => `Connect to ${action}`
+
+// Sheets and buttons shared by every flow.
+export const closeLabel = (): string => 'Close'
+export const cancelLabel = (): string => 'Cancel'
+export const clearLabel = (): string => 'Clear'
+export const signsWithLabel = (): string => 'Signs with'
+export const submittingLabel = (): string => 'Submitting…'
+export const confirmingLabel = (): string => 'Confirming…'
+export const toLabel = (): string => 'To:'
+
+// Market.
+export const buyNowLabel = (): string => 'Buy Now'
+export const placeBidLabel = (): string => 'Place Bid'
+export const liveAuctionLabel = (): string => 'Live Auction'
+export const fixedPriceLabel = (): string => 'Fixed Price'
+export const startingPriceLabel = (): string => 'Starting Price'
+export const standingBidLabel = (): string => 'Standing Bid'
+export const soldByLabel = (): string => 'Sold by'
+export const listedByLabel = (): string => 'Listed by'
+export const buySheetTitle = (name: string): string => `Buy ${name}`
+export const bidSheetTitle = (name: string): string => `Bid on ${name}`
+export const connectToBuyLine = (name: string): string => `Connect your wallet to buy ${name}.`
+export const connectToBidLine = (name: string): string => `Connect your wallet to place a bid on ${name}.`
+export const listingLoadFailedLine = (name: string): string => `Could not load details for ${name} — try again.`
+export const marketFilterPlaceholder = (): string => 'Filter listings by name…'
+export const marketFilterAria = (): string => 'Filter listings by name'
+export const MARKET_FILTER: Record<'all' | 'offers' | 'auctions', string> = { all: 'All', offers: 'Buy Now', auctions: 'Auctions' }
+export const marketNoMatchTitle = (): string => 'No matching listings'
+/** `filter` is the active pill's label, or null under "All". */
+export const marketNoMatchLine = (query: string, filter: string | null): string =>
+  filter === null ? `No names matched “${query}”.` : `No names matched “${query}” under ${filter}.`
+
+// Pay.
+export const balanceLabel = (): string => 'Balance:'
+export const maxLabel = (nim: string): string => `MAX (${nim} NIM)`
+export const resolveLabel = (): string => 'Resolve'
+export const payNameAria = (): string => 'Name to pay'
+export const payIdleTitle = (): string => 'Pay any NNS name'
+export const payNimEmptyBody = (): string => 'Type a registered name to resolve its on-chain Nimiq address and send NIM.'
+
+// Inbox.
+export const backToInboxLabel = (): string => 'Inbox'
+export const backToInboxAria = (): string => 'Back to inbox'
+export const copyAddressLabel = (): string => 'Copy full address'
+export const copiedLabel = (): string => 'Copied'
+export const subjectAboutLabel = (): string => 'about'
+export const yesterdayLabel = (): string => 'Yesterday'

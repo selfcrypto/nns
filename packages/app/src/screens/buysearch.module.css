@@ -285,34 +285,6 @@
   transform: translateY(-1px);
 }
 
-/* Trust Bar */
-.trustBar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-top: 24px;
-  font-size: 13px;
-  color: var(--ink-soft);
-  font-weight: 500;
-}
-
-.trustItem {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.trustIcon {
-  color: var(--accent);
-}
-
-.trustDot {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-
 /* Override the RailCard inside the Dashboard Panel to blend smoothly */
 :global(.buy-screen .rail) {
   border-radius: 20px;
@@ -358,11 +330,6 @@
     font-size: 14px;
     flex: none;
     white-space: nowrap;
-  }
-
-  .trustBar {
-    gap: 8px;
-    font-size: 12px;
   }
 
   .dashboardPanel :global(.available-title-row .result-name),
@@ -420,8 +387,4 @@
     font-size: 12px;
   }
 
-  .trustBar {
-    gap: 6px;
-    font-size: 11.5px;
-  }
 }

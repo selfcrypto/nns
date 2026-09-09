@@ -19,24 +19,41 @@ import type { Wallet } from '../lib/wallet'
 import {
   ACTION_LABEL,
   GATE_REASON_TEXT,
+  OWNER_GROUP_TITLE,
+  OWNER_TILE,
+  STATUS_TAG,
   alarmBody,
   alarmHeadline,
+  auctionStandingLine,
+  auctionStartingLine,
   availableLine,
+  cancelAuctionHint,
+  cancelOfferHint,
+  checkNowLabel,
+  closeLabel,
+  connectToLabel,
+  connectWalletHint,
+  connectWalletLabel,
   delegateFailedLine,
+  detailsLabel,
   expiresLine,
   graceEndsUnknownPhrase,
   graceLine,
   justRegisteredLine,
+  listedForBiddingLine,
+  listedForSaleLine,
   manageOwnNameLabel,
   manageThisLabel,
   messageOwnerLabel,
   messageSubdomainLabel,
   messageSubdomainNote,
+  offerActiveLine,
   ownNameLine,
   parentNotDelegatingLine,
   parentNotRegisteredLine,
   payThisLabel,
   queryFaultLine,
+  registryHeading,
   renewDueLine,
   reservedLine,
   subdomainNotRegistrableLine,
@@ -117,15 +134,15 @@ function Actions({
       actions: AppAction[]
     }[] = [
       {
-        title: 'Routing & Records',
+        title: OWNER_GROUP_TITLE.records,
         actions: ['setTarget', 'setEvm', 'delegate'],
       },
       {
-        title: 'Ownership & Renewal',
+        title: OWNER_GROUP_TITLE.ownership,
         actions: ['renew', 'transfer'],
       },
       {
-        title: 'Marketplace',
+        title: OWNER_GROUP_TITLE.market,
         actions: ['offer', 'auction', 'cancel'],
       },
     ]
@@ -134,8 +151,8 @@ function Actions({
       switch (action) {
         case 'setTarget':
           return {
-            title: 'Target Address',
-            subtitle: record?.target ? ellipsizeAddress(record.target) : 'Point to Nimiq address',
+            title: OWNER_TILE.setTarget.title,
+            subtitle: record?.target ? ellipsizeAddress(record.target) : OWNER_TILE.setTarget.hint,
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="10" />
@@ -146,8 +163,8 @@ function Actions({
           }
         case 'setEvm':
           return {
-            title: 'EVM Resolution',
-            subtitle: record?.evm ? ellipsizeAddress(record.evm) : 'Link USDC / USDT address',
+            title: OWNER_TILE.setEvm.title,
+            subtitle: record?.evm ? ellipsizeAddress(record.evm) : OWNER_TILE.setEvm.hint,
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
@@ -157,8 +174,8 @@ function Actions({
           }
         case 'delegate':
           return {
-            title: 'Subdomain Host',
-            subtitle: record?.host ? record.host : 'Configure custom host',
+            title: OWNER_TILE.delegate.title,
+            subtitle: record?.host ? record.host : OWNER_TILE.delegate.hint,
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="10" />
@@ -169,8 +186,8 @@ function Actions({
           }
         case 'renew':
           return {
-            title: 'Renew Registration',
-            subtitle: record ? expiresLine(formatApproxDate(approxDate(record.expiry, height, Date.now()))) : 'Extend registration',
+            title: OWNER_TILE.renew.title,
+            subtitle: record ? expiresLine(formatApproxDate(approxDate(record.expiry, height, Date.now()))) : OWNER_TILE.renew.hint,
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
@@ -179,8 +196,8 @@ function Actions({
           }
         case 'transfer':
           return {
-            title: 'Transfer Ownership',
-            subtitle: 'Send to a new Nimiq owner',
+            title: OWNER_TILE.transfer.title,
+            subtitle: OWNER_TILE.transfer.hint,
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M17 2.1l4 4-4 4" />
@@ -192,8 +209,8 @@ function Actions({
           }
         case 'offer':
           return {
-            title: 'Sell (Fixed Price)',
-            subtitle: info?.pending.offer ? `Active: ${lunaToNim(info.pending.offer.price)} NIM` : 'List for direct buy-now',
+            title: OWNER_TILE.offer.title,
+            subtitle: info?.pending.offer ? offerActiveLine(lunaToNim(info.pending.offer.price)) : OWNER_TILE.offer.hint,
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
@@ -203,12 +220,12 @@ function Actions({
           }
         case 'auction':
           return {
-            title: 'Start Auction',
+            title: OWNER_TILE.auction.title,
             subtitle: info?.pending.auction
               ? info.pending.auction.bidder
-                ? `Standing bid: ${lunaToNim(info.pending.auction.bid)} NIM`
-                : `Starting price: ${lunaToNim(info.pending.auction.startingPrice)} NIM`
-              : 'Timed public bidding',
+                ? auctionStandingLine(lunaToNim(info.pending.auction.bid))
+                : auctionStartingLine(lunaToNim(info.pending.auction.startingPrice))
+              : OWNER_TILE.auction.hint,
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="m14 13-7.5 7.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L11 10" />
@@ -221,8 +238,8 @@ function Actions({
           }
         case 'cancel':
           return {
-            title: 'Cancel Listing',
-            subtitle: info?.pending.offer ? 'Cancel fixed price offer' : 'Cancel active auction',
+            title: OWNER_TILE.cancel.title,
+            subtitle: info?.pending.offer ? cancelOfferHint() : cancelAuctionHint(),
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="10" />
@@ -277,7 +294,7 @@ function Actions({
                           {!usable && gate.reason !== null
                             ? GATE_REASON_TEXT[gate.reason]
                             : !usable && wallet === null
-                              ? 'Connect wallet'
+                              ? connectWalletHint()
                               : meta.subtitle}
                         </span>
                       </div>
@@ -335,13 +352,10 @@ function Actions({
           let isAuction = false
 
           if (action === 'buy' && offer) {
-            priceStr = `${lunaToNim(offer.price)} NIM`
+            priceStr = lunaToNim(offer.price)
           } else if (action === 'bid' && auction) {
             isAuction = true
-            priceStr =
-              auction.bidder === null
-                ? `${lunaToNim(auction.startingPrice)} NIM`
-                : `${lunaToNim(auction.bid)} NIM`
+            priceStr = auction.bidder === null ? lunaToNim(auction.startingPrice) : lunaToNim(auction.bid)
           }
 
           const handleCheckNow = () => {
@@ -354,15 +368,13 @@ function Actions({
             <Fragment key={action}>
               <div className="action-row-marketplace">
                 <span className="marketplace-listing-line">
-                  {isAuction
-                    ? `Listed at the marketplace for bidding (${priceStr}). `
-                    : `Listed at the marketplace for ${priceStr}. `}
+                  {isAuction ? listedForBiddingLine(priceStr) : listedForSaleLine(priceStr)}
                   <button
                     type="button"
                     className="marketplace-check-now"
                     onClick={handleCheckNow}
                   >
-                    Check now.
+                    {checkNowLabel()}
                   </button>
                 </span>
               </div>
@@ -381,11 +393,11 @@ function Actions({
                     className="action-go"
                     onClick={() => handleActionClick(action)}
                   >
-                    {open === action ? 'Close' : ctaMode ? ACTION_LABEL[action] : 'Details'}
+                    {open === action ? closeLabel() : ctaMode ? ACTION_LABEL[action] : detailsLabel()}
                   </button>
                 ) : wallet === null && onConnect ? (
                   <button type="button" className="action-go action-connect" onClick={onConnect}>
-                    {ctaMode ? `Connect to ${ACTION_LABEL[action]}` : 'Connect Wallet'}
+                    {ctaMode ? connectToLabel(ACTION_LABEL[action]) : connectWalletLabel()}
                   </button>
                 ) : (
                   <span className="action-state">{gate.reason !== null ? GATE_REASON_TEXT[gate.reason] : GATE_REASON_TEXT['no-viewer']}</span>
@@ -503,12 +515,12 @@ export function NameCard({
                 {isOwner ? (
                   <span className="owner-status-tag">
                     <span className="owner-dot" aria-hidden="true" />
-                    You own this
+                    {STATUS_TAG.owned}
                   </span>
                 ) : (
                   <span className="resolved-status-tag">
                     <span className="resolved-dot" aria-hidden="true" />
-                    Registered
+                    {view === null ? STATUS_TAG.subdomain : STATUS_TAG.registered}
                   </span>
                 )}
               </div>
@@ -619,7 +631,7 @@ export function NameCard({
                   <TitleName name={outcome.name} />
                   <span className="reserved-status-tag">
                     <span className="reserved-dot" aria-hidden="true" />
-                    Reserved
+                    {STATUS_TAG.reserved}
                   </span>
                 </div>
               </div>
@@ -644,7 +656,7 @@ export function NameCard({
                 <TitleName name={outcome.name} />
                 <span className="taken-status-tag">
                   <span className="taken-dot" aria-hidden="true" />
-                  Taken
+                  {STATUS_TAG.taken}
                 </span>
               </div>
             </div>
@@ -697,12 +709,12 @@ export function NameCard({
               {isOwner ? (
                 <span className="owner-status-tag">
                   <span className="owner-dot" aria-hidden="true" />
-                  You own this
+                  {STATUS_TAG.owned}
                 </span>
               ) : (
                 <span className="grace-status-tag">
                   <span className="grace-dot" aria-hidden="true" />
-                  In Grace
+                  {STATUS_TAG.grace}
                 </span>
               )}
             </div>
@@ -752,7 +764,7 @@ export function NameCard({
               <TitleName name={outcome.parent} />
               <span className="taken-status-tag">
                 <span className="taken-dot" aria-hidden="true" />
-                {outcome.code === 'NOT_FOUND' ? 'Not Registered' : 'In Grace'}
+                {outcome.code === 'NOT_FOUND' ? STATUS_TAG.notRegistered : STATUS_TAG.grace}
               </span>
             </div>
           </div>
@@ -784,7 +796,7 @@ export function NameCard({
                   <TitleName name={outcome.query} />
                   <span className="taken-status-tag">
                     <span className="taken-dot" aria-hidden="true" />
-                    Subdomain Error
+                    {STATUS_TAG.subdomainError}
                   </span>
                 </div>
               </div>
@@ -812,7 +824,7 @@ export function NameCard({
                     <TitleName name={outcome.parent.name} />
                     <span className="resolved-status-tag">
                       <span className="resolved-dot" aria-hidden="true" />
-                      Parent Name
+                      {STATUS_TAG.parent}
                     </span>
                   </div>
                 </div>
@@ -835,7 +847,7 @@ export function NameCard({
                 <h2 className="result-name" style={{ color: 'var(--alarm)' }}>{alarmHeadline()}</h2>
                 <span className="taken-status-tag" style={{ color: 'var(--alarm)', borderColor: 'var(--alarm)' }}>
                   <span className="taken-dot" style={{ background: 'var(--alarm)' }} aria-hidden="true" />
-                  Security Alarm
+                  {STATUS_TAG.alarm}
                 </span>
               </div>
             </div>
@@ -853,10 +865,10 @@ export function NameCard({
           <div className="reserved-card-premium">
             <div className="reserved-header">
               <div className="available-title-row">
-                <h2 className="result-name">Registry</h2>
+                <h2 className="result-name">{registryHeading()}</h2>
                 <span className="taken-status-tag">
                   <span className="taken-dot" aria-hidden="true" />
-                  Unreachable
+                  {STATUS_TAG.unreachable}
                 </span>
               </div>
             </div>

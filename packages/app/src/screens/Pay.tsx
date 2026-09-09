@@ -1,7 +1,6 @@
 /**
  * **Pay** — send NIM or USDT to a name. Type a name, it resolves, enter an amount,
- * the wallet signs (docs/app-ux.md §4). Redesigned to match the modern glassmorphism
- * discovery theme of Buy and Market.
+ * the wallet signs (docs/app-ux.md §4).
  *
  * The address comes from `search()`, so `resolver().resolve()` is still the only
  * thing in this app that produces one, and every non-resolved outcome already
@@ -37,15 +36,24 @@ import { useAsync } from '../lib/useAsync'
 import { useDebounced } from '../lib/useDebounced'
 import type { Wallet } from '../lib/wallet'
 import {
-  balanceLine,
+  SCREEN_SUB,
+  SCREEN_TITLE,
+  balanceLabel,
+  clearLabel,
+  maxLabel,
   payAmountLabel,
   payButtonLabel,
   payFromLabel,
   payModeNimLabel,
+  payIdleTitle,
+  payModeUsdtAria,
   payModeUsdtLabel,
+  payNameAria,
+  payNimEmptyBody,
   paySelfLine,
   payToLabel,
   payUsdtEmptyBody,
+  resolveLabel,
   payZeroLine,
   usdtAcceptedLine,
   usdtAmountLabel,
@@ -70,6 +78,7 @@ import {
 import { NameCard } from '../components/NameCard'
 import { PinCheck } from '../components/PinCheck'
 import { AddressRow } from '../components/result'
+import { TrustBar } from '../components/TrustBar'
 import { NameText, Spinner } from '../components/ui'
 import styles from './pay.module.css'
 
@@ -157,15 +166,20 @@ export function PayScreen({
   const evmPrompted = useRef(false)
   const balanceSeed = `${mode}:${sender ?? ''}:${evmAccount ?? ''}:${result?.status ?? ''}:${usdtTries}`
 
-  const nimBalance = useAsync(async () => {
-    if (mode !== 'nim' || wallet === null) return null
+  // Two numbers: the set's total, which the badge shows, and the chosen
+  // sender's own, which is all MAX may offer — a transaction spends one
+  // account, and the redesign's MAX filled in the sum across the set.
+  const nimBalance = useAsync(async (): Promise<{ readonly total: bigint; readonly mine: bigint | null } | null> => {
+    if (mode !== 'nim' || wallet === null || sender === null) return null
     const transport = defaultTransport()
     if (transport === null) return null
-    const targets = wallet.balanceAddresses.length > 0 ? wallet.balanceAddresses : sender !== null ? [sender] : []
-    if (targets.length === 0) return null
-    const balances = await Promise.all(targets.map((address) => fetchNimBalance(transport, address)))
-    const known = balances.filter((balance): balance is bigint => balance !== null)
-    return known.length === 0 ? null : known.reduce((sum, balance) => sum + balance, 0n)
+    const targets = wallet.balanceAddresses.length > 0 ? wallet.balanceAddresses : [sender]
+    const pool = targets.some((address) => sameAddress(address, sender)) ? targets : [...targets, sender]
+    const balances = await Promise.all(pool.map((address) => fetchNimBalance(transport, address)))
+    const known = balances.slice(0, targets.length).filter((balance): balance is bigint => balance !== null)
+    if (known.length === 0) return null
+    const mine = balances[pool.findIndex((address) => sameAddress(address, sender))] ?? null
+    return { total: known.reduce((sum, balance) => sum + balance, 0n), mine }
   }, [balanceSeed])
 
   const usdtBalance = useAsync(async () => {
@@ -186,7 +200,8 @@ export function PayScreen({
   const self = resolved !== null && sender !== null && sameAddress(sender, resolved.address)
 
   const luna = parsed !== null && 'luna' in parsed ? parsed.luna : null
-  const nimHeld = nimBalance.status === 'done' ? nimBalance.value : null
+  const nimHeld = nimBalance.status === 'done' && nimBalance.value !== null ? nimBalance.value.total : null
+  const nimMine = nimBalance.status === 'done' && nimBalance.value !== null ? nimBalance.value.mine : null
   const canPay =
     resolved !== null && sender !== null && luna !== null && !self && !pinBlocking && wallet !== null && progress === 'idle'
 
@@ -235,10 +250,8 @@ export function PayScreen({
         <div className={styles.heroContent}>
           {/* Header */}
           <div className={styles.payHeader}>
-            <h1 className={styles.payTitle}>Pay a Name</h1>
-            <p className={styles.paySubtitle}>
-              Send NIM or Polygon USDT directly to any verified NNS address.
-            </p>
+            <h1 className={styles.payTitle}>{SCREEN_TITLE.pay}</h1>
+            <p className={styles.paySubtitle}>{SCREEN_SUB.pay}</p>
           </div>
 
           {/* Main Glassmorphism Panel */}
@@ -254,7 +267,7 @@ export function PayScreen({
                       type="button"
                       role="tab"
                       aria-selected={isActive}
-                      aria-label={entry === 'nim' ? payModeNimLabel() : payModeUsdtLabel()}
+                      aria-label={entry === 'nim' ? payModeNimLabel() : payModeUsdtAria()}
                       className={`pay-mode-tab ${styles.assetTab} ${
                         isActive ? `pay-mode-active ${styles.assetTabActive}` : ''
                       }`}
@@ -272,7 +285,7 @@ export function PayScreen({
                             className={styles.assetTabIcon}
                             aria-hidden="true"
                           />
-                          <span>NIM</span>
+                          <span>{payModeNimLabel()}</span>
                         </>
                       ) : (
                         <>
@@ -282,7 +295,7 @@ export function PayScreen({
                             className={styles.assetTabIcon}
                             aria-hidden="true"
                           />
-                          <span>USDT</span>
+                          <span>{payModeUsdtLabel()}</span>
                         </>
                       )}
                     </button>
@@ -291,7 +304,7 @@ export function PayScreen({
               </div>
 
               {/* Balance Display (Aligned on the right of the top toolbar) */}
-              {mode === 'nim' && nimBalance.status === 'done' && nimHeld !== null && (
+              {mode === 'nim' && nimHeld !== null && (
                 <div className={`pay-balance ${styles.balanceBadge}`}>
                   <span className={styles.balanceIcon}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -299,7 +312,7 @@ export function PayScreen({
                       <path d="M7 15h0M2 10h20" />
                     </svg>
                   </span>
-                  <span className={styles.balanceLabel}>Balance:</span>
+                  <span className={styles.balanceLabel}>{balanceLabel()}</span>
                   <span className={styles.balanceAmount}>{lunaToNim(nimHeld)}</span>
                   <span className={styles.balanceTicker}>NIM</span>
                 </div>
@@ -314,7 +327,7 @@ export function PayScreen({
                           <path d="M7 15h0M2 10h20" />
                         </svg>
                       </span>
-                      <span className={styles.balanceLabel}>Balance:</span>
+                      <span className={styles.balanceLabel}>{balanceLabel()}</span>
                       <span className={styles.balanceAmount}>{formatUsdt(usdtHeld)}</span>
                       <span className={styles.balanceTicker}>USDT</span>
                     </div>
@@ -355,7 +368,7 @@ export function PayScreen({
                   placeholder="name, or label.name"
                   value={text}
                   onChange={(event) => setText(event.target.value)}
-                  aria-label="Name to pay"
+                  aria-label={payNameAria()}
                 />
                 {text !== '' && (
                   <button
@@ -367,7 +380,7 @@ export function PayScreen({
                       setResult(null)
                       setUsdtResult(null)
                     }}
-                    aria-label="Clear recipient search"
+                    aria-label={clearLabel()}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <line x1="18" y1="6" x2="6" y2="18" />
@@ -376,7 +389,7 @@ export function PayScreen({
                   </button>
                 )}
                 <button className={styles.searchSubmitBtn} type="submit" disabled={trimmed === ''}>
-                  Resolve
+                  {resolveLabel()}
                 </button>
               </div>
             </form>
@@ -391,11 +404,9 @@ export function PayScreen({
                       <polygon points="22 2 15 22 11 13 2 9 22 2" />
                     </svg>
                   </div>
-                  <h3 className={styles.idleTitle}>Pay any NNS name</h3>
+                  <h3 className={styles.idleTitle}>{payIdleTitle()}</h3>
                   <p className={styles.idleBody}>
-                    {mode === 'nim'
-                      ? 'Type a registered name to resolve its on-chain Nimiq address and send NIM.'
-                      : payUsdtEmptyBody()}
+                    {mode === 'nim' ? payNimEmptyBody() : payUsdtEmptyBody()}
                   </p>
                 </div>
               </div>
@@ -417,7 +428,7 @@ export function PayScreen({
 
             {/* Unresolved NameCard */}
             {outcome.status === 'done' && resolved === null && (
-              <div style={{ width: '100%', animation: 'fadeIn 0.3s ease-in' }}>
+              <div style={{ width: '100%' }}>
                 <NameCard
                   outcome={outcome.value}
                   wallet={wallet}
@@ -597,13 +608,13 @@ export function PayScreen({
                 <div className={styles.fieldLabel}>
                   <div className={styles.amountHeader}>
                     <span className={styles.amountLabel}>{payAmountLabel()}</span>
-                    {nimHeld !== null && (
+                    {nimMine !== null && (
                       <button
                         type="button"
                         className={styles.maxBtn}
-                        onClick={() => setAmount(lunaToNim(nimHeld))}
+                        onClick={() => setAmount(lunaToNim(nimMine))}
                       >
-                        MAX ({lunaToNim(nimHeld)} NIM)
+                        {maxLabel(lunaToNim(nimMine))}
                       </button>
                     )}
                   </div>
@@ -690,32 +701,7 @@ export function PayScreen({
             )}
           </div>
 
-          {/* Trust Bar */}
-          <div className={styles.trustBar}>
-            <div className={styles.trustItem}>
-              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-              <span>100% On-Chain</span>
-            </div>
-            <span className={styles.trustDot}>•</span>
-            <div className={styles.trustItem}>
-              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                <path d="m9 12 2 2 4-4" />
-              </svg>
-              <span>Merkle Verified</span>
-            </div>
-            <span className={styles.trustDot}>•</span>
-            <div className={styles.trustItem}>
-              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-              </svg>
-              <span>Self-Custody</span>
-            </div>
-          </div>
+          <TrustBar screen="pay" />
         </div>
       </div>
     </div>

@@ -14,11 +14,15 @@ import { useAsync } from '../lib/useAsync'
 import { useDebounced } from '../lib/useDebounced'
 import type { Wallet } from '../lib/wallet'
 import {
+  BUY_SUGGESTIONS,
+  SCREEN_TITLE,
   queryFaultLine,
   shortNameNoteLine,
+  tryLabel,
   unreachableLine,
 } from '../lib/wording'
 import { ACQUIRE_ACTIONS, NameCard } from '../components/NameCard'
+import { TrustBar } from '../components/TrustBar'
 import { Spinner } from '../components/ui'
 import styles from './buysearch.module.css'
 
@@ -77,7 +81,7 @@ export function BuyScreen({
       <div className={styles.heroSection}>
         <div className={styles.heroContent}>
           <div className={styles.buyHeroHeader}>
-            <h1 className={styles.buyHeroTitle}>Find your name</h1>
+            <h1 className={styles.buyHeroTitle}>{SCREEN_TITLE.buy}</h1>
           </div>
 
           <div className={styles.dashboardPanel}>
@@ -121,8 +125,8 @@ export function BuyScreen({
             {outcome.status === 'idle' && (
               <div className={styles.buyIdleContent}>
                 <div className={styles.suggestionChips}>
-                  <span className={styles.suggestionLabel}>Try:</span>
-                  {['alice', 'david', 'sarah', 'james'].map((suggestion) => (
+                  <span className={styles.suggestionLabel}>{tryLabel()}</span>
+                  {BUY_SUGGESTIONS.map((suggestion) => (
                     <button
                       key={suggestion}
                       type="button"
@@ -144,7 +148,7 @@ export function BuyScreen({
             )}
             {outcome.status === 'error' && <p className="field-error" style={{ textAlign: 'center' }}>{unreachableLine()}</p>}
             {outcome.status === 'done' && outcome.value.kind !== 'invalid' && (
-              <div style={{ width: '100%', animation: 'fadeIn 0.3s ease-in' }}>
+              <div style={{ width: '100%' }}>
                 <NameCard
                   outcome={outcome.value}
                   wallet={wallet}
@@ -160,32 +164,7 @@ export function BuyScreen({
             )}
           </div>
 
-          {/* Trust Bar */}
-          <div className={styles.trustBar}>
-            <div className={styles.trustItem}>
-              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-              </svg>
-              <span>100% On-Chain</span>
-            </div>
-            <span className={styles.trustDot}>•</span>
-            <div className={styles.trustItem}>
-              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                <path d="m9 12 2 2 4-4" />
-              </svg>
-              <span>Self-Custody</span>
-            </div>
-            <span className={styles.trustDot}>•</span>
-            <div className={styles.trustItem}>
-              <svg className={styles.trustIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-              </svg>
-              <span>Zero Contracts</span>
-            </div>
-          </div>
+          <TrustBar screen="buy" />
         </div>
       </div>
     </div>

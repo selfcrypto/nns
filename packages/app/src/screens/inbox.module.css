@@ -713,35 +713,6 @@
   text-align: center;
 }
 
-/* Trust Bar (Aligned below the card) */
-.trustBar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-top: 24px;
-  font-size: 13px;
-  color: var(--ink-soft);
-  font-weight: 500;
-}
-
-.trustItem {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.trustIcon {
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-.trustDot {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
-
 @media (max-width: 600px) {
   .heroSection {
     padding: 32px 14px calc(var(--chrome-bottom) + 90px);
@@ -777,15 +748,5 @@
     max-width: 88%;
   }
 
-  .trustBar {
-    gap: 8px;
-    font-size: 12px;
-  }
 }
 
-@media (max-width: 440px) {
-  .trustBar {
-    gap: 6px;
-    font-size: 11.5px;
-  }
-}

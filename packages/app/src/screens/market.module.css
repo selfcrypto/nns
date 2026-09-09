@@ -614,30 +614,3 @@
   margin: 0;
 }
 
-/* Trust Bar */
-.trustBar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-top: 24px;
-  font-size: 13px;
-  color: var(--ink-soft);
-  font-weight: 500;
-}
-
-.trustItem {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.trustIcon {
-  color: var(--nimiq-blue);
-}
-
-.trustDot {
-  color: var(--ink-faint);
-  font-size: 10px;
-}
