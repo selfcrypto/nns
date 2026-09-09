@@ -153,13 +153,25 @@ check(
 // a trap a compressed profile walks into by scaling the bands one notch too
 // far, and each fails as something that reads like a product defect.
 {
-  const margin = C.FEE_LONG / C.REFUND_FLOOR
+  // r29 moved REFUND_FLOOR to 1 NIM, which is also the battery profile's
+  // FEE_LONG — so the smallest honest bid sits *on* the floor, not 10× above
+  // it as the pre-r29 version of this check demanded. What the run actually
+  // needs is narrower: a bid at MIN_PRICE must be refundable (≥ floor), and
+  // the standard band must leave room for an underpayment that is still
+  // refundable — the r29 rows underpay a standard-band G by half and expect
+  // INSUFFICIENT_VALUE with a treasury leg, not BELOW_REFUND_FLOOR.
   check(
-    'trap/refund-floor-margin',
-    'the smallest honest refundable amount (MIN_PRICE = FEE_LONG) is ≥ 10× REFUND_FLOOR',
-    C.FEE_LONG >= 10n * C.REFUND_FLOOR,
-    `FEE_LONG ${both(C.FEE_LONG)} ÷ REFUND_FLOOR ${luna(C.REFUND_FLOOR)} = ${margin}× (need ≥ 10×)` +
-      '\n      below it a rejected B earns BELOW_REFUND_FLOOR, stages no ledger leg, and the settlement phase quietly empties',
+    'trap/min-price-refundable',
+    'the smallest honest bid (MIN_PRICE = FEE_LONG) is at or above REFUND_FLOOR',
+    C.FEE_LONG >= C.REFUND_FLOOR,
+    `FEE_LONG ${both(C.FEE_LONG)} ≥ REFUND_FLOOR ${luna(C.REFUND_FLOOR)}` +
+      '\n      below it every losing bid at the floor earns BELOW_REFUND_FLOOR, stages no ledger leg, and the settlement phase quietly empties',
+  )
+  check(
+    'trap/standard-band-underpayment-refundable',
+    'FEE_STANDARD ≥ 2× REFUND_FLOOR — a standard-band G paying half is still a refund (r29 rows)',
+    C.FEE_STANDARD >= 2n * C.REFUND_FLOOR,
+    `FEE_STANDARD ${both(C.FEE_STANDARD)} ÷ REFUND_FLOOR ${luna(C.REFUND_FLOOR)} = ${C.FEE_STANDARD / C.REFUND_FLOOR}× (need ≥ 2×)`,
   )
 }
 {

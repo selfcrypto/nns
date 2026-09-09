@@ -80,14 +80,14 @@ describe('validateName — §4.1 rules, in order', () => {
     expect(reason('-abcde')).toBe('LEADING_HYPHEN')
     expect(reason('abcde-')).toBe('TRAILING_HYPHEN')
     expect(reason('ab--cde')).toBe('DOUBLE_HYPHEN')
-    expect(validateName('self-crypto').ok).toBe(true)
+    expect(validateName('my-name').ok).toBe(true) // self-crypto joined RESERVED_NAMES on 2026-09-09
   })
 
   it('applies RESERVED_NAMES by exact match, from the frozen list', () => {
     // Exact match, never a prefix or a normalisation (§4.1). The list is a
     // constant since the launch freeze, so there is no second list to pass.
     expect(validateName('nimiq')).toEqual({ ok: false, reason: 'RESERVED' })
-    expect(validateName('nimiqq').ok).toBe(true)
+    expect(validateName('nimiqqz').ok).toBe(true) // nimiqq is on the list since 2026-09-09; a suffix is not a match
     expect(validateName('nimiq', new Set(['nimiq'])).ok).toBe(true)
   })
 })

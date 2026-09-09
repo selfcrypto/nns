@@ -93,7 +93,7 @@ describe('configFingerprint', () => {
     // replaces the four battery addresses (tasks/08 step 7). This digest
     // moving means "rebuild, do not resume" — recompute it and update the pin
     // alongside either edit.
-    expect(BASELINE).toBe('d993cd422b68950d4c85dab1dcc1711a00e05d1b12e7b5c235e46853abeb2608')
+    expect(BASELINE).toBe('8111f0c068d3fe5f7427b948ae7e89c1c05143ac3a544769d97ad8f9d624897b')
     // Order is not protocol (§4.1 is exact-match membership), which is what the
     // `.sort()` in the payload buys: resorting the constant leaves this digest
     // alone, and only an added, removed or edited entry moves it.

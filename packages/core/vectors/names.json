@@ -54,7 +54,7 @@
     { "id": "leading_hyphen", "name": "-abcde", "valid": false, "reason": "LEADING_HYPHEN" },
     { "id": "trailing_hyphen", "name": "abcde-", "valid": false, "reason": "TRAILING_HYPHEN" },
     { "id": "double_hyphen", "name": "ab--cde", "valid": false, "reason": "DOUBLE_HYPHEN" },
-    { "id": "single_hyphen_is_fine", "name": "self-crypto", "valid": true },
+    { "id": "single_hyphen_is_fine", "name": "my-name", "valid": true },
 
     { "id": "digit_run_leading", "name": "23kike", "valid": true },
     { "id": "digit_run_trailing", "name": "kike23", "valid": true },

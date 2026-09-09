@@ -101,12 +101,12 @@ describe('reduce under attribution — ownership survives the contract', () => {
   })
 
   const register = (state: NnsState) =>
-    reduce(state, fromHtlc(HTLC_1, encodeRegister({ name: 'example', fee: CONSTANTS.FEE_STANDARD }), height, 0), config)
+    reduce(state, fromHtlc(HTLC_1, encodeRegister({ name: 'examplename', fee: CONSTANTS.FEE_STANDARD }), height, 0), config)
 
   it('a G from the contract registers to the authorizing key, not the contract', () => {
     const { state, verdict } = register(initialState())
     expect(verdict.kind).toBe('OK')
-    const record = state.names.get('example')
+    const record = state.names.get('examplename')
     expect(record).toBeDefined()
     expect(formatAddress(record!.owner)).toBe(formatAddress(LOCAL))
   })
@@ -117,15 +117,15 @@ describe('reduce under attribution — ownership survives the contract', () => {
     // check passes. Under account attribution this S forfeits NOT_OWNER and
     // the name is orphaned forever — mainnet `nimiqpaytest`, 2026-08-21.
     const registered = register(initialState()).state
-    const repoint = encodeSetTarget({ name: 'example', target: ALICE })
+    const repoint = encodeSetTarget({ name: 'examplename', target: ALICE })
     const { state, verdict } = reduce(registered, fromHtlc(HTLC_2, repoint, height + 5, 0), config)
     expect(verdict.kind).toBe('OK')
-    expect(formatAddress(state.names.get('example')!.target)).toBe(formatAddress(ALICE))
+    expect(formatAddress(state.names.get('examplename')!.target)).toBe(formatAddress(ALICE))
   })
 
   it('without a proof the same S forfeits NOT_OWNER — the orphaning, reproduced', () => {
     const registered = register(initialState()).state
-    const repoint = encodeSetTarget({ name: 'example', target: ALICE })
+    const repoint = encodeSetTarget({ name: 'examplename', target: ALICE })
     const { proof: _dropped, ...tx } = fromHtlc(HTLC_2, repoint, height + 5, 0)
     const { verdict } = reduce(registered, tx, config)
     expect(verdict).toMatchObject({ kind: 'FORFEIT', reason: 'NOT_OWNER' })
