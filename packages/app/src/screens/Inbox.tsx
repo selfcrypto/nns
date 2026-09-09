@@ -591,7 +591,7 @@ function ConversationView({
           recipient={conversation.peer}
           wallet={wallet}
           sender={wallet === null ? null : primaryAddress(wallet.identity)}
-          heading=""
+          heading={null}
           onSent={onSent ? () => onSent(conversation.peer, conversation.messages.length) : undefined}
         />
       </div>

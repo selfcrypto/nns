@@ -254,19 +254,20 @@ function Actions({
                   const gate = gates[action]
                   const signer = signerFor(action, view, viewers)
                   const usable = gate.enabled && signer !== null && wallet !== null
+                  // Connect is the answer to *no wallet*, never to a gated
+                  // action: a connected owner tapping "renew" in the wrong
+                  // window got the Hub's connect popup for one build.
+                  const canConnect = wallet === null && onConnect != null
                   const meta = actionMeta(action)
                   return (
                     <button
                       key={action}
                       type="button"
                       className={`owner-action-tile ${meta.isDanger ? 'is-danger' : ''}`}
-                      disabled={!usable && !onConnect}
+                      disabled={!usable && !canConnect}
                       onClick={() => {
-                        if (!usable && onConnect) {
-                          onConnect()
-                        } else {
-                          handleActionClick(action)
-                        }
+                        if (usable) handleActionClick(action)
+                        else if (canConnect) onConnect()
                       }}
                     >
                       <div className="owner-action-icon">{meta.icon}</div>
@@ -382,7 +383,7 @@ function Actions({
                   >
                     {open === action ? 'Close' : ctaMode ? ACTION_LABEL[action] : 'Details'}
                   </button>
-                ) : onConnect ? (
+                ) : wallet === null && onConnect ? (
                   <button type="button" className="action-go action-connect" onClick={onConnect}>
                     {ctaMode ? `Connect to ${ACTION_LABEL[action]}` : 'Connect Wallet'}
                   </button>
@@ -484,8 +485,6 @@ export function NameCard({
       const mine = view !== null && onManage !== null && isOwner
       const record = outcome.info?.record ?? null
       const height = outcome.info?.height ?? null
-      // Verification and expiry details are shown in My Names management detail, not on the Buy / Search discovery card.
-      const showMeta = onManage === null && actions === OWNER_ACTIONS
 
       const canMessageOwner = outcome.info !== null && outcome.info.record !== null && !isOwner && actions !== OWNER_ACTIONS
       const canMessageSubdomain = view === null && actions !== OWNER_ACTIONS && !viewers.some((address) => sameAddress(address, outcome.result.address))
@@ -518,11 +517,13 @@ export function NameCard({
             <div className="address-card-wrap">
               <AddressRow address={outcome.result.address} full />
             </div>
-            {showMeta && (
-              <div className="resolved-meta-section">
-                <VerificationLine result={outcome.result} />
-              </div>
-            )}
+            {/* On every resolved card, Buy included: who verified, by name and
+                URL, or that a delegate answered — §8.5 #6 and app-states §5.
+                The redesign kept it for My names only, which left a verified
+                name and a delegate's word looking identical on the front door. */}
+            <div className="resolved-meta-section">
+              <VerificationLine result={outcome.result} />
+            </div>
             {outcome.info !== null && <Overlays info={outcome.info} nowMs={nowMs} hideMarketplace={actions === ACQUIRE_ACTIONS || !isOwner} />}
             <WarningNotes warnings={outcome.result.warnings} />
             {mine ? (

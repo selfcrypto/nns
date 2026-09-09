@@ -86,19 +86,23 @@ const helpers = `
   true
 `
 
-// A browser opens on the landing page, whose only way into the app is its
-// search (the tab bar is hidden there); Pay opens on Buy directly. Every
-// scenario but `home` starts from Buy, so `load` goes through the hero.
+// A browser opens on the landing page; every scenario but `home` starts from
+// Buy, which is a route (`#/buy`, lib/route.ts) since 2026-09-09 — before
+// that, `load` had to go through the hero's search.
 const landing = async () => {
   await send('Page.navigate', { url: URL })
   await sleep(1500)
   await evaluate(helpers)
 }
 const load = async () => {
-  await landing()
-  await evaluate(`__type('.hero-search-input', 'nns')`)
-  await evaluate(`__click('.hero-search-go')`)
-  await sleep(1000)
+  // Scenarios share one profile, so an owner-* run's seeded identity would
+  // make the next anonymous one the owner of `nns`.
+  await send('Page.navigate', { url: URL })
+  await sleep(300)
+  await evaluate(`localStorage.removeItem('nns.hub.addresses'); true`)
+  await send('Page.navigate', { url: `${URL}#/buy` })
+  await sleep(1500)
+  await evaluate(helpers)
 }
 const shot = async (name, full = false) => {
   const params = { format: 'png' }
@@ -126,12 +130,9 @@ const loadAsOwner = async () => {
   await send('Page.navigate', { url: URL })
   await sleep(300)
   await evaluate(`localStorage.setItem('nns.hub.addresses', ${JSON.stringify(JSON.stringify([OWNER]))}); true`)
-  await send('Page.navigate', { url: URL })
+  await send('Page.navigate', { url: `${URL}#/buy` })
   await sleep(2000)
   await evaluate(helpers)
-  await evaluate(`__type('.hero-search-input', 'nns')`)
-  await evaluate(`__click('.hero-search-go')`)
-  await sleep(1000)
 }
 const scenarios = {
   'home': async () => { await landing(); await sleep(1500); await shot('home', true) },
@@ -143,7 +144,7 @@ const scenarios = {
   'owner-sheet': async () => {
     await loadAsOwner(); await tab('My Names'); await sleep(2500)
     await evaluate(`__click('.name-row')`); await sleep(4000)
-    await evaluate(`[...document.querySelectorAll('.action-row')].find(r => r.textContent.includes('Change where it points')).querySelector('.action-go').click()`)
+    await evaluate(`[...document.querySelectorAll('.owner-action-tile')].find(t => t.textContent.includes('Target Address')).click()`)
     await sleep(800)
     await evaluate(`__type('.sheet-input', 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000')`)
     await sleep(800); await shot('owner-sheet', true)
@@ -164,17 +165,18 @@ const scenarios = {
   'owner-pay': async () => { await loadAsOwner(); await tab('Pay'); await search('nns'); await evaluate(`__type('.pay-input', '12,5')`); await sleep(300); await shot('owner-pay', true) },
   'buy-idle': async () => { await load(); await shot('buy-idle') },
   'buy-nns': async () => { await load(); await search('nns'); await shot('buy-nns', true) },
-  'buy-open-bid': async () => {
-    await load(); await search('nns')
-    try { await evaluate(`__clickText('.action-go', 'Open')`) } catch {}
-    await sleep(800); await shot('buy-open-bid', true)
+  'buy-register': async () => {
+    await load(); await search('zebra-quick-fox')
+    try { await evaluate(`__clickText('.action-go', 'Register')`) } catch {}
+    await sleep(800); await shot('buy-register', true)
   },
   'buy-available': async () => { await load(); await search('zebra-quick-fox'); await shot('buy-available', true) },
   'buy-reserved': async () => { await load(); await search('ab'); await shot('buy-reserved', true) },
   'buy-delegated': async () => { await load(); await search('rico.nns'); await shot('buy-delegated', true) },
   'buy-message': async () => {
     await load(); await search('nns')
-    await evaluate(`__click('.message-owner summary')`)
+    await evaluate(`__click('.message-owner-btn')`)
+    await sleep(300)
     await evaluate(`__type('.composer-input', 'Hi — is this name for sale?')`)
     await sleep(500); await shot('buy-message', true)
   },
@@ -183,6 +185,12 @@ const scenarios = {
   'names': async () => { await load(); await tab('My Names'); await shot('names') },
   'inbox': async () => { await load(); await tab('Inbox'); await shot('inbox') },
   'market': async () => { await load(); await tab('Market'); await shot('market', true) },
+  'market-sheet': async () => {
+    await loadAsOwner(); await tab('Market')
+    // Whichever listing exists today: an offer's Buy Now, else an auction's Place Bid.
+    await evaluate(`[...document.querySelectorAll('button')].find(b => /^(Buy Now|Place Bid)$/.test(b.textContent.trim()))?.click(); true`)
+    await sleep(4000); await shot('market-sheet', true)
+  },
 }
 for (const [name, run] of Object.entries(scenarios)) {
   if (only.length > 0 && !only.includes(name)) continue

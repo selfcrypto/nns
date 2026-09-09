@@ -8,7 +8,7 @@
  * away is the confusion that split them (docs/app-ux.md §2).
  */
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { isShortName, queryFault, search } from '../lib/search'
 import { useAsync } from '../lib/useAsync'
 import { useDebounced } from '../lib/useDebounced'
@@ -37,9 +37,12 @@ export function BuyScreen({
   onPay,
   onConnect,
   onMarket,
+  onQuery,
 }: {
   wallet: Wallet | null
   seed: string
+  /** The settled query, for the URL — a reload comes back to the same card (`App.tsx`). */
+  onQuery?: ((query: string) => void) | undefined
   onManage: (name: string) => void
   /** Hands the query, as typed, to the Pay tab — the one action a delegated card has. */
   onPay: (query: string) => void
@@ -63,6 +66,11 @@ export function BuyScreen({
   }, [query])
 
   const outcome = useAsync(query === '' ? null : () => search(query), [query, nonce])
+
+  useEffect(() => {
+    onQuery?.(query)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the URL follows the query, not the callback identity
+  }, [query])
 
   return (
     <div className={`screen buy-screen ${styles.lightThemeWrapper}`}>
@@ -92,7 +100,7 @@ export function BuyScreen({
                   </svg>
                 </div>
                 <input
-                  className={`nns-name ${styles.searchInput}`}
+                  className={`search-input nns-name ${styles.searchInput}`}
                   type="text"
                   inputMode="text"
                   autoCapitalize="none"
@@ -103,7 +111,7 @@ export function BuyScreen({
                   onChange={(event) => setText(event.target.value)}
                   aria-label="Search names"
                 />
-                <button className={styles.searchBtn} type="submit" disabled={trimmed === ''}>
+                <button className={`search-go ${styles.searchBtn}`} type="submit" disabled={trimmed === ''}>
                   Lookup
                 </button>
               </div>

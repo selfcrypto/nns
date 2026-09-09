@@ -15,7 +15,7 @@
  * zero value is rejected outright.
  */
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ActionInputError, parseNimAmount } from '../lib/actions'
 import {
   EvmAmountError,
@@ -76,7 +76,16 @@ import styles from './pay.module.css'
 /** The same settle as Buy — one query per typed word, not one per character. */
 const SETTLE_MS = 1_000
 
-export function PayScreen({ wallet, seed }: { wallet: Wallet | null; seed: string }) {
+export function PayScreen({
+  wallet,
+  seed,
+  onQuery,
+}: {
+  wallet: Wallet | null
+  seed: string
+  /** The settled query, for the URL — a reload comes back to the same name (`App.tsx`). */
+  onQuery?: ((query: string) => void) | undefined
+}) {
   // Seeded by Buy's "Pay this address" handoff, with the query as typed — a
   // dotted one included, since this screen resolves through the same `search()`.
   const [text, setText] = useState(seed)
@@ -101,6 +110,11 @@ export function PayScreen({ wallet, seed }: { wallet: Wallet | null; seed: strin
   const trimmed = text.trim().toLowerCase()
   const [query, flushQuery] = useDebounced(trimmed, SETTLE_MS)
   const outcome = useAsync(query === '' ? null : () => search(query), [query, nonce])
+
+  useEffect(() => {
+    onQuery?.(query)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the URL follows the query, not the callback identity
+  }, [query])
 
   const addresses = wallet?.identity.addresses ?? []
   const sender = chosenSender ?? (wallet === null ? null : primaryAddress(wallet.identity))

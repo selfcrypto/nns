@@ -1,17 +1,25 @@
 /**
  * **Market** — every name for sale: open offers (`O`) and open auctions
- * (`A`, r28) in a modern, responsive marketplace with inline ActionSheet
- * dropdowns to buy or bid.
+ * (`A`, r28) in one list, a buyer looking for a name rather than a mechanism.
+ * *Buy* or *Bid* opens the sheet under the listing — never both, because
+ * state decides which a `B` is (§6 `A`) — with the name's proof above it: the
+ * same address, verification line and pin check the Buy card shows, so nobody
+ * pays for a name they have not seen verified. Each list renders dates off
+ * its own height, because the two endpoints answer from different blocks.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { getAuctions, getNameInfo, getOffers, type ApiAuction, type ApiOffer } from '../lib/api'
+import { getAuctions, getOffers, type ApiAuction, type ApiOffer } from '../lib/api'
 import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
 import { apiBase } from '../lib/nns'
+import { search } from '../lib/search'
 import { nameView, signerFor } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
 import type { Wallet } from '../lib/wallet'
 import { ActionSheet } from '../components/ActionSheet'
+import { BurnFigures } from '../components/BurnFigures'
+import { PinCheck } from '../components/PinCheck'
+import { AddressRow, VerificationLine } from '../components/result'
 import {
   auctionEndsLine,
   custodialWarning,
@@ -52,7 +60,9 @@ function MarketActionSheetWrapper({
   onClose: () => void
   onChanged: () => void
 }) {
-  const infoOutcome = useAsync(() => getNameInfo(apiBase(), name), [name])
+  // The same lookup the Buy card runs — resolve, proof, record — not a bare
+  // `/name`: the sheet has to show who verified the name before taking money.
+  const outcome = useAsync(() => search(name), [name])
 
   if (wallet === null) {
     return (
@@ -76,7 +86,7 @@ function MarketActionSheetWrapper({
     )
   }
 
-  if (infoOutcome.status === 'loading' || infoOutcome.status === 'idle') {
+  if (outcome.status === 'loading' || outcome.status === 'idle') {
     return (
       <div className="sheet">
         <div className="sheet-header">
@@ -95,7 +105,7 @@ function MarketActionSheetWrapper({
     )
   }
 
-  if (infoOutcome.status === 'error' || infoOutcome.value === null) {
+  if (outcome.status === 'error' || outcome.value.kind !== 'resolved' || outcome.value.info === null) {
     return (
       <div className="sheet">
         <div className="sheet-header">
@@ -112,21 +122,32 @@ function MarketActionSheetWrapper({
     )
   }
 
-  const info = infoOutcome.value
+  const { result, info } = outcome.value
   const viewers = wallet.identity.addresses
   const signer = signerFor(action, nameView(name, info, 'registered'), viewers) ?? viewers[0] ?? ''
 
   return (
-    <ActionSheet
-      action={action}
-      name={name}
-      info={info}
-      signer={signer}
-      viewers={viewers}
-      wallet={wallet}
-      onChanged={onChanged}
-      onClose={onClose}
-    />
+    <>
+      <div className="market-proof">
+        <PinCheck query={result.query} address={result.address} />
+        <div className="address-card-wrap">
+          <AddressRow address={result.address} full />
+        </div>
+        <div className="resolved-meta-section">
+          <VerificationLine result={result} />
+        </div>
+      </div>
+      <ActionSheet
+        action={action}
+        name={name}
+        info={info}
+        signer={signer}
+        viewers={viewers}
+        wallet={wallet}
+        onChanged={onChanged}
+        onClose={onClose}
+      />
+    </>
   )
 }
 
@@ -557,6 +578,8 @@ export function OffersScreen({
               </div>
               <p className={styles.custodialText}>{custodialWarning()}</p>
             </div>
+
+            <BurnFigures />
           </div>
 
           {/* Trust Bar */}

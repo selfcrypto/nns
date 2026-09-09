@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { appConfig, ConfigParseError } from './config'
 import { applyHostChrome, describeChrome, isHostedWebView } from './lib/chrome'
+import { formatRoute, parseRoute, TABS, type NavTab, type Route, type Tab } from './lib/route'
 import { detectWallet, type Wallet } from './lib/wallet'
 import { IdentityBar } from './components/IdentityBar'
 import { TabIcon, type TabIconName } from './components/icons'
@@ -16,11 +17,6 @@ import { PayScreen } from './screens/Pay'
  * the same thing the UI does. Discovery is Buy, management is My names — a name
  * you own is never handled from Buy (docs/app-ux.md §2).
  */
-type Tab = 'home' | 'buy' | 'pay' | 'names' | 'inbox' | 'market'
-type NavTab = Exclude<Tab, 'home'>
-
-const TABS: readonly NavTab[] = ['buy', 'pay', 'names', 'inbox', 'market']
-
 const TAB_LABEL: Record<Tab, string> = {
   home: 'Home',
   // "Buy/Search" rather than "Buy": the tab is still named for the job, but the
@@ -75,26 +71,30 @@ function configProblem(): string | null {
 }
 
 export function App() {
-  // The landing page is for a browser. Inside Nimiq Pay the person already
-  // chose the app, so the front door is Buy — `isHostedWebView` can miss the
-  // provider before the first paint, and `detectWallet` corrects it below.
-  const [tab, setTab] = useState<Tab>(() => (isHostedWebView(window) ? 'buy' : 'home'))
-  const [seed, setSeed] = useState('')
-  /** A name Buy handed to My names to manage, cleared when My names is done with it. */
-  const [manage, setManage] = useState<string | null>(null)
-  /** A query Buy handed to Pay. Keyed on the screen, so a second handoff starts a clean send. */
-  const [payFor, setPayFor] = useState('')
+  // The screen is the URL hash (`lib/route.ts`): a reload and a shared link
+  // land where the person was. An empty hash is the landing page for a
+  // browser and Buy inside Nimiq Pay — the person there already chose the
+  // app. `isHostedWebView` can miss the provider before the first paint, and
+  // `detectWallet` corrects the default below.
+  const [defaultTab, setDefaultTab] = useState<Tab>(() => (isHostedWebView(window) ? 'buy' : 'home'))
+  const [hash, setHash] = useState(() => window.location.hash)
+  const route = useMemo(() => parseRoute(hash, defaultTab), [hash, defaultTab])
+  const tab = route.tab
   const [wallet, setWallet] = useState<Wallet | null>(null)
   /** The identity row's address list, open or closed. */
   const [identityOpen, setIdentityOpen] = useState(false)
   // Hub connects mutate the wallet's identity in place; this counter re-renders on them.
   const [, setIdentityNonce] = useState(0)
-  /** A name handed from Buy ("Check now.") to Market, opened inline in the market list. */
-  const [openMarketName, setOpenMarketName] = useState<string | null>(null)
   const [isScrolled, setIsScrolled] = useState(false)
 
   const problem = useMemo(configProblem, [])
   const diagnostic = useMemo(() => new URLSearchParams(window.location.search).get('diag') === '1', [])
+
+  useEffect(() => {
+    const onHash = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
 
   useEffect(() => {
     const handleScroll = () => {
@@ -119,7 +119,7 @@ export function App() {
       } catch {
         /* keep whatever the first pass decided */
       }
-      if (detected.identity.kind === 'pay') setTab((current) => (current === 'home' ? 'buy' : current))
+      if (detected.identity.kind === 'pay') setDefaultTab('buy')
       setWallet(detected)
     })
     return () => {
@@ -145,17 +145,32 @@ export function App() {
     )
   }
 
-  /** Buy ("Check now.") → Market tab, auto-expanding that offer or auction. */
-  const openMarket = (name?: string) => {
-    if (name) setOpenMarketName(name)
-    setTab('market')
+  /** Go somewhere: a history entry, so back returns here. A no-op on the current route. */
+  const navigate = (next: Route) => {
+    const target = formatRoute(next)
+    if (target === window.location.hash) return
+    window.location.hash = target
+  }
+
+  /**
+   * Rewrite the current entry without a `hashchange`. Two uses: a handoff a
+   * screen has consumed (`#/names/nns` becomes `#/names` once My names shows
+   * the name), so a reload does not replay it — the route state follows; and
+   * Buy's or Pay's settled query, so a reload lands on the same card — the
+   * route state is left alone there, because those screens are keyed on the
+   * param and a remount per query would drop the field's focus.
+   */
+  const replace = (next: Route, sync: boolean) => {
+    const target = formatRoute(next)
+    window.history.replaceState(null, '', target)
+    if (sync) setHash(target)
   }
 
   /** Buy → "Manage it": management lives in My names, so go there. */
-  const manageName = (name: string) => {
-    setManage(name)
-    setTab('names')
-  }
+  const manageName = (name: string) => navigate({ tab: 'names', param: name })
+
+  /** Buy ("Check now.") → Market, with that offer or auction open. */
+  const openMarket = (name?: string) => navigate({ tab: 'market', param: name ?? null })
 
   const connect =
     wallet?.connect == null
@@ -169,7 +184,7 @@ export function App() {
       ? null
       : () => {
           wallet.disconnect?.()
-          setManage(null)
+          if (tab === 'names') replace({ tab: 'names', param: null }, true)
           setIdentityOpen(false)
           setIdentityNonce((value) => value + 1)
         }
@@ -177,14 +192,7 @@ export function App() {
   return (
     <div className={`frame is-${tab}`}>
       <header className={`masthead ${isScrolled ? 'is-scrolled' : ''}`}>
-        <h1
-          className="wordmark"
-          onClick={() => {
-            setOpenMarketName(null)
-            setTab('home')
-          }}
-          style={{ cursor: 'pointer' }}
-        >
+        <h1 className="wordmark" onClick={() => navigate({ tab: 'home', param: null })} style={{ cursor: 'pointer' }}>
           nns
         </h1>
         <p className="masthead-sub">names on Nimiq</p>
@@ -199,32 +207,37 @@ export function App() {
       </header>
       <main className="content">
         {diagnostic && <ChromeDiagnostic wallet={wallet} />}
-        {tab === 'home' && <HomeScreen onSearch={(q) => { setSeed(q); setTab('buy'); }} />}
+        {tab === 'home' && <HomeScreen onSearch={(query) => navigate({ tab: 'buy', param: query })} />}
         {tab === 'buy' && (
           <BuyScreen
-            key={seed}
+            key={route.param ?? ''}
             wallet={wallet}
-            seed={seed}
+            seed={route.param ?? ''}
+            onQuery={(query) => replace({ tab: 'buy', param: query }, false)}
             onManage={manageName}
-            onPay={(query) => {
-              setPayFor(query)
-              setTab('pay')
-            }}
+            onPay={(query) => navigate({ tab: 'pay', param: query })}
             onConnect={connect}
             onMarket={openMarket}
           />
         )}
-        {tab === 'pay' && <PayScreen key={payFor} wallet={wallet} seed={payFor} />}
+        {tab === 'pay' && (
+          <PayScreen
+            key={route.param ?? ''}
+            wallet={wallet}
+            seed={route.param ?? ''}
+            onQuery={(query) => replace({ tab: 'pay', param: query }, false)}
+          />
+        )}
         {tab === 'names' && (
-          <MyNamesScreen wallet={wallet} manage={manage} onManageHandled={() => setManage(null)} />
+          <MyNamesScreen wallet={wallet} manage={route.param} onManageHandled={() => replace({ tab: 'names', param: null }, true)} />
         )}
         {tab === 'inbox' && <InboxScreen wallet={wallet} />}
         {tab === 'market' && (
           <OffersScreen
             wallet={wallet}
             onConnect={connect}
-            initialOpenName={openMarketName}
-            onClearInitial={() => setOpenMarketName(null)}
+            initialOpenName={route.param}
+            onClearInitial={() => replace({ tab: 'market', param: null }, true)}
           />
         )}
       </main>
@@ -236,9 +249,10 @@ export function App() {
               type="button"
               className={tab === entry ? 'tab tab-active' : 'tab'}
               aria-current={tab === entry ? 'page' : undefined}
+              // The active tab is a no-op: a tap there must not clear the
+              // query the screen reflected into the URL.
               onClick={() => {
-                if (entry !== 'market') setOpenMarketName(null)
-                setTab(entry)
+                if (entry !== tab) navigate({ tab: entry, param: null })
               }}
             >
               <TabIcon name={TAB_ICON[entry]} />

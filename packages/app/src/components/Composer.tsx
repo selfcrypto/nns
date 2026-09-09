@@ -36,6 +36,7 @@ export function Composer({
   sender,
   heading,
   onSent,
+  onBusy,
 }: {
   name: string
   /** The owner's address (or the thread peer). Null when unknown — composing stays possible, sending does not. */
@@ -43,12 +44,19 @@ export function Composer({
   wallet: Wallet | null
   /** The signing address — the identity set's primary. */
   sender: string | null
-  heading?: string | undefined
+  /** The line above the field. Undefined: "To the owner of <name>". Null: no line — the host already says who. */
+  heading?: string | null | undefined
   onSent?: ((result: SendResult) => void) | undefined
+  /** Fires with `true` while a send is in flight, so a host sheet can refuse to close over it. */
+  onBusy?: ((busy: boolean) => void) | undefined
 }) {
   const [text, setText] = useState('')
-  const [progress, setProgress] = useState<'idle' | 'submitting' | 'confirming'>('idle')
+  const [progress, setProgressState] = useState<'idle' | 'submitting' | 'confirming'>('idle')
   const [result, setResult] = useState<SendResult | null>(null)
+  const setProgress = (phase: 'idle' | 'submitting' | 'confirming') => {
+    setProgressState(phase)
+    onBusy?.(phase !== 'idle')
+  }
 
   const ownName = recipient !== null && sender !== null && sameAddress(recipient, sender)
   if (ownName) return <p className="note note-info">{chatOwnNameLine()}</p>
@@ -88,10 +96,12 @@ export function Composer({
 
   return (
     <div className="composer">
-      <p className="composer-to">
-        {heading ?? 'To the owner of '}
-        {heading === undefined && <NameText>{name}</NameText>}
-      </p>
+      {heading !== null && (
+        <p className="composer-to">
+          {heading ?? 'To the owner of '}
+          {heading === undefined && <NameText>{name}</NameText>}
+        </p>
+      )}
       <textarea
         className="composer-input"
         rows={2}

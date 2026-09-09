@@ -52,6 +52,16 @@ person already chose the app, so the front door there is Buy
 (`isHostedWebView`, corrected by `detectWallet` if the provider arrived
 late). The wordmark returns to the landing page.
 
+**The screen is the URL hash** (`lib/route.ts`, 2026-09-09, Bakar's
+suggestion): `#/buy/nns`, `#/pay/rico.nns`, `#/names/nns` (a name handed to
+My names), `#/market/indigo` (a listing to open), `#/inbox`, `#/home`. A
+reload and a shared link land where the person was; the WebView's back
+button has something to pop; Buy and Pay reflect their settled query into
+the hash so the card survives a reload. The hash rather than the path
+because `deploy/service`'s nginx deliberately 404s an unknown path and
+every independent host would need the same rewrite; no router library
+(decisions.md, "Routes are the hash, and the hash is one function pair").
+
 Five tabs, and the first two are named for jobs rather than mechanisms:
 **Buy/Search** is discovery and acquisition, **Pay** sends NIM to a name —
 and, since 2026-08-23, **USDT over Polygon** to the name's §6 `E` record: an
@@ -82,20 +92,26 @@ nothing — and it is also what stops the field hint scolding a half-typed name.
 Hints are computed off the settled value for that reason. Outcomes are
 `docs/app-states.md` §3, each a card. Beyond what is built today:
 
-**Buy offers acquisition only** — `register`, `buy` and `bid` (the last two
-never together: state says which a `B` is, §6 `A`). A name one of the
-viewer's addresses owns gets "You own this name." and a **Manage it** button that
-hands off to My names, because acquiring and managing are different jobs and a
-screen called Buy offering to transfer your own name away is a contradiction. The
-owner's eight (`setTarget`, `setEvm`, `transfer`, `delegate`, `renew`, `offer`,
-`auction`, `cancel`) are not rendered here at all. Legality is unchanged: `actionGates` and `signerFor`
-still decide what is possible — this decides what the screen is *for*.
+**Buy offers acquisition only** — `register` as a full-width action that
+opens the `G` sheet, and for a name that is for sale or under auction a line
+saying so with **Check now.**, which hands the name to Market
+(`#/market/<name>`), where the `B` flow lives since the redesign (2026-09-09,
+Bakar's PR #2; `buy` and `bid` are never both, because state says which a
+`B` is, §6 `A`). A name one of the viewer's addresses owns gets "You own
+this" and a **Manage** button that hands off to My names, because acquiring
+and managing are different jobs and a screen called Buy offering to transfer
+your own name away is a contradiction. The owner's eight (`setTarget`,
+`setEvm`, `transfer`, `delegate`, `renew`, `offer`, `auction`, `cancel`) are
+not rendered here at all. Legality is unchanged: `actionGates` and
+`signerFor` still decide what is possible — this decides what the screen is
+*for*.
 
-- **Taken name (resolved card)** gains a **"Message the owner"** row — the
-  chat entry point (`docs/app-chat.md`). Opens the composer prefilled with
-  the name; not offered when the viewer owns it, which is the handoff instead.
-- **Available name** card's Register row becomes the `G` flow (§5) when
-  sends enable.
+- **Taken name (resolved card)** gains a **"Message the owner"** button — the
+  chat entry point (`docs/app-chat.md`). Opens a bottom sheet
+  (`components/MessageModal.tsx`) around the one composer, prefilled with the
+  name; not offered when the viewer owns it, which is the handoff instead.
+- Every resolved card — Buy's included — carries the verification line
+  (§8.5 #6): who verified, by name and URL, or that a delegate answered.
 
 ## 3. My names / Pay / Inbox / Market
 
@@ -104,7 +120,11 @@ from 60 days, grace with grace-end date). **Row → that name's card in place**,
 with a back link to the list — it does not change tab, because this is where
 management happens. The card is the same component Buy renders
 (`components/NameCard.tsx`), given the owner action list instead of the
-acquisition one. When sends enable, a *Renew* shortcut rides on due/grace rows.
+acquisition one: since the redesign the eight are tiles in three groups
+(routing & records, ownership & renewal, marketplace), each showing the
+current value, and a tile opens its sheet as a bottom sheet over the page.
+A tile the legality matrix gates stays on screen with its reason; only a
+missing wallet turns a tile into *connect*.
 
 Identity does **not** live on this screen. It is one control
 (`components/IdentityBar.tsx`), on every tab, in the masthead's right corner:
@@ -156,9 +176,13 @@ revocation to wrap.
 since r28, auction rows (name with an *Auction* badge, the standing bid or
 the starting price, "No bids yet" or the highest bid, the minimum next bid, seller,
 "ends ≈ date") in one list — a buyer is looking for a name, not a mechanism.
-Row → detail card, where *Buy* or *Bid* enters the `B` flow (§5): never
-both, because state decides which a `B` is. The custodial disclosure rides
-on the listing as well.
+*Buy* or *Bid* opens the `B` sheet (§5) under the listing — never both,
+because state decides which a `B` is — with the name's proof above it: the
+address, the verification line and the pin check, the same three the Buy
+card shows, so nobody pays for a name they have not seen verified. The
+custodial disclosure rides on the listing as well, and the §10.2 burn
+figures (`components/BurnFigures.tsx`) sit under it — Market is the app
+path's home for them, because Pay never opens the landing page.
 
 ### Pay — one payment to a name
 

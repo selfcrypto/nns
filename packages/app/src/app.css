@@ -3347,3 +3347,13 @@ li.note {
   font-variant-numeric: tabular-nums;
 }
 
+
+/* Market: the name's proof above the buy/bid sheet — the same three lines the
+   Buy card shows, so nobody pays for a name they have not seen verified. */
+.market-proof {
+  padding: 4px 4px 12px;
+}
+
+.market-proof .resolved-meta-section {
+  margin-top: 10px;
+}

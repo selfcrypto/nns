@@ -298,7 +298,7 @@ export function MyNamesScreen({
                   const graceEnd = formatApproxDate(approxDate(ownedName.expiry + CONSTANTS.GRACE_PERIOD, height, nowMs))
                   return (
                     <li key={ownedName.name} className={styles.nameItem}>
-                      <button type="button" className={styles.nameRow} onClick={() => setSelected(ownedName.name)}>
+                      <button type="button" className={`name-row ${styles.nameRow}`} onClick={() => setSelected(ownedName.name)}>
                         <div className={styles.nameAvatar}>
                           {ownedName.target ? (
                             <Identicon address={ownedName.target} size={36} />
