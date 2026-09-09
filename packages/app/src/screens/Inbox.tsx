@@ -461,7 +461,20 @@ function ConversationView({
   }, [])
 
   useEffect(() => {
-    bubblesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    requestAnimationFrame(() => {
+      // 1. Scroll the chat bubbles container to the bottom
+      const container = bubblesEndRef.current?.parentElement
+      if (container) container.scrollTop = container.scrollHeight
+      // 2. Single smooth scroll: bring the trust bar into view + 100px for the tab bar
+      const trustBar = document.querySelector('[class*="trustBar"]')
+      if (trustBar) {
+        const rect = trustBar.getBoundingClientRect()
+        const target = window.scrollY + rect.bottom + 100 - window.innerHeight
+        if (target > window.scrollY) {
+          window.scrollTo({ top: target, behavior: 'smooth' })
+        }
+      }
+    })
   }, [conversation.messages.length])
 
   return (
