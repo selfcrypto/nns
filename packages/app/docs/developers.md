@@ -137,7 +137,7 @@ The fourteen messages:
 
 Build payloads with `@nns/core` — `encodeRegister`, `encodeSetTarget`, `encodeSetEvm`, `encodeTransfer`, `encodeDelegate`, `encodeCancel`, `encodeRenew`, `encodeOffer`, `encodeBuy`, `encodeAuction` — which validate inputs and refuse anything the reducer would refuse. Every encoder checks the byte ceiling, because an over-length message fails silently.
 
-**The `ref` field on a registration** is up to {{n:MAX_REF_LEN}} characters (`a–z 0–9 -`) naming the application that drove the registration, so an integrator share can be paid. It has no effect on validity, price or ownership: a malformed or unknown `ref` is ignored and the registration proceeds. Revenue sharing is an operator policy, not a protocol rule.
+**The `ref` field on a registration** is a registered name — up to {{n:MAX_REF_LEN}} characters (`a–z 0–9 -`) — whose owner drove the registration, so the referral share can be paid to it. It has no effect on validity, price or ownership: a malformed or unknown `ref` is ignored and the registration proceeds. The share is an operator policy, not a protocol rule; the rules and the rate table are on the referrals page.
 
 Same-block order is by transaction hash, ascending. A message that is refused still occupies its position.
 

@@ -269,7 +269,7 @@ export function validateHost(host: string): HostValidation {
   return { ok: true }
 }
 
-// ── Integrator referrer (§6 `G`) ────────────────────────────────────────────
+// ── Referrer (§6 `G`) ────────────────────────────────────────────────────────
 
 /**
  * §6 `G` `ref`: 1…`MAX_REF_LEN` characters from `a-z`, `0-9`, `-`.

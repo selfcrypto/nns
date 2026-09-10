@@ -39,7 +39,7 @@ describe('CONSTANTS — §3', () => {
     // Literal pins: recomputed from constants, but asserted against the numbers
     // §6 prints. The *relation* they feed is the test below, kept separate so a
     // profile that moved one of these still reaches the budget check.
-    expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + CONSTANTS.MAX_REF_LEN).toBe(42) // G
+    expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + CONSTANTS.MAX_REF_LEN).toBe(54) // G
     expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + 15).toBe(45) // O
     expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + 15 + 1 + 10).toBe(56) // A
   })
@@ -132,7 +132,7 @@ describe('CONSTANTS — §3', () => {
       MAX_NAME_LEN: 24,
       MAX_LABEL_LEN: 24,
       MAX_HOST_LEN: 30,
-      MAX_REF_LEN: 12,
+      MAX_REF_LEN: 24,
       DUST_VALUE: 1n,
       REFUND_FLOOR: 100_000n,
       LISTING_FEE: 0n,

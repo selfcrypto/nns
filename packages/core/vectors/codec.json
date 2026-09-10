@@ -517,8 +517,8 @@
       },
       {
         "id": "over_length_ref_recorded_as_absent",
-        "text": "NNS1Gkikename|aaaaaaaaaaaaa",
-        "data": "4e4e5331476b696b656e616d657c61616161616161616161616161",
+        "text": "NNS1Gkikename|aaaaaaaaaaaaaaaaaaaaaaaaa",
+        "data": "4e4e5331476b696b656e616d657c61616161616161616161616161616161616161616161616161",
         "result": {
           "ok": true,
           "message": {

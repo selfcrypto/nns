@@ -95,8 +95,11 @@ export const CONSTANTS = Object.freeze({
    * until `LAUNCH_HEIGHT`; after it, an addition is a spec revision.
    */
   RESERVED_NAMES,
-  /** Integrator referrer id, §6 `G`. */
-  MAX_REF_LEN: 12,
+  /**
+   * Referrer on a registration, §6 `G` — a registered name, so it equals
+   * `MAX_NAME_LEN`. `G` at its largest is 54 bytes (§5.1's ceiling is 64).
+   */
+  MAX_REF_LEN: 24,
 
   // ── Value (§5.4) ──────────────────────────────────────────────────────────
   /**

@@ -300,7 +300,7 @@ NIM figures assume ~$0.0005/NIM.
 | `MAX_NAME_LEN` | 24 chars | Longer than any handle people actually use; keeps messages well inside 64 bytes |
 | `MAX_LABEL_LEN` | 24 chars | Subdomain label (§4.4) |
 | `MAX_HOST_LEN` | 30 chars | Delegate resolver host (§6 `D`); `resolver.binance.com` is 20 |
-| `MAX_REF_LEN` | 12 chars | Integrator referrer id (§6 `G`) — fits real names (`coinbase` is 8) with room to spare |
+| `MAX_REF_LEN` | 24 chars | Referrer on a registration (§6 `G`) — a registered name, so it equals `MAX_NAME_LEN` |
 | `FEE_STANDARD` | 2,000 NIM (~$1) | Names of 5–11 characters; governable |
 | `FEE_LONG` | 400 NIM (~$0.20) | Names of 12+ characters; governable |
 | `BURN_SHARE` | 20% | Of all revenue received, forwarded to `BURN_ADDRESS` |
@@ -706,17 +706,18 @@ NNS1G<name>
 NNS1G<name>|<ref>
 ```
 
-- **Size:** 5 + `MAX_NAME_LEN` + 1 + `MAX_REF_LEN` = **42 bytes** max, well
-  inside the verified 64-byte ceiling (§5.1)
+- **Size:** 5 + `MAX_NAME_LEN` + 1 + `MAX_REF_LEN` = **54 bytes** max, inside
+  the verified 64-byte ceiling (§5.1)
 - **To:** `TREASURY_ADDRESS`
 - **Value:** ≥ the fee for this name's length band at this block height
   (§10.1, §10.6)
-- `ref`: **optional** integrator identifier, 1…`MAX_REF_LEN` characters from
-  `a-z`, `0-9`, `-`. Records which application drove the registration so an
-  integrator share can be paid (§10.7). It has **no effect on validity,
-  price, or ownership**: an unknown, malformed, or absent `ref` is recorded
-  as absent and the registration proceeds normally. Deliberately inert — a
-  revenue-sharing detail must never be able to reject a paid registration
+- `ref`: **optional** referrer, 1…`MAX_REF_LEN` characters from `a-z`,
+  `0-9`, `-` — **a registered name** whose owner drove the registration, so
+  the referral share can be paid to it (§10.7). It has **no effect on
+  validity, price, or ownership**: an unknown, malformed, or absent `ref` is
+  recorded as absent and the registration proceeds normally. Deliberately
+  inert — a revenue-sharing detail must never be able to reject a paid
+  registration
 
 The field exists in r10 rather than later because adding one after the
 format freeze would require a new spec version; leaving it unused costs
@@ -976,7 +977,8 @@ NNS1M<height>|<tx_index>
 - **To:** the party being paid or refunded
 - **Value:** the amount owed for the referenced transaction
 - Sender MUST be `MARKETPLACE_ADDRESS` (for a `B`) or `TREASURY_ADDRESS`
-  (for a refunded `G`) — whichever address holds the funds
+  (for a refunded `G`, or the §10.7 referral share on one) — whichever
+  address holds the funds
 
 References the transaction being settled by block height and transaction
 index — the same canonical identity used everywhere else. No effect on name
@@ -2966,17 +2968,49 @@ the log, so they are auditable in the same way as the burn share, but an
 indexer never validates them and a missed payout can never invalidate a
 registration.
 
-**Integrator share.** A percentage of the registration fee attributable to
-a `ref` (§6 `G`), paid to the application that drove it. This is the one
-place where a usage-based share is the right instrument: it rewards
-distribution, which is exactly what an integrating app provides.
+**Referral share.** A percentage of the registration fee attributable to
+a `ref` (§6 `G`), paid to the owner of the name that drove it. This is the
+one place where a usage-based share is the right instrument: it rewards
+distribution, which is exactly what a referrer provides — an integrating
+app and a user sharing a link alike, since a `ref` is a registered name and
+nothing distinguishes the two.
 
-The obvious abuse is self-referral — an operator registering junk names
-under its own `ref` to buy them at a discount, which erodes the price floor
-that bounds the log (§8.2). Mitigations are policy, not protocol: `ref` ids
-are issued on application, the share is paid in arrears against reviewed
-totals, and the rate is set below the level at which farming beats simply
-not registering. **OPEN:** the rate.
+The rules the treasury's payer follows, stated here so that anyone holding
+the log and the published rate table computes the same shares:
+
+- **Eligibility and payee are read from state at the `G`'s own position in
+  canonical order, before the `G` reduces.** The `ref` must name a
+  `REGISTERED` name at that position; its `target` then is the payee.
+  Anything else — absent, malformed, unregistered, in `GRACE` — is what §6
+  `G` already says: recorded as absent, nothing owed. A `G` cannot refer to
+  the name it registers, since that name does not exist when it reduces.
+- **A share is owed only on an `OK` `G`.** A refunded or forfeited `G`
+  registered nothing.
+- **Amount is `⌊price × rate⌋`**, `rate` in basis points, `price` the fee
+  in effect at the `G`'s height for the name's band (§10.6) — never the
+  value sent, so an overpayment cannot farm a share. Nothing is owed when
+  the floor is zero; there is no refund-floor test, since the treasury is
+  paying out its own revenue.
+- **The rate is a published table**: a default (**1,000 bp** at launch) and
+  per-`ref` overrides, each row with the height it applies from. The row in
+  effect for a `(ref, height)` is the most specific `ref` among rows whose
+  height is at or below the `G`'s, latest height winning. Rows are appended
+  with a height and never edited, so a recomputation reproduces every past
+  share. A partner's larger row is a contract, published like the rest.
+- **The wire is an `M` from `TREASURY_ADDRESS` to the payee, referencing
+  the `G`, whose value is the share** — issued per registration, past
+  finality, at the same cadence as a refund. The reducer creates no leg for
+  it, so under §6 `M` the transaction is accepted, `OK`, and discharges
+  nothing: the debt exists only in the payer's ledger, which is what keeps
+  this a policy rather than a rule. Settled-versus-owed for shares is
+  computable from the log and the table by anyone, and disagreeing with the
+  payer never changes a root.
+
+Self-referral is bounded by construction. The referring name must already
+be registered, so an owner registering junk under their own name pays the
+full fee and receives `rate` of it back — at any rate below 100% farming
+costs more than not registering, and the price floor that bounds the log
+(§8.2) holds. The rate is otherwise set for distribution, not defence.
 
 **Independent-publisher stipend.** A per-checkpoint payment to operators who
 anchor a root matching consensus (§9). The qualifying condition is
@@ -3122,7 +3156,9 @@ Decisions pending:
    dropped without asking**: hard to implement, questionable result, and
    nobody would deploy it — §2.2's remaining mitigations stand on their
    own
-7. Integrator share rate and `ref` issuance process (§10.7)
+7. ~~Integrator share rate and `ref` issuance process~~ — closed 2026-09-10:
+   a `ref` is a registered name, the rate is a published table with a 1,000
+   bp default, paid per registration as an `M` (§10.7)
 8. Whether the publisher stipend exists in v1 at all (§10.7)
 9. Whether a Nimiq-side log attestation message (an `L` type carrying the
    CID digest) is worth adding, giving a verification path that never
@@ -3200,7 +3236,7 @@ exchange story real, so it should not be cut before step 7 or 8.
   marketplace and treasury addresses respectively
 - Resolver API serving proofs
 - Mini app
-- Integrator guide: the resolver package, `ref` registration, and the
+- Integrator guide: the resolver package, sharing a `ref` link, and the
   §2.2 argument for why an app should ship its own client rather than
   iframe someone else's
 - **Delegate resolver reference implementation** — a ~100-line service an

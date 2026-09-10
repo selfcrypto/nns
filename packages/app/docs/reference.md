@@ -15,7 +15,7 @@ Every honest implementation on the same network agrees on these byte for byte. N
 | `MAX_NAME_LEN` | {{n:MAX_NAME_LEN}} | Longest registrable name |
 | `MAX_LABEL_LEN` | {{n:MAX_LABEL_LEN}} | Longest subdomain label |
 | `MAX_HOST_LEN` | {{n:MAX_HOST_LEN}} | Longest subdomain host (name and host together ≤ 52) |
-| `MAX_REF_LEN` | {{n:MAX_REF_LEN}} | Longest integrator reference on a registration |
+| `MAX_REF_LEN` | {{n:MAX_REF_LEN}} | Longest referrer on a registration — a name, so it equals `MAX_NAME_LEN` |
 
 **Prices and money** — governable means changeable by an on-chain governance message, within the bounds shown
 

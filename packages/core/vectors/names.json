@@ -121,8 +121,8 @@
     "cases": [
       { "id": "typical", "ref": "coinbase", "valid": true },
       { "id": "single_character", "ref": "a", "valid": true },
-      { "id": "max_length", "ref": "aaaaaaaaaaaa", "valid": true },
-      { "id": "over_max_length", "ref": "aaaaaaaaaaaaa", "valid": false },
+      { "id": "max_length", "ref": "aaaaaaaaaaaaaaaaaaaaaaaa", "valid": true },
+      { "id": "over_max_length", "ref": "aaaaaaaaaaaaaaaaaaaaaaaaa", "valid": false },
       { "id": "empty", "ref": "", "valid": false },
       { "id": "uppercase", "ref": "Coinbase", "valid": false },
       { "id": "pipe", "ref": "a|b", "valid": false }

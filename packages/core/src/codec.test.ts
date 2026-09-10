@@ -264,7 +264,7 @@ describe('builders fail loudly where the chain would fail silently', () => {
     // parse() records a bad ref as absent; a *builder* has a client in front
     // of it, so it says so instead.
     expect(() => encodeRegister({ name: 'kikename', ref: 'Coinbase', fee: 1n })).toThrow(/invalid ref/)
-    expect(() => encodeRegister({ name: 'kikename', ref: 'a'.repeat(13), fee: 1n })).toThrow(/invalid ref/)
+    expect(() => encodeRegister({ name: 'kikename', ref: 'a'.repeat(25), fee: 1n })).toThrow(/invalid ref/)
   })
 
   it('rejects an O price or an A starting price below MIN_PRICE (§6 O, §6 A)', () => {
@@ -326,7 +326,7 @@ describe('parse tolerance — §5.2, §7.5', () => {
     // "Accounting must never be able to reject a paid registration."
     expect(parsed('NNS1Gkikename|Coinbase')).toEqual({ type: 'G', name: 'kikename', ref: null })
     expect(parsed('NNS1Gkikename|')).toEqual({ type: 'G', name: 'kikename', ref: null })
-    expect(parsed(`NNS1Gkikename|${'a'.repeat(13)}`)).toEqual({ type: 'G', name: 'kikename', ref: null })
+    expect(parsed(`NNS1Gkikename|${'a'.repeat(25)}`)).toEqual({ type: 'G', name: 'kikename', ref: null })
     expect(parsed('NNS1Gkikename|a|b')).toEqual({ type: 'G', name: 'kikename', ref: null })
   })
 
@@ -376,9 +376,9 @@ describe('parse tolerance — §5.2, §7.5', () => {
 describe('§6 stated message sizes', () => {
   const bytes = (data: string): number => data.length / 2
 
-  it('G at maximum is 42 bytes', () => {
-    const tx = encodeRegister({ name: 'a'.repeat(24), ref: 'b'.repeat(12), fee: 1n })
-    expect(bytes(tx.data)).toBe(42)
+  it('G at maximum is 54 bytes', () => {
+    const tx = encodeRegister({ name: 'a'.repeat(24), ref: 'b'.repeat(24), fee: 1n })
+    expect(bytes(tx.data)).toBe(54)
   })
 
   it('D at maximum is 58 bytes', () => {
