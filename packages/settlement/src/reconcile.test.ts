@@ -24,6 +24,9 @@ import {
   testConfig,
 } from './test-fixtures.js'
 import { describeReport, isSound, reconcile } from './reconcile.js'
+import { parseRateTable } from './rates.js'
+import { createShareCollector } from './share.js'
+import { testAddress } from './test-fixtures.js'
 import { replayLog } from './replay.js'
 
 const NAME = 'alicename'
@@ -186,5 +189,52 @@ describe('reconcile', () => {
     expect(report.totalSettled).toBe(report.totalCreated)
     expect(report.standing).toEqual([])
     expect(isSound(report)).toBe(true)
+  })
+})
+
+describe('reconcile — the §10.7 shares section', () => {
+  const REFERRER_OWNER = testAddress(20)
+  const RATES = parseRateTable({ rates: [{ ref: null, bp: 1000, fromHeight: 0 }] })
+  const newcomerFee = feeFor('newcomer', initialState().prices)
+  const SHARE = (newcomerFee * 1000n) / 10_000n
+  const referred = [
+    send(H.register, 0, REFERRER_OWNER, encodeRegister({ name: 'ricoref', fee: feeFor('ricoref', initialState().prices) })),
+    send(H.offer, 0, WINNER, encodeRegister({ name: 'newcomer', fee: newcomerFee, ref: 'ricoref' })),
+  ]
+  const paid = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.offer, txIndex: 0, payee: REFERRER_OWNER, amount: SHARE }))
+
+  const reportWithShares = (sends: typeof referred) => {
+    const staged = stageLog(sends, config)
+    const collector = createShareCollector(RATES)
+    const replay = replayLog(staged.lines, initialState(), config, LAUNCH_HEIGHT + 720, collector.observe)
+    return reconcile({ replay, checkpointHeight: LAUNCH_HEIGHT + 720, boundToCheckpoint: true, logHash: '00'.repeat(32), shares: collector.result() })
+  }
+
+  it('reports shares apart from the reducer’s ledger, which they never enter', () => {
+    const report = reportWithShares(referred)
+    expect(report.lines).toEqual([])
+    expect(report.totalCreated).toBe(0n)
+    expect(report.shares).toMatchObject({ created: SHARE, settled: 0n, outstanding: SHARE, createdCount: 1, settledCount: 0 })
+    expect(report.shares?.standing[0]).toMatchObject({ name: 'newcomer', referrer: 'ricoref', owedTo: REFERRER_OWNER, rateBp: 1000n })
+    expect(isSound(report)).toBe(true)
+  })
+
+  it('a paid share is settled in its section and is not an unmatched settlement', () => {
+    const report = reportWithShares([...referred, paid])
+    expect(report.shares).toMatchObject({ settled: SHARE, outstanding: 0n, settledCount: 1 })
+    expect(report.unmatched).toEqual([])
+    expect(report.shares?.standing).toEqual([])
+  })
+
+  it('without a table the section is null and the same M is an unmatched settlement', () => {
+    const report = reportFor([...referred, paid])
+    expect(report.shares).toBeNull()
+    expect(report.unmatched).toHaveLength(1)
+  })
+
+  it('prints the section with the referrer and the rate', () => {
+    const text = describeReport(reportWithShares(referred)).join('\n')
+    expect(text).toContain('referral shares (§10.7, policy — in no root)')
+    expect(text).toContain('newcomer via ricoref at 1000 bp')
   })
 })

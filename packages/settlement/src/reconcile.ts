@@ -38,6 +38,7 @@
 import { formatAddress, refKey, type Address, type ObligationKind, type TxRef } from '@nns/core'
 
 import type { CreatedLeg, ReplayResult, SettledLeg, UnmatchedSettlement, VerdictMismatch } from './replay.js'
+import { NO_SHARES, type ShareLeg, type ShareResult } from './share.js'
 
 /** Totals for one `(owedBy, kind)` pair. */
 export interface LedgerLine {
@@ -62,6 +63,27 @@ export interface StandingLeg {
   readonly ageBlocks: number
 }
 
+/** A referral share still owed (§10.7) — policy, reported apart from the reducer's legs. */
+export interface StandingShare {
+  readonly ref: TxRef
+  readonly name: string
+  readonly referrer: string
+  readonly owedTo: Address
+  readonly amount: bigint
+  readonly rateBp: bigint
+  readonly ageBlocks: number
+}
+
+/** The §10.7 section of the report. Its identity holds by construction; it is printed, not asserted. */
+export interface ShareReport {
+  readonly created: bigint
+  readonly settled: bigint
+  readonly outstanding: bigint
+  readonly createdCount: number
+  readonly settledCount: number
+  readonly standing: readonly StandingShare[]
+}
+
 export interface Report {
   readonly checkpointHeight: number
   readonly boundToCheckpoint: boolean
@@ -77,6 +99,8 @@ export interface Report {
   readonly mismatches: readonly VerdictMismatch[]
   /** False when `created ≠ settled + outstanding` anywhere — a replay bug. */
   readonly balanced: boolean
+  /** `null` when the reconciler ran without a rate table. */
+  readonly shares: ShareReport | null
 }
 
 export interface ReconcileInput {
@@ -84,6 +108,29 @@ export interface ReconcileInput {
   readonly checkpointHeight: number
   readonly boundToCheckpoint: boolean
   readonly logHash: string
+  /** The §10.7 shares collected beside the replay; omit to report none. */
+  readonly shares?: ShareResult | null | undefined
+}
+
+const sumShares = (legs: readonly ShareLeg[]): bigint => legs.reduce((total, leg) => total + leg.amount, 0n)
+
+function shareReport(shares: ShareResult, head: number): ShareReport {
+  return Object.freeze({
+    created: sumShares(shares.created),
+    settled: sumShares(shares.settled.map((item) => item.leg)),
+    outstanding: sumShares(shares.outstanding),
+    createdCount: shares.created.length,
+    settledCount: shares.settled.length,
+    standing: shares.outstanding.map((leg) => ({
+      ref: leg.ref,
+      name: leg.name,
+      referrer: leg.referrer,
+      owedTo: leg.owedTo,
+      amount: leg.amount,
+      rateBp: leg.rateBp,
+      ageBlocks: Math.max(0, head - leg.ref.height),
+    })),
+  })
 }
 
 const lineKey = (owedBy: Address, kind: ObligationKind): string => `${owedBy}:${kind}`
@@ -165,6 +212,12 @@ export function reconcile(input: ReconcileInput): Report {
 
   const sum = (pick: (line: LedgerLine) => bigint): bigint => lines.reduce((total, line) => total + pick(line), 0n)
 
+  // An `M` that paid a share matched nothing in the reducer's books, by
+  // design (§6 `M`, §10.7); it is matched here and is not a finding.
+  const shares = input.shares ?? null
+  const paidShares = new Set((shares ?? NO_SHARES).settled.map((item) => refKey(item.settledAt)))
+  const unmatched = replay.unmatched.filter((item) => !paidShares.has(refKey(item.at)))
+
   return Object.freeze({
     checkpointHeight: input.checkpointHeight,
     boundToCheckpoint: input.boundToCheckpoint,
@@ -176,9 +229,10 @@ export function reconcile(input: ReconcileInput): Report {
     totalSettled: sum((line) => line.settled),
     totalOutstanding: sum((line) => line.outstanding),
     standing,
-    unmatched: replay.unmatched,
+    unmatched,
     mismatches: replay.mismatches,
     balanced,
+    shares: shares === null ? null : shareReport(shares, head),
   })
 }
 
@@ -254,6 +308,19 @@ export function describeReport(report: Report): readonly string[] {
       )
     }
     out.push('  An obligation in flight between a B and its M is normal; how long is too long is an operator policy, not a rule here.')
+  }
+
+  if (report.shares !== null) {
+    out.push('')
+    out.push(
+      `referral shares (§10.7, policy — in no root): created ${nim(report.shares.created)}, settled ${nim(report.shares.settled)}, outstanding ${nim(report.shares.outstanding)} NIM ` +
+        `over ${report.shares.createdCount} referred registration(s), ${report.shares.settledCount} paid`,
+    )
+    for (const leg of report.shares.standing) {
+      out.push(
+        `  ${ref(leg.ref).padEnd(20)} ${leg.name} via ${leg.referrer} at ${leg.rateBp} bp ${nim(leg.amount).padStart(14)} NIM  to ${formatAddress(leg.owedTo)}  (standing ${leg.ageBlocks} blocks)`,
+      )
+    }
   }
 
   if (report.unmatched.length > 0) {

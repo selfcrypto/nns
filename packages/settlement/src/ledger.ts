@@ -65,10 +65,10 @@
  * snapshot, so the ledger reads no node to decide either.
  */
 
-import { formatAddress, parseAddress, refKey, type Address, type NnsConfig, type ObligationKind, type TxRef } from '@nns/core'
+import { formatAddress, parseAddress, refKey, type Address, type NnsConfig, type TxRef } from '@nns/core'
 import { configFingerprint, toLuna, type Logger } from '@nns/indexer'
 
-import { obligationKey, type DueObligation, type WatchSnapshot } from './watch.js'
+import { obligationKey, type DueObligation, type LedgerKind, type WatchSnapshot } from './watch.js'
 import { migrateLedger, withTransaction, type Pool } from './db.js'
 import type { PoolClient } from 'pg'
 
@@ -99,7 +99,7 @@ export interface LiveAttempt {
 export interface LedgerEntry {
   readonly key: string
   readonly ref: TxRef
-  readonly kind: ObligationKind
+  readonly kind: LedgerKind
   readonly owedBy: Address
   readonly owedTo: Address
   readonly amount: bigint
@@ -122,7 +122,7 @@ export interface StoredSource {
 export interface ConfirmedLeg {
   readonly key: string
   readonly ref: TxRef
-  readonly kind: ObligationKind
+  readonly kind: LedgerKind
   readonly confirmedHeight: number
   /** The attempt that paid it, or `null` — nobody here sent one. */
   readonly attemptNo: number | null
@@ -132,7 +132,7 @@ export interface ConfirmedLeg {
 export interface DeadAttempt {
   readonly key: string
   readonly ref: TxRef
-  readonly kind: ObligationKind
+  readonly kind: LedgerKind
   readonly attemptNo: number
   readonly expiresAfter: number
   readonly txHash: string | null
@@ -162,7 +162,7 @@ export interface LedgerUpdate {
  */
 export interface TransactionPlan {
   readonly ref: TxRef
-  readonly kind: ObligationKind
+  readonly kind: LedgerKind
   readonly sender: Address
   readonly recipient: Address
   readonly value: bigint
@@ -374,7 +374,7 @@ export interface Ledger {
    */
   pin(plan: TransactionPlan): Promise<number>
   /** Record that a node returned a hash for a pinned attempt. */
-  markSent(ref: TxRef, kind: ObligationKind, attemptNo: number, txHash: string): Promise<void>
+  markSent(ref: TxRef, kind: LedgerKind, attemptNo: number, txHash: string): Promise<void>
   summary(): Promise<LedgerSummary>
   readSource(): Promise<StoredSource | null>
 }
@@ -426,7 +426,7 @@ const address = (value: unknown, field: string): Address => {
 
 function toEntry(row: Record<string, unknown>): LedgerEntry {
   const ref: TxRef = { height: Number(row['ref_height']), txIndex: Number(row['ref_tx_index']) }
-  const kind = String(row['kind']) as ObligationKind
+  const kind = String(row['kind']) as LedgerKind
   const attemptNo = row['attempt_no']
   const live: LiveAttempt | null =
     attemptNo === null || attemptNo === undefined

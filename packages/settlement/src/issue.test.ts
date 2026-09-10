@@ -180,6 +180,15 @@ describe('buildPlan', () => {
     expect(buildPlan(config, refund, HEAD, 0n, EXPIRY).sender).toBe(TREASURY)
   })
 
+  it('a §10.7 share is paid from the treasury to the referrer’s target, as any other leg', () => {
+    const share = entry({ ref: { height: 1_030, txIndex: 0 }, kind: 'REFERRAL_SHARE', amount: 4_00000n, owedBy: TREASURY, owedTo: WINNER })
+    const plan = buildPlan(config, share, HEAD, 0n, EXPIRY)
+    expect(plan.sender).toBe(TREASURY)
+    expect(plan.recipient).toBe(WINNER)
+    expect(plan.value).toBe(4_00000n)
+    expect(Buffer.from(plan.data, 'hex').toString('ascii')).toBe('NNS1M1030|0')
+  })
+
   it('refuses a zero-luna leg, because the network rejects value 0', () => {
     const zero = entry({ ref: { height: 1_010, txIndex: 2 }, kind: 'COMMISSION', amount: 0n, owedTo: TREASURY })
     expect(() => buildPlan(config, zero, HEAD, 0n, EXPIRY)).toThrow(/value must be positive/)

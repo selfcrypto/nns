@@ -66,6 +66,7 @@ import {
   type NnsState,
   type Obligation,
   type TxRef,
+  type Verdict,
 } from '@nns/core'
 
 export class ReplayError extends Error {
@@ -115,6 +116,20 @@ export interface UnmatchedSettlement {
 }
 
 /** A line whose logged verdict is not the one these rules derive. */
+/**
+ * One line as the replay saw it: the state it reduced against (after the
+ * height's effects, before the line), the state after, and the verdict. For
+ * observers that keep their own books beside the reducer's — the §10.7
+ * share in `share.ts` — without this file learning a single policy rule.
+ */
+export interface LineEvent {
+  readonly tx: ChainTransaction
+  readonly at: TxRef
+  readonly before: NnsState
+  readonly after: NnsState
+  readonly verdict: Verdict
+}
+
 export interface VerdictMismatch {
   readonly at: TxRef
   readonly logged: string
@@ -239,6 +254,7 @@ export function replayLog(
   initial: NnsState,
   config: NnsConfig,
   through: number,
+  observe?: (event: LineEvent) => void,
 ): ReplayResult {
   let state = initial
   const created: CreatedLeg[] = []
@@ -292,6 +308,7 @@ export function replayLog(
       created.push({ obligation, at })
     }
     state = result.state
+    observe?.({ tx, at, before: advanced, after: state, verdict: result.verdict })
 
     const logged = parseLogLine(line).verdict
     const replayed = verdictToken(result.verdict)

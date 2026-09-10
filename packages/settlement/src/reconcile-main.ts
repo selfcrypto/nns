@@ -14,6 +14,7 @@ import { initialState } from '@nns/core'
 import { loadSettings } from './env.js'
 import { describeReport, isSound, reconcile } from './reconcile.js'
 import { replayLog } from './replay.js'
+import { createShareCollector } from './share.js'
 import { fetchLog, httpFetcher } from './source.js'
 
 const USAGE = `usage: reconcile [--no-checkpoint-binding]
@@ -41,12 +42,14 @@ async function run(argv: readonly string[]): Promise<number> {
 
   const settings = loadSettings()
   const snapshot = await fetchLog(settings.apiUrl, httpFetcher, bind)
-  const replay = replayLog(snapshot.lines, initialState(), settings.config, snapshot.checkpointHeight)
+  const shares = createShareCollector(settings.rates)
+  const replay = replayLog(snapshot.lines, initialState(), settings.config, snapshot.checkpointHeight, shares.observe)
   const report = reconcile({
     replay,
     checkpointHeight: snapshot.checkpointHeight,
     boundToCheckpoint: snapshot.boundToCheckpoint,
     logHash: snapshot.logHash,
+    shares: shares.result(),
   })
 
   for (const line of describeReport(report)) console.log(line)

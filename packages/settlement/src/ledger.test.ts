@@ -31,6 +31,7 @@ import {
   type Address,
   type ObligationKind,
 } from '@nns/core'
+import type { LedgerKind } from './watch.js'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { createPool, migrateLedger, type Pool } from './db.js'
@@ -57,7 +58,7 @@ const config = testConfig()
 const leg = (
   height: number,
   txIndex: number,
-  kind: ObligationKind,
+  kind: LedgerKind,
   amount: bigint,
   owedTo: Address = SELLER,
   owedBy: Address = MARKETPLACE,
@@ -322,7 +323,7 @@ describe.skipIf(URL === undefined)('Ledger over Postgres', () => {
   const commission = leg(1_010, 0, 'COMMISSION', 12_50000n, TREASURY)
 
   /** Entries come back in key order, where COMMISSION sorts before SALE_PROCEEDS. */
-  const byKind = (entries: readonly LedgerEntry[], kind: ObligationKind): LedgerEntry => {
+  const byKind = (entries: readonly LedgerEntry[], kind: LedgerKind): LedgerEntry => {
     const found = entries.find((entry) => entry.kind === kind)
     if (found === undefined) throw new Error(`no ${kind} entry`)
     return found
@@ -336,6 +337,18 @@ describe.skipIf(URL === undefined)('Ledger over Postgres', () => {
     // `names`, `log` and `checkpoints` here would mean the indexer's migrations
     // had been run against the ledger's database.
     expect(rows.map((row) => row.table_name)).toEqual(['attempts', 'obligations', 'schema_migrations', 'source'])
+  })
+
+  it('records a §10.7 share under its own kind — migration 002 widened the check', async () => {
+    const ledger = ledgerOf()
+    const share = leg(1_030, 0, 'REFERRAL_SHARE', 4_00000n, WINNER, TREASURY)
+    const update = await ledger.applySnapshot(snapshotOf(1_440, [share]))
+    expect(update.inserted).toHaveLength(1)
+    const entries = await ledger.entries()
+    expect(byKind(entries, 'REFERRAL_SHARE')).toMatchObject({ kind: 'REFERRAL_SHARE', amount: 4_00000n, owedTo: WINNER, state: 'DUE' })
+    // Paid: the next stamped snapshot no longer lists it.
+    const confirmed = await ledger.applySnapshot(snapshotOf(2_160, []))
+    expect(confirmed.confirmed.map((item) => item.kind)).toEqual(['REFERRAL_SHARE'])
   })
 
   it('records the due set, and re-reading the same log inserts nothing', async () => {

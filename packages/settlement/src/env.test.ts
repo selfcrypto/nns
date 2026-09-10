@@ -19,8 +19,13 @@ describe('loadSettings', () => {
 
   it('has no database and no key to load — the independence is structural', () => {
     const settings = loadSettings({ ...BASE, NNS_DATABASE_URL: 'postgres://nope', NNS_SETTLEMENT_KEY: 'nope' })
-    expect(Object.keys(settings).sort()).toEqual(['apiUrl', 'config'])
+    expect(Object.keys(settings).sort()).toEqual(['apiUrl', 'config', 'rates'])
     expect(Object.values(settings)).not.toContain('postgres://nope')
+  })
+
+  it('reads the committed §10.7 rate table by default, and a named one on request', () => {
+    expect(loadSettings(BASE).rates.rows.some((row) => row.ref === null)).toBe(true)
+    expect(() => loadSettings({ ...BASE, NNS_REFERRAL_RATES: '/nowhere/rates.json' })).toThrow(/cannot read the rate table/)
   })
 
   it('requires the API URL, and requires it to be one', () => {

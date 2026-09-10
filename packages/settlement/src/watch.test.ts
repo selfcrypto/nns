@@ -30,6 +30,9 @@ import {
 import { replayLog } from './replay.js'
 import type { Fetcher, LogSnapshot } from './source.js'
 import { createWatcher, obligationKey, takeSnapshot, WatchError } from './watch.js'
+import { parseRateTable } from './rates.js'
+import { createShareCollector, SHARE_KIND } from './share.js'
+import { testAddress } from './test-fixtures.js'
 
 const config = testConfig()
 const NAME = 'alicename'
@@ -283,6 +286,62 @@ describe('takeSnapshot refuses to derive a payment from', () => {
     if (first === undefined) throw new Error('fixture has no outstanding leg')
     const doubled = { ...replay, outstanding: [first, first] }
     expect(() => takeSnapshot(snapshotOf(lines, CP1), doubled)).toThrow(/share the key/)
+  })
+})
+
+describe('takeSnapshot — the §10.7 share (policy, beside the reducer’s legs)', () => {
+  const REFERRER_OWNER = testAddress(20)
+  const RATES = parseRateTable({ rates: [{ ref: null, bp: 1000, fromHeight: 0 }] })
+  const referrerFee = feeFor('ricoref', initialState().prices)
+  const newcomerFee = feeFor('newcomer', initialState().prices)
+  const SHARE = (newcomerFee * 1000n) / 10_000n
+  const referred = [
+    send(H.register, 0, REFERRER_OWNER, encodeRegister({ name: 'ricoref', fee: referrerFee })),
+    send(H.offer, 0, WINNER, encodeRegister({ name: 'newcomer', fee: newcomerFee, ref: 'ricoref' })),
+  ]
+  const withShares = (sends: typeof referred) => {
+    const staged = stageLog(sends, config)
+    const collector = createShareCollector(RATES)
+    const replay = replayLog(staged.lines, initialState(), config, CP1, collector.observe)
+    return takeSnapshot(snapshotOf(staged.lines, CP1), replay, collector.result())
+  }
+
+  it('lists the share as due from the treasury, under its own kind and key', () => {
+    const snapshot = withShares(referred)
+    expect(snapshot.due).toHaveLength(1)
+    expect(snapshot.due[0]).toMatchObject({
+      key: `${H.offer}:0:${SHARE_KIND}`,
+      kind: SHARE_KIND,
+      owedBy: TREASURY,
+      owedTo: REFERRER_OWNER,
+      amount: SHARE,
+    })
+    expect(snapshot.totalDue).toBe(SHARE)
+  })
+
+  it('without a table the same log owes no share — the reducer never created one', () => {
+    const staged = stageLog(referred, config)
+    expect(takeSnapshot(snapshotOf(staged.lines, CP1), replayOf(staged.lines)).due).toEqual([])
+  })
+
+  it('a treasury M that paid the share is neither due nor an unmatched settlement', () => {
+    const paid = [
+      ...referred,
+      send(H.buy, 0, TREASURY, encodeSettlement({ height: H.offer, txIndex: 0, payee: REFERRER_OWNER, amount: SHARE })),
+    ]
+    const snapshot = withShares(paid)
+    expect(snapshot.due).toEqual([])
+    expect(snapshot.unmatched).toEqual([])
+  })
+
+  it('createWatcher pays shares only when handed a table', async () => {
+    const staged = stageLog(referred, config)
+    const server = { height: CP1, lines: staged.lines }
+    const plain = await watcherOver(stubApi(server).fetcher).poll()
+    expect(plain.kind === 'snapshot' && plain.snapshot.due).toEqual([])
+    const withTable = createWatcher({ apiUrl: 'https://api.example', config, fetcher: stubApi(server).fetcher, initial: initialState(), rates: RATES })
+    const result = await withTable.poll()
+    expect(result.kind === 'snapshot' && result.snapshot.due.map((leg) => leg.kind)).toEqual([SHARE_KIND])
   })
 })
 

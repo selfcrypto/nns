@@ -25,6 +25,8 @@
 
 import { defineConfig, type NnsConfig } from '@nns/core'
 
+import { DEFAULT_RATES_PATH, readRateTable, type RateTable } from './rates.js'
+
 export class EnvError extends Error {
   override readonly name = 'EnvError'
 }
@@ -34,6 +36,8 @@ export interface ReconcilerSettings {
   readonly config: NnsConfig
   /** API root, no trailing slash — the party being audited. */
   readonly apiUrl: string
+  /** The §10.7 rate table — `NNS_REFERRAL_RATES`, or the committed `referral-rates.json`. */
+  readonly rates: RateTable
 }
 
 /**
@@ -158,7 +162,14 @@ export function loadSettings(env: EnvSource = process.env): ReconcilerSettings {
     throw new EnvError(cause instanceof Error ? cause.message : String(cause))
   }
 
-  return Object.freeze({ config, apiUrl })
+  let rates: RateTable
+  try {
+    rates = readRateTable(read(env, 'NNS_REFERRAL_RATES') ?? DEFAULT_RATES_PATH)
+  } catch (cause) {
+    throw new EnvError(cause instanceof Error ? cause.message : String(cause))
+  }
+
+  return Object.freeze({ config, apiUrl, rates })
 }
 
 /**

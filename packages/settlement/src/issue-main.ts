@@ -113,6 +113,7 @@ async function run(argv: readonly string[]): Promise<number> {
       config: settings.config,
       fetcher: httpFetcher,
       initial: initialState(),
+      rates: settings.rates,
     })
     const pollSeconds = interval ?? settings.pollSeconds
     // Read once, at startup: the window is a chain constant, and re-reading it

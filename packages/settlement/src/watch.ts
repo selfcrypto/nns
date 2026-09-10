@@ -50,6 +50,9 @@
 
 import { formatAddress, refKey, type Address, type Obligation, type ObligationKind } from '@nns/core'
 
+import { createShareCollector, NO_SHARES, SHARE_KIND, shareKey, type ShareResult } from './share.js'
+import type { RateTable } from './rates.js'
+
 import { replayLog, type ReplayResult, type UnmatchedSettlement } from './replay.js'
 import { fetchLatestCheckpoint, fetchLog, type Fetcher, type LogSnapshot } from './source.js'
 import type { NnsConfig, NnsState } from '@nns/core'
@@ -77,9 +80,16 @@ export const obligationKey = (obligation: Obligation): string =>
   `${refKey(obligation.ref)}:${obligation.kind}`
 
 /** One leg the log says is still owed, with the key it will be settled under. */
+/**
+ * What the ledger records and the issuer pays: `core`'s three kinds, plus the
+ * §10.7 share this package computes itself (`share.ts`). Kept as a union so a
+ * protocol leg and a policy leg never share a type by accident.
+ */
+export type LedgerKind = ObligationKind | typeof SHARE_KIND
+
 export interface DueObligation {
   readonly key: string
-  readonly kind: ObligationKind
+  readonly kind: LedgerKind
   /** The transaction that created the debt — the `(height, tx_index)` an `M` names. */
   readonly ref: Obligation['ref']
   /** Sender of the `M` that discharges it: `MARKETPLACE_ADDRESS` or `TREASURY_ADDRESS` (§6 `M`). */
@@ -132,6 +142,8 @@ export interface WatcherOptions {
   readonly fetcher: Fetcher
   /** `core.initialState()`, taken as a parameter for the same reason `replayLog` does. */
   readonly initial: NnsState
+  /** The §10.7 rate table. Without one the watcher pays no shares and reports none. */
+  readonly rates?: RateTable | undefined
 }
 
 /**
@@ -156,7 +168,7 @@ export interface WatcherOptions {
  *   to *pay* against bytes on the serving party's word alone, so the watcher
  *   has no such flag and asserts the binding instead.
  */
-export function takeSnapshot(log: LogSnapshot, replay: ReplayResult): WatchSnapshot {
+export function takeSnapshot(log: LogSnapshot, replay: ReplayResult, shares: ShareResult = NO_SHARES): WatchSnapshot {
   if (!log.boundToCheckpoint) {
     throw new WatchError(
       `the log at checkpoint ${log.checkpointHeight} is not bound to that checkpoint — the watcher will not derive a payment from bytes on the serving party's word alone`,
@@ -216,7 +228,32 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult): WatchSnaps
     }
   }
 
+  // The §10.7 shares, beside the reducer's legs. `created = settled +
+  // outstanding` holds for them by construction (`share.ts` keeps one map),
+  // and their key cannot collide with a protocol leg's: a `G` that owes a
+  // share was `OK`, and an `OK` `G` creates no `REFUND`.
+  for (const leg of shares.outstanding) {
+    const key = shareKey(leg)
+    if (seen.has(key)) throw new WatchError(`two outstanding shares share the key ${key} — one G owes at most one share`)
+    seen.add(key)
+    due.push({
+      key,
+      kind: SHARE_KIND,
+      ref: leg.ref,
+      owedBy: leg.owedBy,
+      owedTo: leg.owedTo,
+      amount: leg.amount,
+      ageBlocks: Math.max(0, log.checkpointHeight - leg.ref.height),
+    })
+    totalDue += leg.amount
+  }
+
   due.sort((a, b) => a.ref.height - b.ref.height || a.ref.txIndex - b.ref.txIndex || a.kind.localeCompare(b.kind))
+
+  // An `M` that paid a share discharged nothing in the reducer's books and is
+  // matched in the share's. It is not a finding.
+  const paidShares = new Set(shares.settled.map((item) => refKey(item.settledAt)))
+  const unmatched = replay.unmatched.filter((item) => !paidShares.has(refKey(item.at)))
 
   return Object.freeze({
     checkpointHeight: log.checkpointHeight,
@@ -224,7 +261,7 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult): WatchSnaps
     lineCount: replay.lineCount,
     due: Object.freeze(due),
     totalDue,
-    unmatched: replay.unmatched,
+    unmatched: Object.freeze(unmatched),
   })
 }
 
@@ -252,7 +289,7 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult): WatchSnaps
  * that gap is what the ledger exists to close, not this.
  */
 export function createWatcher(options: WatcherOptions): Watcher {
-  const { apiUrl, config, fetcher, initial } = options
+  const { apiUrl, config, fetcher, initial, rates } = options
   let lastSeen: number | null = null
   let lastHash: string | null = null
 
@@ -288,7 +325,9 @@ export function createWatcher(options: WatcherOptions): Watcher {
         )
       }
 
-      const snapshot = takeSnapshot(log, replayLog(log.lines, initial, config, log.checkpointHeight))
+      const collector = rates === undefined ? null : createShareCollector(rates)
+      const replay = replayLog(log.lines, initial, config, log.checkpointHeight, collector?.observe)
+      const snapshot = takeSnapshot(log, replay, collector?.result() ?? NO_SHARES)
       lastSeen = snapshot.checkpointHeight
       lastHash = snapshot.logHash
       return { kind: 'snapshot', snapshot }
