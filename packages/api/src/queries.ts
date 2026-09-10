@@ -12,7 +12,7 @@
  * "as of block" stamp the RPC's `metadata` gives state reads.
  */
 
-import { BURN_ADDRESS, CONSTANTS, merkleRoot, parseAddress, type Address, type Auction, type NameStatus } from '@nns/core'
+import { BURN_ADDRESS, CONSTANTS, merkleRoot, parse, parseAddress, type Address, type Auction, type NameStatus } from '@nns/core'
 import { logLineFromRow, toHeight, toLuna, type LogRow } from '@nns/indexer'
 import type { Pool, PoolClient } from 'pg'
 
@@ -225,6 +225,23 @@ export interface BurnReport {
 }
 
 /** A value plus the state height it was read at. */
+/**
+ * One `OK` registration that named a referrer (§6 `G` `ref`, §10.7). Facts
+ * from the log only — the share itself is the treasury's policy and is not
+ * computed here: a client applies the published rate table to the name's
+ * band, and the settlement ledger is the record of what was paid.
+ */
+export interface ApiReferral {
+  readonly height: number
+  readonly txIndex: number
+  readonly txHash: string
+  /** The name registered. */
+  readonly name: string
+  readonly sender: Address
+  /** The value the `G` carried — at or above the fee in effect, never the share's base. */
+  readonly value: bigint
+}
+
 export interface Snapshot<T> {
   readonly height: number
   readonly value: T
@@ -248,6 +265,8 @@ export interface Queries {
   logThroughCheckpoint(): Promise<Snapshot<CheckpointLog | null>>
   outstanding(owedTo: Address | null): Promise<Snapshot<readonly ApiObligation[]>>
   burn(): Promise<Snapshot<BurnReport>>
+  /** Every `OK` `G` whose `ref` is this name, in canonical order (§10.7). */
+  referrals(name: string): Promise<Snapshot<readonly ApiReferral[]>>
 }
 
 // ── Row mapping ─────────────────────────────────────────────────────────────
@@ -628,6 +647,36 @@ export class PgQueries implements Queries {
         owedTo: address(row, 'owed_to'),
         amount: toLuna(row['amount'], 'amount'),
       }))
+    })
+  }
+
+  async referrals(name: string): Promise<Snapshot<readonly ApiReferral[]>> {
+    return this.#snapshot(async (client) => {
+      // `NNS1G` is 4e4e533147 in the hex the log stores; the recipient and
+      // verdict filters keep this to registrations that took effect. The ref
+      // is read by decoding each line — one pass over the accepted `G`s,
+      // which is bounded by the registry's size; an indexed column is the
+      // optimisation if this ever shows in a profile.
+      const result = await client.query(
+        `SELECT block_height, tx_index, tx_hash, sender, value, data
+           FROM log WHERE recipient = $1 AND verdict = 'OK' AND data LIKE '4e4e533147%'
+          ORDER BY block_height, tx_index`,
+        [CONSTANTS.TREASURY_ADDRESS],
+      )
+      const referred: ApiReferral[] = []
+      for (const row of result.rows as Row[]) {
+        const parsed = parse(text(row, 'data'))
+        if (!parsed.ok || parsed.message.type !== 'G' || parsed.message.ref !== name) continue
+        referred.push({
+          height: toHeight(row['block_height'], 'block_height'),
+          txIndex: toHeight(row['tx_index'], 'tx_index'),
+          txHash: text(row, 'tx_hash'),
+          name: parsed.message.name,
+          sender: address(row, 'sender'),
+          value: toLuna(row['value'], 'value'),
+        })
+      }
+      return referred
     })
   }
 

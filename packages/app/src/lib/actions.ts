@@ -27,13 +27,15 @@ import {
 } from '@nns/core'
 import { getNameInfo, type ApiParams, type NameInfo } from './api'
 import { approxDate, blocksApprox, ellipsizeAddress, formatApproxDate, lunaToNim } from './format'
-import { auctionOutlivesTermLine, bidRefundLine, giftRenewalLine, soldByLine } from './wording'
+import { auctionOutlivesTermLine, bidRefundLine, giftRenewalLine, referredByLine, registerPaysLine, soldByLine } from './wording'
+import { isReferralName } from './referral'
+import { percentOf, referralRateBp } from './referralRates'
 import { auctionEndHeight, auctionOutlivesTerm, sameAddress, registrationFee } from './states'
 import type { AppAction } from './states'
 import type { SubmitRequest } from './wallet'
 
 export type ActionInputs =
-  | { readonly action: 'register' }
+  | { readonly action: 'register'; readonly ref?: string | null | undefined }
   | { readonly action: 'renew' }
   | { readonly action: 'cancel' }
   | { readonly action: 'buy' }
@@ -142,10 +144,18 @@ export function prepareAction(options: {
   switch (inputs.action) {
     case 'register': {
       const fee = registrationFee(name, needParams())
+      // Inert by protocol (§6 `G`), so a ref that fails the syntax here is
+      // dropped rather than refused — and the builder never sees it.
+      const ref = inputs.ref != null && isReferralName(inputs.ref) ? inputs.ref : null
       return {
         action: 'register',
-        request: asRequest(encodeRegister({ name, fee, sender })),
-        review: [`Pays ${lunaToNim(fee)} NIM to the registry for a one-year term.`],
+        request: asRequest(encodeRegister({ name, fee, sender, ...(ref === null ? {} : { ref }) })),
+        review: [
+          registerPaysLine(lunaToNim(fee), blocksApprox(CONSTANTS.TERM_LENGTH)),
+          // §10.7: the referrer's share comes out of the treasury's fee, so
+          // the payer sees who benefits and that the price is unchanged.
+          ...(ref === null ? [] : [referredByLine(ref, percentOf(referralRateBp(ref, info?.height ?? 0) ?? 0))]),
+        ],
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null
           return rec !== null && ownedByViewer(rec.owner)

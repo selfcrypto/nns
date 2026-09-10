@@ -30,6 +30,48 @@ info:
     keys, no protocol rules — every rule and every hash comes from @nns/core.
 
 paths:
+  /referrals/{name}:
+    get:
+      summary: Accepted registrations that named this name as their referrer
+      description: >
+        §10.7's referral facts, from the log only: every OK `G` whose `ref`
+        field is this name, in canonical order. No share is computed here —
+        the rate is the treasury's published policy (the rate table beside
+        the docs), and what was actually paid is in the settlement ledger,
+        visible as `M`s in the log. A name that has never referred anyone
+        answers an empty list; it need not be registered to be asked about.
+      parameters:
+        - $ref: '#/components/parameters/name'
+      responses:
+        '200':
+          description: The referred registrations.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [name, count, registrations, height]
+                properties:
+                  name: { type: string }
+                  count: { type: integer }
+                  registrations:
+                    type: array
+                    items:
+                      type: object
+                      required: [height, txIndex, txHash, name, sender, value]
+                      properties:
+                        height: { $ref: '#/components/schemas/Height' }
+                        txIndex: { type: integer }
+                        txHash: { type: string }
+                        name: { type: string, description: The name registered. }
+                        sender: { $ref: '#/components/schemas/Address' }
+                        value:
+                          type: string
+                          description: Luna the `G` carried, as a decimal string. At or above the fee in effect; the share is taken on the fee, not on this.
+                  height: { $ref: '#/components/schemas/Height' }
+        '400':
+          description: Not a §4.1 name.
+        '503': { $ref: '#/components/responses/NotSynced' }
+
   /resolve/{name}:
     get:
       summary: Resolve a name to its payment target

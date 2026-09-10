@@ -190,6 +190,7 @@ export const ROUTES = Object.freeze([
   '/offers',
   '/openapi.yaml',
   '/params',
+  '/referrals/{name}',
   '/resolve/{name}',
   '/settlements',
 ])
@@ -621,6 +622,32 @@ export function createRoutes(queries: Queries): RouteHandler {
     })
   }
 
+  /**
+   * §10.7's referral facts for one name: the accepted registrations that
+   * named it. No share is computed — the rate table is the treasury's
+   * policy, published beside the docs, and a client applies it. Any §4.1
+   * name is a valid question, registered or not: a name that has never
+   * referred anyone has an empty list, which is an answer.
+   */
+  async function referralsRoute(name: string): Promise<ApiResponse> {
+    const syntax = validateNameSyntax(name)
+    if (!syntax.ok) return respond(400, { error: 'INVALID_NAME', reason: syntax.reason })
+    const { height, value } = await queries.referrals(name)
+    return respond(200, {
+      name,
+      count: value.length,
+      registrations: value.map((item) => ({
+        height: item.height,
+        txIndex: item.txIndex,
+        txHash: item.txHash,
+        name: item.name,
+        sender: formatAddress(item.sender),
+        value: item.value.toString(10),
+      })),
+      height,
+    })
+  }
+
   async function burnRoute(): Promise<ApiResponse> {
     const { height, value } = await queries.burn()
     // 'OK' is §8.2's published verdict token for an accepted message — a
@@ -737,6 +764,7 @@ export function createRoutes(queries: Queries): RouteHandler {
         return await settlementsRoute(searchParams.get('owed_to'))
       }
       if (head === 'burn' && segments.length === 1) return await burnRoute()
+      if (head === 'referrals' && a !== undefined && segments.length === 2) return await referralsRoute(a)
       // Static, needs no snapshot, and deliberately answers before the
       // NOT_SYNCED gate every other route sits behind: the contract is true
       // whether or not the indexer has written state yet, and an integrator

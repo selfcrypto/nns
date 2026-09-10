@@ -11,6 +11,8 @@
     // a compile error, same posture as packages/resolver.
     "types": ["vite/client"],
     "noEmit": true,
+    // The §10.7 rate table is settlement's JSON, imported for display (lib/referralRates.ts).
+    "resolveJsonModule": true,
     "declaration": false,
     "declarationMap": false,
     "sourceMap": false

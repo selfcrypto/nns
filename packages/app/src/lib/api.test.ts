@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ApiError, getAuctions, getBurn, getNameInfo, getOffers, getParams, type JsonFetch } from './api'
+import { ApiError, getAuctions, getBurn, getNameInfo, getOffers, getParams, getReferrals, type JsonFetch } from './api'
 
 const respond =
   (routes: Record<string, { status: number; body: unknown }>): JsonFetch =>
@@ -184,5 +184,27 @@ describe('a same-origin base', () => {
     const seen: string[] = []
     await getNameInfo('https://api.example.com', 'example', capturing(seen))
     expect(seen).toEqual(['https://api.example.com/name/example'])
+  })
+})
+
+describe('getReferrals', () => {
+  it('reads the referred registrations, value as luna', async () => {
+    const fetchJson = respond({
+      '/referrals/ricomav': {
+        status: 200,
+        body: {
+          name: 'ricomav',
+          count: 1,
+          registrations: [
+            { height: 61_200_000, txIndex: 2, txHash: 'ab'.repeat(32), name: 'newcomer', sender: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000', value: '400000' },
+          ],
+          height: 61_200_060,
+        },
+      },
+    })
+    const result = await getReferrals('http://api', 'ricomav', fetchJson)
+    expect(result.count).toBe(1)
+    expect(result.registrations[0]).toMatchObject({ name: 'newcomer', height: 61_200_000, value: 400_000n })
+    expect(result.height).toBe(61_200_060)
   })
 })

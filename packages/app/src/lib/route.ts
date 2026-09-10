@@ -36,7 +36,8 @@ function isTab(value: string): value is Tab {
 
 /** `location.hash` (with or without the `#`) → a route. Anything unparseable is the fallback. */
 export function parseRoute(hash: string, fallback: Tab): Route {
-  const path = hash.replace(/^#/, '').replace(/^\/+/, '')
+  // `#/buy?ref=x`: the query is the referral's (lib/referral.ts), not the route's.
+  const path = hash.replace(/^#/, '').replace(/\?.*$/, '').replace(/^\/+/, '')
   if (path === '') return { tab: fallback, param: null }
   const [head = '', ...rest] = path.split('/')
   if (!isTab(head)) return { tab: fallback, param: null }

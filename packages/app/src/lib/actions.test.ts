@@ -35,6 +35,26 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     expect(prepared.request.recipient).toBe(CONSTANTS.TREASURY_ADDRESS)
   })
 
+  it('a registration carries the share link’s ref and reviews who benefits (§10.7)', () => {
+    const prepared = prepare({ action: 'register', ref: 'ricomav' }, null)
+    const parsed = parse(prepared.request.dataHex)
+    expect(parsed.ok && parsed.message.type === 'G' && parsed.message.ref).toBe('ricomav')
+    expect(prepared.request.value).toBe(200_000_000n) // the price is unchanged
+    expect(prepared.review.some((line) => line.startsWith('Referred by ricomav.') && line.includes('you pay the same'))).toBe(true)
+  })
+
+  it('a ref that is not a name is dropped, not refused — the field is inert (§6 G)', () => {
+    const prepared = prepare({ action: 'register', ref: 'Not A Name' }, null)
+    const parsed = parse(prepared.request.dataHex)
+    expect(parsed.ok && parsed.message.type === 'G' && parsed.message.ref).toBeNull()
+    expect(prepared.review.some((line) => line.includes('Referred by'))).toBe(false)
+  })
+
+  it('the registration review states the term from TERM_LENGTH, never a typed year', () => {
+    const prepared = prepare({ action: 'register' }, null)
+    expect(prepared.review[0]).toMatch(/^Pays 2,?000 NIM to the registry for a ~\d+ d term\.$/)
+  })
+
   it('a renewal by someone other than the owner reviews as a gift, and the owner\'s does not', () => {
     const gift = prepare({ action: 'renew' }, registered(), OTHER)
     expect(gift.request.recipient).toBe(CONSTANTS.TREASURY_ADDRESS)

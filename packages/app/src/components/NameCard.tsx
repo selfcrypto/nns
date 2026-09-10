@@ -9,18 +9,30 @@
  */
 
 import { Fragment, useEffect, useState } from 'react'
+import { apiBase } from '../lib/nns'
+import { getParams, getReferrals } from '../lib/api'
+import { shareLinkFor } from '../lib/referral'
+import { percentOf, referralRateBp, shareOf } from '../lib/referralRates'
+import { useAsync } from '../lib/useAsync'
+import { Hint } from './Hint'
 import { createPortal } from 'react-dom'
 import { CONSTANTS } from '@nns/core'
 import { primaryAddress } from '../lib/identity'
 import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
 import type { SearchOutcome } from '../lib/search'
-import { actionGates, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
+import { actionGates, registrationFee, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import {
   ACTION_LABEL,
   GATE_REASON_TEXT,
   OWNER_GROUP_TITLE,
   OWNER_TILE,
+  SHARE_TILE,
+  referralsCountLine,
+  shareCopiedLine,
+  shareCopyFailedLine,
+  shareHint,
+  shareInGraceLine,
   STATUS_TAG,
   alarmBody,
   alarmHeadline,
@@ -75,6 +87,75 @@ export const ACQUIRE_ACTIONS: readonly AppAction[] = ['register', 'renew', 'buy'
 
 /** Management: the owner's eight, which live in My names and nowhere else. */
 export const OWNER_ACTIONS: readonly AppAction[] = ['setTarget', 'setEvm', 'transfer', 'delegate', 'renew', 'offer', 'auction', 'cancel']
+
+/**
+ * §10.7's owner half: the link, and what it has earned. Not a transaction —
+ * the tile copies `?ref=<name>` and reads `/referrals/{name}` for the count;
+ * the estimate applies today's band prices and the published rate, which is
+ * why it says so. In grace the name cannot refer (the registry reads the
+ * referrer's status at the registration), so the tile says to renew first.
+ */
+function ShareTile({ name, height, inGrace }: { name: string; height: number; inGrace: boolean }) {
+  const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
+  const referrals = useAsync(() => getReferrals(apiBase(), name), [name])
+  const params = useAsync(() => getParams(apiBase()), [])
+  const bp = referralRateBp(name, height) ?? 0
+  const link = shareLinkFor(name)
+
+  useEffect(() => {
+    if (copied === null) return
+    const timer = setTimeout(() => setCopied(null), 2_500)
+    return () => clearTimeout(timer)
+  }, [copied])
+
+  const earned = ((): string => {
+    if (referrals.status !== 'done') return SHARE_TILE.hint
+    if (params.status !== 'done') return referralsCountLine(referrals.value.count, '…')
+    let total = 0n
+    for (const item of referrals.value.registrations) {
+      total += shareOf(registrationFee(item.name, params.value), bp)
+    }
+    return referralsCountLine(referrals.value.count, lunaToNim(total))
+  })()
+
+  const copy = async () => {
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('no clipboard')
+      await navigator.clipboard.writeText(link)
+      setCopied('ok')
+    } catch {
+      setCopied('failed')
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className="owner-action-tile"
+      disabled={inGrace}
+      onClick={() => void copy()}
+    >
+      <div className="owner-action-icon">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="18" cy="5" r="3" />
+          <circle cx="6" cy="12" r="3" />
+          <circle cx="18" cy="19" r="3" />
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+        </svg>
+      </div>
+      <div className="owner-action-info">
+        <span className="owner-action-name">{SHARE_TILE.title}</span>
+        <span className="owner-action-meta">
+          {inGrace ? shareInGraceLine() : copied === 'ok' ? shareCopiedLine() : copied === 'failed' ? shareCopyFailedLine(link) : earned}
+        </span>
+      </div>
+      <svg className="owner-action-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </button>
+  )
+}
 
 function Actions({
   actions,
@@ -321,6 +402,18 @@ function Actions({
             </div>
           )
         })}
+
+        {record !== null && (
+          <div className="owner-action-group">
+            <span className="owner-action-group-title">
+              {OWNER_GROUP_TITLE.referrals}{' '}
+              <Hint>{shareHint(percentOf(referralRateBp(name, height) ?? 0))}</Hint>
+            </span>
+            <div className="owner-actions-grid">
+              <ShareTile name={name} height={height} inGrace={record.status === 'GRACE'} />
+            </div>
+          </div>
+        )}
 
         {open !== null && wallet !== null && typeof document !== 'undefined' && createPortal(
           <>

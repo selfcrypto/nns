@@ -3,6 +3,7 @@ import { appConfig, ConfigParseError } from './config'
 import { applyHostChrome, describeChrome, isHostedWebView } from './lib/chrome'
 import { formatRoute, parseRoute, TABS, type NavTab, type Route, type Tab } from './lib/route'
 import { detectWallet, type Wallet } from './lib/wallet'
+import { referralFromLocation, rememberReferral } from './lib/referral'
 import { IdentityBar } from './components/IdentityBar'
 import { TabIcon, type TabIconName } from './components/icons'
 import { HomeScreen } from './screens/Home'
@@ -89,6 +90,13 @@ export function App() {
 
   const problem = useMemo(configProblem, [])
   const diagnostic = useMemo(() => new URLSearchParams(window.location.search).get('diag') === '1', [])
+
+  // A share link (`?ref=<name>`, §10.7) is remembered until a registration
+  // confirms — first wins, and a bad one is dropped silently (lib/referral.ts).
+  useEffect(() => {
+    const ref = referralFromLocation(window.location.search, window.location.hash)
+    if (ref !== null) void rememberReferral(ref)
+  }, [])
 
   useEffect(() => {
     const onHash = () => setHash(window.location.hash)

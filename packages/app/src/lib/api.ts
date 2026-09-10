@@ -308,6 +308,47 @@ export async function getAuctions(base: string, fetchJson: JsonFetch = jsonFetch
   }
 }
 
+export interface ApiReferral {
+  readonly height: number
+  readonly txIndex: number
+  readonly txHash: string
+  /** The name registered. */
+  readonly name: string
+  readonly sender: string
+  readonly value: bigint
+}
+
+export interface Referrals {
+  readonly name: string
+  readonly count: number
+  readonly registrations: readonly ApiReferral[]
+  readonly height: number
+}
+
+/** `/referrals/{name}` (§10.7): the accepted registrations that named this name. Facts only; the share is applied client-side from the published table. */
+export async function getReferrals(base: string, name: string, fetchJson: JsonFetch = jsonFetch): Promise<Referrals> {
+  const body = await request(fetchJson, base, `/referrals/${encodeURIComponent(name)}`)
+  const top = record(body, 'response')
+  const rows = top['registrations']
+  if (!Array.isArray(rows)) throw new ApiError('MALFORMED', 'registrations is not a list', 200)
+  return {
+    name: str(top['name'], 'name'),
+    count: num(top['count'], 'count'),
+    registrations: rows.map((row, index) => {
+      const item = record(row, `registrations[${index}]`)
+      return {
+        height: num(item['height'], 'height'),
+        txIndex: num(item['txIndex'], 'txIndex'),
+        txHash: str(item['txHash'], 'txHash'),
+        name: str(item['name'], 'name'),
+        sender: str(item['sender'], 'sender'),
+        value: luna(item['value'], 'value'),
+      }
+    }),
+    height: num(top['height'], 'height'),
+  }
+}
+
 export async function getBurn(base: string, fetchJson: JsonFetch = jsonFetch): Promise<BurnRecord> {
   const body = record(await request(fetchJson, base, '/burn'), 'response')
   return {

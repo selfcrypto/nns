@@ -431,6 +431,18 @@ export const ACTION_LABEL: Record<AppAction, string> = {
  * allow it as gift"). Anyone may renew (§6 `N`); the label says what the
  * payer gets — nothing — so the button cannot read as a way to acquire.
  */
+/** The registration review's first line; the term is `TERM_LENGTH` rendered, never typed (tasks/17). */
+export const registerPaysLine = (nim: string, term: string): string =>
+  `Pays ${nim} NIM to the registry for a ${term} term.`
+
+/**
+ * §10.7 on the review: who benefits, and that the price is unchanged. The
+ * share comes out of the treasury's fee, so "you pay the same" is the fact
+ * a payer needs before the wallet opens.
+ */
+export const referredByLine = (ref: string, percent: string): string =>
+  `Referred by ${ref}. Its owner earns ${percent} of the fee; you pay the same.`
+
 export const giftRenewalLabel = (): string => 'Gift a renewal'
 
 /** The review line that makes the gift explicit before the wallet opens. */
@@ -885,7 +897,20 @@ export const OWNER_GROUP_TITLE = {
   records: 'Routing & Records',
   ownership: 'Ownership & Renewal',
   market: 'Marketplace',
+  referrals: 'Referrals',
 } as const
+
+/** The owner's share tile (§10.7): copies `?ref=<name>`; not a transaction. */
+export const SHARE_TILE = { title: 'Share Link', hint: 'Earn on registrations you refer' } as const
+export const shareCopiedLine = (): string => 'Link copied'
+export const shareCopyFailedLine = (link: string): string => `Copy this link: ${link}`
+/** A name in grace cannot refer: §10.7 reads the referrer's status at the registration. */
+export const shareInGraceLine = (): string => 'Renew first — a name in grace can’t refer.'
+export const referralsCountLine = (count: number, nim: string): string =>
+  count === 0 ? 'No registrations referred yet' : `${count} referred · ≈${nim} NIM at today’s prices`
+export const shareHint = (percent: string): string =>
+  `Anyone who registers through your link pays the same price, and this name’s address receives ${percent} of the fee, paid by the registry after each registration.`
+
 
 /** A tile's title, and the line under it while the record has nothing to show. */
 export const OWNER_TILE: Record<

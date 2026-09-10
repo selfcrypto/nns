@@ -5,6 +5,7 @@ The sidebar, in order. `slug: Title`.
 - intro: What NNS is
 - names: Names and reserved names
 - prices: Prices, terms and expiry
+- referrals: Referrals
 - app: Using the app
 - fails: When a transaction is refused
 - subdomains: Subdomains and delegation

@@ -53,3 +53,11 @@ describe('formatRoute', () => {
     expect(formatRoute({ tab: 'buy', param: '' })).toBe('#/buy')
   })
 })
+
+describe('a query on the hash', () => {
+  it('is not part of the route — the referral reads it (lib/referral.ts)', () => {
+    expect(parseRoute('#/buy?ref=ricomav', 'home')).toEqual({ tab: 'buy', param: null })
+    expect(parseRoute('#/buy/newname?ref=ricomav', 'home')).toEqual({ tab: 'buy', param: 'newname' })
+    expect(parseRoute('#/?ref=ricomav', 'home')).toEqual({ tab: 'home', param: null })
+  })
+})

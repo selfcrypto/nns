@@ -467,6 +467,29 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     expect(filtered.value[0]?.amount).toBe(390_000_000_000n)
   })
 
+  it('/referrals/{name} lists the OK Gs whose ref is the name, decoded from the log (§10.7)', async () => {
+    // NNS1Gnewcomer|ricomav (OK), NNS1Gothername|ricomav (NAME_TAKEN — not
+    // counted), NNS1Gplainname (no ref), all to the treasury.
+    const withRef = Buffer.from('NNS1Gnewcomer|ricomav', 'ascii').toString('hex')
+    const refused = Buffer.from('NNS1Gothername|ricomav', 'ascii').toString('hex')
+    const plain = Buffer.from('NNS1Gplainname', 'ascii').toString('hex')
+    await pool.query(
+      `INSERT INTO log (block_height, tx_index, tx_hash, sender, recipient, value, data, verdict)
+       VALUES (58199600, 0, $1, $2, $3, '40000000', $4, 'OK'),
+              (58199600, 1, $5, $2, $3, '40000000', $6, 'NAME_TAKEN'),
+              (58199660, 0, $7, $2, $3, '40000000', $8, 'OK')`,
+      ['e1'.repeat(32), A, CONSTANTS.TREASURY_ADDRESS, withRef, 'e2'.repeat(32), refused, 'e3'.repeat(32), plain],
+    )
+    const response = await handle('GET', '/referrals/ricomav')
+    expect(response.status).toBe(200)
+    const body = response.body as { count: number; registrations: { name: string; value: string }[] }
+    expect(body.count).toBe(1)
+    expect(body.registrations).toEqual([expect.objectContaining({ name: 'newcomer', value: '40000000', height: 58199600, txIndex: 0 })])
+    expect((await handle('GET', '/referrals/nobody-yet')).body).toMatchObject({ count: 0, registrations: [] })
+    // The §10.2 revenue test below counts every OK G to the treasury.
+    await pool.query(`DELETE FROM log WHERE block_height IN (58199600, 58199660)`)
+  })
+
   it('/burn sums accepted attestations and keeps rejected ones visible', async () => {
     await pool.query(
       `INSERT INTO log (block_height, tx_index, tx_hash, sender, recipient, value, data, verdict)

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { prepareAction, ActionInputError, type ActionInputs } from '../lib/actions'
 import { getParams, type NameInfo } from '../lib/api'
+import { clearReferral, storedReferral } from '../lib/referral'
 import { defaultTransport } from '../lib/history'
 import { apiBase } from '../lib/nns'
 import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
@@ -70,6 +71,8 @@ export function ActionSheet({
   onClose?: () => void
 }) {
   const paramsState = useAsync(() => getParams(apiBase()), [])
+  // The share link's ref (§10.7), read once: it rides the `G` and nothing else.
+  const referral = useAsync(() => (action === 'register' ? storedReferral() : Promise.resolve(null)), [action])
   const params = paramsState.status === 'done' ? paramsState.value : null
   const [target, setTarget] = useState('')
   const [resetTarget, setResetTarget] = useState(false)
@@ -111,12 +114,13 @@ export function ActionSheet({
       case 'bid':
         return { action, bidNim }
       case 'register':
+        return { action, ref: referral.status === 'done' ? referral.value : null }
       case 'renew':
       case 'cancel':
       case 'buy':
         return { action }
     }
-  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, priceNim, startingPriceNim, durationDays, bidNim])
+  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, priceNim, startingPriceNim, durationDays, bidNim, referral])
 
   const inputsTouched = (() => {
     switch (action) {
@@ -167,7 +171,11 @@ export function ActionSheet({
     })
     setProgress('idle')
     setResult(outcome)
-    if (outcome.status === 'confirmed') onChanged()
+    if (outcome.status === 'confirmed') {
+      // The ref did its work; a later registration is not the referrer's.
+      if (action === 'register') void clearReferral()
+      onChanged()
+    }
   }
 
   // What the record says right now, before any input: the thing this action

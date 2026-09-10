@@ -4,6 +4,10 @@
  */
 import { describe, expect, it } from 'vitest'
 import {
+  referredByLine,
+  referralsCountLine,
+  shareHint,
+  shareInGraceLine,
   WARNING_TEXT,
   WARNING_TONE,
   alarmBody,
@@ -224,5 +228,20 @@ describe('the wallet seam shows through in wording as little as in code', () => 
     const line = paySelfLine().toLowerCase()
     expect(line).toContain('your own address')
     expect(line).toMatch(/nothing would arrive|drops/)
+  })
+})
+
+describe('the referral lines (§10.7)', () => {
+  it('the review says who benefits and that the price is unchanged', () => {
+    const line = referredByLine('ricomav', '10%')
+    expect(line).toContain('ricomav')
+    expect(line).toContain('10%')
+    expect(line).toContain('you pay the same')
+  })
+
+  it('the tile never spends alarm vocabulary on a name in grace', () => {
+    for (const text of [shareInGraceLine(), shareHint('10%'), referralsCountLine(0, '0')]) {
+      expect(text).not.toMatch(/\b(stop|do not pay|divergence|red)\b/i)
+    }
   })
 })

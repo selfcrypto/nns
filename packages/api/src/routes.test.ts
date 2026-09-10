@@ -112,6 +112,7 @@ function queriesOf(partial: Partial<Queries>): Queries {
     logThroughCheckpoint: unstubbed,
     outstanding: unstubbed,
     burn: unstubbed,
+    referrals: unstubbed,
     ...partial,
   }
 }
@@ -1094,5 +1095,37 @@ describe('discovery', () => {
 
     expect(paths.length).toBeGreaterThan(0)
     expect([...paths].sort()).toEqual([...ROUTES].sort())
+  })
+})
+
+describe('GET /referrals/{name} (§10.7)', () => {
+  const REFERRED = [
+    { height: 58_190_050, txIndex: 1, txHash: 'ab'.repeat(32), name: 'newcomer', sender: B, value: 400_000_000n },
+  ]
+
+  it('lists the accepted registrations that named the referrer, and no share', async () => {
+    const handle = routes({ referrals: (name) => Promise.resolve(snap(name === 'alice-example' ? REFERRED : [])) })
+    expect(await handle('GET', '/referrals/alice-example')).toEqual({
+      status: 200,
+      body: {
+        name: 'alice-example',
+        count: 1,
+        registrations: [
+          { height: 58_190_050, txIndex: 1, txHash: 'ab'.repeat(32), name: 'newcomer', sender: formatAddress(B), value: '400000000' },
+        ],
+        height: HEIGHT,
+      },
+    })
+    expect(await handle('GET', '/referrals/nobody-yet')).toEqual({
+      status: 200,
+      body: { name: 'nobody-yet', count: 0, registrations: [], height: HEIGHT },
+    })
+  })
+
+  it('refuses a query that is not a name', async () => {
+    const handle = routes({})
+    const response = await handle('GET', '/referrals/Not%20A%20Name')
+    expect(response.status).toBe(400)
+    expect((response.body as { error: string }).error).toBe('INVALID_NAME')
   })
 })
