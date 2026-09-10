@@ -2,7 +2,10 @@
  * The wording rules of docs/app-states.md §5 are decided, not stylistic —
  * these tests pin the ones a later edit would most plausibly break.
  */
+import { CONSTANTS } from '@nns/core'
 import { describe, expect, it } from 'vitest'
+
+import { blocksApprox } from './format'
 import {
   referredByLine,
   referralsCountLine,
@@ -16,6 +19,7 @@ import {
   connectWalletLabel,
   parentNotDelegatingLine,
   paySelfLine,
+  proofPendingLine,
   queryFaultLine,
   propagatingLine,
   propagatingRetryLine,
@@ -23,6 +27,7 @@ import {
   resolverUrlShown,
   shortNameNoteLine,
   STATUS_TAG,
+  termPerk,
   verifiedByLine,
 } from './wording'
 
@@ -243,5 +248,19 @@ describe('the referral lines (§10.7)', () => {
     for (const text of [shareInGraceLine(), shareHint('10%'), referralsCountLine(0, '0')]) {
       expect(text).not.toMatch(/\b(stop|do not pay|divergence|red)\b/i)
     }
+  })
+})
+
+describe('the two lines a tempo era would otherwise turn into lies (tasks/17)', () => {
+  it('render the term from TERM_LENGTH, never a typed period', () => {
+    expect(termPerk(31_536_000)).toBe('One-year terms')
+    expect(termPerk(604_800)).toBe('7-day terms')
+    expect(termPerk(3_600)).toBe('60-minute terms')
+    expect(termPerk(7_200)).toBe('2-hour terms')
+    expect(termPerk()).toBe(termPerk(CONSTANTS.TERM_LENGTH))
+  })
+
+  it('render the checkpoint interval from CHECKPOINT_INTERVAL', () => {
+    expect(proofPendingLine()).toBe(`Proof pending — checkpoints are cut every ${blocksApprox(CONSTANTS.CHECKPOINT_INTERVAL)}. The name works now.`)
   })
 })

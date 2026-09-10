@@ -63,7 +63,7 @@ the reset has already destroyed.
 | Value | Required treatment |
 |---|---|
 | `PROVEN` | The normal, good case. Carries the §5 "Verified by N resolvers" line |
-| `PROOF_PENDING` | **Depth, not alarm.** "Proof pending — checkpoints are cut every ~12 minutes." The name resolves and payments work (§8.7). No red, no warning glyph. This is the expected state of every fresh registration |
+| `PROOF_PENDING` | **Depth, not alarm.** "Proof pending — checkpoints are cut every ~12 min." (the interval is `CHECKPOINT_INTERVAL` rendered, as the landing's "One-year terms" is `TERM_LENGTH` rendered — a tempo era shows its own numbers) The name resolves and payments work (§8.7). No red, no warning glyph. This is the expected state of every fresh registration |
 | `DELEGATED` | **Visibly different from both.** "Resolved by `<parent>`" — the parent is proven, the address is the host's word. Never rendered identically to a proven answer (§8.5 #6). The identicon still renders (it is honest about the address), with the distinction carried alongside |
 
 `TARGET_CHANGED_SINCE_CHECKPOINT` (a proof verified, but for the previous

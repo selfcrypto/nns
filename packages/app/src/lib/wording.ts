@@ -15,6 +15,7 @@ import type { QuorumReport, WarningCode } from '@nns/resolver'
 import type { AppAction, GateReason } from './states'
 import type { QueryFault } from './search'
 import { CONSTANTS, type LabelInvalidReason, type NameInvalidReason } from '@nns/core'
+import { blocksApprox } from './format'
 
 // ── Verification lines ──────────────────────────────────────────────────────
 
@@ -66,8 +67,9 @@ export const hintLabel = (): string => 'More about this'
 export const verifiedHint = (): string =>
   'Each resolver answered with a Merkle proof, and this app checked it against the resolver’s published checkpoint before showing the address.'
 
+/** The interval is `CHECKPOINT_INTERVAL` rendered, never typed — a tempo era cuts one a minute (tasks/17). */
 export const proofPendingLine = (): string =>
-  'Proof pending — checkpoints are cut every ~12 minutes. The name works now.'
+  `Proof pending — checkpoints are cut every ${blocksApprox(CONSTANTS.CHECKPOINT_INTERVAL)}. The name works now.`
 
 export const delegatedLine = (parent: string): string => `Resolved by ${parent}`
 
@@ -741,6 +743,20 @@ export const burnExplainer = (): string =>
 // ── The landing page (a browser's front door; Pay opens on Buy) ─────────────
 
 /**
+ * The landing's first perk. `TERM_LENGTH` rendered as a period, never typed:
+ * mainnet's 31,536,000 blocks is "One-year terms", a tempo era's 604,800 is
+ * "7-day terms" (tasks/17). Blocks ≈ seconds.
+ */
+export function termPerk(blocks: number = CONSTANTS.TERM_LENGTH): string {
+  const days = blocks / 86_400
+  if (days >= 364) return 'One-year terms'
+  if (days >= 2) return `${Math.round(days)}-day terms`
+  const hours = blocks / 3_600
+  if (hours >= 2) return `${Math.round(hours)}-hour terms`
+  return `${Math.max(1, Math.round(blocks / 60))}-minute terms`
+}
+
+/**
  * Marketing copy, kept here for the same reason as the rest: a component
  * that invents a sentence is a component that drifts from the states doc.
  * Short on purpose — the app's own screens explain, behind a "?", what a
@@ -801,7 +817,7 @@ export const LANDING = {
     title: 'Claim your',
     titleAccent: 'name',
     go: 'Find your name',
-    perks: ['One-year terms', 'Every EVM chain', 'Self-custody'],
+    perks: [termPerk(), 'Every EVM chain', 'Self-custody'],
   },
   footer: {
     tagline: 'Names on Nimiq.',
