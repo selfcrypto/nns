@@ -182,6 +182,8 @@ const scenarios = {
   },
   'buy-invalid': async () => { await load(); await search('not a name!'); await shot('buy-invalid') },
   'pay': async () => { await load(); await tab('Pay'); await shot('pay-idle'); await search('nns'); await shot('pay-nns', true) },
+  'pay-available': async () => { await load(); await tab('Pay'); await search('zebra-quick-fox'); await shot('pay-available', true) },
+  'owner-pay-available': async () => { await loadAsOwner(); await tab('Pay'); await search('zebra-quick-fox'); await shot('owner-pay-available', true) },
   'names': async () => { await load(); await tab('My Names'); await shot('names') },
   'inbox': async () => { await load(); await tab('Inbox'); await shot('inbox') },
   'market': async () => { await load(); await tab('Market'); await shot('market', true) },

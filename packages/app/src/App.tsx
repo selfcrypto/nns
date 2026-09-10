@@ -234,6 +234,7 @@ export function App() {
             wallet={wallet}
             seed={route.param ?? ''}
             onQuery={(query) => replace({ tab: 'pay', param: query }, false)}
+            onConnect={connect}
           />
         )}
         {tab === 'names' && (

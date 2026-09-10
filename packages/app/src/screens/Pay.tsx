@@ -31,7 +31,7 @@ import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
 import { search } from '../lib/search'
 import { performSend, type SendPhase, type SendResult } from '../lib/send'
-import { sameAddress } from '../lib/states'
+import { sameAddress, type AppAction } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
 import { useRetryWhilePropagating } from '../lib/useRetryWhilePropagating'
 import { useDebounced } from '../lib/useDebounced'
@@ -86,15 +86,27 @@ import styles from './pay.module.css'
 /** The same settle as Buy — one query per typed word, not one per character. */
 const SETTLE_MS = 1_000
 
+/**
+ * The one action an unresolved card offers here. A name that is available is
+ * not payable, and "Available" with nothing to do about it is a dead end — the
+ * same card on Buy offers Register, so this screen offers the same button, the
+ * same flow. Not the rest of `ACQUIRE_ACTIONS`: a listing or a gifted renewal
+ * is Buy's job, and a resolved name is a payment here.
+ */
+const REGISTER_ONLY: readonly AppAction[] = ['register']
+
 export function PayScreen({
   wallet,
   seed,
   onQuery,
+  onConnect,
 }: {
   wallet: Wallet | null
   seed: string
   /** The settled query, for the URL — a reload comes back to the same name (`App.tsx`). */
   onQuery?: ((query: string) => void) | undefined
+  /** What the Register button does with no wallet attached — the same connect Buy's card uses. */
+  onConnect?: (() => void) | null | undefined
 }) {
   // Seeded by Buy's "Pay this address" handoff, with the query as typed — a
   // dotted one included, since this screen resolves through the same `search()`.
@@ -435,10 +447,11 @@ export function PayScreen({
                   outcome={outcome.value}
                   wallet={wallet}
                   nowMs={Date.now()}
-                  actions={[]}
+                  actions={REGISTER_ONLY}
                   onChanged={() => setNonce((v) => v + 1)}
                   onManage={null}
                   onPay={null}
+                  onConnect={onConnect}
                   retrying={retrying}
                 />
               </div>

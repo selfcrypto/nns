@@ -205,6 +205,10 @@ Four things are specific to it, and three are refusals:
   only producer of an address in the app. Every non-resolved outcome renders the
   shared card, which already words reserved, available, grace, delegate failure
   and alarm — none of which is payable.
+  An **available** name gets the same Register button Buy shows, running the
+  same `G` flow in the same card (2026-09-10): "Available" with nothing to do
+  about it was a dead end, and a handoff to Buy would have landed on a second
+  Register button. Only `register` — a listing or a gifted renewal stays Buy's.
 - **A pin mismatch stops the button** until the user overrides it. §8.5 requires
   the check on any screen paying a resolved address and CLAUDE.md requires a hard
   stop when a known mapping changes; `pinMismatchBody` already says "do not pay

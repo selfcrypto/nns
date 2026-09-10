@@ -255,7 +255,7 @@ its refusals exist nowhere else in the app and both failures are silent on-chain
 |---|---|
 | Nothing typed | "Pay a name" empty state |
 | Resolving | spinner; the query settles first, as in Buy |
-| Not a resolvable name | the §3 card for whatever it is — reserved, available, in grace, delegate failure, alarm. None is payable, and no amount field is shown |
+| Not a resolvable name | the §3 card for whatever it is — reserved, available, in grace, delegate failure, alarm. None is payable, and no amount field is shown. An available name keeps its Register CTA here, the same one as Buy's (2026-09-10) |
 | Resolved | the name, the pin check, the address, an amount field, and a Pay button that names the amount |
 | **Pin mismatch** | the §2 alarm card, **and the Pay button is disabled** until the two-step override is taken. "Do not pay until you know which" is the existing wording; the button has to mean it |
 | Amount not a NIM decimal | the field's own reason (five decimals is the floor — below luna) |
