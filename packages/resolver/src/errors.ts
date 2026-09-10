@@ -23,8 +23,14 @@ export type ResolverErrorCode =
   | 'NAME_INVALID'
   /** No resolver could be reached, or fewer than `quorum` answered. */
   | 'QUORUM_UNMET'
-  /** Resolvers answered, and gave different answers (§8.5 #2). */
+  /** Resolvers answered at one height, and gave different answers (§8.5 #2). */
   | 'QUORUM_DISAGREEMENT'
+  /**
+   * Resolvers gave different answers **at different state heights** — a
+   * change in the newest blocks may not have reached every one of them yet.
+   * Not a disagreement, which §8.5 #2 measures at one height: ask again.
+   */
+  | 'QUORUM_LAGGING'
   /** Two resolvers published different roots for the same checkpoint height (§8.5 #1). */
   | 'QUORUM_ROOT_MISMATCH'
   /** A served document is not the shape §8.3 fixes. */
@@ -105,7 +111,11 @@ export class QuorumError extends ResolverError {
   override readonly name = 'QuorumError'
   readonly replies: readonly ResolverReply[]
 
-  constructor(code: 'QUORUM_UNMET' | 'QUORUM_DISAGREEMENT' | 'QUORUM_ROOT_MISMATCH', message: string, replies: readonly ResolverReply[]) {
+  constructor(
+    code: 'QUORUM_UNMET' | 'QUORUM_DISAGREEMENT' | 'QUORUM_LAGGING' | 'QUORUM_ROOT_MISMATCH',
+    message: string,
+    replies: readonly ResolverReply[],
+  ) {
     super(code, message)
     this.replies = replies
   }

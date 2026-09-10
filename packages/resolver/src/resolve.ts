@@ -33,6 +33,7 @@ import { DelegateCache, askDelegate, type DelegateInfo } from './delegate.js'
 import {
   readAvailableResponse,
   readErrorCode,
+  readHeight,
   readResolveResponse,
   toHex,
   type DelegateResponse,
@@ -204,7 +205,6 @@ interface ResolveObservation extends Observation {
 interface AvailableObservation extends Observation {
   readonly available: boolean
   readonly reason: string | null
-  readonly height: number
   readonly proved: boolean
 }
 
@@ -419,12 +419,12 @@ export class NnsResolver {
 
       return answered<AvailableObservation>({
         key: `${response.available}:${response.reason ?? ''}`,
-        summary: response.available ? 'available' : `unavailable: ${response.reason ?? 'unknown'}`,
+        summary: `${response.available ? 'available' : `unavailable: ${response.reason ?? 'unknown'}`} at height ${response.height}`,
         checkpoint:
           response.proof === null ? null : { rootHex: toHex(response.proof.root), height: response.proof.nimiqHeight },
+        height: response.height,
         available: response.available,
         reason: response.reason,
-        height: response.height,
         proved,
       })
     })
@@ -454,7 +454,7 @@ export class NnsResolver {
       reason: first.reason,
       verification: proved ? 'PROVEN' : 'PROOF_PENDING',
       checkpoint: agreement.checkpoint,
-      height: Math.min(...agreement.witnesses.map((witness) => (witness.observation as AvailableObservation).height)),
+      height: Math.min(...agreement.witnesses.map((witness) => witness.observation.height)),
       quorum: this.#report(agreement),
       anchor,
       warnings: this.#raise(warnings),
@@ -470,10 +470,12 @@ export class NnsResolver {
         if (code !== 'NOT_FOUND' && code !== 'IN_GRACE') {
           throw new ResolverError('NOT_FOUND', `resolver answered 404 ${code ?? 'with no error code'}`)
         }
+        const height = readHeight(fetched.body)
         return answered<ResolveObservation>({
           key: `ABSENT:${code}`,
-          summary: code === 'NOT_FOUND' ? 'not registered' : 'in grace',
+          summary: `${code === 'NOT_FOUND' ? 'not registered' : 'in grace'} at height ${height}`,
           checkpoint: null,
+          height,
           response: null,
           absent: code,
           proven: null,
@@ -500,6 +502,7 @@ export class NnsResolver {
         key: `FOUND:${response.target}:${response.evm}:${response.status}:${response.host}`,
         summary: `${response.target} (${response.status}) at height ${response.height}`,
         checkpoint: checkpointOf(response),
+        height: response.height,
         response,
         absent: null,
         proven,
@@ -549,7 +552,7 @@ export class NnsResolver {
       verification: proven ? 'PROVEN' : 'PROOF_PENDING',
       host: live.host,
       checkpoint: agreement.checkpoint,
-      height: Math.min(...observations.map((observation) => (observation.response as ResolveResponse).height)),
+      height: Math.min(...observations.map((observation) => observation.height)),
       delegate: null,
       quorum: this.#report(agreement),
       anchor,

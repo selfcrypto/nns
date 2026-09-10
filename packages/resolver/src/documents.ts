@@ -312,6 +312,15 @@ export function readErrorCode(value: unknown): string | null {
   return typeof code === 'string' ? code : null
 }
 
+/**
+ * The `height` an error body is as of. A 404 `NOT_FOUND` / `IN_GRACE` is an
+ * answer that joins the §8.5 #2 comparison, and the comparison is made at a
+ * height — so a 404 without one is a malformed document, not a lesser answer.
+ */
+export function readHeight(value: unknown): number {
+  return readCount(value, 'error body', 'height')
+}
+
 /** §8.6 step 3: `{"address": "NQ...", "ttl": <seconds>}` from a delegate host. */
 export interface DelegateResponse {
   readonly address: Address

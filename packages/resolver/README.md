@@ -345,7 +345,7 @@ Everything below is a subclass of `ResolverError` and carries a `code`.
 |---|---|---|
 | `NameError` | `NAME_INVALID` | Not a valid name or dotted query. Never hit the network |
 | `LookupError` | `NOT_FOUND`, `IN_GRACE` | The name resolves to nothing. `IN_GRACE` means it expired and is in its 30-day grace period, where resolution is off but the name is not yet free |
-| `QuorumError` | `QUORUM_UNMET`, `QUORUM_DISAGREEMENT`, `QUORUM_ROOT_MISMATCH` | Too few answered, or they said different things. Carries `.replies`, so you can show which party said what |
+| `QuorumError` | `QUORUM_UNMET`, `QUORUM_LAGGING`, `QUORUM_DISAGREEMENT`, `QUORUM_ROOT_MISMATCH` | Too few answered, or they said different things. Carries `.replies`, so you can show which party said what. **Two of these are not alarms**: `QUORUM_UNMET` is "couldn't reach enough of them", and `QUORUM_LAGGING` is "they answered as of different heights and differ" — the seconds after a change lands, when one resolver has the block and another does not. Ask again in a few seconds; say the change is still propagating, never that the resolvers disagree. A disagreement is measured **at one height**, exactly as a root mismatch is |
 | `ProofError` | `PROOF_INVALID` | A served proof does not hold. Always fatal |
 | `AnchorError` | `CHECKPOINT_BINDING_INVALID`, `ANCHOR_MISMATCH`, `ANCHOR_DIVERGENCE` | See above. Carries `.check` |
 | `DocumentError` | `DOCUMENT_MALFORMED` | A reply is not the shape it must be. `.path` points at the field |

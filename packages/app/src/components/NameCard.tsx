@@ -57,9 +57,12 @@ import {
   renewDueLine,
   reservedLine,
   subdomainNotRegistrableLine,
+  propagatingLine,
+  propagatingRetryLine,
   unreachableLine,
   giftRenewalLabel,
 } from '../lib/wording'
+import { ClockIcon } from './icons'
 import { AddressRow, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from './result'
 import { ActionSheet } from './ActionSheet'
 import { MessageModal } from './MessageModal'
@@ -462,6 +465,7 @@ export function NameCard({
   onPay,
   onMarket,
   seamless = false,
+  retrying = false,
 }: {
   outcome: SearchOutcome
   wallet: Wallet | null
@@ -487,6 +491,8 @@ export function NameCard({
   onPay: ((query: string) => void) | null
   onMarket?: ((name?: string) => void) | null | undefined
   seamless?: boolean
+  /** A `propagating` outcome: whether the screen is still asking again on its own. */
+  retrying?: boolean
 }) {
   const [messageOpen, setMessageOpen] = useState(false)
   const sender = wallet === null ? null : primaryAddress(wallet.identity)
@@ -886,6 +892,32 @@ export function NameCard({
             <div className="reserved-info-box">
               <p className="reserved-text">{unreachableLine()}</p>
             </div>
+          </div>
+        </RailCard>
+      )
+
+    // Depth, never alarm: the change is real and one resolver has not seen
+    // it yet. Same tier as a proof pending.
+    case 'propagating':
+      return (
+        <RailCard tier="depth">
+          <div className="reserved-card-premium">
+            <div className="reserved-header">
+              <div className="available-title-row">
+                <TitleName name={outcome.query} />
+                <span className="taken-status-tag">
+                  <span className="taken-dot" aria-hidden="true" />
+                  {STATUS_TAG.propagating}
+                </span>
+              </div>
+            </div>
+            <div className="reserved-info-box">
+              <p className="reserved-text">{propagatingLine()}</p>
+            </div>
+            <p className="verify verify-depth verify-head" style={{ marginTop: '12px' }}>
+              <ClockIcon />
+              <span>{propagatingRetryLine(retrying)}</span>
+            </p>
           </div>
         </RailCard>
       )

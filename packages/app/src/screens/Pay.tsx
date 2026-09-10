@@ -33,6 +33,7 @@ import { search } from '../lib/search'
 import { performSend, type SendPhase, type SendResult } from '../lib/send'
 import { sameAddress } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
+import { useRetryWhilePropagating } from '../lib/useRetryWhilePropagating'
 import { useDebounced } from '../lib/useDebounced'
 import type { Wallet } from '../lib/wallet'
 import {
@@ -119,6 +120,7 @@ export function PayScreen({
   const trimmed = text.trim().toLowerCase()
   const [query, flushQuery] = useDebounced(trimmed, SETTLE_MS)
   const outcome = useAsync(query === '' ? null : () => search(query), [query, nonce])
+  const retrying = useRetryWhilePropagating(outcome, () => setNonce((v) => v + 1))
 
   useEffect(() => {
     onQuery?.(query)
@@ -437,6 +439,7 @@ export function PayScreen({
                   onChanged={() => setNonce((v) => v + 1)}
                   onManage={null}
                   onPay={null}
+                  retrying={retrying}
                 />
               </div>
             )}

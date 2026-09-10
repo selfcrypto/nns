@@ -14,7 +14,7 @@ import {
   noBidsLine,
   pendingTransferLine,
   proofPendingLine,
-  resolverIdentityLine,
+  resolverUrlShown,
   standingBidLine,
   verifiedByLine,
   verifiedHint,
@@ -47,7 +47,7 @@ function ResolverList({ quorum }: { quorum: ResolveResult['quorum'] }) {
         <li key={resolver.url}>
           <span className="resolver-pill">{resolver.name}</span>
           <span className="resolver-sep">—</span>
-          <span className="resolver-url">{resolver.url}</span>
+          <span className="resolver-url">{resolverUrlShown(resolver.url)}</span>
         </li>
       ))}
     </ul>

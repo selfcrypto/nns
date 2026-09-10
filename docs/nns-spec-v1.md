@@ -2259,7 +2259,13 @@ The mini app MUST:
    never silently prefer one. One resolver plus one anchor publisher is one
    party, and a single party's proofs are internally consistent whether or
    not they are honest (§2.1). Two fetches is the entire cost of closing
-   that hole, and the resolver list ships with the client
+   that hole, and the resolver list ships with the client. **A disagreement
+   is measured at one height.** Two answers given as of different state
+   heights differ the way two roots at different checkpoint heights do — as
+   lag, not conflict: for the seconds after a message lands, one resolver
+   has the block and another has not, and their answers must differ. The
+   client says the change is still propagating and asks again; the alarm is
+   for different answers **as of the same height**
 3. Verify the inclusion proof locally against the agreed root. **"Root"
    means two different digests in this list and the client must not conflate
    them.** What §9 anchors is the §8.1 **checkpoint commitment** — the

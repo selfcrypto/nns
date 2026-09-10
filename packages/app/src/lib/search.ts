@@ -40,6 +40,13 @@ export type SearchOutcome =
   | { readonly kind: 'delegate-failed'; readonly query: string; readonly code: DelegateErrorCode; readonly parent: ResolveResult | null }
   | { readonly kind: 'alarm'; readonly code: string; readonly message: string }
   | { readonly kind: 'unreachable'; readonly code: string; readonly message: string }
+  /**
+   * The resolvers answered as of different heights and differ — the seconds
+   * after a change lands, when one indexer has the block and another has not
+   * (`QUORUM_LAGGING`). Not a disagreement: the screen says the change is
+   * still propagating and asks again (`useRetryWhilePropagating`).
+   */
+  | { readonly kind: 'propagating'; readonly query: string; readonly message: string }
 
 /**
  * §4.1 syntax for a typed query, with **rule 6 neutralised**. Reservation is
@@ -190,9 +197,9 @@ export async function search(rawQuery: string): Promise<SearchOutcome> {
       return { kind: 'alarm', code: error.code, message: error.message }
     }
     if (error instanceof QuorumError) {
-      return error.code === 'QUORUM_UNMET'
-        ? { kind: 'unreachable', code: error.code, message: error.message }
-        : { kind: 'alarm', code: error.code, message: error.message }
+      if (error.code === 'QUORUM_UNMET') return { kind: 'unreachable', code: error.code, message: error.message }
+      if (error.code === 'QUORUM_LAGGING') return { kind: 'propagating', query, message: error.message }
+      return { kind: 'alarm', code: error.code, message: error.message }
     }
     const message = error instanceof Error ? error.message : String(error)
     return { kind: 'unreachable', code: 'NETWORK', message }

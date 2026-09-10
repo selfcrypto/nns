@@ -19,7 +19,10 @@
  *   controls one resolver degrade the quorum silently, which is the hole
  *   §8.5 #2 exists to close.
  * - **Different answers halt too**, per §8.5's "stop and warn — never
- *   silently prefer one".
+ *   silently prefer one" — when they were given **at one height**. Answers
+ *   given at different state heights differ the way roots at different
+ *   checkpoints do: as lag, not as conflict. That is `QUORUM_LAGGING`, an
+ *   ask-again failure, never an alarm.
  */
 
 import { CONSTANTS } from '@nns/core'
@@ -41,12 +44,15 @@ export interface CheckpointRef {
  * `key` is the answer: two resolvers agree exactly when their keys are equal.
  * `summary` is the same thing in prose, carried so a disagreement can be
  * reported as "resolver A said X, resolver B said Y" rather than as a bare
- * failure.
+ * failure. `height` is the state height the answer is as of — the frame the
+ * comparison is made in, because two answers are only comparable at one
+ * height (see {@link agree}).
  */
 export interface Observation {
   readonly key: string
   readonly summary: string
   readonly checkpoint: CheckpointRef | null
+  readonly height: number
 }
 
 export interface Witness<O extends Observation> {
@@ -147,9 +153,25 @@ export async function agree<O extends Observation>(
 
   const first = witnesses[0] as Witness<O>
   if (witnesses.some((w) => w.observation.key !== first.observation.key)) {
+    // A disagreement is measured at one height, as a root mismatch is
+    // (`reconcileRoots`). Two resolvers a block apart around a registration
+    // will always answer differently for the seconds one of them has not
+    // indexed that block, and that is lag, not conflict: the caller asks
+    // again. Only different answers **as of the same height** are the §8.5 #2
+    // failure — one of these parties is serving a state the other cannot
+    // have derived.
+    const heights = new Set(witnesses.map((w) => w.observation.height))
+    if (heights.size > 1) {
+      throw new QuorumError(
+        'QUORUM_LAGGING',
+        `resolvers answered at different heights (${[...heights].sort((a, b) => b - a).join(', ')}) and differ — ` +
+          'a change in the newest blocks may not have reached every one of them yet; ask again',
+        replies(),
+      )
+    }
     throw new QuorumError(
       'QUORUM_DISAGREEMENT',
-      'resolvers gave different answers — refusing to prefer one (§8.5)',
+      `resolvers gave different answers at height ${first.observation.height} — refusing to prefer one (§8.5)`,
       replies(),
     )
   }

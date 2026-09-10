@@ -37,7 +37,23 @@ export function verifiedByLine(quorum: QuorumReport): string {
  * the URL is the half a user can go and check.
  */
 export const resolverIdentityLine = (resolver: { readonly name: string; readonly url: string }): string =>
-  `${resolver.name} — ${resolver.url}`
+  `${resolver.name} — ${resolverUrlShown(resolver.url)}`
+
+/**
+ * The URL as a user can go and check it: absolute. The configured value may
+ * be a same-origin path (`/api`, `config.ts`), which is right for `fetch` and
+ * wrong on a card — "NIMIQNAMES.COM — /api" reads as a path that is not the
+ * API (Kike, 2026-09-10), when `https://nimiqnames.com/api` is exactly where
+ * it answers. Resolved against `base`, the document by default; a value that
+ * is not a URL at all is shown as configured.
+ */
+export function resolverUrlShown(url: string, base: string = globalThis.document?.baseURI ?? ''): string {
+  try {
+    return new URL(url, base === '' ? undefined : base).href.replace(/\/$/, '')
+  } catch {
+    return url
+  }
+}
 
 /** The "?" beside a line — what a screen reader calls it. */
 export const hintLabel = (): string => 'More about this'
@@ -130,6 +146,22 @@ export const alarmBody = (code: string): string => {
 
 export const unreachableLine = (): string =>
   'Couldn’t reach enough resolvers. Nothing is wrong with the name — try again.'
+
+// ── Propagation (states doc §2, `QUORUM_LAGGING`) ───────────────────────────
+
+/**
+ * The resolvers answered as of different heights and differ: a change from
+ * the newest blocks has reached one and not yet the other. Neutral on
+ * purpose — this is the expected state for the seconds after every
+ * registration, and the alarm vocabulary is not spent on it (Kike,
+ * 2026-09-10, on the first live registration of the demo era).
+ */
+export const propagatingLine = (): string =>
+  'A recent change is still reaching every resolver. This takes a few seconds.'
+
+/** Under the line above: whether the screen is asking again on its own. */
+export const propagatingRetryLine = (retrying: boolean): string =>
+  retrying ? 'Checking again…' : 'Still catching up — search again in a moment.'
 
 // ── Delegates (never blame the subdomain) ───────────────────────────────────
 
@@ -842,6 +874,7 @@ export const STATUS_TAG = {
   parent: 'Parent Name',
   alarm: 'Security Alarm',
   unreachable: 'Unreachable',
+  propagating: 'Propagating',
 } as const
 
 /** The title of the card that stands in for a registry that did not answer. */

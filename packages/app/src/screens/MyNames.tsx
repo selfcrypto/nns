@@ -12,6 +12,7 @@ import { apiBase } from '../lib/nns'
 import { search } from '../lib/search'
 import { renewalUrgency } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
+import { useRetryWhilePropagating } from '../lib/useRetryWhilePropagating'
 import {
   SCREEN_SUB,
   SCREEN_TITLE,
@@ -74,6 +75,7 @@ function Detail({
 }) {
   const [nonce, setNonce] = useState(0)
   const outcome = useAsync(() => search(name), [name, nonce])
+  const retrying = useRetryWhilePropagating(outcome, () => setNonce((value) => value + 1))
 
   const backLabel = backToNamesLabel()
 
@@ -138,6 +140,7 @@ function Detail({
                 }}
                 // Already the destination: no handoff to offer.
                 onManage={null}
+                retrying={retrying}
                 onPay={null}
                 seamless
               />

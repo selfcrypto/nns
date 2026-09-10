@@ -11,6 +11,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { isShortName, queryFault, search } from '../lib/search'
 import { useAsync } from '../lib/useAsync'
+import { useRetryWhilePropagating } from '../lib/useRetryWhilePropagating'
 import { useDebounced } from '../lib/useDebounced'
 import type { Wallet } from '../lib/wallet'
 import {
@@ -70,6 +71,7 @@ export function BuyScreen({
   }, [query])
 
   const outcome = useAsync(query === '' ? null : () => search(query), [query, nonce])
+  const retrying = useRetryWhilePropagating(outcome, () => setNonce((value) => value + 1))
 
   useEffect(() => {
     onQuery?.(query)
@@ -156,6 +158,7 @@ export function BuyScreen({
                   actions={ACQUIRE_ACTIONS}
                   onChanged={() => setNonce((value) => value + 1)}
                   onManage={onManage}
+                  retrying={retrying}
                   onPay={onPay}
                   onConnect={onConnect}
                   onMarket={onMarket}

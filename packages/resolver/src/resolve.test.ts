@@ -1,7 +1,7 @@
 import { formatAddress } from '@nns/core'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { DelegateError, LookupError, ProofError, QuorumError } from './errors.js'
+import { DelegateError, DocumentError, LookupError, ProofError, QuorumError } from './errors.js'
 import { NnsResolver } from './resolve.js'
 import { CHECKPOINT_HEIGHT, address, availableJson, record, resolveJson, rootHex } from './test-fixtures.js'
 import type { HttpFetch, ResolverEndpoint } from './transport.js'
@@ -116,7 +116,7 @@ describe('resolve', () => {
     await expect(resolver.resolve('kikeee')).rejects.toThrow(ProofError)
   })
 
-  it('halts when resolvers give different answers', async () => {
+  it('halts when resolvers give different answers at one height', async () => {
     const a = resolveJson(RECORDS, 'kikeee')
     const b = resolveJson(RECORDS, 'kikeee', { live: { target: address(6) } })
 
@@ -304,15 +304,57 @@ describe('resolve', () => {
     expect((error as LookupError).code).toBe('NOT_FOUND')
   })
 
-  it('halts when one resolver has the name and another does not', async () => {
+  it('halts when one resolver has the name and another does not, at one height', async () => {
     const error = await resolverOver({
       'a.example': serves(resolveJson(RECORDS, 'kikeee')),
-      'b.example': serves({ error: 'NOT_FOUND', name: 'kikeee', height: 1 }, 404),
+      'b.example': serves({ error: 'NOT_FOUND', name: 'kikeee', height: CHECKPOINT_HEIGHT + 41 }, 404),
     })
       .resolve('kikeee')
       .catch((e: unknown) => e)
 
     expect((error as QuorumError).code).toBe('QUORUM_DISAGREEMENT')
+  })
+
+  // The seconds after a registration lands: one indexer has the block, the
+  // other has not. Their answers differ, and they are as of different
+  // heights — which is lag, not the §8.5 #2 conflict. The alarm is measured
+  // at one height, as a root mismatch is; this is "ask again".
+  it('reports lag, not disagreement, when the differing answers are as of different heights', async () => {
+    const error = await resolverOver({
+      'a.example': serves(resolveJson(RECORDS, 'kikeee', { height: CHECKPOINT_HEIGHT + 42 })),
+      'b.example': serves({ error: 'NOT_FOUND', name: 'kikeee', height: CHECKPOINT_HEIGHT + 41 }, 404),
+    })
+      .resolve('kikeee')
+      .catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(QuorumError)
+    expect((error as QuorumError).code).toBe('QUORUM_LAGGING')
+    expect((error as QuorumError).message).toContain(`${CHECKPOINT_HEIGHT + 42}, ${CHECKPOINT_HEIGHT + 41}`)
+    expect((error as QuorumError).replies.map((r) => r.answer)).toEqual([
+      expect.stringContaining(`at height ${CHECKPOINT_HEIGHT + 42}`),
+      `not registered at height ${CHECKPOINT_HEIGHT + 41}`,
+    ])
+  })
+
+  it('agrees at the lower height when the answers match across heights', async () => {
+    // Two records at heights one apart, same target: not lag, not
+    // disagreement — an agreement, reported as of the height both reached.
+    const result = await resolverOver({
+      'a.example': serves(resolveJson(RECORDS, 'kikeee', { height: CHECKPOINT_HEIGHT + 42 })),
+      'b.example': serves(resolveJson(RECORDS, 'kikeee', { height: CHECKPOINT_HEIGHT + 41 })),
+    }).resolve('kikeee')
+
+    expect(result.height).toBe(CHECKPOINT_HEIGHT + 41)
+    expect(result.quorum.agreed).toBe(2)
+  })
+
+  it('rejects a 404 that carries no height, since a 404 is an answer and answers have a height', async () => {
+    await expect(
+      resolverOver({
+        'a.example': serves({ error: 'NOT_FOUND', name: 'kikeee' }, 404),
+        'b.example': serves({ error: 'NOT_FOUND', name: 'kikeee' }, 404),
+      }).resolve('kikeee'),
+    ).rejects.toThrow(DocumentError)
   })
 
   it('refuses a name in grace, where §7.3 turns resolution off', async () => {
@@ -514,15 +556,26 @@ describe('available', () => {
     expect(result).toMatchObject({ available: false, reason: 'TAKEN', verification: 'PROOF_PENDING' })
   })
 
-  it('halts when resolvers disagree about availability', async () => {
+  it('halts when resolvers disagree about availability at one height', async () => {
     const error = await resolverOver({
       'a.example': serves(availableJson(RECORDS, 'freeee')),
-      'b.example': serves({ name: 'freeee', available: false, reason: 'TAKEN', height: 1 }),
+      'b.example': serves({ name: 'freeee', available: false, reason: 'TAKEN', height: CHECKPOINT_HEIGHT + 41 }),
     })
       .available('freeee')
       .catch((e: unknown) => e)
 
     expect((error as QuorumError).code).toBe('QUORUM_DISAGREEMENT')
+  })
+
+  it('reports lag when the availability answers differ at different heights', async () => {
+    const error = await resolverOver({
+      'a.example': serves(availableJson(RECORDS, 'freeee', { height: CHECKPOINT_HEIGHT + 41 })),
+      'b.example': serves({ name: 'freeee', available: false, reason: 'TAKEN', height: CHECKPOINT_HEIGHT + 42 }),
+    })
+      .available('freeee')
+      .catch((e: unknown) => e)
+
+    expect((error as QuorumError).code).toBe('QUORUM_LAGGING')
   })
 
   it('refuses a dotted query — §4.4 labels are never registrable', async () => {

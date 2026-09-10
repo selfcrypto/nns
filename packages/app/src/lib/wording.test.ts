@@ -13,8 +13,12 @@ import {
   parentNotDelegatingLine,
   paySelfLine,
   queryFaultLine,
+  propagatingLine,
+  propagatingRetryLine,
   resolverIdentityLine,
+  resolverUrlShown,
   shortNameNoteLine,
+  STATUS_TAG,
   verifiedByLine,
 } from './wording'
 
@@ -40,6 +44,26 @@ describe('"Verified by N resolvers" (resolver README decision, 2026-08-14)', () 
   it('names every agreeing resolver by name and API URL', () => {
     expect(resolverIdentityLine(LABS)).toBe('Example Labs — https://api.example.com')
     expect(resolverIdentityLine(OURS)).toContain('https://nns.ours.example')
+  })
+
+  // A same-origin `/api` is right for fetch and wrong on the card: shown
+  // bare it reads as a path that is not the API (Kike, 2026-09-10).
+  it('shows a same-origin path as the absolute URL it fetches', () => {
+    expect(resolverUrlShown('/api', 'https://nimiqnames.com/#/buy')).toBe('https://nimiqnames.com/api')
+    expect(resolverUrlShown('https://nns.sonartech.pro', 'https://nimiqnames.com/')).toBe('https://nns.sonartech.pro')
+    expect(resolverUrlShown('https://nns.sonartech.pro/', 'https://nimiqnames.com/')).toBe('https://nns.sonartech.pro')
+  })
+
+  it('shows a value that is not a URL as configured', () => {
+    expect(resolverUrlShown('/api', '')).toBe('/api')
+  })
+})
+
+describe('propagation is depth, not alarm (Kike, 2026-09-10)', () => {
+  it('never uses the alarm vocabulary', () => {
+    for (const line of [propagatingLine(), propagatingRetryLine(true), propagatingRetryLine(false), STATUS_TAG.propagating]) {
+      expect(line.toLowerCase()).not.toMatch(/disagree|stop|do not pay|alarm|wrong/)
+    }
   })
 })
 
