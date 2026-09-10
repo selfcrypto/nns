@@ -288,6 +288,81 @@
       }
     },
     {
+      "id": "G_surplus_is_refunded",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842725,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1000000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "ALICE",
+                "amount": "800000000"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "ALICE",
+            "target": "ALICE",
+            "expiry": 90378725,
+            "status": "REGISTERED",
+            "host": ""
+          }
+        },
+        "resolves": {
+          "kikename": "ALICE"
+        }
+      },
+      "note": "§10.5 since 2026-09-10 (r29 fold): a G that paid more than the fee in effect registers and owes the surplus back from the treasury, keyed by its own ref — the mirror of the underpayment refund, for the mirror reason (a P lowering the price while the message is in flight)."
+    },
+    {
+      "id": "G_surplus_below_REFUND_FLOOR_is_forfeit",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842725,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200099999",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK",
+            "obligations": []
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "ALICE",
+            "target": "ALICE",
+            "expiry": 90378725,
+            "status": "REGISTERED",
+            "host": ""
+          }
+        },
+        "resolves": {
+          "kikename": "ALICE"
+        }
+      },
+      "note": "A surplus under REFUND_FLOOR (1 NIM) is kept, as an underpayment under the floor is: one M per dust surplus is the attack the floor exists for."
+    },
+    {
       "id": "G_long_band_is_priced_by_length_alone",
       "steps": [
         {

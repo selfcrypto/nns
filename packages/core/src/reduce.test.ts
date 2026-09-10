@@ -204,8 +204,30 @@ describe('G — register (§6, §7.4)', () => {
     expect(lookup(result.state, 'kikename')).toBeNull()
   })
 
-  it('accepts an overpayment and forfeits the excess (§10.5)', () => {
-    expect(step(encodeRegister({ name: 'kikename', fee: FEE * 2n }), { sender: ALICE }).verdict.kind).toBe('OK')
+  it('accepts an overpayment and owes the surplus back from the treasury (§10.5, r29 fold)', () => {
+    const result = step(encodeRegister({ name: 'kikename', fee: FEE * 2n }), { sender: ALICE })
+    expect(result.verdict).toEqual({
+      kind: 'OK',
+      obligations: [{ ref: { height: LAUNCH, txIndex: 0 }, kind: 'REFUND', owedBy: TREASURY, owedTo: ALICE, amount: FEE }],
+    })
+    expect(lookup(result.state, 'kikename')).not.toBeNull()
+    expect(result.state.outstanding.get(`${LAUNCH}:0`)).toHaveLength(1)
+  })
+
+  it('keeps a surplus under REFUND_FLOOR, as it keeps an underpayment under it', () => {
+    const result = step(encodeRegister({ name: 'kikename', fee: FEE + CONSTANTS.REFUND_FLOOR - 1n }), { sender: ALICE })
+    expect(result.verdict).toEqual({ kind: 'OK', obligations: [] })
+    const exact = step(encodeRegister({ name: 'othername', fee: FEE + CONSTANTS.REFUND_FLOOR }), { sender: ALICE })
+    expect(exact.verdict).toMatchObject({ obligations: [{ amount: CONSTANTS.REFUND_FLOOR }] })
+  })
+
+  it('an overpaid renewal owes its surplus back too, keyed by the N (§10.5)', () => {
+    registerToAlice()
+    const result = step(encodeRenew({ name: 'kikename', fee: FEE * 3n }), { sender: BOB, at: LAUNCH + 5 })
+    expect(result.verdict).toEqual({
+      kind: 'OK',
+      obligations: [{ ref: { height: LAUNCH + 5, txIndex: 0 }, kind: 'REFUND', owedBy: TREASURY, owedTo: BOB, amount: FEE * 2n }],
+    })
   })
 
   it('forfeits an invalid name, checkable offline', () => {

@@ -13,6 +13,7 @@ The value sits at the address that received it, which owes you a refund. The set
 | What happened | Log reason | Refunded by |
 |---|---|---|
 | You registered or renewed and paid less than the price in effect — including when a price change landed while your transaction was on its way | `INSUFFICIENT_VALUE` | The treasury |
+| You registered or renewed and paid **more** than the price in effect — the name is yours, and the surplus comes back | (accepted, `OK`) | The treasury |
 | You registered a name that someone else's registration reached first, in block order | `LOST_REGISTRATION_RACE` | The treasury |
 | You bought a name whose offer was gone — sold to someone ahead of you, cancelled, or expired — or bid after an auction closed | `OFFER_NOT_OPEN` | The marketplace |
 | You paid the wrong amount for an offer (more *or* less than the exact price), or bid below the minimum | `WRONG_PRICE` | The marketplace |

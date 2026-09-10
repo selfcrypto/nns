@@ -19,7 +19,7 @@ Renewal costs the same as registration for that band, at the price in effect whe
 The app always sends the exact fee, so this only matters if you build a transaction yourself:
 
 - **Pay less** and the registration does not happen and the money is **refunded** in full. The treasury keeps nothing it did not earn — and a price change can take effect while your transaction is still on its way, which is not your mistake.
-- **Pay more** and the registration succeeds and the surplus is **kept**. Refunding a few luna would cost more attention than it returns.
+- **Pay more** and the registration succeeds and the surplus is **refunded**, for the same reason: the treasury keeps nothing it did not earn, and a price cut can land while your transaction is on its way.
 - **Someone else registered the name a moment before you** and your payment is **refunded** in full. That loss was caused by the race, not by you.
 
 One floor applies to every refund: an amount below {{nim:REFUND_FLOOR}} is kept, which stops anyone turning thousands of tiny failed messages into thousands of refund transactions. Nothing an honest client sends is that small.

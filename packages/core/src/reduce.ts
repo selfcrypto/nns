@@ -550,6 +550,24 @@ export const commissionOn = (price: bigint, commissionBp: bigint): bigint =>
  * underfunded messages into an obligation to broadcast thousands of
  * transactions.
  */
+/**
+ * §10.5 (r29 fold, 2026-09-10): a successful `G` or `N` that paid more than
+ * the fee in effect owes the **surplus** back from the treasury — the mirror
+ * of the underpayment refund, for the mirror reason: a `P` that lowers the
+ * price while the message sits in the mempool lands it over through no
+ * fault of the client, and the treasury keeps nothing it did not earn.
+ * Below `REFUND_FLOOR` the surplus is forfeit, as an underpayment below the
+ * floor is, and for the same reason (one `M` per dust surplus is the
+ * attack). The verdict stays `OK` and obligations are not committed (§8.1),
+ * so no root and no log hash moves.
+ */
+function surplusRefund(tx: ChainTransaction, fee: bigint): readonly Obligation[] {
+  const surplus = tx.value - fee
+  if (surplus < CONSTANTS.REFUND_FLOOR) return []
+  const ref: TxRef = { height: tx.blockNumber, txIndex: tx.txIndex }
+  return [obligation(ref, 'REFUND', CONSTANTS.TREASURY_ADDRESS, tx.sender, surplus)]
+}
+
 function refundOrForfeit(tx: ChainTransaction, reason: RefundReason, owedBy: Address): Verdict {
   if (tx.value < CONSTANTS.REFUND_FLOOR) return forfeit('BELOW_REFUND_FLOOR')
   const ref: TxRef = { height: tx.blockNumber, txIndex: tx.txIndex }
@@ -646,7 +664,8 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // by the treasury, so the order decides only which token the log carries
       // — §7.4 fixes it, and `INSUFFICIENT_VALUE` is the more informative of
       // two true answers about a message that underpaid for a taken name.
-      if (tx.value < feeFor(message.name, state.prices)) {
+      const fee = feeFor(message.name, state.prices)
+      if (tx.value < fee) {
         return keep(refundOrForfeit(tx, 'INSUFFICIENT_VALUE', CONSTANTS.TREASURY_ADDRESS))
       }
 
@@ -672,7 +691,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
         evm: '',
       })
       schedule(draft, expiry)
-      return { state: freeze(draft), verdict: ok() }
+      return { state: freeze(draft), verdict: ok(surplusRefund(tx, fee)) }
     }
 
     // ── S — Set resolution target (§6) ───────────────────────────────────────
@@ -772,7 +791,8 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // Sender: anyone. A grace name can still be renewed by its former owner.
       const record = state.names.get(message.name)
       if (record === undefined) return keep(forfeit('NAME_NOT_FOUND'))
-      if (tx.value < feeFor(message.name, state.prices)) {
+      const fee = feeFor(message.name, state.prices)
+      if (tx.value < fee) {
         return keep(refundOrForfeit(tx, 'INSUFFICIENT_VALUE', CONSTANTS.TREASURY_ADDRESS))
       }
 
@@ -785,7 +805,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       draft.names.set(message.name, { ...record, expiry, status })
       draft.nextDueHeight = computeNextDue(draft)
       schedule(draft, expiry)
-      return { state: freeze(draft), verdict: ok() }
+      return { state: freeze(draft), verdict: ok(surplusRefund(tx, fee)) }
     }
 
     // ── O — Offer (§6) ───────────────────────────────────────────────────────

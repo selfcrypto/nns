@@ -238,3 +238,16 @@ describe('reconcile — the §10.7 shares section', () => {
     expect(text).toContain('newcomer via ricoref at 1000 bp')
   })
 })
+
+describe('reconcile — a surplus on an OK G is a treasury refund (§10.5, 2026-09-10)', () => {
+  it('creates the leg for value − fee, and a treasury M for exactly that settles it', () => {
+    const over = [send(H.register, 0, SELLER, encodeRegister({ name: NAME, fee: FEE * 3n }))]
+    const owed = reportFor(over)
+    expect(owed.lines).toEqual([expect.objectContaining({ owedBy: TREASURY, kind: 'REFUND', created: FEE * 2n, outstanding: FEE * 2n })])
+    expect(owed.standing[0]).toMatchObject({ ref: { height: H.register, txIndex: 0 }, owedTo: SELLER, amount: FEE * 2n })
+    const paid = reportFor([...over, send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: SELLER, amount: FEE * 2n }))])
+    expect(paid.totalOutstanding).toBe(0n)
+    expect(paid.unmatched).toEqual([])
+    expect(isSound(paid)).toBe(true)
+  })
+})

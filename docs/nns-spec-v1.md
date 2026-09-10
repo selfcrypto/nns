@@ -710,7 +710,7 @@ NNS1G<name>|<ref>
   the verified 64-byte ceiling (§5.1)
 - **To:** `TREASURY_ADDRESS`
 - **Value:** ≥ the fee for this name's length band at this block height
-  (§10.1, §10.6)
+  (§10.1, §10.6); a surplus at or above `REFUND_FLOOR` is owed back (§10.5)
 - `ref`: **optional** referrer, 1…`MAX_REF_LEN` characters from `a-z`,
   `0-9`, `-` — **a registered name** whose owner drove the registration, so
   the referral share can be paid to it (§10.7). It has **no effect on
@@ -882,7 +882,8 @@ NNS1N<name>
 ```
 
 - **To:** `TREASURY_ADDRESS`
-- **Value:** the fee for this name's length band at this height
+- **Value:** ≥ the fee for this name's length band at this height; a
+  surplus at or above `REFUND_FLOOR` is owed back (§10.5)
 - Sender: anyone
 
 Extends expiry by `TERM_LENGTH` from the current expiry, not from the renewal
@@ -1737,6 +1738,12 @@ by an `M` (§6).
 | `OFFER_NOT_OPEN` | `B` | `MARKETPLACE_ADDRESS` | Neither an open offer nor an open auction: the race loser, a cancelled or expired offer, or a `B` after an auction closed. All refund identically, so the log does not distinguish them |
 | `WRONG_PRICE` | `B` | `MARKETPLACE_ADDRESS` | Against an offer, value is not **exactly** the price — over as well as under (§10.5). Against an auction, the bid is short of the starting price or of the increment over the standing bid (§6 `A`) |
 | `INSUFFICIENT_VALUE` | `G` `N` `O` | `TREASURY_ADDRESS` | Value below the fee this message owes: the band fee for the name at this message's height for `G` and `N` (§10.1), the listing fee for `O` (§6 `O`) — unreachable for `O` while `LISTING_FEE` is 0. The full value sent is owed back. A forfeit through r28 |
+
+**One refund rides an `OK` line.** A `G` or `N` that paid *more* than the
+fee in effect succeeds and owes the **surplus** back from `TREASURY_ADDRESS`
+under its own ref (§10.5) — the mirror of `INSUFFICIENT_VALUE`, with the
+same `REFUND_FLOOR`. No token: the verdict is `OK`, and obligations are not
+committed (§8.1), so the rule moves no root and no log hash.
 
 **Check order.** A message can fail several of the rows above at once, and
 only the first one reached is written, so the order is as normative as the
@@ -2816,11 +2823,20 @@ a comparison, and the whole of it lives in §7.4's two columns — below the
 fee the message has no effect and its value is refunded in full (r29), at or
 above it the message takes effect.
 
-**Overpayment on a successful message is forfeited.** A correct client sends
-the exact fee — the price in effect is published and provable (§10.6) — so
-overpaying is client-preventable, and the forfeit column is where
-client-preventable losses go. Refunding it instead would mean a settlement
-transaction costing more attention than the few luna involved.
+**Overpayment on a successful `G` or `N` is refunded — the surplus, not
+the message.** The registration or renewal takes effect and the treasury
+owes `value − fee` back to the effective sender, as a `REFUND` obligation
+under the message's own ref, discharged by an `M` like any other (§6 `M`);
+the verdict stays `OK`. Below `REFUND_FLOOR` the surplus is kept, as an
+underpayment below the floor is, and for the same reason. This is the
+mirror of the underpayment refund and stands on the same argument: a `P`
+that lowers the price while a correctly built message sits in the mempool
+lands it over through no fault of the client, and the treasury keeps
+nothing it did not earn. (Through 2026-09-10 the surplus was forfeited on
+the premise that it was "a few luna" — which a price cut never is.) A `B`
+against an offer stays exact in both directions, because there the amount
+selects the leg; a bid's value is the bid; the dust messages carry no fee
+to overpay.
 
 ### 10.6 Governance
 
