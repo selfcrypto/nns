@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CONSTANTS } from './constants.js'
-import { feeBand, parseQuery, validateLabel, validateName, validateNameShape, validateNameSyntax } from './name.js'
+import { parseQuery, validateLabel, validateName, validateNameShape, validateNameSyntax } from './name.js'
 
 const reason = (name: string): string | null => {
   const result = validateName(name)
@@ -147,13 +147,6 @@ describe('validateNameShape — rules 2–5 with no length at all', () => {
     for (const name of ['nimiq', 'nim1q', 'nimiq0', 'na--me', '-bad-', 'nimiq shop']) {
       expect(validateNameShape(name), name).toEqual(validateNameSyntax(name))
     }
-  })
-})
-
-describe('feeBand — §10.1', () => {
-  it('splits at LONG_NAME_LEN', () => {
-    expect(feeBand('a'.repeat(CONSTANTS.LONG_NAME_LEN - 1))).toBe('STANDARD')
-    expect(feeBand('a'.repeat(CONSTANTS.LONG_NAME_LEN))).toBe('LONG')
   })
 })
 

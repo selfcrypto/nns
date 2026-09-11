@@ -101,7 +101,7 @@ describe('vectors/codec.json', () => {
     Object.fromEntries(
       Object.entries(message).map(([key, value]) => [
         key,
-        ['price', 'startingPrice', 'feeStandard', 'feeLong', 'commissionBp'].includes(key) ? BigInt(value as string) : value,
+        ['price', 'startingPrice', 'feeBase', 'commissionBp'].includes(key) ? BigInt(value as string) : value,
       ]),
     )
 
@@ -648,7 +648,7 @@ describe('vectors/reduce.json', () => {
         B: 3,
         A: 6, // r28: routing, name state, sender, AUCTION_OPEN, floor, notice, term (2026-09-03) — the version forfeit is gone
         P: 3,
-        U: 3, // r22 removed the notice row, and the pair that ordered it
+        U: 4, // r22 removed the notice row and its pair; 2026-09-11 split the last row by recipient and added the award's
         F: 1,
       })
     })
@@ -666,10 +666,13 @@ describe('vectors/reduce.json', () => {
       // spec agreed with. r28 activated `A`: its two version-forfeit rows
       // went, and seven rows citing the r28 check-order table came — five for
       // `A`'s own order, one each for the `AUCTION_OPEN` row in `O` and `X`.
+      // 2026-09-11 widened `U` awards past the reserved set: the award's last
+      // row is `NAME_NOT_AVAILABLE`, and one pinned row orders it behind the
+      // name syntax as the release's twin does.
       const cases = section.cases as any[]
       const pinned = cases.filter((c) => c.pinnedBy !== null)
       const free = cases.filter((c) => c.pinnedBy === null)
-      expect(pinned).toHaveLength(24)
+      expect(pinned).toHaveLength(25)
       expect(free).toHaveLength(19)
       for (const testCase of cases) {
         expect(typeof testCase.note, `${testCase.id} needs a note`).toBe('string')
@@ -684,7 +687,7 @@ describe('vectors/reduce.json', () => {
     // The gap these close: every other observation of a height-driven effect
     // is a root taken at a CHECKPOINT_INTERVAL boundary, which cannot tell h
     // from h+1, and none of them earns a verdict token — so a replay can agree
-    // with a second implementation on all 27 tokens and still fire an effect a
+    // with a second implementation on all 28 tokens and still fire an effect a
     // block early. One vector per §7.3 category, each asserting both sides.
     //
     // The two `boundary_unreserve_*` vectors left with r22: a `U` executes in

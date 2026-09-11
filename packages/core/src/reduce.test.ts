@@ -23,9 +23,11 @@ import {
   type ReduceResult,
   advanceTo,
   commissionOn,
+  feeFor,
   governanceBoundViolation,
   reduce,
   requiredBid,
+  termFor,
 } from './reduce.js'
 import { merkleProof, merkleRoot, verifyProof } from './merkle.js'
 import { type NnsState, LAUNCH_PRICES, initialState, lookup, minPrice, resolve } from './state.js'
@@ -33,7 +35,8 @@ import { ADMIN, ALICE, BOB, CAROL, MAINNET_ID, MARKETPLACE, PROTOCOL, TREASURY, 
 
 const config = testConfig()
 const LAUNCH: number = CONSTANTS.LAUNCH_HEIGHT
-const FEE = CONSTANTS.FEE_STANDARD
+/** The 7–11 band's yearly fee at launch prices — every fixture name here is that long. */
+const FEE = feeFor('kikename', LAUNCH_PRICES)
 /** §3 `MIN_PRICE` at launch prices — the floor on an `O` price (§6 `O`). */
 const FLOOR = minPrice(LAUNCH_PRICES)
 
@@ -182,13 +185,56 @@ describe('G — register (§6, §7.4)', () => {
   })
 
   it('prices by length band, measured from the name itself (§10.1)', () => {
-    const long = 'a'.repeat(CONSTANTS.LONG_NAME_LEN)
-    expect(step(encodeRegister({ name: long, fee: CONSTANTS.FEE_LONG }), { sender: ALICE }).verdict.kind).toBe(
-      'OK',
-    )
+    const long = 'a'.repeat(12)
+    expect(step(encodeRegister({ name: long, fee: CONSTANTS.FEE_BASE }), { sender: ALICE }).verdict.kind).toBe('OK')
     expect(
-      step(encodeRegister({ name: 'kikename', fee: CONSTANTS.FEE_LONG }), { sender: BOB }).verdict,
+      step(encodeRegister({ name: 'kikename', fee: CONSTANTS.FEE_BASE }), { sender: BOB }).verdict,
     ).toMatchObject({ kind: 'REFUND', reason: 'INSUFFICIENT_VALUE' })
+  })
+
+  it('prices every open band as a multiple of FEE_BASE — 25×, 10×, 5×, 1× (§10.1)', () => {
+    const base = CONSTANTS.FEE_BASE
+    for (const [name, times] of [
+      ['abcde', 25n],
+      ['abcdef', 10n],
+      ['abcdefg', 5n],
+      ['abcdefghijk', 5n],
+      ['abcdefghijkl', 1n],
+    ] as const) {
+      expect(feeFor(name, LAUNCH_PRICES), name).toBe(base * times)
+      expect(step(encodeRegister({ name, fee: base * times - 1n }), { sender: ALICE }).verdict, name).toMatchObject({
+        kind: 'REFUND',
+        reason: 'INSUFFICIENT_VALUE',
+      })
+      expect(step(encodeRegister({ name, fee: base * times }), { sender: ALICE }).verdict.kind, name).toBe('OK')
+    }
+  })
+
+  it('registers a lifetime for ten yearly fees and a hundred terms, as a plain expiry (§10.4)', () => {
+    const lifetimeFee = feeFor('kikename', LAUNCH_PRICES, true)
+    expect(lifetimeFee).toBe(FEE * CONSTANTS.LIFETIME_MULTIPLIER)
+    expect(termFor(true)).toBe(CONSTANTS.LIFETIME_TERMS * CONSTANTS.TERM_LENGTH)
+
+    // Ten yearly fees minus one luna is an underpayment, refunded in full.
+    expect(
+      step(encodeRegister({ name: 'kikename', fee: lifetimeFee - 1n, lifetime: true }), { sender: ALICE }).verdict,
+    ).toEqual({
+      kind: 'REFUND',
+      reason: 'INSUFFICIENT_VALUE',
+      obligations: [{ ref: { height: LAUNCH, txIndex: 0 }, kind: 'REFUND', owedBy: TREASURY, owedTo: ALICE, amount: lifetimeFee - 1n }],
+    })
+
+    const result = step(encodeRegister({ name: 'kikename', fee: lifetimeFee, lifetime: true }), { sender: ALICE, at: LAUNCH + 5 })
+    expect(result.verdict).toEqual({ kind: 'OK', obligations: [] })
+    expect(lookup(state, 'kikename')).toMatchObject({
+      owner: ALICE,
+      expiry: LAUNCH + 5 + CONSTANTS.LIFETIME_TERMS * CONSTANTS.TERM_LENGTH,
+      status: 'REGISTERED',
+    })
+    // Nothing downstream distinguishes it: it resolves, and it is still a
+    // name with an expiry that the ordinary height effect will reach.
+    expect(resolve(state, 'kikename')).toBe(ALICE)
+    expect(state.nextDueHeight).toBe(LAUNCH + 5 + CONSTANTS.LIFETIME_TERMS * CONSTANTS.TERM_LENGTH)
   })
 
   it('refunds an underpayment from the treasury, for the full value sent (§7.4, r29)', () => {
@@ -228,6 +274,28 @@ describe('G — register (§6, §7.4)', () => {
       kind: 'OK',
       obligations: [{ ref: { height: LAUNCH + 5, txIndex: 0 }, kind: 'REFUND', owedBy: TREASURY, owedTo: BOB, amount: FEE * 2n }],
     })
+  })
+
+  it('renews for a lifetime with N|L — the upgrade of a yearly name, priced at ten fees (§6 N, §10.4)', () => {
+    registerToAlice('kikename', LAUNCH)
+    const yearlyExpiry = LAUNCH + CONSTANTS.TERM_LENGTH
+    // Ten yearly fees minus one is short, and the whole value comes back.
+    expect(step(encodeRenew({ name: 'kikename', fee: FEE * 10n - 1n, lifetime: true }), { sender: BOB, at: LAUNCH + 5 }).verdict).toMatchObject({
+      kind: 'REFUND',
+      reason: 'INSUFFICIENT_VALUE',
+      obligations: [{ amount: FEE * 10n - 1n }],
+    })
+    // Anyone may pay it, with a surplus owed back like any other renewal.
+    const result = step(encodeRenew({ name: 'kikename', fee: FEE * 11n, lifetime: true }), { sender: BOB, at: LAUNCH + 5 })
+    expect(result.verdict).toEqual({
+      kind: 'OK',
+      obligations: [{ ref: { height: LAUNCH + 5, txIndex: 0 }, kind: 'REFUND', owedBy: TREASURY, owedTo: BOB, amount: FEE }],
+    })
+    // Extends from the current expiry by a hundred terms, not from the height.
+    expect(lookup(state, 'kikename')?.expiry).toBe(yearlyExpiry + CONSTANTS.LIFETIME_TERMS * CONSTANTS.TERM_LENGTH)
+    // A plain N on a lifetime name adds a year to a date a century out — no rule needed.
+    expect(step(encodeRenew({ name: 'kikename', fee: FEE }), { sender: ALICE, at: LAUNCH + 6 }).verdict.kind).toBe('OK')
+    expect(lookup(state, 'kikename')?.expiry).toBe(yearlyExpiry + (CONSTANTS.LIFETIME_TERMS + 1) * CONSTANTS.TERM_LENGTH)
   })
 
   it('forfeits an invalid name, checkable offline', () => {
@@ -584,8 +652,7 @@ describe('ordering of effects that come due at the same height', () => {
     send1(encodeUnreserve({ name: 'binance' }), { sender: ADMIN, at: notice })
     send1(
       encodeGovernance({
-        feeStandard: FEE * 2n,
-        feeLong: CONSTANTS.FEE_LONG,
+        feeBase: CONSTANTS.FEE_BASE * 2n,
         commissionBp: CONSTANTS.COMMISSION_RATE,
         effectiveHeight: H,
       }),
@@ -595,7 +662,7 @@ describe('ordering of effects that come due at the same height', () => {
 
     state = advanceTo(state, H)
 
-    expect(state.prices.feeStandard).toBe(FEE * 2n) // governance activated
+    expect(state.prices.feeBase).toBe(CONSTANTS.FEE_BASE * 2n) // governance activated
     expect(state.unreserved.has('binance')).toBe(true) // released back at `notice`
     expect(lookup(state, 'expirename')).toMatchObject({ owner: BOB, status: 'GRACE' }) // X before expiry
     expect(state.auctions.has('closename')).toBe(false) // auction closed…
@@ -816,14 +883,13 @@ describe('MIN_PRICE — the floor on an O price (§3, §6 O)', () => {
     expect(commissionOn(20n, CONSTANTS.AUCTION_MIN_INCREMENT_BP)).toBe(1n)
   })
 
-  it('moves the floor with FEE_LONG, reading it from state and not from constants', () => {
-    // A P that doubles FEE_LONG doubles MIN_PRICE with it. An implementation
-    // reading CONSTANTS.FEE_LONG is right until this block and wrong after.
+  it('moves the floor with FEE_BASE, reading it from state and not from constants', () => {
+    // A P that doubles FEE_BASE doubles MIN_PRICE with it. An implementation
+    // reading CONSTANTS.FEE_BASE is right until this block and wrong after.
     const effective = LAUNCH + CONSTANTS.GOVERNANCE_DELAY
     step(
       encodeGovernance({
-        feeStandard: CONSTANTS.FEE_STANDARD,
-        feeLong: FLOOR * 2n,
+        feeBase: FLOOR * 2n,
         commissionBp: CONSTANTS.COMMISSION_RATE,
         effectiveHeight: effective,
       }),
@@ -855,25 +921,33 @@ describe('MIN_PRICE — the floor on an O price (§3, §6 O)', () => {
 
 describe('P — governance (§6, §10.6)', () => {
   const effective = LAUNCH + CONSTANTS.GOVERNANCE_DELAY
-  const proposal = (over: Partial<{ feeStandard: bigint; feeLong: bigint; commissionBp: bigint }> = {}) =>
+  const proposal = (over: Partial<{ feeBase: bigint; commissionBp: bigint }> = {}) =>
     encodeGovernance({
-      feeStandard: CONSTANTS.FEE_STANDARD,
-      feeLong: CONSTANTS.FEE_LONG,
+      feeBase: CONSTANTS.FEE_BASE,
       commissionBp: CONSTANTS.COMMISSION_RATE,
       effectiveHeight: effective,
       ...over,
     })
 
   it('takes effect only at effective_height, so nothing in flight is invalidated', () => {
-    step(proposal({ feeStandard: CONSTANTS.FEE_STANDARD * 2n }), { sender: ADMIN })
-    expect(state.prices.feeStandard).toBe(CONSTANTS.FEE_STANDARD)
+    step(proposal({ feeBase: CONSTANTS.FEE_BASE * 2n }), { sender: ADMIN })
+    expect(state.prices.feeBase).toBe(CONSTANTS.FEE_BASE)
 
     state = advanceTo(state, effective)
-    expect(state.prices.feeStandard).toBe(CONSTANTS.FEE_STANDARD * 2n)
+    expect(state.prices.feeBase).toBe(CONSTANTS.FEE_BASE * 2n)
+  })
+
+  it('moves every band with the one base fee (§10.1)', () => {
+    step(proposal({ feeBase: CONSTANTS.FEE_BASE * 3n }), { sender: ADMIN })
+    state = advanceTo(state, effective)
+    for (const name of ['abcde', 'abcdef', 'kikename', 'abcdefghijkl']) {
+      expect(feeFor(name, state.prices), name).toBe(feeFor(name, LAUNCH_PRICES) * 3n)
+    }
+    expect(minPrice(state.prices)).toBe(FLOOR * 3n)
   })
 
   it('validates a registration against the price at its own block height', () => {
-    step(proposal({ feeStandard: CONSTANTS.FEE_STANDARD * 2n }), { sender: ADMIN })
+    step(proposal({ feeBase: CONSTANTS.FEE_BASE * 2n }), { sender: ADMIN })
     expect(step(encodeRegister({ name: 'kikename', fee: FEE }), { sender: ALICE, at: effective - 1 }).verdict.kind).toBe(
       'OK',
     )
@@ -888,8 +962,7 @@ describe('P — governance (§6, §10.6)', () => {
 
   it('forfeits without GOVERNANCE_DELAY notice', () => {
     const built = encodeGovernance({
-      feeStandard: CONSTANTS.FEE_STANDARD,
-      feeLong: CONSTANTS.FEE_LONG,
+      feeBase: CONSTANTS.FEE_BASE,
       commissionBp: CONSTANTS.COMMISSION_RATE,
       effectiveHeight: LAUNCH + CONSTANTS.GOVERNANCE_DELAY - 1,
     })
@@ -897,9 +970,8 @@ describe('P — governance (§6, §10.6)', () => {
   })
 
   it.each([
-    ['below PRICE_FLOOR', { feeStandard: 0n, feeLong: 0n }],
-    ['above PRICE_CEILING', { feeStandard: CONSTANTS.PRICE_CEILING + 1n }],
-    ['fee_long above fee_standard', { feeLong: CONSTANTS.FEE_STANDARD * 2n }],
+    ['below PRICE_FLOOR', { feeBase: 0n }],
+    ['above PRICE_CEILING', { feeBase: CONSTANTS.PRICE_CEILING + 1n }],
     ['commission above the ceiling', { commissionBp: CONSTANTS.COMMISSION_CEILING + 1n }],
     ['commission step above the maximum', { commissionBp: CONSTANTS.COMMISSION_RATE + CONSTANTS.COMMISSION_MAX_STEP + 1n }],
   ])('forfeits a P %s', (_label, over) => {
@@ -914,15 +986,14 @@ describe('P — governance (§6, §10.6)', () => {
     // legitimate repricing is loose enough for an attacker to walk through, so
     // nothing here counts blocks between accepted messages. The pending change
     // from the first P is simply replaced by the second.
-    step(proposal({ feeStandard: CONSTANTS.FEE_STANDARD * 2n }), { sender: ADMIN })
+    step(proposal({ feeBase: CONSTANTS.FEE_BASE * 2n }), { sender: ADMIN })
     const next = encodeGovernance({
-      feeStandard: CONSTANTS.FEE_STANDARD * 3n,
-      feeLong: CONSTANTS.FEE_LONG,
+      feeBase: CONSTANTS.FEE_BASE * 3n,
       commissionBp: CONSTANTS.COMMISSION_RATE,
       effectiveHeight: LAUNCH + 1 + CONSTANTS.GOVERNANCE_DELAY,
     })
     expect(step(next, { sender: ADMIN, at: LAUNCH + 1 }).verdict.kind).toBe('OK')
-    expect(state.pendingGovernance?.prices.feeStandard).toBe(CONSTANTS.FEE_STANDARD * 3n)
+    expect(state.pendingGovernance?.prices.feeBase).toBe(CONSTANTS.FEE_BASE * 3n)
   })
 
   it('lets one P reach the floor, which the rails do not prevent (§10.6)', () => {
@@ -930,8 +1001,7 @@ describe('P — governance (§6, §10.6)', () => {
     // itself is a legal target in a single message, and the only thing between
     // a stolen key and that price is GOVERNANCE_DELAY's public notice.
     expect(
-      step(proposal({ feeStandard: CONSTANTS.PRICE_FLOOR, feeLong: CONSTANTS.PRICE_FLOOR }), { sender: ADMIN })
-        .verdict.kind,
+      step(proposal({ feeBase: CONSTANTS.PRICE_FLOOR }), { sender: ADMIN }).verdict.kind,
     ).toBe('OK')
   })
 
@@ -946,16 +1016,14 @@ describe('P — governance (§6, §10.6)', () => {
       expect(governanceBoundViolation(launch, launch)).toBeNull()
       expect(
         governanceBoundViolation(launch, {
-          feeStandard: CONSTANTS.FEE_STANDARD * 2n,
-          feeLong: CONSTANTS.FEE_LONG * 2n,
+          feeBase: CONSTANTS.FEE_BASE * 2n,
           commissionBp: CONSTANTS.COMMISSION_RATE + CONSTANTS.COMMISSION_MAX_STEP,
         }),
       ).toBeNull()
     })
 
     it.each([
-      ['PRICE_BAND', { feeStandard: 0n, feeLong: 0n }],
-      ['ORDERING', { feeLong: CONSTANTS.FEE_STANDARD, feeStandard: CONSTANTS.FEE_STANDARD / 2n }],
+      ['PRICE_BAND', { feeBase: 0n }],
       ['COMMISSION_CEILING', { commissionBp: CONSTANTS.COMMISSION_CEILING + 1n }],
       ['COMMISSION_MAX_STEP', { commissionBp: CONSTANTS.COMMISSION_RATE + CONSTANTS.COMMISSION_MAX_STEP + 1n }],
     ])('names %s, and the reducer forfeits the same message', (bound, over) => {
@@ -972,18 +1040,10 @@ describe('P — governance (§6, §10.6)', () => {
       // single message is a legal P, and the CLI's job is to warn a human
       // rather than to refuse it (packages/admin).
       expect(
-        governanceBoundViolation(launch, {
-          feeStandard: CONSTANTS.PRICE_CEILING,
-          feeLong: CONSTANTS.PRICE_FLOOR,
-          commissionBp: CONSTANTS.COMMISSION_RATE,
-        }),
+        governanceBoundViolation(launch, { feeBase: CONSTANTS.PRICE_CEILING, commissionBp: CONSTANTS.COMMISSION_RATE }),
       ).toBeNull()
       expect(
-        governanceBoundViolation(launch, {
-          feeStandard: CONSTANTS.PRICE_FLOOR,
-          feeLong: CONSTANTS.PRICE_FLOOR,
-          commissionBp: CONSTANTS.COMMISSION_RATE,
-        }),
+        governanceBoundViolation(launch, { feeBase: CONSTANTS.PRICE_FLOOR, commissionBp: CONSTANTS.COMMISSION_RATE }),
       ).toBeNull()
     })
   })
@@ -1044,9 +1104,16 @@ describe('U — unreserve (§6)', () => {
     })
     expect(state.unreserved.has('web3')).toBe(true)
 
-    // Released, the floor no longer binds (§4.1): a normal registration at
-    // the normal STANDARD-band fee.
-    const result = stepR(encodeRegister({ name: 'web3', fee: FEE }), { sender: ALICE, at: LAUNCH + 2 })
+    // Released, the floor no longer binds (§4.1): a normal registration, at
+    // the 4-character band — 50× the base, the holding cost of a released
+    // short name (§10.1). The 7–11 fee is an underpayment for it.
+    expect(stepR(encodeRegister({ name: 'web3', fee: FEE }), { sender: ALICE, at: LAUNCH + 2 }).verdict).toMatchObject({
+      kind: 'REFUND',
+      reason: 'INSUFFICIENT_VALUE',
+    })
+    const band = feeFor('web3', LAUNCH_PRICES)
+    expect(band).toBe(CONSTANTS.FEE_BASE * 50n)
+    const result = stepR(encodeRegister({ name: 'web3', fee: band }), { sender: ALICE, at: LAUNCH + 2 })
     expect(result.verdict.kind).toBe('OK')
     expect(lookup(state, 'web3')?.owner).toBe(ALICE)
     expect(resolve(state, 'web3')).toBe(ALICE)
@@ -1091,19 +1158,115 @@ describe('U — unreserve (§6)', () => {
     })
   })
 
-  it('gives a second U in the same block NAME_NOT_RESERVED, not UNRESERVE_PENDING (r22)', () => {
+  it('gives a second release in the same block NAME_NOT_RESERVED, not UNRESERVE_PENDING (r22)', () => {
     // Through r21 the first U was *pending* and the second earned
     // UNRESERVE_PENDING. Executing on landing takes the name out of
     // RESERVED_NAMES in the first U's own block, so the second one fails the
     // reservation row like any other U naming a released name — which is why
     // UNRESERVE_PENDING left the vocabulary rather than merely going unused.
     expect(stepR(unreserve(), { sender: ADMIN }).verdict).toEqual({ kind: 'OK', obligations: [] })
-    expect(stepR(unreserve(BOB), { sender: ADMIN, txIndex: 1 }).verdict).toEqual({
+    expect(stepR(unreserve(), { sender: ADMIN, txIndex: 1 }).verdict).toEqual({
       kind: 'FORFEIT',
       reason: 'NAME_NOT_RESERVED',
     })
     // The first U's effect stands: a release, so no leaf.
     expect(lookup(state, 'binance')).toBeNull()
+  })
+
+  describe('an award reaches any name nobody owns (2026-09-11)', () => {
+    it('awards a released name — an award after a release is a normal award of an available name', () => {
+      expect(stepR(unreserve(), { sender: ADMIN }).verdict.kind).toBe('OK')
+      expect(stepR(unreserve(BOB), { sender: ADMIN, txIndex: 1 }).verdict).toEqual({ kind: 'OK', obligations: [] })
+      expect(lookup(state, 'binance')).toMatchObject({ owner: BOB, target: BOB, status: 'REGISTERED' })
+    })
+
+    it('awards a plain AVAILABLE name that was never reserved, and leaves the unreserved set alone', () => {
+      const award = encodeUnreserve({ name: 'kikename', recipient: BOB })
+      expect(stepR(award, { sender: ADMIN, at: LAUNCH + 3 }).verdict).toEqual({ kind: 'OK', obligations: [] })
+      expect(lookup(state, 'kikename')).toEqual({
+        name: 'kikename',
+        owner: BOB,
+        target: BOB,
+        expiry: LAUNCH + 3 + CONSTANTS.TERM_LENGTH,
+        status: 'REGISTERED',
+        host: '',
+        evm: '',
+      })
+      // Tag 0x0A records governance acts on RESERVED_NAMES; a name that was
+      // never in the set has nothing to record (§6 U, §8.1).
+      expect(state.unreserved.has('kikename')).toBe(false)
+      // Nothing owed and nothing earned: no obligation, no fee.
+      expect(state.outstanding.size).toBe(0)
+    })
+
+    it('forfeits NAME_NOT_AVAILABLE for a REGISTERED or a GRACE name — no U touches a held name (§10.6)', () => {
+      registerToAlice('kikename', LAUNCH)
+      expect(stepR(encodeUnreserve({ name: 'kikename', recipient: BOB }), { sender: ADMIN, at: LAUNCH + 1 }).verdict).toEqual({
+        kind: 'FORFEIT',
+        reason: 'NAME_NOT_AVAILABLE',
+      })
+      state = advanceTo(state, LAUNCH + CONSTANTS.TERM_LENGTH)
+      expect(lookup(state, 'kikename')?.status).toBe('GRACE')
+      expect(
+        stepR(encodeUnreserve({ name: 'kikename', recipient: BOB }), { sender: ADMIN, at: LAUNCH + CONSTANTS.TERM_LENGTH })
+          .verdict,
+      ).toEqual({ kind: 'FORFEIT', reason: 'NAME_NOT_AVAILABLE' })
+      expect(lookup(state, 'kikename')?.owner).toBe(ALICE)
+    })
+
+    it('gives a second award NAME_NOT_AVAILABLE and a release after an award NAME_NOT_RESERVED', () => {
+      expect(stepR(unreserve(BOB), { sender: ADMIN }).verdict.kind).toBe('OK')
+      expect(stepR(unreserve(CAROL), { sender: ADMIN, txIndex: 1 }).verdict).toEqual({
+        kind: 'FORFEIT',
+        reason: 'NAME_NOT_AVAILABLE',
+      })
+      expect(stepR(unreserve(), { sender: ADMIN, txIndex: 2 }).verdict).toEqual({
+        kind: 'FORFEIT',
+        reason: 'NAME_NOT_RESERVED',
+      })
+      expect(lookup(state, 'binance')?.owner).toBe(BOB)
+    })
+
+    it('awards a lifetime with |L — a hundred terms, still a plain expiry (§10.4)', () => {
+      const award = encodeUnreserve({ name: 'nq', recipient: BOB, lifetime: true })
+      expect(stepR(award, { sender: ADMIN, at: LAUNCH + 7 }).verdict).toEqual({ kind: 'OK', obligations: [] })
+      expect(lookup(state, 'nq')).toMatchObject({
+        owner: BOB,
+        expiry: LAUNCH + 7 + CONSTANTS.LIFETIME_TERMS * CONSTANTS.TERM_LENGTH,
+        status: 'REGISTERED',
+      })
+      expect(state.unreserved.has('nq')).toBe(true)
+    })
+
+    it('ignores |L on a release — there is no term to set', () => {
+      // The builder refuses this shape, so the payload is written by hand.
+      const built: BuiltTransaction = { ...unreserve(), data: hexOf('NNS1Ubinance|L') }
+      expect(stepR(built, { sender: ADMIN }).verdict).toEqual({ kind: 'OK', obligations: [] })
+      expect(state.unreserved.has('binance')).toBe(true)
+      expect(lookup(state, 'binance')).toBeNull()
+    })
+
+    it('prices a released short name by its own band from then on — 200× for two characters', () => {
+      expect(stepR(encodeUnreserve({ name: 'nq' }), { sender: ADMIN }).verdict.kind).toBe('OK')
+      const band = feeFor('nq', LAUNCH_PRICES)
+      expect(band).toBe(CONSTANTS.FEE_BASE * 200n)
+      expect(stepR(encodeRegister({ name: 'nq', fee: band - 1n }), { sender: ALICE, at: LAUNCH + 1 }).verdict).toMatchObject({
+        kind: 'REFUND',
+        reason: 'INSUFFICIENT_VALUE',
+      })
+      expect(stepR(encodeRegister({ name: 'nq', fee: band }), { sender: ALICE, at: LAUNCH + 1 }).verdict.kind).toBe('OK')
+      // Renewal reads the same band, and the lifetime upgrade ten of them.
+      expect(stepR(encodeRenew({ name: 'nq', fee: FEE }), { sender: ALICE, at: LAUNCH + 2 }).verdict).toMatchObject({
+        kind: 'REFUND',
+        reason: 'INSUFFICIENT_VALUE',
+      })
+      expect(stepR(encodeRenew({ name: 'nq', fee: band }), { sender: ALICE, at: LAUNCH + 2 }).verdict.kind).toBe('OK')
+      expect(feeFor('nq', LAUNCH_PRICES, true)).toBe(band * 10n)
+      expect(
+        stepR(encodeRenew({ name: 'nq', fee: band * 10n, lifetime: true }), { sender: BOB, at: LAUNCH + 3 }).verdict.kind,
+      ).toBe('OK')
+      expect(lookup(state, 'nq')?.expiry).toBe(LAUNCH + 1 + (2 + CONSTANTS.LIFETIME_TERMS) * CONSTANTS.TERM_LENGTH)
+    })
   })
 
   it('releases in its own block, with no scheduled effect left behind', () => {
@@ -1412,7 +1575,7 @@ describe('A — auction (§6, r28)', () => {
       // A P effective exactly at END, moving the commission by the max step.
       const raised = CONSTANTS.COMMISSION_RATE + CONSTANTS.COMMISSION_MAX_STEP
       step(
-        encodeGovernance({ feeStandard: FEE, feeLong: FLOOR, commissionBp: raised, effectiveHeight: END }),
+        encodeGovernance({ feeBase: FLOOR, commissionBp: raised, effectiveHeight: END }),
         { sender: ADMIN, at: END - CONSTANTS.GOVERNANCE_DELAY },
       )
       state = advanceTo(state, END)

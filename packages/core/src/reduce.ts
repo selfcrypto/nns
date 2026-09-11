@@ -35,8 +35,8 @@ import { type Address, addressEquals } from './address.js'
 import { effectiveSender } from './attribution.js'
 import { BURN_ADDRESS, type Message, parse } from './codec.js'
 import type { NnsConfig } from './config.js'
-import { CONSTANTS } from './constants.js'
-import { feeBand, validateHost, validateName } from './name.js'
+import { CONSTANTS, feeMultiplier } from './constants.js'
+import { isReservedName, validateHost, validateName } from './name.js'
 import {
   type Auction,
   type NameRecord,
@@ -118,6 +118,7 @@ export type ForfeitReason =
   | 'GOVERNANCE_BOUND_VIOLATED'
   | 'INSUFFICIENT_NOTICE'
   | 'NAME_NOT_RESERVED'
+  | 'NAME_NOT_AVAILABLE'
   | 'NOTHING_TO_CANCEL'
   | 'BELOW_REFUND_FLOOR'
   | 'BELOW_MIN_PRICE'
@@ -524,14 +525,35 @@ export function advanceTo(state: NnsState, height: number): NnsState {
 // ── Pricing ─────────────────────────────────────────────────────────────────
 
 /**
- * The fee for a name at the prices currently in effect (§10.1).
+ * The fee a `G` or `N` owes for a name at the prices currently in effect
+ * (§10.1): `FEE_BASE × FEE_MULTIPLIERS[len(name)]`, and `LIFETIME_MULTIPLIER`
+ * times that for a lifetime term (§10.4).
  *
  * Registrations are validated against the prices in effect at their own block
  * height (§10.6), which is exactly what `state.prices` holds once
- * {@link advanceTo} has run for that height.
+ * {@link advanceTo} has run for that height. Length is read from the name
+ * itself — the band is never declared on the wire (§6.1) — and a 1–4
+ * character name is priced by its own band the moment it is registrable at
+ * all: `RESERVED_NAME` is checked before the value, so this is only ever
+ * reached for a name a `U` or an admin `A` has moved out (§4.1).
+ *
+ * Settlement reads the fee owed from here, never from a band table of its
+ * own (§10.5, §10.7): the surplus refund and the referral share are both
+ * derived from the number the value check used.
  */
-export const feeFor = (name: string, prices: Prices): bigint =>
-  feeBand(name) === 'LONG' ? prices.feeLong : prices.feeStandard
+export const feeFor = (name: string, prices: Prices, lifetime = false): bigint => {
+  const yearly = prices.feeBase * feeMultiplier(name.length)
+  return lifetime ? yearly * CONSTANTS.LIFETIME_MULTIPLIER : yearly
+}
+
+/**
+ * The term a `G`, `N` or `U` award adds (§6, §10.4): `TERM_LENGTH`, or
+ * `LIFETIME_TERMS` of them for a lifetime — a plain number of blocks, so the
+ * expiry it produces is an ordinary height and nothing downstream has a
+ * second case.
+ */
+export const termFor = (lifetime: boolean): number =>
+  lifetime ? CONSTANTS.LIFETIME_TERMS * CONSTANTS.TERM_LENGTH : CONSTANTS.TERM_LENGTH
 
 /**
  * §6 `M`: `floor(price × rate)`, with the seller taking the remainder.
@@ -664,7 +686,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // by the treasury, so the order decides only which token the log carries
       // — §7.4 fixes it, and `INSUFFICIENT_VALUE` is the more informative of
       // two true answers about a message that underpaid for a taken name.
-      const fee = feeFor(message.name, state.prices)
+      const fee = feeFor(message.name, state.prices, message.lifetime)
       if (tx.value < fee) {
         return keep(refundOrForfeit(tx, 'INSUFFICIENT_VALUE', CONSTANTS.TREASURY_ADDRESS))
       }
@@ -680,7 +702,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       }
 
       const draft = draftOf(state)
-      const expiry = tx.blockNumber + CONSTANTS.TERM_LENGTH
+      const expiry = tx.blockNumber + termFor(message.lifetime)
       draft.names.set(message.name, {
         name: message.name,
         owner: tx.sender,
@@ -791,14 +813,16 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // Sender: anyone. A grace name can still be renewed by its former owner.
       const record = state.names.get(message.name)
       if (record === undefined) return keep(forfeit('NAME_NOT_FOUND'))
-      const fee = feeFor(message.name, state.prices)
+      const fee = feeFor(message.name, state.prices, message.lifetime)
       if (tx.value < fee) {
         return keep(refundOrForfeit(tx, 'INSUFFICIENT_VALUE', CONSTANTS.TREASURY_ADDRESS))
       }
 
       // Extends from the current expiry, not the renewal height, so early
-      // renewal is never penalised.
-      const expiry = record.expiry + CONSTANTS.TERM_LENGTH
+      // renewal is never penalised. An `N|L` on a yearly name is the upgrade
+      // to a lifetime; an `N` on a lifetime name adds a year to a date a
+      // century out, which needs no rule (§6 `N`).
+      const expiry = record.expiry + termFor(message.lifetime)
       const status = expiry > tx.blockNumber ? 'REGISTERED' : record.status
 
       const draft = draftOf(state)
@@ -819,7 +843,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // beside one would make the same payload mean two things.
       if (state.auctions.has(message.name)) return keep(forfeit('AUCTION_OPEN'))
 
-      // §6 `O`: the price MUST be ≥ MIN_PRICE, which is FEE_LONG **at this
+      // §6 `O`: the price MUST be ≥ MIN_PRICE, which is FEE_BASE **at this
       // message's height** — a governed value, so it is read from the active
       // params and never from `constants.ts`. Below the floor the message
       // forfeits: like an invalid name, it is preventable by the client from
@@ -1009,11 +1033,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
 
       const draft = draftOf(state)
       draft.pendingGovernance = {
-        prices: {
-          feeStandard: message.feeStandard,
-          feeLong: message.feeLong,
-          commissionBp: message.commissionBp,
-        },
+        prices: { feeBase: message.feeBase, commissionBp: message.commissionBp },
         effectiveHeight: message.effectiveHeight,
       }
       // Informational since the frequency bound was removed (§10.6): no rule
@@ -1038,29 +1058,39 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // here, in this block. See §6 `U`: an award has no party to warn, and a
       // scheduled release warns only a frontrunner.
       //
-      // §4.1 rules 2–5 and the ceiling — rule 6 is inverted by the row
-      // after: a `U`'s name must be *in* RESERVED_NAMES. The floor never
-      // binds a `U`: well-formed short names are reserved by rule (§4.1) and
-      // are exactly what `U` exists to release or award, so RESERVED from
-      // the full check is the expected case, not a failure. TOO_SHORT — a
-      // short name failing rules 2–5, on neither membership route — still
-      // forfeits here.
+      // §4.1 rules 2–5 and the ceiling. The floor never binds a `U`:
+      // well-formed short names are reserved by rule (§4.1) and are exactly
+      // what `U` exists to release or award, so RESERVED from the full check
+      // is an expected answer, not a failure. TOO_SHORT — a short name
+      // failing rules 2–5, on neither membership route — still forfeits here.
       const check = validateName(message.name, state.unreserved)
       if (!check.ok && check.reason !== 'RESERVED') return keep(forfeit('INVALID_NAME'))
-      // Also what a *second* `U` for the same name earns, since r22: the first
-      // one fired on landing, so the name is already out of RESERVED_NAMES and
-      // there is no pending sibling to collide with. UNRESERVE_PENDING is gone
-      // from the vocabulary rather than merely unused.
-      if (!isReserved(state, message.name)) return keep(forfeit('NAME_NOT_RESERVED'))
+      // The last row is the operation's own (§7.4), and the recipient chose
+      // the operation. A release inverts rule 6: the name must be *in*
+      // RESERVED_NAMES and not yet released — also what a second `U` for the
+      // same name earns since r22, the first having fired on landing. An
+      // award reaches any name nobody owns (2026-09-11): reserved and
+      // unreleased, or plain AVAILABLE — never REGISTERED or in GRACE, since
+      // §10.6 lets no `U` touch a held name.
+      const release = addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS)
+      if (release) {
+        if (!isReserved(state, message.name)) return keep(forfeit('NAME_NOT_RESERVED'))
+      } else if (state.names.has(message.name)) {
+        return keep(forfeit('NAME_NOT_AVAILABLE'))
+      }
 
       const draft = draftOf(state)
-      draft.unreserved.add(message.name)
+      // A name that was reserved joins the unreserved set either way; one
+      // that never was leaves the set untouched (§6 `U`, §8.1 tag 0x0A).
+      if (isReservedName(message.name)) draft.unreserved.add(message.name)
       // §6 `U`: an award additionally creates the REGISTERED record — owner
-      // and target the awardee, a full TERM_LENGTH from this block, delegate
-      // host and EVM address unset, nothing pending. A release stops at the
-      // line above and the name is AVAILABLE under the normal rules.
-      if (!addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS)) {
-        const expiry = tx.blockNumber + CONSTANTS.TERM_LENGTH
+      // and target the awardee, a full term from this block (or a lifetime
+      // with `L`), delegate host and EVM address unset, nothing pending.
+      // Nothing is owed and no fee is earned. A release stops at the line
+      // above — it has no term and ignores `L` — and the name is AVAILABLE
+      // under the normal rules.
+      if (!release) {
+        const expiry = tx.blockNumber + termFor(message.lifetime)
         draft.names.set(message.name, {
           name: message.name,
           owner: tx.recipient,
@@ -1085,12 +1115,12 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
   }
 }
 
-/** Which §10.6 row a proposed `P` breaks. Diagnostic, never a log token. */
-export type GovernanceBound =
-  | 'PRICE_BAND'
-  | 'ORDERING'
-  | 'COMMISSION_CEILING'
-  | 'COMMISSION_MAX_STEP'
+/**
+ * Which §10.6 row a proposed `P` breaks. Diagnostic, never a log token.
+ * `ORDERING` — `fee_long ≤ fee_standard` — left with the second price on
+ * 2026-09-11; one base fee has nothing to be out of order with.
+ */
+export type GovernanceBound = 'PRICE_BAND' | 'COMMISSION_CEILING' | 'COMMISSION_MAX_STEP'
 
 export interface GovernanceBoundViolation {
   readonly bound: GovernanceBound
@@ -1123,26 +1153,16 @@ export interface GovernanceBoundViolation {
  */
 export function governanceBoundViolation(
   current: Prices,
-  proposed: { feeStandard: bigint; feeLong: bigint; commissionBp: bigint },
+  proposed: { feeBase: bigint; commissionBp: bigint },
 ): GovernanceBoundViolation | null {
   const violation = (bound: GovernanceBound, message: string): GovernanceBoundViolation => ({ bound, message })
 
-  const outOfBand = (label: string, fee: bigint): GovernanceBoundViolation | null =>
-    fee >= CONSTANTS.PRICE_FLOOR && fee <= CONSTANTS.PRICE_CEILING
-      ? null
-      : violation(
-          'PRICE_BAND',
-          `${label} ${fee} is outside PRICE_FLOOR … PRICE_CEILING (${CONSTANTS.PRICE_FLOOR} … ${CONSTANTS.PRICE_CEILING} luna)`,
-        )
-  const standardBand = outOfBand('fee_standard', proposed.feeStandard)
-  if (standardBand !== null) return standardBand
-  const longBand = outOfBand('fee_long', proposed.feeLong)
-  if (longBand !== null) return longBand
-
-  if (proposed.feeLong > proposed.feeStandard) {
-    return violation('ORDERING', `fee_long ${proposed.feeLong} must be <= fee_standard ${proposed.feeStandard}`)
+  if (proposed.feeBase < CONSTANTS.PRICE_FLOOR || proposed.feeBase > CONSTANTS.PRICE_CEILING) {
+    return violation(
+      'PRICE_BAND',
+      `fee_base ${proposed.feeBase} is outside PRICE_FLOOR … PRICE_CEILING (${CONSTANTS.PRICE_FLOOR} … ${CONSTANTS.PRICE_CEILING} luna)`,
+    )
   }
-
 
   if (proposed.commissionBp > CONSTANTS.COMMISSION_CEILING) {
     return violation(

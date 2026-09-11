@@ -40,6 +40,9 @@ export const LUNA_PER_NIM = 100_000n
 
 const nim = (amount: bigint): bigint => amount * LUNA_PER_NIM
 
+/** §4.1 rule 1's ceiling; also the last row of `FEE_MULTIPLIERS`. */
+const MAX_NAME_LEN = 24
+
 export const CONSTANTS = Object.freeze({
   // ── Wire format (§5.1, §5.2) ──────────────────────────────────────────────
   /** Prefix of every NNS message. 4 ASCII bytes. */
@@ -59,9 +62,7 @@ export const CONSTANTS = Object.freeze({
   // ── Names (§4.1, §4.4) ────────────────────────────────────────────────────
   /** 1–4 character names are withheld for auction (§4.1). */
   MIN_NAME_LEN: 5,
-  /** Threshold for the cheap band (§10.1). */
-  LONG_NAME_LEN: 12,
-  MAX_NAME_LEN: 24,
+  MAX_NAME_LEN,
   /** Subdomain label, §4.4. */
   MAX_LABEL_LEN: 24,
   /** Delegate resolver host, §6 `D`. */
@@ -97,7 +98,8 @@ export const CONSTANTS = Object.freeze({
   RESERVED_NAMES,
   /**
    * Referrer on a registration, §6 `G` — a registered name, so it equals
-   * `MAX_NAME_LEN`. `G` at its largest is 54 bytes (§5.1's ceiling is 64).
+   * `MAX_NAME_LEN`. `G` at its largest is 56 bytes with the lifetime field
+   * (§5.1's ceiling is 64).
    */
   MAX_REF_LEN: 24,
 
@@ -132,23 +134,64 @@ export const CONSTANTS = Object.freeze({
   LISTING_FEE: 0n,
 
   // ── Pricing and governance bounds (§10.1, §10.6) ──────────────────────────
-  /** Names of 5–11 characters. Governable within the bounds below. */
-  FEE_STANDARD: nim(2_000n),
   /**
-   * Names of 12+ characters. Governable within the bounds below.
+   * The 12+ band's yearly fee and the base every other band is a multiple of
+   * (§10.1). **The one governable price** since the 2026-09-11 fold: `P`
+   * carries this and the commission, nothing else, and every band moves with
+   * it. Through 2026-09-10 there were two governed prices — one for 5–11
+   * characters, one for 12+ — and a bound holding them in order.
    *
-   * §3 also defines `MIN_PRICE` as `FEE_LONG` — but as the value *in effect at
+   * §3 also defines `MIN_PRICE` as `FEE_BASE` — but as the value *in effect at
    * a message's height*, not this launch figure, so there is deliberately no
    * `MIN_PRICE` entry here. Use `minPrice(state.prices)` from `state.ts`.
    */
-  FEE_LONG: nim(400n),
+  FEE_BASE: nim(400n),
   /**
-   * Governance hard lower bound, either band — a **fat-finger rail, not attack
-   * protection** (§10.6). A key that can set the price to the floor is already
-   * a key the registry has to fork away from.
+   * Yearly fee by name length, as multiples of `FEE_BASE` (§10.1). Each row
+   * covers every length up to and including `upTo` that the row above did
+   * not; the last row ends at `MAX_NAME_LEN`, so the table covers every
+   * length a name can have. Read it through {@link feeMultiplier}.
+   *
+   * **Frozen, like `TERM_LENGTH`**: governance tracks the NIM/USD rate, which
+   * is one scalar, and the ratio between lengths is positioning — a spec
+   * revision, never a `P` (§10.6). Four independent prices would not fit a
+   * `P` in 64 bytes anyway.
+   *
+   * 1–4 characters are reserved by rule (§4.1) and priced here for the day a
+   * `U` or an admin `A` moves one out: the band is the holding cost after an
+   * auction, award or release, graded by scarcity and halving per step above
+   * the open bands. An award itself owes nothing.
+   */
+  FEE_MULTIPLIERS: Object.freeze([
+    Object.freeze({ upTo: 2, times: 200n }),
+    Object.freeze({ upTo: 3, times: 100n }),
+    Object.freeze({ upTo: 4, times: 50n }),
+    Object.freeze({ upTo: 5, times: 25n }),
+    Object.freeze({ upTo: 6, times: 10n }),
+    Object.freeze({ upTo: 11, times: 5n }),
+    Object.freeze({ upTo: MAX_NAME_LEN, times: 1n }),
+  ]),
+  /**
+   * A lifetime term costs this many yearly fees of its band (§10.4). Ten:
+   * front-loads a decade of revenue while the service is new, and `N` was
+   * always unbounded and from anyone, so permanence was never withheld —
+   * only priced by the message.
+   */
+  LIFETIME_MULTIPLIER: 10n,
+  /**
+   * A lifetime term is this many `TERM_LENGTH`s — a plain expiry ~100 years
+   * out, **not a sentinel** (§10.4). 3,153,600,000 blocks is well inside a
+   * `number` and a `u64`, and no code path anywhere has a special case for
+   * it: a lifetime is a long term, and nothing downstream can tell.
+   */
+  LIFETIME_TERMS: 100,
+  /**
+   * Governance hard lower bound on `FEE_BASE` — a **fat-finger rail, not
+   * attack protection** (§10.6). A key that can set the price to the floor is
+   * already a key the registry has to fork away from.
    */
   PRICE_FLOOR: nim(1n),
-  /** Governance hard upper bound, either band. Same rail, other end. */
+  /** Governance hard upper bound on `FEE_BASE`; every band scales with it. Same rail, other end. */
   PRICE_CEILING: nim(100_000n),
   /** Marketplace cut on a settled sale, basis points. Governable. */
   COMMISSION_RATE: 250n,
@@ -252,3 +295,20 @@ export const CONSTANTS = Object.freeze({
    */
   BURN_ADDRESS: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
 } as const)
+
+/**
+ * §10.1's multiplier for a name of `length` characters — the first
+ * `FEE_MULTIPLIERS` row whose `upTo` reaches it. The table is a function of
+ * length over seven rows rather than a 24-entry list so that the rows read
+ * as §3 prints them.
+ *
+ * Throws outside 1…`MAX_NAME_LEN`: every caller prices a name §4.1 has
+ * already accepted, so reaching the throw is a reducer bug, not a message.
+ */
+export function feeMultiplier(length: number): bigint {
+  if (!Number.isInteger(length) || length < 1) throw new RangeError(`no fee band for a name of length ${length}`)
+  for (const row of CONSTANTS.FEE_MULTIPLIERS) {
+    if (length <= row.upTo) return row.times
+  }
+  throw new RangeError(`no fee band for a name of length ${length} — above MAX_NAME_LEN`)
+}

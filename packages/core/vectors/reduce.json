@@ -1,7 +1,7 @@
 {
   "vectors": "nns/reduce",
   "version": 1,
-  "spec": "nns-spec-v1 draft r28, §7.3, §7.4 and §7.5",
+  "spec": "nns-spec-v1 draft r29, §7.3, §7.4 and §7.5",
   "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`), a bare height advance (`advanceTo`), or a `check` against the state at that point. A `check` may also carry `label`, which snapshots the four §8.1 component digests (`nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` — the commitment minus the height and the log hash), and `since` + `changed`, which compares them against an earlier label: every component **not** listed in `changed` MUST be byte-identical. `logLines` is the number of §8.2 lines emitted so far, and a height advance MUST never add one.",
   "addresses": {
     "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
@@ -20,10 +20,12 @@
     "networkId": 24
   },
   "constants": {
-    "FEE_STANDARD": "200000000",
-    "FEE_LONG": "40000000",
-    "MIN_PRICE": "FEE_LONG at the message's height, so 40000000 until a P moves it",
-    "REFUND_FLOOR": "10000",
+    "FEE_BASE": "40000000",
+    "FEE_MULTIPLIERS": "1-2 → 200×, 3 → 100×, 4 → 50×, 5 → 25×, 6 → 10×, 7-11 → 5×, 12+ → 1× of FEE_BASE (§10.1, frozen)",
+    "LIFETIME_MULTIPLIER": "10 — a lifetime term costs ten yearly fees of its band (§10.4)",
+    "LIFETIME_TERMS": 100,
+    "MIN_PRICE": "FEE_BASE at the message's height, so 40000000 until a P moves it",
+    "REFUND_FLOOR": "100000",
     "TERM_LENGTH": 31536000,
     "GRACE_PERIOD": 2592000,
     "XFER_TIMELOCK": 43200,
@@ -1533,7 +1535,7 @@
     },
     {
       "id": "an_O_below_MIN_PRICE_forfeits",
-      "note": "§6 O: the price MUST be ≥ MIN_PRICE, which is FEE_LONG at the message's height — 40000000 luna here. The four rejected prices are the ones a token floor would have admitted: 0 (no B can satisfy it, §5.4 rejects value: 0), 1 (the token floor considered and rejected), REFUND_FLOOR - 1 (a losing bidder would be forfeited, not refunded, contradicting §7.4), and 19 (floor(19 × 5%) = 0, erasing the AUCTION_MIN_INCREMENT rule). The floor itself is accepted: the boundary is inclusive.",
+      "note": "§6 O: the price MUST be ≥ MIN_PRICE, which is FEE_BASE at the message's height — 40000000 luna here. The four rejected prices are the ones a token floor would have admitted: 0 (no B can satisfy it, §5.4 rejects value: 0), 1 (the token floor considered and rejected), REFUND_FLOOR - 1 (a losing bidder would be forfeited, not refunded, contradicting §7.4), and 19 (floor(19 × 5%) = 0, erasing the AUCTION_MIN_INCREMENT rule). The floor itself is accepted: the boundary is inclusive.",
       "steps": [
         {
           "tx": {
@@ -1641,8 +1643,8 @@
       }
     },
     {
-      "id": "MIN_PRICE_moves_with_a_P_that_changes_FEE_LONG",
-      "note": "MIN_PRICE is defined as FEE_LONG, not as a luna amount, so a P that moves FEE_LONG moves the floor with it at its effective height. An implementation reading the launch constant instead of the active params passes every other vector here and diverges from this one.",
+      "id": "MIN_PRICE_moves_with_a_P_that_changes_FEE_BASE",
+      "note": "MIN_PRICE is defined as FEE_BASE, not as a luna amount, so a P that moves FEE_BASE moves the floor with it at its effective height. An implementation reading the launch constant instead of the active params passes every other vector here and diverges from this one.",
       "steps": [
         {
           "tx": {
@@ -1651,7 +1653,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P200000000|80000000|250|58929120"
+            "text": "NNS1P80000000|250|58929120"
           },
           "verdict": {
             "kind": "OK"
@@ -1713,7 +1715,7 @@
       ],
       "expect": {
         "prices": {
-          "feeLong": "80000000"
+          "feeBase": "80000000"
         }
       }
     },
@@ -1727,7 +1729,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P400000000|40000000|250|58929120"
+            "text": "NNS1P80000000|250|58929120"
           },
           "verdict": {
             "kind": "OK"
@@ -1776,13 +1778,13 @@
           }
         },
         "prices": {
-          "feeStandard": "400000000"
+          "feeBase": "80000000"
         }
       }
     },
     {
       "id": "governance_activates_before_the_transactions_in_its_block",
-      "note": "§7.3: effects due at height H fire before block H's transactions. Both G messages sit in block 58885920, the P's own effective height — so both are priced at the new FEE_STANDARD, and the one paying the old fee is refunded (r29) rather than registered. An implementation that applied the activation after the block would accept the first and reject the second.",
+      "note": "§7.3: effects due at height H fire before block H's transactions. Both G messages sit in block 58885920, the P's own effective height — so both are priced at the new FEE_BASE — doubled, so the 7–11 band doubles with it (§10.1), and the one paying the old fee is refunded (r29) rather than registered. An implementation that applied the activation after the block would accept the first and reject the second.",
       "steps": [
         {
           "tx": {
@@ -1791,7 +1793,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P400000000|40000000|250|58929120"
+            "text": "NNS1P80000000|250|58929120"
           },
           "verdict": {
             "kind": "OK"
@@ -1840,7 +1842,7 @@
           }
         },
         "prices": {
-          "feeStandard": "400000000"
+          "feeBase": "80000000"
         }
       }
     },
@@ -1854,7 +1856,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P10000000001|40000000|250|58929120"
+            "text": "NNS1P10000000001|250|58929120"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1864,7 +1866,7 @@
       ],
       "expect": {
         "prices": {
-          "feeStandard": "200000000"
+          "feeBase": "40000000"
         }
       },
       "note": "PRICE_MAX_FACTOR and PRICE_MIN_INTERVAL were removed (§10.6), so a P may move a band as far as it likes and land in the very next block. What is left is the range check: one luna above PRICE_CEILING forfeits, and the active prices are unchanged."
@@ -1879,7 +1881,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P200000000|40000000|250|58929120"
+            "text": "NNS1P40000000|250|58929120"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1889,13 +1891,13 @@
       ],
       "expect": {
         "prices": {
-          "feeStandard": "200000000"
+          "feeBase": "40000000"
         }
       }
     },
     {
       "id": "a_second_P_replaces_the_pending_one",
-      "note": "§6 `P`: a P accepted while another is pending replaces it — §8.1 commits at most one pending P, and it is the most recently accepted. Reachable a block apart since r20 removed PRICE_MIN_INTERVAL, so the two readings (queue or replace) would otherwise diverge in pendingRoot immediately and in pricesRoot at the first effective height. An implementation that queues applies 400000000 at 58929120.",
+      "note": "§6 `P`: a P accepted while another is pending replaces it — §8.1 commits at most one pending P, and it is the most recently accepted. Reachable a block apart since r20 removed PRICE_MIN_INTERVAL, so the two readings (queue or replace) would otherwise diverge in pendingRoot immediately and in pricesRoot at the first effective height. An implementation that queues applies 80000000 at 58929120.",
       "steps": [
         {
           "tx": {
@@ -1904,7 +1906,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P400000000|40000000|250|58929120"
+            "text": "NNS1P80000000|250|58929120"
           },
           "verdict": {
             "kind": "OK"
@@ -1917,7 +1919,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P300000000|40000000|250|58929121"
+            "text": "NNS1P60000000|250|58929121"
           },
           "verdict": {
             "kind": "OK"
@@ -1929,7 +1931,7 @@
         {
           "check": {
             "prices": {
-              "feeStandard": "200000000"
+              "feeBase": "40000000"
             }
           }
         },
@@ -1939,13 +1941,13 @@
       ],
       "expect": {
         "prices": {
-          "feeStandard": "300000000"
+          "feeBase": "60000000"
         }
       }
     },
     {
       "id": "a_rejected_P_leaves_the_pending_one_standing",
-      "note": "§6 `P`: only an *accepted* P replaces the pending one — the superseded change never takes effect *because a replacement did*, not because anything else touched it. One rejected P per remaining §7.4 row (NOT_ADMIN from a stranger, INSUFFICIENT_NOTICE and GOVERNANCE_BOUND_VIOLATED from the admin itself) lands while a change is queued; each forfeits and none disturbs the queue. The label/since pair is the assertion that matters: an implementation that clears the pending entry before validating the newcomer — or replaces first and validates second — moves pendingRoot here, and hands any address on the chain a dust-cost veto over governance. GOVERNANCE_DELAY is the whole of what bounds a hostile P since r20 removed the rate limits, so a permissionless cancel is a denial of governance, not a nuisance. The queued change then activates on schedule with its own numbers: every rejected P proposed 300000000, so the final 400000000 also catches a replace-then-forfeit half-write.",
+      "note": "§6 `P`: only an *accepted* P replaces the pending one — the superseded change never takes effect *because a replacement did*, not because anything else touched it. One rejected P per remaining §7.4 row (NOT_ADMIN from a stranger, INSUFFICIENT_NOTICE and GOVERNANCE_BOUND_VIOLATED from the admin itself) lands while a change is queued; each forfeits and none disturbs the queue. The label/since pair is the assertion that matters: an implementation that clears the pending entry before validating the newcomer — or replaces first and validates second — moves pendingRoot here, and hands any address on the chain a dust-cost veto over governance. GOVERNANCE_DELAY is the whole of what bounds a hostile P since r20 removed the rate limits, so a permissionless cancel is a denial of governance, not a nuisance. The queued change then activates on schedule with its own numbers: every rejected P proposed 60000000, so the final 80000000 also catches a replace-then-forfeit half-write.",
       "steps": [
         {
           "tx": {
@@ -1954,7 +1956,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P400000000|40000000|250|58929120"
+            "text": "NNS1P80000000|250|58929120"
           },
           "verdict": {
             "kind": "OK"
@@ -1976,7 +1978,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P300000000|40000000|250|58929122"
+            "text": "NNS1P60000000|250|58929122"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1990,7 +1992,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P300000000|40000000|250|58929121"
+            "text": "NNS1P60000000|250|58929121"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -2004,7 +2006,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P300000000|40000000|750|58929124"
+            "text": "NNS1P60000000|750|58929124"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -2027,7 +2029,7 @@
         {
           "check": {
             "prices": {
-              "feeStandard": "200000000"
+              "feeBase": "40000000"
             }
           }
         },
@@ -2037,7 +2039,7 @@
         {
           "check": {
             "prices": {
-              "feeStandard": "400000000"
+              "feeBase": "80000000"
             },
             "pendingGovernance": null
           }
@@ -2045,8 +2047,7 @@
       ],
       "expect": {
         "prices": {
-          "feeStandard": "400000000",
-          "feeLong": "40000000",
+          "feeBase": "80000000",
           "commissionBp": 250
         },
         "logLines": 4
@@ -3099,7 +3100,7 @@
     },
     {
       "id": "unreserve_releases_a_short_name_reserved_by_rule",
-      "note": "web3 is on no published list — 1-4 character names satisfying rules 2-5 are RESERVED_NAMES members by rule (§4.1, r18). Released, the floor no longer binds and a G registers it at the normal fee.",
+      "note": "web3 is on no published list — 1-4 character names satisfying rules 2-5 are RESERVED_NAMES members by rule (§4.1, r18). Released, the floor no longer binds and a G registers it — at its own band, 50× the base for four characters (§10.1): the holding cost of a released short name, not the 7–11 fee.",
       "steps": [
         {
           "tx": {
@@ -3107,7 +3108,7 @@
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "2000000000",
             "text": "NNS1Gweb3"
           },
           "verdict": {
@@ -3134,7 +3135,7 @@
             "txIndex": 2,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "2000000000",
             "text": "NNS1Gweb3"
           },
           "verdict": {
@@ -3173,7 +3174,7 @@
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "8000000000",
             "text": "NNS1Gnq"
           },
           "verdict": {
@@ -3217,7 +3218,7 @@
     },
     {
       "id": "a_second_U_cannot_touch_a_name_that_now_has_an_owner",
-      "note": "§10.6's ownership line, end to end: two OK verdicts (a U releases nq, a G registers it to ALICE) and then the guarantee itself — a second U trying to award the same name forfeits NAME_NOT_RESERVED and moves no component. The reservation row must consult the FIRED set (§7.4: 'or a U for it has already fired'), not §4.1 membership: nq is short-reserved *by rule* forever, so an implementation reading reservation as membership alone re-validates the second U and hands ALICE's name to CAROL with verdict OK. The label/since pair pins the negative — the forfeiting U changes nameRoot, pendingRoot, pricesRoot and unreservedRoot not at all.",
+      "note": "§10.6's ownership line, end to end: two OK verdicts (a U releases nq, a G registers it to ALICE at the 2-character band) and then the guarantee itself — a second U trying to award the same name forfeits NAME_NOT_AVAILABLE and moves no component. Since 2026-09-11 an award reaches any name nobody owns, so its last row consults the RECORD, not the reserved set: nq is short-reserved *by rule* forever and already in the fired set, and an implementation that judged an award by membership alone — or by the fired set alone — would re-validate the second U and hand ALICE's name to CAROL with verdict OK. The label/since pair pins the negative — the forfeiting U changes nameRoot, pendingRoot, pricesRoot and unreservedRoot not at all.",
       "steps": [
         {
           "tx": {
@@ -3238,7 +3239,7 @@
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "8000000000",
             "text": "NNS1Gnq"
           },
           "verdict": {
@@ -3273,7 +3274,7 @@
           },
           "verdict": {
             "kind": "FORFEIT",
-            "reason": "NAME_NOT_RESERVED"
+            "reason": "NAME_NOT_AVAILABLE"
           }
         },
         {
@@ -3308,7 +3309,7 @@
     },
     {
       "id": "the_unreserved_set_survives_the_fall_to_AVAILABLE",
-      "note": "§8.1: a name enters the unreserved set in the block its U lands in and never leaves it — the set records a governance act, not the name's status. §7.3: on the fall to AVAILABLE, all state *for the name* is cleared. The two rules constrain the same name on a code path that runs a full term plus grace after the U, with no message and no verdict — the class that has hidden twice. If the clearing takes the unreserved entry with it, a short name silently re-reserves itself: the closing G would forfeit RESERVED_NAME and the closing U would re-validate and award BOB's-to-be name to CAROL. The exhaustive changed lists across expiry and the fall are the height-driven half of the assertion: nameRoot moves at each crossing and unreservedRoot never does.",
+      "note": "§8.1: a name enters the unreserved set in the block its U lands in and never leaves it — the set records a governance act, not the name's status. §7.3: on the fall to AVAILABLE, all state *for the name* is cleared. The two rules constrain the same name on a code path that runs a full term plus grace after the U, with no message and no verdict — the class that has hidden twice. If the clearing takes the unreserved entry with it, a short name silently re-reserves itself: the closing release would re-validate as a fresh release instead of forfeiting NAME_NOT_RESERVED, and the closing G would forfeit RESERVED_NAME instead of registering at the 2-character band. (The closing U is a release, not an award, since 2026-09-11: an award of the now-available name would simply succeed, which is a different rule's business — unreserve_release_after_award_and_award_after_release.) The exhaustive changed lists across expiry and the fall are the height-driven half of the assertion: nameRoot moves at each crossing and unreservedRoot never does.",
       "steps": [
         {
           "tx": {
@@ -3329,7 +3330,7 @@
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "8000000000",
             "text": "NNS1Gnq"
           },
           "verdict": {
@@ -3396,7 +3397,7 @@
             "blockNumber": 92970721,
             "txIndex": 0,
             "sender": "ADMIN",
-            "recipient": "CAROL",
+            "recipient": "PROTOCOL",
             "value": "1",
             "text": "NNS1Unq"
           },
@@ -3411,7 +3412,7 @@
             "txIndex": 1,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "8000000000",
             "text": "NNS1Gnq"
           },
           "verdict": {
@@ -3685,7 +3686,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P400000000|40000000|250|58929120"
+            "text": "NNS1P80000000|250|58929120"
           },
           "verdict": {
             "kind": "OK"
@@ -3696,7 +3697,7 @@
             "label": "pending_p",
             "logLines": 1,
             "prices": {
-              "feeStandard": "200000000"
+              "feeBase": "40000000"
             },
             "pendingGovernance": {
               "effectiveHeight": 58929120
@@ -3714,7 +3715,7 @@
             "logLines": 1,
             "height": 58929119,
             "prices": {
-              "feeStandard": "200000000"
+              "feeBase": "40000000"
             },
             "pendingGovernance": {
               "effectiveHeight": 58929120
@@ -3735,7 +3736,7 @@
             "logLines": 1,
             "height": 58929120,
             "prices": {
-              "feeStandard": "400000000"
+              "feeBase": "80000000"
             },
             "pendingGovernance": null
           }
@@ -3743,7 +3744,7 @@
       ],
       "expect": {
         "prices": {
-          "feeStandard": "400000000"
+          "feeBase": "80000000"
         },
         "logLines": 1
       }
@@ -3874,6 +3875,1037 @@
           }
         },
         "logLines": 1
+      }
+    },
+    {
+      "id": "G_lifetime_registers_a_hundred_terms_for_ten_fees",
+      "note": "§6 G, §10.4: the trailing L buys LIFETIME_TERMS (100) × TERM_LENGTH for LIFETIME_MULTIPLIER (10) × the band fee, as a plain expiry height — 58842720 + 3153600000. With a ref or with an empty second field alike (`NNS1Gname||L`). Nothing downstream distinguishes the record: it resolves, it has an expiry, and the ordinary §7.3 effect will reach it (see a_lifetime_expires_like_any_term).",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "2000000000",
+            "text": "NNS1Gkikename||L"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "BOB",
+            "recipient": "TREASURY",
+            "value": "2000000000",
+            "text": "NNS1Gothername|kikename|L"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "ALICE",
+            "target": "ALICE",
+            "status": "REGISTERED",
+            "expiry": 3212442720
+          },
+          "othername": {
+            "owner": "BOB",
+            "target": "BOB",
+            "status": "REGISTERED",
+            "expiry": 3212442720
+          }
+        },
+        "resolves": {
+          "kikename": "ALICE",
+          "othername": "BOB"
+        },
+        "logLines": 2
+      }
+    },
+    {
+      "id": "G_lifetime_underpaid_refunds_the_full_value",
+      "note": "§7.4: the value check reads the lifetime fee — ten yearly fees, 2,000,000,000 luna for an 8-character name — so nine fees and change is an underpayment, refunded in full from the treasury like any other (r29). A yearly fee sent with L is the same verdict: the flag is part of the price, not a discount the reducer forgives.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1999999999",
+            "text": "NNS1Gkikename||L"
+          },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "INSUFFICIENT_VALUE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "ALICE",
+                "amount": "1999999999"
+              }
+            ]
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename||L"
+          },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "INSUFFICIENT_VALUE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "ALICE",
+                "amount": "200000000"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "names": {},
+        "logLines": 2
+      }
+    },
+    {
+      "id": "N_lifetime_upgrades_a_yearly_name_from_its_expiry",
+      "note": "§6 N: an N|L extends by LIFETIME_TERMS × TERM_LENGTH from the current expiry, not from the renewal height, for ten yearly fees — the upgrade path from a yearly name to a lifetime, sendable by anyone. A plain N on the resulting lifetime name adds one more term to a date a century out: pointless, harmless, and needing no rule. A surplus on the lifetime renewal is owed back like any other (§10.5).",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842725,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "TREASURY",
+            "value": "2100000000",
+            "text": "NNS1Nkikename|L"
+          },
+          "verdict": {
+            "kind": "OK",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "BOB",
+                "amount": "100000000"
+              }
+            ]
+          }
+        },
+        {
+          "check": {
+            "names": {
+              "kikename": {
+                "expiry": 3243978720,
+                "status": "REGISTERED"
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842726,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Nkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "ALICE",
+            "expiry": 3275514720,
+            "status": "REGISTERED"
+          }
+        },
+        "logLines": 3
+      }
+    },
+    {
+      "id": "a_lifetime_expires_like_any_term",
+      "note": "§10.4: a lifetime is a long term, not a different kind of record. The same §7.3 effects reach it at the same offsets — GRACE at exactly `expiry`, AVAILABLE at `expiry + GRACE_PERIOD` — a century of blocks later, with no sentinel and no special case for an implementation to get wrong. A height advance emits no log line.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "2000000000",
+            "text": "NNS1Gkikename||L"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "advanceTo": 3212442719
+        },
+        {
+          "check": {
+            "names": {
+              "kikename": {
+                "status": "REGISTERED"
+              }
+            },
+            "resolves": {
+              "kikename": "ALICE"
+            },
+            "logLines": 1
+          }
+        },
+        {
+          "advanceTo": 3212442720
+        },
+        {
+          "check": {
+            "names": {
+              "kikename": {
+                "status": "GRACE"
+              }
+            },
+            "resolves": {
+              "kikename": null
+            },
+            "logLines": 1
+          }
+        },
+        {
+          "advanceTo": 3215034720
+        },
+        {
+          "check": {
+            "absent": [
+              "kikename"
+            ],
+            "logLines": 1
+          }
+        }
+      ],
+      "expect": {
+        "names": {},
+        "logLines": 1
+      }
+    },
+    {
+      "id": "the_open_bands_are_multiples_of_FEE_BASE",
+      "note": "§10.1 since 2026-09-11: 5 → 25×, 6 → 10×, 7–11 → 5×, 12+ → 1× of FEE_BASE (400 NIM). The first step is the vector that pins the reprice: a 5-character G paying the pre-fold flat 2,000 NIM is short of its 10,000 NIM band and is refunded, which is what a rules rebuild does to every such registration already landed (tasks/19 D5). Each band's exact fee then registers.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gabcde"
+          },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "INSUFFICIENT_VALUE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "ALICE",
+                "amount": "200000000"
+              }
+            ]
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1000000000",
+            "text": "NNS1Gabcde"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 2,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "400000000",
+            "text": "NNS1Gabcdef"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 3,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gabcdefg"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 4,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gabcdefghijk"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 5,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "40000000",
+            "text": "NNS1Gabcdefghijkl"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 6,
+            "sender": "BOB",
+            "recipient": "TREASURY",
+            "value": "399999999",
+            "text": "NNS1Gbcdefg"
+          },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "INSUFFICIENT_VALUE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "BOB",
+                "amount": "399999999"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "abcde": {
+            "owner": "ALICE"
+          },
+          "abcdef": {
+            "owner": "ALICE"
+          },
+          "abcdefg": {
+            "owner": "ALICE"
+          },
+          "abcdefghijk": {
+            "owner": "ALICE"
+          },
+          "abcdefghijkl": {
+            "owner": "ALICE"
+          }
+        },
+        "logLines": 7
+      }
+    },
+    {
+      "id": "a_released_two_character_name_is_priced_by_its_own_band",
+      "note": "§10.1: 1–4 characters are reserved by rule, and their band — 200× for 1–2, 100× for 3, 50× for 4 — is the holding cost once a U or an admin A has moved one out. A G after the release, every N, and the N|L upgrade all read it: the 7–11 fee is an underpayment for `nq`, 80,000 NIM registers it, another 80,000 renews it, and 800,000 makes it a lifetime. The release itself and an award owe nothing (§6 U).",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Unq"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gnq"
+          },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "INSUFFICIENT_VALUE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "ALICE",
+                "amount": "200000000"
+              }
+            ]
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 2,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "8000000000",
+            "text": "NNS1Gnq"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "TREASURY",
+            "value": "8000000000",
+            "text": "NNS1Nnq"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842722,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "79999999999",
+            "text": "NNS1Nnq|L"
+          },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "INSUFFICIENT_VALUE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "ALICE",
+                "amount": "79999999999"
+              }
+            ]
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842722,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "80000000000",
+            "text": "NNS1Nnq|L"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "nq": {
+            "owner": "ALICE",
+            "expiry": 3275514720,
+            "status": "REGISTERED"
+          }
+        },
+        "logLines": 6
+      }
+    },
+    {
+      "id": "unreserve_awards_an_available_name_that_was_never_reserved",
+      "note": "§6 U since 2026-09-11: an award reaches any name nobody owns, reserved or not — a giveaway, a beta tester, the re-award of a repriced registration. `kikename` is on no list and short of no floor, so nothing enters the unreserved set (tag 0x0A records governance acts on RESERVED_NAMES, and there was none) and the name is simply REGISTERED to the recipient for a full term. Nothing owed and nothing earned: the U is dust and creates no obligation.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Ukikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "unreserved": {
+              "kikename": false
+            },
+            "outstanding": {
+              "58842720:0": null
+            },
+            "logLines": 1
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "BOB",
+            "target": "BOB",
+            "status": "REGISTERED",
+            "expiry": 90378720,
+            "host": ""
+          }
+        },
+        "resolves": {
+          "kikename": "BOB"
+        },
+        "logLines": 1
+      }
+    },
+    {
+      "id": "unreserve_award_of_a_held_name_forfeits_NAME_NOT_AVAILABLE",
+      "note": "§10.6: no U touches a name somebody holds. An award of a REGISTERED name forfeits NAME_NOT_AVAILABLE and moves no component; so does one during GRACE, when the former owner can still renew; and the same U succeeds the block the name falls to AVAILABLE. The 28th token, added 2026-09-11 when awards widened past the reserved set — a second award of the same name earns it too.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "label": "held",
+            "logLines": 1
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Ukikename"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_AVAILABLE"
+          }
+        },
+        {
+          "check": {
+            "since": "held",
+            "changed": [],
+            "logLines": 2,
+            "names": {
+              "kikename": {
+                "owner": "ALICE"
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 90378720
+        },
+        {
+          "check": {
+            "names": {
+              "kikename": {
+                "status": "GRACE"
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 90378720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Ukikename"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_AVAILABLE"
+          }
+        },
+        {
+          "advanceTo": 92970720
+        },
+        {
+          "check": {
+            "absent": [
+              "kikename"
+            ]
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 92970720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Ukikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 92970720,
+            "txIndex": 1,
+            "sender": "ADMIN",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Ukikename"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_AVAILABLE"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "BOB",
+            "expiry": 124506720,
+            "status": "REGISTERED"
+          }
+        },
+        "logLines": 5
+      }
+    },
+    {
+      "id": "unreserve_lifetime_award_and_a_release_that_ignores_L",
+      "note": "§6 U: `|L` on an award sets a lifetime — a hundred terms from the landing block, the same plain height a G|L produces — for a registrar or an exchange that must not lose its name to expiry. On a release there is no term to set, so the field is ignored rather than rejected: the name is released and AVAILABLE, exactly as without it. Both leave the reserved name in the unreserved set.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Unq|L"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ubinance|L"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "unreserved": {
+              "nq": true,
+              "binance": true
+            },
+            "absent": [
+              "binance"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "nq": {
+            "owner": "BOB",
+            "target": "BOB",
+            "status": "REGISTERED",
+            "expiry": 3212442720
+          }
+        },
+        "logLines": 2
+      }
+    },
+    {
+      "id": "unreserve_release_after_award_and_award_after_release",
+      "note": "§6 U: the two operations select different last rows. A release after an award is NAME_NOT_RESERVED — the name left the set when it was awarded — and the award stands. An award after a release is a normal award of an available name: the fired set says the name is released, the record says nobody holds it, and the recipient gets it.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Ubinance"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ubinance"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_RESERVED"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 2,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Unq"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "absent": [
+              "nq"
+            ],
+            "unreserved": {
+              "nq": true
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 3,
+            "sender": "ADMIN",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Unq"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "binance": {
+            "owner": "BOB"
+          },
+          "nq": {
+            "owner": "CAROL",
+            "expiry": 90378720
+          }
+        },
+        "logLines": 4
+      }
+    },
+    {
+      "id": "a_G_ahead_of_an_award_of_an_available_name_wins",
+      "note": "§6 U ordering, for a name that was AVAILABLE: a U is an ordinary message under §5.2, so the G ranked ahead of it registers the name and the award behind it finds a REGISTERED name and forfeits NAME_NOT_AVAILABLE. An award of an available name is raceable from the mempool exactly as a G is (§6.2) — a giveaway is a thin prize.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Ukikename"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_AVAILABLE"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "ALICE"
+          }
+        },
+        "logLines": 2
+      }
+    },
+    {
+      "id": "an_award_ahead_of_a_G_for_an_available_name_wins",
+      "note": "The other way round: the award ranked ahead registers the name to the recipient in its own block, and the G behind it takes LOST_REGISTRATION_RACE — a refund, since losing to a state change inside the block is the concurrency loss §7.4 refunds. Same shape as the reserved-name pair (unreserve_awards_a_short_name_to_the_recipient), for a name that was never reserved.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Ukikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "LOST_REGISTRATION_RACE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "ALICE",
+                "amount": "200000000"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "BOB"
+          }
+        },
+        "logLines": 2
+      }
+    },
+    {
+      "id": "P_at_each_rail",
+      "note": "§10.6: the rails are inclusive and they are the whole of the price bound — PRICE_FLOOR (1 NIM) and PRICE_CEILING (100,000 NIM) are both legal targets for a single P, one luna outside either is GOVERNANCE_BOUND_VIOLATED, and there is no step limit between them. One field since 2026-09-11: nothing is left for a P to get out of order. The later accepted P replaces the earlier pending one, and the ceiling activates on schedule, moving every band with it.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P100000|250|58929120"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P99999|250|58929121"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "GOVERNANCE_BOUND_VIOLATED"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 1,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P10000000001|250|58929121"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "GOVERNANCE_BOUND_VIOLATED"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 2,
+            "sender": "ADMIN",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1P10000000000|250|58929121"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "pendingGovernance": {
+              "effectiveHeight": 58929121
+            },
+            "prices": {
+              "feeBase": "40000000"
+            }
+          }
+        },
+        {
+          "advanceTo": 58929121
+        },
+        {
+          "check": {
+            "prices": {
+              "feeBase": "10000000000"
+            },
+            "pendingGovernance": null
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58929121,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "50000000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58929121,
+            "txIndex": 1,
+            "sender": "BOB",
+            "recipient": "TREASURY",
+            "value": "10000000000",
+            "text": "NNS1Gabcdefghijkl"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58929121,
+            "txIndex": 2,
+            "sender": "CAROL",
+            "recipient": "TREASURY",
+            "value": "9999999999",
+            "text": "NNS1Gbcdefghijklm"
+          },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "INSUFFICIENT_VALUE",
+            "obligations": [
+              {
+                "kind": "REFUND",
+                "owedBy": "TREASURY",
+                "owedTo": "CAROL",
+                "amount": "9999999999"
+              }
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "prices": {
+          "feeBase": "10000000000",
+          "commissionBp": "250"
+        },
+        "names": {
+          "kikename": {
+            "owner": "ALICE"
+          },
+          "abcdefghijkl": {
+            "owner": "BOB"
+          }
+        },
+        "logLines": 7
       }
     },
     {
@@ -5768,7 +6800,7 @@
           "sender": "ALICE",
           "recipient": "TREASURY",
           "value": "1",
-          "text": "NNS1P200000000|40000000|250|58929120"
+          "text": "NNS1P40000000|250|58929120"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -5785,7 +6817,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P200000000|40000000|250|58929120"
+            "text": "NNS1P40000000|250|58929120"
           }
         }
       },
@@ -5800,7 +6832,7 @@
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1P200000000|40000000|250|58842721"
+          "text": "NNS1P40000000|250|58842721"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -5817,7 +6849,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P200000000|40000000|250|58842721"
+            "text": "NNS1P40000000|250|58842721"
           }
         }
       },
@@ -5825,14 +6857,14 @@
         "id": "P_insufficient_notice_beats_governance_bound_violated",
         "setup": "empty",
         "pinnedBy": null,
-        "note": "Notice before the §10.6 rails. The `fee_standard` here is 200,000 NIM, twice `PRICE_CEILING`, and the notice is one block — a fat-fingered governance message that is also badly timed reports the timing.",
+        "note": "Notice before the §10.6 rails. The `fee_base` here is 200,000 NIM, twice `PRICE_CEILING`, and the notice is one block — a fat-fingered governance message that is also badly timed reports the timing.",
         "tx": {
           "blockNumber": 58842720,
           "txIndex": 0,
           "sender": "ADMIN",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1P20000000000|40000000|250|58842721"
+          "text": "NNS1P20000000000|250|58842721"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -5849,7 +6881,7 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P20000000000|40000000|250|58929120"
+            "text": "NNS1P20000000000|250|58929120"
           }
         }
       },
@@ -5944,6 +6976,38 @@
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Ukikename"
+          }
+        }
+      },
+      {
+        "id": "U_invalid_name_beats_name_not_available",
+        "setup": "kikename_to_alice",
+        "pinnedBy": "§7.4 check-order table (2026-09-11) — `U`: `NOT_ADMIN`, `INVALID_RECIPIENT`, `INVALID_NAME`, then `NAME_NOT_RESERVED` (release) or `NAME_NOT_AVAILABLE` (award)",
+        "note": "The award's last row, the twin of the release pair above it. `ab-` fails rule 4 and is on neither membership route; `kikename` is well-formed and held by ALICE. Under the other reading the first probe would report a name it cannot award for a reason it does not have.",
+        "tx": {
+          "blockNumber": 58842720,
+          "txIndex": 0,
+          "sender": "ADMIN",
+          "recipient": "BOB",
+          "value": "1",
+          "text": "NNS1Uab-"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "INVALID_NAME"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_AVAILABLE"
+          },
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
             "value": "1",
             "text": "NNS1Ukikename"
           }

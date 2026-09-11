@@ -3,8 +3,8 @@ import { effectiveSender, htlcAuthorizer, SENDER_TYPE_HTLC } from './attribution
 import { formatAddress, parseAddress } from './address.js'
 import { CONSTANTS } from './constants.js'
 import { encodeRegister, encodeSetTarget } from './codec.js'
-import { initialState, type NnsState } from './state.js'
-import { reduce, type ChainTransaction } from './reduce.js'
+import { LAUNCH_PRICES, initialState, type NnsState } from './state.js'
+import { feeFor, reduce, type ChainTransaction } from './reduce.js'
 import { testConfig, ALICE } from './test-fixtures.js'
 
 /**
@@ -101,7 +101,7 @@ describe('reduce under attribution — ownership survives the contract', () => {
   })
 
   const register = (state: NnsState) =>
-    reduce(state, fromHtlc(HTLC_1, encodeRegister({ name: 'examplename', fee: CONSTANTS.FEE_STANDARD }), height, 0), config)
+    reduce(state, fromHtlc(HTLC_1, encodeRegister({ name: 'examplename', fee: feeFor('examplename', LAUNCH_PRICES) }), height, 0), config)
 
   it('a G from the contract registers to the authorizing key, not the contract', () => {
     const { state, verdict } = register(initialState())

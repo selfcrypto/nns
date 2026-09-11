@@ -1,7 +1,7 @@
 {
   "vectors": "nns/merkle",
   "version": 1,
-  "spec": "nns-spec-v1 draft r28, §8.1 and §8.3",
+  "spec": "nns-spec-v1 draft r29, §8.1 and §8.3",
   "description": "Checkpoint tree byte layout. `enc` is the §8.1 leaf preimage, `leaf` is keccak256(0x00 ‖ enc), internal nodes are keccak256(0x01 ‖ left ‖ right), odd nodes are promoted unchanged, and an empty tree is 32 zero bytes. All hex is lowercase and unprefixed.",
   "addresses": {
     "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
@@ -277,25 +277,23 @@
         "state": {
           "height": 58842720,
           "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
+            "feeBase": "40000000",
             "commissionBp": "250"
           }
         },
         "logHash": "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
         "nameRoot": "0000000000000000000000000000000000000000000000000000000000000000",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
+        "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "bf7697bf66e5f651407ce155cae87aa62aadad46fa94cb4d4c85611afd7c8ea9"
+        "commitment": "a6e66d2270ce52b24d8c162f18459dd22ff810b7f7d54fb7ecf1851d838eca94"
       },
       {
         "id": "one_name_nothing_pending",
         "state": {
           "height": 58903520,
           "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
+            "feeBase": "40000000",
             "commissionBp": "250"
           },
           "names": [
@@ -311,10 +309,10 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
+        "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "c10774979c4766e27f9497048fd3bd325bed1ca37e3e28ef5ea16c220b745075"
+        "commitment": "95219ddc165d7c3e17c66dc443bf7b20e59c1e985e8a531209bdeb37d0ec96bc"
       },
       {
         "id": "every_pending_category",
@@ -322,8 +320,7 @@
         "state": {
           "height": 58903520,
           "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
+            "feeBase": "40000000",
             "commissionBp": "250"
           },
           "names": [
@@ -367,8 +364,7 @@
           ],
           "pendingGovernance": {
             "prices": {
-              "feeStandard": "400000000",
-              "feeLong": "40000000",
+              "feeBase": "80000000",
               "commissionBp": "250"
             },
             "effectiveHeight": 58946720
@@ -386,10 +382,10 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "nameRoot": "c9a279f988933002ac3575bd0248cffeee29da2a21a9590c9889d55b65eb94cc",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
-        "pendingRoot": "7fa39ff97f50166ff511ca737ee2c5373fba71ba6a6d73c0d7fe1e9bfe9afdd8",
+        "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
+        "pendingRoot": "348497c820ba376aa20bd6704aac40ccd01e200d0b914d1b22eea2ccc0eedee8",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "ebc9ec6ee9e9c481375b7f291e05e8b507218a38a7920a51819e2c2800651875"
+        "commitment": "45b213bd9bf3ee7d8bca8e035afdb5c58b24f4da86c0297e89528a129381e06b"
       },
       {
         "id": "one_open_auction_no_bid",
@@ -397,8 +393,7 @@
         "state": {
           "height": 58903520,
           "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
+            "feeBase": "40000000",
             "commissionBp": "250"
           },
           "names": [
@@ -422,10 +417,10 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
+        "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "e5a8b09fa15aab9e7eed73a02e118a2eac88682e7fc067e9fe373022ccebe714",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "04f6021d702c6bcb441d98883de7b2ca0698842e5364139fdc61bb72a52f7406"
+        "commitment": "c222997424dbffceab795213df18a8a363863785fe08825d66a8eca816e85b13"
       },
       {
         "id": "one_open_auction_with_bid",
@@ -433,8 +428,7 @@
         "state": {
           "height": 58903520,
           "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
+            "feeBase": "40000000",
             "commissionBp": "250"
           },
           "names": [
@@ -460,10 +454,10 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
+        "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "683a137113b4e1fda184412ccf62c6d50625c715cff54092e6e6a331fb9d196b",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "b3f7a6efcad073caec97e1b58ba216c3f93c39a7a2416931b24dd5f5cc272352"
+        "commitment": "2708c628a79624805d10b96c32982a348c104706d6fa0b8c7a1c2d1952a7676d"
       },
       {
         "id": "same_names_no_pending_set",
@@ -471,8 +465,7 @@
         "state": {
           "height": 58903520,
           "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
+            "feeBase": "40000000",
             "commissionBp": "250"
           },
           "names": [
@@ -498,19 +491,18 @@
         "sameNameRootAs": "every_pending_category",
         "differsFrom": "every_pending_category",
         "nameRoot": "c9a279f988933002ac3575bd0248cffeee29da2a21a9590c9889d55b65eb94cc",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
+        "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "e8c7ecc89e322f477c43151755dfdeebc2683b3cf49c4f9d6612818efa052e22"
+        "commitment": "9bfc7aece11000c2cd2349c81c234f3a2c7c2e256a2b5fd63abb2c02c60de02a"
       },
       {
         "id": "prices_moved_by_a_P",
-        "note": "Identical to one_name_nothing_pending but for FEE_STANDARD. The active prices are inside the commitment, so the checkpoint moves.",
+        "note": "Identical to one_name_nothing_pending but for FEE_BASE — doubled. The active prices are inside the commitment, so the checkpoint moves. Two fields under tag 0x03 since 2026-09-11 (fee_base, commission_bp; COMMITMENT_LAYOUT 6): every pricesRoot in this file moved when fee_long left the digest.",
         "state": {
           "height": 58903520,
           "prices": {
-            "feeStandard": "400000000",
-            "feeLong": "40000000",
+            "feeBase": "80000000",
             "commissionBp": "250"
           },
           "names": [
@@ -528,10 +520,10 @@
         "sameNameRootAs": "one_name_nothing_pending",
         "differsFrom": "one_name_nothing_pending",
         "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
-        "pricesRoot": "52bc3e44be5464472f7539aeda5fbd96fe87b5fab2c0f57ad98347ea1d44e8a3",
+        "pricesRoot": "7f572fbc868eaa5be760f6b228a5a18c688e97086a3161bfc93f1d44f51c720a",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "d281ec03ed7b5b131b66daec7cb7c321e0abb7223bf13c9fac9cbd0ce7736b65"
+        "commitment": "884a93af13c4e38b4346047976497fcaaa24c00a3a8a22deaad2d62a6a571361"
       },
       {
         "id": "one_fired_unreserve",
@@ -539,8 +531,7 @@
         "state": {
           "height": 58903520,
           "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
+            "feeBase": "40000000",
             "commissionBp": "250"
           },
           "names": [
@@ -561,10 +552,10 @@
         "sameNameRootAs": "one_name_nothing_pending",
         "differsFrom": "one_name_nothing_pending",
         "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
+        "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "621cc735f00f1996b0c525a38267877ef62abc4d46947768578330547026a95c",
-        "commitment": "91a1894100674b461121f1982f51ed74088aadde72c9785cb2850598ba586e24"
+        "commitment": "0f2110968bda542dd845b308e72fbeb6425aba203c79e35ab7477694e711fd45"
       },
       {
         "id": "unreserved_sorted_bytewise",
@@ -572,8 +563,7 @@
         "state": {
           "height": 58903520,
           "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
+            "feeBase": "40000000",
             "commissionBp": "250"
           },
           "names": [
@@ -594,10 +584,10 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
+        "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "f620900b533d87f4d7405b52a351a27baea463cbd828ec6a7a4c4b388898d763",
-        "commitment": "2e20999b4b7b3953859ebd94bc9417dd85b1cb018dee0f0b5425338661a055db"
+        "commitment": "82a8a9d76a59bc829dbfff733a17b8b2dd139b35a4a3e3fa960dd652c09b7fcc"
       },
       {
         "id": "unreserved_authored_unsorted",
@@ -605,8 +595,7 @@
         "state": {
           "height": 58903520,
           "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
+            "feeBase": "40000000",
             "commissionBp": "250"
           },
           "names": [
@@ -628,10 +617,10 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameCommitmentAs": "unreserved_sorted_bytewise",
         "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
+        "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "f620900b533d87f4d7405b52a351a27baea463cbd828ec6a7a4c4b388898d763",
-        "commitment": "2e20999b4b7b3953859ebd94bc9417dd85b1cb018dee0f0b5425338661a055db"
+        "commitment": "82a8a9d76a59bc829dbfff733a17b8b2dd139b35a4a3e3fa960dd652c09b7fcc"
       },
       {
         "id": "unreserved_length_prefixes_prevent_collision",
@@ -639,8 +628,7 @@
         "state": {
           "height": 58903520,
           "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
+            "feeBase": "40000000",
             "commissionBp": "250"
           },
           "names": [
@@ -661,18 +649,17 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "differsFrom": "unreserved_one_joined_name",
         "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
+        "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "55d8faceb22e897e1072e0411f03f6df7d395d44eb12c946ea8a8ac307bf14a7",
-        "commitment": "281f6f62c5b8800aac3c0641335ce4da827c70b3cb586e0f53a509a1dddabbe3"
+        "commitment": "75d6417ea77b790c2fbb66d018e70005796979d66958e2393ee0f0a1c0d5a3e3"
       },
       {
         "id": "unreserved_one_joined_name",
         "state": {
           "height": 58903520,
           "prices": {
-            "feeStandard": "200000000",
-            "feeLong": "40000000",
+            "feeBase": "40000000",
             "commissionBp": "250"
           },
           "names": [
@@ -691,10 +678,10 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
-        "pricesRoot": "f5a2809f4d92b956707a75ac91c3b0348c9009c43c1160db6e19d062f2df5fdd",
+        "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "9613428d03a791759f48f9a8f6be65697e3a041ba059fb4acf677bc16db77086",
-        "commitment": "526efc51b3692002836d1d1a89c77468975c75c12ef5ccec7099947ace7b3281"
+        "commitment": "6813178ed30841e5a3607866e2ea5b1bdeca33b3bc2a1b8dbc02a21b394eda34"
       }
     ]
   }

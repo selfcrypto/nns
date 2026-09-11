@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseAddress } from './address.js'
-import { CONSTANTS, LUNA_PER_NIM } from './constants.js'
+import { CONSTANTS, LUNA_PER_NIM, feeMultiplier } from './constants.js'
 import { validateNameSyntax } from './name.js'
 
 describe('CONSTANTS — §3', () => {
@@ -10,20 +10,66 @@ describe('CONSTANTS — §3', () => {
 
   it('states every amount in luna, matching the NIM figures §3 prints', () => {
     expect(LUNA_PER_NIM).toBe(100_000n)
-    expect(CONSTANTS.FEE_STANDARD).toBe(200_000_000n) // 2,000 NIM
-    expect(CONSTANTS.FEE_LONG).toBe(40_000_000n) //       400 NIM
+    expect(CONSTANTS.FEE_BASE).toBe(40_000_000n) //          400 NIM
     expect(CONSTANTS.PRICE_FLOOR).toBe(100_000n) //         1 NIM
     expect(CONSTANTS.PRICE_CEILING).toBe(10_000_000_000n) // 100,000 NIM
   })
 
   it('keeps the launch prices inside the governance bounds they are subject to', () => {
-    for (const fee of [CONSTANTS.FEE_STANDARD, CONSTANTS.FEE_LONG]) {
-      expect(fee).toBeGreaterThanOrEqual(CONSTANTS.PRICE_FLOOR)
-      expect(fee).toBeLessThanOrEqual(CONSTANTS.PRICE_CEILING)
-    }
-    // §10.6: fee_long MUST be <= fee_standard.
-    expect(CONSTANTS.FEE_LONG).toBeLessThanOrEqual(CONSTANTS.FEE_STANDARD)
+    expect(CONSTANTS.FEE_BASE).toBeGreaterThanOrEqual(CONSTANTS.PRICE_FLOOR)
+    expect(CONSTANTS.FEE_BASE).toBeLessThanOrEqual(CONSTANTS.PRICE_CEILING)
     expect(CONSTANTS.COMMISSION_RATE).toBeLessThanOrEqual(CONSTANTS.COMMISSION_CEILING)
+  })
+
+  it('prices every length from FEE_BASE over the seven §10.1 rows', () => {
+    // The table as §3 prints it, one assertion per row edge. Frozen: a P
+    // moves FEE_BASE, never a multiplier (§10.6).
+    const rows: Array<[number, bigint]> = [
+      [1, 200n],
+      [2, 200n],
+      [3, 100n],
+      [4, 50n],
+      [5, 25n],
+      [6, 10n],
+      [7, 5n],
+      [11, 5n],
+      [12, 1n],
+      [CONSTANTS.MAX_NAME_LEN, 1n],
+    ]
+    for (const [length, times] of rows) expect(feeMultiplier(length), `length ${length}`).toBe(times)
+    // The yearly figures the spec quotes, in NIM (§10.1): $5 at the open
+    // bands' top, and the released short names above it.
+    const nim = (length: number): bigint => (CONSTANTS.FEE_BASE * feeMultiplier(length)) / LUNA_PER_NIM
+    expect([nim(2), nim(3), nim(4), nim(5), nim(6), nim(8), nim(12)]).toEqual([
+      80_000n,
+      40_000n,
+      20_000n,
+      10_000n,
+      4_000n,
+      2_000n,
+      400n,
+    ])
+  })
+
+  it('has no band outside 1…MAX_NAME_LEN — a name §4.1 rejects is never priced', () => {
+    expect(() => feeMultiplier(0)).toThrow(RangeError)
+    expect(() => feeMultiplier(CONSTANTS.MAX_NAME_LEN + 1)).toThrow(RangeError)
+    expect(() => feeMultiplier(1.5)).toThrow(RangeError)
+    // Rows ascend and the last one ends exactly at the ceiling, so every
+    // length in range has exactly one row.
+    const edges = CONSTANTS.FEE_MULTIPLIERS.map((row) => row.upTo)
+    expect(edges).toEqual([...edges].sort((a, b) => a - b))
+    expect(edges.at(-1)).toBe(CONSTANTS.MAX_NAME_LEN)
+  })
+
+  it('prices a lifetime at ten yearly fees and a hundred terms, as a plain height (§10.4)', () => {
+    expect(CONSTANTS.LIFETIME_MULTIPLIER).toBe(10n)
+    expect(CONSTANTS.LIFETIME_TERMS).toBe(100)
+    // A century out from any height the chain can reach stays a safe integer
+    // and a u64 — the expiry needs no sentinel and §8.1 encodes it as ever.
+    const lifetime = CONSTANTS.LIFETIME_TERMS * CONSTANTS.TERM_LENGTH
+    expect(lifetime).toBe(3_153_600_000)
+    expect(Number.isSafeInteger(CONSTANTS.LAUNCH_HEIGHT + lifetime)).toBe(true)
   })
 
   it('cannot use a DUST_VALUE of 0 — the network rejects it (§5.4)', () => {
@@ -39,15 +85,17 @@ describe('CONSTANTS — §3', () => {
     // Literal pins: recomputed from constants, but asserted against the numbers
     // §6 prints. The *relation* they feed is the test below, kept separate so a
     // profile that moved one of these still reaches the budget check.
-    expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + CONSTANTS.MAX_REF_LEN).toBe(54) // G
+    expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + CONSTANTS.MAX_REF_LEN + 2).toBe(56) // G with |L
+    expect(prefix + CONSTANTS.MAX_NAME_LEN + 2).toBe(31) // N and U with |L
     expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + 15).toBe(45) // O
     expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + 15 + 1 + 10).toBe(56) // A
+    expect(prefix + 15 + 1 + 5 + 1 + 10).toBe(37) // P
   })
 
   it('leaves every message type room inside the 64-byte budget (§5.1, §6)', () => {
     const prefix = CONSTANTS.PROTOCOL_ID.length + 1
     const sizes = [
-      prefix + CONSTANTS.MAX_NAME_LEN + 1 + CONSTANTS.MAX_REF_LEN, // G
+      prefix + CONSTANTS.MAX_NAME_LEN + 1 + CONSTANTS.MAX_REF_LEN + 2, // G with |L
       prefix + CONSTANTS.MAX_NAME_LEN + 1 + 15, // O
       prefix + CONSTANTS.MAX_NAME_LEN + 1 + 15 + 1 + 10, // A
       CONSTANTS.MAX_DELEGATE_MESSAGE_BYTES, // D
@@ -55,9 +103,8 @@ describe('CONSTANTS — §3', () => {
     for (const size of sizes) expect(size).toBeLessThanOrEqual(CONSTANTS.MAX_DATA_BYTES)
   })
 
-  it('orders the name-length thresholds as §4.1 and §10.1 require', () => {
-    expect(CONSTANTS.MIN_NAME_LEN).toBeLessThan(CONSTANTS.LONG_NAME_LEN)
-    expect(CONSTANTS.LONG_NAME_LEN).toBeLessThan(CONSTANTS.MAX_NAME_LEN)
+  it('orders the name-length thresholds as §4.1 requires', () => {
+    expect(CONSTANTS.MIN_NAME_LEN).toBeLessThan(CONSTANTS.MAX_NAME_LEN)
   })
 
   it('has no recovery timelock — `R` was removed in r20', () => {
@@ -128,7 +175,6 @@ describe('CONSTANTS — §3', () => {
       MAX_DATA_BYTES: 64,
       MAX_DELEGATE_MESSAGE_BYTES: 58,
       MIN_NAME_LEN: 5,
-      LONG_NAME_LEN: 12,
       MAX_NAME_LEN: 24,
       MAX_LABEL_LEN: 24,
       MAX_HOST_LEN: 30,
@@ -136,8 +182,18 @@ describe('CONSTANTS — §3', () => {
       DUST_VALUE: 1n,
       REFUND_FLOOR: 100_000n,
       LISTING_FEE: 0n,
-      FEE_STANDARD: 200_000_000n, //         2,000 NIM
-      FEE_LONG: 40_000_000n, //                400 NIM
+      FEE_BASE: 40_000_000n, //                400 NIM
+      FEE_MULTIPLIERS: [
+        { upTo: 2, times: 200n },
+        { upTo: 3, times: 100n },
+        { upTo: 4, times: 50n },
+        { upTo: 5, times: 25n },
+        { upTo: 6, times: 10n },
+        { upTo: 11, times: 5n },
+        { upTo: 24, times: 1n },
+      ],
+      LIFETIME_MULTIPLIER: 10n,
+      LIFETIME_TERMS: 100,
       PRICE_FLOOR: 100_000n, //                  1 NIM
       PRICE_CEILING: 10_000_000_000n, //   100,000 NIM
       COMMISSION_RATE: 250n,

@@ -280,7 +280,7 @@ describe('checkpoint — §8.1 final clause', () => {
     expect(bytesEqual(checkpoint(state, new Uint8Array(HASH_BYTES).fill(8)).commitment, base.commitment)).toBe(false)
     const later = Object.freeze({ ...state, height: state.height + 1 })
     expect(bytesEqual(checkpoint(later, log).commitment, base.commitment)).toBe(false)
-    const repriced = Object.freeze({ ...state, prices: { ...state.prices, feeStandard: 1n } })
+    const repriced = Object.freeze({ ...state, prices: { ...state.prices, feeBase: 1n } })
     expect(bytesEqual(checkpoint(repriced, log).commitment, base.commitment)).toBe(false)
   })
 
@@ -363,7 +363,7 @@ describe('checkpoint — §8.1 final clause', () => {
     const withGovernance = Object.freeze({
       ...state,
       pendingGovernance: {
-        prices: { feeStandard: 1n, feeLong: 1n, commissionBp: 0n },
+        prices: { feeBase: 1n, commissionBp: 0n },
         effectiveHeight: 100,
       },
     })
@@ -384,7 +384,7 @@ describe('checkpoint — §8.1 final clause', () => {
       ...stateWith(record({ name: 'kikename' })),
       transfers: new Map([['kikename', { name: 'kikename', newOwner: BOB, effectiveHeight: 100 }]]),
       pendingGovernance: {
-        prices: { feeStandard: 1n, feeLong: 2n, commissionBp: 3n },
+        prices: { feeBase: 1n, commissionBp: 3n },
         effectiveHeight: 200,
       },
     })
@@ -399,7 +399,7 @@ describe('checkpoint — §8.1 final clause', () => {
           addressToBytes(BOB),
           Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 100]),
           Uint8Array.of(0x08),
-          pricesCommitment({ feeStandard: 1n, feeLong: 2n, commissionBp: 3n }),
+          pricesCommitment({ feeBase: 1n, commissionBp: 3n }),
           Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 200]),
         ),
       ),

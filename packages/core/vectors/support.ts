@@ -110,25 +110,26 @@ export interface BuildSpec {
   /** `E` only: `0x`-hex display form, or `null` to clear (§6 `E`). */
   evm?: string | null
   price?: string
-  /** §3 MIN_PRICE for the case. Defaults to FEE_LONG at launch prices. */
+  /** §3 MIN_PRICE for the case. Defaults to FEE_BASE at launch prices. */
   minPrice?: string
   payee?: string
   amount?: string
   startingPrice?: string
   endHeight?: number
-  feeStandard?: string
-  feeLong?: string
+  feeBase?: string
   commissionBp?: string
   effectiveHeight?: number
   name?: string
   sender?: string
   /** `U` only: the awardee, or `null`/absent for a release (§6 `U`, r17). */
   recipient?: string | null
+  /** `G`, `N`, `U`: the trailing `L` — a lifetime term (§10.4). */
+  lifetime?: boolean
 }
 
 /**
- * §3 `MIN_PRICE` for a build spec. It is `FEE_LONG` *in effect at the message's
- * height* (§6 `O`), so a case that has moved `FEE_LONG` with a `P` states its
+ * §3 `MIN_PRICE` for a build spec. It is `FEE_BASE` *in effect at the message's
+ * height* (§6 `O`), so a case that has moved `FEE_BASE` with a `P` states its
  * own; everything else gets the launch value.
  */
 const floorFor = (spec: BuildSpec): bigint =>
@@ -146,6 +147,7 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
         name,
         ...(spec.ref === undefined ? {} : { ref: spec.ref }),
         fee: BigInt(spec.fee ?? '1'),
+        ...(spec.lifetime === undefined ? {} : { lifetime: spec.lifetime }),
         ...sender,
       })
     case 'setTarget':
@@ -159,7 +161,12 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
     case 'cancel':
       return encodeCancel({ name, ...sender })
     case 'renew':
-      return encodeRenew({ name, fee: BigInt(spec.fee as string), ...sender })
+      return encodeRenew({
+        name,
+        fee: BigInt(spec.fee as string),
+        ...(spec.lifetime === undefined ? {} : { lifetime: spec.lifetime }),
+        ...sender,
+      })
     case 'offer':
       return encodeOffer({
         name,
@@ -187,8 +194,7 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
       })
     case 'governance':
       return encodeGovernance({
-        feeStandard: BigInt(spec.feeStandard as string),
-        feeLong: BigInt(spec.feeLong as string),
+        feeBase: BigInt(spec.feeBase as string),
         commissionBp: BigInt(spec.commissionBp as string),
         effectiveHeight: spec.effectiveHeight as number,
         ...sender,
@@ -197,6 +203,7 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
       return encodeUnreserve({
         name,
         recipient: optionalAddress(book, spec.recipient),
+        ...(spec.lifetime === undefined ? {} : { lifetime: spec.lifetime }),
         ...sender,
       })
     case 'burn':
@@ -230,8 +237,7 @@ export const readRecord = (raw: VectorRecord, book: AddressBook): NameRecord => 
 // ── Whole-state vectors, for the §8.1 checkpoint commitment ─────────────────
 
 interface VectorPrices {
-  feeStandard: string
-  feeLong: string
+  feeBase: string
   commissionBp: string
 }
 
@@ -256,8 +262,7 @@ export interface VectorCheckpointState {
 }
 
 const readPrices = (raw: VectorPrices): Prices => ({
-  feeStandard: BigInt(raw.feeStandard),
-  feeLong: BigInt(raw.feeLong),
+  feeBase: BigInt(raw.feeBase),
   commissionBp: BigInt(raw.commissionBp),
 })
 

@@ -340,9 +340,10 @@ export function merkleNonInclusion(state: NameTreeState, name: string): NonInclu
  * {@link unreservedCommitment}.
  */
 export function pricesCommitment(prices: Prices): Uint8Array {
-  return keccak_256(
-    concat([u8(TAG.PRICES), u64be(prices.feeStandard), u64be(prices.feeLong), u64be(prices.commissionBp)]),
-  )
+  // Two fields since the 2026-09-11 fold (`COMMITMENT_LAYOUT` 6): the digest
+  // lost `fee_long` when §10.1 collapsed the two governed prices into one base
+  // fee, so every root moved and every pre-fold database rebuilds (§8.1).
+  return keccak_256(concat([u8(TAG.PRICES), u64be(prices.feeBase), u64be(prices.commissionBp)]))
 }
 
 /** Every pending item, each domain-separated and length-prefixed, in a fixed order. */

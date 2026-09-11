@@ -85,7 +85,11 @@ only; it defaults to empty.
   pending or unreserved set is `keccak256(0x04)` / `keccak256(0x0A)` — the tag
   byte alone.
 
-  **These commitments are r28.** The leaf gained `evm:20B` at r26
+  **These commitments are r29 as of the 2026-09-11 fold.** The `prices`
+  digest under tag `0x03` is two fields — `fee_base`, `commission_bp` —
+  since §10.1 collapsed the two governed prices into one base fee, so
+  `COMMITMENT_LAYOUT` is 6 and **every commitment in this file moved**
+  (`prices_moved_by_a_P` now doubles the base). The leaf gained `evm:20B` at r26
   (`COMMITMENT_LAYOUT` 5; `evm_set_is_twenty_raw_bytes` pins the encoding),
   so every commitment over a state with a name in it moved at that bump.
   r28 added the open-auction entry under tag `0x0B`, between offers and
@@ -159,7 +163,7 @@ They exist because every other way of observing these effects is blind to a
 one-block error. A checkpoint is only taken every `CHECKPOINT_INTERVAL`
 blocks, so "the root differs across the gap" cannot distinguish `h` from
 `h+1`; and none of these effects earns a §7.4 verdict token, so a replay can
-agree with a second implementation on all 26 tokens, produce matching roots at
+agree with a second implementation on all 28 tokens, produce matching roots at
 every checkpoint, and still fire an effect a block early. Each scenario
 therefore asserts `logLines` on both sides of the crossing as well: **a height
 advance MUST never emit a §8.2 line.**
@@ -190,7 +194,7 @@ category" rather than quietly counting a vector that no longer pins a height.
 
 ### `checkOrder` — which check runs first
 
-Forty-two cases in `reduce.json`'s own section, not scenarios. Each is a
+Forty-four cases in `reduce.json`'s own section, not scenarios. Each is a
 message that satisfies **two** rejection conditions at once: `verdict` is the
 token the earlier check produces, and `insteadOf` is the same probe rebuilt to
 trip only the later one, run against the same pre-state and required to earn
@@ -202,8 +206,11 @@ fixing the order, or is `null`. `insteadOfUnreachable` replaces `insteadOf`
 where the later token cannot be produced at all (one row: with an auction
 open on a name, no `A` for it reaches the checks behind `AUCTION_OPEN`).
 
-**Twenty-three of the forty-two orderings are fixed by the spec; nineteen
-are implementation choices.** r28 activated `A` and stated its whole order
+**Twenty-five of the forty-four orderings are fixed by the spec; nineteen
+are implementation choices.** The 2026-09-11 fold split `U`'s last row by
+recipient — `NAME_NOT_RESERVED` for a release, `NAME_NOT_AVAILABLE` for an
+award — and `U_invalid_name_beats_name_not_available` pins the award's
+row behind the name syntax as the release's twin does. r28 activated `A` and stated its whole order
 in §7.4's table — name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`,
 `INSUFFICIENT_NOTICE` — and the `AUCTION_OPEN` row's place in `O` and `X`;
 its two version-forfeit rows went and seven citing that table came. §7.4 fixes `G`'s five-check order ("recipient, name
@@ -280,9 +287,23 @@ implementations fork *silently* if they read the clause differently:
    bid's ref, and the grace reset cancels with a refund.
 6. **Proof steps carry a side.** §8.3's pre-r15 bare hash array is not
    verifiable under odd-node promotion.
-7. **An `O` price below `MIN_PRICE` forfeits**, and `MIN_PRICE` is `FEE_LONG`
-   *at that message's height* — so a `P` that moves `FEE_LONG` moves the floor
+7. **An `O` price below `MIN_PRICE` forfeits**, and `MIN_PRICE` is `FEE_BASE`
+   *at that message's height* — so a `P` that moves `FEE_BASE` moves the floor
    (§3, §6 `O`).
+9. **One base fee, frozen multipliers, a lifetime that is a term, and awards
+   of any ownerless name** (§10.1, §10.4, §6 `U`; 2026-09-11 fold).
+   `the_open_bands_are_multiples_of_FEE_BASE` prices each open band from
+   `FEE_BASE` and, in its first step, pins the reprice a rules rebuild does
+   to a pre-fold 5-character registration; `a_released_two_character_name_is_
+   priced_by_its_own_band` pins 200× for a `G`, an `N` and an `N|L` after a
+   release; `G_lifetime_*`, `N_lifetime_*` and `a_lifetime_expires_like_any_
+   term` pin the hundred-term expiry as a plain height the ordinary §7.3
+   effects reach; the `unreserve_*` scenarios added the same day pin an
+   award of a never-reserved name (nothing enters the unreserved set), of a
+   held name (`NAME_NOT_AVAILABLE`, in `REGISTERED` and in `GRACE`, then
+   `OK` after the fall), a lifetime award, a release ignoring `L`, and the
+   same-block `G`/`U` pair both ways round for an available name.
+   `P_at_each_rail` pins the inclusive rails on the one price field.
 8. **The checkpoint commitment layout** (§8.1), down to the tag bytes and the
    empty forms. r16 added a sixth component, the unreserved set under `0x0A`:
    a `U` that has fired leaves no leaf and no pending entry, so before it two

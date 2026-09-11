@@ -187,16 +187,12 @@ export function validateName(name: string, unreserved: ReadonlySet<string> = EMP
 export const isValidName = (name: string, unreserved?: ReadonlySet<string>): boolean =>
   validateName(name, unreserved).ok
 
-/** Pricing band for a name, by length alone (§10.1). */
-export type FeeBand = 'STANDARD' | 'LONG'
-
-/**
- * §10.1: 5–11 characters are the desirable range, 12+ is the cheap band.
- * Measured from the name itself, because `G` carries it in the clear — the
- * tier is never declared on the wire (§6.1).
+/*
+ * A two-band split at twelve characters lived here through 2026-09-10. §10.1
+ * now prices by length over seven rows of one base fee (`feeMultiplier` in
+ * `constants.ts`, `feeFor` in `reduce.ts`); the tier is still measured from
+ * the name itself, never declared on the wire (§6.1).
  */
-export const feeBand = (name: string): FeeBand =>
-  name.length >= CONSTANTS.LONG_NAME_LEN ? 'LONG' : 'STANDARD'
 
 // ── Dotted queries (§4.4) ───────────────────────────────────────────────────
 

@@ -20,7 +20,7 @@ import {
   parse,
   type Message,
 } from './codec.js'
-import { CONSTANTS } from './constants.js'
+import { CONSTANTS, LUNA_PER_NIM } from './constants.js'
 import { LAUNCH_PRICES, minPrice } from './state.js'
 import { ALICE, BOB, MARKETPLACE, PROTOCOL, TREASURY, testConfig } from './test-fixtures.js'
 
@@ -39,25 +39,35 @@ const parsed = (text: string): Message | null => {
 
 describe('the mainnet-verified known answer', () => {
   it('encodes NNS1Gtestname to 4e4e533147746573746e616d65 (CLAUDE.md, §5.1)', () => {
-    const tx = encodeRegister({ name: 'testname', fee: CONSTANTS.FEE_STANDARD })
+    const tx = encodeRegister({ name: 'testname', fee: 2_000n * LUNA_PER_NIM })
     expect(tx.data).toBe('4e4e533147746573746e616d65')
   })
 
   it('reads it back', () => {
     expect(parse('4e4e533147746573746e616d65')).toEqual({
       ok: true,
-      message: { type: 'G', name: 'testname', ref: null },
+      message: { type: 'G', name: 'testname', ref: null, lifetime: false },
     })
   })
 })
 
 describe('every message type round-trips encode → parse', () => {
   const cases: ReadonlyArray<readonly [string, { data: string }, Message]> = [
-    ['G', encodeRegister({ name: 'kikename', fee: 1n }), { type: 'G', name: 'kikename', ref: null }],
+    ['G', encodeRegister({ name: 'kikename', fee: 1n }), { type: 'G', name: 'kikename', ref: null, lifetime: false }],
     [
       'G with ref',
       encodeRegister({ name: 'kikename', ref: 'coinbase', fee: 1n }),
-      { type: 'G', name: 'kikename', ref: 'coinbase' },
+      { type: 'G', name: 'kikename', ref: 'coinbase', lifetime: false },
+    ],
+    [
+      'G lifetime with ref',
+      encodeRegister({ name: 'kikename', ref: 'coinbase', fee: 1n, lifetime: true }),
+      { type: 'G', name: 'kikename', ref: 'coinbase', lifetime: true },
+    ],
+    [
+      'G lifetime without ref',
+      encodeRegister({ name: 'kikename', fee: 1n, lifetime: true }),
+      { type: 'G', name: 'kikename', ref: null, lifetime: true },
     ],
     ['S', encodeSetTarget({ name: 'kikename', target: BOB }), { type: 'S', name: 'kikename' }],
     ['S reset', encodeSetTarget({ name: 'kikename', target: null }), { type: 'S', name: 'kikename' }],
@@ -75,7 +85,8 @@ describe('every message type round-trips encode → parse', () => {
     ],
     ['D clear', encodeDelegate({ name: 'binance', host: '' }), { type: 'D', name: 'binance', host: '' }],
     ['K', encodeCancel({ name: 'kikename' }), { type: 'K', name: 'kikename' }],
-    ['N', encodeRenew({ name: 'kikename', fee: 1n }), { type: 'N', name: 'kikename' }],
+    ['N', encodeRenew({ name: 'kikename', fee: 1n }), { type: 'N', name: 'kikename', lifetime: false }],
+    ['N lifetime', encodeRenew({ name: 'kikename', fee: 1n, lifetime: true }), { type: 'N', name: 'kikename', lifetime: true }],
     [
       'O',
       encodeOffer({ name: 'kikename', price: 123_456_789n, minPrice: FLOOR }),
@@ -94,24 +105,14 @@ describe('every message type round-trips encode → parse', () => {
     ],
     [
       'P',
-      encodeGovernance({
-        feeStandard: CONSTANTS.FEE_STANDARD,
-        feeLong: CONSTANTS.FEE_LONG,
-        commissionBp: 250n,
-        effectiveHeight: 58_100_000,
-      }),
-      {
-        type: 'P',
-        feeStandard: CONSTANTS.FEE_STANDARD,
-        feeLong: CONSTANTS.FEE_LONG,
-        commissionBp: 250n,
-        effectiveHeight: 58_100_000,
-      },
+      encodeGovernance({ feeBase: CONSTANTS.FEE_BASE, commissionBp: 250n, effectiveHeight: 58_100_000 }),
+      { type: 'P', feeBase: CONSTANTS.FEE_BASE, commissionBp: 250n, effectiveHeight: 58_100_000 },
     ],
+    ['U', encodeUnreserve({ name: 'binance' }), { type: 'U', name: 'binance', lifetime: false }],
     [
-      'U',
-      encodeUnreserve({ name: 'binance' }),
-      { type: 'U', name: 'binance' },
+      'U lifetime award',
+      encodeUnreserve({ name: 'nq', recipient: BOB, lifetime: true }),
+      { type: 'U', name: 'nq', lifetime: true },
     ],
     ['F', encodeBurn({ amount: 1_000n }), { type: 'F' }],
   ]
@@ -142,7 +143,7 @@ describe('routing and value — §5.3, §5.4', () => {
       encodeCancel({ name: 'kikename' }),
       encodeDelegate({ name: 'kikename', host: 'x.com' }),
       encodeAuction({ name: 'kikename', startingPrice: FLOOR, endHeight: 1, minPrice: FLOOR }),
-      encodeGovernance({ feeStandard: 1n, feeLong: 1n, commissionBp: 0n, effectiveHeight: 1 }),
+      encodeGovernance({ feeBase: 1n, commissionBp: 0n, effectiveHeight: 1 }),
       encodeUnreserve({ name: 'kikename' }),
     ]) {
       expect(tx.recipient).toBe(PROTOCOL)
@@ -282,17 +283,68 @@ describe('builders fail loudly where the chain would fail silently', () => {
   })
 
   it('takes the floor as a parameter, so a governed MIN_PRICE cannot go stale', () => {
-    // FEE_LONG doubled by a `P`: what the builder accepted yesterday it must
-    // refuse today. A builder reading CONSTANTS.FEE_LONG could not do this.
+    // FEE_BASE doubled by a `P`: what the builder accepted yesterday it must
+    // refuse today. A builder reading CONSTANTS.FEE_BASE could not do this.
     const moved = FLOOR * 2n
     expect(encodeOffer({ name: 'kikename', price: FLOOR, minPrice: FLOOR }).data).toBeTruthy()
     expect(() => encodeOffer({ name: 'kikename', price: FLOOR, minPrice: moved })).toThrow(/below MIN_PRICE/)
   })
 
   it('rejects a negative amount or an unsafe height', () => {
-    const negative = { feeStandard: -1n, feeLong: 1n, commissionBp: 0n, effectiveHeight: 1 }
+    const negative = { feeBase: -1n, commissionBp: 0n, effectiveHeight: 1 }
     expect(() => encodeGovernance(negative)).toThrow(/must not be negative/)
-    expect(() => encodeGovernance({ ...negative, feeStandard: 1n, effectiveHeight: 1.5 })).toThrow(CodecError)
+    expect(() => encodeGovernance({ ...negative, feeBase: 1n, effectiveHeight: 1.5 })).toThrow(CodecError)
+  })
+})
+
+describe('the lifetime field — §6 G, N, U and §10.4', () => {
+  const text = (built: { data: string }): string =>
+    (built.data.match(/../g) ?? []).map((byte) => String.fromCharCode(Number.parseInt(byte, 16))).join('')
+
+  it('is a trailing L, and an empty ref carries it without a referrer', () => {
+    expect(text(encodeRegister({ name: 'kikename', fee: 1n, lifetime: true }))).toBe('NNS1Gkikename||L')
+    expect(text(encodeRegister({ name: 'kikename', ref: 'coinbase', fee: 1n, lifetime: true }))).toBe(
+      'NNS1Gkikename|coinbase|L',
+    )
+    expect(text(encodeRenew({ name: 'kikename', fee: 1n, lifetime: true }))).toBe('NNS1Nkikename|L')
+    expect(text(encodeUnreserve({ name: 'nq', recipient: BOB, lifetime: true }))).toBe('NNS1Unq|L')
+    // `lifetime: false` is the same message as no flag at all.
+    expect(encodeRegister({ name: 'kikename', fee: 1n, lifetime: false })).toEqual(
+      encodeRegister({ name: 'kikename', fee: 1n }),
+    )
+  })
+
+  it('fits the largest G in 56 bytes (§6 G)', () => {
+    const built = encodeRegister({ name: 'a'.repeat(24), ref: 'b'.repeat(24), fee: 1n, lifetime: true })
+    expect(built.data.length / 2).toBe(56)
+  })
+
+  it('refuses a lifetime on a release — the reducer would ignore it, and the sender did not mean it', () => {
+    expect(() => encodeUnreserve({ name: 'binance', lifetime: true })).toThrow(/release has no term/)
+    expect(() => encodeUnreserve({ name: 'binance', recipient: null, lifetime: true })).toThrow(CodecError)
+  })
+
+  it.each([
+    ['G third field other than L', 'NNS1Gkikename|coinbase|l'],
+    ['G empty third field', 'NNS1Gkikename|coinbase|'],
+    ['G empty third field, empty ref', 'NNS1Gkikename||'],
+    ['G four fields', 'NNS1Gkikename|coinbase|L|'],
+    ['N second field other than L', 'NNS1Nkikename|LL'],
+    ['N empty second field', 'NNS1Nkikename|'],
+    ['N three fields', 'NNS1Nkikename|L|L'],
+    ['U second field other than L', 'NNS1Ubinance|x'],
+    ['U r21 height form', 'NNS1Ubinance|58942720'],
+    ['U empty second field', 'NNS1Ubinance|'],
+  ])('rejects %s as MALFORMED_PAYLOAD', (_label, payload) => {
+    expect(parse(hex(payload))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
+  })
+
+  it('reads L in the third G field whatever the ref, and only there', () => {
+    expect(parsed('NNS1Gkikename||L')).toEqual({ type: 'G', name: 'kikename', ref: null, lifetime: true })
+    expect(parsed('NNS1Gkikename|Coinbase|L')).toEqual({ type: 'G', name: 'kikename', ref: null, lifetime: true })
+    // `L` is a valid ref on its own — a one-letter registered name — so in
+    // the second field it is a referrer, not a term.
+    expect(parsed('NNS1Gkikename|l')).toEqual({ type: 'G', name: 'kikename', ref: 'l', lifetime: false })
   })
 })
 
@@ -318,20 +370,24 @@ describe('parse tolerance — §5.2, §7.5', () => {
 
   it('does not judge names — an invalid name parses, for the reducer to reject', () => {
     // §7.6: a rejected message still earns a log line, so it must parse first.
-    expect(parsed('NNS1Gn1m1q')).toEqual({ type: 'G', name: 'n1m1q', ref: null })
-    expect(parsed('NNS1GNIMIQ')).toEqual({ type: 'G', name: 'NIMIQ', ref: null })
+    expect(parsed('NNS1Gn1m1q')).toEqual({ type: 'G', name: 'n1m1q', ref: null, lifetime: false })
+    expect(parsed('NNS1GNIMIQ')).toEqual({ type: 'G', name: 'NIMIQ', ref: null, lifetime: false })
   })
 
   it('records an unknown or malformed ref as absent, and registers anyway (§6 G)', () => {
     // "Accounting must never be able to reject a paid registration."
-    expect(parsed('NNS1Gkikename|Coinbase')).toEqual({ type: 'G', name: 'kikename', ref: null })
-    expect(parsed('NNS1Gkikename|')).toEqual({ type: 'G', name: 'kikename', ref: null })
-    expect(parsed(`NNS1Gkikename|${'a'.repeat(25)}`)).toEqual({ type: 'G', name: 'kikename', ref: null })
-    expect(parsed('NNS1Gkikename|a|b')).toEqual({ type: 'G', name: 'kikename', ref: null })
+    const absent = { type: 'G', name: 'kikename', ref: null, lifetime: false }
+    expect(parsed('NNS1Gkikename|Coinbase')).toEqual(absent)
+    expect(parsed('NNS1Gkikename|')).toEqual(absent)
+    expect(parsed(`NNS1Gkikename|${'a'.repeat(25)}`)).toEqual(absent)
+    // A pipe inside the ref is a third field since 2026-09-11, and that field
+    // is a shape (`L` or nothing), not accounting — see the lifetime block.
+    expect(parse(hex('NNS1Gkikename|a|b'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
   })
 
   it('reports MALFORMED_PAYLOAD on the wrong field count', () => {
-    for (const text of ['NNS1Dbinance', 'NNS1Okikename', 'NNS1M58060800', 'NNS1P1|2|3', 'NNS1Fx']) {
+    // `NNS1P1|2|3|4` is the two-price form a `P` carried through 2026-09-10.
+    for (const text of ['NNS1Dbinance', 'NNS1Okikename', 'NNS1M58060800', 'NNS1P1|2', 'NNS1P1|2|3|4', 'NNS1Fx']) {
       expect(parse(hex(text))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
     }
   })
@@ -342,7 +398,7 @@ describe('parse tolerance — §5.2, §7.5', () => {
     // rather than release a name on a number nothing reads.
     expect(parse(hex('NNS1Ubinance|58900000'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
     expect(parse(hex('NNS1Ubinance|'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
-    expect(parsed('NNS1Ubinance')).toEqual({ type: 'U', name: 'binance' })
+    expect(parsed('NNS1Ubinance')).toEqual({ type: 'U', name: 'binance', lifetime: false })
   })
 
   it('reports MALFORMED_PAYLOAD on an empty name', () => {

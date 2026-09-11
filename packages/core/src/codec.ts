@@ -52,26 +52,22 @@ export type MessageType = (typeof MESSAGE_TYPES)[number]
  * confirmation dialog (§5.3).
  */
 export type Message =
-  | { readonly type: 'G'; readonly name: string; readonly ref: string | null }
+  /** `lifetime` is the optional trailing `L` (§6 `G`, §10.4): a hundred-year term for ten yearly fees. */
+  | { readonly type: 'G'; readonly name: string; readonly ref: string | null; readonly lifetime: boolean }
   | { readonly type: 'S'; readonly name: string }
   /** `evm` is lowercase `0x`-hex, `''` for the clearing form (§6 `E`). */
   | { readonly type: 'E'; readonly name: string; readonly evm: string }
   | { readonly type: 'X'; readonly name: string }
   | { readonly type: 'D'; readonly name: string; readonly host: string }
   | { readonly type: 'K'; readonly name: string }
-  | { readonly type: 'N'; readonly name: string }
+  | { readonly type: 'N'; readonly name: string; readonly lifetime: boolean }
   | { readonly type: 'O'; readonly name: string; readonly price: bigint }
   | { readonly type: 'B'; readonly name: string }
   | { readonly type: 'M'; readonly height: number; readonly txIndex: number }
   | { readonly type: 'A'; readonly name: string; readonly startingPrice: bigint; readonly endHeight: number }
-  | {
-      readonly type: 'P'
-      readonly feeStandard: bigint
-      readonly feeLong: bigint
-      readonly commissionBp: bigint
-      readonly effectiveHeight: number
-    }
-  | { readonly type: 'U'; readonly name: string }
+  | { readonly type: 'P'; readonly feeBase: bigint; readonly commissionBp: bigint; readonly effectiveHeight: number }
+  /** `lifetime` applies to an award; a release has no term and ignores it (§6 `U`). */
+  | { readonly type: 'U'; readonly name: string; readonly lifetime: boolean }
   | { readonly type: 'F' }
 
 export type ParseFailure =
@@ -229,6 +225,19 @@ const formatLuna = (amount: bigint): string => {
   return amount.toString(10)
 }
 
+/**
+ * The optional lifetime flag (§6 `G`, `N`, `U`; §10.4): `true` for exactly
+ * `L`, `false` when the field is absent, `null` — malformed — for anything
+ * else, an empty trailing field included. One reading for the three message
+ * types that carry it.
+ */
+const LIFETIME_FLAG = 'L'
+
+function lifetimeField(field: string | undefined): boolean | null {
+  if (field === undefined) return false
+  return field === LIFETIME_FLAG ? true : null
+}
+
 // ── parse ───────────────────────────────────────────────────────────────────
 
 /**
@@ -257,24 +266,46 @@ export function parse(recipientDataHex: string): ParseResult {
 
   switch (type) {
     case 'G': {
-      // Split on the FIRST pipe only, and never let the referrer reject the
-      // message: §6 `G` requires an unknown or malformed ref to be recorded as
-      // absent, because accounting must not be able to reject a paid
-      // registration.
-      const at = payload.indexOf('|')
-      const name = at < 0 ? payload : payload.slice(0, at)
-      const rawRef = at < 0 ? null : payload.slice(at + 1)
+      // Up to three fields: name, ref, and the lifetime flag. The referrer can
+      // never reject the message — §6 `G` requires an unknown or malformed ref
+      // to be recorded as absent, because accounting must not be able to
+      // reject a paid registration — but the third field is a shape, not
+      // accounting: exactly `L` or absent, and anything else is malformed.
+      // Through 2026-09-10 a `G` split on its first pipe only, so
+      // `NNS1Gname|a|b` was a bad ref; it is now a bad third field.
+      const fields = payload.split('|')
+      if (fields.length > 3) return bad('MALFORMED_PAYLOAD')
+      const name = fields[0] as string
       if (name.length === 0) return bad('MALFORMED_PAYLOAD')
-      return good({ type: 'G', name, ref: rawRef !== null && isValidRef(rawRef) ? rawRef : null })
+      const lifetime = lifetimeField(fields[2])
+      if (lifetime === null) return bad('MALFORMED_PAYLOAD')
+      const rawRef = fields[1]
+      return good({ type: 'G', name, ref: rawRef !== undefined && isValidRef(rawRef) ? rawRef : null, lifetime })
     }
 
     case 'S':
     case 'X':
     case 'K':
-    case 'N':
     case 'B': {
       if (payload.length === 0 || payload.includes('|')) return bad('MALFORMED_PAYLOAD')
       return good({ type, name: payload })
+    }
+
+    case 'N':
+    case 'U': {
+      // One field, or two with the lifetime flag — on `G`'s terms: the second
+      // field is exactly `L` or absent, so an empty trailing field and the
+      // r21-format `NNS1U<name>|<effective_height>` are both malformed. The
+      // latter deliberately: a `U` executes in the block it lands in and
+      // carries no height, and an old client's message must fail loudly
+      // rather than release a name on a number nothing reads.
+      const fields = payload.split('|')
+      if (fields.length > 2) return bad('MALFORMED_PAYLOAD')
+      const name = fields[0] as string
+      if (name.length === 0) return bad('MALFORMED_PAYLOAD')
+      const lifetime = lifetimeField(fields[1])
+      if (lifetime === null) return bad('MALFORMED_PAYLOAD')
+      return good({ type, name, lifetime })
     }
 
     case 'E': {
@@ -330,28 +361,16 @@ export function parse(recipientDataHex: string): ParseResult {
     }
 
     case 'P': {
+      // Three fields since the 2026-09-11 fold: one base fee, the commission
+      // and the height. The four-field form with two prices is malformed.
       const fields = payload.split('|')
-      if (fields.length !== 4) return bad('MALFORMED_PAYLOAD')
-      const [standardField, longField, commissionField, effectiveField] = fields as [string, string, string, string]
-      const feeStandard = parseLuna(standardField)
-      const feeLong = parseLuna(longField)
+      if (fields.length !== 3) return bad('MALFORMED_PAYLOAD')
+      const [baseField, commissionField, effectiveField] = fields as [string, string, string]
+      const feeBase = parseLuna(baseField)
       const commissionBp = parseLuna(commissionField)
       const effectiveHeight = parseHeight(effectiveField)
-      if (feeStandard === null || feeLong === null || commissionBp === null || effectiveHeight === null) {
-        return bad('MALFORMED_PAYLOAD')
-      }
-      return good({ type: 'P', feeStandard, feeLong, commissionBp, effectiveHeight })
-    }
-
-    case 'U': {
-      // One field since r22: a `U` executes in the block it lands in and
-      // carries no height. An r21-format `NNS1U<name>|<effective_height>`
-      // therefore splits into two and is MALFORMED_PAYLOAD — deliberately, so
-      // an old client's message fails loudly rather than releasing a name on
-      // a height nothing reads.
-      if (payload.includes('|')) return bad('MALFORMED_PAYLOAD')
-      if (payload.length === 0) return bad('MALFORMED_PAYLOAD')
-      return good({ type: 'U', name: payload })
+      if (feeBase === null || commissionBp === null || effectiveHeight === null) return bad('MALFORMED_PAYLOAD')
+      return good({ type: 'P', feeBase, commissionBp, effectiveHeight })
     }
 
     case 'F': {
@@ -423,9 +442,16 @@ function requireName(name: string): string {
   return name
 }
 
-/** `G` — Register (§6). To `TREASURY_ADDRESS`, carrying the fee. */
+/**
+ * `G` — Register (§6). To `TREASURY_ADDRESS`, carrying the fee.
+ *
+ * `lifetime` appends the `L` field (§10.4): a hundred-year term for ten
+ * yearly fees. The fee is the caller's — `feeFor(name, prices, lifetime)`
+ * prices it at the height the message will land — and the builder does not
+ * check it against the flag, because the prices are chain state.
+ */
 export function encodeRegister(
-  params: { name: string; ref?: string | undefined; fee: bigint } & SenderOption,
+  params: { name: string; ref?: string | undefined; fee: bigint; lifetime?: boolean | undefined } & SenderOption,
 ): BuiltTransaction {
   // Reservation is deliberately NOT checked here. `CONSTANTS.RESERVED_NAMES`
   // is the static published list, but whether a name is *registrable* is chain
@@ -437,7 +463,13 @@ export function encodeRegister(
   if (params.ref !== undefined && !isValidRef(params.ref)) {
     fail(`invalid ref ${JSON.stringify(params.ref)} — 1…${CONSTANTS.MAX_REF_LEN} chars from a-z, 0-9, - (§6 G)`)
   }
-  const payload = params.ref === undefined ? name : `${name}|${params.ref}`
+  // `NNS1Gname||L`: an empty ref is an absent one (§6 `G`), which is what
+  // lets the flag ride without a referrer.
+  const payload = params.lifetime
+    ? `${name}|${params.ref ?? ''}|${LIFETIME_FLAG}`
+    : params.ref === undefined
+      ? name
+      : `${name}|${params.ref}`
   return build('G', payload, CONSTANTS.TREASURY_ADDRESS, params.fee, params.sender)
 }
 
@@ -517,20 +549,26 @@ export function encodeCancel(params: { name: string } & SenderOption): BuiltTran
   return build('K', requireName(params.name), CONSTANTS.PROTOCOL_ADDRESS, CONSTANTS.DUST_VALUE, params.sender)
 }
 
-/** `N` — Renew (§6). Anyone may send it; it extends from the current expiry. */
+/**
+ * `N` — Renew (§6). Anyone may send it; it extends from the current expiry.
+ * `lifetime` appends `L`: a hundred years for ten yearly fees, which is also
+ * how a yearly name is upgraded (§10.4).
+ */
 export function encodeRenew(
-  params: { name: string; fee: bigint } & SenderOption,
+  params: { name: string; fee: bigint; lifetime?: boolean | undefined } & SenderOption,
 ): BuiltTransaction {
-  return build('N', requireName(params.name), CONSTANTS.TREASURY_ADDRESS, params.fee, params.sender)
+  const name = requireName(params.name)
+  const payload = params.lifetime ? `${name}|${LIFETIME_FLAG}` : name
+  return build('N', payload, CONSTANTS.TREASURY_ADDRESS, params.fee, params.sender)
 }
 
 /**
  * `O` — Offer (§6). Carries `LISTING_FEE`; the price travels in the payload.
  *
- * `minPrice` is §3's `MIN_PRICE` — `FEE_LONG` as in effect at the height this
+ * `minPrice` is §3's `MIN_PRICE` — `FEE_BASE` as in effect at the height this
  * message will land at (§6 `O`). It is a parameter rather than a constant
  * because it is governed: `constants.ts` holds the launch value, which stops
- * being the floor the moment a `P` moves `FEE_LONG`. Callers read it from the
+ * being the floor the moment a `P` moves `FEE_BASE`. Callers read it from the
  * active params (`minPrice(state.prices)`), which they hold already — a client
  * cannot show the seller a listing fee without them.
  */
@@ -594,38 +632,35 @@ export function encodeAuction(
 }
 
 /**
- * `P` — Governance (§6). All three parameters travel together so they can
- * never drift out of order or out of sync. Bounds are §10.6's and are checked
- * by the reducer, independently, in every implementation.
+ * `P` — Governance (§6). Both parameters travel together so they can never
+ * drift out of sync. One price since the 2026-09-11 fold: `feeBase` moves
+ * every band at once (§10.1), so there is nothing for a `P` to get out of
+ * order. Bounds are §10.6's and are checked by the reducer, independently,
+ * in every implementation.
  */
 export function encodeGovernance(
-  params: {
-    feeStandard: bigint
-    feeLong: bigint
-    commissionBp: bigint
-    effectiveHeight: number
-  } & SenderOption,
+  params: { feeBase: bigint; commissionBp: bigint; effectiveHeight: number } & SenderOption,
 ): BuiltTransaction {
-  const payload = [
-    formatLuna(params.feeStandard),
-    formatLuna(params.feeLong),
-    formatLuna(params.commissionBp),
-    formatHeight(params.effectiveHeight),
-  ].join('|')
+  const payload = [formatLuna(params.feeBase), formatLuna(params.commissionBp), formatHeight(params.effectiveHeight)].join(
+    '|',
+  )
   return build('P', payload, CONSTANTS.PROTOCOL_ADDRESS, CONSTANTS.DUST_VALUE, params.sender)
 }
 
 /**
- * `U` — Unreserve (§6). Takes a name out of `RESERVED_NAMES`; *adding* to the
- * list remains impossible without a new spec version.
+ * `U` — Unreserve (§6). Releases a name from `RESERVED_NAMES`, or awards any
+ * name nobody owns; *adding* to the list remains impossible without a new
+ * spec version.
  *
  * The recipient is an operand, not a route (r17): `recipient: null` (or
  * omitted) releases the name — the transaction goes to `PROTOCOL_ADDRESS` and
  * the name is `AVAILABLE` — while an address **awards** it, `REGISTERED` to
- * that address with a full term. The payload is identical either way.
- * `BURN_ADDRESS` is refused here because the reducer forfeits it
- * (`INVALID_RECIPIENT`), which §7.4 classes as client-preventable — this is the
- * client preventing it.
+ * that address with a full term, or a lifetime with `lifetime` (§10.4). The
+ * payload is identical either way. `BURN_ADDRESS` is refused here because
+ * the reducer forfeits it (`INVALID_RECIPIENT`), which §7.4 classes as
+ * client-preventable — this is the client preventing it; so is a release
+ * asking for a term, which the reducer would ignore and the sender did not
+ * mean.
  *
  * **No height, since r22.** A `U` takes effect in the block it lands in;
  * `GOVERNANCE_DELAY` is `P`'s alone. A notice window protects parties who can
@@ -639,14 +674,16 @@ export function encodeGovernance(
  * reserved by rule (§4.1), and releasing or awarding them is a designed use.
  */
 export function encodeUnreserve(
-  params: { name: string; recipient?: Address | null } & SenderOption,
+  params: { name: string; recipient?: Address | null; lifetime?: boolean | undefined } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
   const awardee = params.recipient ?? null
   if (awardee !== null && addressEquals(awardee, BURN_ADDRESS)) {
     fail('a name may not be awarded to BURN_ADDRESS — the message would forfeit INVALID_RECIPIENT (§6 U)')
   }
-  return build('U', name, awardee ?? CONSTANTS.PROTOCOL_ADDRESS, CONSTANTS.DUST_VALUE, params.sender)
+  if (awardee === null && params.lifetime) fail('a release has no term — lifetime applies to an award only (§6 U)')
+  const payload = params.lifetime ? `${name}|${LIFETIME_FLAG}` : name
+  return build('U', payload, awardee ?? CONSTANTS.PROTOCOL_ADDRESS, CONSTANTS.DUST_VALUE, params.sender)
 }
 
 /**

@@ -82,10 +82,13 @@ export interface Auction {
   readonly bidRef: TxRef | null
 }
 
-/** The three governable parameters, always moved together (§6 `P`). */
+/**
+ * The two governable parameters, always moved together (§6 `P`). One price
+ * since the 2026-09-11 fold: `feeBase` is the 12+ band's yearly fee and every
+ * other band is a frozen multiple of it (§10.1, `FEE_MULTIPLIERS`).
+ */
 export interface Prices {
-  readonly feeStandard: bigint
-  readonly feeLong: bigint
+  readonly feeBase: bigint
   readonly commissionBp: bigint
 }
 
@@ -106,14 +109,14 @@ export interface PendingGovernance {
 /**
  * §3 `MIN_PRICE` — the floor on an `O` price and an `A` starting price (§6 `O`, §6 `A`).
  *
- * Defined **as `FEE_LONG`**, not as a luna amount, so it tracks the NIM price
+ * Defined **as `FEE_BASE`**, not as a luna amount, so it tracks the NIM price
  * through §10.6 instead of going stale. That makes it a *governed* value: it is
- * whatever `FEE_LONG` is in effect at the message's own block height, which is
+ * whatever `FEE_BASE` is in effect at the message's own block height, which is
  * exactly what `state.prices` holds once `advanceTo` has run for that height.
  * Reading it from `constants.ts` instead would be right until the first `P`
- * moves `FEE_LONG` and wrong, silently, forever after.
+ * moves `FEE_BASE` and wrong, silently, forever after.
  */
-export const minPrice = (prices: Prices): bigint => prices.feeLong
+export const minPrice = (prices: Prices): bigint => prices.feeBase
 
 /** Canonical identity of a transaction: `(block height, zero-based index)`. */
 export interface TxRef {
@@ -180,8 +183,7 @@ export interface NnsState {
 
 /** Launch prices come from §3; governance moves them from there (§10.6). */
 export const LAUNCH_PRICES: Prices = Object.freeze({
-  feeStandard: CONSTANTS.FEE_STANDARD,
-  feeLong: CONSTANTS.FEE_LONG,
+  feeBase: CONSTANTS.FEE_BASE,
   commissionBp: CONSTANTS.COMMISSION_RATE,
 })
 

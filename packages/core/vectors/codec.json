@@ -1,7 +1,7 @@
 {
   "vectors": "nns/codec",
   "version": 1,
-  "spec": "nns-spec-v1 draft r26, §5 and §6",
+  "spec": "nns-spec-v1 draft r29, §5 and §6",
   "description": "Wire format. `text` is the message as ASCII; `data` is the same bytes as lowercase hex, which is what the RPC carries in both directions (§5.1). Recipients are role names resolved through `addresses`; `value` is luna as a decimal string.",
   "addresses": {
     "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
@@ -25,7 +25,8 @@
         "message": {
           "type": "G",
           "name": "testname",
-          "ref": null
+          "ref": null,
+          "lifetime": false
         },
         "build": {
           "builder": "register",
@@ -42,7 +43,8 @@
         "message": {
           "type": "G",
           "name": "kikename",
-          "ref": "coinbase"
+          "ref": "coinbase",
+          "lifetime": false
         },
         "build": {
           "builder": "register",
@@ -53,23 +55,64 @@
         "value": "200000000"
       },
       {
-        "id": "G_maximal_42_bytes",
-        "text": "NNS1Gaaaaaaaaaaaaaaaaaaaaaaaa|bbbbbbbbbbbb",
-        "data": "4e4e5331476161616161616161616161616161616161616161616161617c626262626262626262626262",
+        "id": "G_lifetime_with_ref",
+        "note": "The third field is exactly `L` (§6 G, §10.4). The value is ten yearly fees of the 7–11 band.",
+        "text": "NNS1Gkikename|coinbase|L",
         "message": {
           "type": "G",
-          "name": "aaaaaaaaaaaaaaaaaaaaaaaa",
-          "ref": "bbbbbbbbbbbb"
+          "name": "kikename",
+          "ref": "coinbase",
+          "lifetime": true
         },
         "build": {
           "builder": "register",
-          "ref": "bbbbbbbbbbbb",
-          "fee": "40000000"
+          "ref": "coinbase",
+          "fee": "2000000000",
+          "lifetime": true
         },
         "recipient": "TREASURY",
-        "value": "40000000",
-        "byteLength": 42,
-        "note": "§6 G states 42 bytes as the maximum."
+        "value": "2000000000",
+        "data": "4e4e5331476b696b656e616d657c636f696e626173657c4c"
+      },
+      {
+        "id": "G_lifetime_without_ref",
+        "note": "An empty second field is an absent ref, which is what lets `L` ride without a referrer (§6 G).",
+        "text": "NNS1Gkikename||L",
+        "message": {
+          "type": "G",
+          "name": "kikename",
+          "ref": null,
+          "lifetime": true
+        },
+        "build": {
+          "builder": "register",
+          "fee": "2000000000",
+          "lifetime": true
+        },
+        "recipient": "TREASURY",
+        "value": "2000000000",
+        "data": "4e4e5331476b696b656e616d657c7c4c"
+      },
+      {
+        "id": "G_maximal_56_bytes",
+        "text": "NNS1Gaaaaaaaaaaaaaaaaaaaaaaaa|bbbbbbbbbbbbbbbbbbbbbbbb|L",
+        "data": "4e4e5331476161616161616161616161616161616161616161616161617c6262626262626262626262626262626262626262626262627c4c",
+        "message": {
+          "type": "G",
+          "name": "aaaaaaaaaaaaaaaaaaaaaaaa",
+          "ref": "bbbbbbbbbbbbbbbbbbbbbbbb",
+          "lifetime": true
+        },
+        "build": {
+          "builder": "register",
+          "ref": "bbbbbbbbbbbbbbbbbbbbbbbb",
+          "fee": "400000000",
+          "lifetime": true
+        },
+        "recipient": "TREASURY",
+        "value": "400000000",
+        "byteLength": 56,
+        "note": "§6 G states 56 bytes as the maximum since 2026-09-11: a 24-character name, a 24-character ref and the lifetime field. The fee is ten times the 12+ band (§10.4)."
       },
       {
         "id": "S_to_counterparty",
@@ -189,7 +232,8 @@
         "data": "4e4e53314e6b696b656e616d65",
         "message": {
           "type": "N",
-          "name": "kikename"
+          "name": "kikename",
+          "lifetime": false
         },
         "build": {
           "builder": "renew",
@@ -197,6 +241,24 @@
         },
         "recipient": "TREASURY",
         "value": "200000000"
+      },
+      {
+        "id": "N_lifetime",
+        "note": "The upgrade of a yearly name, or a lifetime renewal from anyone: ten yearly fees for a hundred terms from the current expiry (§6 N, §10.4).",
+        "text": "NNS1Nkikename|L",
+        "message": {
+          "type": "N",
+          "name": "kikename",
+          "lifetime": true
+        },
+        "build": {
+          "builder": "renew",
+          "fee": "2000000000",
+          "lifetime": true
+        },
+        "recipient": "TREASURY",
+        "value": "2000000000",
+        "data": "4e4e53314e6b696b656e616d657c4c"
       },
       {
         "id": "O_offer",
@@ -279,30 +341,29 @@
           "startingPrice": "40000000",
           "endHeight": 59042720
         },
-        "note": "The startingPrice carries the same MIN_PRICE floor as an O price (§6 A), so the builder will not encode less than FEE_LONG.",
+        "note": "The startingPrice carries the same MIN_PRICE floor as an O price (§6 A), so the builder will not encode less than FEE_BASE.",
         "recipient": "PROTOCOL",
         "value": "1"
       },
       {
         "id": "P_governance",
-        "text": "NNS1P400000000|40000000|250|58942720",
-        "data": "4e4e5331503430303030303030307c34303030303030307c3235307c3538393432373230",
+        "text": "NNS1P80000000|250|58942720",
+        "data": "4e4e53315038303030303030307c3235307c3538393432373230",
         "message": {
           "type": "P",
-          "feeStandard": "400000000",
-          "feeLong": "40000000",
+          "feeBase": "80000000",
           "commissionBp": "250",
           "effectiveHeight": 58942720
         },
         "build": {
           "builder": "governance",
-          "feeStandard": "400000000",
-          "feeLong": "40000000",
+          "feeBase": "80000000",
           "commissionBp": "250",
           "effectiveHeight": 58942720
         },
         "recipient": "PROTOCOL",
-        "value": "1"
+        "value": "1",
+        "note": "One price field since 2026-09-11 (§6 P): the base fee every band is a frozen multiple of (§10.1), here doubled, and the commission. The four-field form with two prices is malformed, pinned below."
       },
       {
         "id": "U_unreserve",
@@ -311,7 +372,8 @@
         "data": "4e4e53315562696e616e6365",
         "message": {
           "type": "U",
-          "name": "binance"
+          "name": "binance",
+          "lifetime": false
         },
         "build": {
           "builder": "unreserve"
@@ -326,7 +388,8 @@
         "data": "4e4e5331556e71",
         "message": {
           "type": "U",
-          "name": "nq"
+          "name": "nq",
+          "lifetime": false
         },
         "build": {
           "builder": "unreserve",
@@ -334,6 +397,24 @@
         },
         "recipient": "BOB",
         "value": "1"
+      },
+      {
+        "id": "U_lifetime_award",
+        "note": "A lifetime award (§6 U, §10.4): the second field is exactly `L`, on G's terms. A release has no term, and the builder refuses to put the flag on one (builderErrors).",
+        "text": "NNS1Unq|L",
+        "message": {
+          "type": "U",
+          "name": "nq",
+          "lifetime": true
+        },
+        "build": {
+          "builder": "unreserve",
+          "recipient": "BOB",
+          "lifetime": true
+        },
+        "recipient": "BOB",
+        "value": "1",
+        "data": "4e4e5331556e717c4c"
       },
       {
         "id": "F_burn_attestation_5_bytes",
@@ -470,7 +551,8 @@
           "message": {
             "type": "G",
             "name": "n1m1q",
-            "ref": null
+            "ref": null,
+            "lifetime": false
           }
         },
         "note": "The codec does not judge names. A rejected message still earns a log line (§7.6), so it must parse first."
@@ -484,7 +566,8 @@
           "message": {
             "type": "G",
             "name": "NIMIQ",
-            "ref": null
+            "ref": null,
+            "lifetime": false
           }
         }
       },
@@ -497,7 +580,8 @@
           "message": {
             "type": "G",
             "name": "kikename",
-            "ref": null
+            "ref": null,
+            "lifetime": false
           }
         },
         "note": "§6 G: an unknown, malformed or absent ref is recorded as absent and the registration proceeds. Accounting must never be able to reject a paid registration."
@@ -511,7 +595,8 @@
           "message": {
             "type": "G",
             "name": "kikename",
-            "ref": null
+            "ref": null,
+            "lifetime": false
           }
         }
       },
@@ -524,23 +609,66 @@
           "message": {
             "type": "G",
             "name": "kikename",
-            "ref": null
+            "ref": null,
+            "lifetime": false
           }
         }
       },
       {
-        "id": "extra_pipes_in_ref_recorded_as_absent",
+        "id": "G_third_field_that_is_not_L_is_malformed",
         "text": "NNS1Gkikename|a|b",
         "data": "4e4e5331476b696b656e616d657c617c62",
         "result": {
-          "ok": true,
-          "message": {
-            "type": "G",
-            "name": "kikename",
-            "ref": null
-          }
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
         },
-        "note": "G splits on the first pipe only, so nothing after it can reject the registration."
+        "note": "Through 2026-09-10 a G split on its first pipe only and `a|b` was a bad ref, recorded as absent. The third field is the lifetime flag now (§6 G): exactly `L` or absent, so anything else in it is a shape error, not accounting — the ref alone can still never reject a paid registration."
+      },
+      {
+        "id": "G_empty_third_field_is_malformed",
+        "text": "NNS1Gkikename|coinbase|",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "data": "4e4e5331476b696b656e616d657c636f696e626173657c"
+      },
+      {
+        "id": "G_lowercase_l_is_malformed",
+        "text": "NNS1Gkikename||l",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "Exactly `L`. A lowercase `l` in the second field would be a one-letter ref; in the third it is nothing.",
+        "data": "4e4e5331476b696b656e616d657c7c6c"
+      },
+      {
+        "id": "G_four_fields_is_malformed",
+        "text": "NNS1Gkikename|coinbase|L|",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "data": "4e4e5331476b696b656e616d657c636f696e626173657c4c7c"
+      },
+      {
+        "id": "N_trailing_pipe_is_malformed",
+        "text": "NNS1Nkikename|",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "data": "4e4e53314e6b696b656e616d657c"
+      },
+      {
+        "id": "N_second_field_that_is_not_L_is_malformed",
+        "text": "NNS1Nkikename|LL",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "data": "4e4e53314e6b696b656e616d657c4c4c"
       },
       {
         "id": "empty_name_G",
@@ -598,22 +726,41 @@
       },
       {
         "id": "P_missing_a_field",
-        "text": "NNS1P1|2|3",
-        "data": "4e4e533150317c327c33",
+        "text": "NNS1P1|2",
+        "data": "4e4e533150317c32",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
         }
       },
       {
+        "id": "P_two_price_form_is_malformed",
+        "text": "NNS1P1|2|3|4",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "The four-field P of 2026-09-10 and before, carrying fee_standard and fee_long. One base fee since the price-bands fold (§6 P, §10.1); an old client's message fails loudly rather than setting a price on a field nothing reads.",
+        "data": "4e4e533150317c327c337c34"
+      },
+      {
         "id": "U_with_a_height_is_the_retired_r21_form",
-        "note": "Through r21 a U carried `|<effective_height>`. r22 made it execute on landing and removed the field, so the old form now has one field too many. Rejecting it is deliberate: a pre-r22 client's message must fail loudly rather than release a name on a number nothing reads.",
+        "note": "Through r21 a U carried `|<effective_height>`. r22 made it execute on landing and removed the field; since 2026-09-11 the second field exists again and is exactly `L` (a lifetime award), so a number there is still one field too many in meaning and MALFORMED_PAYLOAD in fact. Rejecting it is deliberate: a pre-r22 client's message must fail loudly rather than release a name on a number nothing reads.",
         "text": "NNS1Ubinance|58942720",
         "data": "4e4e53315562696e616e63657c3538393432373230",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
         }
+      },
+      {
+        "id": "U_second_field_that_is_not_L_is_malformed",
+        "text": "NNS1Ubinance|x",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "data": "4e4e53315562696e616e63657c78"
       },
       {
         "id": "U_with_a_trailing_pipe",
@@ -814,7 +961,7 @@
         "builder": "offer",
         "name": "kikename",
         "price": "39999999",
-        "note": "One luna under FEE_LONG. Below the floor the message would forfeit (§6 O), which §7.4 classes as client-preventable — so the builder prevents it."
+        "note": "One luna under FEE_BASE. Below the floor the message would forfeit (§6 O), which §7.4 classes as client-preventable — so the builder prevents it."
       },
       {
         "id": "A_reserve_below_MIN_PRICE",
@@ -829,7 +976,7 @@
         "name": "kikename",
         "price": "40000000",
         "minPrice": "80000000",
-        "note": "The launch floor, refused because a P has doubled FEE_LONG. MIN_PRICE is the value in effect at the message's height, never the constant."
+        "note": "The launch floor, refused because a P has doubled FEE_BASE. MIN_PRICE is the value in effect at the message's height, never the constant."
       },
       {
         "id": "E_all_zero_address",
@@ -842,6 +989,13 @@
         "builder": "setEvm",
         "name": "kikename",
         "evm": "1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b"
+      },
+      {
+        "id": "U_release_with_lifetime",
+        "builder": "unreserve",
+        "name": "binance",
+        "lifetime": true,
+        "note": "A release has no term (§6 U): the reducer would ignore the flag, and a client asking for it did not mean a release. Refused before broadcast."
       }
     ]
   }

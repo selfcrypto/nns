@@ -13,7 +13,7 @@
  * root or a log hash touches it.
  */
 
-export { CONSTANTS, LUNA_PER_NIM } from './constants.js'
+export { CONSTANTS, LUNA_PER_NIM, feeMultiplier } from './constants.js'
 
 // §5.2's canonical order (r27): the hash rank, derived from the batch response alone.
 export { OrderingError, rankMessages, type OrderInput, type Ranked } from './ordering.js'
@@ -58,7 +58,6 @@ export {
 } from './config.js'
 
 export {
-  feeBand,
   isListedReserved,
   isReservedName,
   isShortReserved,
@@ -70,7 +69,6 @@ export {
   validateName,
   validateNameShape,
   validateNameSyntax,
-  type FeeBand,
   type HostInvalidReason,
   type HostValidation,
   type LabelInvalidReason,
@@ -109,6 +107,7 @@ export {
   commissionOn,
   feeFor,
   governanceBoundViolation,
+  termFor,
   reduce,
   requiredBid,
   type ChainTransaction,
