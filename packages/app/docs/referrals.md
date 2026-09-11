@@ -4,11 +4,13 @@ Share your name's link. Whoever registers through it pays the usual price, and y
 
 ## The link
 
-Every registered name has one: `nimiqnames.com/?ref=<your name>`. Copy it from the **Share Link** tile on the name's card in *My names*. A name in grace has no working link — renew first, because the registry reads the referrer's status at the moment of each registration.
+Every registered name has one: `nimiqnames.com/?ref=<your name>`. Copy it from the **Share Link** tile on the name's card in *My names*, which also shows how many registrations the link has brought in and roughly what they earned at today's prices. A name in grace has no working link — renew first, because the registry reads the referrer's status at the moment of each registration.
 
 ## What you earn
 
 {{referral:default}} of the registration fee, by default. The rate is the same whoever registers, and it is a share of what the registry receives: the person you referred pays exactly the price on the *Prices* page, never more.
+
+The share follows the **fee owed**, so it follows the length of the name and the term chosen: a short name earns more than a long one, and a **lifetime** registration earns the share on the lifetime fee — {{n:LIFETIME_MULTIPLIER}} yearly shares at once, paid once, because the registry was paid once ([Prices](prices)).
 
 The share is paid by the registry itself, after each registration, to the address your name points at — the same address that receives payments to the name. It arrives as a settlement transaction referencing the registration, so it is visible on chain like every other payout.
 
@@ -31,3 +33,5 @@ Referring your own registrations earns you back {{referral:default}} of a fee yo
 ## In the app
 
 A page opened through a link remembers the referrer until you register a name, then forgets it. The review screen before the wallet opens says who referred you and what they earn. If two links were opened, the first one counts.
+
+A referral link and a [payment link](app) are different things and do not mix: `?ref=` says who introduced a registration, `#/pay/<name>` asks someone to pay a name. Only a registration carries a referrer.

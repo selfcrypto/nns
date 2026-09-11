@@ -35,7 +35,7 @@ Every registered card carries the **verification line**: "Verified by N resolver
 
 ### Registering
 
-Register opens a sheet that shows the price and the term as a date. You confirm in the app, then in the wallet's own sheet, which shows the treasury address and the amount. The app then waits for the registration to appear in the registry:
+Register opens a sheet with the two terms side by side — **a year**, and **a lifetime**: {{n:LIFETIME_TERMS}} terms for the price of {{n:LIFETIME_MULTIPLIER}} — each with its own price for that name's length. Whichever you pick, the review says what it pays and shows the expiry as the **date it reaches**, because "lifetime" is the label on a choice and a date is the fact ([Prices](prices)). You confirm in the app, then in the wallet's own sheet, which shows the treasury address and the amount. The app then waits for the registration to appear in the registry:
 
 | Line | Meaning |
 |---|---|
@@ -60,6 +60,24 @@ Beside the address is the **identicon** of what will be paid, and the wallet sho
 
 **The pin check.** The first time you use a name on a device, the app remembers where it pointed. If it later points somewhere else, Pay stops: "Stop — this name changed address", both addresses with both identicons, and the button disabled. The owner may have repointed the name legitimately, or someone may be redirecting payments. Do not pay until you know which. The override takes two deliberate taps, and it replaces what the device remembers.
 
+### The message
+
+A NIM payment can carry a short **message** — an invoice or an order number, so whoever receives it can tell which payment is which. It travels in the transaction's data field, so it is **public and permanent**, readable by anyone against both addresses, and the field counts what is left of its 64 bytes as you type (an accent or an emoji costs more than one). Two messages are refused before the button lights, because both fail silently once sent: one over the budget, and one beginning `NNS1`, which is how a name message is written and would be read as one by every indexer. A **USDT payment carries no message** — a token transfer has nowhere to put one — and the screen says so rather than dropping it quietly.
+
+### Payment links
+
+A link opens Pay with the fields already filled:
+
+```
+https://nimiqnames.com/#/pay/donald?amount=25&message=INV-42
+```
+
+The name is the recipient, `amount` and `message` fill the two fields, and `asset=usdt` asks for USDT instead of NIM. Nothing is committed by opening one: every field stays editable, and the message that came with the link is read-only until you tap **Edit**, so the payee's wording is not lost by accident. Nothing is sent until you press Pay.
+
+**A link you were sent can be pasted into the recipient field.** Tapping a link in a chat app opens your browser, not Nimiq Pay — no association exists between the wallet and this site, and half of that is Nimiq's to publish — so a payer already inside the mini app would otherwise have no way to use one. Paste it where a name goes and it applies whole, exactly as it would from the address bar. The field tells the two apart by the `#`, which a name can never contain, so typing an ordinary name is untouched.
+
+**Owners build one from their name's card**, under *Payment Links* in My names — see below.
+
 ## My names — manage what you hold
 
 Your names, soonest expiry first, with a badge from 60 days before expiry ("Renew before ≈ date") and a grace badge when one has expired. Tap a name to open it in place. The card shows the current target, expiry, any pending item, and the owner's actions as tiles. A tile that is not possible right now stays visible and says why ("Locked while the auction runs.", "In grace — only renewal works until it ends."). Every tile opens a sheet that first shows the current value, then takes your input, then says what will change before the wallet opens.
@@ -82,6 +100,14 @@ Your names, soonest expiry first, with a badge from 60 days before expiry ("Rene
 - **Start auction.** Sets a starting price (same floor as an offer) and a duration of at least {{dur:AUCTION_MIN_DURATION}}. The end must fall before the name's expiry, because an auction sells the current term; the sheet warns you and suggests renewing first. Opening an auction voids your own pending transfer and open offer. While it runs, the name cannot be listed, transferred or auctioned again, and neither the auction nor a bid can be withdrawn. A bid in the last {{dur:AUCTION_EXTENSION}} extends the end by that much, so a last-second bid never wins by surprise. At the end, the highest bid wins the name and you receive it minus commission; with no bid, the name stays yours.
 
 What cannot coexist: an offer and an auction never both stand on one name. A pending transfer survives a new offer but not a new auction. Entering grace cancels everything and refunds any bid ([Prices](prices)).
+
+**Payment Links**
+
+- **Request Payment.** Builds a link that opens your name's Pay screen with the amount and the reference already in it, and copies it. Pick NIM or USDT, type what you are asking for and what it is for, and the link is ready to paste into a chat, an invoice or a message. Nothing is sent and nothing is signed: a link is a URL, not a transaction, and the payer stays in control of every field. The USDT tab is greyed until the name has an EVM address linked, and says which action links one. The tile is disabled while a name is in grace, because a name in grace does not resolve and a link to it has nothing to pay.
+
+**Referrals**
+
+- **Share Link.** Copies `nimiqnames.com/?ref=<your name>`, and shows how many registrations it has brought in and roughly what they earned at today's prices. Whoever registers through it pays exactly the usual price; the registry pays your name's address a share of the fee. A lifetime registration earns the share on the lifetime fee. Disabled in grace, because the registry reads the referrer's status at the moment of each registration ([Referrals](referrals)).
 
 ## Inbox — messages to your names
 

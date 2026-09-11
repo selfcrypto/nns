@@ -21,6 +21,9 @@ In principle, yes: a registration is one transaction, and a watcher could race i
 **Can I renew a name I don't own?**
 Yes. Renewal is a payment naming the name, and anyone can make it. On another person's name the app calls it *Gift a renewal* and says before you sign that the name stays theirs. [Using the app](app).
 
+**What is a "lifetime" registration?**
+{{n:LIFETIME_TERMS}} terms bought at once for the price of {{n:LIFETIME_MULTIPLIER}}, offered beside the one-year term on every registration and renewal. It is an ordinary expiry {{n:LIFETIME_TERMS}} years out, which the app shows as the date it reaches — the name can still be renewed again, transferred and sold. The word is the label on the choice, not a promise the registry makes about you. [Prices](prices).
+
 **What happens when my name expires?**
 It enters a {{dur:GRACE_PERIOD}} grace period: it stops resolving, but nobody else can register it and a renewal — by anyone — brings it back with its records. After grace it is available to anyone and the old record is gone. The app reminds you from 60 days before. [Prices](prices).
 
@@ -30,8 +33,14 @@ Between your payment and its settlement, yes: the operator holds the money and p
 **Why does paying USDT need POL?**
 The mini app sends USDT through the wallet's EVM provider as a plain token transfer, and that path pays Polygon's fee in POL. The wallet's own USDT flow is fee-free because it uses a relay the mini app cannot reach. [Using the app](app).
 
+**Can I send someone a link that asks them to pay?**
+Yes. The **Request Payment** tile on your name's card builds one: it opens Pay with your name, the amount and a reference already filled in, and copies it ready to paste into a chat or an invoice. It is a URL, not a transaction — the payer can change any field, and nothing is sent until they press Pay. Tapping such a link opens a browser rather than Nimiq Pay, so a payer already inside the mini app pastes it into the recipient field instead. [Using the app](app).
+
+**Can I earn anything for bringing people in?**
+Yes. Every registered name has a share link — `nimiqnames.com/?ref=<your name>` — from the **Share Link** tile. Whoever registers through it pays exactly the usual price, and the registry pays your name's address {{referral:default}} of the fee. [Referrals](referrals).
+
 **Are messages private?**
-No. A message is a transaction: public, permanent, and attached to your address, readable by anyone on chain forever. The composer says so before your first send. [Using the app](app).
+No — and this covers both kinds. An Inbox message is a transaction: public, permanent, and attached to your address, readable by anyone on chain forever; the composer says so before your first send. The **reference on a payment** travels in the same place, so an invoice number is public against both addresses too. Neither is a private channel. [Using the app](app).
 
 **Can I move my name to another wallet?**
 Two ways, and they are different. To keep the name but pay into a new wallet, change the **target**. To hand the name to someone else, **transfer** it; the transfer takes {{dur:XFER_TIMELOCK}} to complete and can be cancelled meanwhile, which guards a mistyped address. [Using the app](app).

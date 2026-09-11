@@ -51,7 +51,7 @@ The value stays where it was sent. Every row here is checkable before sending, f
 | The name is not registered, or is in grace | `NAME_NOT_REGISTERED` |
 | Sent by someone other than the owner | `NOT_OWNER` |
 | An offer, transfer or second auction while an auction runs | `AUCTION_OPEN` |
-| An offer or auction priced below the long-name registration price | `BELOW_MIN_PRICE` |
+| An offer or auction priced below the base registration price in effect | `BELOW_MIN_PRICE` |
 | A subdomain host that is too long, has a scheme, or a bad character | `INVALID_HOST` |
 | An auction ending sooner than {{dur:AUCTION_MIN_DURATION}} out | `INSUFFICIENT_NOTICE` |
 | An auction ending at or after the name's expiry | `AUCTION_BEYOND_TERM` |
@@ -65,7 +65,8 @@ The value stays where it was sent. Every row here is checkable before sending, f
 | A settlement or burn attestation from the wrong address | `WRONG_SENDER` |
 | A price change outside its bounds | `GOVERNANCE_BOUND_VIOLATED` |
 | A price change with less than {{dur:GOVERNANCE_DELAY}} notice | `INSUFFICIENT_NOTICE` |
-| Releasing or awarding a name that is not reserved, or already released | `NAME_NOT_RESERVED` |
+| Releasing a name that is not reserved, or already released | `NAME_NOT_RESERVED` |
+| Awarding a name that somebody already holds — registered, or in grace | `NAME_NOT_AVAILABLE` |
 | Awarding a name to the burn address | `INVALID_RECIPIENT` |
 
 A message can break several rules at once; the log records the first one in a fixed order that every implementation shares. A message's own contents are judged before the money it carried, so an unusable message is refused for being unusable whatever it paid.
@@ -89,4 +90,4 @@ The app never reports "the network refused it", because it never observes that. 
 
 ## Reading the log yourself
 
-Every line of the public log ends with `OK` or one of the reasons above, beside the block, the transaction hash, the sender, the recipient and the value. `/log/decoded` on any resolver's API renders the data field as text. Two implementations that disagreed about which word to write would produce different logs and therefore different checkpoints, so the vocabulary is fixed, closed, and exactly 27 words: `OK`, 22 forfeit reasons, and 4 refund reasons. [Reference](reference) lists them all.
+Every line of the public log ends with `OK` or one of the reasons above, beside the block, the transaction hash, the sender, the recipient and the value. `/log/decoded` on any resolver's API renders the data field as text. Two implementations that disagreed about which word to write would produce different logs and therefore different checkpoints, so the vocabulary is fixed, closed, and exactly 28 words: `OK`, 23 forfeit reasons, and 4 refund reasons. [Reference](reference) lists them all.

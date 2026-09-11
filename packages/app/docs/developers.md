@@ -94,11 +94,12 @@ Every resolver serves the same read-only API, described by its own `GET /openapi
 | `/name/{name}` | Everything known: the record or `null`, `reserved`, `unreserved`, and `pending.transfer` / `.offer` / `.auction` (never both of the last two) |
 | `/address/{addr}/names` | Names an address owns |
 | `/offers`, `/auctions` | Every open offer; every running auction with its standing bid and the minimum next bid |
-| `/params` | The prices in effect, any scheduled change, and what a client needs to build fee-bearing messages — including how deep this resolver's own replay goes |
+| `/params` | The prices in effect, any scheduled change, and what a client needs to build fee-bearing messages — including how deep this resolver's own replay goes. `fees` is the length bands already priced (`upTo`, `times`, `yearly`, `lifetime`, in luna), so a client never multiplies a fee itself |
 | `/checkpoints/latest`, `/checkpoints/{height}` | A checkpoint document: the six components and their commitment |
 | `/log`, `/log/decoded` | The complete public log through the latest checkpoint; decoded renders the data field as text |
 | `/settlements` | Outstanding settlement obligations — what the marketplace and treasury owe |
 | `/burn` | Burned so far, owed so far, computed from the log |
+| `/referrals/{name}` | Every registration that named this name as its referrer: height, transaction, the name registered, the sender, the value, and whether it was a lifetime. Log facts only — no share is computed, because the rate table is the operator's, not the protocol's |
 
 The proof in `/resolve` is the product. Anyone can check it against `/checkpoints/latest` with `@nns/core` alone. If a proof reaches you by another route — a cached reply, a QR code — verify it with the library's exported `verifyInclusion` / `verifyNonInclusion` rather than your own code; a second implementation of the check is the one place a divergence could enter.
 
@@ -120,8 +121,8 @@ The fourteen messages:
 
 | Letter | Message | Payload | Sent by | To | Value |
 |---|---|---|---|---|---|
-| `G` | Register | `<name>` or `<name>\|<ref>` | anyone | treasury | ≥ the band price |
-| `N` | Renew | `<name>` | anyone | treasury | ≥ the band price |
+| `G` | Register | `<name>`, `<name>\|<ref>`, or `<name>\|<ref or empty>\|L` | anyone | treasury | the band price, yearly or lifetime |
+| `N` | Renew | `<name>` or `<name>\|L` | anyone | treasury | the band price, yearly or lifetime |
 | `S` | Set target | `<name>` | owner | the new target | 1 luna |
 | `E` | Set EVM address | `<name>\|<base64url 27 chars>` (empty clears) | owner | protocol | 1 luna |
 | `X` | Transfer | `<name>` | owner | the new owner | 1 luna |
@@ -131,8 +132,8 @@ The fourteen messages:
 | `B` | Buy, or bid | `<name>` | anyone | marketplace | the price exactly, or the bid |
 | `A` | Auction | `<name>\|<starting price>\|<end height>` | owner, or admin for a reserved name | protocol | 1 luna |
 | `M` | Settlement | `<height>\|<tx index>` | marketplace or treasury | the party paid | the amount owed |
-| `P` | Governance | prices, commission, effective height | admin | protocol | 1 luna |
-| `U` | Unreserve | `<name>` | admin | protocol (release) or the awardee (award) | 1 luna |
+| `P` | Governance | `<fee base>\|<commission bp>\|<effective height>` | admin | protocol | 1 luna |
+| `U` | Unreserve | `<name>` or `<name>\|L` | admin | protocol (release) or the awardee (award) | 1 luna |
 | `F` | Burn attestation | — | treasury | burn address | the amount burned |
 
 Build payloads with `@nns/core` — `encodeRegister`, `encodeSetTarget`, `encodeSetEvm`, `encodeTransfer`, `encodeDelegate`, `encodeCancel`, `encodeRenew`, `encodeOffer`, `encodeBuy`, `encodeAuction` — which validate inputs and refuse anything the reducer would refuse. Every encoder checks the byte ceiling, because an over-length message fails silently.
@@ -150,6 +151,19 @@ The record is self-declared: NNS verifies that the owner said it, not that the o
 ## Messaging (not protocol)
 
 The app's Inbox is a client convention, not part of NNS: a dust transaction to a name's **owner** whose data begins `NC1` and carries a short text. The one rule that keeps it harmless is that the prefix is **not** `NNS1`, so no indexer parses, logs or commits it. Messages go to the owner, not to the address the name pays, because the owner is who can act on the name. A message about a subdomain goes to the address the host answered with, since a subdomain has no owner of record. Details are in the repository under `docs/app-chat.md`.
+
+## The links the app understands (not protocol)
+
+Two URL conventions, both read entirely on the client, both inert to the registry. Nothing on a chain depends on either, so any site may emit them.
+
+| Link | Shape | What it does |
+|---|---|---|
+| **Payment link** | `https://<host>/#/pay/<name>?amount=<n>&message=<text>[&asset=usdt]` | Opens the Pay screen with the recipient, amount and reference filled in. Every field stays editable and nothing is sent until the payer presses Pay |
+| **Referral link** | `https://<host>/?ref=<name>` | Records who introduced a visitor, until their next registration carries it as `G`'s `ref` field |
+
+A payment link is the useful one to emit from an invoice or a checkout: it needs no integration at all beyond building the URL. The `message` becomes the transaction's data field, so it is bound by the two rules that fail silently on chain — **64 bytes**, and never the prefix `NNS1` (§7.5, exact case) — which is why the app refuses such a reference before it sends rather than after. `asset=usdt` asks for the name's linked EVM address instead, and a USDT payment carries no message, an ERC-20 transfer having nowhere to put one.
+
+A payment link is a *request*, not an obligation: it commits nobody, proves nothing, and the payer's app resolves and verifies the name exactly as if they had typed it.
 
 ## Running your own resolver
 

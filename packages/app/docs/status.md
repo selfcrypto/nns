@@ -16,9 +16,15 @@ These values are in the code today and will change in a final "freeze" before la
 
 The one deliberate consequence of the freeze: the demo registry is discarded. Names registered on the demo are demo names.
 
+## Test eras, and how you can tell
+
+The demo is sometimes run on a **compressed era**: the same code with the clocks cut short, so a name's whole life — registration, expiry, grace, a lapsed re-registration — fits in a few days instead of a century. Terms are days rather than a year, and prices are set for testing.
+
+You never have to work this out. Every figure on these pages is read from the build you are looking at, so a compressed era's pages say days where mainnet's say a year; and the app carries a **Beta** strip under its masthead on every screen for as long as the term is shorter than a year. The strip is a consequence of the constants, not a setting someone remembers to switch on, so a test era cannot ship without it and mainnet cannot show it.
+
 ## What is live in the demo
 
-Every feature on these pages: registration, renewal, every owner action, subdomains through a live delegate, the marketplace with offers and auctions, settlement, messaging, the public log and the burn figures. Both wallets send: Nimiq Pay as a mini app, and the Nimiq Hub in a browser.
+Every feature on these pages: registration and renewal for a year or a lifetime, every owner action, subdomains through a live delegate, the marketplace with offers and auctions, settlement, messaging, payment links, referral links and their shares, the public log and the burn figures. Both wallets send: Nimiq Pay as a mini app, and the Nimiq Hub in a browser.
 
 ## Following along
 

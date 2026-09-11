@@ -71,12 +71,11 @@ The burn share is fixed by the protocol; no governance message can change it.
 
 ## Governance
 
-A fee fixed in NIM drifts with the NIM price, so the two registration prices and the commission rate can be changed by the administrator. The change is itself a transaction on chain, and every independent indexer enforces the same limits:
+A fee fixed in NIM drifts with the NIM price, so the base price and the commission rate can be changed by the administrator. There is **one price to change**: every length moves with the base, because the multiples are fixed and cannot be governed at all. The change is itself a transaction on chain, and every independent indexer enforces the same limits:
 
 | What | Limit |
 |---|---|
 | The base price | Between {{nim:PRICE_FLOOR}} and {{nim:PRICE_CEILING}}; the multiples are fixed |
-| Ordering | The long-name price can never exceed the standard price |
 | Commission | At most {{pct:COMMISSION_CEILING}}, moving by at most {{pct:COMMISSION_MAX_STEP}} per change |
 | Notice | Takes effect no sooner than {{dur:GOVERNANCE_DELAY}} after it lands |
 

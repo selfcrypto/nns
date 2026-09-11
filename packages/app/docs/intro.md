@@ -15,12 +15,14 @@ One name instead of an address. `kike` pays `NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M 
 - **Answers you can check.** Every lookup carries a proof. If a resolver's answer and the chain disagree, your wallet stops and says so instead of guessing.
 - **Subdomains for free.** Register `exchange` once and hand out `alice.exchange` from a server you run, with nothing stored on chain per user.
 - **Cheap, and priced to stay small.** A price that follows length, a one-year term or a lifetime, and a fee on every name so the public record stays small enough for anyone to replay.
+- **A name is something to be paid at.** Send a link that opens someone's wallet on your name with the amount and the invoice number already filled in, and share a link that earns you a share of the fee when someone registers through it ([Referrals](referrals)).
 
 ## Who this is for
 
 | You want to… | Read |
 |---|---|
 | Pay someone by name | [Using the app](app) — the Pay tab |
+| Ask someone to pay you | [Using the app](app) — payment links |
 | Get a name of your own | [Names](names), [Prices](prices), then [Using the app](app) — the Buy tab |
 | Manage a name you hold | [Using the app](app) — My names |
 | Give your users `name.yourname` addresses | [Subdomains](subdomains) |

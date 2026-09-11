@@ -75,8 +75,8 @@ The wire budget is 64 bytes, a measured Nimiq property rather than a constant of
 
 | Letter | Message | Who sends it | Effect |
 |---|---|---|---|
-| `G` | Register | anyone | First valid one in block order takes the name for a term |
-| `N` | Renew | anyone | Extends the expiry by a term |
+| `G` | Register | anyone | First valid one in block order takes the name for a term, or for a lifetime |
+| `N` | Renew | anyone | Extends the expiry by a term, or by a lifetime |
 | `S` | Set target | owner | Changes where the name pays |
 | `E` | Set EVM address | owner | Binds one EVM address; empty clears |
 | `X` | Transfer | owner | New owner after the timelock; cancellable meanwhile |
@@ -86,15 +86,15 @@ The wire budget is 64 bytes, a measured Nimiq property rather than a constant of
 | `B` | Buy, or bid | anyone | Buys an open offer, or bids in an open auction — the state decides which |
 | `A` | Auction | owner, or admin for a reserved name | Opens a timed auction |
 | `M` | Settlement | marketplace or treasury | Pays a proceeds, commission or refund obligation |
-| `P` | Governance | admin | Schedules new prices and commission |
-| `U` | Unreserve | admin | Releases a reserved name, or awards it to an address |
+| `P` | Governance | admin | Schedules a new base price and commission |
+| `U` | Unreserve | admin | Releases a reserved name, or awards any name nobody holds to an address |
 | `F` | Burn attestation | treasury | Records a burn-share transfer in the log |
 
 There is no recovery message. It was removed because every version the owner key could cancel was theatre, and every version it could not outranked the owner.
 
 ## Verdicts
 
-The 27 words that can end a log line. Two implementations that disagreed by one character would derive different checkpoints, so the vocabulary is closed.
+The 28 words that can end a log line. Two implementations that disagreed by one character would derive different checkpoints, so the vocabulary is closed.
 
 **Accepted:** `OK` — the message took effect, whatever it did.
 
@@ -126,10 +126,11 @@ The 27 words that can end a log line. Two implementations that disagreed by one 
 | `INVALID_HOST` | A subdomain host that breaks a host rule |
 | `NOT_ADMIN` | Sender is not the administrator |
 | `INSUFFICIENT_NOTICE` | A governance change or auction end too soon |
-| `NAME_NOT_RESERVED` | Unreserving a name that is not reserved or already released |
+| `NAME_NOT_RESERVED` | Releasing a name that is not reserved, or already released |
+| `NAME_NOT_AVAILABLE` | Awarding a name somebody holds — registered, or in grace |
 | `GOVERNANCE_BOUND_VIOLATED` | A price or commission outside its bounds |
 | `NOTHING_TO_CANCEL` | A cancel with nothing cancellable |
-| `BELOW_MIN_PRICE` | An offer or starting price below the long-name price |
+| `BELOW_MIN_PRICE` | An offer or starting price below the base price in effect |
 | `AUCTION_OPEN` | An offer, transfer or auction while an auction runs |
 | `AUCTION_BEYOND_TERM` | An owner's auction ending at or past the name's expiry |
 | `BELOW_REFUND_FLOOR` | Would have been refunded, but the amount is below the floor |
