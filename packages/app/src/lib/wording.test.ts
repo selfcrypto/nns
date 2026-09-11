@@ -7,6 +7,13 @@ import { describe, expect, it } from 'vitest'
 
 import { blocksApprox } from './format'
 import {
+  ACTION_LABEL,
+  cancelHint,
+  cancelLabel,
+  cancelTitle,
+  offerStaysLine,
+  sheetActionLabel,
+  sheetDismissLabel,
   referredByLine,
   referralsCountLine,
   shareHint,
@@ -262,5 +269,48 @@ describe('the two lines a tempo era would otherwise turn into lies (tasks/17)', 
 
   it('render the checkpoint interval from CHECKPOINT_INTERVAL', () => {
     expect(proofPendingLine()).toBe(`Proof pending — checkpoints are cut every ${blocksApprox(CONSTANTS.CHECKPOINT_INTERVAL)}. The name works now.`)
+  })
+})
+
+describe('a `K` is named by what it will clear (§6 `K`)', () => {
+  const sets = [
+    { transfer: true, offer: true },
+    { transfer: true, offer: false },
+    { transfer: false, offer: true },
+    { transfer: false, offer: false },
+  ] as const
+
+  it('never says "auction" — the one thing a `K` can never cancel', () => {
+    // The bug: a pending transfer's tile read "Cancel Listing / Cancel active
+    // auction", and the auction hint could only ever render there, because a
+    // real open auction disables the tile and shows its gate reason instead.
+    for (const set of sets) {
+      expect(cancelTitle(set)).not.toMatch(/auction/i)
+      expect(cancelHint(set, { to: 'NQ12 … 9YRA', priceNim: '450' })).not.toMatch(/auction/i)
+    }
+  })
+
+  it('calls a transfer a transfer, and a listing a listing', () => {
+    expect(cancelTitle({ transfer: true, offer: false })).toBe('Cancel Transfer')
+    expect(cancelHint({ transfer: true, offer: false }, { to: 'NQ12 … 9YRA', priceNim: null })).toBe('To NQ12 … 9YRA')
+    expect(cancelTitle({ transfer: false, offer: true })).toBe('Cancel Listing')
+    expect(cancelHint({ transfer: false, offer: true }, { to: null, priceNim: '450' })).toBe('Withdraw the 450 NIM offer')
+    // Both, and the empty set an open auction leaves behind: neither is a listing alone.
+    expect(cancelTitle({ transfer: true, offer: true })).toBe('Cancel Pending')
+    expect(cancelTitle({ transfer: false, offer: false })).toBe('Cancel Pending')
+  })
+
+  it('names the sheet with the same words as the tile, and its dismiss with different ones', () => {
+    expect(sheetActionLabel('cancel', { transfer: true, offer: false })).toBe(cancelTitle({ transfer: true, offer: false }))
+    expect(sheetActionLabel('renew', { transfer: false, offer: false })).toBe(ACTION_LABEL.renew)
+    // Two buttons reading "Cancel" and meaning opposite things is what shipped.
+    expect(sheetDismissLabel('cancel')).not.toBe(cancelLabel())
+    expect(sheetDismissLabel('renew')).toBe(cancelLabel())
+  })
+
+  it('says how long an offer the `K` will not touch stays standing', () => {
+    expect(offerStaysLine('450', CONSTANTS.OFFER_IRREVOCABLE)).toBe(
+      `The 450 NIM listing stays — it can’t be withdrawn for another ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}.`,
+    )
   })
 })

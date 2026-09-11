@@ -237,18 +237,30 @@
   min-width: 0;
 }
 
+/* A button since 2026-09-11: the badge is about the renewal, so it opens it. */
 .expiryBadge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
   border-radius: 999px;
+  font-family: inherit;
   font-size: 12.5px;
   font-weight: 600;
   background: var(--grace-bg);
   color: var(--grace);
   border: 1px solid var(--grace-border);
   white-space: nowrap;
+  cursor: pointer;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.expiryBadge:hover {
+  filter: brightness(0.97);
+}
+
+.expiryBadge:active {
+  transform: scale(0.97);
 }
 
 .expiryBadge svg {

@@ -8,11 +8,12 @@ import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../li
 import { discoverEvmProvider, probeHostEvmAddress, requestHostEvmAddress } from '../lib/sdk'
 import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
-import type { AppAction } from '../lib/states'
+import { cancellableNow, type AppAction } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import { Spinner } from './ui'
 import {
-  ACTION_LABEL,
+  sheetActionLabel,
+  sheetDismissLabel,
   bidCustodialWarning,
   buyAcknowledgeLabel,
   connectEvmFailedLine,
@@ -35,7 +36,6 @@ import {
   sendRejectedLine,
   sendSettlingLine,
   sendSubmittingLine,
-  cancelLabel,
   closeLabel,
   confirmingLabel,
   signsWithLabel,
@@ -154,6 +154,10 @@ export function ActionSheet({
     }
   }, [inputs, inputsTouched, loadingParams, name, info, signer, viewers, params])
 
+  // Header and submit button carry the same label — for a `K`, the one the
+  // cancellable set gives it, so the sheet cannot promise more than it clears.
+  const actionLabel = sheetActionLabel(action, cancellableNow(info, info?.height ?? 0))
+
   // Both `B`s: a buy and a bid hand money to the marketplace (§8.5 #10).
   const needsAcknowledge = action === 'buy' || action === 'bid'
   const terminalSuccess = result?.status === 'confirmed' || result?.status === 'settling'
@@ -216,7 +220,7 @@ export function ActionSheet({
     <div className="sheet">
       {onClose && (
         <div className="sheet-header">
-          <span className="sheet-title">{ACTION_LABEL[action]} {name}</span>
+          <span className="sheet-title">{actionLabel} · {name}</span>
           <button type="button" className="sheet-close" onClick={onClose} aria-label={closeLabel()}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -398,12 +402,12 @@ export function ActionSheet({
 
       <div className={`sheet-actions-grid ${onClose ? 'has-cancel' : ''}`}>
         <button type="button" className="sheet-send" disabled={!ready} onClick={() => void send()}>
-          {progress === 'submitting' ? submittingLabel() : progress === 'confirming' ? confirmingLabel() : ACTION_LABEL[action]}
+          {progress === 'submitting' ? submittingLabel() : progress === 'confirming' ? confirmingLabel() : actionLabel}
         </button>
 
         {onClose && (
           <button type="button" className="sheet-cancel" onClick={onClose}>
-            {cancelLabel()}
+            {sheetDismissLabel(action)}
           </button>
         )}
       </div>

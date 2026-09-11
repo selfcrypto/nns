@@ -163,7 +163,7 @@ address — the one the host resolved to, §3) and none of these.
 | `E` link EVM address | Owner | REGISTERED | GRACE, absent (`NAME_NOT_REGISTERED`) | Input is `0x` + 40 hex; mixed-case MUST pass EIP-55 (`core.tryParseEvmAddress`) — the only checksum the record ever gets. One address covers every EVM chain; say so. Empty/clear removes it. Best-effort pre-fill from `window.ethereum` when the host injects one; the user still reviews |
 | `X` transfer | Owner | REGISTERED, no open auction | GRACE, absent, auction open (`AUCTION_OPEN`) | Matures at height + `XFER_TIMELOCK` (~12 h). A second `X` supersedes the first and restarts the clock. The timelock guards a mistyped recipient, not a thief — never describe it as security against a stolen key |
 | `D` delegate | Owner | REGISTERED | GRACE, absent | Host per §6 `D` (`core.validateHost`); name + host ≤ 52 chars combined. Empty host clears delegation |
-| `K` cancel | Owner | Cancellable set non-empty: a pending `X`, or an offer past `OFFER_IRREVOCABLE` | Nothing cancellable (`NOTHING_TO_CANCEL`) — incl. all of GRACE, whose entry already cancelled everything, and an open auction, which `K` cannot touch (bids are commitments; say *that*, not "nothing pending") | One `K` cancels **everything** currently cancellable; the confirm step lists what will go |
+| `K` cancel | Owner | Cancellable set non-empty: a pending `X`, or an offer past `OFFER_IRREVOCABLE` | Nothing cancellable (`NOTHING_TO_CANCEL`) — incl. all of GRACE, whose entry already cancelled everything, and an open auction, which `K` cannot touch (bids are commitments; say *that*, not "nothing pending") | One `K` cancels **everything** currently cancellable; the confirm step lists what will go — **and an offer still inside `OFFER_IRREVOCABLE` is not in the set**: the review says the listing stays and how long for, and the confirmation does not wait for it (`states.cancellableNow` is the one reading of the set, shared by the tile, the sheet and the confirm poll) |
 | `N` renew | **Anyone** | REGISTERED or GRACE | AVAILABLE (`NAME_NOT_FOUND` — the record is gone) | Extends from current expiry, not from now — early renewal is never penalised; say so. Value = band fee exactly. On Buy it is *Gift a renewal* for a name the viewer does not hold, and the review says the name stays the owner's (2026-09-09) |
 | `O` offer | Owner | REGISTERED, no open offer, no open auction | GRACE, absent, auction open (`AUCTION_OPEN`) | Price ≥ `minPrice` (`FEE_LONG` at the current height, from `/params` — never a constant). Carries `DUST_VALUE` (listing fee is 0). Disclose the irrevocable window **before** sending |
 | `B` buy | Anyone (the buyer) | Offer open | No open offer / expired (`OFFER_NOT_OPEN`) | Value = offer price **exactly**. Custodial warning (§8.5 #10) with explicit confirmation, every time. The wallet dialog shows the marketplace address, so the app itself presents name, price and seller (§5.3) |
@@ -228,6 +228,14 @@ include this transaction", never "sent".
     Inbox empty-state titles and bodies, `justRegisteredLine`,
     `parentNotRegisteredLine`, `graceEndsUnknownPhrase` and the expiry date
     lines (centralised at the 2026-08-26 audit). None is a warning.
+13. **An action is named by what it will do to this name, not by the group it
+    sits in.** The cancel tile was a constant, "Cancel Listing", fixed in the
+    Marketplace group: on a name with a pending transfer it named a listing
+    that did not exist and offered to cancel an auction, which no `K` can
+    (2026-09-11). A `K` is named by its cancellable set — *Cancel Transfer*,
+    *Cancel Listing*, *Cancel Pending* — and the tile sits beside what it acts
+    on. The rule generalises: where a tile's effect varies with state, so does
+    its title, and the sheet it opens carries the same words.
 
 ---
 

@@ -10,10 +10,11 @@ import { getOwnedNames, type OwnedName } from '../lib/api'
 import { approxDate, formatApproxDate } from '../lib/format'
 import { apiBase } from '../lib/nns'
 import { search } from '../lib/search'
-import { renewalUrgency } from '../lib/states'
+import { renewalUrgency, type AppAction } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
 import { useRetryWhilePropagating } from '../lib/useRetryWhilePropagating'
 import {
+  OWNER_TILE,
   SCREEN_SUB,
   SCREEN_TITLE,
   backToNamesLabel,
@@ -76,6 +77,9 @@ function Detail({
   const [nonce, setNonce] = useState(0)
   const outcome = useAsync(() => search(name), [name, nonce])
   const retrying = useRetryWhilePropagating(outcome, () => setNonce((value) => value + 1))
+  // The expiry badge is a shortcut into the tile it is about; the card owns the
+  // sheet, so the request travels to it and is consumed there.
+  const [requested, setRequested] = useState<AppAction | null>(null)
 
   const backLabel = backToNamesLabel()
 
@@ -111,13 +115,18 @@ function Detail({
 
               <div className={styles.detailNavRight}>
                 {badge !== null && (
-                  <div className={`${styles.expiryBadge} ${badge.grace ? styles.isGrace : badge.due ? styles.isDue : ''}`}>
+                  <button
+                    type="button"
+                    className={`${styles.expiryBadge} ${badge.grace ? styles.isGrace : badge.due ? styles.isDue : ''}`}
+                    onClick={() => setRequested('renew')}
+                    title={OWNER_TILE.renew.title}
+                  >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <circle cx="12" cy="12" r="10" />
                       <polyline points="12 6 12 12 16 14" />
                     </svg>
                     <span>{badge.text}</span>
-                  </div>
+                  </button>
                 )}
               </div>
             </div>
@@ -142,6 +151,8 @@ function Detail({
                 onManage={null}
                 retrying={retrying}
                 onPay={null}
+                openAction={requested}
+                onOpenActionHandled={() => setRequested(null)}
                 seamless
               />
             )}

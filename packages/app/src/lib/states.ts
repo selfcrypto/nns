@@ -200,9 +200,7 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
     if (pending?.auction) return closed('auction-open')
     if (pending?.transfer) return open
     if (pending?.offer) {
-      return head >= pending.offer.openedHeight + CONSTANTS.OFFER_IRREVOCABLE
-        ? open
-        : closed('offer-irrevocable')
+      return head >= offerCancellableAt(pending.offer.openedHeight) ? open : closed('offer-irrevocable')
     }
     return closed('nothing-to-cancel')
   }
@@ -283,6 +281,42 @@ export const offerCancellableAt = (openedHeight: number): number =>
 
 export const offerExpiresAt = (openedHeight: number): number =>
   openedHeight + CONSTANTS.OFFER_MAX_LIFETIME
+
+/**
+ * What a `K` sent now would actually clear (§6 `K`): a pending `X`, and an
+ * offer at or past `OFFER_IRREVOCABLE` — never an auction, whatever else is
+ * pending. One `K` clears the whole set in one message.
+ *
+ * This is **not** "what is pending". An offer inside its irrevocable window
+ * stands through the `K`, and a tile, a review line or a confirmation that
+ * counts it promises something the reducer will not do: with a transfer and a
+ * fresh offer both pending the gate opens on the transfer, so the case is
+ * reachable by anyone who lists a name and then transfers it.
+ */
+export interface Cancellable {
+  readonly transfer: boolean
+  readonly offer: boolean
+}
+
+export const cancellableNow = (info: NameInfo | null, head: number): Cancellable => {
+  const offer = info?.pending.offer ?? null
+  return {
+    transfer: (info?.pending.transfer ?? null) !== null,
+    offer: offer !== null && head >= offerCancellableAt(offer.openedHeight),
+  }
+}
+
+/**
+ * Which owner-tile group the cancel tile belongs in — it sits beside what it
+ * would act on. A `K` whose whole effect is vetoing a transfer has nothing to
+ * do with the marketplace, and under that heading it read as one: the tile was
+ * fixed in `market` and called itself a listing.
+ *
+ * Here rather than inline in the component for the reason packages/app's
+ * CLAUDE.md gives: a branch a component decides for itself is an untested one.
+ */
+export const cancelTileGroup = (set: Cancellable): 'ownership' | 'market' =>
+  set.transfer && !set.offer ? 'ownership' : 'market'
 
 /**
  * Blocks the Auction sheet adds between the head it planned against and the

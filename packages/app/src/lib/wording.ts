@@ -12,7 +12,7 @@
  */
 
 import type { QuorumReport, WarningCode } from '@nns/resolver'
-import type { AppAction, GateReason } from './states'
+import type { AppAction, Cancellable, GateReason } from './states'
 import type { QueryFault } from './search'
 import { CONSTANTS, type LabelInvalidReason, type NameInvalidReason } from '@nns/core'
 import { blocksApprox } from './format'
@@ -453,7 +453,13 @@ export const giftRenewalLine = (owner: string): string =>
 
 export const sendSubmittingLine = (): string => 'Waiting for the wallet…'
 
-export const sendConfirmingLine = (): string => 'Sent — confirming…'
+/**
+ * What the confirm loop is actually waiting for, rather than a bare
+ * "confirming…": the indexer scans by batch, so the effect becomes visible at
+ * the API when the batch's macro block closes — measured in exact 60-block
+ * steps (2026-08-21, `send.ts`'s `settling`).
+ */
+export const sendConfirmingLine = (): string => 'Sent — waiting for the macro block that confirms it (~1 min).'
 
 export const sendConfirmedLine = (): string => 'Done.'
 
@@ -929,8 +935,10 @@ export const shareHint = (percent: string): string =>
 
 
 /** A tile's title, and the line under it while the record has nothing to show. */
+/** Seven of the eight; the cancel tile's pair is `cancelTitle`/`cancelHint`,
+ *  which are the cancellable set's, not a constant. */
 export const OWNER_TILE: Record<
-  'setTarget' | 'setEvm' | 'delegate' | 'renew' | 'transfer' | 'offer' | 'auction' | 'cancel',
+  'setTarget' | 'setEvm' | 'delegate' | 'renew' | 'transfer' | 'offer' | 'auction',
   { readonly title: string; readonly hint: string }
 > = {
   setTarget: { title: 'Target Address', hint: 'Point to a Nimiq address' },
@@ -940,14 +948,46 @@ export const OWNER_TILE: Record<
   transfer: { title: 'Transfer Ownership', hint: 'Send to a new Nimiq owner' },
   offer: { title: 'Sell (Fixed Price)', hint: 'List for direct buy-now' },
   auction: { title: 'Start Auction', hint: 'Timed public bidding' },
-  cancel: { title: 'Cancel Listing', hint: 'Cancel the listing' },
 }
 export const offerActiveLine = (nim: string): string => `Active: ${nim} NIM`
 export const auctionStandingLine = (nim: string): string => `Standing bid: ${nim} NIM`
 export const auctionStartingLine = (nim: string): string => `Starting price: ${nim} NIM`
-export const cancelOfferHint = (): string => 'Cancel fixed price offer'
-export const cancelAuctionHint = (): string => 'Cancel active auction'
 export const connectWalletHint = (): string => 'Connect wallet'
+
+/**
+ * A `K` is named by what it will actually clear (`states.cancellableNow`) —
+ * the tile, the sheet's header and its submit button all use this one title.
+ *
+ * It read **"Cancel Listing / Cancel active auction"** for a pending transfer,
+ * which is two false statements: there is no listing, and an auction is the one
+ * thing a `K` can never touch (§6 `A` — bids are commitments). The empty set is
+ * a real case, not a fallback — an open auction voided the transfer and the
+ * offer and leaves the tile on screen, disabled, showing its gate reason in
+ * place of the hint — so it must not name a listing either.
+ */
+export const cancelTitle = (set: Cancellable): string =>
+  set.transfer && set.offer ? 'Cancel Pending' : set.transfer ? 'Cancel Transfer' : set.offer ? 'Cancel Listing' : 'Cancel Pending'
+
+/** The line under that title. Rendered only where the gate is open, so the
+ *  empty set's is the unreachable one. */
+export const cancelHint = (
+  set: Cancellable,
+  subject: { readonly to: string | null; readonly priceNim: string | null },
+): string => {
+  if (set.transfer && set.offer) return 'Transfer and listing'
+  if (set.transfer) return subject.to === null ? 'Stop the pending transfer' : `To ${subject.to}`
+  if (set.offer) return subject.priceNim === null ? 'Withdraw the listing' : `Withdraw the ${subject.priceNim} NIM offer`
+  return 'Nothing to cancel'
+}
+
+/**
+ * A `K` withdraws an offer only from `openedHeight + OFFER_IRREVOCABLE` (§6
+ * `O`), so one sent inside that window vetoes the transfer and leaves the
+ * listing standing. Said as time remaining, not as a date: the window is hours,
+ * and the message lands later than this line is written.
+ */
+export const offerStaysLine = (nim: string, blocksLeft: number): string =>
+  `The ${nim} NIM listing stays — it can’t be withdrawn for another ${blocksApprox(blocksLeft)}.`
 
 // Buy's card: a name for sale or under auction hands off to Market.
 export const listedForSaleLine = (nim: string): string => `Listed at the marketplace for ${nim} NIM. `
@@ -959,6 +999,22 @@ export const connectToLabel = (action: string): string => `Connect to ${action}`
 // Sheets and buttons shared by every flow.
 export const closeLabel = (): string => 'Close'
 export const cancelLabel = (): string => 'Cancel'
+
+/**
+ * The sheet's header and its submit button — one label, so the thing you tapped
+ * and the thing you are about to sign are named identically. A `K` takes its
+ * name from the cancellable set; every other action has a fixed one.
+ */
+export const sheetActionLabel = (action: AppAction, set: Cancellable): string =>
+  action === 'cancel' ? cancelTitle(set) : ACTION_LABEL[action]
+
+/**
+ * The sheet's dismiss button. "Cancel" means "never mind" everywhere — except
+ * beside a submit button that also says Cancel and means the opposite, which is
+ * what the `K` sheet shipped as: *[Cancel what's pending] [Cancel]*.
+ */
+export const sheetDismissLabel = (action: AppAction): string =>
+  action === 'cancel' ? closeLabel() : cancelLabel()
 export const clearLabel = (): string => 'Clear'
 export const signsWithLabel = (): string => 'Signs with'
 export const submittingLabel = (): string => 'Submitting…'

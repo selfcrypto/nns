@@ -7,6 +7,8 @@ import type { ResolveResult } from '@nns/resolver'
 import type { SearchOutcome } from './search'
 import {
   actionGates,
+  cancelTileGroup,
+  cancellableNow,
   identityRow,
   nameView,
   offerCancellableAt,
@@ -216,6 +218,23 @@ describe('actionGates (app-states.md §4)', () => {
     expect(at.cancel.enabled).toBe(true)
   })
 
+  it('K is legal on a pending transfer even while the offer beside it is irrevocable', () => {
+    const opened = 995_000
+    const both = registered({
+      pending: {
+        transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 },
+        offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: opened, expiryHeight: opened + CONSTANTS.OFFER_MAX_LIFETIME },
+        auction: null,
+      },
+    })
+    const head = 1_000_000
+    expect(head).toBeLessThan(offerCancellableAt(opened))
+    const gates = actionGates({ view: nameView('a', both, 'available'), viewers: [OWNER], head })
+    expect(gates.cancel.enabled).toBe(true)
+    // …and the `K` clears only the transfer: the offer is not in the set.
+    expect(cancellableNow(both, head)).toEqual({ transfer: true, offer: false })
+  })
+
   it('K in grace is nothing-to-cancel — grace entry already cleared the cancellable set', () => {
     const gates = actionGates({ view: nameView('a', graceInfo(), 'available'), viewers: [OWNER], head: 950_000 })
     expect(gates.cancel.reason).toBe('nothing-to-cancel')
@@ -415,5 +434,46 @@ describe('identityRow', () => {
   it('never offers an action the wallet does not have', () => {
     const row = identityRow(wallet({ kind: 'hub', addresses: [A] }, null, null))
     expect(row).toMatchObject({ kind: 'connected', canAdd: false, canDisconnect: false })
+  })
+})
+
+describe('the cancellable set (§6 `K`)', () => {
+  const opened = 1_000_000
+  const offer = {
+    name: 'example',
+    seller: OWNER,
+    price: 100_000n,
+    openedHeight: opened,
+    expiryHeight: opened + CONSTANTS.OFFER_MAX_LIFETIME,
+  }
+  const transfer = { newOwner: OTHER, effectiveHeight: 1_040_000 }
+  const boundary = offerCancellableAt(opened)
+
+  it('is empty when nothing is pending, and never counts an auction', () => {
+    expect(cancellableNow(registered(), opened)).toEqual({ transfer: false, offer: false })
+    const underAuction = registered({
+      pending: {
+        transfer: null,
+        offer: null,
+        auction: { name: 'example', seller: OWNER, startingPrice: 1n, endHeight: 1_100_000, bidder: null, bid: 0n, minimumBid: 1n },
+      },
+    })
+    // The one thing a `K` can never clear — and with it open, nothing else is
+    // pending to clear either (§6 `A` voided both when it opened).
+    expect(cancellableNow(underAuction, opened)).toEqual({ transfer: false, offer: false })
+  })
+
+  it('counts an offer only from openedHeight + OFFER_IRREVOCABLE, and the transfer at any height', () => {
+    const both = registered({ pending: { transfer, offer, auction: null } })
+    expect(cancellableNow(both, boundary - 1)).toEqual({ transfer: true, offer: false })
+    expect(cancellableNow(both, boundary)).toEqual({ transfer: true, offer: true })
+  })
+
+  it('puts the tile beside what it acts on: ownership for a transfer alone, marketplace otherwise', () => {
+    expect(cancelTileGroup({ transfer: true, offer: false })).toBe('ownership')
+    expect(cancelTileGroup({ transfer: true, offer: true })).toBe('market')
+    expect(cancelTileGroup({ transfer: false, offer: true })).toBe('market')
+    // Auction open: disabled, and it belongs beside the auction it is about.
+    expect(cancelTileGroup({ transfer: false, offer: false })).toBe('market')
   })
 })

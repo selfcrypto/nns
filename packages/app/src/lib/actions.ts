@@ -27,10 +27,10 @@ import {
 } from '@nns/core'
 import { getNameInfo, type ApiParams, type NameInfo } from './api'
 import { approxDate, blocksApprox, ellipsizeAddress, formatApproxDate, lunaToNim } from './format'
-import { auctionOutlivesTermLine, bidRefundLine, giftRenewalLine, referredByLine, registerPaysLine, soldByLine } from './wording'
+import { auctionOutlivesTermLine, bidRefundLine, giftRenewalLine, offerStaysLine, referredByLine, registerPaysLine, soldByLine } from './wording'
 import { isReferralName } from './referral'
 import { percentOf, referralRateBp } from './referralRates'
-import { auctionEndHeight, auctionOutlivesTerm, sameAddress, registrationFee } from './states'
+import { auctionEndHeight, auctionOutlivesTerm, cancellableNow, offerCancellableAt, sameAddress, registrationFee } from './states'
 import type { AppAction } from './states'
 import type { SubmitRequest } from './wallet'
 
@@ -262,14 +262,24 @@ export function prepareAction(options: {
     }
 
     case 'cancel': {
+      const head = info?.height ?? 0
       const pendingTransfer = info?.pending.transfer ?? null
       const pendingOffer = info?.pending.offer ?? null
-      const cancelsTransfer = pendingTransfer !== null
-      const cancelsOffer = pendingOffer !== null
+      // What the `K` will actually clear — never what is merely pending. An
+      // offer inside `OFFER_IRREVOCABLE` survives it (§6 `O`), so counting it
+      // promised a withdrawal the reducer refuses and then waited for an effect
+      // that could not arrive: the confirm poll never passed and a `K` that had
+      // done its job read as unconfirmed.
+      const { transfer: cancelsTransfer, offer: cancelsOffer } = cancellableNow(info, head)
       const lines: string[] = []
       if (pendingTransfer !== null) lines.push(`Cancels the transfer to ${pendingTransfer.newOwner}.`)
-      if (pendingOffer !== null) lines.push(`Withdraws the ${lunaToNim(pendingOffer.price)} NIM offer.`)
-      lines.push('One cancel clears everything listed above.')
+      if (cancelsOffer && pendingOffer !== null) lines.push(`Withdraws the ${lunaToNim(pendingOffer.price)} NIM offer.`)
+      if (!cancelsOffer && pendingOffer !== null) {
+        lines.push(offerStaysLine(lunaToNim(pendingOffer.price), offerCancellableAt(pendingOffer.openedHeight) - head))
+      }
+      // Only where "everything" is more than one thing — and never above a line
+      // that says what the `K` will leave standing.
+      if (cancelsTransfer && cancelsOffer) lines.push('One cancel clears both, in one message.')
       return {
         action: 'cancel',
         request: asRequest(encodeCancel({ name, sender })),

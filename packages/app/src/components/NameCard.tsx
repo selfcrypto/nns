@@ -20,7 +20,7 @@ import { CONSTANTS } from '@nns/core'
 import { primaryAddress } from '../lib/identity'
 import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
 import type { SearchOutcome } from '../lib/search'
-import { actionGates, registrationFee, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
+import { actionGates, cancellableNow, cancelTileGroup, registrationFee, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import {
   ACTION_LABEL,
@@ -39,8 +39,8 @@ import {
   auctionStandingLine,
   auctionStartingLine,
   availableLine,
-  cancelAuctionHint,
-  cancelOfferHint,
+  cancelHint,
+  cancelTitle,
   checkNowLabel,
   closeLabel,
   connectToLabel,
@@ -165,6 +165,8 @@ function Actions({
   onConnect,
   ctaMode,
   onMarket,
+  openAction = null,
+  onOpenActionHandled,
 }: {
   actions: readonly AppAction[]
   /**
@@ -179,6 +181,10 @@ function Actions({
    *  as a single full-width CTA instead of a label + "Details" pair. */
   ctaMode?: boolean
   onMarket?: ((name?: string) => void) | null | undefined
+  /** A sheet the surrounding screen asks for — My names' expiry badge opens
+   *  `renew`. Consumed once, the way `MyNamesScreen` consumes `manage`. */
+  openAction?: AppAction | null | undefined
+  onOpenActionHandled?: (() => void) | undefined
 }) {
   const [open, setOpen] = useState<AppAction | null>(null)
   const { name, info } = view
@@ -197,6 +203,19 @@ function Actions({
   const handleActionClick = (action: AppAction) => {
     setOpen(open === action ? null : action)
   }
+
+  /** Whether tapping this action opens its sheet — the tile's own test (below),
+   *  so an outside request behaves exactly like tapping the tile. */
+  const usableAction = (action: AppAction): boolean =>
+    gates[action].enabled && signerFor(action, view, viewers) !== null && wallet !== null
+
+  useEffect(() => {
+    if (openAction == null) return
+    if (usableAction(openAction)) setOpen(openAction)
+    else if (wallet === null && onConnect != null) onConnect()
+    onOpenActionHandled?.()
+    // Only `openAction`: the request is consumed once, on arrival.
+  }, [openAction])
 
   const visibleActions = actions.filter((action) => {
     const gate = gates[action]
@@ -223,6 +242,11 @@ function Actions({
     const record = info?.record ?? null
     const height = info?.height ?? 0
 
+    // What a `K` would actually clear, and therefore what the tile is called and
+    // where it sits (§6 `K`: one `K` clears the whole set at once).
+    const cancellable = cancellableNow(info, height)
+    const cancelInOwnership = cancelTileGroup(cancellable) === 'ownership'
+
     const groups: {
       title: string
       actions: AppAction[]
@@ -233,11 +257,13 @@ function Actions({
       },
       {
         title: OWNER_GROUP_TITLE.ownership,
-        actions: ['renew', 'transfer'],
+        // Listed exactly once across the two groups: `cancel` in both renders
+        // the tile twice, since each group filters `visibleActions` itself.
+        actions: cancelInOwnership ? ['renew', 'transfer', 'cancel'] : ['renew', 'transfer'],
       },
       {
         title: OWNER_GROUP_TITLE.market,
-        actions: ['offer', 'auction', 'cancel'],
+        actions: cancelInOwnership ? ['offer', 'auction'] : ['offer', 'auction', 'cancel'],
       },
     ]
 
@@ -332,8 +358,11 @@ function Actions({
           }
         case 'cancel':
           return {
-            title: OWNER_TILE.cancel.title,
-            subtitle: info?.pending.offer ? cancelOfferHint() : cancelAuctionHint(),
+            title: cancelTitle(cancellable),
+            subtitle: cancelHint(cancellable, {
+              to: info?.pending.transfer ? ellipsizeAddress(info.pending.transfer.newOwner) : null,
+              priceNim: cancellable.offer && info?.pending.offer ? lunaToNim(info.pending.offer.price) : null,
+            }),
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <circle cx="12" cy="12" r="10" />
@@ -557,6 +586,8 @@ export function NameCard({
   onManage,
   onPay,
   onMarket,
+  openAction = null,
+  onOpenActionHandled,
   seamless = false,
   retrying = false,
 }: {
@@ -583,6 +614,14 @@ export function NameCard({
    */
   onPay: ((query: string) => void) | null
   onMarket?: ((name?: string) => void) | null | undefined
+  /**
+   * A sheet the surrounding screen asks the card to open — My names' expiry
+   * badge is a shortcut to `renew`. The card owns the sheets, so a screen that
+   * wants one says which and the card decides whether it is usable, exactly as
+   * a tap on the tile would.
+   */
+  openAction?: AppAction | null | undefined
+  onOpenActionHandled?: (() => void) | undefined
   seamless?: boolean
   /** A `propagating` outcome: whether the screen is still asking again on its own. */
   retrying?: boolean
@@ -709,7 +748,7 @@ export function NameCard({
                 {view === null ? (
                   <p className="note note-info">{subdomainNotRegistrableLine(outcome.result.delegate?.parent ?? outcome.result.name)}</p>
                 ) : (
-                  <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} onConnect={onConnect} ctaMode onMarket={onMarket} />
+                  <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} onConnect={onConnect} ctaMode onMarket={onMarket} openAction={openAction} onOpenActionHandled={onOpenActionHandled} />
                 )}
               </div>
             )}
@@ -793,7 +832,7 @@ export function NameCard({
           <WarningNotes warnings={availability.warnings} />
           {view !== null && (
             <div className="available-actions">
-              <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} onConnect={onConnect} ctaMode onMarket={onMarket} />
+              <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} onConnect={onConnect} ctaMode onMarket={onMarket} openAction={openAction} onOpenActionHandled={onOpenActionHandled} />
             </div>
           )}
         </div>
@@ -857,7 +896,7 @@ export function NameCard({
           ) : (
             view !== null && (
               <div className="available-actions" style={{ marginTop: '16px' }}>
-                <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} onConnect={onConnect} ctaMode onMarket={onMarket} />
+                <Actions actions={actions} view={view} wallet={wallet} onChanged={onChanged} onConnect={onConnect} ctaMode onMarket={onMarket} openAction={openAction} onOpenActionHandled={onOpenActionHandled} />
               </div>
             )
           )}
