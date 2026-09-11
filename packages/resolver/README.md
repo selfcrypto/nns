@@ -376,6 +376,11 @@ who wants to check one has nowhere to go; and the `name` is a label the host app
 chose, which identifies a party only to whoever wrote the config. `quorum.resolvers`
 therefore carries the endpoint — `{ name, url }` — and the client shows both.
 
+The list may sit behind a **disclosure on the count line, closed by default**,
+and on a phone it should: a quorum of eight is longer than the answer it
+supports. What this rule forbids is a client where the list is *absent* — a
+count with nowhere to go — or where the count itself is hidden.
+
 **Do not label a quorum-1 answer "unverified".** It is factually wrong: the
 proof verified, the checkpoint binding held, and — with publishers configured —
 another chain agrees. Every check the client ran passed. What is absent is

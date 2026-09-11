@@ -29,7 +29,7 @@ Type a name, or `label.name`. The search runs by itself a second after you stop 
 | **Not a valid name** | The rule it broke, in red, before any request leaves your device | Fix the name |
 | **Just registered by someone** | "Just registered by someone — search again to see it." | Search again |
 
-Every registered card carries the **verification line**: "Verified by N resolvers", with each resolver's name and URL under it. Tap the "?" beside it for what that means, or read [How you know the answer is right](trust).
+Every registered card carries the **verification line**: "Verified by N resolvers" — tap it to see each resolver's name and URL. Tap the "?" beside it for what that means, or read [How you know the answer is right](trust).
 
 **A subdomain card is honest about its two halves.** The parent (`kike`) is proven. The address for `shop` is the parent owner's server's word, and the card says so. If that server does not answer, the card shows the parent still verified and says "`kike`'s resolver did not answer" — never that the subdomain does not exist, because only its owner can know that.
 
@@ -109,7 +109,7 @@ The Market also carries the **fee burn** figures — burned so far, owed so far,
 
 ## The verification line, everywhere
 
-"Verified by 1 resolver" means: that resolver answered with a Merkle proof, and this app checked the proof against the resolver's published checkpoint before showing you the address. The number says how many independent parties agreed. At launch there is one, and it is named with its URL under the line. That is not "unverified": every check the app can run has passed. What is absent is corroboration by a second party, which arrives when a second operator runs a resolver ([How you know the answer is right](trust)).
+"Verified by 1 resolver" means: that resolver answered with a Merkle proof, and this app checked the proof against the resolver's published checkpoint before showing you the address. The number says how many independent parties agreed. At launch there is one, and tapping the line names it with its URL. That is not "unverified": every check the app can run has passed. What is absent is corroboration by a second party, which arrives when a second operator runs a resolver ([How you know the answer is right](trust)).
 
 Two quieter lines can appear under a fresh name, and neither is a problem: "Proof pending — checkpoints are cut every ~{{dur:CHECKPOINT_INTERVAL}}. The name works now." and "Repointed since the last checkpoint — the current address is newer than its proof." A name works the moment its transaction is final; proofs and anchors add depth afterwards.
 

@@ -157,6 +157,11 @@ const scenarios = {
     await load(); await search('nns')
     await evaluate(`__click('.verify-head .hint-btn')`); await sleep(400); await shot('hint-open')
   },
+  // The agreeing resolvers are a state now: closed on arrival, open on a tap.
+  'verify-open': async () => {
+    await load(); await search('nns')
+    await evaluate(`__click('.verify-toggle')`); await sleep(400); await shot('verify-open', true)
+  },
   'hint-delegated': async () => {
     await load(); await search('rico.nns')
     await evaluate(`__click('.verify-delegated .hint-btn')`); await sleep(400); await shot('hint-delegated')

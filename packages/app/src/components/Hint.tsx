@@ -14,9 +14,11 @@
  * the pointer leaving the button is its close.
  *
  * What goes behind a hint is explanation only. A line the states doc says
- * must be visible — the verified count and its resolver list, the alarm
- * bodies, the custodial warning before a `B`, the chat notice — stays on the
- * card; the hint carries the *why* beside it.
+ * must be visible — the verified count, the alarm bodies, the custodial
+ * warning before a `B`, the chat notice — stays on the card; the hint carries
+ * the *why* beside it. The resolver list under the count is the one fact kept
+ * folded, and by a disclosure of its own (result.tsx), not by a hint: it is
+ * evidence, and evidence is read on demand.
  */
 
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'

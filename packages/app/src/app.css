@@ -669,6 +669,32 @@ select:focus-visible {
   margin: 0;
 }
 
+/* The count line doubles as the disclosure for that evidence: it reads and
+   sits exactly as the plain line did, plus a chevron that flips when the list
+   is open. A quorum of eight would otherwise be most of the card. */
+.verify-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.verify-toggle .icon {
+  opacity: 0.6;
+  transition: transform 140ms ease;
+}
+
+.verify-toggle[aria-expanded='true'] .icon {
+  transform: rotate(180deg);
+}
+
 /* Name and API URL, one per agreeing resolver. Quieter than the headline —
    the count is the statement, this is the evidence for it. A URL is one long
    unbreakable token on a phone, hence `anywhere`. */
@@ -686,7 +712,13 @@ select:focus-visible {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 4px 8px;
+}
+
+/* One resolver can take two lines on a phone, so the gap between entries has
+   to be wider than the one inside an entry. */
+.verify-resolvers li + li {
+  margin-top: 7px;
 }
 
 .resolver-pill {
@@ -707,7 +739,6 @@ select:focus-visible {
 
 .resolver-sep {
   color: var(--ink-faint);
-  margin: 0 2px;
 }
 
 .resolver-url {

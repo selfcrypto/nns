@@ -4,7 +4,7 @@
  * `currentColor`, so each takes the colour of the text beside it and a tab or
  * a verification line recolours them for free.
  *
- * Five for the tab bar and two for the verification line. Nothing else in
+ * Five for the tab bar and three for the verification line. Nothing else in
  * the app earns a pictogram: the proof rail and the identicon already carry
  * the meanings that matter, and a glyph beside every sentence would spend
  * the reader's attention on decoration.
@@ -90,6 +90,16 @@ export function ClockIcon() {
     <Glyph size={18}>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7.5V12l3 2" />
+    </Glyph>
+  )
+}
+
+/** The disclosure on the verified line: down when collapsed, flipped by CSS
+ *  when the resolver list is open. */
+export function ChevronIcon() {
+  return (
+    <Glyph size={16}>
+      <path d="M6 9.5l6 6 6-6" />
     </Glyph>
   )
 }

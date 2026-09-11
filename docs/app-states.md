@@ -182,13 +182,19 @@ include this transaction", never "sent".
 ## 5. Standing wording rules
 
 1. **"Verified by N resolvers"** — one neutral line, always present on a
-   successful proven resolution, with **every agreeing resolver listed under
-   it by name and API URL** (`result.quorum.resolvers`, which carries the
-   endpoint). `N` is `result.quorum.agreed`; singular at 1. Never hidden,
-   greyed or apologetic. The count says how many parties the answer rests on
-   and nothing about which, and a configured `name` identifies a party only to
-   whoever wrote the config — the URL is the half a user can go and check
-   (Kike, 2026-08-28, on adding a second resolver).
+   successful proven resolution, with **every agreeing resolver reachable
+   from it by name and API URL** (`result.quorum.resolvers`, which carries the
+   endpoint). `N` is `result.quorum.agreed`; singular at 1. The line itself is
+   never hidden, greyed or apologetic. The count says how many parties the
+   answer rests on and nothing about which, and a configured `name` identifies
+   a party only to whoever wrote the config — the URL is the half a user can
+   go and check (Kike, 2026-08-28, on adding a second resolver).
+
+   The list sits **behind a disclosure on that line, closed by default**
+   (Kike, 2026-09-11): it is evidence for the count, and at the six or eight
+   resolvers a grown quorum has it is longer than the answer it supports.
+   One tap is the whole cost, and the count — the statement a user acts on —
+   is what stays on the card.
 2. **Never label a quorum-1 answer "unverified".** The proof verified; what
    is absent is corroboration by a second party, which is a different
    sentence. Alarm vocabulary spends down to zero the first time it is used

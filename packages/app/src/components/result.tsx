@@ -1,3 +1,4 @@
+import { useId, useState } from 'react'
 import type { ResolveResult, ResolveWarning } from '@nns/resolver'
 import type { NameInfo } from '../lib/api'
 import { displayAddress, ellipsizeAddress, formatApproxDate, approxDate, lunaToNim } from '../lib/format'
@@ -20,7 +21,7 @@ import {
   verifiedHint,
 } from '../lib/wording'
 import { Hint } from './Hint'
-import { CheckIcon, ClockIcon } from './icons'
+import { CheckIcon, ChevronIcon, ClockIcon } from './icons'
 import { Badge, Identicon, NameText, type RailTier } from './ui'
 
 export const tierOf = (result: ResolveResult): RailTier => {
@@ -38,19 +39,53 @@ export const tierOf = (result: ResolveResult): RailTier => {
  * Who agreed, by name **and API URL**. The count says how many parties the
  * answer rests on; only the URL says which, and a user who wants to check one
  * has to be able to see where it lives.
+ *
+ * Behind a disclosure, closed by default: at the two resolvers of today it is
+ * two lines, at the six or eight of a grown quorum it is the whole card, and
+ * the list is evidence for the count rather than the statement itself (Kike,
+ * 2026-09-11). The count line is the disclosure, so the evidence is one tap
+ * away and never more than that — §5 wording rule 1.
  */
-function ResolverList({ quorum }: { quorum: ResolveResult['quorum'] }) {
-  if (quorum.resolvers.length === 0) return null
+function ProvenVerification({ result }: { result: ResolveResult }) {
+  const [open, setOpen] = useState(false)
+  const listId = useId()
+  const { resolvers } = result.quorum
+  const line = <span>{verifiedByLine(result.quorum)}</span>
   return (
-    <ul className="verify-resolvers">
-      {quorum.resolvers.map((resolver) => (
-        <li key={resolver.url}>
-          <span className="resolver-pill">{resolver.name}</span>
-          <span className="resolver-sep">—</span>
-          <span className="resolver-url">{resolverUrlShown(resolver.url)}</span>
-        </li>
-      ))}
-    </ul>
+    <div className="verify verify-proven">
+      <p className="verify-head">
+        <CheckIcon />
+        {resolvers.length === 0 ? (
+          line
+        ) : (
+          <button
+            type="button"
+            className="verify-toggle"
+            aria-expanded={open}
+            aria-controls={listId}
+            onClick={() => setOpen(!open)}
+          >
+            {line}
+            <ChevronIcon />
+          </button>
+        )}
+        <Hint>{verifiedHint()}</Hint>
+      </p>
+      {open && (
+        <ul className="verify-resolvers" id={listId}>
+          {resolvers.map((resolver) => (
+            <li key={resolver.url}>
+              <span className="resolver-pill">{resolver.name}</span>
+              {/* Dash and URL wrap as one: on a phone the endpoint drops to its own
+                  line, and a separator left behind on the line above reads as a typo. */}
+              <span className="resolver-url">
+                <span className="resolver-sep">—</span> {resolverUrlShown(resolver.url)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }
 
@@ -58,16 +93,7 @@ function ResolverList({ quorum }: { quorum: ResolveResult['quorum'] }) {
 export function VerificationLine({ result }: { result: ResolveResult }) {
   switch (result.verification) {
     case 'PROVEN':
-      return (
-        <div className="verify verify-proven">
-          <p className="verify-head">
-            <CheckIcon />
-            <span>{verifiedByLine(result.quorum)}</span>
-            <Hint>{verifiedHint()}</Hint>
-          </p>
-          <ResolverList quorum={result.quorum} />
-        </div>
-      )
+      return <ProvenVerification result={result} />
     case 'PROOF_PENDING':
       return (
         <p className="verify verify-depth verify-head">
