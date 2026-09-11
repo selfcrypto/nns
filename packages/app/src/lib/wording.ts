@@ -15,7 +15,7 @@ import type { QuorumReport, WarningCode } from '@nns/resolver'
 import type { AppAction, Cancellable, GateReason } from './states'
 import type { QueryFault } from './search'
 import { CONSTANTS, type LabelInvalidReason, type NameInvalidReason } from '@nns/core'
-import { blocksApprox } from './format'
+import { blocksApprox, lunaToNim } from './format'
 
 // ── Verification lines ──────────────────────────────────────────────────────
 
@@ -436,6 +436,56 @@ export const ACTION_LABEL: Record<AppAction, string> = {
 /** The registration review's first line; the term is `TERM_LENGTH` rendered, never typed (tasks/17). */
 export const registerPaysLine = (nim: string, term: string): string =>
   `Pays ${nim} NIM to the registry for a ${term} term.`
+
+/**
+ * The lifetime registration's first line (§10.4, tasks/19 D3): the date a
+ * hundred terms actually reach, never the word "lifetime" as a promise —
+ * that word is the choice's label and nothing else.
+ */
+export const registerLifetimePaysLine = (nim: string, untilDate: string): string =>
+  `Pays ${nim} NIM to the registry — yours until ${untilDate}.`
+
+/** Where a renewal's clock lands, as ≈ date — for a lifetime the only honest rendering of a hundred terms. */
+export const newExpiryLine = (approx: string): string => `New expiry ${approx}.`
+
+/**
+ * The term choice on Register and Renew. The first label is `TERM_LENGTH`
+ * rendered — "1 year" on mainnet, "7 days" in a tempo era — never typed;
+ * "Lifetime" is a label only, and the review under it shows the date.
+ */
+export function termChoiceLabel(blocks: number = CONSTANTS.TERM_LENGTH): string {
+  const days = blocks / 86_400
+  if (days >= 364) return '1 year'
+  if (days >= 2) return `${Math.round(days)} days`
+  const hours = blocks / 3_600
+  if (hours >= 2) return `${Math.round(hours)} hours`
+  return `${Math.max(1, Math.round(blocks / 60))} minutes`
+}
+
+export const lifetimeChoiceLabel = (): string => 'Lifetime'
+
+export const termChoiceGroupLabel = (): string => 'Term'
+
+/** The price under each choice. */
+export const choicePriceLine = (nim: string): string => `${nim} NIM`
+
+/**
+ * §10.1's table in one sentence, behind the "?" beside the choice. The rows
+ * are `/params.fees`, so a governance change reprices the hint by itself;
+ * the reserved lengths below `MIN_NAME_LEN` are one clause, not rows.
+ */
+export function priceHint(fees: readonly { readonly upTo: number; readonly yearly: bigint }[]): string {
+  const open = fees.filter((row) => row.upTo >= CONSTANTS.MIN_NAME_LEN)
+  const parts = open.map((row, index) => {
+    const from = index === 0 ? CONSTANTS.MIN_NAME_LEN : (open[index - 1]?.upTo ?? 0) + 1
+    const span = row.upTo >= CONSTANTS.MAX_NAME_LEN ? `${from}+` : from === row.upTo ? `${from}` : `${from}–${row.upTo}`
+    return `${lunaToNim(row.yearly)} NIM for ${span}`
+  })
+  return (
+    `Price follows length — a year is ${parts.join(', ')} characters; shorter names are reserved. ` +
+    `A lifetime is ${CONSTANTS.LIFETIME_TERMS} terms for the price of ${CONSTANTS.LIFETIME_MULTIPLIER}.`
+  )
+}
 
 /**
  * §10.7 on the review: who benefits, and that the price is unchanged. The

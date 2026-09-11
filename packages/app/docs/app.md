@@ -19,7 +19,7 @@ Type a name, or `label.name`. The search runs by itself a second after you stop 
 
 | Outcome | What the card shows | What you can do |
 |---|---|---|
-| **Available** | The price for its band | **Register** |
+| **Available** | The price for its length, a year or a lifetime | **Register** |
 | **Registered** | The owner, the address it points to, the expiry, and the verification line | **Pay this address**, **Message the owner**, **Gift a renewal** |
 | **You own this** | The same card, marked as yours | **Manage this name**, which opens it in My names |
 | **In grace** | "Expired — in grace until ≈ date." Not available, still the owner's to renew | **Gift a renewal** — anyone can renew a name, and it stays the owner's |
@@ -72,13 +72,13 @@ Your names, soonest expiry first, with a badge from 60 days before expiry ("Rene
 
 **Ownership & renewal**
 
-- **Renew registration.** Extends the expiry by {{dur:TERM_LENGTH}} from the current expiry, at the current price. Renewing early never costs you time. Anyone can renew any name: on someone else's card in Buy the same action is called **Gift a renewal**, and the review says plainly that the name stays theirs.
+- **Renew registration.** Extends the expiry by {{dur:TERM_LENGTH}} — or by a lifetime, {{n:LIFETIME_TERMS}} terms for the price of {{n:LIFETIME_MULTIPLIER}} — from the current expiry, at the current price. The sheet offers the two terms side by side with their prices, and the review shows the new expiry as the date it is. Renewing early never costs you time. Anyone can renew any name: on someone else's card in Buy the same action is called **Gift a renewal**, and the review says plainly that the name stays theirs.
 - **Transfer ownership.** Names the new owner. The transfer takes effect after **{{dur:XFER_TIMELOCK}}**; until then you keep full control, the name resolves as before, and **Cancel** undoes it. A second transfer replaces the first and restarts the clock. The wallet's sheet shows the recipient's address and identicon, so check it there. When the transfer completes, the new owner gets the name pointing at themselves, the linked EVM address and subdomain host are cleared, and any open offer is cancelled. **The waiting period is for a mistyped address, not a stolen key**: someone holding your key does not need a transfer at all.
 - **Cancel transfer / Cancel listing.** One cancel undoes everything currently cancellable on the name — a pending transfer, and an offer that is past its irrevocable window — and the tile is named after whichever of those it would actually clear, sitting beside it: with only a transfer pending it is here, with a listing involved it is under Marketplace. The sheet lists what will go, and says plainly when an offer is still inside its irrevocable window, because that listing stays. An auction cannot be cancelled, because bidders have committed money against a window they were told in advance.
 
 **Marketplace**
 
-- **Sell (fixed price).** Lists the name at a price you set, no lower than the long-name registration price in effect (today {{nim:FEE_LONG}}). Listing is free. The offer is **irrevocable for {{dur:OFFER_IRREVOCABLE}}**, cancellable after that, and expires by itself after {{dur:OFFER_MAX_LIFETIME}}. On sale you receive the price minus {{pct:COMMISSION_RATE}} commission. The sheet says all of this before you sign.
+- **Sell (fixed price).** Lists the name at a price you set, no lower than the base registration price in effect (today {{nim:FEE_BASE}}). Listing is free. The offer is **irrevocable for {{dur:OFFER_IRREVOCABLE}}**, cancellable after that, and expires by itself after {{dur:OFFER_MAX_LIFETIME}}. On sale you receive the price minus {{pct:COMMISSION_RATE}} commission. The sheet says all of this before you sign.
 - **Start auction.** Sets a starting price (same floor as an offer) and a duration of at least {{dur:AUCTION_MIN_DURATION}}. The end must fall before the name's expiry, because an auction sells the current term; the sheet warns you and suggests renewing first. Opening an auction voids your own pending transfer and open offer. While it runs, the name cannot be listed, transferred or auctioned again, and neither the auction nor a bid can be withdrawn. A bid in the last {{dur:AUCTION_EXTENSION}} extends the end by that much, so a last-second bid never wins by surprise. At the end, the highest bid wins the name and you receive it minus commission; with no bid, the name stays yours.
 
 What cannot coexist: an offer and an auction never both stand on one name. A pending transfer survives a new offer but not a new auction. Entering grace cancels everything and refunds any bid ([Prices](prices)).

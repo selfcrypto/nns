@@ -11,7 +11,6 @@ Every honest implementation on the same network agrees on these byte for byte. N
 | Constant | Value | Meaning |
 |---|---|---|
 | `MIN_NAME_LEN` | {{n:MIN_NAME_LEN}} | Shorter names are reserved by rule |
-| `LONG_NAME_LEN` | {{n:LONG_NAME_LEN}} | From this length, the cheap price band |
 | `MAX_NAME_LEN` | {{n:MAX_NAME_LEN}} | Longest registrable name |
 | `MAX_LABEL_LEN` | {{n:MAX_LABEL_LEN}} | Longest subdomain label |
 | `MAX_HOST_LEN` | {{n:MAX_HOST_LEN}} | Longest subdomain host (name and host together ≤ 52) |
@@ -21,10 +20,12 @@ Every honest implementation on the same network agrees on these byte for byte. N
 
 | Constant | Value | Meaning | Governable |
 |---|---|---|---|
-| `FEE_STANDARD` | {{nim:FEE_STANDARD}} | Registration and renewal, {{n:MIN_NAME_LEN}}–11 characters | yes |
-| `FEE_LONG` | {{nim:FEE_LONG}} | Registration and renewal, {{n:LONG_NAME_LEN}}+ characters; also the floor for offers and auctions | yes |
-| `PRICE_FLOOR` | {{nim:PRICE_FLOOR}} | Lowest either price can be set to | bound |
-| `PRICE_CEILING` | {{nim:PRICE_CEILING}} | Highest either price can be set to | bound |
+| `FEE_BASE` | {{nim:FEE_BASE}} | Registration and renewal for a year, {{n:LONG_BAND_FROM}}+ characters; shorter names pay a multiple of it; also the floor for offers and auctions | yes |
+| `FEE_MULTIPLIERS` | {{fees:table}} | The multiple of `FEE_BASE` each length pays, and the fees that makes today | **no** |
+| `LIFETIME_MULTIPLIER` | {{n:LIFETIME_MULTIPLIER}} | A lifetime costs this many yearly fees | **no** |
+| `LIFETIME_TERMS` | {{n:LIFETIME_TERMS}} | The terms a lifetime buys | **no** |
+| `PRICE_FLOOR` | {{nim:PRICE_FLOOR}} | Lowest the base can be set to | bound |
+| `PRICE_CEILING` | {{nim:PRICE_CEILING}} | Highest the base can be set to | bound |
 | `COMMISSION_RATE` | {{pct:COMMISSION_RATE}} | Deducted from a marketplace seller's proceeds | yes |
 | `COMMISSION_CEILING` | {{pct:COMMISSION_CEILING}} | Highest the commission can be set to | bound |
 | `COMMISSION_MAX_STEP` | {{pct:COMMISSION_MAX_STEP}} | Largest change per adjustment | bound |

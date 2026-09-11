@@ -1,3 +1,4 @@
+import { CONSTANTS } from '@nns/core'
 import { useMemo, useState } from 'react'
 import { prepareAction, ActionInputError, type ActionInputs } from '../lib/actions'
 import { getParams, type NameInfo } from '../lib/api'
@@ -8,8 +9,9 @@ import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../li
 import { discoverEvmProvider, probeHostEvmAddress, requestHostEvmAddress } from '../lib/sdk'
 import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
-import { cancellableNow, type AppAction } from '../lib/states'
+import { cancellableNow, registrationFee, type AppAction } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
+import { Hint } from './Hint'
 import { Spinner } from './ui'
 import {
   sheetActionLabel,
@@ -42,6 +44,11 @@ import {
   submittingLabel,
   sendUncheckedLine,
   sendUnconfirmedLine,
+  choicePriceLine,
+  lifetimeChoiceLabel,
+  priceHint,
+  termChoiceGroupLabel,
+  termChoiceLabel,
 } from '../lib/wording'
 
 /**
@@ -93,6 +100,8 @@ export function ActionSheet({
   const [startingPriceNim, setStartingPriceNim] = useState('')
   const [durationDays, setDurationDays] = useState('')
   const [bidNim, setBidNim] = useState('')
+  // The term choice (§10.4): a term by default, a lifetime on a tap.
+  const [lifetime, setLifetime] = useState(false)
   const [acknowledged, setAcknowledged] = useState(false)
   const [progress, setProgress] = useState<'idle' | 'submitting' | 'confirming'>('idle')
   const [result, setResult] = useState<SendResult | null>(null)
@@ -114,13 +123,14 @@ export function ActionSheet({
       case 'bid':
         return { action, bidNim }
       case 'register':
-        return { action, ref: referral.status === 'done' ? referral.value : null }
+        return { action, ref: referral.status === 'done' ? referral.value : null, lifetime }
       case 'renew':
+        return { action, lifetime }
       case 'cancel':
       case 'buy':
         return { action }
     }
-  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, priceNim, startingPriceNim, durationDays, bidNim, referral])
+  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, priceNim, startingPriceNim, durationDays, bidNim, referral, lifetime])
 
   const inputsTouched = (() => {
     switch (action) {
@@ -230,6 +240,29 @@ export function ActionSheet({
         </div>
       )}
       {currentLine !== null && <p className="sheet-current">{currentLine}</p>}
+
+      {(action === 'register' || action === 'renew') && params !== null && (
+        // Two segments, each a label over its price — the price read straight
+        // off `/params.fees`, never multiplied here. "Lifetime" is a label;
+        // the review line under it says the date.
+        <div className="term-choice">
+          <div className="term-options" role="group" aria-label={termChoiceGroupLabel()}>
+            {[false, true].map((choice) => (
+              <button
+                key={String(choice)}
+                type="button"
+                className={`term-option ${lifetime === choice ? 'term-option-active' : ''}`}
+                aria-pressed={lifetime === choice}
+                onClick={() => setLifetime(choice)}
+              >
+                <span className="term-option-name">{choice ? lifetimeChoiceLabel() : termChoiceLabel(CONSTANTS.TERM_LENGTH)}</span>
+                <span className="term-option-price">{choicePriceLine(lunaToNim(registrationFee(name, params, choice)))}</span>
+              </button>
+            ))}
+          </div>
+          <Hint>{priceHint(params.fees)}</Hint>
+        </div>
+      )}
 
       {action === 'setTarget' && (
         <>

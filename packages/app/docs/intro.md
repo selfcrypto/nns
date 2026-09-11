@@ -14,7 +14,7 @@ One name instead of an address. `kike` pays `NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M 
 - **Nothing to trust or upgrade on chain.** The chain is used as what it already is: an ordered, finalised list of transactions. Everything else is interpretation, and the interpretation rules are public so anyone can re-run them.
 - **Answers you can check.** Every lookup carries a proof. If a resolver's answer and the chain disagree, your wallet stops and says so instead of guessing.
 - **Subdomains for free.** Register `exchange` once and hand out `alice.exchange` from a server you run, with nothing stored on chain per user.
-- **Cheap, and priced to stay small.** Two price bands, a one-year term, and a fee on every band so the public record stays small enough for anyone to replay.
+- **Cheap, and priced to stay small.** A price that follows length, a one-year term or a lifetime, and a fee on every name so the public record stays small enough for anyone to replay.
 
 ## Who this is for
 

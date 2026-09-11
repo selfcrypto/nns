@@ -1727,6 +1727,55 @@ li.note {
 }
 
 /* The wallet-address suggestion under the EVM field: an offer, not the action. */
+/* The term choice on Register and Renew: two segments in one track, each a
+   label over its price, read off /params.fees (tasks/19 D3). */
+.term-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.term-options {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+  padding: 3px;
+  background: var(--depth-bg);
+  border-radius: 14px;
+}
+
+.term-option {
+  appearance: none;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  padding: 8px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.term-option-active {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(31 35 72 / 12%);
+}
+
+.term-option-name {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.term-option-price {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
 .sheet-suggest {
   appearance: none;
   align-self: flex-start;

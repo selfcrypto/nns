@@ -24,10 +24,21 @@ import {
   tryParseAddress,
   tryParseEvmAddress,
   type BuiltTransaction,
+  termFor,
 } from '@nns/core'
 import { getNameInfo, type ApiParams, type NameInfo } from './api'
 import { approxDate, blocksApprox, ellipsizeAddress, formatApproxDate, lunaToNim } from './format'
-import { auctionOutlivesTermLine, bidRefundLine, giftRenewalLine, offerStaysLine, referredByLine, registerPaysLine, soldByLine } from './wording'
+import {
+  auctionOutlivesTermLine,
+  bidRefundLine,
+  giftRenewalLine,
+  newExpiryLine,
+  offerStaysLine,
+  referredByLine,
+  registerLifetimePaysLine,
+  registerPaysLine,
+  soldByLine,
+} from './wording'
 import { isReferralName } from './referral'
 import { percentOf, referralRateBp } from './referralRates'
 import { auctionEndHeight, auctionOutlivesTerm, cancellableNow, offerCancellableAt, sameAddress, registrationFee } from './states'
@@ -35,8 +46,8 @@ import type { AppAction } from './states'
 import type { SubmitRequest } from './wallet'
 
 export type ActionInputs =
-  | { readonly action: 'register'; readonly ref?: string | null | undefined }
-  | { readonly action: 'renew' }
+  | { readonly action: 'register'; readonly ref?: string | null | undefined; readonly lifetime?: boolean | undefined }
+  | { readonly action: 'renew'; readonly lifetime?: boolean | undefined }
   | { readonly action: 'cancel' }
   | { readonly action: 'buy' }
   | { readonly action: 'setTarget'; readonly target: string | 'reset' }
@@ -118,8 +129,11 @@ export function prepareAction(options: {
   viewers: readonly string[]
   params: ApiParams | null
   apiBase: string
+  /** The clock the review's ≈ dates ride on; a test pins it. */
+  nowMs?: number | undefined
 }): PreparedAction {
   const { inputs, name, info, signer, params, apiBase } = options
+  const nowMs = options.nowMs ?? Date.now()
   // `signer` alone when a caller holds one address, which is also what keeps
   // the single-address callers and the tests honest.
   const viewers = options.viewers.length === 0 ? [signer] : options.viewers
@@ -143,15 +157,23 @@ export function prepareAction(options: {
 
   switch (inputs.action) {
     case 'register': {
-      const fee = registrationFee(name, needParams())
+      const lifetime = inputs.lifetime === true
+      const fee = registrationFee(name, needParams(), lifetime)
       // Inert by protocol (§6 `G`), so a ref that fails the syntax here is
       // dropped rather than refused — and the builder never sees it.
       const ref = inputs.ref != null && isReferralName(inputs.ref) ? inputs.ref : null
+      // A lifetime is a plain expiry a hundred terms out (§10.4) — the review
+      // shows the date it actually is, measured from the head `/params` saw.
+      const head = info?.height ?? needParams().height
       return {
         action: 'register',
-        request: asRequest(encodeRegister({ name, fee, sender, ...(ref === null ? {} : { ref }) })),
+        request: asRequest(
+          encodeRegister({ name, fee, sender, ...(ref === null ? {} : { ref }), ...(lifetime ? { lifetime } : {}) }),
+        ),
         review: [
-          registerPaysLine(lunaToNim(fee), blocksApprox(CONSTANTS.TERM_LENGTH)),
+          lifetime
+            ? registerLifetimePaysLine(lunaToNim(fee), formatApproxDate(approxDate(head + termFor(true), head, nowMs)))
+            : registerPaysLine(lunaToNim(fee), blocksApprox(CONSTANTS.TERM_LENGTH)),
           // §10.7: the referrer's share comes out of the treasury's fee, so
           // the payer sees who benefits and that the price is unchanged.
           ...(ref === null ? [] : [referredByLine(ref, percentOf(referralRateBp(ref, info?.height ?? 0) ?? 0))]),
@@ -164,14 +186,20 @@ export function prepareAction(options: {
     }
 
     case 'renew': {
-      const fee = registrationFee(name, needParams())
+      const lifetime = inputs.lifetime === true
+      const fee = registrationFee(name, needParams(), lifetime)
       const baseline = record?.expiry ?? 0
       return {
         action: 'renew',
-        request: asRequest(encodeRenew({ name, fee, sender })),
+        request: asRequest(encodeRenew({ name, fee, sender, ...(lifetime ? { lifetime } : {}) })),
         review: [
           `Pays ${lunaToNim(fee)} NIM.`,
           'Extends from the current expiry, not from today — renewing early costs nothing extra.',
+          // Where the clock lands, as a date: for a lifetime the only honest
+          // rendering of a hundred terms, and for a term the same line.
+          ...(record !== null && info !== null
+            ? [newExpiryLine(formatApproxDate(approxDate(record.expiry + termFor(lifetime), info.height, nowMs)))]
+            : []),
           // A gift: anyone may renew (§6 `N`), and the payer must see that the
           // name stays where it is before the wallet opens.
           ...(record !== null && !ownedByViewer(record.owner) ? [giftRenewalLine(ellipsizeAddress(record.owner))] : []),

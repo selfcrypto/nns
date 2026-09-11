@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { CONSTANTS, LUNA_PER_NIM, parse } from '@nns/core'
+import { CONSTANTS, LUNA_PER_NIM, parse, termFor } from '@nns/core'
 import { ActionInputError, parseAuctionDuration, parseNimAmount, prepareAction, type ActionInputs } from './actions'
 import type { ApiParams, NameInfo } from './api'
+import { formatApproxDate } from './format'
 
 const OWNER = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
 const OTHER = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
 
+const BANDS: readonly (readonly [number, bigint])[] = [[2, 200n], [3, 100n], [4, 50n], [5, 25n], [6, 10n], [11, 5n], [24, 1n]]
+const FEES = BANDS.map(([upTo, times]) => ({ upTo, times, yearly: 40_000_000n * times, lifetime: 400_000_000n * times }))
+
 const params: ApiParams = {
-  prices: { feeStandard: 200_000_000n, feeLong: 40_000_000n, commissionBp: 250n },
+  prices: { feeBase: 40_000_000n, commissionBp: 250n },
+  fees: FEES,
   minPrice: 40_000_000n,
   listingFee: 0n,
   pendingGovernance: null,
@@ -23,8 +28,11 @@ const registered = (over?: Partial<NameInfo['pending']>): NameInfo => ({
   height: 1_000_000,
 })
 
+const NOW = Date.UTC(2026, 8, 11, 12, 0, 0)
+const dateAt = (blocksFromNow: number): string => formatApproxDate(new Date(NOW + blocksFromNow * 1000))
+
 const prepare = (inputs: ActionInputs, info: NameInfo | null = registered(), signer = OWNER) =>
-  prepareAction({ inputs, name: 'example', info, signer, viewers: [signer], params, apiBase: 'http://api' })
+  prepareAction({ inputs, name: 'example', info, signer, viewers: [signer], params, apiBase: 'http://api', nowMs: NOW })
 
 describe('prepareAction builds through core and prices exactly (§10.5)', () => {
   it('register pays the standard band exactly for a 7-char name', () => {
@@ -53,6 +61,27 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
   it('the registration review states the term from TERM_LENGTH, never a typed year', () => {
     const prepared = prepare({ action: 'register' }, null)
     expect(prepared.review[0]).toMatch(/^Pays 2,?000 NIM to the registry for a ~\d+ d term\.$/)
+  })
+
+  it('a lifetime registration pays ten yearly fees, carries L, and reviews the date it reaches (§10.4)', () => {
+    const prepared = prepare({ action: 'register', lifetime: true }, null)
+    expect(prepared.request.value).toBe(2_000_000_000n)
+    const parsed = parse(prepared.request.dataHex)
+    expect(parsed.ok && parsed.message.type === 'G' && parsed.message.lifetime).toBe(true)
+    // No record to measure from: the head is the one `/params` was served at.
+    expect(prepared.review[0]).toBe(`Pays 20000 NIM to the registry — yours until ${dateAt(termFor(true))}.`)
+    expect(prepared.review[0]).not.toMatch(/lifetime/i)
+  })
+
+  it('a renewal reviews the new expiry as a date, from the current expiry — a lifetime a hundred terms out', () => {
+    const yearly = prepare({ action: 'renew' })
+    expect(yearly.request.value).toBe(200_000_000n)
+    expect(yearly.review).toContain(`New expiry ${dateAt(2_000_000 - 1_000_000 + termFor(false))}.`)
+    const lifetime = prepare({ action: 'renew', lifetime: true })
+    expect(lifetime.request.value).toBe(2_000_000_000n)
+    const parsed = parse(lifetime.request.dataHex)
+    expect(parsed.ok && parsed.message.type === 'N' && parsed.message.lifetime).toBe(true)
+    expect(lifetime.review).toContain(`New expiry ${dateAt(2_000_000 - 1_000_000 + termFor(true))}.`)
   })
 
   it('a renewal by someone other than the owner reviews as a gift, and the owner\'s does not', () => {

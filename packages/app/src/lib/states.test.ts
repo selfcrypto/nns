@@ -12,6 +12,7 @@ import {
   identityRow,
   nameView,
   offerCancellableAt,
+  feeRowFor,
   registrationFee,
   renewalUrgency,
   sameAddress,
@@ -352,16 +353,26 @@ describe('clocks', () => {
     expect(auctionOutlivesTerm(1_999_999, 2_000_000)).toBe(false)
   })
 
-  it('registrationFee picks the band from the name length', () => {
+  it('registrationFee reads the band off /params.fees by length — a term or a lifetime, never a multiplication', () => {
+    const bands: readonly (readonly [number, bigint])[] = [[2, 200n], [3, 100n], [4, 50n], [5, 25n], [6, 10n], [11, 5n], [24, 1n]]
+    const fees = bands.map(([upTo, times]) => ({ upTo, times, yearly: 40_000_000n * times, lifetime: 400_000_000n * times }))
     const params = {
-      prices: { feeStandard: 200_000_000n, feeLong: 40_000_000n, commissionBp: 250n },
+      prices: { feeBase: 40_000_000n, commissionBp: 250n },
+      fees,
       minPrice: 40_000_000n,
       listingFee: 0n,
       pendingGovernance: null,
       height: 1,
     }
-    expect(registrationFee('short', params)).toBe(200_000_000n)
+    expect(feeRowFor('short', fees).upTo).toBe(5)
+    expect(registrationFee('short', params)).toBe(1_000_000_000n)
+    expect(registrationFee('sixsix', params)).toBe(400_000_000n)
+    expect(registrationFee('example', params)).toBe(200_000_000n)
     expect(registrationFee('averylongername', params)).toBe(40_000_000n)
+    expect(registrationFee('averylongername', params, true)).toBe(400_000_000n)
+    // A released short name renews at its own band (2026-09-11).
+    expect(registrationFee('ab', params)).toBe(8_000_000_000n)
+    expect(() => feeRowFor('x'.repeat(25), fees)).toThrow(/no fee band/)
   })
 })
 

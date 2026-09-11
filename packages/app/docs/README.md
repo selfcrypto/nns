@@ -14,7 +14,10 @@ unknown key or an unknown format.
 
 | Placeholder | Renders as | Example |
 |---|---|---|
-| `{{nim:FEE_STANDARD}}` | luna → NIM, thousands separator (every §3 amount is a whole NIM since r29) | `2,000 NIM` |
+| `{{nim:FEE_BASE}}` | luna → NIM, thousands separator (every §3 amount is a whole NIM since r29) | `400 NIM` |
+| `{{fee:7}}` · `{{lifetime:7}}` | the yearly / lifetime fee of a name of that length, `core.feeFor` at `LAUNCH_PRICES` — the band's figure, so `{{fee:7}}` and `{{fee:11}}` render alike | `2,000 NIM` · `20,000 NIM` |
+| `{{fees:table}}` | `FEE_MULTIPLIERS` as a Markdown table — length band, multiple, a year, a lifetime | a table |
+| `{{n:LONG_BAND_FROM}}` | the first length that pays `FEE_BASE` alone (the last multiplier row's lower edge), so the prose never types 12 | `12` |
 | `{{dur:TERM_LENGTH}}` | blocks → approximate duration at ~1 block/s | `~1 year` |
 | `{{blocks:TERM_LENGTH}}` | the block count | `31,536,000 blocks` |
 | `{{sec:ANCHOR_STALENESS_LIMIT_SEC}}` | seconds → duration | `48 hours` |
@@ -29,8 +32,8 @@ Two figures are typed on purpose, because they are not constants: the
 renewal reminder's **60 days** (`GRACE_PERIOD × 2`, §10.4 — the app derives
 it in `states.ts`) and the **64-byte** transaction data limit, which is a
 measured Nimiq property (`MAX_DATA_BYTES` mirrors it). `MIN_PRICE` has no
-constant — it is `FEE_LONG` in effect at the message's height — so the prose
-says "the long-name price in effect" and cites `{{nim:FEE_LONG}}` as today's.
+constant — it is `FEE_BASE` in effect at the message's height — so the prose
+says "the base price in effect" and cites `{{nim:FEE_BASE}}` as today's.
 
 ## Wording rules that bind these pages
 

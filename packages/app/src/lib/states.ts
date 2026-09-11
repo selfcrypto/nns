@@ -7,8 +7,8 @@
  * control until maturity.
  */
 
-import { CONSTANTS, feeBand, tryParseAddress } from '@nns/core'
-import type { ApiParams, NameInfo } from './api'
+import { CONSTANTS, tryParseAddress } from '@nns/core'
+import type { ApiParams, FeeRow, NameInfo } from './api'
 import type { Identity, WalletKind } from './identity'
 import type { SearchOutcome } from './search'
 
@@ -346,9 +346,21 @@ export const auctionEndHeight = (head: number, durationBlocks: number): number =
  */
 export const auctionOutlivesTerm = (endHeight: number, expiry: number): boolean => endHeight >= expiry
 
-/** The exact §10.5 value a `G` or `N` for this name must carry, from `/params`. */
-export function registrationFee(name: string, params: ApiParams): bigint {
-  return feeBand(name) === 'STANDARD' ? params.prices.feeStandard : params.prices.feeLong
+/**
+ * The §10.1 band that prices this name: the first row its length fits. The
+ * rows are `/params.fees`, priced by the api through core — the app reads a
+ * figure off the table and never multiplies (tasks/19 D3).
+ */
+export function feeRowFor(name: string, fees: readonly FeeRow[]): FeeRow {
+  const row = fees.find((band) => name.length <= band.upTo)
+  if (row === undefined) throw new Error(`no fee band covers a ${name.length}-character name`)
+  return row
+}
+
+/** The exact §10.5 value a `G` or `N` for this name must carry, from `/params` — for a term, or a lifetime (§10.4). */
+export function registrationFee(name: string, params: ApiParams, lifetime = false): bigint {
+  const row = feeRowFor(name, params.fees)
+  return lifetime ? row.lifetime : row.yearly
 }
 
 // ── The identity row (docs/app-ux.md §1) ────────────────────────────────────

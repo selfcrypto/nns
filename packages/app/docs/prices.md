@@ -1,18 +1,26 @@
 # Prices, terms and expiry
 
-Two prices, a one-year term, a grace period, and a public record of where the money goes.
+A price that follows length, a one-year term or a lifetime, a grace period, and a public record of where the money goes.
 
-## Two price bands
+## Price follows length
 
-| Name length | Price today | Why |
-|---|---|---|
-| 1–4 characters | Reserved — released by award or auction | Too valuable to sell first come, first served |
-| {{n:MIN_NAME_LEN}}–11 characters | {{nim:FEE_STANDARD}} | The desirable range |
-| {{n:LONG_NAME_LEN}} characters and up | {{nim:FEE_LONG}} | Nearly free to a person, still a floor against spam |
+One base price, {{nim:FEE_BASE}} a year, buys a name of {{n:LONG_BAND_FROM}} characters or more. Shorter names cost a fixed multiple of it — the multiples never change; the base can, by governance, with notice.
 
-**Why nothing is free.** Nimiq transactions cost almost nothing, so free registration would let an attacker inflate the public record until nobody can replay it. Being able to replay that record on a laptop in seconds is what makes NNS checkable ([How you know the answer is right](trust)). A price on every band keeps it small. Price, not length, is the lever: an attacker who found the long band free would simply use longer names.
+| Name length | A year | A lifetime | Why |
+|---|---|---|---|
+| 1–4 characters | Reserved — released by award or auction; then {{fee:4}} to {{fee:1}} a year | — | Too valuable to sell first come, first served |
+| 5 characters | {{fee:5}} | {{lifetime:5}} | Scarce |
+| 6 characters | {{fee:6}} | {{lifetime:6}} | |
+| 7–11 characters | {{fee:7}} | {{lifetime:7}} | The desirable range |
+| 12 characters and up | {{fee:12}} | {{lifetime:12}} | Nearly free to a person, still a floor against spam |
 
-Renewal costs the same as registration for that band, at the price in effect when the renewal lands.
+**Why nothing is free.** Nimiq transactions cost almost nothing, so free registration would let an attacker inflate the public record until nobody can replay it. Being able to replay that record on a laptop in seconds is what makes NNS checkable ([How you know the answer is right](trust)). A price on every length keeps it small. Price, not length, is the lever: an attacker who found long names free would simply use longer names.
+
+Renewal costs the same as registration for that length, at the price in effect when the renewal lands.
+
+## A year or a lifetime
+
+Every registration and renewal offers two terms. **A year** is one term. **A lifetime** is {{n:LIFETIME_TERMS}} terms bought at once for the price of {{n:LIFETIME_MULTIPLIER}}, and it is exactly that: an expiry {{n:LIFETIME_TERMS}} years out, which the app shows as the date it is. Nothing else about the name changes — it can be renewed again, transferred, sold. The word "lifetime" is the label on the choice, not a promise the registry makes about you.
 
 ## Pay exactly the price
 
@@ -28,7 +36,7 @@ The full list of what is refunded and what is not: [When a transaction is refuse
 
 ## The term
 
-A registration lasts **{{dur:TERM_LENGTH}}** from the block it lands in. Renewing extends it by another term **from the current expiry**, not from today, so renewing early never costs you time.
+A registration lasts **{{dur:TERM_LENGTH}}** from the block it lands in — or {{n:LIFETIME_TERMS}} of them, for a lifetime. Renewing extends it by another term, or a lifetime, **from the current expiry**, not from today, so renewing early never costs you time.
 
 **Anyone can renew any name.** A renewal is a payment to the treasury naming the name; it needs no signature from the owner. Ownership does not change.
 
@@ -67,7 +75,7 @@ A fee fixed in NIM drifts with the NIM price, so the two registration prices and
 
 | What | Limit |
 |---|---|
-| Either price | Between {{nim:PRICE_FLOOR}} and {{nim:PRICE_CEILING}} |
+| The base price | Between {{nim:PRICE_FLOOR}} and {{nim:PRICE_CEILING}}; the multiples are fixed |
 | Ordering | The long-name price can never exceed the standard price |
 | Commission | At most {{pct:COMMISSION_CEILING}}, moving by at most {{pct:COMMISSION_MAX_STEP}} per change |
 | Notice | Takes effect no sooner than {{dur:GOVERNANCE_DELAY}} after it lands |

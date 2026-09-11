@@ -175,6 +175,22 @@ const scenarios = {
     try { await evaluate(`__clickText('.action-go', 'Register')`) } catch {}
     await sleep(800); await shot('buy-register', true)
   },
+  // The term choice (tasks/19 D3): the Lifetime segment, and the review under it as a date.
+  'buy-register-lifetime': async () => {
+    await load(); await search('zebra-quick-fox')
+    try { await evaluate(`__clickText('.action-go', 'Register')`) } catch {}
+    await sleep(800)
+    await evaluate(`__clickText('.term-option', 'Lifetime')`)
+    await sleep(800); await shot('buy-register-lifetime', true)
+  },
+  'owner-renew-lifetime': async () => {
+    await loadAsOwner(); await tab('My Names'); await sleep(2500)
+    await evaluate(`__click('.name-row')`); await sleep(4000)
+    await evaluate(`[...document.querySelectorAll('.owner-action-tile')].find(t => t.textContent.includes('Renew Registration')).click()`)
+    await sleep(800)
+    await evaluate(`__clickText('.term-option', 'Lifetime')`)
+    await sleep(800); await shot('owner-renew-lifetime', true)
+  },
   'buy-available': async () => { await load(); await search('zebra-quick-fox'); await shot('buy-available', true) },
   'buy-reserved': async () => { await load(); await search('ab'); await shot('buy-reserved', true) },
   'buy-delegated': async () => { await load(); await search('rico.nns'); await shot('buy-delegated', true) },

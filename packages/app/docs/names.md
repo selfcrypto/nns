@@ -46,7 +46,7 @@ A reserved name is not lost. The administrator can do one of three things with i
 |---|---|
 | **Hold** | Kept off the market. Nimiq and operator brands, protocol words, roles that invite impersonation. |
 | **Award** | Handed to its rightful owner on a verified request, free of charge. Exchanges, wallets, chains, brands. |
-| **Auction** | Sold in a public auction with a starting price no lower than the long-name registration price. Premium generic words — the ones a day-one script would grab first. |
+| **Auction** | Sold in a public auction with a starting price no lower than the base registration price. Premium generic words — the ones a day-one script would grab first. |
 
 **Why err on the side of reserving.** A name left off the list is registrable by anyone the moment the registry opens, and no rule can take it back once it has an owner. A name reserved by mistake comes back with one administrative message. Under-reserving is permanent; over-reserving is reversible.
 

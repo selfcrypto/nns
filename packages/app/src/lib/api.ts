@@ -115,9 +115,22 @@ export interface OpenAuctions {
 }
 
 export interface FeePrices {
-  readonly feeStandard: bigint
-  readonly feeLong: bigint
+  /** The one governed price (§10.1): the yearly fee of a 12+ name, and MIN_PRICE. */
+  readonly feeBase: bigint
   readonly commissionBp: bigint
+}
+
+/**
+ * One §10.1 band as `/params.fees` serves it: a name of length at most
+ * `upTo` (and above the previous row's) costs `yearly` for a term, or
+ * `lifetime` for `LIFETIME_TERMS` of them (§10.4). The api prices the rows
+ * through core; the app reads them and never multiplies.
+ */
+export interface FeeRow {
+  readonly upTo: number
+  readonly times: bigint
+  readonly yearly: bigint
+  readonly lifetime: bigint
 }
 
 /** `/burn` — §10.2's two halves; the attestation list is served but not needed here. */
@@ -130,9 +143,15 @@ export interface BurnRecord {
 
 export interface ApiParams {
   readonly prices: FeePrices
+  /** Seven rows in ascending length; the first two are reserved by rule. */
+  readonly fees: readonly FeeRow[]
   readonly minPrice: bigint
   readonly listingFee: bigint
-  readonly pendingGovernance: { readonly prices: FeePrices; readonly effectiveHeight: number } | null
+  readonly pendingGovernance: {
+    readonly prices: FeePrices
+    readonly fees: readonly FeeRow[]
+    readonly effectiveHeight: number
+  } | null
   readonly height: number
 }
 
@@ -213,10 +232,22 @@ const readAuction = (value: unknown, path: string): ApiAuction => {
 const readPrices = (value: unknown, path: string): FeePrices => {
   const body = record(value, path)
   return {
-    feeStandard: luna(body['feeStandard'], `${path}.feeStandard`),
-    feeLong: luna(body['feeLong'], `${path}.feeLong`),
+    feeBase: luna(body['feeBase'], `${path}.feeBase`),
     commissionBp: luna(body['commissionBp'], `${path}.commissionBp`),
   }
+}
+
+const readFees = (value: unknown, path: string): readonly FeeRow[] => {
+  if (!Array.isArray(value) || value.length === 0) throw new ApiError('MALFORMED', `${path} is not a non-empty list`, 200)
+  return value.map((item, index) => {
+    const body = record(item, `${path}[${index}]`)
+    return {
+      upTo: num(body['upTo'], `${path}[${index}].upTo`),
+      times: luna(body['times'], `${path}[${index}].times`),
+      yearly: luna(body['yearly'], `${path}[${index}].yearly`),
+      lifetime: luna(body['lifetime'], `${path}[${index}].lifetime`),
+    }
+  })
 }
 
 const errorCode = (body: unknown): string | null => {
@@ -363,6 +394,7 @@ export async function getParams(base: string, fetchJson: JsonFetch = jsonFetch):
   const body = record(await request(fetchJson, base, '/params'), 'response')
   return {
     prices: readPrices(body['prices'], 'prices'),
+    fees: readFees(body['fees'], 'fees'),
     minPrice: luna(body['minPrice'], 'minPrice'),
     listingFee: luna(body['listingFee'], 'listingFee'),
     pendingGovernance:
@@ -372,6 +404,7 @@ export async function getParams(base: string, fetchJson: JsonFetch = jsonFetch):
             const pending = record(body['pendingGovernance'], 'pendingGovernance')
             return {
               prices: readPrices(pending['prices'], 'pendingGovernance.prices'),
+              fees: readFees(pending['fees'], 'pendingGovernance.fees'),
               effectiveHeight: num(pending['effectiveHeight'], 'pendingGovernance.effectiveHeight'),
             }
           })(),

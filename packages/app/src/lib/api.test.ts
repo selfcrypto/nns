@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { ApiError, getAuctions, getBurn, getNameInfo, getOffers, getParams, getReferrals, type JsonFetch } from './api'
 
+const FEES_WIRE = ([[2, 200n], [3, 100n], [4, 50n], [5, 25n], [6, 10n], [11, 5n], [24, 1n]] as const).map(([upTo, times]) => ({
+  upTo,
+  times: times.toString(),
+  yearly: (40_000_000n * times).toString(),
+  lifetime: (400_000_000n * times).toString(),
+}))
+
 const respond =
   (routes: Record<string, { status: number; body: unknown }>): JsonFetch =>
   (url) => {
@@ -103,7 +110,8 @@ describe('luna amounts', () => {
           '/params': {
             status: 200,
             body: {
-              prices: { feeStandard: '2e8', feeLong: '40000000', commissionBp: '250' },
+              prices: { feeBase: '2e8', commissionBp: '250' },
+              fees: FEES_WIRE,
               minPrice: '40000000',
               listingFee: '0',
               lastGovernanceHeight: null,
@@ -139,18 +147,26 @@ describe('luna amounts', () => {
         '/params': {
           status: 200,
           body: {
-            prices: { feeStandard: '200000000', feeLong: '40000000', commissionBp: '250' },
+            prices: { feeBase: '40000000', commissionBp: '250' },
+            fees: FEES_WIRE,
             minPrice: '40000000',
             listingFee: '0',
             lastGovernanceHeight: 5,
-            pendingGovernance: { prices: { feeStandard: '100000000', feeLong: '40000000', commissionBp: '250' }, effectiveHeight: 99 },
+            pendingGovernance: {
+              prices: { feeBase: '80000000', commissionBp: '250' },
+              fees: FEES_WIRE.map((row) => ({ ...row, yearly: '1', lifetime: '10' })),
+              effectiveHeight: 99,
+            },
             height: 10,
           },
         },
       }),
     )
-    expect(params.prices.feeStandard).toBe(200_000_000n)
-    expect(params.pendingGovernance?.prices.feeStandard).toBe(100_000_000n)
+    expect(params.prices.feeBase).toBe(40_000_000n)
+    expect(params.fees).toHaveLength(7)
+    expect(params.fees[5]).toEqual({ upTo: 11, times: 5n, yearly: 200_000_000n, lifetime: 2_000_000_000n })
+    expect(params.pendingGovernance?.prices.feeBase).toBe(80_000_000n)
+    expect(params.pendingGovernance?.fees[0]?.lifetime).toBe(10n)
     expect(params.pendingGovernance?.effectiveHeight).toBe(99)
   })
 })
