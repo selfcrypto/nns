@@ -170,7 +170,7 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 | **Malicious or compromised delegate resolver** | Not covered by proofs — clients MUST label delegated results differently (§8.5) | A parent can misdirect its own subdomains; scope limited to that parent |
 | Confusable names (digit/letter) | Digits barred between letters, and `0`/`1` barred at either end — the boundary clause adopted in r6 (§4.2) | Accepted residual: confusions needing neither an interior digit nor a leading/trailing `0`/`1` |
 | Confusable names (multigraph) | Rendering (§4.3), identicons, first-use pinning (§8.5) | Accepted residual |
-| Admin key compromise | **A fork, with `GOVERNANCE_DELAY`'s ~24 h of public notice in front of a `P`.** A `P` is on-chain before it bites; the price rails (`PRICE_FLOOR`/`PRICE_CEILING`) are fat-finger protection, not a defence, and there are no rate limits (§10.6). A `U` has no notice since r22 and takes effect on landing, but reaches only `RESERVED_NAMES`, never a name with an owner | Visible, and reversible only by coordination: `ADMIN_ADDRESS` is a §3 constant, so a stolen key is routed around by a spec revision, not rotated. Within a day it can reprice the registry anywhere inside the rails; it can give away reserved names one public `U` at a time, immediately, which is a day earlier than before r22 and against a remedy that took days either way |
+| Admin key compromise | **A fork, with `GOVERNANCE_DELAY`'s ~24 h of public notice in front of a `P`.** A `P` is on-chain before it bites; the price rails (`PRICE_FLOOR`/`PRICE_CEILING`) are fat-finger protection, not a defence, and there are no rate limits (§10.6). A `U` has no notice since r22 and takes effect on landing, and since 2026-09-11 awards any name without an owner — never one with | Visible, and reversible only by coordination: `ADMIN_ADDRESS` is a §3 constant, so a stolen key is routed around by a spec revision, not rotated. Within a day it can reprice the registry anywhere inside the rails; it can give away ownerless names one public `U` at a time, immediately, which is a day earlier than before r22 and against a remedy that took days either way |
 | **Owner key compromise** | **None. A lost or stolen owner key is a lost name**, as in ENS | Total and immediate: `O` + `B` moves the name in two blocks (§6 `B`), so not even the `X` timelock delays a thief who reads this document. v1 removed the recovery address rather than advertise a defence the owner key itself defeats (r20) |
 | Mistyped `XFER` recipient | `XFER_TIMELOCK` with owner veto via `K` — this, and not key compromise, is what the timelock is for | Permanent if unnoticed within `XFER_TIMELOCK` |
 | Chain reorganisation | State advances only on macro-block-finalised batches | None |
@@ -386,7 +386,8 @@ other — they are disjoint:
 Short names are **reserved, not invalid** — held back for later release,
 award (§6 `U`) or auction (§6 `A`), not lost. A `U` moves one out of the
 reserved set exactly as it moves `binance` out, and from that point it is a
-normal name.
+normal name. A `U` can also award a name that was never reserved (§6 `U`);
+that touches the reserved set not at all.
 
 > **This list is the primary defence against a launch land-grab** and deserves
 > an afternoon of real work rather than a token twenty entries. With
@@ -1255,17 +1256,24 @@ stronger sense that it has already happened.
 
 ```
 NNS1U<name>
+NNS1U<name>|L
 ```
 
-- **Size:** 5 + `MAX_NAME_LEN` = **29 bytes** max
+- **Size:** 5 + `MAX_NAME_LEN` + 2 = **31 bytes** max
 - **To:** `PROTOCOL_ADDRESS` to *release* the name, any other address to
   *award* it to that address. Value `DUST_VALUE` either way (§5.4)
 - Sender MUST be `ADMIN_ADDRESS`
 - `name` MUST satisfy §4.1 rules 2–5 and the rule 1 ceiling (the floor never
-  binds a `U` — every well-formed short name is reserved by rule, §4.1),
-  MUST be in `RESERVED_NAMES` (rule 6 inverted), and MUST NOT already have
-  been released
-- **One field.** A payload carrying a `|` at all is `MALFORMED_PAYLOAD` (§7.4)
+  binds a `U` — every well-formed short name is reserved by rule, §4.1).
+  For a **release** it MUST be in `RESERVED_NAMES` (rule 6 inverted) and
+  MUST NOT already have been released. For an **award** it MUST have no
+  owner: reserved and unreleased, or plain `AVAILABLE` — never `REGISTERED`
+  or in `GRACE` (`NAME_NOT_AVAILABLE`, §7.4)
+- `L`: optional lifetime term for an award (§10.4), on `G`'s terms — the
+  second field is exactly `L` or absent, anything else is
+  `MALFORMED_PAYLOAD`. A release has no term to set and ignores it. Through
+  2026-09-10 any `|` was malformed; an r21-format `U` carrying a height
+  still is
 
 **A `U` takes effect in the block it lands in**, at its own position in that
 block, like `G`, `S`, `X` and every other message. It carries no height, it is
@@ -1278,21 +1286,28 @@ cases; the transaction recipient decides which act it is:
 | Recipient | Effect, on landing |
 |---|---|
 | `PROTOCOL_ADDRESS` | **Release.** `name` leaves `RESERVED_NAMES` and is `AVAILABLE` under the normal rules |
-| Any other address | **Award.** `name` leaves `RESERVED_NAMES` and becomes `REGISTERED` to that address: `owner` and `target` both set to it, `expiry = <landing height> + TERM_LENGTH`, no delegate host, nothing pending |
+| Any other address | **Award.** `name` becomes `REGISTERED` to that address: `owner` and `target` both set to it, `expiry = <landing height> + TERM_LENGTH` — or `+ LIFETIME_TERMS × TERM_LENGTH` with `L` — no delegate host, nothing pending. A reserved name leaves `RESERVED_NAMES` on the way |
 
-Either way the name joins the unreserved set committed to in every checkpoint
-(§8.1). This is the wire mechanism for the release power in §10.6. *Adding* to
-the list remains impossible without a new spec version — that direction takes
-names away from people.
+A name that was reserved joins the unreserved set committed to in every
+checkpoint (§8.1) either way; a name that never was leaves the set untouched.
+This is the wire mechanism for the release power in §10.6, and since
+2026-09-11 for a free registration to a chosen address of any name nobody
+holds — giveaways, beta testers, a partner's name, and the re-award of
+names a rules rebuild has repriced out of the registry. Nothing is owed and
+no fee is earned: an award is outside §10.2's burn base and §10.7's share.
+*Adding* to the list remains impossible without a new spec version — that
+direction takes names away from people.
 
 **Why there is no notice period.** A notice window protects parties who can act
 on the warning, and it is worth exactly what those parties can do with it. A
 `U` has no such party in either of its forms.
 
-An **award** has no counterparty at all. The name is in `RESERVED_NAMES`, so no
-`G` for it can succeed (§7.4 `RESERVED_NAME`) and nobody holds a competing
-claim; the admin hands it to a chosen address. There is nobody the day of
-warning warns, and nothing anyone would do with it.
+An **award** has no counterparty at all. Nobody owns the name — it is
+reserved, so no `G` for it can succeed (§7.4 `RESERVED_NAME`), or it is
+`AVAILABLE` and nobody has claimed it; the admin hands it to a chosen
+address. There is nobody the day of warning warns, and nothing anyone would
+do with it — except, for an available name, race it, which a notice would
+only make easier.
 
 A **release** does have an interested party, and the interested party is a
 frontrunner. Announcing a release `GOVERNANCE_DELAY` blocks ahead means a
@@ -1321,11 +1336,11 @@ partner's behalf and then transferring, is the same race with an extra `X` and
 a period where the admin owns a name it was given to pass on.
 
 **What still bounds a stolen admin key**, since it is no longer a day of
-notice: an award reaches only `RESERVED_NAMES`, which by definition holds names
-with no owner, so it can never move, revoke or shorten a name somebody holds
-(§10.6). It cannot award to itself at all — that is a self-transaction, dropped
-silently by the network (§5.3). It spends the starting price one name and one public
-transaction at a time. And the remedy was always a fork rather than a bound
+notice: an award reaches only names with no owner, so it can never move,
+revoke or shorten a name somebody holds (§10.6). It cannot award to itself
+at all — that is a self-transaction, dropped silently by the network (§5.3).
+It spends registrations the treasury would otherwise have sold, one name and
+one public transaction at a time. And the remedy was always a fork rather than a bound
 (§10.6): the notice bought hours in front of a response that takes days to
 coordinate, and it bought them for the attacker's opponent and the frontrunner
 alike.
@@ -1333,10 +1348,16 @@ alike.
 **Ordering inside the landing block.** A `U` is an ordinary message under §5.2's
 canonical order, so a `G` for the same name in the same block is decided by
 the hash rank (r27; body position through r26). Ahead of the `U` it sees a reserved name and
-forfeits `RESERVED_NAME`. Behind a release it sees an available one and
+forfeits `RESERVED_NAME` — or, for a name that was `AVAILABLE`, registers
+it, and the award behind it then finds a `REGISTERED` name and forfeits
+`NAME_NOT_AVAILABLE`. Behind a release it sees an available one and
 registers normally. Behind an award it sees a `REGISTERED` name and takes
 `LOST_REGISTRATION_RACE` — a refund, since losing to a state change inside the
-block is precisely the concurrency loss §7.4 refunds. Through r21 an award
+block is precisely the concurrency loss §7.4 refunds. An award of an
+available name is therefore raceable from the mempool, exactly as a `G` is
+(§6.2), and accepted on the same grounds: a giveaway is a thin prize, and
+a sniper who wins one has paid the fee for a name the admin can no longer
+give. Through r21 an award
 fired in §7.3's height-driven step and therefore beat *every* `G` in its block;
 it now beats the ones behind it.
 
@@ -1364,16 +1385,21 @@ long one: handing `nq` to an exchange so it can run a delegate host is
 handing `binance` to Binance, two characters shorter. What `INVALID_NAME`
 still guards for `U` is rules 2–5 and the length ceiling (§7.4): a name
 failing those is one no client accepts, is on neither membership route, and
-no `U` may create or release it. Only rule 6 is inverted: a `U`'s name must
-be reserved, which is the whole point of it.
+no `U` may create or release it. Only rule 6 is inverted, and only for a
+release: a released name must have been reserved, which is the whole point
+of releasing it.
 
-**A second `U` for the same name is `NAME_NOT_RESERVED`.** Through r21 this was
+**A second release for the same name is `NAME_NOT_RESERVED`; a second award
+is `NAME_NOT_AVAILABLE`.** Through r21 this was
 `UNRESERVE_PENDING`, a token whose whole job was to stop two `U`s coming due
 against a state only the first of them was validated against. Executing on
 landing removes the gap the token guarded: the first `U` takes the name out of
-`RESERVED_NAMES` in its own block, so the second one fails the reservation row
-like any other `U` naming an already-released name. `UNRESERVE_PENDING` is
-therefore gone from §7.4's vocabulary — not deprecated, unreachable.
+`RESERVED_NAMES` — or gives it an owner — in its own block, so the second one
+fails its operation's own row. `UNRESERVE_PENDING` is
+therefore gone from §7.4's vocabulary — not deprecated, unreachable. An award
+*after* a release is a normal award of an available name, and a release
+after an award is `NAME_NOT_RESERVED` — the name left the set when it was
+awarded.
 
 ### `F` — Burn attestation
 
@@ -1627,9 +1653,11 @@ the more informative of two true answers.
   removed the field and the bound (§6 `U`)
 - `U` from any sender other than `ADMIN_ADDRESS`, awarding to `BURN_ADDRESS`,
   naming a name that fails §4.1 rules 2–5 or the length ceiling (the floor
-  never binds a `U`, §6 `U`), or naming a name that is not reserved or has
-  already been released. **That is the check order, and it is fixed:** sender,
-  recipient, name syntax, reservation
+  never binds a `U`, §6 `U`), releasing a name that is not reserved or has
+  already been released, or awarding a name that is `REGISTERED` or in
+  `GRACE`. **That is the check order, and it is fixed:** sender,
+  recipient, name syntax, then the operation's own row — reservation for a
+  release, availability for an award
 
   **The recipient is checked before the name**, which is the one place a
   `U` departs from the order every other type uses. It follows from §5.3: a
@@ -1640,7 +1668,9 @@ the more informative of two true answers.
   Through r20 this list read the other way round and no clause said it was an
   order at all; r21 fixed the order and stated why the recipient leads, and r22
   removed the notice row it used to lead — the reasoning is unchanged, and the
-  row it now leads is `INVALID_NAME` instead. The distinction is
+  row it now leads is `INVALID_NAME` instead. Since 2026-09-11 the recipient
+  also selects the last row: `NAME_NOT_RESERVED` for a release,
+  `NAME_NOT_AVAILABLE` for an award. The distinction is
   consensus-relevant because both conditions produce a verdict token and §8.2
   commits the token into the log hash
 
@@ -1719,7 +1749,7 @@ against a message of a listed type.
 | `WRONG_RECIPIENT` | `G` `D` `E` `K` `N` `O` `B` `A` `P` `F` | Not the recipient §5.3 routes this type to |
 | `INVALID_RECIPIENT` | `U` | Recipient is `BURN_ADDRESS` — the one address a name may not be awarded to (§6 `U`) |
 | `WRONG_SENDER` | `M` `F` | `M` from neither `MARKETPLACE_ADDRESS` nor `TREASURY_ADDRESS`; `F` from other than `TREASURY_ADDRESS` |
-| `INVALID_NAME` | `G` `U` | Name fails §4.1 rules 2–5 or the rule 1 ceiling. The floor never fires here: a 1–4 character name satisfying rules 2–5 is reserved by rule (§4.1), so a `G` for one takes `RESERVED_NAME` while it is held and is a normal registration once a `U` has released it. Rule 6 is inverted for `U`, since a `U`'s name must be *in* `RESERVED_NAMES` |
+| `INVALID_NAME` | `G` `U` | Name fails §4.1 rules 2–5 or the rule 1 ceiling. The floor never fires here: a 1–4 character name satisfying rules 2–5 is reserved by rule (§4.1), so a `G` for one takes `RESERVED_NAME` while it is held and is a normal registration once a `U` has released it. Rule 6 is inverted for a `U` release, whose name must be *in* `RESERVED_NAMES`; an award ignores rule 6 |
 | `RESERVED_NAME` | `G` | Name currently in `RESERVED_NAMES` — on the published list or reserved by rule (§4.1) — and not yet removed from it by a fired `U` |
 | `NAME_IN_GRACE` | `G` | Name exists in `GRACE` |
 | `NAME_NOT_REGISTERED` | `S` `X` `D` `E` `O` `A` | Name absent, expired, or in `GRACE` — these types require `REGISTERED`. For `A`, a name *with a record* that is not `REGISTERED`; a name with none takes the row below |
@@ -1728,7 +1758,8 @@ against a message of a listed type.
 | `INVALID_HOST` | `D` | Host fails any §6 `D` rule: over `MAX_HOST_LEN`, a character outside the §6 `D` alphabet (which is how a scheme is caught — `:` is not in it), or a leading/trailing/consecutive-character rule. Never `MALFORMED_PAYLOAD` — a bad host still splits into fields per §5.2, so the payload parses and the host is judged as content |
 | `NOT_ADMIN` | `P` `U` `A` | Sender is not `ADMIN_ADDRESS` — for `A`, on a name still held in `RESERVED_NAMES` (§6 `A`) |
 | `INSUFFICIENT_NOTICE` | `P` `A` | `effective_height` less than `GOVERNANCE_DELAY` above the height of the block the message landed in; for `A` (r28), `end_height` less than `AUCTION_MIN_DURATION` above it. `U` left this row in r22 — it no longer carries a height |
-| `NAME_NOT_RESERVED` | `U` | Name is absent from `RESERVED_NAMES`, or a `U` for it has already fired. Since r22 this is also what a second `U` for the same name earns: the first one fired on landing, so there is nothing pending to collide with |
+| `NAME_NOT_RESERVED` | `U` (release) | Name is absent from `RESERVED_NAMES`, or a `U` for it has already fired. Since r22 this is also what a second release for the same name earns: the first one fired on landing, so there is nothing pending to collide with |
+| `NAME_NOT_AVAILABLE` | `U` (award) | Name is `REGISTERED` or in `GRACE` — somebody holds it, and §10.6 lets no `U` touch a held name. A reserved-and-unreleased name and a plain `AVAILABLE` one both pass (2026-09-11) |
 | `GOVERNANCE_BOUND_VIOLATED` | `P` | A §10.6 bound exceeded, measured against the **active** prices |
 | `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no `O` past `OFFER_IRREVOCABLE` |
 | `BELOW_MIN_PRICE` | `O` `A` | Price, or starting price, below `MIN_PRICE`, which is `FEE_BASE` at this message's height |
@@ -1797,7 +1828,7 @@ each type runs its rows in this order:
 | `M`, `F` | `WRONG_SENDER` |
 | `A` | `NAME_NOT_REGISTERED` / `NAME_NOT_FOUND` (which auction this is), `NOT_OWNER` / `NOT_ADMIN`, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM` — state, authority, pending status, payload (§6 `A`) |
 | `P` | `NOT_ADMIN`, `INSUFFICIENT_NOTICE`, `GOVERNANCE_BOUND_VIOLATED` |
-| `U` | `NOT_ADMIN`, `INVALID_RECIPIENT`, `INVALID_NAME`, `NAME_NOT_RESERVED` |
+| `U` | `NOT_ADMIN`, `INVALID_RECIPIENT`, `INVALID_NAME`, then `NAME_NOT_RESERVED` (release) or `NAME_NOT_AVAILABLE` (award) — the recipient chose which |
 
 `BELOW_REFUND_FLOOR` is not a position in that order: it substitutes for
 whichever refund token the message had already earned.
@@ -1806,10 +1837,10 @@ whichever refund token the message had already earned.
 sits directly after `NOT_ADMIN` because the recipient decides which of two
 operations the message even is, and a release and an award are not the same
 act; the two name rows then run from the most fundamental fact about the name
-outward — its syntax, then whether it is reserved — so each can assume the one
-above it. r22 removed two rows from the middle and the end of this order,
-`INSUFFICIENT_NOTICE` and `UNRESERVE_PENDING`, without disturbing the four that
-remain.
+outward — its syntax, then whether the operation can have it — so each can
+assume the one above it. r22 removed two rows from the middle and the end of
+this order, `INSUFFICIENT_NOTICE` and `UNRESERVE_PENDING`, without disturbing
+the four that remain; 2026-09-11 split the last one by operation.
 
 What the orders have in common is that a message's **own payload is checked
 before the value it carried** — `G`'s name syntax, `O`'s price floor — so a
@@ -1922,7 +1953,8 @@ committed to in the checkpoint alongside it, or independent replays diverge:
   means and who holds it at the close.
   Through r21 a pending `U` was a fourth category here; r22 made a `U` take
   effect on landing (§6 `U`), so nothing of the sort exists to commit.
-- The **unreserved set** — the names whose `U` has already taken effect.
+- The **unreserved set** — the reserved names whose `U` has already taken
+  effect. An award of a name that was never reserved adds nothing to it.
 
 The unreserved set was missing through r15, and its absence was the sharpest
 hole in this clause. Under r16–r21 a pending `U` was committed under tag `0x09`
@@ -2975,10 +3007,11 @@ floor in one message, and the floor being 1 NIM rather than 0 changes nothing
 about the response.
 
 The `U` award (§6) is the other thing a stolen key reaches, and the same
-argument covers it. It can hand out reserved names, one public transaction at a
-time, each rejected outright by the same fork; it cannot award to itself, and it
-cannot touch a name that has an owner. The reserved list is a finite asset the
-key can start spending in public, not a lever on the registry.
+argument covers it. It can hand out ownerless names — reserved or merely
+available — one public transaction at a time, each rejected outright by the
+same fork; it cannot award to itself, and it cannot touch a name that has an
+owner. Unsold registrations are an asset the key can start spending in
+public, not a lever on the registry.
 
 **A `U` carries no notice, since r22.** The day of warning it used to carry was
 worth nothing against this attacker and something real against the honest use:
@@ -3002,9 +3035,10 @@ governance into something slower and more dangerous than a visible,
 versioned edit.
 
 **In scope:** `FEE_BASE` and `COMMISSION_RATE` (via `P`),
-and *releasing* names from `RESERVED_NAMES` — or *awarding* one directly to a
-named address, which is the same `U` under a different recipient (§6 `U`), and
-which since r22 takes effect on landing rather than under notice.
+and *releasing* names from `RESERVED_NAMES` — or *awarding* any ownerless
+name directly to a named address, which is the same `U` under a different
+recipient (§6 `U`), and which since r22 takes effect on landing rather than
+under notice.
 
 **Out of scope — requires a new spec version applying from a stated height:**
 name validity rules (§4), `FEE_MULTIPLIERS`, `LIFETIME_MULTIPLIER`,
@@ -3014,11 +3048,11 @@ touching the ownership of a name that *has* an owner, and *adding* to
 `RESERVED_NAMES`.
 
 The ownership line is worth stating precisely, because the `U` award crosses
-part of it. Governance can give away a name in `RESERVED_NAMES`, which by
-construction nobody owns; it can never move, revoke, shorten, or expire a name
-somebody holds. An award is the namespace's starting price being spent, not a
-registry entry being rewritten, and every one of them is public in the block it
-binds in.
+part of it. Governance can give away a name nobody owns — in
+`RESERVED_NAMES`, or simply `AVAILABLE` (since 2026-09-11); it can never
+move, revoke, shorten, or expire a name somebody holds. An award is a
+registration the treasury chose not to sell, not a registry entry being
+rewritten, and every one of them is public in the block it binds in.
 Changing validity or the multiplier table retroactively would reprice or
 invalidate names people already paid for. A commission change binds at the
 `B`'s block height, so a seller's open offer can be settled at a rate they
