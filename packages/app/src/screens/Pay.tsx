@@ -12,6 +12,13 @@
  * therefore this screen's to make, and both failures are silent on-chain: the
  * RPC accepts a self-transaction and the network drops it (rpc-reference), and a
  * zero value is rejected outright.
+ *
+ * A payment may carry a **reference** — the payer's own note, or the one a
+ * `#/pay/<name>?amount=…&message=…` link arrived with (`lib/payRequest.ts`).
+ * It goes in the transaction's data field, so the two rules that field has are
+ * this screen's to enforce before the button lights: §5.1's 64 bytes, and
+ * §7.5's `NNS1` prefix. Both fail silently on-chain, which is why neither is
+ * discovered afterwards.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -26,6 +33,9 @@ import {
   type EvmSendOutcome,
 } from '../lib/evm'
 import { requestHostEvmAddress } from '../lib/sdk'
+import { CONSTANTS } from '@nns/core'
+import { bytesToHex } from '../lib/hex'
+import { payMessageBytes, payMessageFault, payRequestFromHash } from '../lib/payRequest'
 import { lunaToNim } from '../lib/format'
 import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
@@ -45,6 +55,14 @@ import {
   payAmountLabel,
   payButtonLabel,
   payFromLabel,
+  payMessageBudgetLine,
+  payMessageEditLabel,
+  payMessageFromLinkLine,
+  payMessageHint,
+  payMessageLabel,
+  payMessagePlaceholder,
+  payUsdtNoMessageLine,
+  PAY_MESSAGE_FAULT_TEXT,
   payModeNimLabel,
   payIdleTitle,
   payModeUsdtAria,
@@ -76,6 +94,7 @@ import {
   sendUnconfirmedLine,
   unreachableLine,
 } from '../lib/wording'
+import { Hint } from '../components/Hint'
 import { NameCard } from '../components/NameCard'
 import { PinCheck } from '../components/PinCheck'
 import { AddressRow } from '../components/result'
@@ -111,7 +130,18 @@ export function PayScreen({
   // Seeded by Buy's "Pay this address" handoff, with the query as typed — a
   // dotted one included, since this screen resolves through the same `search()`.
   const [text, setText] = useState(seed)
-  const [amount, setAmount] = useState('')
+  /**
+   * What the link asked for. Read **in a render-phase initializer**, never in
+   * an effect: `useDebounced` seeds with its initial value, so the `onQuery`
+   * effect below fires on the first commit, and `App.tsx`'s `replaceState`
+   * rewrites the hash through `formatRoute`, which cannot carry a query. Any
+   * effect of this screen's would already be looking at a stripped hash.
+   */
+  const [request] = useState(() => payRequestFromHash(window.location.hash))
+  const [amount, setAmount] = useState(request.amount ?? '')
+  const [message, setMessage] = useState(request.message ?? '')
+  /** A reference that arrived with the link is the payee's wording until Edit. */
+  const [messageLocked, setMessageLocked] = useState(request.message !== null)
   const [nonce, setNonce] = useState(0)
 
   /**
@@ -121,7 +151,7 @@ export function PayScreen({
    * resolution leg is identical and verified identically; only the address
    * field consumed and the send plane differ.
    */
-  const [mode, setMode] = useState<'nim' | 'usdt'>('nim')
+  const [mode, setMode] = useState<'nim' | 'usdt'>(request.asset ?? 'nim')
   const [usdtSending, setUsdtSending] = useState(false)
   const [usdtResult, setUsdtResult] = useState<EvmSendOutcome | null>(null)
   const [chosenSender, setChosenSender] = useState<string | null>(null)
@@ -213,11 +243,22 @@ export function PayScreen({
   // hash, so nothing downstream would ever report this.
   const self = resolved !== null && sender !== null && sameAddress(sender, resolved.address)
 
+  // The reference's two rules, judged once (`lib/payRequest.ts`). Both are
+  // silent on-chain, so the button is what refuses — never the network.
+  const messageFault = payMessageFault(message)
+
   const luna = parsed !== null && 'luna' in parsed ? parsed.luna : null
   const nimHeld = nimBalance.status === 'done' && nimBalance.value !== null ? nimBalance.value.total : null
   const nimMine = nimBalance.status === 'done' && nimBalance.value !== null ? nimBalance.value.mine : null
   const canPay =
-    resolved !== null && sender !== null && luna !== null && !self && !pinBlocking && wallet !== null && progress === 'idle'
+    resolved !== null &&
+    sender !== null &&
+    luna !== null &&
+    !self &&
+    !pinBlocking &&
+    wallet !== null &&
+    messageFault === null &&
+    progress === 'idle'
 
   const usdtUnits = parsedUsdt !== null && 'units' in parsedUsdt ? parsedUsdt.units : null
   const usdtHeld = usdtBalance.status === 'done' ? usdtBalance.value : null
@@ -237,13 +278,23 @@ export function PayScreen({
 
   const pay = async () => {
     if (resolved === null || sender === null || luna === null || wallet === null) return
+    // Never send without the reference the payer meant to attach: a payment
+    // that arrives unlabelled is the silent drop this check exists to prevent.
+    if (messageFault !== null) return
     setResult(null)
     const transport = defaultTransport()
     const outcomeOfSend = await performSend({
       wallet,
       transport,
-      // No NNS message: a plain transfer carries no data at all.
-      request: { sender, recipient: resolved.address, value: luna, dataHex: '' },
+      // No NNS message — the data field carries the payer's reference, if any,
+      // as plain UTF-8. Both adapters take it from here: the Hub path passes the
+      // bytes through, the Pay path decodes them back to text (`lib/hex.ts`).
+      request: {
+        sender,
+        recipient: resolved.address,
+        value: luna,
+        dataHex: message === '' ? '' : bytesToHex(new TextEncoder().encode(message)),
+      },
       confirm: {
         poll: async (hash) => {
           if (hash === null || transport === null) return false
@@ -255,7 +306,11 @@ export function PayScreen({
     })
     setProgress('idle')
     setResult(outcomeOfSend)
-    if (outcomeOfSend.status === 'confirmed') setAmount('')
+    if (outcomeOfSend.status === 'confirmed') {
+      setAmount('')
+      setMessage('')
+      setMessageLocked(false)
+    }
   }
 
   return (
@@ -511,6 +566,13 @@ export function PayScreen({
                   </div>
                 </div>
 
+                {/* An ERC-20 transfer is a selector and two arguments (`lib/evm.ts`):
+                    there is nowhere to put a note. Saying so is the point — a
+                    reference dropped in silence is the failure the byte rule
+                    exists to prevent. */}
+                {message !== '' && (
+                  <p className={styles.messageNote} style={{ margin: 0 }}>{payUsdtNoMessageLine()}</p>
+                )}
                 {parsedUsdt !== null && 'error' in parsedUsdt && (
                   <p className="field-error" style={{ margin: 0 }}>{parsedUsdt.error}</p>
                 )}
@@ -648,6 +710,43 @@ export function PayScreen({
                   </div>
                 </div>
 
+                <div className={styles.fieldLabel}>
+                  <div className={styles.amountHeader}>
+                    <span className={styles.amountLabel}>
+                      {payMessageLabel()} <Hint>{payMessageHint()}</Hint>
+                    </span>
+                    {messageLocked && (
+                      <button type="button" className={styles.maxBtn} onClick={() => setMessageLocked(false)}>
+                        {payMessageEditLabel()}
+                      </button>
+                    )}
+                  </div>
+                  <div className={styles.amountInputContainer}>
+                    <input
+                      className={`pay-input ${styles.amountInput} ${styles.messageInput}`}
+                      type="text"
+                      placeholder={payMessagePlaceholder()}
+                      value={message}
+                      // `readOnly`, not `disabled`: the text stays selectable and
+                      // announced, and Edit is the one way to take it over.
+                      readOnly={messageLocked}
+                      onChange={(event) => setMessage(event.target.value)}
+                      aria-label={payMessageLabel()}
+                    />
+                  </div>
+                  <div className={styles.messageFooter}>
+                    <span className={styles.messageNote}>{messageLocked ? payMessageFromLinkLine() : ''}</span>
+                    {message !== '' && (
+                      <span className={`composer-count ${messageFault === 'OVER_BUDGET' ? 'composer-over' : ''}`}>
+                        {payMessageBudgetLine(payMessageBytes(message), CONSTANTS.MAX_DATA_BYTES)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {messageFault !== null && (
+                  <p className="field-error" style={{ margin: 0 }}>{PAY_MESSAGE_FAULT_TEXT[messageFault]}</p>
+                )}
                 {parsed !== null && 'error' in parsed && (
                   <p className="field-error" style={{ margin: 0 }}>{parsed.error}</p>
                 )}

@@ -231,6 +231,34 @@ Four things are specific to it, and three are refusals:
   the network drops it — so this screen is the only place it can be reported.
 - **Value > 0**, for the same reason: the network rejects a zero value outright.
 
+#### The payment link (2026-09-12)
+
+`#/pay/<name>?amount=25&message=INV-42[&asset=usdt]` opens this screen with the
+fields already filled, so the payer only presses Pay. `lib/payRequest.ts` parses
+it and builds it; the owner's **Request Payment** tile (My names) is the builder.
+
+- Every parameter is optional and an unparseable one is simply absent — a
+  mistyped link still opens the screen. `asset` is read only as `nim` or
+  `usdt`, and an absent one means NIM, so every link written before the
+  parameter existed keeps its meaning.
+- The amount goes into the field **as written**; the field's own check judges
+  it, so there is still one NIM parser and one USDT parser.
+- The **message** is the payer's reference, carried in the transaction's data
+  field. Two rules, both silent on-chain and therefore refused before the
+  button lights: §5.1's 64 **bytes** (not characters), and §7.5's `NNS1`
+  prefix, which every indexer reads as a protocol message. Never fall back to
+  sending without it.
+- A message that arrived with the link is **read-only until Edit** — it is the
+  payee's wording, and a payer who changes it should have to mean to.
+- **A USDT payment carries no message.** An ERC-20 `transfer` has two arguments
+  and nowhere to put one, so the screen says so and the builder refuses to put
+  a message on a USDT link. Dropping it in silence is the failure the byte rule
+  exists to prevent.
+- The parameters are read **in a render-phase initializer**, never an effect:
+  the settled query rewrites the hash through `formatRoute`, which cannot carry
+  a query, and that happens on the first commit. The same trap is why
+  `App.tsx` reads `?ref=` the same way.
+
 Confirmation is `getTransactionByHash`, as for chat, because a payment leaves no
 registry effect to poll for — and both adapters can now reach it: Pay returns a
 32-byte hash to poll with, Hub a hash from the signature it broadcasts. The

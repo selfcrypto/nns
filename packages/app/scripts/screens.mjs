@@ -205,6 +205,34 @@ const scenarios = {
   'pay': async () => { await load(); await tab('Pay'); await shot('pay-idle'); await search('nns'); await shot('pay-nns', true) },
   'pay-available': async () => { await load(); await tab('Pay'); await search('zebra-quick-fox'); await shot('pay-available', true) },
   'owner-pay-available': async () => { await loadAsOwner(); await tab('Pay'); await search('zebra-quick-fox'); await shot('owner-pay-available', true) },
+  // The payment link (`lib/payRequest.ts`): the amount prefilled, the
+  // reference locked with its Edit. Navigated to directly, because the point
+  // is what a link does on arrival.
+  'pay-link': async () => {
+    await send('Page.navigate', { url: URL })
+    await sleep(300)
+    await evaluate(`localStorage.removeItem('nns.hub.addresses'); true`)
+    await send('Page.navigate', { url: `${URL}#/pay/paylink-demo?amount=12.5&message=INV-42` })
+    await sleep(4000); await evaluate(helpers); await shot('pay-link', true)
+  },
+  'owner-request': async () => {
+    await loadAsOwner(); await tab('My Names'); await sleep(2500)
+    await evaluate(`__click('.name-row')`); await sleep(4000)
+    await evaluate(`[...document.querySelectorAll('.owner-action-tile')].find(t => t.textContent.includes('Request Payment')).click()`)
+    await sleep(500)
+    await evaluate(`__type('.modal-input', '12.5')`)
+    await evaluate(`const i = document.querySelectorAll('.modal-input')[1]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'INV-42'); i.dispatchEvent(new Event('input',{bubbles:true})); true`)
+    await sleep(500); await shot('owner-request', true)
+  },
+  // The same link asking for USDT: the asset row (an `E` record is what shows
+  // it), no message field, and Pay opening in USDT mode on the other address.
+  'pay-link-usdt': async () => {
+    await send('Page.navigate', { url: URL })
+    await sleep(300)
+    await evaluate(`localStorage.removeItem('nns.hub.addresses'); true`)
+    await send('Page.navigate', { url: `${URL}#/pay/paylink-demo?amount=25&asset=usdt` })
+    await sleep(4000); await evaluate(helpers); await shot('pay-link-usdt', true)
+  },
   'names': async () => { await load(); await tab('My Names'); await shot('names') },
   'inbox': async () => { await load(); await tab('Inbox'); await shot('inbox') },
   'market': async () => { await load(); await tab('Market'); await shot('market', true) },

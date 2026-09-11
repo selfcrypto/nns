@@ -276,4 +276,8 @@ its refusals exist nowhere else in the app and both failures are silent on-chain
 | Amount zero | "Enter an amount above zero." The network rejects a zero value outright (§5.4) |
 | The name points at the payer | refused before the wallet opens: Nimiq accepts a self-transaction at the RPC, returns a hash, and drops it — nothing downstream would ever report it |
 | Sending | the §4 send machine's lines, unchanged; confirmation is the transaction by hash, since a payment leaves no registry effect |
+| **A link filled the fields** | `?amount=` goes into the amount field as written and `?message=` into the reference field, **locked** with an Edit beside it and "Came with the payment link." under it; `?asset=usdt` opens the screen in USDT mode (app-ux §3) |
+| Reference over 64 bytes | "Too long — a message travels in 64 bytes." The counter reads bytes, not characters, and the Pay button is disabled: 65+ is accepted by the RPC, returns a hash, and never lands in a block (§5.1) |
+| Reference starting `NNS1` | "A message can't start with NNS1 — that is how a name message is written." Every indexer would read it as a protocol message (§7.5). Exact case: a lowercase `nns1` is invisible to every reader and is not refused |
+| A reference in USDT mode | "A USDT payment carries no message. Pay in NIM to send one." Said, never dropped in silence — an ERC-20 `transfer` has nowhere to put one |
 | Nimiq Pay | sends, since 2026-08-21 — the sheet honours the app's `value` and `fee` exactly (§10.5 holds; `docs/rpc-reference.md` §8.1). No wallet-specific line: the send machine's own wording covers both adapters |

@@ -14,6 +14,7 @@
 import type { QuorumReport, WarningCode } from '@nns/resolver'
 import type { AppAction, Cancellable, GateReason } from './states'
 import type { QueryFault } from './search'
+import type { PayMessageFault } from './payRequest'
 import { CONSTANTS, type LabelInvalidReason, type NameInvalidReason } from '@nns/core'
 import { blocksApprox, lunaToNim } from './format'
 
@@ -601,6 +602,33 @@ export const payAmountLabel = (): string => 'Amount in NIM'
 
 export const payButtonLabel = (nim: string | null): string => (nim === null ? 'Pay' : `Pay ${nim} NIM`)
 
+/**
+ * The reference a payment carries (`lib/payRequest.ts`). Nimiq's own wallets
+ * call this field the message, so this does too — it is the word the payer
+ * will see again in the wallet that receives it.
+ */
+export const payMessageLabel = (): string => 'Message'
+
+export const payMessagePlaceholder = (): string => 'What it’s for'
+
+export const payMessageHint = (): string =>
+  `A note for whoever receives this — an invoice or an order number, so they can tell which payment is which. It travels with the payment and is written on the chain: public, permanent, and readable by anyone, against both addresses. There is room for ${CONSTANTS.MAX_DATA_BYTES} bytes, which is ${CONSTANTS.MAX_DATA_BYTES} ordinary letters and fewer when it carries accents or emoji.`
+
+export const payMessageBudgetLine = (used: number, budget: number): string => `${used}/${budget} bytes`
+
+/** The message came with the link, so it is the payee's wording until the payer takes it over. */
+export const payMessageFromLinkLine = (): string => 'Came with the payment link.'
+
+export const payMessageEditLabel = (): string => 'Edit'
+
+export const PAY_MESSAGE_FAULT_TEXT: Record<PayMessageFault, string> = {
+  OVER_BUDGET: `Too long — a message travels in ${CONSTANTS.MAX_DATA_BYTES} bytes.`,
+  RESERVED_PREFIX: 'A message can’t start with NNS1 — that is how a name message is written.',
+}
+
+/** An ERC-20 transfer has two arguments and nowhere to put a note (`lib/evm.ts`). */
+export const payUsdtNoMessageLine = (): string => 'A USDT payment carries no message. Pay in NIM to send one.'
+
 // ── The USDT · Polygon mode (§6 E consumes the record it wrote) ────────────
 
 export const payModeNimLabel = (): string => 'NIM'
@@ -1008,6 +1036,7 @@ export const OWNER_GROUP_TITLE = {
   records: 'Routing & Records',
   ownership: 'Ownership & Renewal',
   market: 'Marketplace',
+  payments: 'Payment Links',
   referrals: 'Referrals',
 } as const
 
@@ -1019,6 +1048,19 @@ export const shareCopyFailedLine = (link: string): string => `Copy this link: ${
 export const shareInGraceLine = (): string => 'Renew first — a name in grace can’t refer.'
 export const referralsCountLine = (count: number, nim: string): string =>
   count === 0 ? 'No registrations referred yet' : `${count} referred · ≈${nim} NIM at today’s prices`
+/** The owner's payment link (`lib/payRequest.ts`): builds `#/pay/<name>`; not a transaction. */
+export const REQUEST_TILE = { title: 'Request Payment', hint: 'A link that opens Pay, filled in' } as const
+export const requestSheetTitle = (): string => 'Request a payment'
+/** The sheet's subtitle sits on one line (`.modal-subtitle`), so it says the one thing. */
+export const requestSheetIntro = (name: string): string => `A link to ${name}’s Pay screen`
+export const requestAmountLabel = (asset: 'nim' | 'usdt'): string =>
+  asset === 'usdt' ? 'Amount in USDT' : 'Amount in NIM'
+export const requestAssetLabel = (): string => 'Paid in'
+export const requestLinkLabel = (): string => 'Your link'
+export const copyLinkLabel = (): string => 'Copy link'
+/** A name in grace does not resolve (§7.3), so a link to it has nothing to pay. */
+export const requestInGraceLine = (): string => 'Renew first — a name in grace can’t be paid.'
+
 export const shareHint = (percent: string): string =>
   `Anyone who registers through your link pays the same price, and this name’s address receives ${percent} of the fee, paid by the registry after each registration.`
 

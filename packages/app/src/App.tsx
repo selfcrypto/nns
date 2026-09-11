@@ -94,10 +94,19 @@ export function App() {
 
   // A share link (`?ref=<name>`, §10.7) is remembered until a registration
   // confirms — first wins, and a bad one is dropped silently (lib/referral.ts).
+  //
+  // Read in a **render-phase initializer**, not in the effect that writes it.
+  // The hash form (`#/buy?ref=x`) does not survive an effect: `useDebounced`
+  // seeds with its initial value, so Buy's and Pay's `onQuery` fire on the
+  // first commit and `replace()` below rewrites the hash through `formatRoute`,
+  // which cannot emit a query — and React runs child effects before the
+  // parent's, so this effect would already be reading a stripped hash. The
+  // search form was never affected: a fragment-only `replaceState` leaves it
+  // alone, which is why every link `shareLinkFor` has emitted still works.
+  const [referral] = useState(() => referralFromLocation(window.location.search, window.location.hash))
   useEffect(() => {
-    const ref = referralFromLocation(window.location.search, window.location.hash)
-    if (ref !== null) void rememberReferral(ref)
-  }, [])
+    if (referral !== null) void rememberReferral(referral)
+  }, [referral])
 
   useEffect(() => {
     const onHash = () => setHash(window.location.hash)

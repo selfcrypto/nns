@@ -73,11 +73,14 @@ import {
   propagatingRetryLine,
   unreachableLine,
   giftRenewalLabel,
+  REQUEST_TILE,
+  requestInGraceLine,
 } from '../lib/wording'
 import { ClockIcon } from './icons'
 import { AddressRow, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from './result'
 import { ActionSheet } from './ActionSheet'
 import { MessageModal } from './MessageModal'
+import { PaymentRequestSheet } from './PaymentRequestSheet'
 import { PinCheck } from './PinCheck'
 import { Badge, RailCard, type RailTier } from './ui'
 
@@ -156,6 +159,40 @@ function ShareTile({ name, height, inGrace }: { name: string; height: number; in
         <polyline points="9 18 15 12 9 6" />
       </svg>
     </button>
+  )
+}
+
+/**
+ * The payment link (`lib/payRequest.ts`): a link to this name's Pay screen
+ * with the amount and the reference already in it. Not a transaction — the
+ * tile opens a sheet that assembles a string.
+ *
+ * Disabled in grace, and for a different reason than `ShareTile`'s: a name in
+ * grace **does not resolve** (§7.3, docs/app-states.md), so a link naming it
+ * would open Pay on the grace card with nothing payable.
+ */
+function RequestTile({ name, hasEvm, inGrace }: { name: string; hasEvm: boolean; inGrace: boolean }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button type="button" className="owner-action-tile" disabled={inGrace} onClick={() => setOpen(true)}>
+        <div className="owner-action-icon">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="2" y="5" width="20" height="14" rx="3" />
+            <line x1="2" y1="10" x2="22" y2="10" />
+            <line x1="6" y1="15" x2="10" y2="15" />
+          </svg>
+        </div>
+        <div className="owner-action-info">
+          <span className="owner-action-name">{REQUEST_TILE.title}</span>
+          <span className="owner-action-meta">{inGrace ? requestInGraceLine() : REQUEST_TILE.hint}</span>
+        </div>
+        <svg className="owner-action-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </button>
+      <PaymentRequestSheet name={name} hasEvm={hasEvm} isOpen={open} onClose={() => setOpen(false)} />
+    </>
   )
 }
 
@@ -433,6 +470,15 @@ function Actions({
             </div>
           )
         })}
+
+        {record !== null && (
+          <div className="owner-action-group">
+            <span className="owner-action-group-title">{OWNER_GROUP_TITLE.payments}</span>
+            <div className="owner-actions-grid">
+              <RequestTile name={name} hasEvm={(record.evm ?? '') !== ''} inGrace={record.status === 'GRACE'} />
+            </div>
+          </div>
+        )}
 
         {record !== null && (
           <div className="owner-action-group">

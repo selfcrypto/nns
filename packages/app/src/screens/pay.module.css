@@ -909,3 +909,24 @@
     border-radius: 12px;
   }
 }
+
+/* The reference field: the same box as the amount, in reading type rather
+   than the amount's display type, with its note and byte counter under it. */
+.messageInput {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.messageFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 14px;
+}
+
+.messageNote {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-faint);
+}
