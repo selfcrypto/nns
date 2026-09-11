@@ -301,7 +301,7 @@ NIM figures assume ~$0.0005/NIM.
 | `MAX_HOST_LEN` | 30 chars | Delegate resolver host (§6 `D`); `resolver.binance.com` is 20 |
 | `MAX_REF_LEN` | 24 chars | Referrer on a registration (§6 `G`) — a registered name, so it equals `MAX_NAME_LEN` |
 | `FEE_BASE` | 400 NIM (~$0.20) | The 12+ band's yearly fee and the base every other band is a multiple of (§10.1); **the one governable price** |
-| `FEE_MULTIPLIERS` | 5 → 25×, 6 → 10×, 7–11 → 5×, 12+ → 1× | Yearly fee by name length, as multiples of `FEE_BASE` (§10.1). Frozen: a spec revision, never a `P` |
+| `FEE_MULTIPLIERS` | 1–2 → 200×, 3 → 100×, 4 → 50×, 5 → 25×, 6 → 10×, 7–11 → 5×, 12+ → 1× | Yearly fee by name length, as multiples of `FEE_BASE` (§10.1). Frozen: a spec revision, never a `P`. 1–4 binds once a name is released, awarded or auctioned (§4.1) |
 | `LIFETIME_MULTIPLIER` | 10 | A lifetime term costs this many yearly fees of its band (§10.4) |
 | `LIFETIME_TERMS` | 100 | A lifetime term is this many `TERM_LENGTH`s — a plain expiry ~100 y out, not a sentinel (§10.4) |
 | `BURN_SHARE` | 20% | Of all revenue received, forwarded to `BURN_ADDRESS` |
@@ -2746,7 +2746,9 @@ name length. Every band is `FEE_BASE × multiplier`, per `TERM_LENGTH`:
 
 | Length | Multiplier | Yearly fee at launch | Rationale |
 |---|---|---|---|
-| 1–4 | reserved | — | Released by the admin — auctioned (§6 `A`) or awarded (§6 `U`). Most tickers and brands live here, which is what keeps the published list short |
+| 1–2 | 200× | 80,000 NIM (~$40) | Reserved by rule (§4.1) until the admin auctions (§6 `A`), awards (§6 `U`) or releases it; the band is what it costs to hold afterwards |
+| 3 | 100× | 40,000 NIM (~$20) | Reserved by rule likewise. Most tickers and brands live at 3–4, which is what keeps the published list short |
+| 4 | 50× | 20,000 NIM (~$10) | Reserved by rule likewise |
 | 5 | 25× | 10,000 NIM (~$5) | The top of the open market; priced so bulk squatting for resale is not a day-one business |
 | 6 | 10× | 4,000 NIM (~$2) | |
 | 7–11 | 5× | 2,000 NIM (~$1) | The desirable range |
@@ -2786,6 +2788,16 @@ against bloat; it is the same lever against squatting, applied where the
 scarcity is. $5 is deliberately a fraction of what ENS charges for its
 short bands — a smaller ecosystem, priced for its users rather than its
 speculators — and the cap Kike set on 2026-09-11.
+
+**Why the reserved lengths have a band at all.** A 1–4 character name
+enters the open registry by auction, award or release, and from then on
+it is a normal name: it renews by `N`, it can be re-registered after
+grace, and an award may have been yearly. The band is its holding cost —
+what a name of that scarcity costs to keep each year — and it grades by
+scarcity like the rest of the table, halving per step down. An auction
+sets the sale price once; the band is what stops a cheap early win from
+being held forever for the price of a long name. Nothing here reaches an
+award, which owes nothing, or a lifetime, which never renews.
 
 **Why the bands stop at 12 rather than moving to 14.** Raising the
 threshold does not bound bloat at all — an attacker simply uses longer names.
