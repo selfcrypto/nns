@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { parseRoute } from './route'
-import { payLinkFor, payMessageBytes, payMessageFault, payRequestFromHash } from './payRequest'
+import { payLinkFor, payMessageBytes, payMessageFault, payRequestFromHash, payRequestFromLink } from './payRequest'
 
 describe('payRequestFromHash', () => {
   it('reads the amount and the message a payment link carries', () => {
@@ -107,5 +107,67 @@ describe('payLinkFor', () => {
 
   it('falls back to a relative link when there is no origin to read', () => {
     expect(payLinkFor('donald', { amount: '25', message: null, asset: null }, '')).toBe('/#/pay/donald?amount=25')
+  })
+})
+
+describe('payRequestFromLink', () => {
+  it('reads a full link, so a payer inside Nimiq Pay can paste one in', () => {
+    expect(payRequestFromLink('https://nimiqnames.com/#/pay/donald?amount=25&message=INV-42')).toEqual({
+      name: 'donald',
+      request: { amount: '25', message: 'INV-42', asset: null },
+    })
+  })
+
+  it('reads the shapes a link gets copied as', () => {
+    for (const text of [
+      '#/pay/donald',
+      '/#/pay/donald',
+      'nimiqnames.com/#/pay/donald',
+      'https://nimiqnames.com/#/pay/donald',
+      'https://example.test/app/#/pay/donald',
+      '  https://nimiqnames.com/#/pay/donald  ',
+    ]) {
+      expect(payRequestFromLink(text)?.name).toBe('donald')
+    }
+  })
+
+  it('is null for everything a person types, since this runs on every keystroke', () => {
+    for (const text of ['', 'd', 'donald', 'pay.donald', 'NQ07 0000 …', 'https://nimiqnames.com/']) {
+      expect(payRequestFromLink(text)).toBeNull()
+    }
+  })
+
+  it('is null for a link that does not name a payee — nothing to fill the field with', () => {
+    expect(payRequestFromLink('https://nimiqnames.com/#/pay')).toBeNull()
+    expect(payRequestFromLink('https://nimiqnames.com/#/buy/donald')).toBeNull()
+    expect(payRequestFromLink('https://nimiqnames.com/#/names/donald')).toBeNull()
+    expect(payRequestFromLink('#/nonsense/donald')).toBeNull()
+  })
+
+  it('carries the asset, so a pasted USDT link opens the USDT screen', () => {
+    expect(payRequestFromLink('https://nimiqnames.com/#/pay/donald?amount=25&asset=usdt')?.request).toEqual({
+      amount: '25',
+      message: null,
+      asset: 'usdt',
+    })
+  })
+
+  it('decodes the name the one way the router does', () => {
+    expect(payRequestFromLink('https://nimiqnames.com/#/pay/pay.shopper')?.name).toBe('pay.shopper')
+    expect(payRequestFromLink('https://nimiqnames.com/#/pay/pay%2Eshopper')?.name).toBe('pay.shopper')
+  })
+
+  it('never throws on a mangled link — a retyped one still fills what it can', () => {
+    expect(() => payRequestFromLink('https://nimiqnames.com/#/pay/donald?%')).not.toThrow()
+    expect(payRequestFromLink('https://nimiqnames.com/#/pay/donald?%')?.name).toBe('donald')
+    expect(payRequestFromLink('#/pay/%E0%A4%A')).toBeNull()
+  })
+
+  it('round-trips what the builder writes, reference and all', () => {
+    const link = payLinkFor('donald', { amount: '1.5', message: '#3 / 2026', asset: null }, 'https://nimiqnames.com/')
+    expect(payRequestFromLink(link)).toEqual({
+      name: 'donald',
+      request: { amount: '1.5', message: '#3 / 2026', asset: null },
+    })
   })
 })

@@ -35,7 +35,7 @@ import {
 import { requestHostEvmAddress } from '../lib/sdk'
 import { CONSTANTS } from '@nns/core'
 import { bytesToHex } from '../lib/hex'
-import { payMessageBytes, payMessageFault, payRequestFromHash } from '../lib/payRequest'
+import { payMessageBytes, payMessageFault, payRequestFromHash, payRequestFromLink } from '../lib/payRequest'
 import { lunaToNim } from '../lib/format'
 import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
@@ -158,6 +158,31 @@ export function PayScreen({
   const [pinBlocking, setPinBlocking] = useState(false)
   const [progress, setProgress] = useState<SendPhase | 'idle'>('idle')
   const [result, setResult] = useState<SendResult | null>(null)
+
+  /**
+   * What goes into the recipient field. A **pasted payment link** fills the
+   * screen instead of being searched as a name: the field keeps the name, and
+   * the amount, the reference and the asset come with it. Anything else is the
+   * text, unchanged — `payRequestFromLink` answers `null` for every keystroke
+   * of a typed name.
+   *
+   * A link applies **whole**, exactly as one opened from the address bar does:
+   * the payer just named a different payee, so an amount or a note left over
+   * from the last one describes a payment nobody is making. One rule, whichever
+   * way the link arrived.
+   */
+  const acceptQuery = (value: string) => {
+    const link = payRequestFromLink(value)
+    if (link === null) {
+      setText(value)
+      return
+    }
+    setText(link.name)
+    setAmount(link.request.amount ?? '')
+    setMessage(link.request.message ?? '')
+    setMessageLocked(link.request.message !== null)
+    setMode(link.request.asset ?? 'nim')
+  }
 
   const trimmed = text.trim().toLowerCase()
   const [query, flushQuery] = useDebounced(trimmed, SETTLE_MS)
@@ -434,9 +459,9 @@ export function PayScreen({
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="name, or label.name"
+                  placeholder="name, label.name, or a link"
                   value={text}
-                  onChange={(event) => setText(event.target.value)}
+                  onChange={(event) => acceptQuery(event.target.value)}
                   aria-label={payNameAria()}
                 />
                 {text !== '' && (

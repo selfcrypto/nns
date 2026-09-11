@@ -6,6 +6,11 @@
  * reason the router has one: this is parsing, and parsing belongs where it
  * can be tested — the package's Vitest environment is `node`.
  *
+ * A link arrives two ways and means the same thing both times: opened from the
+ * address bar (`payRequestFromHash`, read once in a render-phase initializer),
+ * or **pasted into the recipient field** (`payRequestFromLink`), which is the
+ * only route a payer already inside Nimiq Pay has.
+ *
  * Nothing here validates an amount. The text goes into the field as typed and
  * Pay's own check judges it, so `parseNimAmount` stays the one NIM parser and
  * `parseUsdtAmount` the one USDT parser. A message is the exception, because
@@ -20,7 +25,7 @@
  */
 
 import { CONSTANTS } from '@nns/core'
-import { formatRoute } from './route'
+import { formatRoute, parseRoute } from './route'
 
 const AMOUNT = 'amount'
 const MESSAGE = 'message'
@@ -88,6 +93,44 @@ export function payRequestFromHash(hash: string): PayRequest {
     message: message === null || message.trim() === '' ? null : message.trim(),
     asset: asset(query.get(ASSET)),
   }
+}
+
+/** A pasted link: the name it pays and everything it asked for. */
+export interface PayLink {
+  readonly name: string
+  readonly request: PayRequest
+}
+
+/**
+ * A payment link someone pasted into the recipient field, or `null` for
+ * anything else — a typed name reaches this on every keystroke and must come
+ * back `null` untouched.
+ *
+ * This is the only way a link works for a payer already **inside** Nimiq Pay:
+ * no app-link association exists between the wallet and this domain, so a link
+ * tapped in a chat app opens a browser and never the mini app. Pasting is the
+ * route in, and the field the payer already has is where a pasted address goes
+ * in every other wallet.
+ *
+ * The `#` is the whole test: a name can never contain one (§4.1's alphabet),
+ * and every shape this app emits or a person retypes carries it — the full
+ * `https://host/#/pay/donald?amount=25`, a bare `#/pay/donald`, a `/#/…`
+ * copied out of an address bar. The host is not checked, because the bundle
+ * is deliberately domain-agnostic (`payLinkFor`) and an independent deployment
+ * serving the same app under its own name is a link this app should still read.
+ * A path-shaped link is not accepted: nothing here emits one and nginx answers
+ * it 404 (`lib/route.ts`).
+ */
+export function payRequestFromLink(text: string): PayLink | null {
+  const trimmed = text.trim()
+  const mark = trimmed.indexOf('#')
+  if (mark === -1) return null
+  const hash = trimmed.slice(mark)
+  // `home` as the fallback, so only a hash that genuinely names Pay is read as
+  // one — the fallback is what an unparseable hash becomes.
+  const route = parseRoute(hash, 'home')
+  if (route.tab !== 'pay' || route.param === null) return null
+  return { name: route.param, request: payRequestFromHash(hash) }
 }
 
 /**

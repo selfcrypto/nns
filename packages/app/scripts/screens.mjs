@@ -233,6 +233,17 @@ const scenarios = {
     await send('Page.navigate', { url: `${URL}#/pay/paylink-demo?amount=25&asset=usdt` })
     await sleep(4000); await evaluate(helpers); await shot('pay-link-usdt', true)
   },
+  // The paste route: a link typed into the recipient field fills the screen,
+  // which is the only way a link works for a payer already inside Nimiq Pay.
+  'pay-paste': async () => {
+    await send('Page.navigate', { url: URL })
+    await sleep(300)
+    await evaluate(`localStorage.removeItem('nns.hub.addresses'); true`)
+    await send('Page.navigate', { url: `${URL}#/pay` })
+    await sleep(4000); await evaluate(helpers)
+    await evaluate(`__type('.search-input', 'https://nimiqnames.com/#/pay/paylink-demo?amount=7.25&message=INV-99')`)
+    await sleep(4000); await shot('pay-paste', true)
+  },
   'names': async () => { await load(); await tab('My Names'); await shot('names') },
   'inbox': async () => { await load(); await tab('Inbox'); await shot('inbox') },
   'market': async () => { await load(); await tab('Market'); await shot('market', true) },

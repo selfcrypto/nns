@@ -258,6 +258,13 @@ it and builds it; the owner's **Request Payment** tile (My names) is the builder
   the settled query rewrites the hash through `formatRoute`, which cannot carry
   a query, and that happens on the first commit. The same trap is why
   `App.tsx` reads `?ref=` the same way.
+- **Pasting the link into the recipient field does the same thing** — the field
+  keeps the name and the rest of the link fills the screen. Not a second field:
+  a name can never contain a `#`, so the one field can tell the two apart, and
+  a pasted address is what that field is for in every other wallet. This is the
+  only route into the mini app for a payer already inside Nimiq Pay, because no
+  app-link association exists between the wallet and this domain — a link
+  tapped in a chat app opens a browser.
 
 Confirmation is `getTransactionByHash`, as for chat, because a payment leaves no
 registry effect to poll for — and both adapters can now reach it: Pay returns a
