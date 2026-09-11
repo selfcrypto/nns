@@ -84,7 +84,7 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 
 **[10. Economics](#10-economics)**
 
-- [10.1 Pricing — two bands](#101-pricing--two-bands)
+- [10.1 Pricing — one base fee, fixed multipliers](#101-pricing--one-base-fee-fixed-multipliers)
 - [10.2 Where fees go, and the burn share](#102-where-fees-go-and-the-burn-share)
 - [10.3 Revenue lines beyond registration](#103-revenue-lines-beyond-registration)
 - [10.4 Term length](#104-term-length)
@@ -155,7 +155,7 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 | Indexer operator rewrites the mapping | Merkle inclusion proofs verified client-side; roots anchored on an EVM chain (§9) | A name newer than the last anchor is trusted until the next checkpoint |
 | **Operator forges a whole state and anchors it** | Not stopped by proofs — a sole publisher's lie is internally consistent. Defeated by independent replay (Tier 3), client quorum (§8.5), and multi-publisher anchoring (§9) | Users of a single resolver with a single anchor publisher are exposed; see §2.1 |
 | Operator refuses to answer for a name (API censorship) | Detectable — the entry is in the published log and any independent resolver answers it | Not preventable; users must switch resolver endpoints |
-| Log-growth spam | **Not mitigated in v1** — only registration is priced (§7.6). Mechanisms designed and deferred (§16.2, §16.3) | Spam scales with names owned (~$200 of names sustains ~6.5 GB/year); visible in the log, and answerable by raising `FEE_LONG` within a week (§10.6) |
+| Log-growth spam | **Not mitigated in v1** — only registration is priced (§7.6). Mechanisms designed and deferred (§16.2, §16.3) | Spam scales with names owned (~$200 of names sustains ~6.5 GB/year); visible in the log, and answerable by raising `FEE_BASE` within a week (§10.6) |
 | **Operator serves a malicious frontend** | Not mitigated by any protocol mechanism — see §2.2. Bounded by wallet-native resolution and by third-party apps shipping their own clients | Users of the operator's own mini app are fully exposed while it is served |
 | Operator serves a different root per victim | Roots fetched from a public RPC, not from the NNS API | None, if the client checks the anchor |
 | Anchor publisher key compromise | Tier 1/3 replay detects divergence; clients alarm and halt on anchor/replay mismatch (§8.5) | Disputed state until a correct root is anchored from a rotated key |
@@ -287,7 +287,7 @@ NIM figures assume ~$0.0005/NIM.
 | `ANCHOR_STALENESS_LIMIT` | 48 h | Client warns beyond this (§8.5). One missed daily-floor anchor of margin (§9) |
 | `SEGMENT_LENGTH` | 31,536,000 blocks (~1 y) | Log segment boundary (§8.8). Read 3,153,600 — a tenth of its own label — through r28; nothing derives from it yet |
 | `AUCTION_MIN_INCREMENT` | 5% | Minimum raise over the standing bid (§6 `A`) |
-| `MIN_PRICE` | `FEE_LONG` | Floor on an `O` price and an `A` starting price (§6) |
+| `MIN_PRICE` | `FEE_BASE` | Floor on an `O` price and an `A` starting price (§6) — the cheapest a name can be registered |
 | `AUCTION_MIN_DURATION` | 86,400 blocks (~24 h) | Shortest permitted auction (§6 `A`) |
 | `AUCTION_EXTENSION` | 600 blocks (~10 min) | Anti-sniping extension (§6 `A`) |
 | `ADMIN_ADDRESS` | **OPEN** | Governance only; cold key, distinct from treasury |
@@ -296,19 +296,20 @@ NIM figures assume ~$0.0005/NIM.
 | `RESERVED_NAMES` | Published list + by rule (§4.1) | The published half is in the reference implementation's constants; **still incomplete** — additions are free until `LAUNCH_HEIGHT` and out of scope afterwards (§10.6) |
 | `LISTING_FEE` | 0 | Value owed on an `O` (§6 `O`). Not governable: no `P` field carries it (§10.6, §12 item 3) |
 | `MIN_NAME_LEN` | 5 chars | 1–4 reserved by rule (§4.1) for later award or auction; the floor binds only while a name is reserved |
-| `LONG_NAME_LEN` | 12 chars | Threshold for the cheap band |
 | `MAX_NAME_LEN` | 24 chars | Longer than any handle people actually use; keeps messages well inside 64 bytes |
 | `MAX_LABEL_LEN` | 24 chars | Subdomain label (§4.4) |
 | `MAX_HOST_LEN` | 30 chars | Delegate resolver host (§6 `D`); `resolver.binance.com` is 20 |
 | `MAX_REF_LEN` | 24 chars | Referrer on a registration (§6 `G`) — a registered name, so it equals `MAX_NAME_LEN` |
-| `FEE_STANDARD` | 2,000 NIM (~$1) | Names of 5–11 characters; governable |
-| `FEE_LONG` | 400 NIM (~$0.20) | Names of 12+ characters; governable |
+| `FEE_BASE` | 400 NIM (~$0.20) | The 12+ band's yearly fee and the base every other band is a multiple of (§10.1); **the one governable price** |
+| `FEE_MULTIPLIERS` | 5 → 25×, 6 → 10×, 7–11 → 5×, 12+ → 1× | Yearly fee by name length, as multiples of `FEE_BASE` (§10.1). Frozen: a spec revision, never a `P` |
+| `LIFETIME_MULTIPLIER` | 10 | A lifetime term costs this many yearly fees of its band (§10.4) |
+| `LIFETIME_TERMS` | 100 | A lifetime term is this many `TERM_LENGTH`s — a plain expiry ~100 y out, not a sentinel (§10.4) |
 | `BURN_SHARE` | 20% | Of all revenue received, forwarded to `BURN_ADDRESS` |
 | `COMMISSION_RATE` | 250 bp (2.5%) | Marketplace cut on a settled sale; governable |
 | `COMMISSION_CEILING` | 1,000 bp (10%) | Governance hard upper bound |
 | `COMMISSION_MAX_STEP` | 250 bp | Maximum change per adjustment |
-| `PRICE_FLOOR` | 1 NIM | Governance hard lower bound, either band — chosen so a name stays ≤ ~$1 even at $1/NIM. A fat-finger rail, not attack protection (§10.6) |
-| `PRICE_CEILING` | 100,000 NIM | Governance hard upper bound, either band |
+| `PRICE_FLOOR` | 1 NIM | Governance hard lower bound on `FEE_BASE` — chosen so a long name stays ≤ ~$1 even at $1/NIM. A fat-finger rail, not attack protection (§10.6) |
+| `PRICE_CEILING` | 100,000 NIM | Governance hard upper bound on `FEE_BASE`; every band scales with it |
 | `GOVERNANCE_DELAY` | 86,400 blocks (~24 h) | Minimum notice before a `P` bites — and, since the rate limits were removed, the whole of what bounds a hostile one (§10.6). **`P` only:** r22 took `U` out of it, because a release announced a day ahead arms a frontrunner and an award has nobody to warn (§6 `U`) |
 | `XFER_TIMELOCK` | 43,200 blocks (~12 h) | Window in which the owner can cancel their own pending `X` with a `K` (§6). Guards a mistyped recipient, not a thief (§2) |
 | `TERM_LENGTH` | 31,536,000 blocks (~1 y) | See §10.4. A *length*: the term is `[registration, registration + TERM_LENGTH)` and the name is in `GRACE` at `expiry` (§7.3) |
@@ -688,7 +689,7 @@ if NIM appreciates or MEV tooling arrives, a 5-character name stops being a
 thin prize and mempool sniping becomes worth automating. **v2 MUST
 re-evaluate anti-MEV registration when any of these holds:**
 
-- the median observed `FEE_STANDARD` in USD exceeds ~$20
+- the median observed 5-character fee (`FEE_BASE` × 25, §10.1) in USD exceeds ~$100
 - more than 1% of registrations in a month are lost to a same-block race
   (measurable directly from `REFUND` verdicts in the log, §8.2)
 - any third party is observed running a registration bot
@@ -704,13 +705,20 @@ now means the decision is a measurement, not an argument.
 ```
 NNS1G<name>
 NNS1G<name>|<ref>
+NNS1G<name>|<ref>|L
+NNS1G<name>||L
 ```
 
-- **Size:** 5 + `MAX_NAME_LEN` + 1 + `MAX_REF_LEN` = **54 bytes** max, inside
-  the verified 64-byte ceiling (§5.1)
+- **Size:** 5 + `MAX_NAME_LEN` + 1 + `MAX_REF_LEN` + 2 = **56 bytes** max,
+  inside the verified 64-byte ceiling (§5.1)
 - **To:** `TREASURY_ADDRESS`
-- **Value:** ≥ the fee for this name's length band at this block height
-  (§10.1, §10.6); a surplus at or above `REFUND_FLOOR` is owed back (§10.5)
+- **Value:** ≥ the fee this message owes at this block height — the name's
+  band fee (§10.1, §10.6), or `LIFETIME_MULTIPLIER` times it with `L`; a
+  surplus at or above `REFUND_FLOOR` is owed back (§10.5)
+- `L`: **optional** lifetime term (§10.4). The third field is exactly the
+  character `L` or absent; anything else in it, or an empty third field, is
+  `MALFORMED_PAYLOAD`. The second field may be empty when only `L` is wanted
+  — an empty `ref` is an absent one, as the next bullet says
 - `ref`: **optional** referrer, 1…`MAX_REF_LEN` characters from `a-z`,
   `0-9`, `-` — **a registered name** whose owner drove the registration, so
   the referral share can be paid to it (§10.7). It has **no effect on
@@ -725,9 +733,12 @@ nothing.
 
 Valid if `name` is valid per §4.1 and `AVAILABLE` at this transaction's
 position in canonical order. On success the name is registered to the sender
-with `target = sender` and `expiry = block_height + TERM_LENGTH`. The term is
+with `target = sender` and `expiry = block_height + TERM_LENGTH` — or
+`block_height + LIFETIME_TERMS × TERM_LENGTH` with `L`. The term is
 the half-open window `[block_height, expiry)`, so the last block on which the
 name resolves is `expiry - 1` and it is in `GRACE` at `expiry` itself (§7.3).
+A lifetime is a long term, not a different kind of record: nothing downstream
+distinguishes it (§10.4).
 
 Ties within a block resolve by ascending transaction index, which is
 already unique within a block. Never by timestamp.
@@ -879,15 +890,24 @@ refund wait rather than their money, so the delay no longer bought anything.
 
 ```
 NNS1N<name>
+NNS1N<name>|L
 ```
 
+- **Size:** 5 + `MAX_NAME_LEN` + 2 = **31 bytes** max
 - **To:** `TREASURY_ADDRESS`
-- **Value:** ≥ the fee for this name's length band at this height; a
-  surplus at or above `REFUND_FLOOR` is owed back (§10.5)
+- **Value:** ≥ the fee this message owes at this height — the name's band
+  fee, or `LIFETIME_MULTIPLIER` times it with `L`; a surplus at or above
+  `REFUND_FLOOR` is owed back (§10.5)
+- `L`: optional lifetime term, on `G`'s terms — exactly `L` or absent
 - Sender: anyone
 
-Extends expiry by `TERM_LENGTH` from the current expiry, not from the renewal
-height, so early renewal is never penalised.
+Extends expiry by `TERM_LENGTH` — `LIFETIME_TERMS × TERM_LENGTH` with `L` —
+from the current expiry, not from the renewal height, so early renewal is
+never penalised. Anyone may renew any name, for any term: a renewal changes
+nothing but the expiry, so there is no way to harm a name by paying for it.
+An `N|L` on a yearly name is how an owner upgrades to a lifetime; an `N` on
+a lifetime name adds a year to a date a century out, which is pointless but
+harmless and needs no rule.
 
 ### `O` — Offer
 
@@ -903,17 +923,17 @@ NNS1O<name>|<price_in_luna>
   the fee is a constant rather than a literal, but `INSUFFICIENT_VALUE` is
   unreachable for `O` while it stays there (§7.4)
 - **`price` MUST be ≥ `MIN_PRICE`.** Below it the message forfeits:
-  client-preventable. `MIN_PRICE` is `FEE_LONG` — the cheapest a name can be
+  client-preventable. `MIN_PRICE` is `FEE_BASE` — the cheapest a name can be
   registered from scratch — so an offer can never be priced below what a
   buyer would pay to simply register a fresh long name instead. Being
   defined *as* a governed constant rather than a fixed luna amount, it
   tracks the NIM price through §10.6 instead of going stale like any
   hardcoded figure would (§10.6's own argument, applied here).
 
-  It is therefore `FEE_LONG` **as in effect at this message's own block
+  It is therefore `FEE_BASE` **as in effect at this message's own block
   height**, the same rule §6 `M` states for the commission rate: an
   implementation comparing against the launch constant agrees with everyone
-  else until the first `P` moves `FEE_LONG` and disagrees, silently, from
+  else until the first `P` moves `FEE_BASE` and disagrees, silently, from
   that block on. The active value is committed to in every checkpoint
   (§8.1), so a client can prove the floor it is about to be held to.
 
@@ -924,7 +944,7 @@ NNS1O<name>|<price_in_luna>
   than refunded**, contradicting §7.4; and a floor small enough that
   `floor(price × AUCTION_MIN_INCREMENT)` rounds to 0 erases the auction
   increment rule, admitting unlimited dust bids that each oblige an `M`
-  refund. At `FEE_LONG` all three are far below the floor, which is the
+  refund. At `FEE_BASE` all three are far below the floor, which is the
   point: the floor is set by what a name costs, not by what arithmetic
   tolerates
 - Sender must be the current owner
@@ -1182,18 +1202,21 @@ implementation honours the type, and no already-derived root moves.
 ### `P` — Governance
 
 ```
-NNS1P<fee_standard>|<fee_long>|<commission_bp>|<effective_height>
+NNS1P<fee_base>|<commission_bp>|<effective_height>
 ```
 
-- **Size:** 5 + 15 + 1 + 15 + 1 + 5 + 1 + 10 = **53 bytes** max
+- **Size:** 5 + 15 + 1 + 5 + 1 + 10 = **37 bytes** max
 - **To:** `PROTOCOL_ADDRESS`, value `DUST_VALUE`
 - Sender MUST be `ADMIN_ADDRESS`
 - `commission_bp`: marketplace rate in basis points, 0 … `COMMISSION_CEILING`
 - `effective_height` ≥ **the height of the block this message lands in** +
   `GOVERNANCE_DELAY`
 
-All three parameters are set in one message so they can never drift out of
-order or out of sync.
+Both parameters are set in one message so they can never drift out of sync.
+One price field moves every band at once (§10.1): the bands are fixed
+multiples of `FEE_BASE`, so a `P` never has to say how they relate and
+cannot get that wrong. Through 2026-09-10 the message carried two prices
+and a bound holding them in order.
 Bounds and scope in §10.6. Rejected if any bound is violated — every indexer
 enforces them independently.
 
@@ -1582,7 +1605,7 @@ the more informative of two true answers.
   from the checkpoint tree (§8.1), so a correct client prevents it
 - `S`, `O`, `D`, `E`, `X`, `K`, `A` from anyone other than the current owner
 - `O` whose price, or `A` whose starting price, is below `MIN_PRICE` (§6 `O`, §6
-  `A`). The floor is `FEE_LONG` as
+  `A`). The floor is `FEE_BASE` as
   in effect at that height, and the active prices are committed to in every
   checkpoint (§8.1), so a correct client can prove it before sending. The
   payload is checked before the value carried, exactly as a `G`'s name
@@ -1628,7 +1651,8 @@ via `M` (§6):
 - `G` for a name that was `AVAILABLE` when the client checked but was
   registered by a transaction ordered ahead of this one — owed by
   `TREASURY_ADDRESS`
-- `G`, `N` or `O` carrying less than the fee it owes — the full value sent,
+- `G`, `N` or `O` carrying less than the fee it owes — the band fee, or
+  `LIFETIME_MULTIPLIER` times it for a lifetime term — the full value sent,
   owed by `TREASURY_ADDRESS` (r29). Through r28 this forfeited as
   client-preventable; it moved because the treasury keeps nothing it did not
   earn, and because a governance activation can leave a correctly built
@@ -1707,7 +1731,7 @@ against a message of a listed type.
 | `NAME_NOT_RESERVED` | `U` | Name is absent from `RESERVED_NAMES`, or a `U` for it has already fired. Since r22 this is also what a second `U` for the same name earns: the first one fired on landing, so there is nothing pending to collide with |
 | `GOVERNANCE_BOUND_VIOLATED` | `P` | A §10.6 bound exceeded, measured against the **active** prices |
 | `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no `O` past `OFFER_IRREVOCABLE` |
-| `BELOW_MIN_PRICE` | `O` `A` | Price, or starting price, below `MIN_PRICE`, which is `FEE_LONG` at this message's height |
+| `BELOW_MIN_PRICE` | `O` `A` | Price, or starting price, below `MIN_PRICE`, which is `FEE_BASE` at this message's height |
 | `AUCTION_OPEN` | `O` `X` `A` | An auction is open on the name (§6 `A`): the owner cannot list, transfer, or auction it again until the close. Checked after the owner row and before any payload row |
 | `AUCTION_BEYOND_TERM` | `A` | The owner's `end_height` is at or past the name's `expiry` (§6 `A`): an auction sells the current term. The last payload row, after the window's length |
 | `BELOW_REFUND_FLOOR` | `G` `N` `O` `B` | A message that would otherwise be refundable, carrying less than `REFUND_FLOOR`. The only token that crosses columns |
@@ -1871,7 +1895,8 @@ The tree itself:
   - Through r19 a `recovery:20B` field sat between `status` and the host.
     r20 deleted the recovery address (§6), so it is gone and **every root
     changes**; r26 then inserted `evm:20B` between `target` and `expiry`,
-    and every root changes again. `COMMITMENT_LAYOUT` is `5`
+    and every root changes again; the prices digest below lost a field on
+    2026-09-11 and every root changes a third time. `COMMITMENT_LAYOUT` is `6`
   - `status` is `0x00` for `REGISTERED`, `0x01` for `GRACE`
 - Odd nodes promoted unchanged; empty tree → 32 zero bytes
 
@@ -1937,8 +1962,7 @@ is 20 zero bytes; a `name` is raw ASCII behind a `u8` length prefix; and `‖` i
 plain concatenation — no separators, no padding, no alignment.
 
 ```
-prices     = keccak256(0x03 ‖ fee_standard:u64-BE ‖ fee_long:u64-BE
-                            ‖ commission_bp:u64-BE)
+prices     = keccak256(0x03 ‖ fee_base:u64-BE ‖ commission_bp:u64-BE)
 ```
 
 The pending set is one entry per pending item, concatenated **in category
@@ -2683,13 +2707,31 @@ is unverifiable, because nobody can know which history to replay.
 
 ## 10. Economics
 
-### 10.1 Pricing — two bands
+### 10.1 Pricing — one base fee, fixed multipliers
 
-| Length | Fee | Rationale |
-|---|---|---|
-| 1–4 | reserved | Released by the admin — auctioned (§6 `A`) or awarded (§6 `U`) |
-| 5–11 | `FEE_STANDARD` — 2,000 NIM (~$1) | The desirable range |
-| 12+ | `FEE_LONG` — 400 NIM (~$0.20) | Effectively free to a user; still bounds the log |
+One governable number, `FEE_BASE`, and a frozen table of multipliers by
+name length. Every band is `FEE_BASE × multiplier`, per `TERM_LENGTH`:
+
+| Length | Multiplier | Yearly fee at launch | Rationale |
+|---|---|---|---|
+| 1–4 | reserved | — | Released by the admin — auctioned (§6 `A`) or awarded (§6 `U`). Most tickers and brands live here, which is what keeps the published list short |
+| 5 | 25× | 10,000 NIM (~$5) | The top of the open market; priced so bulk squatting for resale is not a day-one business |
+| 6 | 10× | 4,000 NIM (~$2) | |
+| 7–11 | 5× | 2,000 NIM (~$1) | The desirable range |
+| 12+ | 1× | 400 NIM (~$0.20) | Effectively free to a user; still bounds the log |
+
+A lifetime term (§10.4) costs `LIFETIME_MULTIPLIER` (10) times the band's
+yearly fee.
+
+**Why one governed number.** Governance exists to follow the NIM/USD rate
+(§10.6), and that is one scalar: when NIM moves, every band should move
+with it, by the same factor. Two independently governed prices could only
+drift apart by mistake, and needed an ordering bound to catch the mistake.
+The *ratio* between lengths is a positioning decision, not a market
+reading, and it is frozen exactly as `TERM_LENGTH` is: changing it is a
+spec revision from a stated height, and a `P` cannot get it wrong. It also
+keeps `P` at one price field however many bands there are — the 64-byte
+budget could not carry four independent prices at all (§5.1).
 
 **Why not free.** Nobody squats 12-character names, so the usual objection
 does not apply. The real risk is state bloat: Nimiq transactions cost almost
@@ -2703,18 +2745,28 @@ protocol rule.
 bloat: at $0.20, $10,000 of attack buys 50,000 junk names (~7 MB of log)
 instead of 200,000 (~28 MB). It remains trivial for a real user.
 
-**Why the threshold stays at 12 rather than moving to 14.** Raising the
+**Why the short end climbs.** Through 2026-09-10 every open name from 5 to
+11 characters cost the same ~$1. The desirable 5-character names — first
+names, dictionary words — number in the tens of thousands, so at $1 a year
+the whole set was squattable for the price of a laptop and resellable on
+this protocol's own marketplace. Price is the lever §10.1 already trusts
+against bloat; it is the same lever against squatting, applied where the
+scarcity is. $5 is deliberately a fraction of what ENS charges for its
+short bands — a smaller ecosystem, priced for its users rather than its
+speculators — and the cap Kike set on 2026-09-11.
+
+**Why the bands stop at 12 rather than moving to 14.** Raising the
 threshold does not bound bloat at all — an attacker simply uses longer names.
-It only moves 12–13 character names into the premium band, and almost nothing
-anyone actually wants lives there; desirable names are short. The change would
-add friction for legitimate long-name users while capturing little revenue.
-Price is the effective lever; the threshold is not.
+It only moves 12–13 character names into a dearer band, and almost nothing
+anyone actually wants lives there; desirable names are short. Price is the
+effective lever; the threshold is not.
 
 Note also that delegated subdomains (§8.6) removed the strongest argument for
 an ultra-cheap band: an exchange needs one standard-band name, not thousands
 of cheap ones.
 
-Both bands are governable (§10.6), so neither figure is a one-way door.
+`FEE_BASE` is governable (§10.6), so no figure above is a one-way door; the
+multipliers are not, and that is the point.
 
 ### 10.2 Where fees go, and the burn share
 
@@ -2809,16 +2861,36 @@ Clients MUST surface an approaching expiry in-app, prominently, from
 rather than a protocol rule: no indexer validates it, and nothing in consensus
 depends on it.
 
-The reason not to remove expiry outright is that it is a one-way door. Expiry
-cannot be added later to names sold as permanent without breaking a promise,
-whereas a renewable term can always be made effectively permanent by pricing
-renewal near zero. There is also a slow structural cost to permanence: names
-behind lost keys never return, so the namespace only degrades.
+**A lifetime term exists, and it is a term.** `G` and `N` take an optional
+`L` (§6): the term is `LIFETIME_TERMS` × `TERM_LENGTH` — a hundred years —
+for `LIFETIME_MULTIPLIER` (10) times the band's yearly fee. The expiry is a
+plain height a century out, so nothing downstream has a special case: the
+state machine, the leaf, the auction's term check and the reminder above all
+read it as they read any other expiry, and the reminder simply never comes
+within reach. A hundred-year height was chosen over a sentinel for exactly
+that reason — a sentinel would need its own rule at every comparison and at
+every `N`, and "forever" buys nobody anything a century does not.
+
+Why it exists: the option was always there. `N` stacks without bound and
+from anyone, so ten renewals already bought ten years, a hundred a century,
+and permanence was never something this design withheld — only something it
+priced by the message. The tier prices it at ten years, in one message, and
+brings that revenue forward to when the service is new, which is when a
+registry earns or does not. The two costs are stated rather than argued
+around: a lifetime name behind a lost key never returns, so the namespace
+degrades by that much; and a lifetime name never reprices, whatever `P`
+does after the sale. Both are the bet, taken deliberately on 2026-09-11.
+
+Expiry itself stays, for the reason it always had: it is a one-way door.
+Expiry cannot be added later to names sold as permanent without breaking a
+promise, whereas a term — even a hundred-year one — can always be extended
+by pricing renewal near zero.
 
 ### 10.5 Payment exactness
 
 A fee-bearing message succeeds iff `value ≥ fee` at that transaction's block
-height. There is no credit ledger and no partial payment: the arithmetic is
+height, where the fee is what the message owes — the band fee, or
+`LIFETIME_MULTIPLIER` times it for a lifetime term (§10.4). There is no credit ledger and no partial payment: the arithmetic is
 a comparison, and the whole of it lives in §7.4's two columns — below the
 fee the message has no effect and its value is refunded in full (r29), at or
 above it the message takes effect.
@@ -2856,8 +2928,7 @@ anything in flight.
 | Bound | Value |
 |---|---|
 | Sender | must be `ADMIN_ADDRESS` |
-| Either price | within `PRICE_FLOOR` … `PRICE_CEILING` |
-| Ordering | `fee_long` MUST be ≤ `fee_standard` |
+| `fee_base` | within `PRICE_FLOOR` … `PRICE_CEILING` |
 | Commission | 0 … `COMMISSION_CEILING` (10%), moving at most `COMMISSION_MAX_STEP` (250 bp) per adjustment |
 | Notice | `effective_height` ≥ **the height of the block the `P` lands in** + `GOVERNANCE_DELAY` (§6 `P`) |
 
@@ -2930,14 +3001,14 @@ Pretending the constants must survive every future would only stretch
 governance into something slower and more dangerous than a visible,
 versioned edit.
 
-**In scope:** `FEE_STANDARD`, `FEE_LONG`, and `COMMISSION_RATE` (via `P`),
+**In scope:** `FEE_BASE` and `COMMISSION_RATE` (via `P`),
 and *releasing* names from `RESERVED_NAMES` — or *awarding* one directly to a
 named address, which is the same `U` under a different recipient (§6 `U`), and
 which since r22 takes effect on landing rather than under notice.
 
 **Out of scope — requires a new spec version applying from a stated height:**
-name validity rules (§4), `LONG_NAME_LEN`, ordering, expiry semantics,
-`TERM_LENGTH`, `BURN_SHARE`, `LISTING_FEE` — no `P` field carries it, which
+name validity rules (§4), `FEE_MULTIPLIERS`, `LIFETIME_MULTIPLIER`,
+`LIFETIME_TERMS`, ordering, expiry semantics, `TERM_LENGTH`, `BURN_SHARE`, `LISTING_FEE` — no `P` field carries it, which
 is why §12 item 3 settled it at 0 rather than inventing one — anything
 touching the ownership of a name that *has* an owner, and *adding* to
 `RESERVED_NAMES`.
@@ -2948,7 +3019,7 @@ construction nobody owns; it can never move, revoke, shorten, or expire a name
 somebody holds. An award is the namespace's starting price being spent, not a
 registry entry being rewritten, and every one of them is public in the block it
 binds in.
-Changing validity or the length threshold retroactively would reprice or
+Changing validity or the multiplier table retroactively would reprice or
 invalidate names people already paid for. A commission change binds at the
 `B`'s block height, so a seller's open offer can be settled at a rate they
 did not see when they listed — bounded by the 250 bp step, and the reason
@@ -3386,7 +3457,7 @@ makes an honest user wait.
 **The residual v1 carries**, stated plainly: spam capacity scales with names
 owned, each costing a registration fee. Roughly $200 of names sustains about
 6.5 GB of log growth a year. It is bounded, paid, and obvious in the log —
-and §10.6 can raise `FEE_LONG` within a week, multiplying attacker cost while
+and §10.6 can raise `FEE_BASE` within a week, multiplying attacker cost while
 barely touching real users. No permissionless append-only log closes this;
 anyone may pay to write.
 
