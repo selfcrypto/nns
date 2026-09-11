@@ -91,7 +91,7 @@ const RESERVED: NameAvailability = Object.freeze({
   url: API,
 })
 
-const release = { name: 'binance', recipient: null }
+const release = { name: 'binance', recipient: null, lifetime: false }
 const award = { ...release, recipient: BOB }
 
 describe('planUnreserve', () => {
@@ -216,7 +216,7 @@ describe('planUnreserve', () => {
   it('refuses a name a fired U already released — AVAILABLE, nothing left to release', async () => {
     const { rpc } = fakeRpc()
     const plan = await planUnreserve(rpc, fakeReservation({ available: true, reason: null }), release)
-    expect(blockingChecks(plan.checks)[0]?.message).toContain('nothing left to release')
+    expect(blockingChecks(plan.checks)[0]?.message).toContain('nothing to release')
   })
 
   it('refuses a name that was never reserved, without needing the chain state', async () => {
@@ -241,6 +241,55 @@ describe('planUnreserve', () => {
     expect(blockingChecks(plan.checks)).toHaveLength(1)
   })
 
+  // An award (2026-09-11): any name nobody owns. The same read, the other
+  // question — held or not — so the four states above answer differently.
+
+  it('awards a name a fired U already released — AVAILABLE is exactly what an award reaches', async () => {
+    const { rpc } = fakeRpc()
+    const plan = await planUnreserve(rpc, fakeReservation({ available: true, reason: null }), award)
+    expect(plan.kind).toBe('award')
+    expect(plan.checks).toEqual([])
+  })
+
+  it('awards a name that was never reserved — the list is a release’s concern, not an award’s', async () => {
+    const { rpc } = fakeRpc()
+    const plan = await planUnreserve(rpc, fakeReservation({ available: true, reason: null }), { ...award, name: 'probe-name' })
+    expect(plan.checks).toEqual([])
+  })
+
+  it('awards a name still reserved, as before the fold', async () => {
+    const { rpc } = fakeRpc()
+    expect((await planUnreserve(rpc, fakeReservation(), award)).checks).toEqual([])
+  })
+
+  it('refuses an award of a name somebody holds — REGISTERED or in GRACE forfeits NAME_NOT_AVAILABLE', async () => {
+    const { rpc, calls } = fakeRpc()
+    const plan = await planUnreserve(rpc, fakeReservation(TAKEN), award)
+    const refusals = blockingChecks(plan.checks)
+    expect(refusals).toHaveLength(1)
+    expect(refusals[0]?.message).toContain('is held')
+    expect(refusals[0]?.message).toContain('NAME_NOT_AVAILABLE')
+    await expect(broadcast(rpc, plan)).rejects.toThrow(AdminRefusal)
+    expect(calls.map((c) => c.method)).toEqual(['getBlockNumber', 'getAccountByAddress'])
+    const grace = await planUnreserve(rpc, fakeReservation({ ...TAKEN, status: 'GRACE' }), award)
+    expect(blockingChecks(grace.checks)[0]?.message).toContain('GRACE')
+  })
+
+  it('refuses an award of a name the API calls not registrable — INVALID_NAME whatever the recipient', async () => {
+    const { rpc } = fakeRpc()
+    const plan = await planUnreserve(rpc, fakeReservation({ available: false, reason: 'TOO_LONG' }), award)
+    expect(blockingChecks(plan.checks)[0]?.message).toContain('INVALID_NAME')
+  })
+
+  it('builds the |L payload for a lifetime award, and refuses --lifetime on a release offline', async () => {
+    const { rpc, calls } = fakeRpc()
+    const plan = await planUnreserve(rpc, fakeReservation(), { ...award, lifetime: true })
+    expect(plan.data).toBe(encodeUnreserve({ name: 'binance', recipient: BOB, lifetime: true }).data)
+    expect(plan.checks).toEqual([])
+    await expect(planUnreserve(rpc, fakeReservation(), { ...release, lifetime: true })).rejects.toThrow(CodecError)
+    expect(calls.map((c) => c.method)).toEqual(['getBlockNumber', 'getAccountByAddress'])
+  })
+
   it('warns, without refusing, when the reservation was read far behind the head', async () => {
     const { rpc } = fakeRpc()
     const plan = await planUnreserve(rpc, fakeReservation({ height: HEAD - 5_000 }), release)
@@ -259,12 +308,12 @@ describe('planUnreserve', () => {
 })
 
 describe('describePlan', () => {
-  const planFor = (recipient: typeof BOB | null = null, name = 'binance'): UnreservePlan => ({
-    params: { name, recipient },
+  const planFor = (recipient: typeof BOB | null = null, name = 'binance', lifetime = false): UnreservePlan => ({
+    params: { name, recipient, lifetime },
     kind: recipient === null ? 'release' : 'award',
     sender: ADMIN,
     recipient: recipient ?? PROTOCOL,
-    data: encodeUnreserve({ name, recipient }).data,
+    data: encodeUnreserve({ name, recipient, lifetime }).data,
     value: 1n,
     head: HEAD,
     balance: 1_000_000n,
@@ -322,6 +371,16 @@ describe('describePlan', () => {
     const lines = describePlan(planFor(BOB)).join('\n')
     expect(lines).toContain(String(CONSTANTS.TERM_LENGTH))
     expect(lines).toContain(String(HEAD + CONSTANTS.TERM_LENGTH))
+    expect(lines).toContain('one full term')
+  })
+
+  it('reads the lifetime flag back out of the bytes, and states the hundred-term end (§10.4)', () => {
+    const lines = describePlan(planFor(BOB, 'binance', true)).join('\n')
+    expect(lines).toContain('U award: binance (lifetime)')
+    expect(lines).toContain('4e4e53315562696e616e63657c4c') // NNS1Ubinance|L
+    expect(lines).toContain('decoded: name "binance", lifetime flag L')
+    expect(lines).toContain(`a lifetime — ${CONSTANTS.LIFETIME_TERMS} terms`)
+    expect(lines).toContain(String(HEAD + CONSTANTS.LIFETIME_TERMS * CONSTANTS.TERM_LENGTH))
   })
 
   it('throws rather than print a plan whose payload is not a U', () => {
@@ -354,7 +413,7 @@ describe('broadcast', () => {
 describe('parseUnreserveArgs', () => {
   it('is a dry run unless --send is passed, and omitting the recipient means release', () => {
     expect(parseUnreserveArgs(['binance'])).toEqual({
-      params: { name: 'binance', recipient: null },
+      params: { name: 'binance', recipient: null, lifetime: false },
       send: false,
     })
     expect(parseUnreserveArgs(['binance', '--send']).send).toBe(true)
@@ -364,10 +423,19 @@ describe('parseUnreserveArgs', () => {
 
   it('a second positional argument is the awardee, parsed and checksummed', () => {
     expect(parseUnreserveArgs(['binance', 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK'])).toEqual({
-      params: { name: 'binance', recipient: BOB },
+      params: { name: 'binance', recipient: BOB, lifetime: false },
       send: false,
     })
     expect(() => parseUnreserveArgs(['binance', 'not-an-address'])).toThrow(AddressError)
+  })
+
+  it('--lifetime is a flag, wherever it sits, and independent of --send', () => {
+    const lifetime = parseUnreserveArgs(['--lifetime', 'binance', 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK'])
+    expect(lifetime.params.lifetime).toBe(true)
+    expect(lifetime.send).toBe(false)
+    const both = parseUnreserveArgs(['binance', 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK', '--send', '--lifetime'])
+    expect(both.params.lifetime).toBe(true)
+    expect(both.send).toBe(true)
   })
 
   it('names the r21 habit rather than reading a height as an address', () => {
@@ -378,8 +446,9 @@ describe('parseUnreserveArgs', () => {
     expect(() => parseUnreserveArgs(['binance', '58100000'])).toThrow(/no longer takes an effective height/)
   })
 
-  it('rejects a missing or extra argument, and any flag that is not --send', () => {
+  it('rejects a missing or extra argument, and any flag that is not --send or --lifetime', () => {
     expect(() => parseUnreserveArgs([])).toThrow(UsageError)
+    expect(() => parseUnreserveArgs(['binance', '--batch'])).toThrow(/--batch <file>/)
     expect(() =>
       parseUnreserveArgs(['binance', 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK', 'extra']),
     ).toThrow(UsageError)

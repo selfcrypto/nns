@@ -236,8 +236,10 @@ export interface ApiReferral {
   /** The name registered. */
   readonly name: string
   readonly sender: Address
-  /** The value the `G` carried — at or above the fee in effect, never the share's base. */
+  /** The value the `G` carried — at or above the fee owed, never the share's base. */
   readonly value: bigint
+  /** The `G` carried `L` (§10.4, 2026-09-11): the fee owed was the lifetime fee, and so is the share's base. */
+  readonly lifetime: boolean
 }
 
 export interface Snapshot<T> {
@@ -670,6 +672,7 @@ export class PgQueries implements Queries {
           name: parsed.message.name,
           sender: address(row, 'sender'),
           value: toLuna(row['value'], 'value'),
+          lifetime: parsed.message.lifetime,
         })
       }
       return referred

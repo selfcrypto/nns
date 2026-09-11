@@ -71,6 +71,15 @@ export function isReservedNow(availability: NameAvailability): boolean {
 }
 
 /**
+ * The one state in which an award is forfeited (§6 `U`, 2026-09-11): the
+ * name has an owner — REGISTERED, or in GRACE where the owner can still
+ * renew. `state.names.has(name)` in the reducer; `TAKEN` at the API.
+ */
+export function isHeldNow(availability: NameAvailability): boolean {
+  return !availability.available && availability.reason === 'TAKEN'
+}
+
+/**
  * Why this name is not reservable, in the operator's words — the sentence a
  * plan prints instead of a bare token. `NAME_NOT_RESERVED` is what the log
  * will say; it does not say whether the name was never on the list, was
@@ -79,7 +88,7 @@ export function isReservedNow(availability: NameAvailability): boolean {
 export function describeAvailability(availability: NameAvailability): string {
   const { available, reason, status, expiry } = availability
   if (available) {
-    return 'AVAILABLE — a fired U already released it, or it was never reserved; either way there is nothing left to release'
+    return 'AVAILABLE — a fired U already released it, or it was never reserved; nothing to release, and an award lands'
   }
   if (reason === 'TAKEN') {
     const owner = status === 'GRACE' ? 'in GRACE (renewable, so still taken)' : 'REGISTERED to somebody'

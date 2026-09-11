@@ -11,7 +11,9 @@
  * warning, which needs the active prices all the same.
  *
  * **The source is the API's `GET /params`**, not the indexer's database and
- * not a node: it already serves exactly these four values — the active prices,
+ * not a node: it already serves exactly these four values — the active prices
+ * (one base fee and the commission since 2026-09-11; the bands are `core`'s
+ * frozen multipliers, not state, so `/params.fees` is not read here),
  * `lastGovernanceHeight`, any pending change, and the height it read them at —
  * off a `READ ONLY` snapshot, and it is the same read every other client makes.
  * The height it stamps is what makes the answer checkable: the plan prints it,
@@ -45,12 +47,11 @@ export interface ParamsSource {
 
 function prices(value: unknown, field: string, url: string): Prices {
   if (typeof value !== 'object' || value === null) {
-    throw new AdminError(`${url} answered ${field} = ${JSON.stringify(value)} — expected the three prices`)
+    throw new AdminError(`${url} answered ${field} = ${JSON.stringify(value)} — expected the base fee and the commission`)
   }
   const raw = value as Record<string, unknown>
   return {
-    feeStandard: lunaField(raw['feeStandard'], `${field}.feeStandard`, url),
-    feeLong: lunaField(raw['feeLong'], `${field}.feeLong`, url),
+    feeBase: lunaField(raw['feeBase'], `${field}.feeBase`, url),
     commissionBp: lunaField(raw['commissionBp'], `${field}.commissionBp`, url),
   }
 }

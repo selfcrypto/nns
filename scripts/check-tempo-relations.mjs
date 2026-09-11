@@ -73,7 +73,7 @@ if (statSync(source).mtimeMs > builtAt) {
 
 // LUNA_PER_NIM is a sibling export, not a CONSTANTS member — reading it off C
 // yields undefined and every NIM figure prints NaN.
-const { CONSTANTS: C, LUNA_PER_NIM, validateNameSyntax } = await import(join(repo, 'packages/core/dist/index.js'))
+const { CONSTANTS: C, LUNA_PER_NIM, LAUNCH_PRICES, feeFor, validateNameSyntax } = await import(join(repo, 'packages/core/dist/index.js'))
 
 // ── Checks ──────────────────────────────────────────────────────────────────
 
@@ -128,19 +128,29 @@ check(
       .join(' ') + ` ≤ MAX_DATA_BYTES ${C.MAX_DATA_BYTES}`,
   )
 }
-check(
-  'name-length-ordering',
-  'MIN_NAME_LEN < LONG_NAME_LEN < MAX_NAME_LEN (§4.1, §10.1)',
-  C.MIN_NAME_LEN < C.LONG_NAME_LEN && C.LONG_NAME_LEN < C.MAX_NAME_LEN,
-  `${C.MIN_NAME_LEN} < ${C.LONG_NAME_LEN} < ${C.MAX_NAME_LEN}`,
-)
+{
+  // §10.1's table is frozen by design (2026-09-11): the profile scales
+  // FEE_BASE alone, and an edited multiplier is a rule change wearing a
+  // profile. The rows are the spec's, and the last one has to cover every
+  // legal length.
+  const TABLE = [[2, 200n], [3, 100n], [4, 50n], [5, 25n], [6, 10n], [11, 5n], [24, 1n]]
+  const rows = C.FEE_MULTIPLIERS.map((band) => [band.upTo, band.times])
+  check(
+    'fee-multipliers-frozen',
+    'FEE_MULTIPLIERS is §10.1\'s table, untouched by the profile, and its last row reaches MAX_NAME_LEN',
+    JSON.stringify(rows, (_, v) => (typeof v === 'bigint' ? `${v}` : v)) === JSON.stringify(TABLE, (_, v) => (typeof v === 'bigint' ? `${v}` : v)) &&
+      rows.at(-1)?.[0] === C.MAX_NAME_LEN,
+    rows.map(([upTo, times]) => `≤${upTo}:${times}×`).join(' ') + ` (MAX_NAME_LEN ${C.MAX_NAME_LEN})`,
+  )
+}
 
-// Pricing (§10.1, §10.6) — the bands move with the profile, the rails do not.
+// Pricing (§10.1, §10.6) — the one governed price moves with the profile,
+// the rails and the multipliers do not.
 check(
-  'price-band-ordering',
-  'PRICE_FLOOR ≤ FEE_LONG ≤ FEE_STANDARD ≤ PRICE_CEILING (§10.6)',
-  C.PRICE_FLOOR <= C.FEE_LONG && C.FEE_LONG <= C.FEE_STANDARD && C.FEE_STANDARD <= C.PRICE_CEILING,
-  `${nim(C.PRICE_FLOOR)} ≤ ${nim(C.FEE_LONG)} ≤ ${nim(C.FEE_STANDARD)} ≤ ${nim(C.PRICE_CEILING)}`,
+  'price-in-rails',
+  'PRICE_FLOOR ≤ FEE_BASE ≤ PRICE_CEILING (§10.6)',
+  C.PRICE_FLOOR <= C.FEE_BASE && C.FEE_BASE <= C.PRICE_CEILING,
+  `${nim(C.PRICE_FLOOR)} ≤ ${nim(C.FEE_BASE)} ≤ ${nim(C.PRICE_CEILING)}`,
 )
 check(
   'commission-bounds',
@@ -154,43 +164,46 @@ check(
 // far, and each fails as something that reads like a product defect.
 {
   // r29 moved REFUND_FLOOR to 1 NIM, which is also the battery profile's
-  // FEE_LONG — so the smallest honest bid sits *on* the floor, not 10× above
+  // FEE_BASE — so the smallest honest bid sits *on* the floor, not 10× above
   // it as the pre-r29 version of this check demanded. What the run actually
   // needs is narrower: a bid at MIN_PRICE must be refundable (≥ floor), and
-  // the standard band must leave room for an underpayment that is still
-  // refundable — the r29 rows underpay a standard-band G by half and expect
-  // INSUFFICIENT_VALUE with a treasury leg, not BELOW_REFUND_FLOOR.
+  // some band must leave room for an underpayment that is still refundable —
+  // the r29 rows underpay a 7–11 character G by half and expect
+  // INSUFFICIENT_VALUE with a treasury leg, not BELOW_REFUND_FLOOR. That band
+  // is 5× the base (§10.1), priced here through core's feeFor, never
+  // multiplied.
+  const sevenBand = feeFor('x'.repeat(7), LAUNCH_PRICES)
   check(
     'trap/min-price-refundable',
-    'the smallest honest bid (MIN_PRICE = FEE_LONG) is at or above REFUND_FLOOR',
-    C.FEE_LONG >= C.REFUND_FLOOR,
-    `FEE_LONG ${both(C.FEE_LONG)} ≥ REFUND_FLOOR ${luna(C.REFUND_FLOOR)}` +
+    'the smallest honest bid (MIN_PRICE = FEE_BASE) is at or above REFUND_FLOOR',
+    C.FEE_BASE >= C.REFUND_FLOOR,
+    `FEE_BASE ${both(C.FEE_BASE)} ≥ REFUND_FLOOR ${luna(C.REFUND_FLOOR)}` +
       '\n      below it every losing bid at the floor earns BELOW_REFUND_FLOOR, stages no ledger leg, and the settlement phase quietly empties',
   )
   check(
-    'trap/standard-band-underpayment-refundable',
-    'FEE_STANDARD ≥ 2× REFUND_FLOOR — a standard-band G paying half is still a refund (r29 rows)',
-    C.FEE_STANDARD >= 2n * C.REFUND_FLOOR,
-    `FEE_STANDARD ${both(C.FEE_STANDARD)} ÷ REFUND_FLOOR ${luna(C.REFUND_FLOOR)} = ${C.FEE_STANDARD / C.REFUND_FLOOR}× (need ≥ 2×)`,
+    'trap/seven-band-underpayment-refundable',
+    'the 7–11 band (5× FEE_BASE) ≥ 2× REFUND_FLOOR — a G there paying half is still a refund (r29 rows)',
+    sevenBand >= 2n * C.REFUND_FLOOR,
+    `7–11 band ${both(sevenBand)} ÷ REFUND_FLOOR ${luna(C.REFUND_FLOOR)} = ${sevenBand / C.REFUND_FLOOR}× (need ≥ 2×)`,
   )
 }
 {
-  const commission = (C.FEE_LONG * C.COMMISSION_RATE) / C.BASIS_POINTS
+  const commission = (C.FEE_BASE * C.COMMISSION_RATE) / C.BASIS_POINTS
   check(
     'trap/commission-nonzero',
     'commission on the smallest sale floors above zero (§6 M)',
     commission > 0n,
-    `floor(FEE_LONG ${luna(C.FEE_LONG)} × ${C.COMMISSION_RATE} bp) = ${luna(commission)}` +
+    `floor(FEE_BASE ${luna(C.FEE_BASE)} × ${C.COMMISSION_RATE} bp) = ${luna(commission)}` +
       '\n      at zero, core refuses to build the leg and the issuer reports a per-leg failure — a profile mistake wearing a settlement defect',
   )
 }
 check(
-  'trap/fee-long-vs-price-floor',
-  'FEE_LONG ≥ PRICE_FLOOR — a band under its own floor is a state governance cannot restore',
-  C.FEE_LONG >= C.PRICE_FLOOR,
-  `FEE_LONG ${nim(C.FEE_LONG)} ${C.FEE_LONG === C.PRICE_FLOOR ? '=' : '>'} PRICE_FLOOR ${nim(C.PRICE_FLOOR)}` +
-    (C.FEE_LONG === C.PRICE_FLOOR
-      ? '\n      exactly on the floor: legal, and it means NO P can lower fee_long — a ladder must walk fee_standard down and fee_long up'
+  'trap/fee-base-vs-price-floor',
+  'FEE_BASE ≥ PRICE_FLOOR — a base under its own floor is a state governance cannot restore',
+  C.FEE_BASE >= C.PRICE_FLOOR,
+  `FEE_BASE ${nim(C.FEE_BASE)} ${C.FEE_BASE === C.PRICE_FLOOR ? '=' : '>'} PRICE_FLOOR ${nim(C.PRICE_FLOOR)}` +
+    (C.FEE_BASE === C.PRICE_FLOOR
+      ? '\n      exactly on the floor: legal, and it means NO P can lower fee_base — a ladder walks it up and back'
       : ''),
 )
 
@@ -254,12 +267,12 @@ check(
   `${C.AUCTION_MIN_DURATION} < ${C.TERM_LENGTH}`,
 )
 {
-  const increment = (C.FEE_LONG * C.AUCTION_MIN_INCREMENT_BP) / C.BASIS_POINTS
+  const increment = (C.FEE_BASE * C.AUCTION_MIN_INCREMENT_BP) / C.BASIS_POINTS
   check(
     'trap/auction-increment-nonzero',
     'the increment on a starting price at MIN_PRICE floors above zero (§6 A — the reason the starting price has a floor at all)',
     increment > 0n,
-    `floor(FEE_LONG ${luna(C.FEE_LONG)} × ${C.AUCTION_MIN_INCREMENT_BP} bp) = ${luna(increment)}` +
+    `floor(FEE_BASE ${luna(C.FEE_BASE)} × ${C.AUCTION_MIN_INCREMENT_BP} bp) = ${luna(increment)}` +
       '\n      at zero a second bid could "raise" by nothing, and the battery\'s outbid rows would never refund anyone',
   )
 }
@@ -335,8 +348,11 @@ for (const key of [
 ]) {
   console.log(`    ${key.padEnd(20)} ${C[key]}`)
 }
-console.log(`    ${'FEE_STANDARD'.padEnd(20)} ${both(C.FEE_STANDARD)}`)
-console.log(`    ${'FEE_LONG'.padEnd(20)} ${both(C.FEE_LONG)}   (= MIN_PRICE at launch)`)
+console.log(`    ${'FEE_BASE'.padEnd(20)} ${both(C.FEE_BASE)}   (= MIN_PRICE at launch; the 12+ yearly fee)`)
+console.log(
+  `    ${'bands (yearly)'.padEnd(20)} ` +
+    C.FEE_MULTIPLIERS.map((band) => `≤${band.upTo}: ${nim(feeFor('x'.repeat(band.upTo), LAUNCH_PRICES))}`).join(', '),
+)
 console.log(`    ${'LAUNCH_HEIGHT'.padEnd(20)} ${C.LAUNCH_HEIGHT}`)
 console.log()
 

@@ -1,13 +1,15 @@
 /**
- * `U` — Unreserve (§6): release a reserved name, or award it.
+ * `U` — Unreserve (§6): release a reserved name, or award any ownerless one.
  *
  * The contract is `encodeUnreserve`'s, not restated here: an omitted (or
  * null) recipient releases the name — the transaction goes to
- * `PROTOCOL_ADDRESS` — while an address awards it, and `BURN_ADDRESS` is
- * refused because the reducer would forfeit the message (`INVALID_RECIPIENT`,
- * §7.4). This module only parses argv, hands the operand to the builder, and
- * broadcasts what it built. If a rule seems to be missing here, it lives in
- * `core` — do not add it here.
+ * `PROTOCOL_ADDRESS` — while an address awards it, `--lifetime` makes the
+ * award a `LIFETIME_TERMS`-term one (`|L`, 2026-09-11) and is refused on a
+ * release, and `BURN_ADDRESS` is refused because the reducer would forfeit
+ * the message (`INVALID_RECIPIENT`, §7.4). This module only parses argv,
+ * hands the operand to the builder, and broadcasts what it built. If a rule
+ * seems to be missing here, it lives in `core` — do not add it here. A list
+ * of awards is `batch.ts`, built on this file's plan.
  *
  * **No notice, and no notice checks, since r22.** A `U` takes effect in the
  * block it lands in; `GOVERNANCE_DELAY` is `P`'s alone. §6 `U` says why: an
@@ -22,6 +24,15 @@
  * the only one now. §6 `U` moves that protection here explicitly. So the plan
  * decodes the payload it actually built rather than echoing the arguments back,
  * and nothing is broadcast without `--send`.
+ *
+ * **Since 2026-09-11 an award reaches any name nobody owns** (§6 `U`):
+ * reserved and unreleased as before, or plain AVAILABLE — a released name, an
+ * expired one past its grace, one that never was reserved. Only a REGISTERED
+ * name or one in GRACE forfeits, `NAME_NOT_AVAILABLE`. So the two operations
+ * now have two different prechecks on the same `/available` read: a release
+ * still needs RESERVED, an award needs *not TAKEN*. The fold exists for the
+ * re-award after a repricing rebuild (`tasks/19` D5), which is a list — hence
+ * `--batch`.
  *
  * **The reservation precheck landed on 2026-08-21, after a `U` forfeited.**
  * `u nimiq` printed a clean plan and the broadcast forfeited
@@ -50,6 +61,7 @@ import {
   isReservedName,
   parse,
   parseAddress,
+  termFor,
   type Address,
 } from '@nns/core'
 
@@ -63,6 +75,7 @@ import {
 } from './cli.js'
 import {
   describeAvailability,
+  isHeldNow,
   isReservedNow,
   RESERVATION_LAG_LIMIT,
   type NameAvailability,
@@ -73,6 +86,8 @@ export interface UnreserveParams {
   readonly name: string
   /** `null` releases the name; an address awards it (r17). */
   readonly recipient: Address | null
+  /** An award for `LIFETIME_TERMS` terms (§10.4); the builder refuses it on a release. */
+  readonly lifetime: boolean
 }
 
 export interface UnreserveCommand {
@@ -99,11 +114,13 @@ export interface UnreservePlan {
   readonly checks: readonly AdminCheck[]
 }
 
-/** `u <name> [recipient] [--send]` — omit the recipient to release. */
+/** `u <name> [recipient] [--lifetime] [--send]` — omit the recipient to release. */
 export function parseUnreserveArgs(argv: readonly string[]): UnreserveCommand {
   const flags = argv.filter((arg) => arg.startsWith('-'))
   for (const flag of flags) {
-    if (flag !== '--send') throw new UsageError(`unknown flag ${JSON.stringify(flag)} — the only flag is --send`)
+    if (flag !== '--send' && flag !== '--lifetime') {
+      throw new UsageError(`unknown flag ${JSON.stringify(flag)} — the flags are --lifetime and --send (a list of awards is --batch <file>)`)
+    }
   }
   const [name, recipient, ...rest] = argv.filter((arg) => !arg.startsWith('-'))
   if (name === undefined || rest.length > 0) {
@@ -119,8 +136,12 @@ export function parseUnreserveArgs(argv: readonly string[]): UnreserveCommand {
     )
   }
   return {
-    params: { name, recipient: recipient === undefined ? null : parseAddress(recipient) },
-    send: flags.length > 0,
+    params: {
+      name,
+      recipient: recipient === undefined ? null : parseAddress(recipient),
+      lifetime: flags.includes('--lifetime'),
+    },
+    send: flags.includes('--send'),
   }
 }
 
@@ -144,28 +165,55 @@ export async function planUnreserve(
   const availability = await source.fetchAvailability(params.name)
 
   const checks: AdminCheck[] = []
+  // From the built recipient, not from argv: the reducer decides release
+  // versus award by the recipient alone (§6 `U`), so an awardee spelled as
+  // `PROTOCOL_ADDRESS` is a release on the wire and must be checked as one.
+  const kind = addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS) ? 'release' : 'award'
 
-  // The reducer's second row, which the message cannot answer about itself:
-  // `isReserved(state, name)`. Both halves are refusals rather than warnings
-  // because neither is a judgement call — a `U` for a name that is not
-  // RESERVED *is* `NAME_NOT_RESERVED`, mined and forfeited, with no state the
-  // chain could be in that would make it land.
-  if (!isReservedName(params.name)) {
-    // The state-independent half, and the one worth naming separately: no
-    // chain state can rescue it, so this is not a "check again later".
+  // The reducer's last row, which the message cannot answer about itself, and
+  // which the recipient chose (§6 `U`, 2026-09-11). Every branch is a refusal
+  // rather than a warning because none is a judgement call: the message is
+  // mined and forfeited, and no state the chain could be in would make it
+  // land.
+  if (kind === 'release') {
+    // `isReserved(state, name)`, in two halves.
+    if (!isReservedName(params.name)) {
+      // The state-independent half, and the one worth naming separately: no
+      // chain state can rescue it, so this is not a "check again later".
+      checks.push({
+        severity: 'refuse',
+        message:
+          `${JSON.stringify(params.name)} is not a reserved name — it is neither on RESERVED_NAMES nor short-reserved ` +
+          'by §4.1, so this U forfeits NAME_NOT_RESERVED whatever the chain state is (§6 U). Nothing to release.',
+      })
+    } else if (!isReservedNow(availability)) {
+      checks.push({
+        severity: 'refuse',
+        message:
+          `${JSON.stringify(params.name)} is on the reserved list but is no longer RESERVED: ` +
+          `${availability.url} reads it as ${describeAvailability(availability)} at height ${availability.height}. ` +
+          'A U already fired for it, so this one forfeits NAME_NOT_RESERVED (§6 U, r22).',
+      })
+    }
+  } else if (isHeldNow(availability)) {
+    // An award needs only that nobody owns the name: `state.names.has(name)`
+    // is the whole row, and `/available`'s TAKEN is its spelling — REGISTERED
+    // or in GRACE. Reserved-and-unreleased and plain AVAILABLE both land.
     checks.push({
       severity: 'refuse',
       message:
-        `${JSON.stringify(params.name)} is not a reserved name — it is neither on RESERVED_NAMES nor short-reserved ` +
-        'by §4.1, so this U forfeits NAME_NOT_RESERVED whatever the chain state is (§6 U). Nothing to release.',
+        `${JSON.stringify(params.name)} is held: ${availability.url} reads it as ${describeAvailability(availability)} ` +
+        `at height ${availability.height}. An award reaches any name nobody owns, and this one has an owner, so this U ` +
+        'forfeits NAME_NOT_AVAILABLE (§6 U, 2026-09-11).',
     })
-  } else if (!isReservedNow(availability)) {
+  } else if (!availability.available && !isReservedNow(availability)) {
+    // Neither available nor reserved nor taken: a §4.1 reason the builder did
+    // not catch. Nothing awards a name that cannot be registered.
     checks.push({
       severity: 'refuse',
       message:
-        `${JSON.stringify(params.name)} is on the reserved list but is no longer RESERVED: ` +
-        `${availability.url} reads it as ${describeAvailability(availability)} at height ${availability.height}. ` +
-        'A U already fired for it, so this one forfeits NAME_NOT_RESERVED (§6 U, r22).',
+        `${JSON.stringify(params.name)} is ${describeAvailability(availability)} per ${availability.url} at height ` +
+        `${availability.height} — this U forfeits INVALID_NAME (§6 U).`,
     })
   }
 
@@ -198,12 +246,9 @@ export async function planUnreserve(
 
   return {
     params,
-    // From the built recipient, not from argv: the reducer decides release
-    // versus award by the recipient alone (§6 `U`), so an awardee spelled as
-    // `PROTOCOL_ADDRESS` is a release on the wire and must read as one here —
-    // the plan is the fat-finger protection, and it has to describe the
-    // bytes it built.
-    kind: addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS) ? 'release' : 'award',
+    // The plan is the fat-finger protection, and it has to describe the bytes
+    // it built — so the kind is the built recipient's, decided above.
+    kind,
     sender: CONSTANTS.ADMIN_ADDRESS,
     recipient: tx.recipient,
     data: tx.data,
@@ -229,9 +274,10 @@ export function describePlan(plan: UnreservePlan): string[] {
     throw new Error(`built a U that does not parse back as one: ${plan.data}`)
   }
   const { kind, recipient, head, availability } = plan
-  const name = decoded.message.name
+  const { name, lifetime } = decoded.message
+  const term = termFor(lifetime)
   return [
-    `U ${kind}: ${name}`,
+    `U ${kind}: ${name}${kind === 'award' && lifetime ? ' (lifetime)' : ''}`,
     // First line after the verb, because it is the row that decides whether
     // this message lands at all — and the one a plan built from the message
     // alone could not show (2026-08-21).
@@ -239,14 +285,14 @@ export function describePlan(plan: UnreservePlan): string[] {
       `${availability.height} (${head - availability.height} blocks behind head)`,
     kind === 'release'
       ? `  to        ${formatAddress(recipient)} (PROTOCOL_ADDRESS — the name becomes AVAILABLE)`
-      : `  to        ${formatAddress(recipient)} (awarded the name, full term, no fee)`,
-    `  payload   ${plan.data} — decoded: name ${JSON.stringify(name)}, no other field`,
+      : `  to        ${formatAddress(recipient)} (awarded the name, ${lifetime ? `a lifetime — ${CONSTANTS.LIFETIME_TERMS} terms` : 'one full term'}, no fee)`,
+    `  payload   ${plan.data} — decoded: name ${JSON.stringify(name)}, ${lifetime ? 'lifetime flag L' : 'no other field'}`,
     `  effective on landing: head is ${head}, so this binds in the next block that carries it — ` +
       'there is no notice window and nothing to cancel (§6 U, r22)',
     ...(kind === 'award'
       ? [
-          `  award term ends <landing height> + ${CONSTANTS.TERM_LENGTH}, so at head that is ` +
-            `${head + CONSTANTS.TERM_LENGTH} — the term is half-open, and GRACE begins at the end height (§7.3)`,
+          `  award term ends <landing height> + ${term}${lifetime ? ` (${CONSTANTS.LIFETIME_TERMS} × TERM_LENGTH ${CONSTANTS.TERM_LENGTH})` : ''}, ` +
+            `so at head that is ${head + term} — the term is half-open, and GRACE begins at the end height (§7.3)`,
         ]
       : []),
     `  from      ${formatAddress(plan.sender)} (ADMIN_ADDRESS), balance ${formatLuna(plan.balance)}`,

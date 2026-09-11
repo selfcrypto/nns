@@ -6,7 +6,7 @@ import { createParamsSource, parseParams } from './params.js'
 const URL_ = 'http://api.test/params'
 
 const document_ = {
-  prices: { feeStandard: '400000000', feeLong: '40000000', commissionBp: '250' },
+  prices: { feeBase: '40000000', commissionBp: '250' },
   minPrice: '40000000',
   listingFee: '0',
   lastGovernanceHeight: null,
@@ -15,9 +15,9 @@ const document_ = {
 }
 
 describe('parseParams', () => {
-  it('reads the four values §10.6 measures against, luna as bigint', () => {
+  it('reads the four values §10.6 measures against — one fee since 2026-09-11, luna as bigint', () => {
     expect(parseParams(document_, URL_)).toEqual({
-      prices: { feeStandard: 400_000_000n, feeLong: 40_000_000n, commissionBp: 250n },
+      prices: { feeBase: 40_000_000n, commissionBp: 250n },
       lastGovernanceHeight: null,
       pending: null,
       height: 58_099_850,
@@ -31,7 +31,7 @@ describe('parseParams', () => {
         ...document_,
         lastGovernanceHeight: 58_000_100,
         pendingGovernance: {
-          prices: { feeStandard: '500000000', feeLong: '50000000', commissionBp: '300' },
+          prices: { feeBase: '50000000', commissionBp: '300' },
           effectiveHeight: 58_150_000,
         },
       },
@@ -39,15 +39,15 @@ describe('parseParams', () => {
     )
     expect(parsed.lastGovernanceHeight).toBe(58_000_100)
     expect(parsed.pending).toEqual({
-      prices: { feeStandard: 500_000_000n, feeLong: 50_000_000n, commissionBp: 300n },
+      prices: { feeBase: 50_000_000n, commissionBp: 300n },
       effectiveHeight: 58_150_000,
     })
   })
 
   it('refuses a number where luna is a decimal string — a float is how precision is lost', () => {
-    const prices = { ...document_.prices, feeStandard: 400_000_000 as unknown as string }
+    const prices = { ...document_.prices, feeBase: 40_000_000 as unknown as string }
     expect(() => parseParams({ ...document_, prices }, URL_)).toThrow(AdminError)
-    expect(() => parseParams({ ...document_, prices }, URL_)).toThrow(/prices.feeStandard/)
+    expect(() => parseParams({ ...document_, prices }, URL_)).toThrow(/prices.feeBase/)
   })
 
   it('names the URL and the field on anything else it cannot read', () => {

@@ -1115,7 +1115,8 @@ describe('discovery', () => {
 
 describe('GET /referrals/{name} (§10.7)', () => {
   const REFERRED = [
-    { height: 58_190_050, txIndex: 1, txHash: 'ab'.repeat(32), name: 'newcomer', sender: B, value: 400_000_000n },
+    { height: 58_190_050, txIndex: 1, txHash: 'ab'.repeat(32), name: 'newcomer', sender: B, value: 400_000_000n, lifetime: false },
+    { height: 58_190_060, txIndex: 0, txHash: 'cd'.repeat(32), name: 'lifelong', sender: B, value: 4_000_000_000n, lifetime: true },
   ]
 
   it('lists the accepted registrations that named the referrer, and no share', async () => {
@@ -1124,9 +1125,10 @@ describe('GET /referrals/{name} (§10.7)', () => {
       status: 200,
       body: {
         name: 'alice-example',
-        count: 1,
+        count: 2,
         registrations: [
-          { height: 58_190_050, txIndex: 1, txHash: 'ab'.repeat(32), name: 'newcomer', sender: formatAddress(B), value: '400000000' },
+          { height: 58_190_050, txIndex: 1, txHash: 'ab'.repeat(32), name: 'newcomer', sender: formatAddress(B), value: '400000000', lifetime: false },
+          { height: 58_190_060, txIndex: 0, txHash: 'cd'.repeat(32), name: 'lifelong', sender: formatAddress(B), value: '4000000000', lifetime: true },
         ],
         height: HEIGHT,
       },

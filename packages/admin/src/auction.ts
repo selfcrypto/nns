@@ -47,6 +47,7 @@ import {
   encodeAuction,
   formatAddress,
   isReservedName,
+  minPrice,
   parse,
   type Address,
 } from '@nns/core'
@@ -151,7 +152,7 @@ export async function planAuction(rpc: AdminRpc, sources: AuctionSources, params
   const active = await sources.params.fetchParams()
   const tx = encodeAuction({
     ...params,
-    minPrice: active.prices.feeLong,
+    minPrice: minPrice(active.prices),
     sender: CONSTANTS.ADMIN_ADDRESS,
   })
   const head = await rpc.call<number>('getBlockNumber')
@@ -278,7 +279,7 @@ export function describeAuctionPlan(plan: AuctionPlan): string[] {
       `read from ${availability.url} at height ${availability.height} (${head - availability.height} blocks behind head)`,
     `  auctions    ${plan.open.auctions.length} open at ${plan.open.url}, height ${plan.open.height} — ` +
       (auctionFor(plan.open, name) === null ? `none for ${JSON.stringify(name)}` : `ONE OF THEM IS ${JSON.stringify(name)}`),
-    `  starting price  ${formatLuna(startingPrice)} — MIN_PRICE is ${formatLuna(active.prices.feeLong)} at ${active.url}, height ${active.height}; ` +
+    `  starting price  ${formatLuna(startingPrice)} — MIN_PRICE is ${formatLuna(minPrice(active.prices))} (FEE_BASE, the 12+ fee) at ${active.url}, height ${active.height}; ` +
       'the first bid must reach the starting price, each later one the standing bid plus ' +
       `${CONSTANTS.AUCTION_MIN_INCREMENT_BP} bp of itself`,
     `  ends at     height ${endHeight} — head is ${head}, so ${noticeInWords(endHeight, head)}; a bid inside the last ` +

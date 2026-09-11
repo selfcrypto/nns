@@ -113,7 +113,9 @@ function ShareTile({ name, height, inGrace }: { name: string; height: number; in
     if (params.status !== 'done') return referralsCountLine(referrals.value.count, '…')
     let total = 0n
     for (const item of referrals.value.registrations) {
-      total += shareOf(registrationFee(item.name, params.value), bp)
+      // The share is taken on the fee owed, so a lifetime registration
+      // counts ten yearly fees (settlement's `share.ts`, 2026-09-11).
+      total += shareOf(registrationFee(item.name, params.value, item.lifetime), bp)
     }
     return referralsCountLine(referrals.value.count, lunaToNim(total))
   })()

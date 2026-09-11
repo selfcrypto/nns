@@ -472,18 +472,23 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     const withRef = Buffer.from('NNS1Gnewcomer|ricomav', 'ascii').toString('hex')
     const refused = Buffer.from('NNS1Gothername|ricomav', 'ascii').toString('hex')
     const plain = Buffer.from('NNS1Gplainname', 'ascii').toString('hex')
+    const lifelong = Buffer.from('NNS1Glifelongname|ricomav|L', 'ascii').toString('hex')
     await pool.query(
       `INSERT INTO log (block_height, tx_index, tx_hash, sender, recipient, value, data, verdict)
        VALUES (58199600, 0, $1, $2, $3, '40000000', $4, 'OK'),
               (58199600, 1, $5, $2, $3, '40000000', $6, 'NAME_TAKEN'),
-              (58199660, 0, $7, $2, $3, '40000000', $8, 'OK')`,
-      ['e1'.repeat(32), A, CONSTANTS.TREASURY_ADDRESS, withRef, 'e2'.repeat(32), refused, 'e3'.repeat(32), plain],
+              (58199660, 0, $7, $2, $3, '40000000', $8, 'OK'),
+              (58199660, 1, $9, $2, $3, '400000000', $10, 'OK')`,
+      ['e1'.repeat(32), A, CONSTANTS.TREASURY_ADDRESS, withRef, 'e2'.repeat(32), refused, 'e3'.repeat(32), plain, 'e4'.repeat(32), lifelong],
     )
     const response = await handle('GET', '/referrals/ricomav')
     expect(response.status).toBe(200)
     const body = response.body as { count: number; registrations: { name: string; value: string }[] }
-    expect(body.count).toBe(1)
-    expect(body.registrations).toEqual([expect.objectContaining({ name: 'newcomer', value: '40000000', height: 58199600, txIndex: 0 })])
+    expect(body.count).toBe(2)
+    expect(body.registrations).toEqual([
+      expect.objectContaining({ name: 'newcomer', value: '40000000', height: 58199600, txIndex: 0, lifetime: false }),
+      expect.objectContaining({ name: 'lifelongname', value: '400000000', height: 58199660, txIndex: 1, lifetime: true }),
+    ])
     expect((await handle('GET', '/referrals/nobody-yet')).body).toMatchObject({ count: 0, registrations: [] })
     // The §10.2 revenue test below counts every OK G to the treasury.
     await pool.query(`DELETE FROM log WHERE block_height IN (58199600, 58199660)`)

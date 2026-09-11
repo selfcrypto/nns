@@ -57,7 +57,7 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [height, txIndex, txHash, name, sender, value]
+                      required: [height, txIndex, txHash, name, sender, value, lifetime]
                       properties:
                         height: { $ref: '#/components/schemas/Height' }
                         txIndex: { type: integer }
@@ -66,7 +66,12 @@ paths:
                         sender: { $ref: '#/components/schemas/Address' }
                         value:
                           type: string
-                          description: Luna the `G` carried, as a decimal string. At or above the fee in effect; the share is taken on the fee, not on this.
+                          description: Luna the `G` carried, as a decimal string. At or above the fee owed; the share is taken on the fee, not on this.
+                        lifetime:
+                          type: boolean
+                          description: >
+                            The `G` carried `L` (§10.4): the fee owed was the lifetime fee, `LIFETIME_MULTIPLIER` yearly
+                            fees, and a share taken on the fee owed is that many times the yearly share.
                   height: { $ref: '#/components/schemas/Height' }
         '400':
           description: Not a §4.1 name.

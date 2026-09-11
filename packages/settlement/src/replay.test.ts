@@ -34,7 +34,7 @@ import { replayLog } from './replay.js'
 const HEAD = LAUNCH_HEIGHT + 100
 
 const NAME = 'alicename'
-/** Above `MIN_PRICE` (= `FEE_LONG`), and odd, so `floor` leaves a remainder. */
+/** Above `MIN_PRICE` (= `FEE_BASE`), and odd, so `floor` leaves a remainder. */
 const PRICE = 50_000_001n
 const COMMISSION = commissionOn(PRICE, CONSTANTS.COMMISSION_RATE)
 const PROCEEDS = PRICE - COMMISSION
@@ -250,6 +250,25 @@ describe('replayLog', () => {
     expect(result.mismatches).toEqual([])
     expect(result.created).toHaveLength(1)
     expect(result.created[0]?.obligation).toMatchObject({ kind: 'REFUND', owedBy: TREASURY, owedTo: SELLER, amount: short })
+  })
+
+  it('a lifetime G derives its surplus and its underpayment from the lifetime fee, with no code of its own (2026-09-11)', () => {
+    // §10.4: `|L` owes LIFETIME_MULTIPLIER yearly fees. The replay learns
+    // nothing new — `feeFor` is the reducer's, and the legs fall out of it.
+    const lifetime = feeFor(NAME, initialState().prices, true)
+    expect(lifetime).toBe(feeFor(NAME, initialState().prices) * CONSTANTS.LIFETIME_MULTIPLIER)
+    const payload = encodeRegister({ name: NAME, fee: lifetime, lifetime: true }).data
+    // A surplus of exactly REFUND_FLOOR — the smallest one refunded (§10.5).
+    const over = stageLog([send(H.register, 0, SELLER, { recipient: TREASURY, value: lifetime + CONSTANTS.REFUND_FLOOR, data: payload })], config)
+    const surplus = replayLog(over.lines, initialState(), config, HEAD)
+    expect(surplus.mismatches).toEqual([])
+    expect(surplus.created).toHaveLength(1)
+    expect(surplus.created[0]?.obligation).toMatchObject({ kind: 'REFUND', owedBy: TREASURY, owedTo: SELLER, amount: CONSTANTS.REFUND_FLOOR })
+    // Ten yearly fees less one luna: short of the lifetime fee, refunded whole.
+    const under = stageLog([send(H.register, 0, SELLER, { recipient: TREASURY, value: lifetime - 1n, data: payload })], config)
+    const refund = replayLog(under.lines, initialState(), config, HEAD)
+    expect(refund.mismatches).toEqual([])
+    expect(refund.created[0]?.obligation).toMatchObject({ kind: 'REFUND', owedBy: TREASURY, owedTo: SELLER, amount: lifetime - 1n })
   })
 
   it('a G that loses a registration race is owed by the treasury, not the marketplace', () => {

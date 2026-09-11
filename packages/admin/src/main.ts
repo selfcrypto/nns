@@ -1,8 +1,9 @@
 /**
  * Admin CLI entry point. Four commands:
  *
- *   p <fee_standard> <fee_long> <commission_bp> <effective-height> [--send]
- *   u <name> [recipient] [--send]
+ *   p <fee_base> <commission_bp> <effective-height> [--send]
+ *   u <name> [recipient] [--lifetime] [--send]
+ *   u --batch <file> [--send]
  *   f <amount_luna> [--send]
  *   a <name> <starting_price_luna> <end-height> [--send]
  *
@@ -14,6 +15,7 @@ import { RpcClient } from '@nns/indexer'
 
 import { describeAuctionPlan, parseAuctionArgs, planAuction } from './auction.js'
 import { createAuctionsSource } from './auctions.js'
+import { broadcastBatch, describeBatchPlan, parseBatchArgs, planBatch } from './batch.js'
 import { confirmBurn, createBurnSource, describeBurnPlan, parseBurnArgs, planBurn } from './burn.js'
 import { blockingChecks, broadcast, UsageError, type AdminRpc, type Broadcast, type SendablePlan } from './cli.js'
 import { loadSettings } from './env.js'
@@ -22,29 +24,41 @@ import { createParamsSource } from './params.js'
 import { createReservationSource } from './reservation.js'
 import { describePlan, parseUnreserveArgs, planUnreserve } from './unreserve.js'
 
-const USAGE = `usage: p <fee_standard> <fee_long> <commission_bp> <effective-height> [--send]
-       u <name> [recipient] [--send]
+const USAGE = `usage: p <fee_base> <commission_bp> <effective-height> [--send]
+       u <name> [recipient] [--lifetime] [--send]
+       u --batch <file> [--send]
        f <amount_luna> [--send]
        a <name> <starting_price_luna> <end-height> [--send]
 
-p builds a P (§6): the two prices — in luna — and the marketplace commission in
-basis points, all in one message, taking effect at the given height. It checks
-every §10.6 bound it can before signing, against the prices and the last P's
-height read from NNS_API_URL, and refuses to broadcast a message that would be
-forfeited on-chain.
+p builds a P (§6): the one governed price — fee_base, the 12+ character yearly
+fee, in luna — and the marketplace commission in basis points, in one message,
+taking effect at the given height. Every band is a frozen multiple of the base
+(§10.1), so the plan prints every band's yearly fee: check those, not the luna.
+It checks every §10.6 bound it can before signing, against the prices and the
+last P's height read from NNS_API_URL, and refuses to broadcast a message that
+would be forfeited on-chain.
 
 u builds a U (§6) and prints what it would do: release the reserved name — the
 transaction goes to PROTOCOL_ADDRESS — or, if a recipient address is given,
-award it to that address. BURN_ADDRESS is refused.
+award it to that address for one term, or with --lifetime for LIFETIME_TERMS
+terms. An award reaches any name nobody owns (2026-09-11): reserved or plain
+AVAILABLE; a REGISTERED name or one in GRACE forfeits NAME_NOT_AVAILABLE and is
+refused here. BURN_ADDRESS is refused.
+
+u --batch <file> awards a list — one \`name recipient [L]\` per line, # for a
+comment — as one plan: every row's decoded plan is printed, a refusing row
+refuses the whole batch, and --send broadcasts them in file order. It is the
+re-award after a rebuild, and a giveaway; a release is one name, by hand.
 
 u takes NO effective height. A U executes in the block it lands in (§6 U,
 r22): there is no notice window, nothing to cancel, and no second chance. The
 dry run below is the only point at which a mistyped name or awardee can be
 caught, so read the decoded payload before passing --send.
 
-u REFUSES a name that is not currently reserved, reading GET /available/{name}
-from NNS_API_URL: a U for a name that is registered, in grace, already
-released, or never on the list is mined and forfeited as NAME_NOT_RESERVED.
+u REFUSES a release of a name that is not currently reserved, reading GET
+/available/{name} from NNS_API_URL: a U for a name that is registered, in
+grace, already released, or never on the list is mined and forfeited as
+NAME_NOT_RESERVED. An award is refused only for a name somebody holds.
 
 p does refuse an effective height under GOVERNANCE_DELAY plus a landing
 margin. Notice is measured from the block the message lands in, not from the
@@ -98,16 +112,21 @@ async function run(argv: readonly string[]): Promise<number> {
 }
 
 /** What differs between the four commands, once the loop around them is shared. */
-interface Command<Plan extends SendablePlan> {
+interface Command<Plan extends Pick<SendablePlan, 'checks'>> {
   /** Why this command cannot run without `NNS_API_URL` — the usage error names the read. */
   readonly apiReason: string
   readonly plan: (rpc: AdminRpc, apiUrl: string) => Promise<Plan>
   readonly describe: (plan: Plan) => readonly string[]
   /** Appended to the refusal line: what a landed mistake would have cost. */
   readonly refusalNote: string
-  /** After a `--send`, with the hash in hand; its return is the exit code. */
+  /** After a `--send`, with the first hash in hand; its return is the exit code. */
   readonly afterSend?: (sent: Broadcast, apiUrl: string) => Promise<number>
+  /** The send: {@link one} for a single message, the batch's own for a list. */
+  readonly broadcast: (rpc: AdminRpc, plan: Plan) => Promise<readonly Broadcast[]>
 }
+
+/** The one `broadcast`, as a list of one — what every single-message command sends with. */
+const one = async (rpc: AdminRpc, plan: SendablePlan): Promise<readonly Broadcast[]> => [await broadcast(rpc, plan)]
 
 /**
  * The loop every command runs: settings, the API demanded on entry, plan,
@@ -115,7 +134,7 @@ interface Command<Plan extends SendablePlan> {
  * three, and they differed only in the strings this table carries. `a`
  * joined the same day as the fourth row.
  */
-async function execute<Plan extends SendablePlan>(send: boolean, command: Command<Plan>): Promise<number> {
+async function execute<Plan extends Pick<SendablePlan, 'checks'>>(send: boolean, command: Command<Plan>): Promise<number> {
   const settings = loadSettings()
   if (settings.apiUrl === undefined) {
     throw new UsageError(`${command.apiReason} — see packages/admin/.env.example`)
@@ -135,9 +154,10 @@ async function execute<Plan extends SendablePlan>(send: boolean, command: Comman
     console.log('dry run — nothing was sent. Pass --send to broadcast.')
     return 0
   }
-  const sent = await broadcast(rpc, plan)
-  console.log(`sent: tx ${sent.hash} (validityStartHeight ${sent.validityStartHeight})`)
-  return command.afterSend === undefined ? 0 : await command.afterSend(sent, settings.apiUrl)
+  const sent = await command.broadcast(rpc, plan)
+  for (const each of sent) console.log(`sent: tx ${each.hash} (validityStartHeight ${each.validityStartHeight})`)
+  const first = sent[0]
+  return command.afterSend === undefined || first === undefined ? 0 : await command.afterSend(first, settings.apiUrl)
 }
 
 function runGovernance(argv: readonly string[]): Promise<number> {
@@ -149,10 +169,12 @@ function runGovernance(argv: readonly string[]): Promise<number> {
     plan: (rpc, apiUrl) => planGovernance(rpc, createParamsSource(apiUrl), params),
     describe: describeGovernancePlan,
     refusalNote: ', and a P that lands cannot be retracted',
+    broadcast: one,
   })
 }
 
 function runUnreserve(argv: readonly string[]): Promise<number> {
+  if (argv.includes('--batch')) return runBatch(argv)
   const { params, send } = parseUnreserveArgs(argv)
   // Two refusals reach the loop: §11.5's balance (added with `f`, 2026-08-17)
   // and the reservation (2026-08-21, after `u nimiq` forfeited). r22 removed
@@ -168,6 +190,23 @@ function runUnreserve(argv: readonly string[]): Promise<number> {
     plan: (rpc, apiUrl) => planUnreserve(rpc, createReservationSource(apiUrl), params),
     describe: describePlan,
     refusalNote: '',
+    broadcast: one,
+  })
+}
+
+function runBatch(argv: readonly string[]): Promise<number> {
+  const command = parseBatchArgs(argv)
+  // The same reads as `u`, once per row, and one plan whose checks are every
+  // row's plus the balance over the whole list. A refusing row refuses the
+  // batch: the file is fixed, not the order of the sends.
+  return execute(command.send, {
+    apiReason:
+      'u needs NNS_API_URL: whether each name is held is chain state (§6 U forfeits NAME_NOT_AVAILABLE on an award ' +
+      'of a held name), and GET /available/{name} is the only thing that answers it',
+    plan: (rpc, apiUrl) => planBatch(rpc, createReservationSource(apiUrl), command),
+    describe: describeBatchPlan,
+    refusalNote: ' — fix the file; a batch goes out whole or not at all',
+    broadcast: broadcastBatch,
   })
 }
 
@@ -195,6 +234,7 @@ function runAuction(argv: readonly string[]): Promise<number> {
       ),
     describe: describeAuctionPlan,
     refusalNote: ', and an A that lands cannot be cancelled',
+    broadcast: one,
   })
 }
 
@@ -207,6 +247,7 @@ function runBurn(argv: readonly string[]): Promise<number> {
     plan: (rpc, apiUrl) => planBurn(rpc, createBurnSource(apiUrl), params),
     describe: describeBurnPlan,
     refusalNote: ', and BURN_ADDRESS gives nothing back',
+    broadcast: one,
     afterSend: async (sent, apiUrl) => {
       // §5.3: a returned hash is not confirmation — three silent drop routes.
       // Confirm by effect at the API, or say plainly that nothing confirmed it.

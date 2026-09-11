@@ -23,12 +23,17 @@ const H = {
 const THROUGH = LAUNCH_HEIGHT + CONSTANTS.CHECKPOINT_INTERVAL
 
 const referrerRegistered = send(H.referrer, 0, REFERRER_OWNER, encodeRegister({ name: REFERRER, fee: FEE(REFERRER) }))
-const referred = (extra: Partial<{ fee: bigint; ref: string; height: number }> = {}) =>
+const referred = (extra: Partial<{ fee: bigint; ref: string; height: number; lifetime: boolean }> = {}) =>
   send(
     extra.height ?? H.register,
     0,
     WINNER,
-    encodeRegister({ name: NEWCOMER, fee: extra.fee ?? FEE(NEWCOMER), ref: extra.ref ?? REFERRER }),
+    encodeRegister({
+      name: NEWCOMER,
+      fee: extra.fee ?? feeFor(NEWCOMER, initialState().prices, extra.lifetime ?? false),
+      ref: extra.ref ?? REFERRER,
+      ...(extra.lifetime ? { lifetime: true } : {}),
+    }),
   )
 
 function collect(sends: readonly Send[], table = DEFAULT, through = THROUGH) {
@@ -62,6 +67,16 @@ describe('shareOwed — §10.7 in one function', () => {
   it('is on the fee in effect, never the value sent — an overpayment farms nothing', () => {
     const { shares } = collect([referrerRegistered, referred({ fee: FEE(NEWCOMER) * 5n })])
     expect(shares.created[0]?.amount).toBe(SHARE)
+  })
+
+  it('a lifetime G owes the share on the lifetime fee — ten yearly shares (2026-09-11)', () => {
+    // The fee owed is what the reducer checked the value against; a `G|L`
+    // owes LIFETIME_MULTIPLIER yearly fees, and the referrer drove all of it.
+    const { replay, shares } = collect([referrerRegistered, referred({ lifetime: true })])
+    expect(replay.mismatches).toEqual([])
+    const lifetimeFee = feeFor(NEWCOMER, initialState().prices, true)
+    expect(lifetimeFee).toBe(FEE(NEWCOMER) * CONSTANTS.LIFETIME_MULTIPLIER)
+    expect(shares.created[0]).toMatchObject({ price: lifetimeFee, amount: SHARE * CONSTANTS.LIFETIME_MULTIPLIER })
   })
 
   it('owes nothing when the ref is not registered', () => {

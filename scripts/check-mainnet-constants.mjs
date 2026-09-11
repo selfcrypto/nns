@@ -3,7 +3,8 @@
 //   node scripts/check-mainnet-constants.mjs        # check the working tree file
 //   git show :packages/core/src/constants.ts | node scripts/check-mainnet-constants.mjs -
 //
-// Seven literals, one file. Nothing else — not the relations (that is
+// Six literals, one file (seven until the 2026-09-11 fold folded the two fee
+// bands into one FEE_BASE). Nothing else — not the relations (that is
 // `check-tempo-relations.mjs`, which asserts relations and never values), not
 // the other constants, not any other path.
 //
@@ -17,7 +18,7 @@
 // and this is the check that does not depend on it.
 //
 // Exit codes, matching `check-tempo-relations.mjs`:
-//   0  the seven literals are intact
+//   0  the six literals are intact
 //   1  at least one differs — this is the refusal
 //   2  the file could not be read or a literal could not be found at all
 
@@ -28,10 +29,9 @@ import { fileURLToPath } from 'node:url'
 const repo = dirname(dirname(fileURLToPath(import.meta.url)))
 const SOURCE = 'packages/core/src/constants.ts'
 
-/** The mainnet values, as §3 prints them. Fee bands in NIM, the rest in blocks. */
+/** The mainnet values, as §3 prints them. The base fee in NIM, the rest in blocks. */
 const MAINNET = {
-  FEE_STANDARD: 2_000,
-  FEE_LONG: 400,
+  FEE_BASE: 400,
   TERM_LENGTH: 31_536_000,
   GRACE_PERIOD: 2_592_000,
   GOVERNANCE_DELAY: 86_400,
@@ -56,7 +56,7 @@ const failures = []
 const missing = []
 
 for (const [key, expected] of Object.entries(MAINNET)) {
-  // `FEE_STANDARD: nim(2_000n),` and `TERM_LENGTH: 31_536_000,` in one shape.
+  // `FEE_BASE: nim(400n),` and `TERM_LENGTH: 31_536_000,` in one shape.
   const match = new RegExp(`^\\s*${key}:\\s*(?:nim\\()?([0-9_]+)n?\\)?`, 'm').exec(text)
   if (match === null) {
     missing.push(key)
@@ -85,4 +85,4 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`${SOURCE}: all seven mainnet literals intact`)
+console.log(`${SOURCE}: all six mainnet literals intact`)

@@ -49,7 +49,7 @@ const PARAMS_URL = 'https://api.example/params'
 const AUCTIONS_URL = 'https://api.example/auctions'
 
 const ACTIVE: ActiveParams = Object.freeze({
-  prices: { feeStandard: 2_000n * LUNA_PER_NIM, feeLong: MIN_PRICE, commissionBp: 250n },
+  prices: { feeBase: MIN_PRICE, commissionBp: 250n },
   lastGovernanceHeight: null,
   pending: null,
   height: HEAD,
@@ -163,10 +163,10 @@ describe('planAuction', () => {
   })
 
   it('takes the floor from /params, not from the launch constant', async () => {
-    // A P halved the long band: a starting price that the launch FEE_LONG would
+    // A P halved the base fee: a starting price that the launch FEE_BASE would
     // refuse is legal against the active one, and the plan says which it used.
     const halved = MIN_PRICE / 2n
-    const built = await plan({ startingPrice: halved }, { params: { prices: { ...ACTIVE.prices, feeLong: halved } } })
+    const built = await plan({ startingPrice: halved }, { params: { prices: { ...ACTIVE.prices, feeBase: halved } } })
     expect(built.checks).toEqual([])
     expect(describeAuctionPlan(built).join('\n')).toContain(`MIN_PRICE is ${halved} luna`)
   })
@@ -294,7 +294,7 @@ describe('describeAuctionPlan', () => {
     const lines = describeAuctionPlan(await plan()).join('\n')
     expect(lines).toContain('state       RESERVED (on RESERVED_NAMES)')
     expect(lines).toContain(`read from ${AVAILABLE_URL} at height ${HEAD} (0 blocks behind head)`)
-    expect(lines).toContain(`MIN_PRICE is ${MIN_PRICE} luna (400 NIM) at ${PARAMS_URL}`)
+    expect(lines).toContain(`MIN_PRICE is ${MIN_PRICE} luna (400 NIM) (FEE_BASE, the 12+ fee) at ${PARAMS_URL}`)
     expect(lines).toContain('~25.0 h from now')
     expect(lines).toContain(`earliest usable ${END}`)
     expect(lines).toContain('none for "binance"')

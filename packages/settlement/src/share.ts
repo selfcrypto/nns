@@ -18,8 +18,10 @@
  * - eligibility and payee are read from state **before the `G` reduces** —
  *   the `ref` must be a `REGISTERED` name then, and its `target` is paid;
  * - only an `OK` `G` owes anything;
- * - the amount is `⌊price × bp⌋` on the fee **in effect** at the `G`'s
- *   height, never the value sent;
+ * - the amount is `⌊price × bp⌋` on the fee **owed** at the `G`'s height —
+ *   the band's yearly fee, or the lifetime fee when the `G` carried `L`
+ *   (2026-09-11: a lifetime is ten yearly fees and pays ten shares; the
+ *   referrer drove ten times the revenue) — never the value sent;
  * - the rate is the table's row for `(ref, height)`;
  * - an `M` from `TREASURY_ADDRESS` referencing the `G`, to the payee, for
  *   exactly the amount, settles it — the four-coordinate match §6 `M` uses
@@ -56,7 +58,7 @@ export interface ShareLeg {
   /** The referrer's `target` at the `G`'s position. */
   readonly owedTo: Address
   readonly amount: bigint
-  /** The fee in effect the share was taken on. */
+  /** The fee owed the share was taken on — the band's, ×LIFETIME_MULTIPLIER for a lifetime `G`. */
   readonly price: bigint
   readonly rateBp: bigint
 }
@@ -91,7 +93,7 @@ export function shareOwed(before: NnsState, tx: ChainTransaction, at: TxRef, ver
   if (referrer === undefined || referrer.status !== 'REGISTERED') return null
   const row = rateFor(table, parsed.message.ref, at.height)
   if (row === null) return null
-  const price = feeFor(parsed.message.name, before.prices)
+  const price = feeFor(parsed.message.name, before.prices, parsed.message.lifetime)
   const amount = shareAmount(price, row.bp)
   if (amount <= 0n) return null
   return Object.freeze({

@@ -26,10 +26,9 @@ const HASH = 'c0ffee'.repeat(10) + 'c0ff'
 /** 10 NIM — exactly ADMIN_MIN_BALANCE, so a healthy plan carries no warning. */
 const BALANCE = 1_000_000
 
-/** A change inside every §10.6 bound: +25% standard, +25% long, +50 bp. */
+/** A change inside every §10.6 bound: +25% on the base fee, +50 bp. */
 const params: GovernanceParams = {
-  feeStandard: 250_000_000n,
-  feeLong: 50_000_000n,
+  feeBase: 50_000_000n,
   commissionBp: 300n,
   effectiveHeight: EFFECTIVE,
 }
@@ -109,14 +108,14 @@ describe('planGovernance', () => {
 
   it('refuses offline, before the node hears anything, whatever the builder refuses', async () => {
     const { rpc, calls } = fakeRpc()
-    await expect(planGovernance(rpc, source(), { ...params, feeStandard: -1n })).rejects.toThrow(CodecError)
+    await expect(planGovernance(rpc, source(), { ...params, feeBase: -1n })).rejects.toThrow(CodecError)
     expect(calls).toEqual([])
   })
 })
 
 describe('§10.6 bounds — core’s rule, checked before signing', () => {
   it('refuses a price above PRICE_CEILING, and says the message cannot be retracted', async () => {
-    const built = await plan({ feeStandard: CONSTANTS.PRICE_CEILING + 1n })
+    const built = await plan({ feeBase: CONSTANTS.PRICE_CEILING + 1n })
     expect(blockingChecks(built.checks)).toHaveLength(1)
     expect(messages(built)).toContain('PRICE_BAND')
     expect(messages(built)).toContain('GOVERNANCE_BOUND_VIOLATED')
@@ -126,19 +125,14 @@ describe('§10.6 bounds — core’s rule, checked before signing', () => {
   it('warns — and does not refuse — a move larger than LARGE_MOVE_FACTOR', async () => {
     // §10.6 has no rate limit, so a 3× move is a legal P. The only thing left
     // between a misplaced decimal and a repriced registry is this warning.
-    const built = await plan({ feeStandard: LAUNCH_PRICES.feeStandard * 3n })
+    const built = await plan({ feeBase: LAUNCH_PRICES.feeBase * 3n })
     expect(blockingChecks(built.checks)).toEqual([])
     expect(messages(built)).toContain(`more than ${LARGE_MOVE_FACTOR}×`)
     expect(messages(built)).toContain('Check the decimal point')
   })
 
   it('says nothing about a move inside the factor', async () => {
-    expect(await plan({ feeStandard: LAUNCH_PRICES.feeStandard * 2n }).then((b) => b.checks)).toEqual([])
-  })
-
-  it('refuses fee_long above fee_standard', async () => {
-    const built = await plan({ feeLong: params.feeStandard + 1n })
-    expect(messages(built)).toContain('ORDERING')
+    expect(await plan({ feeBase: LAUNCH_PRICES.feeBase * 2n }).then((b) => b.checks)).toEqual([])
   })
 
   it('refuses a commission above COMMISSION_CEILING, and a step above COMMISSION_MAX_STEP', async () => {
@@ -150,8 +144,8 @@ describe('§10.6 bounds — core’s rule, checked before signing', () => {
 
   it('refuses a price below PRICE_FLOOR — the band, not the factor', async () => {
     // Reachable in one step only from a price already near the floor.
-    const near = { feeStandard: CONSTANTS.PRICE_FLOOR, feeLong: CONSTANTS.PRICE_FLOOR, commissionBp: 250n }
-    const built = await plan({ feeStandard: 0n, feeLong: 0n }, { prices: near })
+    const near = { feeBase: CONSTANTS.PRICE_FLOOR, commissionBp: 250n }
+    const built = await plan({ feeBase: 0n }, { prices: near })
     expect(messages(built)).toContain('PRICE_BAND')
   })
 
@@ -224,7 +218,7 @@ describe('describeGovernancePlan', () => {
   it('prints every parameter as a change, the height both ways, and what the bounds were checked against', async () => {
     const lines = describeGovernancePlan(await plan()).join('\n')
     expect(lines).toContain('P governance:')
-    expect(lines).toContain('200000000 luna (2000 NIM) → 250000000 luna (2500 NIM)')
+    expect(lines).toContain('40000000 luna (400 NIM) → 50000000 luna (500 NIM)')
     expect(lines).toContain('250 bp → 300 bp')
     expect(lines).toContain(`effective at height ${EFFECTIVE} — head is ${HEAD}`)
     expect(lines).toContain('~25.0 h from now')
@@ -240,6 +234,20 @@ describe('describeGovernancePlan', () => {
   it('says "unchanged" rather than showing a change that is not one', async () => {
     const lines = describeGovernancePlan(await plan({ commissionBp: LAUNCH_PRICES.commissionBp })).join('\n')
     expect(lines).toContain('250 bp (unchanged)')
+    const same = describeGovernancePlan(await plan({ feeBase: LAUNCH_PRICES.feeBase })).join('\n')
+    expect(same).toContain('yearly fees   1–2 80,000 NIM · 3 40,000 NIM · 4 20,000 NIM · 5 10,000 NIM · 6 4,000 NIM · 7–11 2,000 NIM · 12+ 400 NIM (unchanged)')
+  })
+
+  it('prints every band’s yearly fee under the proposed base — the readback a misplaced decimal shows up in', async () => {
+    // One fee since 2026-09-11, seven frozen multipliers on top of it: the
+    // luna the operator typed is not the number to check, the price of a
+    // two-letter name is. Priced by core's feeFor, not multiplied here.
+    const lines = describeGovernancePlan(await plan()).join('\n')
+    expect(lines).toContain('yearly fees   1–2 80,000 NIM · 3 40,000 NIM · 4 20,000 NIM · 5 10,000 NIM · 6 4,000 NIM · 7–11 2,000 NIM · 12+ 400 NIM')
+    expect(lines).toContain('→ 1–2 100,000 NIM · 3 50,000 NIM · 4 25,000 NIM · 5 12,500 NIM · 6 5,000 NIM · 7–11 2,500 NIM · 12+ 500 NIM')
+    const tenfold = describeGovernancePlan(await plan({ feeBase: LAUNCH_PRICES.feeBase * 10n })).join('\n')
+    expect(tenfold).toContain('→ 1–2 800,000 NIM')
+    expect(tenfold).toContain('Check the decimal point')
   })
 
   it('names the last P and any pending change — the two things a P has to be planned around', async () => {
@@ -293,21 +301,26 @@ describe('broadcast', () => {
 
 describe('parseGovernanceArgs', () => {
   it('is a dry run unless --send is passed, and takes luna and basis points', () => {
-    expect(parseGovernanceArgs(['500000000', '50000000', '300', '58150000'])).toEqual({
-      params: { feeStandard: 500_000_000n, feeLong: 50_000_000n, commissionBp: 300n, effectiveHeight: 58_150_000 },
+    expect(parseGovernanceArgs(['50000000', '300', '58150000'])).toEqual({
+      params: { feeBase: 50_000_000n, commissionBp: 300n, effectiveHeight: 58_150_000 },
       send: false,
     })
-    expect(parseGovernanceArgs(['500000000', '50000000', '300', '58150000', '--send']).send).toBe(true)
+    expect(parseGovernanceArgs(['50000000', '300', '58150000', '--send']).send).toBe(true)
     // Flag position does not matter.
-    expect(parseGovernanceArgs(['--send', '500000000', '50000000', '300', '58150000']).send).toBe(true)
+    expect(parseGovernanceArgs(['--send', '50000000', '300', '58150000']).send).toBe(true)
   })
 
   it('rejects a missing, fractional or extra argument, and any flag that is not --send', () => {
-    expect(() => parseGovernanceArgs(['500000000', '50000000', '300'])).toThrow(UsageError)
-    expect(() => parseGovernanceArgs(['500000000', '50000000', '300', '58150000', 'extra'])).toThrow(UsageError)
-    expect(() => parseGovernanceArgs(['5000.5', '50000000', '300', '58150000'])).toThrow(/luna/)
-    expect(() => parseGovernanceArgs(['500000000', '50000000', '3.5', '58150000'])).toThrow(UsageError)
-    expect(() => parseGovernanceArgs(['500000000', '50000000', '300', '58150000.5'])).toThrow(UsageError)
-    expect(() => parseGovernanceArgs(['500000000', '50000000', '300', '58150000', '--sned'])).toThrow(UsageError)
+    expect(() => parseGovernanceArgs(['50000000', '300'])).toThrow(UsageError)
+    expect(() => parseGovernanceArgs(['50000000', '300', '58150000', 'extra', 'more'])).toThrow(UsageError)
+    expect(() => parseGovernanceArgs(['5000.5', '300', '58150000'])).toThrow(/luna/)
+    expect(() => parseGovernanceArgs(['50000000', '3.5', '58150000'])).toThrow(UsageError)
+    expect(() => parseGovernanceArgs(['50000000', '300', '58150000.5'])).toThrow(UsageError)
+    expect(() => parseGovernanceArgs(['50000000', '300', '58150000', '--sned'])).toThrow(UsageError)
+  })
+
+  it('names the two-fee habit rather than reading the old commission as a height', () => {
+    // Through 2026-09-10 p took fee_standard, fee_long, commission, height.
+    expect(() => parseGovernanceArgs(['200000000', '40000000', '250', '58150000'])).toThrow(/ONE fee since 2026-09-11/)
   })
 })

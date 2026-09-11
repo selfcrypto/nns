@@ -347,6 +347,8 @@ export interface ApiReferral {
   readonly name: string
   readonly sender: string
   readonly value: bigint
+  /** The `G` carried `L`: the fee owed, and the share's base, was the lifetime fee. */
+  readonly lifetime: boolean
 }
 
 export interface Referrals {
@@ -374,6 +376,7 @@ export async function getReferrals(base: string, name: string, fetchJson: JsonFe
         name: str(item['name'], 'name'),
         sender: str(item['sender'], 'sender'),
         value: luna(item['value'], 'value'),
+        lifetime: bool(item['lifetime'], 'lifetime'),
       }
     }),
     height: num(top['height'], 'height'),

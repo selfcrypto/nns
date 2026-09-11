@@ -645,6 +645,7 @@ export function createRoutes(queries: Queries): RouteHandler {
         name: item.name,
         sender: formatAddress(item.sender),
         value: item.value.toString(10),
+        lifetime: item.lifetime,
       })),
       height,
     })

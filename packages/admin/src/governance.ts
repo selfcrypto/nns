@@ -1,8 +1,11 @@
 /**
- * `P` — Governance (§6, §10.6): set `FEE_STANDARD`, `FEE_LONG` and
- * `COMMISSION_RATE` from an effective height. All three travel in one message
- * so they cannot drift out of order or out of sync — that is the encoder's
- * contract, not restated here.
+ * `P` — Governance (§6, §10.6): set `FEE_BASE` and `COMMISSION_RATE` from an
+ * effective height. Both travel in one message so they cannot drift out of
+ * sync — that is the encoder's contract, not restated here. One fee since
+ * 2026-09-11 (§10.1): the bands are `core`'s frozen `FEE_MULTIPLIERS` on top
+ * of it, which is why the readback prints every band's yearly fee — a
+ * misplaced decimal on the base is a 200× mistake on a two-letter name, and
+ * that is the number an operator should be looking at, not the luna.
  *
  * **Dry-run by default**, for the same reason `u` is: a governance message
  * cannot be retracted. It is worse here. A `P` that breaks any §10.6 bound is
@@ -22,9 +25,11 @@
 import {
   CONSTANTS,
   encodeGovernance,
+  feeFor,
   formatAddress,
   governanceBoundViolation,
   type Address,
+  type Prices,
 } from '@nns/core'
 
 import {
@@ -60,8 +65,7 @@ export const PARAMS_LAG_LIMIT = 1_000
 export const LARGE_MOVE_FACTOR = 2n
 
 export interface GovernanceParams {
-  readonly feeStandard: bigint
-  readonly feeLong: bigint
+  readonly feeBase: bigint
   readonly commissionBp: bigint
   readonly effectiveHeight: number
 }
@@ -102,23 +106,33 @@ function amount(raw: string | undefined, label: string): bigint {
   return BigInt(raw)
 }
 
-/** `p <fee_standard> <fee_long> <commission_bp> <effective-height> [--send]` — luna and basis points. */
+/** `p <fee_base> <commission_bp> <effective-height> [--send]` — luna and basis points. */
 export function parseGovernanceArgs(argv: readonly string[]): GovernanceCommand {
   const flags = argv.filter((arg) => arg.startsWith('-'))
   for (const flag of flags) {
     if (flag !== '--send') throw new UsageError(`unknown flag ${JSON.stringify(flag)} — the only flag is --send`)
   }
-  const [feeStandard, feeLong, commissionBp, effectiveHeight, ...rest] = argv.filter((arg) => !arg.startsWith('-'))
+  const positional = argv.filter((arg) => !arg.startsWith('-'))
+  // Four positionals was the shape through 2026-09-10 (`fee_standard`,
+  // `fee_long`, commission, height). Catching it by count names the habit
+  // instead of reading the old commission as the height and refusing it as
+  // too-short notice, two lines later and for the wrong reason.
+  if (positional.length === 4) {
+    throw new UsageError(
+      'p takes ONE fee since 2026-09-11 — fee_base, the 12+ character yearly fee; the bands are frozen multiples of ' +
+        'it (§10.1). Got four arguments where fee_base, commission_bp and an effective height were expected.',
+    )
+  }
+  const [feeBase, commissionBp, effectiveHeight, ...rest] = positional
   if (effectiveHeight === undefined || rest.length > 0) {
-    throw new UsageError('p takes fee_standard, fee_long, commission_bp and an effective height')
+    throw new UsageError('p takes fee_base, commission_bp and an effective height')
   }
   if (!/^\d+$/.test(effectiveHeight) || !Number.isSafeInteger(Number(effectiveHeight))) {
     throw new UsageError(`effective-height must be a non-negative integer, got ${JSON.stringify(effectiveHeight)}`)
   }
   return {
     params: {
-      feeStandard: amount(feeStandard, 'fee_standard (luna)'),
-      feeLong: amount(feeLong, 'fee_long (luna)'),
+      feeBase: amount(feeBase, 'fee_base (luna)'),
       commissionBp: amount(commissionBp, 'commission_bp (basis points)'),
       effectiveHeight: Number(effectiveHeight),
     },
@@ -193,8 +207,7 @@ function check(
       )
     }
   }
-  move('fee_standard', active.prices.feeStandard, params.feeStandard)
-  move('fee_long', active.prices.feeLong, params.feeLong)
+  move('fee_base', active.prices.feeBase, params.feeBase)
 
   // §6 `P` notice, plus the margin the landing block makes necessary. It
   // lives in `cli.ts` from the day it was shared with `u`; since r28 `A`'s
@@ -223,17 +236,47 @@ function check(
   return checks
 }
 
+/**
+ * Every band's yearly fee under `prices`, as `<from>–<to> <NIM>` cells —
+ * the readback that makes a misplaced decimal visible. Priced by `core`'s
+ * `feeFor` on a name of each band's length, never multiplied here, so the
+ * line agrees with the reducer by construction.
+ */
+export function bandFees(prices: Prices): string {
+  let from = 1
+  return CONSTANTS.FEE_MULTIPLIERS.map((band, index, rows) => {
+    const last = index === rows.length - 1
+    const label = last ? `${from}+` : band.upTo === from ? `${from}` : `${from}–${band.upTo}`
+    from = band.upTo + 1
+    return `${label} ${nim(feeFor('x'.repeat(band.upTo), prices))}`
+  }).join(' · ')
+}
+
+/** Whole NIM with a thousands separator — the unit a band is judged in. */
+function nim(luna: bigint): string {
+  const whole = luna / 100_000n
+  const rest = luna % 100_000n
+  const text = whole.toLocaleString('en-US')
+  return rest === 0n ? `${text} NIM` : `${text}.${rest.toString().padStart(5, '0').replace(/0+$/, '')} NIM`
+}
+
 /** The plan as lines for a human to read *before* deciding to `--send`. */
 export function describeGovernancePlan(plan: GovernancePlan): string[] {
   const { params, active, head } = plan
   const change = (label: string, from: bigint, to: bigint, format: (value: bigint) => string): string =>
     `  ${label.padEnd(14)}${from === to ? `${format(to)} (unchanged)` : `${format(from)} → ${format(to)}`}`
   const bp = (value: bigint): string => `${value} bp`
+  const proposed: Prices = { feeBase: params.feeBase, commissionBp: params.commissionBp }
 
   const lines = [
     'P governance:',
-    change('fee_standard', active.prices.feeStandard, params.feeStandard, formatLuna),
-    change('fee_long', active.prices.feeLong, params.feeLong, formatLuna),
+    change('fee_base', active.prices.feeBase, params.feeBase, formatLuna),
+    // The number a person checks: what each length costs a year under the
+    // proposed base. The multipliers are frozen (§10.1), so this is the whole
+    // of what the message reprices.
+    params.feeBase === active.prices.feeBase
+      ? `  yearly fees   ${bandFees(proposed)} (unchanged)`
+      : `  yearly fees   ${bandFees(active.prices)}\n              → ${bandFees(proposed)}`,
     change('commission', active.prices.commissionBp, params.commissionBp, bp),
     `  effective at height ${params.effectiveHeight} — head is ${head}, so ${noticeInWords(params.effectiveHeight, head)}`,
     `  earliest usable ${head + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN} — GOVERNANCE_DELAY (${CONSTANTS.GOVERNANCE_DELAY}) ` +
@@ -241,14 +284,14 @@ export function describeGovernancePlan(plan: GovernancePlan): string[] {
     `  to            ${formatAddress(plan.recipient)} (PROTOCOL_ADDRESS), value ${formatLuna(plan.value)}, fee 0`,
     `  from          ${formatAddress(plan.sender)} (ADMIN_ADDRESS), balance ${formatLuna(plan.balance)}`,
     `  checked against ${active.url} at height ${active.height} (${head - active.height} blocks behind head):`,
-    `    active      fee_standard ${formatLuna(active.prices.feeStandard)}, fee_long ${formatLuna(active.prices.feeLong)}, commission ${bp(active.prices.commissionBp)}`,
+    `    active      fee_base ${formatLuna(active.prices.feeBase)}, commission ${bp(active.prices.commissionBp)}`,
     active.lastGovernanceHeight === null
       ? '    last P      none accepted since launch'
       : `    last P      height ${active.lastGovernanceHeight}, ${head - active.lastGovernanceHeight} blocks ago (${hours(head - active.lastGovernanceHeight)})`,
   ]
   if (active.pending !== null) {
     lines.push(
-      `    pending     fee_standard ${formatLuna(active.pending.prices.feeStandard)}, fee_long ${formatLuna(active.pending.prices.feeLong)}, ` +
+      `    pending     fee_base ${formatLuna(active.pending.prices.feeBase)}, ` +
         `commission ${bp(active.pending.prices.commissionBp)} at height ${active.pending.effectiveHeight}`,
     )
   }

@@ -212,7 +212,8 @@ describe('getReferrals', () => {
           name: 'ricomav',
           count: 1,
           registrations: [
-            { height: 61_200_000, txIndex: 2, txHash: 'ab'.repeat(32), name: 'newcomer', sender: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000', value: '400000' },
+            { height: 61_200_000, txIndex: 2, txHash: 'ab'.repeat(32), name: 'newcomer', sender: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000', value: '400000', lifetime: false },
+            { height: 61_200_010, txIndex: 0, txHash: 'cd'.repeat(32), name: 'lifelong', sender: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000', value: '4000000', lifetime: true },
           ],
           height: 61_200_060,
         },
@@ -220,7 +221,8 @@ describe('getReferrals', () => {
     })
     const result = await getReferrals('http://api', 'ricomav', fetchJson)
     expect(result.count).toBe(1)
-    expect(result.registrations[0]).toMatchObject({ name: 'newcomer', height: 61_200_000, value: 400_000n })
+    expect(result.registrations[0]).toMatchObject({ name: 'newcomer', height: 61_200_000, value: 400_000n, lifetime: false })
+    expect(result.registrations[1]).toMatchObject({ name: 'lifelong', value: 4_000_000n, lifetime: true })
     expect(result.height).toBe(61_200_060)
   })
 })
