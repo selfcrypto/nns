@@ -106,8 +106,7 @@ export type PendingRow = {
   price: string | null
   opened_height: number | null
   expiry_height: number | null
-  fee_standard: string | null
-  fee_long: string | null
+  fee_base: string | null
   commission_bp: string | null
   starting_price: string | null
   end_height: number | null
@@ -118,8 +117,7 @@ export type PendingRow = {
 }
 
 export type ParamsRow = {
-  fee_standard: string
-  fee_long: string
+  fee_base: string
   commission_bp: string
   last_governance_height: number | null
   state_height: number
@@ -164,8 +162,7 @@ const emptyPending = {
   price: null,
   opened_height: null,
   expiry_height: null,
-  fee_standard: null,
-  fee_long: null,
+  fee_base: null,
   commission_bp: null,
   starting_price: null,
   end_height: null,
@@ -232,8 +229,7 @@ export function pendingRows(state: NnsState): PendingRow[] {
       kind: 'GOVERNANCE',
       name: '',
       effective_height: state.pendingGovernance.effectiveHeight,
-      fee_standard: state.pendingGovernance.prices.feeStandard.toString(10),
-      fee_long: state.pendingGovernance.prices.feeLong.toString(10),
+      fee_base: state.pendingGovernance.prices.feeBase.toString(10),
       commission_bp: state.pendingGovernance.prices.commissionBp.toString(10),
     })
   }
@@ -263,8 +259,7 @@ export function settlementRows(state: NnsState): SettlementRow[] {
 
 export function paramsRow(state: NnsState): ParamsRow {
   return {
-    fee_standard: state.prices.feeStandard.toString(10),
-    fee_long: state.prices.feeLong.toString(10),
+    fee_base: state.prices.feeBase.toString(10),
     commission_bp: state.prices.commissionBp.toString(10),
     last_governance_height: state.lastGovernanceHeight,
     state_height: state.height,
@@ -369,8 +364,7 @@ export function stateFromRows(rows: StateRows): NnsState {
         if (pendingGovernance !== null) throw new RowError('pending: more than one GOVERNANCE row')
         pendingGovernance = {
           prices: {
-            feeStandard: toLuna(required(row.fee_standard, 'pending.fee_standard'), 'pending.fee_standard'),
-            feeLong: toLuna(required(row.fee_long, 'pending.fee_long'), 'pending.fee_long'),
+            feeBase: toLuna(required(row.fee_base, 'pending.fee_base'), 'pending.fee_base'),
             commissionBp: toLuna(required(row.commission_bp, 'pending.commission_bp'), 'pending.commission_bp'),
           },
           effectiveHeight: toHeight(required(row.effective_height, 'pending.effective_height'), 'pending.effective_height'),
@@ -405,8 +399,7 @@ export function stateFromRows(rows: StateRows): NnsState {
   }
 
   const prices: Prices = {
-    feeStandard: toLuna(rows.params.fee_standard, 'params.fee_standard'),
-    feeLong: toLuna(rows.params.fee_long, 'params.fee_long'),
+    feeBase: toLuna(rows.params.fee_base, 'params.fee_base'),
     commissionBp: toLuna(rows.params.commission_bp, 'params.commission_bp'),
   }
 

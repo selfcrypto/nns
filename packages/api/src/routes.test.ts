@@ -84,8 +84,7 @@ const AUCTION_WIRE = {
 }
 
 const PARAMS = {
-  feeStandard: 400_000_000n,
-  feeLong: 40_000_000n,
+  feeBase: 40_000_000n,
   commissionBp: 250n,
   lastGovernanceHeight: null,
   pending: null,
@@ -429,13 +428,23 @@ describe('/auctions', () => {
 })
 
 describe('/params', () => {
-  it('serves the active prices with minPrice = feeLong (§3 MIN_PRICE)', async () => {
+  it('serves the active prices with minPrice = feeBase (§3 MIN_PRICE) and the §10.1 bands priced', async () => {
     const handle = routes({ params: () => Promise.resolve(snap(PARAMS)) })
     expect(await handle('GET', '/params')).toEqual({
       status: 200,
       body: {
-        prices: { feeStandard: '400000000', feeLong: '40000000', commissionBp: '250' },
+        prices: { feeBase: '40000000', commissionBp: '250' },
         minPrice: '40000000',
+        // 400 NIM × the frozen multipliers, and ten of each for a lifetime.
+        fees: [
+          { upTo: 2, times: '200', yearly: '8000000000', lifetime: '80000000000' },
+          { upTo: 3, times: '100', yearly: '4000000000', lifetime: '40000000000' },
+          { upTo: 4, times: '50', yearly: '2000000000', lifetime: '20000000000' },
+          { upTo: 5, times: '25', yearly: '1000000000', lifetime: '10000000000' },
+          { upTo: 6, times: '10', yearly: '400000000', lifetime: '4000000000' },
+          { upTo: 11, times: '5', yearly: '200000000', lifetime: '2000000000' },
+          { upTo: 24, times: '1', yearly: '40000000', lifetime: '400000000' },
+        ],
         listingFee: '0',
         lastGovernanceHeight: null,
         pendingGovernance: null,
@@ -466,17 +475,23 @@ describe('/params', () => {
     const pending = {
       ...PARAMS,
       lastGovernanceHeight: 58_150_000,
-      pending: { feeStandard: 800_000_000n, feeLong: 80_000_000n, commissionBp: 300n, effectiveHeight: 58_243_200 },
+      pending: { feeBase: 80_000_000n, commissionBp: 300n, effectiveHeight: 58_243_200 },
     }
     const handle = routes({ params: () => Promise.resolve(snap(pending)) })
     const response = await handle('GET', '/params')
     expect(response.body).toMatchObject({
       lastGovernanceHeight: 58_150_000,
       pendingGovernance: {
-        prices: { feeStandard: '800000000', feeLong: '80000000', commissionBp: '300' },
+        prices: { feeBase: '80000000', commissionBp: '300' },
+        // The bands a client will pay once it bites, priced the same way.
+        fees: expect.arrayContaining([
+          { upTo: 2, times: '200', yearly: '16000000000', lifetime: '160000000000' },
+          { upTo: 24, times: '1', yearly: '80000000', lifetime: '800000000' },
+        ]),
         effectiveHeight: 58_243_200,
       },
     })
+    expect((response.body as { pendingGovernance: { fees: unknown[] } }).pendingGovernance.fees).toHaveLength(7)
   })
 })
 

@@ -1,4 +1,4 @@
-import { CONSTANTS, defineConfig, formatAddress, initialState } from '@nns/core'
+import { CONSTANTS, defineConfig, feeFor, formatAddress, initialState, LAUNCH_PRICES } from '@nns/core'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -123,7 +123,7 @@ describe('applyBatch', () => {
         candidate({
           blockNumber: LAUNCH + 10,
           recipientData: payload('NNS1Gtestname'),
-          value: CONSTANTS.FEE_STANDARD,
+          value: feeFor('testname', LAUNCH_PRICES),
           recipient: A, // the treasury takes the fee
         }),
       ],
@@ -205,9 +205,9 @@ describe('applyBatch', () => {
     // across batches must reach the same state.
     // One message per batch of 60, so the split is a real batch boundary.
     const messages = [
-      candidate({ blockNumber: LAUNCH + 10, recipientData: payload('NNS1Gfirstname'), value: CONSTANTS.FEE_STANDARD, recipient: A }),
-      candidate({ blockNumber: LAUNCH + 70, recipientData: payload('NNS1Gsecondname'), value: CONSTANTS.FEE_STANDARD, recipient: A }),
-      candidate({ blockNumber: LAUNCH + 130, recipientData: payload('NNS1Gthirdname'), value: CONSTANTS.FEE_STANDARD, recipient: A }),
+      candidate({ blockNumber: LAUNCH + 10, recipientData: payload('NNS1Gfirstname'), value: feeFor('firstname', LAUNCH_PRICES), recipient: A }),
+      candidate({ blockNumber: LAUNCH + 70, recipientData: payload('NNS1Gsecondname'), value: feeFor('secondname', LAUNCH_PRICES), recipient: A }),
+      candidate({ blockNumber: LAUNCH + 130, recipientData: payload('NNS1Gthirdname'), value: feeFor('thirdname', LAUNCH_PRICES), recipient: A }),
     ]
     // Two instances, because a `Pipeline` remembers the boundaries it has
     // emitted: replaying the same chain through one would be a second run, not
@@ -256,7 +256,7 @@ describe('§7.2 attribution reaches the log as well as the state', () => {
           senderType: 2,
           proof: EARLY_RESOLVE,
           recipientData: payload('NNS1Gtestname'),
-          value: CONSTANTS.FEE_STANDARD,
+          value: feeFor('testname', LAUNCH_PRICES),
           recipient: A,
         }),
       ],
@@ -277,7 +277,7 @@ describe('§7.2 attribution reaches the log as well as the state', () => {
         candidate({
           blockNumber: LAUNCH + 10,
           recipientData: payload('NNS1Gtestname'),
-          value: CONSTANTS.FEE_STANDARD,
+          value: feeFor('testname', LAUNCH_PRICES),
           recipient: A,
         }),
       ],
@@ -303,7 +303,7 @@ describe('LAUNCH_HEIGHT as a boundary (§8.1)', () => {
     const { pipeline: p } = pipeline()
     const result = p.applyBatch(
       initialState(),
-      [candidate({ blockNumber: LAUNCH, recipientData: payload('NNS1Gtestname'), value: CONSTANTS.FEE_STANDARD, recipient: A })],
+      [candidate({ blockNumber: LAUNCH, recipientData: payload('NNS1Gtestname'), value: feeFor('testname', LAUNCH_PRICES), recipient: A })],
       LAUNCH + 60,
     )
     expect(result.boundariesCrossed.map((crossing) => crossing.height)).toEqual([LAUNCH])

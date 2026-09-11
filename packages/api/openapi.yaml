@@ -302,11 +302,13 @@ paths:
     get:
       summary: The fees in effect, and what a client needs to build fee-bearing messages
       description: >
-        The active prices (governable, §10.6), MIN_PRICE — FEE_LONG as in
+        The active prices (governable, §10.6), MIN_PRICE — FEE_BASE as in
         effect at this height, computed by core, never a constant (§6 O) —
-        the O listing fee, and any scheduled governance change with its
-        effective height, so a client sees a fee change coming before it
-        bites. A client cannot build a correct G, O or A without this route.
+        the §10.1 bands priced at those prices for a term and for a lifetime
+        (§10.4), the O listing fee, and any scheduled governance change with
+        its effective height and its own priced bands, so a client sees a fee
+        change coming before it bites. A client cannot build a correct G, N,
+        O or A without this route, and never multiplies a fee itself.
       responses:
         '200':
           description: Current parameters.
@@ -315,19 +317,21 @@ paths:
               schema:
                 type: object
                 required:
-                  [prices, minPrice, listingFee, lastGovernanceHeight, pendingGovernance, verification, height]
+                  [prices, minPrice, fees, listingFee, lastGovernanceHeight, pendingGovernance, verification, height]
                 properties:
                   prices: { $ref: '#/components/schemas/Prices' }
                   minPrice: { $ref: '#/components/schemas/Luna' }
+                  fees: { $ref: '#/components/schemas/FeeTable' }
                   listingFee: { $ref: '#/components/schemas/Luna' }
                   lastGovernanceHeight:
                     oneOf: [{ $ref: '#/components/schemas/Height' }, { type: 'null' }]
                   pendingGovernance:
                     oneOf:
                       - type: object
-                        required: [prices, effectiveHeight]
+                        required: [prices, fees, effectiveHeight]
                         properties:
                           prices: { $ref: '#/components/schemas/Prices' }
+                          fees: { $ref: '#/components/schemas/FeeTable' }
                           effectiveHeight: { $ref: '#/components/schemas/Height' }
                       - type: 'null'
                   verification:
@@ -826,13 +830,30 @@ components:
           description: The least value the next B must carry to stand — core.requiredBid.
     Prices:
       type: object
-      required: [feeStandard, feeLong, commissionBp]
+      required: [feeBase, commissionBp]
       properties:
-        feeStandard: { $ref: '#/components/schemas/Luna' }
-        feeLong: { $ref: '#/components/schemas/Luna' }
+        feeBase:
+          allOf: [{ $ref: '#/components/schemas/Luna' }]
+          description: The one governed price (§10.1) — the yearly fee of a 12+ name, and MIN_PRICE.
         commissionBp:
           type: string
           description: Basis points, decimal string.
+    FeeTable:
+      type: array
+      description: >
+        §10.1's bands at a given prices object, one row per FEE_MULTIPLIERS
+        entry in ascending length: a name whose length is at most upTo (and
+        above the previous row's) costs yearly for one term, or lifetime for
+        LIFETIME_TERMS of them (§10.4). Seven rows; the first two cover
+        lengths reserved by rule, which a released name is still priced by.
+      items:
+        type: object
+        required: [upTo, times, yearly, lifetime]
+        properties:
+          upTo: { type: integer, description: The longest name length in the band. }
+          times: { type: string, pattern: '^[0-9]+$', description: The band's frozen multiplier of feeBase. }
+          yearly: { $ref: '#/components/schemas/Luna' }
+          lifetime: { $ref: '#/components/schemas/Luna' }
     ProofStep:
       type: object
       required: [hash, side]

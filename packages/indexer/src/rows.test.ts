@@ -110,9 +110,9 @@ function populated(): NnsState {
         },
       ],
     ]),
-    prices: { feeStandard: 400_000_000n, feeLong: 40_000_000n, commissionBp: 250n },
+    prices: { feeBase: 40_000_000n, commissionBp: 250n },
     pendingGovernance: {
-      prices: { feeStandard: 800_000_000n, feeLong: 80_000_000n, commissionBp: 500n },
+      prices: { feeBase: 80_000_000n, commissionBp: 500n },
       effectiveHeight: 58_300_000,
     },
     lastGovernanceHeight: 58_180_000,

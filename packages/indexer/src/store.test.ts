@@ -34,7 +34,7 @@ import {
 } from '@nns/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { CheckpointBuilder, COMMITMENT_LAYOUT, hex, logLineFromRow } from './checkpoint.js'
+import { CheckpointBuilder, checkpointRow, COMMITMENT_LAYOUT, hex, logLineFromRow } from './checkpoint.js'
 import { createPool, migrate } from './db.js'
 import { configFingerprint, Store } from './store.js'
 import { nameRows, rowsOf, type LogRow } from './rows.js'
@@ -213,6 +213,29 @@ describe.skipIf(URL === undefined)('Store', () => {
   it('refuses a database built under a different config', async () => {
     const other = new Store(pool, defineConfig({ networkId: 5 }), logger)
     await expect(other.loadCursor()).rejects.toThrow(/different deployment config/)
+  })
+
+  it('refuses a database whose checkpoints were written at another §8.1 layout', async () => {
+    // The first layout bump since the column was added (2026-09-11, layout
+    // 6). `configFingerprint` covers configuration, not rules, so this column
+    // is what stands between a layout-5 database and a silently wrong resume.
+    // The row is planted as a pre-012 indexer would have left it: a layout the
+    // current function does not produce, under the same fingerprint.
+    const record = at(58_176_720, initialState())
+    const row = { ...checkpointRow(record), layout: COMMITMENT_LAYOUT - 1 }
+    await pool.query(
+      `INSERT INTO checkpoints (height, layout, name_root, prices_root, pending_root, unreserved_root, log_hash, commitment)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [row.height, row.layout, row.name_root, row.prices_root, row.pending_root, row.unreserved_root, row.log_hash, row.commitment],
+    )
+    try {
+      await expect(store.loadCursor()).rejects.toThrow(
+        new RegExp(`layout ${COMMITMENT_LAYOUT - 1} \\(latest at height 58176720\\).*derives layout ${COMMITMENT_LAYOUT}.*nns-vps rebuild`),
+      )
+    } finally {
+      await pool.query('DELETE FROM checkpoints WHERE height = 58176720')
+    }
+    expect(await store.loadCursor()).not.toBeNull()
   })
 
   // ── Checkpoints (§8.1) ────────────────────────────────────────────────────

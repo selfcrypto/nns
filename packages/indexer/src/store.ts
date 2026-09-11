@@ -12,7 +12,7 @@ import { createHash } from 'node:crypto'
 import { CONSTANTS, initialState, type Checkpoint, type NnsConfig, type NnsState } from '@nns/core'
 import type { Pool, PoolClient } from 'pg'
 
-import { checkpointRow, hex, type CheckpointRow } from './checkpoint.js'
+import { checkpointRow, COMMITMENT_LAYOUT, hex, type CheckpointRow } from './checkpoint.js'
 import { excluded, insertRows, withTransaction } from './db.js'
 import { diffState, type StateDiff } from './diff.js'
 import type { Logger } from './logger.js'
@@ -67,8 +67,7 @@ const PENDING_COLUMNS = [
   'price',
   'opened_height',
   'expiry_height',
-  'fee_standard',
-  'fee_long',
+  'fee_base',
   'commission_bp',
   'starting_price',
   'end_height',
@@ -217,7 +216,8 @@ export class Store {
   /**
    * The stored cursor, or `null` for a database that has never run.
    *
-   * @throws {StoreError} if the stored config fingerprint disagrees with ours.
+   * @throws {StoreError} if the stored config fingerprint disagrees with ours,
+   *   or if a stored checkpoint was written at another §8.1 layout.
    */
   async loadCursor(): Promise<Cursor | null> {
     const result = await this.pool.query<{
@@ -227,6 +227,25 @@ export class Store {
     }>('SELECT next_batch, scanned_through, config_fingerprint FROM "cursor" WHERE id')
     const row = result.rows[0]
     if (row === undefined) return null
+    // The layout column labelled rows through four bumps and refused nothing:
+    // a layout-5 database resumed under layout 6 writes layout-6 rows above
+    // layout-5 ones, and `writeCheckpoints` only compares rows at one height.
+    // Since 2026-09-11 it refuses here, where the fingerprint does — a
+    // database at another layout is the output of a different function, and
+    // the only correct continuation is none (migration 012).
+    const foreign = await this.pool.query<{ layout: number; height: number }>(
+      'SELECT layout, height FROM checkpoints WHERE layout <> $1 ORDER BY height DESC LIMIT 1',
+      [COMMITMENT_LAYOUT],
+    )
+    const stale = foreign.rows[0]
+    if (stale !== undefined) {
+      throw new StoreError(
+        `this database holds checkpoints at §8.1 layout ${stale.layout} (latest at height ${stale.height}); ` +
+          `this build derives layout ${COMMITMENT_LAYOUT}. No stored root is reproducible under the current ` +
+          'rules, so continuing would stack two commitment functions in one table. ' +
+          'Rebuild from empty: nns-vps rebuild <role> (docs/runbooks/deploy.md).',
+      )
+    }
     if (row.config_fingerprint !== this.fingerprint) {
       throw new StoreError(
         'this database was built under a different deployment config (§3 values changed). ' +
@@ -310,7 +329,7 @@ export class Store {
    */
   async loadState(): Promise<NnsState> {
     const params = await this.pool.query<ParamsRow>(
-      `SELECT fee_standard, fee_long, commission_bp, last_governance_height, state_height, next_due_height
+      `SELECT fee_base, commission_bp, last_governance_height, state_height, next_due_height
        FROM params WHERE id`,
     )
     const paramsRow = params.rows[0]
@@ -531,19 +550,17 @@ export class Store {
 
   private async writeParams(client: PoolClient, params: ParamsRow): Promise<void> {
     await client.query(
-      `INSERT INTO params (id, fee_standard, fee_long, commission_bp,
+      `INSERT INTO params (id, fee_base, commission_bp,
                            last_governance_height, state_height, next_due_height)
-       VALUES (TRUE, $1, $2, $3, $4, $5, $6)
+       VALUES (TRUE, $1, $2, $3, $4, $5)
        ON CONFLICT (id) DO UPDATE
-         SET fee_standard = EXCLUDED.fee_standard,
-             fee_long = EXCLUDED.fee_long,
+         SET fee_base = EXCLUDED.fee_base,
              commission_bp = EXCLUDED.commission_bp,
              last_governance_height = EXCLUDED.last_governance_height,
              state_height = EXCLUDED.state_height,
              next_due_height = EXCLUDED.next_due_height`,
       [
-        params.fee_standard,
-        params.fee_long,
+        params.fee_base,
         params.commission_bp,
         params.last_governance_height,
         params.state_height,

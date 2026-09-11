@@ -106,13 +106,19 @@ export class CheckpointError extends Error {
  *   (§6 `E`, 20 zero bytes when unset), so **every** commitment changed value
  *   again. Migration 008 adds the column; every layout-4 database is dropped
  *   and resynced, as every layout-3 database was at r20.
+ * - `6` — the 2026-09-11 fold of r29: one governed price. The prices digest
+ *   (tag `0x03`) is `fee_base ‖ commission_bp`, one field fewer, so **every**
+ *   commitment changed value a third time. Migration 012 renames the column;
+ *   every layout-5 database is dropped and resynced — and, for the first
+ *   time, `Store.loadCursor` refuses the resume by this column rather than
+ *   leaving it to the operator.
  *
  * Each bump changed the value of commitments the earlier function also
  * produced, so rows at different layouts at the same height are not comparable
  * and their difference is not a divergence. This column exists so that stays
  * legible in the data instead of being a mismatch nobody can explain.
  */
-export const COMMITMENT_LAYOUT = 5
+export const COMMITMENT_LAYOUT = 6
 
 /** A checkpoint, as it goes into the `checkpoints` table. `BYTEA` wants `Buffer`. */
 export type CheckpointRow = {

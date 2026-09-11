@@ -76,9 +76,9 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
 
   it('reads back what the indexer writes', async () => {
     await pool.query(
-      `INSERT INTO params (fee_standard, fee_long, commission_bp, last_governance_height, state_height, next_due_height)
-       VALUES ($1, $2, $3, $4, $5, $6)`,
-      ['400000000', '40000000', '250', 58_150_000, HEIGHT, null],
+      `INSERT INTO params (fee_base, commission_bp, last_governance_height, state_height, next_due_height)
+       VALUES ($1, $2, $3, $4, $5)`,
+      ['40000000', '250', 58_150_000, HEIGHT, null],
     )
     await pool.query(
       `INSERT INTO names (name, owner, target, expiry, status, host)
@@ -92,8 +92,8 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
       [A],
     )
     await pool.query(
-      `INSERT INTO pending (kind, name, effective_height, fee_standard, fee_long, commission_bp)
-       VALUES ('GOVERNANCE', '', 58243200, '800000000', '80000000', '300')`,
+      `INSERT INTO pending (kind, name, effective_height, fee_base, commission_bp)
+       VALUES ('GOVERNANCE', '', 58243200, '80000000', '300')`,
     )
     await pool.query(`INSERT INTO unreserved (name) VALUES ('legacy-brand')`)
 
@@ -179,11 +179,10 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
     expect(params).toEqual({
       height: HEIGHT,
       value: {
-        feeStandard: 400_000_000n,
-        feeLong: 40_000_000n,
+        feeBase: 40_000_000n,
         commissionBp: 250n,
         lastGovernanceHeight: 58_150_000,
-        pending: { feeStandard: 800_000_000n, feeLong: 80_000_000n, commissionBp: 300n, effectiveHeight: 58_243_200 },
+        pending: { feeBase: 80_000_000n, commissionBp: 300n, effectiveHeight: 58_243_200 },
         // No `verification` row: this database was replayed from the chain,
         // which is what an absent row means and the strongest answer there is.
         verification: { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null },

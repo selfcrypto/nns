@@ -80,14 +80,12 @@ export interface NameDetail {
 }
 
 export interface ParamsSnapshot {
-  readonly feeStandard: bigint
-  readonly feeLong: bigint
+  readonly feeBase: bigint
   readonly commissionBp: bigint
   readonly lastGovernanceHeight: number | null
   /** A scheduled `P` that has not activated yet (§10.6). */
   readonly pending: {
-    readonly feeStandard: bigint
-    readonly feeLong: bigint
+    readonly feeBase: bigint
     readonly commissionBp: bigint
     readonly effectiveHeight: number
   } | null
@@ -511,10 +509,10 @@ export class PgQueries implements Queries {
   async params(): Promise<Snapshot<ParamsSnapshot>> {
     return this.#snapshot(async (client) => {
       const params = await client.query(
-        'SELECT fee_standard, fee_long, commission_bp, last_governance_height FROM params',
+        'SELECT fee_base, commission_bp, last_governance_height FROM params',
       )
       const governance = await client.query(
-        `SELECT fee_standard, fee_long, commission_bp, effective_height
+        `SELECT fee_base, commission_bp, effective_height
            FROM pending WHERE kind = 'GOVERNANCE'`,
       )
       const verification = await client.query(
@@ -526,8 +524,7 @@ export class PgQueries implements Queries {
       const scheduled: Row | undefined = governance.rows[0]
       const seeded: Row | undefined = verification.rows[0]
       return {
-        feeStandard: toLuna(row['fee_standard'], 'fee_standard'),
-        feeLong: toLuna(row['fee_long'], 'fee_long'),
+        feeBase: toLuna(row['fee_base'], 'fee_base'),
         commissionBp: toLuna(row['commission_bp'], 'commission_bp'),
         lastGovernanceHeight:
           row['last_governance_height'] === null
@@ -537,8 +534,7 @@ export class PgQueries implements Queries {
           scheduled === undefined
             ? null
             : {
-                feeStandard: toLuna(scheduled['fee_standard'], 'fee_standard'),
-                feeLong: toLuna(scheduled['fee_long'], 'fee_long'),
+                feeBase: toLuna(scheduled['fee_base'], 'fee_base'),
                 commissionBp: toLuna(scheduled['commission_bp'], 'commission_bp'),
                 effectiveHeight: toHeight(scheduled['effective_height'], 'effective_height'),
               },

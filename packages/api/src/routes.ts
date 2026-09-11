@@ -23,6 +23,7 @@ import { fileURLToPath } from 'node:url'
 
 import {
   CONSTANTS,
+  feeFor,
   formatAddress,
   isReservedName,
   logFile,
@@ -35,6 +36,7 @@ import {
   validateNameSyntax,
   type Address,
   type NameInvalidReason,
+  type Prices,
 } from '@nns/core'
 
 import { inclusionDocument, nonInclusionDocument, type ProofContext } from './proofs.js'
@@ -680,6 +682,28 @@ export function createRoutes(queries: Queries): RouteHandler {
     })
   }
 
+  function serialisePrices(prices: Prices): { feeBase: string; commissionBp: string } {
+    return { feeBase: prices.feeBase.toString(), commissionBp: prices.commissionBp.toString() }
+  }
+
+  /**
+   * One row per `FEE_MULTIPLIERS` band, priced by `core.feeFor` — the fee of
+   * a name of the band's longest length, which is the fee of every length in
+   * the band. The placeholder name is how the rule is asked without
+   * restating it here.
+   */
+  function feeTable(prices: Prices): { upTo: number; times: string; yearly: string; lifetime: string }[] {
+    return CONSTANTS.FEE_MULTIPLIERS.map((band) => {
+      const sample = 'x'.repeat(band.upTo)
+      return {
+        upTo: band.upTo,
+        times: band.times.toString(),
+        yearly: feeFor(sample, prices).toString(),
+        lifetime: feeFor(sample, prices, true).toString(),
+      }
+    })
+  }
+
   async function offersRoute(): Promise<ApiResponse> {
     const { height, value } = await queries.offers()
     return respond(200, { offers: value.map(serialiseOffer), height })
@@ -692,31 +716,26 @@ export function createRoutes(queries: Queries): RouteHandler {
 
   async function paramsRoute(): Promise<ApiResponse> {
     const { height, value } = await queries.params()
-    const prices = {
-      feeStandard: value.feeStandard,
-      feeLong: value.feeLong,
-      commissionBp: value.commissionBp,
-    }
+    const prices: Prices = { feeBase: value.feeBase, commissionBp: value.commissionBp }
     return respond(200, {
-      prices: {
-        feeStandard: value.feeStandard.toString(),
-        feeLong: value.feeLong.toString(),
-        commissionBp: value.commissionBp.toString(),
-      },
-      // §3 MIN_PRICE is FEE_LONG *as in effect at this height* — core's rule,
+      prices: serialisePrices(prices),
+      // §3 MIN_PRICE is FEE_BASE *as in effect at this height* — core's rule,
       // applied to the active prices, never a constant (§6 `O`).
       minPrice: minPrice(prices).toString(),
+      // §10.1's bands at the active prices, so no client multiplies: a name
+      // of length ≤ `upTo` (and > the previous row's) costs `yearly` a term
+      // or `lifetime` for LIFETIME_TERMS of them (§10.4). Seven rows, the
+      // first two of which are reserved by rule — a released one is priced
+      // by its band, so they are served, not skipped.
+      fees: feeTable(prices),
       listingFee: CONSTANTS.LISTING_FEE.toString(),
       lastGovernanceHeight: value.lastGovernanceHeight,
       pendingGovernance:
         value.pending === null
           ? null
           : {
-              prices: {
-                feeStandard: value.pending.feeStandard.toString(),
-                feeLong: value.pending.feeLong.toString(),
-                commissionBp: value.pending.commissionBp.toString(),
-              },
+              prices: serialisePrices(value.pending),
+              fees: feeTable(value.pending),
               effectiveHeight: value.pending.effectiveHeight,
             },
       // §8.4/§8.5 disclosure: which part of what this resolver serves it

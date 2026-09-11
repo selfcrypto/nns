@@ -1,5 +1,7 @@
 import {
   CONSTANTS,
+  feeFor,
+  LAUNCH_PRICES,
   checkpoint as coreCheckpoint,
   defineConfig,
   initialState,
@@ -59,7 +61,7 @@ function candidate(overrides: Partial<NnsCandidate> & { blockNumber: number }): 
     hash: 'ab'.repeat(32),
     sender: 'NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M QCQ4 8P8M',
     recipient: A, // the treasury takes the fee
-    value: CONSTANTS.FEE_STANDARD,
+    value: feeFor('testname', LAUNCH_PRICES),
     fee: 0n,
     recipientData: payload('NNS1Gtestname'),
     networkId: 24,
@@ -93,7 +95,7 @@ describe('logLineFromRow', () => {
     const row = result.logRows[0] as LogRow
     expect(logLineFromRow(row)).toBe(
       [LAUNCH + 10, 0, 'ab'.repeat(32), compact(candidate({ blockNumber: 0 }).sender), compact(A),
-        CONSTANTS.FEE_STANDARD.toString(10), payload('NNS1Gtestname'), 'OK'].join(' '),
+        feeFor('testname', LAUNCH_PRICES).toString(10), payload('NNS1Gtestname'), 'OK'].join(' '),
     )
   })
 
