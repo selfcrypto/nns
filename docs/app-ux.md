@@ -17,6 +17,8 @@ nothing more than two taps deep.
 ├────────────────────────────┤
 │ nns.  names…   ◉ NQ52 … KF8N ▾ │  masthead — wordmark, and the connector
 ├────────────────────────────┤     in the corner: the only connect UI
+│ Beta · 7-day terms…     ? │  era notice — only on a compressed-tempo build
+├────────────────────────────┤
 │                            │
 │         screen             │  one screen at a time, vertical scroll
 │                            │
@@ -44,6 +46,15 @@ for one day and a 120 px dead band the next; the constant survives only as
 the fallback where `visualViewport` does not exist. The tab bar hides while
 an on-screen keyboard is up (`data-keyboard`, both keyboard modes detected).
 `?chrome=<top>,<bottom>` and `?diag=1` remain the on-device instruments.
+
+**A compressed-tempo build says so on every screen** (`components/
+EraNotice.tsx`, 2026-09-11): one strip under the masthead — a *Beta* tag,
+the term and the lifetime it will quote, "names and prices here are for
+testing", and a hint with the why and that nothing carries over at launch.
+The decision is the constants', not a deploy flag: `isCompressedEra`
+(`wording.ts`) is `TERM_LENGTH` under a year, so a mainnet bundle cannot
+show it and an era bundle cannot forget it. Kike, 2026-09-11: testers must
+not think they are buying final names at a test price.
 
 **A browser opens on a landing page first** (`screens/Home.tsx`, since
 2026-09-07, Bakar's PR #1): marketing, full-width, the tab bar hidden, and

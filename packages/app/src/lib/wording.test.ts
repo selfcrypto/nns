@@ -35,6 +35,9 @@ import {
   shortNameNoteLine,
   STATUS_TAG,
   termPerk,
+  isCompressedEra,
+  eraNoticeLine,
+  eraNoticeHint,
   verifiedByLine,
 } from './wording'
 
@@ -269,6 +272,29 @@ describe('the two lines a tempo era would otherwise turn into lies (tasks/17)', 
 
   it('render the checkpoint interval from CHECKPOINT_INTERVAL', () => {
     expect(proofPendingLine()).toBe(`Proof pending — checkpoints are cut every ${blocksApprox(CONSTANTS.CHECKPOINT_INTERVAL)}. The name works now.`)
+  })
+})
+
+describe('the era notice is derived from the term, never a deploy flag', () => {
+  it('is absent on mainnet and present on every compressed era', () => {
+    expect(isCompressedEra(31_536_000)).toBe(false)
+    expect(isCompressedEra(604_800)).toBe(true)
+    expect(isCompressedEra(3_600)).toBe(true)
+    expect(isCompressedEra()).toBe(isCompressedEra(CONSTANTS.TERM_LENGTH))
+  })
+
+  it('quotes the term and the lifetime from the constants', () => {
+    expect(eraNoticeLine(604_800)).toBe('Terms are 7 days, a lifetime about 2 years. Names and prices here are for testing.')
+    expect(eraNoticeLine(3_600)).toBe('Terms are 60 minutes, a lifetime about 4 days. Names and prices here are for testing.')
+    expect(eraNoticeHint(604_800)).toContain('a term is 7 days instead of a year')
+    expect(eraNoticeHint(604_800)).toContain(`instead of ${CONSTANTS.LIFETIME_TERMS} years`)
+    expect(eraNoticeHint(604_800)).toContain('starts again at launch')
+  })
+
+  it('is neutral tone — a test era is not an alarm', () => {
+    for (const text of [eraNoticeLine(604_800), eraNoticeHint(604_800)]) {
+      expect(text).not.toMatch(/\b(stop|do not pay|divergence|warning)\b/i)
+    }
   })
 })
 

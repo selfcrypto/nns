@@ -796,6 +796,45 @@ export const burnEvenLine = (): string => 'Burned exactly what is owed.'
 export const burnExplainer = (): string =>
   `${Number(CONSTANTS.BURN_SHARE_BP) / 100}% of registry revenue is committed to be burned. The figures come from the public log, so anyone can check.`
 
+// ── The era notice (a compressed-tempo era, docs/runbooks/testing.md §1) ────
+
+/**
+ * Whether the constants this bundle was built with are a tempo era's. The
+ * one fact that separates an era from mainnet in what a person can see is
+ * the term: §3 says ~1 y, and every era cuts it to days or hours so a whole
+ * lifecycle fits a session. Derived, not configured — a deploy flag that
+ * someone has to remember to set is exactly the notice that goes missing
+ * on the day it matters (Kike, 2026-09-11: testers must not think they
+ * are buying final names at a test price).
+ */
+export const isCompressedEra = (blocks: number = CONSTANTS.TERM_LENGTH): boolean => blocks / 86_400 < 364
+
+/** A span of blocks as the rough period a person plans in: years, days, hours or minutes. */
+function periodApprox(blocks: number): string {
+  const days = blocks / 86_400
+  if (days >= 364) {
+    const years = Math.round(days / 365)
+    return `${years} ${years === 1 ? 'year' : 'years'}`
+  }
+  if (days >= 2) return `${Math.round(days)} days`
+  const hours = blocks / 3_600
+  if (hours >= 2) return `${Math.round(hours)} hours`
+  const minutes = Math.max(1, Math.round(blocks / 60))
+  return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`
+}
+
+export const eraTag = (): string => 'Beta'
+
+/** The strip's one line: the two clocks a tester will be quoted, and what the names are for. */
+export const eraNoticeLine = (blocks: number = CONSTANTS.TERM_LENGTH): string =>
+  `Terms are ${periodApprox(blocks)}, a lifetime about ${periodApprox(blocks * CONSTANTS.LIFETIME_TERMS)}. Names and prices here are for testing.`
+
+/** Behind the strip's "?": why the clocks are short and what happens to a name at launch. */
+export const eraNoticeHint = (blocks: number = CONSTANTS.TERM_LENGTH): string =>
+  `This is a test era. Every clock runs short so a name's whole life fits a few days: a term is ${periodApprox(blocks)} instead of a year, ` +
+  `a lifetime about ${periodApprox(blocks * CONSTANTS.LIFETIME_TERMS)} instead of ${CONSTANTS.LIFETIME_TERMS} years, and prices are set for testing. ` +
+  `Nothing registered here carries over — the registry starts again at launch.`
+
 // ── The landing page (a browser's front door; Pay opens on Buy) ─────────────
 
 /**

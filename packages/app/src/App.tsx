@@ -5,6 +5,7 @@ import { formatRoute, parseRoute, TABS, type NavTab, type Route, type Tab } from
 import { detectWallet, type Wallet } from './lib/wallet'
 import { referralFromLocation, rememberReferral } from './lib/referral'
 import { IdentityBar } from './components/IdentityBar'
+import { EraNotice } from './components/EraNotice'
 import { TabIcon, type TabIconName } from './components/icons'
 import { HomeScreen } from './screens/Home'
 import { BuyScreen } from './screens/Buy'
@@ -213,6 +214,7 @@ export function App() {
           onToggle={() => setIdentityOpen((open) => !open)}
         />
       </header>
+      <EraNotice />
       <main className="content">
         {diagnostic && <ChromeDiagnostic wallet={wallet} />}
         {tab === 'home' && <HomeScreen onSearch={(query) => navigate({ tab: 'buy', param: query })} />}
