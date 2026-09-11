@@ -1057,6 +1057,13 @@ export const requestAmountLabel = (asset: 'nim' | 'usdt'): string =>
   asset === 'usdt' ? 'Amount in USDT' : 'Amount in NIM'
 export const requestAssetLabel = (): string => 'Paid in'
 export const requestLinkLabel = (): string => 'Your link'
+/**
+ * Why the USDT tab is greyed. Shown rather than hiding the option: a hidden
+ * choice says nothing, and the thing it needs is one owner action away —
+ * `OWNER_ACTION_TILE.setEvm`, named here so the line points somewhere.
+ */
+export const requestNoEvmLine = (): string =>
+  'USDT needs an address linked to this name — the EVM Resolution action.'
 export const copyLinkLabel = (): string => 'Copy link'
 /** A name in grace does not resolve (§7.3), so a link to it has nothing to pay. */
 export const requestInGraceLine = (): string => 'Renew first — a name in grace can’t be paid.'

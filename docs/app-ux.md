@@ -254,6 +254,10 @@ it and builds it; the owner's **Request Payment** tile (My names) is the builder
   and nowhere to put one, so the screen says so and the builder refuses to put
   a message on a USDT link. Dropping it in silence is the failure the byte rule
   exists to prevent.
+- A USDT link pays the name's `E` record, so a name without one cannot have a
+  USDT link at all — the builder **greys** that tab rather than hiding it, and
+  the line under the row names the owner action that links an address. An
+  option that is simply absent teaches the owner nothing.
 - The parameters are read **in a render-phase initializer**, never an effect:
   the settled query rewrites the hash through `formatRoute`, which cannot carry
   a query, and that happens on the first commit. The same trap is why

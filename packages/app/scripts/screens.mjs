@@ -224,8 +224,8 @@ const scenarios = {
     await evaluate(`const i = document.querySelectorAll('.modal-input')[1]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'INV-42'); i.dispatchEvent(new Event('input',{bubbles:true})); true`)
     await sleep(500); await shot('owner-request', true)
   },
-  // The same link asking for USDT: the asset row (an `E` record is what shows
-  // it), no message field, and Pay opening in USDT mode on the other address.
+  // The same link asking for USDT: the asset row, no message field, and Pay
+  // opening in USDT mode on the `E` record's address rather than the target.
   'pay-link-usdt': async () => {
     await send('Page.navigate', { url: URL })
     await sleep(300)

@@ -11,8 +11,10 @@
  * through `core`'s encoders. Nothing here is sent — it is a string being
  * assembled — so this is `MessageModal`'s shell with no busy state.
  *
- * The asset choice appears only for a name that has an `E` record (§6), because
- * a USDT link pays that address and there is nothing to pay without it. Picking
+ * The asset choice is always on the sheet, and the USDT tab is **greyed** for a
+ * name with no `E` record (§6) rather than hidden: a USDT link pays that
+ * address and there is nothing to pay without one, but a hidden option says
+ * nothing about why, and linking an address is one owner action away. Picking
  * USDT closes the message field and says why: an ERC-20 `transfer` has two
  * arguments and no room for a note, so the builder must never emit a link whose
  * own screen would have to contradict it.
@@ -36,6 +38,7 @@ import {
   requestAmountLabel,
   requestAssetLabel,
   requestLinkLabel,
+  requestNoEvmLine,
   requestSheetIntro,
   requestSheetTitle,
   shareCopiedLine,
@@ -51,7 +54,7 @@ export function PaymentRequestSheet({
   onClose,
 }: {
   name: string
-  /** The name carries an `E` record, so a USDT link has an address to pay. */
+  /** The name carries an `E` record. Without one the USDT tab is greyed, not gone. */
   hasEvm: boolean
   isOpen: boolean
   onClose: () => void
@@ -120,26 +123,26 @@ export function PaymentRequestSheet({
           </button>
         </div>
 
-        {hasEvm && (
-          <div className="modal-input-wrap">
-            <span className="request-field-label">{requestAssetLabel()}</span>
-            <div className="pay-mode" role="tablist" aria-label={requestAssetLabel()}>
-              {(['nim', 'usdt'] as const).map((entry) => (
-                <button
-                  key={entry}
-                  type="button"
-                  role="tab"
-                  aria-selected={asset === entry}
-                  aria-label={entry === 'nim' ? payModeNimLabel() : payModeUsdtAria()}
-                  className={`pay-mode-tab ${asset === entry ? 'pay-mode-active' : ''}`}
-                  onClick={() => setAsset(entry)}
-                >
-                  {entry === 'nim' ? payModeNimLabel() : payModeUsdtLabel()}
-                </button>
-              ))}
-            </div>
+        <div className="modal-input-wrap">
+          <span className="request-field-label">{requestAssetLabel()}</span>
+          <div className="pay-mode" role="tablist" aria-label={requestAssetLabel()}>
+            {(['nim', 'usdt'] as const).map((entry) => (
+              <button
+                key={entry}
+                type="button"
+                role="tab"
+                aria-selected={asset === entry}
+                aria-label={entry === 'nim' ? payModeNimLabel() : payModeUsdtAria()}
+                className={`pay-mode-tab ${asset === entry ? 'pay-mode-active' : ''}`}
+                disabled={entry === 'usdt' && !hasEvm}
+                onClick={() => setAsset(entry)}
+              >
+                {entry === 'nim' ? payModeNimLabel() : payModeUsdtLabel()}
+              </button>
+            ))}
           </div>
-        )}
+          {!hasEvm && <span className="request-note">{requestNoEvmLine()}</span>}
+        </div>
 
         <label className="modal-input-wrap">
           <span className="request-field-label">{asset === 'usdt' ? usdtAmountLabel() : payAmountLabel()}</span>
