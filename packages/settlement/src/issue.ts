@@ -61,6 +61,7 @@ import { METHOD_NOT_FOUND } from '@nns/indexer'
 
 import type { Logger } from '@nns/indexer'
 import type { Ledger, LedgerEntry, TransactionPlan } from './ledger.js'
+import { REFERRAL_KINDS } from './share.js'
 
 export class IssueError extends Error {
   override readonly name = 'IssueError'
@@ -195,6 +196,49 @@ export function buildPlan(
  */
 const wireKey = (plan: TransactionPlan): string =>
   [plan.sender, plan.recipient, plan.value, plan.fee, plan.validityStartHeight, plan.data].join('|')
+
+/** A §10.7 payout — policy, and the only thing the reducer will not claim for itself. */
+const isPayout = (item: Work): boolean => (REFERRAL_KINDS as readonly string[]).includes(item.entry.kind)
+
+/**
+ * Inside a collision group, the reducer's own leg goes first.
+ *
+ * On chain an `M` names a ref, a payee and an amount and nothing else, so a
+ * `REFUND` and a `REFERRAL_REBATE` of the same amount to the same buyer are
+ * the *same claim*, and the reducer arbitrates: it discharges its leg with the
+ * first matching `M`, whatever the issuer meant by it. Send the payout first
+ * and its transaction is taken by the leg — the leg confirms, the payout sits
+ * BROADCAST against a payment somebody else was credited with, and nothing
+ * moves until the attempt's window expires. Measured on the era, 2026-09-12,
+ * with the collision guard already in place: one 1.6 NIM transfer, the refund
+ * discharged, the rebate stalled for two hours.
+ *
+ * Ordering the leg first costs nothing and ends it: the leg is paid and
+ * confirmed, and the payout goes out next pass at a later head, where the
+ * reducer has no leg left to claim it with. Only members of a colliding group
+ * move, and only among their own positions, so §11.5's oldest-first budget
+ * order is untouched. Resumes stay ahead of everything: they are pinned, and
+ * their bytes are already committed.
+ */
+function orderCollisions(work: Work[]): void {
+  const groups = new Map<string, number[]>()
+  for (const [index, item] of work.entries()) {
+    const key = wireKey(item.plan)
+    const at = groups.get(key)
+    if (at === undefined) groups.set(key, [index])
+    else at.push(index)
+  }
+  for (const positions of groups.values()) {
+    if (positions.length < 2) continue
+    const rank = (item: Work): number => (item.source === 'resume' ? 0 : isPayout(item) ? 2 : 1)
+    const members = positions.map((index) => work[index] as Work)
+    const ordered = members
+      .map((item, order) => ({ item, order }))
+      .sort((a, b) => rank(a.item) - rank(b.item) || a.order - b.order)
+      .map((x) => x.item)
+    for (const [slot, index] of positions.entries()) work[index] = ordered[slot] as Work
+  }
+}
 
 /**
  * The plan an earlier run pinned, read back out of the ledger unchanged.
@@ -405,6 +449,8 @@ export async function issuePass(options: IssueOptions): Promise<IssueReport> {
     }
   }
 
+  orderCollisions(work)
+
   const senders = [...new Set(work.map((item) => item.plan.sender))]
   const balances = await readBalances(rpc, senders)
 
@@ -445,7 +491,8 @@ export async function issuePass(options: IssueOptions): Promise<IssueReport> {
     // plans at a later head, and different bytes land. Checked before the pin
     // for the same reason the key is (nothing ambiguous is committed) and
     // before the balance draw, so a deferred leg does not spend a budget it
-    // never used.
+    // never used. `orderCollisions` has already decided *which* of the two
+    // waits, and it is never the reducer's own leg.
     const wire = wireKey(plan)
     const taken = wires.get(wire)
     if (taken !== undefined) {

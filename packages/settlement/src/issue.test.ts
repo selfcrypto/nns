@@ -496,6 +496,26 @@ describe('issuePass — two legs, one transaction', () => {
     expect(run.recorder.calls.filter((call) => call === 'sendBasicTransactionWithData')).toHaveLength(1)
   })
 
+  it('pays the reducer’s leg and defers the payout, whichever order the ledger hands them over', async () => {
+    // The ledger orders by key, so REFERRAL_REBATE comes first on its own —
+    // and sending it first is the failure this ordering exists to prevent: an
+    // `M` names a ref, a payee and an amount, the reducer claims the first one
+    // that fits its leg, and the payout is then BROADCAST against a payment
+    // credited to somebody else until its window expires. Measured on the era,
+    // 2026-09-12.
+    for (const order of [['REFERRAL_REBATE', 'REFUND'], ['REFUND', 'REFERRAL_REBATE']] as const) {
+      const report = await pass(order.map((kind) => owed(kind)), { send: true }).report
+      expect(kinds(report.outcomes)).toEqual(['1010:0:REFUND sent', '1010:0:REFERRAL_REBATE collided'])
+    }
+  })
+
+  it('keeps a pinned resume ahead of both — its bytes are already committed', async () => {
+    const live = attempt({ attemptNo: 2, sender: TREASURY, recipient: WINNER, value: surplus, validityStartHeight: HEAD, expiresAfter: HEAD + EXPIRY, data: '' })
+    const pinned = entry({ ...owed('REFERRAL_SHARE'), state: 'CLAIMED', attemptCount: 2, live: { ...live, data: buildPlan(config, owed('REFERRAL_SHARE'), HEAD, 0n, EXPIRY).data } })
+    const report = await pass([pinned, owed('REFUND')], { send: true }).report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:REFERRAL_SHARE resent', '1010:0:REFUND collided'])
+  })
+
   it('spends no budget on the collided leg, so the next creditor is still paid', async () => {
     const other = entry({ ref: { height: 1_011, txIndex: 0 }, kind: 'REFUND', amount: surplus, owedBy: TREASURY, owedTo: SELLER })
     const report = await pass([owed('REFUND'), owed('REFERRAL_REBATE'), other], {
