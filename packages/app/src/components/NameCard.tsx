@@ -28,6 +28,7 @@ import {
   OWNER_GROUP_TITLE,
   OWNER_TILE,
   SHARE_TILE,
+  ownerShareLine,
   referralsCountLine,
   shareCopiedLine,
   shareCopyFailedLine,
@@ -491,7 +492,8 @@ function Actions({
         {record !== null && (
           <div className="owner-action-group">
             <span className="owner-action-group-title">
-              {OWNER_GROUP_TITLE.referrals}{' '}
+              {OWNER_GROUP_TITLE.referrals}
+              <span className="owner-action-group-rate">{ownerShareLine(percentOf(referralHeadlineBp(name, height) ?? 0))}</span>{' '}
               <Hint>{shareHint(percentOf(referralHeadlineBp(name, height) ?? 0), rebateHint(name, height), rateIsNetOfBurn(name, height))}</Hint>
             </span>
             <div className="owner-actions-grid">

@@ -2930,6 +2930,15 @@ li.note {
   margin: 0 0 2px 2px;
 }
 
+/* The rate configured for this name, beside the title: a number, not a
+   heading — so it keeps its own case and reads as data. */
+.owner-action-group-rate {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
 .owner-actions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));

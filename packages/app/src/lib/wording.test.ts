@@ -17,6 +17,7 @@ import {
   buyerRebateLine,
   referrerEarnsLine,
   referredByLine,
+  ownerShareLine,
   referralsCountLine,
   shareHint,
   shareInGraceLine,
@@ -309,6 +310,11 @@ describe('the referral lines (§10.7)', () => {
       expect(shareHint('5%', '5%', true)).toMatch(/both rates are before the registry’s burn, which takes a fifth of each/)
       expect(shareHint('5%', null, true)).toMatch(/that rate is before/)
     })
+  })
+
+  it('the owner sees the rate configured for their own name', () => {
+    expect(ownerShareLine('5%')).toBe('· 5% to you')
+    expect(ownerShareLine('20%')).toBe('· 20% to you')
   })
 
   it('the tile never spends alarm vocabulary on a name in grace', () => {

@@ -1117,6 +1117,15 @@ export const OWNER_GROUP_TITLE = {
   referrals: 'Referrals',
 } as const
 
+/**
+ * The rate configured for **this** name, beside the Referrals title (Kike,
+ * 2026-09-12: "should be nice to reflect on the panel name, what is the % is
+ * configured for you (5% by default but for example binance may see a 20%)").
+ * A partner's row is not the default, and the owner is the one person who
+ * should see their own — it is the buyer's screen the share stays off.
+ */
+export const ownerShareLine = (percent: string): string => `· ${percent} to you`
+
 /** The owner's share tile (§10.7): copies `?ref=<name>`; not a transaction. */
 export const SHARE_TILE = { title: 'Share Link', hint: 'Earn on registrations you refer' } as const
 export const shareCopiedLine = (): string => 'Link copied'
