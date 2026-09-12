@@ -1,9 +1,17 @@
 # packages/app/docs — the docs section's content
 
 One Markdown file per page of the in-app documentation (`#/docs/<slug>`).
-`index.md` fixes the sidebar order and each page's title. This directory is
-**content only**: the route, the renderer and the placeholder formatter are
-the app's business and live under `src/`.
+`index.md` fixes the sidebar order and each page's title — and the order is
+also the previous/next chain, so it is the one place a page is added, renamed
+or moved. This directory is **content only**: the formatter is
+`src/lib/docsFormat.ts`, the build step `plugins/docs.ts` (it serves
+`virtual:docs`), and the screen `src/screens/Docs.tsx`.
+
+Four things fail the build rather than reaching a reader: an unknown
+placeholder key or format, a page listed here with no file, a `.md` file no
+`index.md` entry lists (it would be unreachable), and a cross-link to a slug
+that is not a page. Cross-links are written as the bare slug —
+`[Prices](prices)` — and become `#/docs/prices`.
 
 ## Placeholders — a number from `CONSTANTS` is never typed
 
@@ -18,7 +26,7 @@ unknown key or an unknown format.
 | `{{fee:7}}` · `{{lifetime:7}}` | the yearly / lifetime fee of a name of that length, `core.feeFor` at `LAUNCH_PRICES` — the band's figure, so `{{fee:7}}` and `{{fee:11}}` render alike | `2,000 NIM` · `20,000 NIM` |
 | `{{fees:table}}` | `FEE_MULTIPLIERS` as a Markdown table — length band, multiple, a year, a lifetime | a table |
 | `{{n:LONG_BAND_FROM}}` | the first length that pays `FEE_BASE` alone (the last multiplier row's lower edge), so the prose never types 12 | `12` |
-| `{{dur:TERM_LENGTH}}` | blocks → approximate duration at ~1 block/s | `~1 year` |
+| `{{dur:TERM_LENGTH}}` | blocks → approximate duration at ~1 block/s, no `~` of its own (a page that wants one writes it: "every ~{{dur:CHECKPOINT_INTERVAL}}") | `1 year` |
 | `{{blocks:TERM_LENGTH}}` | the block count | `31,536,000 blocks` |
 | `{{sec:ANCHOR_STALENESS_LIMIT_SEC}}` | seconds → duration | `48 hours` |
 | `{{pct:BURN_SHARE_BP}}` | basis points → percent | `20%` |

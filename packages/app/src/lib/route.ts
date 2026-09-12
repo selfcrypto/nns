@@ -3,8 +3,9 @@
  *
  * `#/<tab>[/<param>]` — `#/buy/nns`, `#/pay/rico.nns`, `#/names/nns` (the
  * name handed to My names to manage), `#/market/indigo` (the listing to open),
- * `#/inbox`, `#/home`. An empty or unknown hash is the caller's default: the
- * landing page in a browser, Buy inside Nimiq Pay (`App.tsx`).
+ * `#/docs/prices` (the documentation page), `#/inbox`, `#/home`. An empty or
+ * unknown hash is the caller's default: the landing page in a browser, Buy
+ * inside Nimiq Pay (`App.tsx`).
  *
  * The hash rather than the path, and no router library: `deploy/service`'s
  * nginx deliberately answers an unknown path with 404 so a stale script URL
@@ -16,17 +17,21 @@
  * hash, and the hash is one function pair").
  */
 
-export type Tab = 'home' | 'buy' | 'pay' | 'names' | 'inbox' | 'market'
-export type NavTab = Exclude<Tab, 'home'>
+export type Tab = 'home' | 'buy' | 'pay' | 'names' | 'inbox' | 'market' | 'docs'
+export type NavTab = Exclude<Tab, 'home' | 'docs'>
 
-/** The tab bar, in order. `home` is the landing page and has no tab. */
+/**
+ * The tab bar, in order. `home` is the landing page and `docs` the
+ * documentation; neither is a tab, and both hide the bar (`App.tsx`) — they
+ * are pages a browser lands on, not places to switch between.
+ */
 export const TABS: readonly NavTab[] = ['buy', 'pay', 'names', 'inbox', 'market']
 
-const ALL_TABS: readonly Tab[] = ['home', ...TABS]
+const ALL_TABS: readonly Tab[] = ['home', 'docs', ...TABS]
 
 export interface Route {
   readonly tab: Tab
-  /** The second segment, decoded: a query for Buy/Pay, a name for My names and Market. */
+  /** The second segment, decoded: a query for Buy/Pay, a name for My names and Market, a page slug for Docs. */
   readonly param: string | null
 }
 

@@ -1,0 +1,243 @@
+/* The documentation screen. Phone first: the page list is a strip that
+   scrolls sideways above the article, and becomes a column beside it when
+   there is room for one. Nothing here is a card — a doc is a page, not an
+   answer (app CLAUDE.md, "three surfaces"). */
+
+.docs {
+  flex: 1;
+  padding: 4px 16px 32px;
+}
+
+/* ── The page list ── */
+
+.pages {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  margin-bottom: 6px;
+  scrollbar-width: none;
+}
+
+.pages::-webkit-scrollbar {
+  display: none;
+}
+
+.page {
+  flex: none;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.pageActive {
+  border-color: var(--nimiq-blue-border);
+  background: var(--nimiq-blue-tint);
+  color: var(--nimiq-blue-dark);
+}
+
+/* ── The page ── */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.article {
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.62;
+  overflow-wrap: break-word;
+}
+
+.article h1 {
+  margin: 10px 0 14px;
+  font-size: 26px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+.article h2 {
+  margin: 30px 0 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 19px;
+  line-height: 1.25;
+}
+
+.article h3 {
+  margin: 22px 0 8px;
+  font-size: 16px;
+}
+
+.article p,
+.article ul,
+.article ol {
+  margin: 0 0 14px;
+}
+
+.article ul,
+.article ol {
+  padding-left: 20px;
+}
+
+.article li {
+  margin-bottom: 6px;
+}
+
+.article a {
+  color: var(--nimiq-blue-deep);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.article strong {
+  color: var(--ink);
+}
+
+.article code {
+  padding: 1px 5px;
+  border-radius: 6px;
+  background: var(--depth-bg);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.88em;
+}
+
+.article pre {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  line-height: 1.5;
+}
+
+.article pre code {
+  padding: 0;
+  background: none;
+}
+
+.article blockquote {
+  margin: 0 0 16px;
+  padding: 2px 0 2px 14px;
+  border-left: 3px solid var(--line-strong);
+  color: var(--ink-soft);
+}
+
+/* The build step wraps every table in this, so a reference table scrolls
+   itself instead of widening the screen. */
+.article figure {
+  margin: 0 0 18px;
+  overflow-x: auto;
+}
+
+.article table {
+  border-collapse: collapse;
+  width: 100%;
+  /* Wide enough that a reference row scrolls instead of wrapping to one word
+     a line, narrow enough that a two-column table still fits a phone. */
+  min-width: 460px;
+  font-size: 13.5px;
+}
+
+.article th,
+.article td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.article th {
+  color: var(--ink-soft);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.article hr {
+  margin: 24px 0;
+  border: none;
+  border-top: 1px solid var(--line);
+}
+
+/* ── Previous / next ── */
+
+.sequence {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.previous,
+.next {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  text-decoration: none;
+}
+
+.next {
+  text-align: right;
+}
+
+.sequenceLabel {
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.sequenceTitle {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* ── Room for a column ── */
+
+@media (min-width: 900px) {
+  .docs {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 720px);
+    gap: 36px;
+    justify-content: center;
+    padding: 12px 24px 48px;
+  }
+
+  .pages {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow: visible;
+    padding: 0;
+    margin: 0;
+  }
+
+  .page {
+    border: none;
+    border-radius: var(--radius-field);
+    background: none;
+    padding: 7px 10px;
+  }
+
+  .pageActive {
+    background: var(--nimiq-blue-tint);
+  }
+}

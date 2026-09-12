@@ -9,6 +9,7 @@ import { EraNotice } from './components/EraNotice'
 import { TabIcon, type TabIconName } from './components/icons'
 import { HomeScreen } from './screens/Home'
 import { BuyScreen } from './screens/Buy'
+import { DocsScreen } from './screens/Docs'
 import { InboxScreen } from './screens/Inbox'
 import { MyNamesScreen } from './screens/MyNames'
 import { OffersScreen } from './screens/Offers'
@@ -29,6 +30,7 @@ const TAB_LABEL: Record<Tab, string> = {
   names: 'My Names',
   inbox: 'Inbox',
   market: 'Market',
+  docs: 'Docs',
 }
 
 const TAB_ICON: Record<NavTab, TabIconName> = {
@@ -251,6 +253,7 @@ export function App() {
         {tab === 'names' && (
           <MyNamesScreen wallet={wallet} manage={route.param} onManageHandled={() => replace({ tab: 'names', param: null }, true)} />
         )}
+        {tab === 'docs' && <DocsScreen slug={route.param} />}
         {tab === 'inbox' && <InboxScreen wallet={wallet} />}
         {tab === 'market' && (
           <OffersScreen
@@ -261,7 +264,7 @@ export function App() {
           />
         )}
       </main>
-      {tab !== 'home' && (
+      {tab !== 'home' && tab !== 'docs' && (
         <nav className="tabbar" aria-label="Sections">
           {TABS.map((entry) => (
             <button

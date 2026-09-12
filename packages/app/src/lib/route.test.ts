@@ -27,6 +27,12 @@ describe('parseRoute', () => {
     expect(parseRoute('#/buy/not%20a%20name%21', 'home')).toEqual({ tab: 'buy', param: 'not a name!' })
   })
 
+  it('routes the docs, which is a page and not a tab', () => {
+    expect(parseRoute('#/docs/prices', 'home')).toEqual({ tab: 'docs', param: 'prices' })
+    expect(parseRoute('#/docs', 'home')).toEqual({ tab: 'docs', param: null })
+    expect(TABS).not.toContain('docs')
+  })
+
   it('a malformed escape is no param rather than an exception', () => {
     expect(parseRoute('#/buy/%E0%A4%A', 'home')).toEqual({ tab: 'buy', param: null })
   })

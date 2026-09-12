@@ -946,7 +946,10 @@ export const LANDING = {
     tagline: 'Names on Nimiq.',
     columns: [
       { title: 'Ecosystem', links: [['Nimiq Wallet', 'https://wallet.nimiq.com'], ['Cryptocity', 'https://cryptocity.com'], ['Oasis', 'https://oasis.nimiq.com']] },
-      { title: 'Resources', links: [['Developer docs', 'https://nimiq.com/developers'], ['GitHub', 'https://github.com/selfcrypto/nns'], ['Nimiq', 'https://nimiq.com']] },
+      // The first two are this app's own documentation (`#/docs/<slug>`,
+      // screens/Docs.tsx). A hash link stays inside the app; Home.tsx opens
+      // only the absolute ones in a new tab.
+      { title: 'Resources', links: [['Documentation', '#/docs/intro'], ['Developer docs', '#/docs/developers'], ['GitHub', 'https://github.com/selfcrypto/nns'], ['Nimiq', 'https://nimiq.com']] },
       { title: 'Community', links: [['X', 'https://x.com/nimiq'], ['Discord', 'https://discord.gg/nimiq'], ['Telegram', 'https://t.me/Nimiq']] },
     ],
     copyright: (year: number): string => `© ${year} nns · MIT`,

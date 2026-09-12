@@ -15,8 +15,9 @@
 // (CLAUDE.md, "Never reason about Pay's WebView from a desktop") — these are
 // for the look of a screen, never for where the tab bar sits.
 import { spawn } from 'node:child_process'
-import { mkdirSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const URL = process.env['NNS_APP_URL'] ?? 'http://localhost:5173/'
 const [outDir, ...only] = process.argv.slice(2)
@@ -247,6 +248,19 @@ const scenarios = {
   'names': async () => { await load(); await tab('My Names'); await shot('names') },
   'inbox': async () => { await load(); await tab('Inbox'); await shot('inbox') },
   'market': async () => { await load(); await tab('Market'); await shot('market', true) },
+  // One scenario per documentation page, read from `docs/index.md` — the
+  // same file the section's own sidebar comes from, so a page added there
+  // gets a screenshot without anybody remembering to add one here.
+  ...Object.fromEntries(
+    readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../docs/index.md'), 'utf8')
+      .split('\n')
+      .map((line) => /^-\s+([a-z0-9-]+):/.exec(line.trim())?.[1])
+      .filter((slug) => slug !== undefined)
+      .map((slug) => [`docs-${slug}`, async () => {
+        await send('Page.navigate', { url: `${URL}#/docs/${slug}` })
+        await sleep(1200); await evaluate(helpers); await shot(`docs-${slug}`, true)
+      }]),
+  ),
   'market-sheet': async () => {
     await loadAsOwner(); await tab('Market')
     // Whichever listing exists today: an offer's Buy Now, else an auction's Place Bid.

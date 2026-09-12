@@ -21,7 +21,7 @@ Every honest implementation on the same network agrees on these byte for byte. N
 | Constant | Value | Meaning | Governable |
 |---|---|---|---|
 | `FEE_BASE` | {{nim:FEE_BASE}} | Registration and renewal for a year, {{n:LONG_BAND_FROM}}+ characters; shorter names pay a multiple of it; also the floor for offers and auctions | yes |
-| `FEE_MULTIPLIERS` | {{fees:table}} | The multiple of `FEE_BASE` each length pays, and the fees that makes today | **no** |
+| `FEE_MULTIPLIERS` | Below | The multiple of `FEE_BASE` each length pays | **no** |
 | `LIFETIME_MULTIPLIER` | {{n:LIFETIME_MULTIPLIER}} | A lifetime costs this many yearly fees | **no** |
 | `LIFETIME_TERMS` | {{n:LIFETIME_TERMS}} | The terms a lifetime buys | **no** |
 | `PRICE_FLOOR` | {{nim:PRICE_FLOOR}} | Lowest the base can be set to | bound |
@@ -33,6 +33,10 @@ Every honest implementation on the same network agrees on these byte for byte. N
 | `LISTING_FEE` | {{nim:LISTING_FEE}} | Cost of listing a name for sale | no |
 | `DUST_VALUE` | 1 luna | Value on every message that carries no fee (zero is rejected by the network) | no |
 | `REFUND_FLOOR` | {{nim:REFUND_FLOOR}} | Below this, a refundable amount is kept | no |
+
+`FEE_MULTIPLIERS` in full, and the fees it makes at today's base:
+
+{{fees:table}}
 
 **Time** — blocks, at roughly one per second
 

@@ -401,8 +401,13 @@ export function HomeScreen({ onSearch }: { onSearch: (query: string) => void }) 
             {footer.columns.map((column) => (
               <div key={column.title} className="link-column">
                 <h4>{column.title}</h4>
+                {/* A `#/docs/...` link is this app's own page: opening it in
+                    a new tab would leave the reader in a second copy of the
+                    app with no way back to where they were. */}
                 {column.links.map(([label, href]) => (
-                  <a key={href} href={href} target="_blank" rel="noopener noreferrer">{label}</a>
+                  <a key={href} href={href} {...(href.startsWith('#') ? {} : { target: '_blank', rel: 'noopener noreferrer' })}>
+                    {label}
+                  </a>
                 ))}
               </div>
             ))}

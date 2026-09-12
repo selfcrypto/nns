@@ -284,7 +284,8 @@ select:focus-visible {
 .frame.is-pay .content,
 .frame.is-names .content,
 .frame.is-inbox .content,
-.frame.is-market .content {
+.frame.is-market .content,
+.frame.is-docs .content {
   padding: 0;
 }
 
