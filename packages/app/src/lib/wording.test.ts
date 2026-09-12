@@ -15,6 +15,7 @@ import {
   sheetActionLabel,
   sheetDismissLabel,
   buyerRebateLine,
+  referrerEarnsLine,
   referredByLine,
   referralsCountLine,
   shareHint,
@@ -276,6 +277,41 @@ describe('the referral lines (§10.7)', () => {
     expect(shareHint('4%', '4%')).toMatch(/gets 4% of it back/)
     expect(shareHint('10%')).not.toMatch(/back/)
     expect(shareHint('10%')).toContain('pays the same price')
+  })
+
+  // Kike publishes 5%, the payer sends 4%, and both numbers on one screen is
+  // one number too many. Every line states the headline and names the burn —
+  // once per surface, because a strip that says it twice is a strip nobody
+  // reads (Kike, 2026-09-12: "5% (minus burn fee) or something like that").
+  describe('the burn beside the rate', () => {
+    it('the review line qualifies both rates in one aside', () => {
+      const both = referredByLine('ricomav', '5%', '5%', true)
+      expect(both).toContain('5%')
+      expect(both).toMatch(/both minus the registry’s burn/)
+      expect(both.match(/burn/g)).toHaveLength(1)
+      const share = referredByLine('ricomav', '5%', null, true)
+      expect(share).toMatch(/5% \(minus the registry’s burn\)/)
+    })
+
+    it('the strip says it once, on the second sentence, for both rates', () => {
+      const earns = referrerEarnsLine('5%')
+      const back = buyerRebateLine('5%', true)
+      expect(earns).not.toMatch(/burn/)
+      expect(back).toMatch(/both rates before the registry’s burn/)
+      expect(`${earns} ${back}`.match(/burn/g)).toHaveLength(1)
+    })
+
+    it('a row the burn is not out of gets no aside at all', () => {
+      expect(referredByLine('ricomav', '10%')).not.toMatch(/burn/)
+      expect(referrerEarnsLine('10%')).not.toMatch(/burn/)
+      expect(buyerRebateLine('10%')).not.toMatch(/burn/)
+      expect(shareHint('10%', '10%')).not.toMatch(/burn/)
+    })
+
+    it('the owner’s hint says what the burn takes', () => {
+      expect(shareHint('5%', '5%', true)).toMatch(/both rates are before the registry’s burn, which takes a fifth of each/)
+      expect(shareHint('5%', null, true)).toMatch(/that rate is before/)
+    })
   })
 
   it('the tile never spends alarm vocabulary on a name in grace', () => {

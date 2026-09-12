@@ -9,10 +9,14 @@
  * be imported here); `referralRates.test.ts` holds the two to one answer.
  *
  * A row prices **two** payouts: `bp` to the referrer and `rebateBp` back to
- * the buyer. Both are published net of the §10.2 burn, which is why a
- * headline 5% reads 400 bp here — see settlement's `rates.ts` for why the
- * table carries the net figure rather than computing it.
+ * the buyer. On a row marked `netOfBurn` both are stated with the §10.2 burn
+ * already taken out — 400 bp — because the payer must not burn on money it
+ * never kept (settlement's `rates.ts`). The **app states the rate it came
+ * from**: 5%, with the burn named beside it. `headlineBp` is that one
+ * conversion, and it lives here so no screen invents it.
  */
+
+import { CONSTANTS } from '@nns/core'
 
 import table from '../../../settlement/referral-rates.json'
 
@@ -24,6 +28,8 @@ export interface RateRow {
   readonly rebateBp?: number | null
   /** The rate for both payouts when the buyer already controls the referring name — `null`/absent means each payout's own rate. */
   readonly selfBp?: number | null
+  /** This row's rates already have the §10.2 burn out of them, so the app states the headline they came from. Absent is "as published". */
+  readonly netOfBurn?: boolean
   readonly fromHeight: number
   readonly note?: string
 }
@@ -60,6 +66,38 @@ export function referralRebateBp(name: string, height: number, rows: readonly Ra
   const row = referralRowFor(name, height, rows)
   return row === null ? null : (row.rebateBp ?? 0)
 }
+
+/**
+ * The rate a row states, before the §10.2 burn: `400` → `500`, so the app can
+ * say 5% where the payer holds 400 bp. A row that is not `netOfBurn` is
+ * already its own headline and comes back unchanged — the pre-2026-09-12
+ * default paid its 10% flat, and grossing it up would invent a rate nobody
+ * published.
+ *
+ * The burn share is a protocol constant, not a number retyped here: a
+ * governance change to it moves both the payout and this line together.
+ */
+export function headlineBp(bp: number, row: RateRow | null): number {
+  if (row === null || row.netOfBurn !== true) return bp
+  const burn = Number(CONSTANTS.BURN_SHARE_BP)
+  return Math.round((bp * 10_000) / (10_000 - burn))
+}
+
+/** The referrer's share as the app states it — `null` before any row starts. */
+export function referralHeadlineBp(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): number | null {
+  const row = referralRowFor(name, height, rows)
+  return row === null ? null : headlineBp(row.bp, row)
+}
+
+/** The buyer's rebate as the app states it — `0` where the row pays none, `null` before any row starts. */
+export function rebateHeadlineBp(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): number | null {
+  const row = referralRowFor(name, height, rows)
+  return row === null ? null : headlineBp(row.rebateBp ?? 0, row)
+}
+
+/** Whether the rates shown for this referrer have the burn to come out of them — the sentence beside the number depends on it. */
+export const rateIsNetOfBurn = (name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): boolean =>
+  referralRowFor(name, height, rows)?.netOfBurn === true
 
 /** `1000` → `10%`; `250` → `2.5%`. */
 export function percentOf(bp: number): string {

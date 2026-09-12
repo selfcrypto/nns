@@ -40,7 +40,7 @@ import {
   soldByLine,
 } from './wording'
 import { isReferralName } from './referral'
-import { percentOf, referralRateBp, referralRebateBp } from './referralRates'
+import { percentOf, rateIsNetOfBurn, rebateHeadlineBp, referralHeadlineBp } from './referralRates'
 import { auctionEndHeight, auctionOutlivesTerm, cancellableNow, offerCancellableAt, sameAddress, registrationFee } from './states'
 import type { AppAction } from './states'
 import type { SubmitRequest } from './wallet'
@@ -112,9 +112,9 @@ const requireAddress = (input: string, what: string): string => {
   return formatAddress(parsed)
 }
 
-/** The rebate to quote beside a share, or `null` when the row in effect pays none. */
+/** The rebate to quote beside a share, or `null` when the row in effect pays none. The headline rate, as the line quotes both. */
 const rebatePercent = (ref: string, height: number): string | null => {
-  const bp = referralRebateBp(ref, height) ?? 0
+  const bp = rebateHeadlineBp(ref, height) ?? 0
   return bp > 0 ? percentOf(bp) : null
 }
 
@@ -184,7 +184,16 @@ export function prepareAction(options: {
           // sees who benefits, that the price is unchanged, and — the part
           // the wallet's own screen cannot say — that the rebate arrives
           // afterwards, as a second transaction.
-          ...(ref === null ? [] : [referredByLine(ref, percentOf(referralRateBp(ref, info?.height ?? 0) ?? 0), rebatePercent(ref, info?.height ?? 0))]),
+          ...(ref === null
+            ? []
+            : [
+                referredByLine(
+                  ref,
+                  percentOf(referralHeadlineBp(ref, info?.height ?? 0) ?? 0),
+                  rebatePercent(ref, info?.height ?? 0),
+                  rateIsNetOfBurn(ref, info?.height ?? 0),
+                ),
+              ]),
         ],
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null

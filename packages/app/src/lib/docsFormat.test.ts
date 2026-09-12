@@ -14,7 +14,7 @@ import {
   parseDocIndex,
   referralRatesTable,
 } from './docsFormat'
-import { REFERRAL_RATES } from './referralRates'
+import { headlineBp, percentOf, REFERRAL_RATES } from './referralRates'
 
 describe('parseDocIndex', () => {
   it('keeps the file order, which is the sidebar and the prev/next chain', () => {
@@ -134,10 +134,40 @@ describe('the generated tables', () => {
     expect(table).toContain('| Referrer | To the referrer | Back to the buyer | From height | Note |')
     const rebate = defaultReferralRebate()
     expect(rebate).not.toBeNull()
-    expect(table).toContain(`| ${rebate} |`)
+    expect(table).toContain(`| ${rebate}† |`)
     expect(table).toContain('| — |')
-    // Every row renders, and the header and separator are the extra two.
-    expect(table.split('\n')).toHaveLength(REFERRAL_RATES.length + 2)
+    // Every row renders; the header, the separator, the blank line and the
+    // footnote are the extra four.
+    expect(table.split('\n')).toHaveLength(REFERRAL_RATES.length + 4)
+  })
+
+  // The published rates are the ones Kike decided — 5% and 5% — and the table
+  // settlement pays from holds those net of the §10.2 burn. The docs state
+  // the headline and mark it, per row: a blanket caption would restate the
+  // pre-2026-09-12 default, which paid its 10% flat and carried no burn.
+  it('states the headline rate and daggers the rows the burn comes out of', () => {
+    const table = referralRatesTable()
+    const net = REFERRAL_RATES.filter((row) => row.netOfBurn === true)
+    expect(net.length).toBeGreaterThan(0)
+    for (const row of net) {
+      expect(headlineBp(row.bp, row)).toBe(Math.round((row.bp * 10_000) / (10_000 - Number(CONSTANTS.BURN_SHARE_BP))))
+      expect(table).toContain(`| ${percentOf(headlineBp(row.bp, row))}† |`)
+    }
+    for (const row of REFERRAL_RATES.filter((r) => r.netOfBurn !== true)) {
+      expect(headlineBp(row.bp, row)).toBe(row.bp)
+      expect(table).toContain(`| ${percentOf(row.bp)} |`)
+    }
+    expect(table).toContain('† Before the registry')
+  })
+
+  // A headline that cannot be turned back into what the payer sends is a
+  // wrong number on a page, so every published row must round-trip exactly.
+  it('every headline divides back to the rate the payer holds', () => {
+    for (const row of REFERRAL_RATES) {
+      const burn = Number(CONSTANTS.BURN_SHARE_BP)
+      const back = row.netOfBurn === true ? (headlineBp(row.bp, row) * (10_000 - burn)) / 10_000 : headlineBp(row.bp, row)
+      expect(back).toBe(row.bp)
+    }
   })
 
   it('{{referral:rebate}} fills from the same row as {{referral:default}}', () => {

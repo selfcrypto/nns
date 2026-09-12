@@ -12,7 +12,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { apiBase } from '../lib/nns'
 import { getParams, getReferrals } from '../lib/api'
 import { shareLinkFor } from '../lib/referral'
-import { percentOf, referralRateBp, referralRebateBp, shareOf } from '../lib/referralRates'
+import { percentOf, rateIsNetOfBurn, rebateHeadlineBp, referralHeadlineBp, referralRateBp, shareOf } from '../lib/referralRates'
 import { useAsync } from '../lib/useAsync'
 import { Hint } from './Hint'
 import { createPortal } from 'react-dom'
@@ -98,9 +98,9 @@ export const OWNER_ACTIONS: readonly AppAction[] = ['setTarget', 'setEvm', 'tran
  * why it says so. In grace the name cannot refer (the registry reads the
  * referrer's status at the registration), so the tile says to renew first.
  */
-/** What a referred buyer gets back, for the owner's hint — `null` where the row pays no rebate. */
+/** What a referred buyer gets back, for the owner's hint — `null` where the row pays no rebate. The headline, as the hint states both rates. */
 const rebateHint = (name: string, height: number): string | null => {
-  const bp = referralRebateBp(name, height) ?? 0
+  const bp = rebateHeadlineBp(name, height) ?? 0
   return bp > 0 ? percentOf(bp) : null
 }
 
@@ -108,6 +108,8 @@ function ShareTile({ name, height, inGrace }: { name: string; height: number; in
   const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
   const referrals = useAsync(() => getReferrals(apiBase(), name), [name])
   const params = useAsync(() => getParams(apiBase()), [])
+  // The rate the payer **sends**, not the headline the hint states: this is an
+  // estimate in NIM, and the burn comes out before the transfer does.
   const bp = referralRateBp(name, height) ?? 0
   const link = shareLinkFor(name)
 
@@ -490,7 +492,7 @@ function Actions({
           <div className="owner-action-group">
             <span className="owner-action-group-title">
               {OWNER_GROUP_TITLE.referrals}{' '}
-              <Hint>{shareHint(percentOf(referralRateBp(name, height) ?? 0), rebateHint(name, height))}</Hint>
+              <Hint>{shareHint(percentOf(referralHeadlineBp(name, height) ?? 0), rebateHint(name, height), rateIsNetOfBurn(name, height))}</Hint>
             </span>
             <div className="owner-actions-grid">
               <ShareTile name={name} height={height} inGrace={record.status === 'GRACE'} />

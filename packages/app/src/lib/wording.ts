@@ -498,10 +498,25 @@ export function priceHint(fees: readonly { readonly upTo: number; readonly yearl
  * `rebate` is `null` where the row in effect pays none, and then the line is
  * the one this said before the rebate existed.
  */
-export const referredByLine = (ref: string, percent: string, rebate: string | null = null): string =>
-  rebate === null
-    ? `Referred by ${ref}. Its owner earns ${percent} of the fee; you pay the same.`
-    : `Referred by ${ref}. Its owner earns ${percent} of the fee, and ${rebate} comes back to you once the registration confirms.`
+export const referredByLine = (ref: string, percent: string, rebate: string | null = null, netOfBurn = false): string => {
+  const burn = netOfBurn ? BURN_ASIDE : ''
+  return rebate === null
+    ? `Referred by ${ref}. Its owner earns ${percent}${burn} of the fee; you pay the same.`
+    : `Referred by ${ref}. Its owner earns ${percent} of the fee, and ${rebate} comes back to you once the registration confirms${netOfBurn ? ` — both ${BURN_WORD}` : ''}.`
+}
+
+/**
+ * The rates Kike publishes are the ones he decided — 5% and 5% — and the
+ * table holds what the payer sends, which is a fifth less, because §10.2
+ * burns a share of everything the treasury takes in and a payout must not be
+ * burned on twice (decisions.md, "A referral payout is net of the burn").
+ * Showing the net figure alone answered a question nobody asked and made the
+ * published programme look smaller than it is; showing the headline alone
+ * would overstate what lands. So the number is the headline and the burn is
+ * named beside it, in the fewest words that are still true.
+ */
+export const BURN_WORD = 'minus the registry’s burn'
+const BURN_ASIDE = ` (${BURN_WORD})`
 
 /**
  * §10.7 made visible before the review: a stored ref is about to travel with a
@@ -515,13 +530,19 @@ export const REFERRER_STRIP = {
   remove: 'Remove',
   removeLabel: 'Remove this referrer',
 } as const
-export const referrerEarnsLine = (percent: string): string => `Its owner earns ${percent} of the registration fee.`
+export const referrerEarnsLine = (percent: string, netOfBurn = false): string =>
+  `Its owner earns ${percent}${netOfBurn ? ` (${BURN_WORD})` : ''} of the registration fee.`
 /**
  * The buyer's half of §10.7, on the strip. The rebate is the reason a link is
  * worth following at all, so it is the sentence that gets the numbers — and
  * it says *back*, because the wallet will still ask for the whole fee.
+ *
+ * It carries the burn aside for **both** rates, because it is the second of
+ * the pair: saying it twice on one strip is noise, and saying it on the first
+ * sentence leaves the rebate looking like the exception.
  */
-export const buyerRebateLine = (percent: string): string => `You get ${percent} of it back after you register.`
+export const buyerRebateLine = (percent: string, netOfBurn = false): string =>
+  `You get ${percent} of it back after you register${netOfBurn ? ' — both rates before the registry’s burn' : ''}.`
 /**
  * A pasted share link whose ref was **not** taken, because one is already
  * held: first wins (§10.7's client half). The strip answers the ordinary
@@ -1120,9 +1141,10 @@ export const copyLinkLabel = (): string => 'Copy link'
 /** A name in grace does not resolve (§7.3), so a link to it has nothing to pay. */
 export const requestInGraceLine = (): string => 'Renew first — a name in grace can’t be paid.'
 
-export const shareHint = (percent: string, rebate: string | null = null): string =>
+export const shareHint = (percent: string, rebate: string | null = null, netOfBurn = false): string =>
   `Anyone who registers through your link pays the same price${rebate === null ? '' : ` and gets ${rebate} of it back`}, ` +
-  `and this name’s address receives ${percent} of the fee, paid by the registry after each registration.`
+  `and this name’s address receives ${percent} of the fee, paid by the registry after each registration` +
+  `${netOfBurn ? ` — ${rebate === null ? 'that rate is' : 'both rates are'} before the registry’s burn, which takes a fifth of each` : ''}.`
 
 
 /** A tile's title, and the line under it while the record has nothing to show. */

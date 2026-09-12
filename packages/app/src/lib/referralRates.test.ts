@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
 import { parseRateTable, rateFor } from '../../../settlement/src/rates'
-import { REFERRAL_RATES, percentOf, referralRateBp, referralRebateBp, referralRowFor, shareOf } from './referralRates'
+import {
+  REFERRAL_RATES,
+  headlineBp,
+  percentOf,
+  rateIsNetOfBurn,
+  rebateHeadlineBp,
+  referralHeadlineBp,
+  referralRateBp,
+  referralRebateBp,
+  referralRowFor,
+  shareOf,
+} from './referralRates'
 
 describe('the published table', () => {
   it('is the committed one, with a default row', () => {
@@ -84,5 +95,46 @@ describe('shareOf', () => {
   it('floors like settlement', () => {
     expect(shareOf(200_000_000n, 1000)).toBe(20_000_000n)
     expect(shareOf(7n, 1000)).toBe(0n)
+  })
+})
+
+/**
+ * The rate the programme publishes and the rate the payer sends are two
+ * numbers, and the app owes each of them to a different reader: 5% to
+ * anybody reading what a referral is worth, 400 bp to anything counting NIM.
+ * Mixing them up overstates an estimate by a quarter, so the split is tested
+ * from both ends.
+ */
+describe('the headline rate', () => {
+  it('grosses a netOfBurn row back up and leaves every other row alone', () => {
+    expect(headlineBp(400, { ref: null, bp: 400, netOfBurn: true, fromHeight: 0 })).toBe(500)
+    expect(headlineBp(800, { ref: null, bp: 800, netOfBurn: true, fromHeight: 0 })).toBe(1000)
+    expect(headlineBp(1000, { ref: null, bp: 1000, fromHeight: 0 })).toBe(1000)
+    expect(headlineBp(1000, null)).toBe(1000)
+  })
+
+  it('states 5% and 5% from the split’s height, and 10% below it', () => {
+    expect([referralHeadlineBp('anyone', 61_412_000), rebateHeadlineBp('anyone', 61_412_000)]).toEqual([500, 500])
+    expect(rateIsNetOfBurn('anyone', 61_412_000)).toBe(true)
+    expect([referralHeadlineBp('anyone', 61_411_999), rebateHeadlineBp('anyone', 61_411_999)]).toEqual([1000, 0])
+    expect(rateIsNetOfBurn('anyone', 61_411_999)).toBe(false)
+  })
+
+  // The invariant the display change must not break: nothing that computes an
+  // amount may move. `referralRateBp` is what `shareOf` is given, and the
+  // issuer pays from the same rows.
+  it('leaves the paid rate exactly where it was', () => {
+    for (const height of [0, 61_411_999, 61_412_000, Number.MAX_SAFE_INTEGER]) {
+      const row = referralRowFor('anyone', height)
+      expect(referralRateBp('anyone', height)).toBe(row === null ? null : row.bp)
+      expect(referralRebateBp('anyone', height)).toBe(row === null ? null : (row.rebateBp ?? 0))
+    }
+    expect(shareOf(40_000_000n, referralRateBp('anyone', 61_412_000) ?? 0)).toBe(1_600_000n)
+  })
+
+  it('is null before any row starts, like the rate it comes from', () => {
+    expect(referralHeadlineBp('anyone', 10, [{ ref: null, bp: 400, netOfBurn: true, fromHeight: 100 }])).toBeNull()
+    expect(rebateHeadlineBp('anyone', 10, [{ ref: null, bp: 400, netOfBurn: true, fromHeight: 100 }])).toBeNull()
+    expect(rateIsNetOfBurn('anyone', 10, [{ ref: null, bp: 400, netOfBurn: true, fromHeight: 100 }])).toBe(false)
   })
 })

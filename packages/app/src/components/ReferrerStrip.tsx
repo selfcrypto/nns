@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { clearReferral, onReferralChange, storedReferral } from '../lib/referral'
-import { percentOf, referralRateBp, referralRebateBp } from '../lib/referralRates'
+import { percentOf, rateIsNetOfBurn, rebateHeadlineBp, referralHeadlineBp } from '../lib/referralRates'
 import { buyerRebateLine, REFERRER_STRIP, referrerEarnsLine } from '../lib/wording'
 
 /**
@@ -46,9 +46,12 @@ export function ReferrerStrip({ className }: { className?: string | undefined })
 
   // The rate that will be in effect when the `G` lands, which is the last row
   // for this referrer — the same reading the docs page takes. Nothing here
-  // knows a height, and a share is priced at the registration, not now.
-  const bp = referralRateBp(ref, Number.MAX_SAFE_INTEGER)
-  const rebateBp = referralRebateBp(ref, Number.MAX_SAFE_INTEGER) ?? 0
+  // knows a height, and a share is priced at the registration, not now. The
+  // **headline** of that row, not its `bp`: the published programme is 5% and
+  // 5%, and the row holds both net of the burn (`referralRates.ts`).
+  const bp = referralHeadlineBp(ref, Number.MAX_SAFE_INTEGER)
+  const rebateBp = rebateHeadlineBp(ref, Number.MAX_SAFE_INTEGER) ?? 0
+  const net = rateIsNetOfBurn(ref, Number.MAX_SAFE_INTEGER)
   // The rebate is the half the reader benefits from, so it is what the strip
   // says when there is one; without one the note falls back to the price
   // being unchanged, which is all §10.7 promised a buyer before.
@@ -56,8 +59,8 @@ export function ReferrerStrip({ className }: { className?: string | undefined })
     bp === null
       ? REFERRER_STRIP.note
       : rebateBp > 0
-        ? `${referrerEarnsLine(percentOf(bp))} ${buyerRebateLine(percentOf(rebateBp))}`
-        : `${referrerEarnsLine(percentOf(bp))} ${REFERRER_STRIP.note}.`
+        ? `${referrerEarnsLine(percentOf(bp))} ${buyerRebateLine(percentOf(rebateBp), net)}`
+        : `${referrerEarnsLine(percentOf(bp), net)} ${REFERRER_STRIP.note}.`
 
   return (
     <div className={className === undefined ? 'referrer-strip' : `referrer-strip ${className}`}>

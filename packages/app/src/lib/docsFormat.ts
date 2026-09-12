@@ -21,7 +21,7 @@
 import { CONSTANTS, feeFor, LAUNCH_PRICES, LUNA_PER_NIM } from '@nns/core'
 
 import { displayAddress } from './format'
-import { percentOf, REFERRAL_RATES, referralRateBp, referralRebateBp } from './referralRates'
+import { headlineBp, percentOf, rebateHeadlineBp, REFERRAL_RATES, referralHeadlineBp } from './referralRates'
 
 export interface DocPage {
   readonly slug: string
@@ -157,27 +157,39 @@ export function feesTable(): string {
  * promises — both payouts, because a reader cannot check a payment they
  * cannot see the rate for. A row that pays no rebate prints an em dash
  * rather than 0%, which is the difference between a policy and a rate.
+ *
+ * Every rate is the **headline** — 5%, the figure that was published — and a
+ * row whose rates are held net of the burn gets a dagger and one footnote.
+ * The marker is per row and not a caption over the table, because it is not
+ * true of every row: the pre-2026-09-12 default paid its 10% flat, and a
+ * blanket sentence would restate history.
  */
 export function referralRatesTable(): string {
+  let footnoted = false
   const rows = REFERRAL_RATES.map((row) => {
     const ref = row.ref === null ? '*default*' : `\`${row.ref}\``
     const from = row.fromHeight === 0 ? 'launch' : group(row.fromHeight)
-    const rebate = row.rebateBp === null || row.rebateBp === undefined ? '—' : percentOf(row.rebateBp)
-    return `| ${ref} | ${percentOf(row.bp)} | ${rebate} | ${from} | ${row.note ?? ''} |`
+    const mark = row.netOfBurn === true ? ((footnoted = true), '†') : ''
+    const share = `${percentOf(headlineBp(row.bp, row))}${mark}`
+    const rebate =
+      row.rebateBp === null || row.rebateBp === undefined ? '—' : `${percentOf(headlineBp(row.rebateBp, row))}${mark}`
+    return `| ${ref} | ${share} | ${rebate} | ${from} | ${row.note ?? ''} |`
   })
-  return ['| Referrer | To the referrer | Back to the buyer | From height | Note |', '|---|---|---|---|---|', ...rows].join('\n')
+  const table = ['| Referrer | To the referrer | Back to the buyer | From height | Note |', '|---|---|---|---|---|', ...rows].join('\n')
+  if (!footnoted) return table
+  return `${table}\n\n† Before the registry's burn, which takes ${percentOf(Number(CONSTANTS.BURN_SHARE_BP))} of the payout on its way out.`
 }
 
-/** The rate a referrer with no row of their own earns, today. */
+/** The rate a referrer with no row of their own earns, today — the headline, as published. */
 export function defaultReferralRate(): string {
-  const bp = referralRateBp('', Number.MAX_SAFE_INTEGER)
+  const bp = referralHeadlineBp('', Number.MAX_SAFE_INTEGER)
   if (bp === null) throw new Error('referral-rates.json has no default row')
   return percentOf(bp)
 }
 
 /** What a referred buyer with no special row gets back, today — `null` where the row in effect pays no rebate. */
 export function defaultReferralRebate(): string | null {
-  const bp = referralRebateBp('', Number.MAX_SAFE_INTEGER)
+  const bp = rebateHeadlineBp('', Number.MAX_SAFE_INTEGER)
   return bp === null || bp === 0 ? null : percentOf(bp)
 }
 

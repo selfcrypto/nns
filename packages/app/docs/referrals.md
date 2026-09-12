@@ -10,7 +10,7 @@ Inside Nimiq Pay there is no address bar, so a link can also simply be **pasted 
 
 ## What you earn, and what they get back
 
-{{referral:default}} of the registration fee to the referrer, and {{referral:rebate}} back to the person who registered. Both are paid by the registry out of what it received; the buyer pays the price on the *Prices* page in full and the rebate arrives afterwards, as its own transaction. A registration cannot cost less than its fee — the protocol checks the amount and refunds anything short — so the money comes back rather than coming off.
+{{referral:default}} of the registration fee to the referrer, and {{referral:rebate}} back to the person who registered — both before the registry's burn, which the rate table explains. Both are paid by the registry out of what it received; the buyer pays the price on the *Prices* page in full and the rebate arrives afterwards, as its own transaction. A registration cannot cost less than its fee — the protocol checks the amount and refunds anything short — so the money comes back rather than coming off.
 
 Both follow the **fee owed**, so they follow the length of the name and the term chosen: a short name earns more than a long one, and a **lifetime** registration is priced on the lifetime fee — {{n:LIFETIME_MULTIPLIER}} yearly fees at once, counted once, because the registry was paid once ([Prices](prices)).
 
@@ -26,7 +26,7 @@ Rates are published here and nowhere else. A partner's rate is a row in the same
 
 A rate changes by adding a row with the height it applies from. Rows are never edited, so every payout ever made can be recomputed from this table and the public log.
 
-The rates are stated **net of the registry's burn**. A fixed share of everything the registry takes in is burned, and a referral is paid out of money it did take in — so each payout carries the burn on its own portion, and the published figure is what actually arrives.
+The rates above are what the programme pays **before the registry's burn**. A fixed share of everything the registry takes in is burned, and a referral is paid out of money it did take in — so each payout carries the burn on its own portion and arrives a fifth smaller. A {{referral:default}} share of a 400 NIM fee is 20 NIM, and 16 NIM lands.
 
 ## How it works, and what it cannot do
 
