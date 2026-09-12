@@ -40,7 +40,7 @@ import {
   soldByLine,
 } from './wording'
 import { isReferralName } from './referral'
-import { percentOf, referralRateBp } from './referralRates'
+import { percentOf, referralRateBp, referralRebateBp } from './referralRates'
 import { auctionEndHeight, auctionOutlivesTerm, cancellableNow, offerCancellableAt, sameAddress, registrationFee } from './states'
 import type { AppAction } from './states'
 import type { SubmitRequest } from './wallet'
@@ -112,6 +112,12 @@ const requireAddress = (input: string, what: string): string => {
   return formatAddress(parsed)
 }
 
+/** The rebate to quote beside a share, or `null` when the row in effect pays none. */
+const rebatePercent = (ref: string, height: number): string | null => {
+  const bp = referralRebateBp(ref, height) ?? 0
+  return bp > 0 ? percentOf(bp) : null
+}
+
 export function prepareAction(options: {
   inputs: ActionInputs
   name: string
@@ -174,9 +180,11 @@ export function prepareAction(options: {
           lifetime
             ? registerLifetimePaysLine(lunaToNim(fee), formatApproxDate(approxDate(head + termFor(true), head, nowMs)))
             : registerPaysLine(lunaToNim(fee), blocksApprox(CONSTANTS.TERM_LENGTH)),
-          // §10.7: the referrer's share comes out of the treasury's fee, so
-          // the payer sees who benefits and that the price is unchanged.
-          ...(ref === null ? [] : [referredByLine(ref, percentOf(referralRateBp(ref, info?.height ?? 0) ?? 0))]),
+          // §10.7: both payouts come out of the treasury's fee, so the payer
+          // sees who benefits, that the price is unchanged, and — the part
+          // the wallet's own screen cannot say — that the rebate arrives
+          // afterwards, as a second transaction.
+          ...(ref === null ? [] : [referredByLine(ref, percentOf(referralRateBp(ref, info?.height ?? 0) ?? 0), rebatePercent(ref, info?.height ?? 0))]),
         ],
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null

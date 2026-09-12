@@ -14,6 +14,7 @@ import {
   offerStaysLine,
   sheetActionLabel,
   sheetDismissLabel,
+  buyerRebateLine,
   referredByLine,
   referralsCountLine,
   shareHint,
@@ -252,6 +253,29 @@ describe('the referral lines (§10.7)', () => {
     expect(line).toContain('ricomav')
     expect(line).toContain('10%')
     expect(line).toContain('you pay the same')
+  })
+
+  // The wallet will ask for the whole fee. A line that let a reader think the
+  // rebate came off the price would be the one misreading that matters.
+  it('with a rebate, the review names both payouts and says the rebate comes after', () => {
+    const line = referredByLine('ricomav', '4%', '4%')
+    expect(line).toContain('ricomav')
+    expect(line).toMatch(/comes back to you/)
+    expect(line).not.toContain('you pay the same')
+    expect(line).not.toMatch(/discount|cheaper|less/i)
+  })
+
+  it('the strip’s rebate line says back, not off', () => {
+    const line = buyerRebateLine('4%')
+    expect(line).toContain('4%')
+    expect(line).toMatch(/back/)
+    expect(line).not.toMatch(/discount|off the price/i)
+  })
+
+  it('the owner’s hint mentions the rebate only when there is one', () => {
+    expect(shareHint('4%', '4%')).toMatch(/gets 4% of it back/)
+    expect(shareHint('10%')).not.toMatch(/back/)
+    expect(shareHint('10%')).toContain('pays the same price')
   })
 
   it('the tile never spends alarm vocabulary on a name in grace', () => {

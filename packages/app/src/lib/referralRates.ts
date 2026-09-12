@@ -3,18 +3,26 @@
  *
  * One source: `packages/settlement/referral-rates.json`, the file the
  * treasury's issuer pays from. The app imports it at build time so the
- * review line ("its owner earns 10%") and the docs page can never quote a
+ * review line ("its owner earns 5%") and the docs page can never quote a
  * rate the payer does not use. The selection rule is settlement's
  * `rateFor` restated in the browser (that module reads files, so it cannot
  * be imported here); `referralRates.test.ts` holds the two to one answer.
+ *
+ * A row prices **two** payouts: `bp` to the referrer and `rebateBp` back to
+ * the buyer. Both are published net of the §10.2 burn, which is why a
+ * headline 5% reads 400 bp here — see settlement's `rates.ts` for why the
+ * table carries the net figure rather than computing it.
  */
 
 import table from '../../../settlement/referral-rates.json'
 
 export interface RateRow {
   readonly ref: string | null
+  /** The referrer's share. */
   readonly bp: number
-  /** The rate when the buyer already controls the referring name — `null`/absent means the row's own `bp` (settlement's `rates.ts`). */
+  /** The buyer's rebate — `null`/absent is **no rebate**, never a fallback to `bp` (settlement's `rates.ts`). */
+  readonly rebateBp?: number | null
+  /** The rate for both payouts when the buyer already controls the referring name — `null`/absent means each payout's own rate. */
   readonly selfBp?: number | null
   readonly fromHeight: number
   readonly note?: string
@@ -22,8 +30,8 @@ export interface RateRow {
 
 export const REFERRAL_RATES: readonly RateRow[] = (table as { rates: readonly RateRow[] }).rates
 
-/** Basis points in effect for a referrer at a height — most specific ref first, latest height within it. `null` before any row starts. */
-export function referralRateBp(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): number | null {
+/** The row in effect for a referrer at a height — most specific ref first, latest height within it. `null` before any row starts. */
+export function referralRowFor(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): RateRow | null {
   let best: RateRow | null = null
   for (const row of rows) {
     if (row.fromHeight > height) continue
@@ -36,7 +44,21 @@ export function referralRateBp(name: string, height: number, rows: readonly Rate
     const later = (row.ref === null) === (best.ref === null) && row.fromHeight > best.fromHeight
     if (moreSpecific || later) best = row
   }
-  return best?.bp ?? null
+  return best
+}
+
+/** The referrer's share in basis points, or `null` before any row starts. */
+export const referralRateBp = (name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): number | null =>
+  referralRowFor(name, height, rows)?.bp ?? null
+
+/**
+ * The buyer's rebate in basis points: `0` where the row in effect states none,
+ * `null` only when no row is in effect at all — the same two answers the
+ * share gives, so a caller never has to tell "no table" from "no rebate".
+ */
+export function referralRebateBp(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): number | null {
+  const row = referralRowFor(name, height, rows)
+  return row === null ? null : (row.rebateBp ?? 0)
 }
 
 /** `1000` → `10%`; `250` → `2.5%`. */

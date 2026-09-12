@@ -1,19 +1,33 @@
 /**
  * The §10.7 referral rate table — policy, read from a file, never from `core`.
  *
- * A `ref` on a `G` is a registered name, and the treasury pays its `target`
- * a share of the fee in effect. *How much* is this table's answer: a default
- * row (`ref: null`) and per-name overrides, each with the height it applies
- * from. The table is committed in the package and published by the app's
- * docs, because settled-versus-owed for shares is only auditable if everyone
- * computes against the same rows — the log alone is not enough here, which is
- * exactly why the share is not a reducer rule.
+ * A `ref` on a `G` is a registered name, and the treasury pays out twice on
+ * it: a **share** to the referring name's `target`, and a **rebate** to the
+ * buyer. *How much* is this table's answer: a default row (`ref: null`) and
+ * per-name overrides, each with the height it applies from. The table is
+ * committed in the package and published by the app's docs, because
+ * settled-versus-owed for referrals is only auditable if everyone computes
+ * against the same rows — the log alone is not enough here, which is exactly
+ * why neither payout is a reducer rule.
+ *
+ * **The rates here are net of the §10.2 burn share, and that is deliberate.**
+ * The burn base is the treasury's *inflows* — `queries.ts`'s `SUM(value)` of
+ * `OK` `G`/`N`/`O`/`M` lines **to** the treasury — so an `M` the treasury
+ * sends reduces nothing, and a gross 5% payout would leave the treasury
+ * paying the burn on money that never stayed with it. Deducting the burn from
+ * each payout instead makes the treasury's net position identical to a burn
+ * computed on a net base (`f(1−b)(1−s−r) = f(1−s−r)(1−b)`, for any fee and
+ * any rates) **without amending §10.2 at all**, so the burn stays something
+ * any outsider computes from the log alone. Practically: a headline 5% is
+ * written here as 400 bp, and the referrer and the buyer each carry the burn
+ * on their own portion (Kike, 2026-09-12).
  *
  * Rows are appended, never edited: a recomputation next month must reproduce
- * the shares paid last month, so a rate change is a new row with a height,
- * as a `P` is a new price with an effective height. `selfBp` is part of that
- * — the rate for a buyer who already owns the referring name is a price the
- * row states, not a rule the code hides.
+ * the payouts made last month, so a rate change is a new row with a height,
+ * as a `P` is a new price with an effective height. `selfBp` and `rebateBp`
+ * are part of that — the rate for a buyer who already owns the referring
+ * name, and the rate the buyer gets back, are prices the row states, not
+ * rules the code hides.
  */
 
 import { readFileSync } from 'node:fs'
@@ -28,18 +42,37 @@ export class RateTableError extends Error {
 export interface RateRow {
   /** A registered name, or `null` for the default row. */
   readonly ref: string | null
-  /** Basis points of the fee in effect at the `G`'s height (§10.7). */
+  /** The referrer's share, in basis points of the fee in effect at the `G`'s height (§10.7). */
   readonly bp: bigint
   /**
+   * The buyer's rebate, in basis points of the same fee — the second §10.7
+   * payout, paid to the `G`'s effective sender (§7.2).
+   *
+   * `null` is **no rebate**, not a fallback to `bp`: a row written before this
+   * column existed made one payout, and reading its silence as "rebate at the
+   * share's rate" would double what it published. `selfBp`'s `null` falls back
+   * because there the row is silent about a *case* of a rate it does state;
+   * here it is silent about a payout it never made.
+   *
+   * It is a rebate and not a discount at the price because §6 `G` checks
+   * `value` against the band's fee: a referred buyer paying less would be
+   * `INSUFFICIENT_VALUE` and refunded. The buyer pays the full fee and the
+   * treasury sends it back a second `M`, which costs the protocol nothing.
+   */
+  readonly rebateBp: bigint | null
+  /**
    * Basis points when the payee would be the payer — the buyer already owns
-   * the referring name. `null` means the row says nothing, and `bp` applies,
-   * which is what every row written before this field existed meant.
+   * the referring name. It prices **both** payouts: a self-referral earns
+   * neither a share nor a rebate, because a rebate to a self-referrer is not
+   * a referral programme, it is a permanent discount for anyone who owns one
+   * name. `null` means the row says nothing, and each payout's own rate
+   * applies, which is what every row written before this field existed meant.
    *
    * It is a rate rather than a flag because it is a rate: a row is the place
    * the operator states a price, and a policy that pays nothing for a
    * self-referral is that price set to zero. It also inherits the row's
    * `fromHeight` for free, so changing the policy is appending a row, and a
-   * recomputation of an old log still reproduces the shares that were paid.
+   * recomputation of an old log still reproduces the payouts that were made.
    */
   readonly selfBp: bigint | null
   /** First height this row applies to, inclusive. */
@@ -73,12 +106,16 @@ function parseRow(value: unknown, index: number): RateRow {
     throw new RateTableError(`${where}.bp must be an integer between 0 and ${CONSTANTS.BASIS_POINTS} (basis points)`)
   }
 
-  const selfBp = value['selfBp']
-  if (selfBp !== undefined && selfBp !== null) {
-    if (typeof selfBp !== 'number' || !Number.isInteger(selfBp) || selfBp < 0 || BigInt(selfBp) > CONSTANTS.BASIS_POINTS) {
-      throw new RateTableError(`${where}.selfBp must be an integer between 0 and ${CONSTANTS.BASIS_POINTS} (basis points), or absent`)
+  const optionalBp = (field: 'rebateBp' | 'selfBp'): bigint | null => {
+    const raw = value[field]
+    if (raw === undefined || raw === null) return null
+    if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0 || BigInt(raw) > CONSTANTS.BASIS_POINTS) {
+      throw new RateTableError(`${where}.${field} must be an integer between 0 and ${CONSTANTS.BASIS_POINTS} (basis points), or absent`)
     }
+    return BigInt(raw)
   }
+  const rebateBp = optionalBp('rebateBp')
+  const selfBp = optionalBp('selfBp')
 
   const fromHeight = value['fromHeight']
   if (typeof fromHeight !== 'number' || !Number.isInteger(fromHeight) || fromHeight < 0) {
@@ -93,7 +130,8 @@ function parseRow(value: unknown, index: number): RateRow {
   return Object.freeze({
     ref,
     bp: BigInt(bp),
-    selfBp: typeof selfBp === 'number' ? BigInt(selfBp) : null,
+    rebateBp,
+    selfBp,
     fromHeight,
     note: typeof note === 'string' ? note : null,
   })

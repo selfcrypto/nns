@@ -12,7 +12,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { apiBase } from '../lib/nns'
 import { getParams, getReferrals } from '../lib/api'
 import { shareLinkFor } from '../lib/referral'
-import { percentOf, referralRateBp, shareOf } from '../lib/referralRates'
+import { percentOf, referralRateBp, referralRebateBp, shareOf } from '../lib/referralRates'
 import { useAsync } from '../lib/useAsync'
 import { Hint } from './Hint'
 import { createPortal } from 'react-dom'
@@ -98,6 +98,12 @@ export const OWNER_ACTIONS: readonly AppAction[] = ['setTarget', 'setEvm', 'tran
  * why it says so. In grace the name cannot refer (the registry reads the
  * referrer's status at the registration), so the tile says to renew first.
  */
+/** What a referred buyer gets back, for the owner's hint — `null` where the row pays no rebate. */
+const rebateHint = (name: string, height: number): string | null => {
+  const bp = referralRebateBp(name, height) ?? 0
+  return bp > 0 ? percentOf(bp) : null
+}
+
 function ShareTile({ name, height, inGrace }: { name: string; height: number; inGrace: boolean }) {
   const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
   const referrals = useAsync(() => getReferrals(apiBase(), name), [name])
@@ -484,7 +490,7 @@ function Actions({
           <div className="owner-action-group">
             <span className="owner-action-group-title">
               {OWNER_GROUP_TITLE.referrals}{' '}
-              <Hint>{shareHint(percentOf(referralRateBp(name, height) ?? 0))}</Hint>
+              <Hint>{shareHint(percentOf(referralRateBp(name, height) ?? 0), rebateHint(name, height))}</Hint>
             </span>
             <div className="owner-actions-grid">
               <ShareTile name={name} height={height} inGrace={record.status === 'GRACE'} />

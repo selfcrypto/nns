@@ -234,8 +234,56 @@ describe('reconcile — the §10.7 shares section', () => {
 
   it('prints the section with the referrer and the rate', () => {
     const text = describeReport(reportWithShares(referred)).join('\n')
-    expect(text).toContain('referral shares (§10.7, policy — in no root)')
-    expect(text).toContain('newcomer via ricoref at 1000 bp')
+    expect(text).toContain('referral payouts (§10.7, policy — in no root)')
+    expect(text).toContain('share  newcomer via ricoref at 1000 bp')
+  })
+
+  // One referral, two payouts (2026-09-12). The reader has to be able to tell
+  // which `M` was which, so the section names the payout and the payee.
+  describe('with a rebate row', () => {
+    const SPLIT = parseRateTable({ rates: [{ ref: null, bp: 400, rebateBp: 400, selfBp: 0, fromHeight: 0 }] })
+    const NET = (newcomerFee * 400n) / 10_000n
+    const run = (sends: readonly (typeof referred)[number][]) => {
+      const staged = stageLog(sends, config)
+      const collector = createShareCollector(SPLIT)
+      const replay = replayLog(staged.lines, initialState(), config, LAUNCH_HEIGHT + 720, collector.observe)
+      return reconcile({ replay, checkpointHeight: LAUNCH_HEIGHT + 720, boundToCheckpoint: true, logHash: '00'.repeat(32), shares: collector.result() })
+    }
+
+    it('counts one registration and two payouts, and splits the totals', () => {
+      const report = run(referred)
+      expect(report.shares).toMatchObject({
+        referralCount: 1,
+        createdCount: 2,
+        created: NET * 2n,
+        shareTotal: NET,
+        rebateTotal: NET,
+        outstanding: NET * 2n,
+      })
+      expect(report.shares?.standing.map((leg) => [leg.kind, leg.owedTo])).toEqual([
+        ['REFERRAL_SHARE', REFERRER_OWNER],
+        ['REFERRAL_REBATE', WINNER],
+      ])
+      expect(isSound(report)).toBe(true)
+    })
+
+    it('prints both payouts, each with its word and its payee', () => {
+      const text = describeReport(run(referred)).join('\n')
+      expect(text).toContain('2 payout(s), 0 paid')
+      expect(text).toContain('share  newcomer via ricoref at 400 bp')
+      expect(text).toContain('rebate newcomer via ricoref at 400 bp')
+      expect(text).toContain('NIM to referrers and')
+    })
+
+    it('each M settles its own payout and neither is an unmatched settlement', () => {
+      const shareM = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.offer, txIndex: 0, payee: REFERRER_OWNER, amount: NET }))
+      const rebateM = send(H.settle, 1, TREASURY, encodeSettlement({ height: H.offer, txIndex: 0, payee: WINNER, amount: NET }))
+      const report = run([...referred, shareM, rebateM])
+      expect(report.shares).toMatchObject({ settledCount: 2, outstanding: 0n, settled: NET * 2n })
+      expect(report.unmatched).toEqual([])
+      expect(report.shares?.mispaid).toEqual([])
+      expect(isSound(report)).toBe(true)
+    })
   })
 
   // The reading of an outsider: §10.7's format cannot express "no table", so

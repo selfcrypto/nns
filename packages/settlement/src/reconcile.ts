@@ -38,7 +38,18 @@
 import { formatAddress, refKey, type Address, type ObligationKind, type TxRef } from '@nns/core'
 
 import type { CreatedLeg, ReplayResult, SettledLeg, UnmatchedSettlement, VerdictMismatch } from './replay.js'
-import { explainedSettlements, NO_SHARES, type MispaidShare, type ShareLeg, type ShareResult, type UnpricedShare } from './share.js'
+import {
+  explainedSettlements,
+  NO_SHARES,
+  payoutWord,
+  REBATE_KIND,
+  SHARE_KIND,
+  type MispaidShare,
+  type ReferralKind,
+  type ShareLeg,
+  type ShareResult,
+  type UnpricedShare,
+} from './share.js'
 
 /** Totals for one `(owedBy, kind)` pair. */
 export interface LedgerLine {
@@ -63,11 +74,14 @@ export interface StandingLeg {
   readonly ageBlocks: number
 }
 
-/** A referral share still owed (§10.7) — policy, reported apart from the reducer's legs. */
+/** A referral payout still owed (§10.7) — policy, reported apart from the reducer's legs. */
 export interface StandingShare {
   readonly ref: TxRef
+  /** Which payout: the referrer's share or the buyer's rebate. */
+  readonly kind: ReferralKind
   readonly name: string
   readonly referrer: string
+  /** Who it pays — the referrer's `target` for a share, the buyer for a rebate. */
   readonly owedTo: Address
   readonly amount: bigint
   readonly rateBp: bigint
@@ -79,8 +93,14 @@ export interface ShareReport {
   readonly created: bigint
   readonly settled: bigint
   readonly outstanding: bigint
+  /** Payouts created — up to two per referred registration. */
   readonly createdCount: number
   readonly settledCount: number
+  /** Referred registrations behind those payouts. */
+  readonly referralCount: number
+  /** Of `created`, what the referrers earned and what went back to buyers. */
+  readonly shareTotal: bigint
+  readonly rebateTotal: bigint
   readonly standing: readonly StandingShare[]
   /** Referral payments no row here prices — the reading of someone without the operator's table. */
   readonly unpriced: readonly UnpricedShare[]
@@ -117,6 +137,7 @@ export interface ReconcileInput {
 }
 
 const sumShares = (legs: readonly ShareLeg[]): bigint => legs.reduce((total, leg) => total + leg.amount, 0n)
+const refKeyOf = (leg: ShareLeg): string => `${leg.ref.height}:${leg.ref.txIndex}`
 
 function shareReport(shares: ShareResult, head: number): ShareReport {
   return Object.freeze({
@@ -125,11 +146,15 @@ function shareReport(shares: ShareResult, head: number): ShareReport {
     outstanding: sumShares(shares.outstanding),
     createdCount: shares.created.length,
     settledCount: shares.settled.length,
+    referralCount: new Set(shares.created.map((leg) => refKeyOf(leg))).size,
+    shareTotal: sumShares(shares.created.filter((leg) => leg.kind === SHARE_KIND)),
+    rebateTotal: sumShares(shares.created.filter((leg) => leg.kind === REBATE_KIND)),
     standing: shares.outstanding.map((leg) => ({
       ref: leg.ref,
+      kind: leg.kind,
       name: leg.name,
       referrer: leg.referrer,
-      owedTo: leg.owedTo,
+      owedTo: leg.payee,
       amount: leg.amount,
       rateBp: leg.rateBp,
       ageBlocks: Math.max(0, head - leg.ref.height),
@@ -321,12 +346,15 @@ export function describeReport(report: Report): readonly string[] {
   if (report.shares !== null) {
     out.push('')
     out.push(
-      `referral shares (§10.7, policy — in no root): created ${nim(report.shares.created)}, settled ${nim(report.shares.settled)}, outstanding ${nim(report.shares.outstanding)} NIM ` +
-        `over ${report.shares.createdCount} referred registration(s), ${report.shares.settledCount} paid`,
+      `referral payouts (§10.7, policy — in no root): created ${nim(report.shares.created)}, settled ${nim(report.shares.settled)}, outstanding ${nim(report.shares.outstanding)} NIM ` +
+        `over ${report.shares.referralCount} referred registration(s) — ${report.shares.createdCount} payout(s), ${report.shares.settledCount} paid`,
+    )
+    out.push(
+      `  of which ${nim(report.shares.shareTotal)} NIM to referrers and ${nim(report.shares.rebateTotal)} NIM back to buyers. Rates are published net of the §10.2 burn share, so the burn base needs no adjustment.`,
     )
     for (const leg of report.shares.standing) {
       out.push(
-        `  ${ref(leg.ref).padEnd(20)} ${leg.name} via ${leg.referrer} at ${leg.rateBp} bp ${nim(leg.amount).padStart(14)} NIM  to ${formatAddress(leg.owedTo)}  (standing ${leg.ageBlocks} blocks)`,
+        `  ${ref(leg.ref).padEnd(20)} ${payoutWord(leg.kind).padEnd(6)} ${leg.name} via ${leg.referrer} at ${leg.rateBp} bp ${nim(leg.amount).padStart(14)} NIM  to ${formatAddress(leg.owedTo)}  (standing ${leg.ageBlocks} blocks)`,
       )
     }
 
@@ -335,15 +363,15 @@ export function describeReport(report: Report): readonly string[] {
       out.push(`${report.shares.mispaid.length} referral payment(s) DISAGREE with the rate table (§10.7):`)
       for (const item of report.shares.mispaid) {
         out.push(
-          `  ${ref(item.paidAt).padEnd(20)} for ${ref(item.leg.ref).padEnd(20)} ${item.leg.name} via ${item.leg.referrer} at ${item.leg.rateBp} bp:` +
-            ` table says ${nim(item.leg.amount)}, paid ${nim(item.paid)} NIM  to ${formatAddress(item.leg.owedTo)}  tx ${item.paidBy}`,
+          `  ${ref(item.paidAt).padEnd(20)} ${payoutWord(item.leg.kind).padEnd(6)} for ${ref(item.leg.ref).padEnd(20)} ${item.leg.name} via ${item.leg.referrer} at ${item.leg.rateBp} bp:` +
+            ` table says ${nim(item.leg.amount)}, paid ${nim(item.paid)} NIM  to ${formatAddress(item.leg.payee)}  tx ${item.paidBy}`,
         )
       }
       out.push('  The payee and the registration are right and the amount is not. The log is still true; the operator paid the wrong figure.')
     }
 
     const line = (item: UnpricedShare): string =>
-      `  ${ref(item.paidAt).padEnd(20)} for ${ref(item.referral.ref).padEnd(20)} ${item.referral.name} via ${item.referral.referrer} ${nim(item.paid).padStart(14)} NIM  to ${formatAddress(item.referral.owedTo)}  tx ${item.paidBy}`
+      `  ${ref(item.paidAt).padEnd(20)} ${payoutWord(item.kind).padEnd(6)} for ${ref(item.referral.ref).padEnd(20)} ${item.referral.name} via ${item.referral.referrer} ${nim(item.paid).padStart(14)} NIM  to ${formatAddress(item.payee)}  tx ${item.paidBy}`
 
     // Two answers with nothing in common but an empty amount: one table
     // cannot price it, the other prices it at zero on purpose.
@@ -358,9 +386,9 @@ export function describeReport(report: Report): readonly string[] {
     const own = report.shares.unpriced.filter((item) => item.reason === 'self-referral')
     if (own.length > 0) {
       out.push('')
-      out.push(`${own.length} SELF-REFERRAL(S) were paid a share the table prices at nothing (§10.7):`)
+      out.push(`${own.length} SELF-REFERRAL payment(s) the table prices at nothing (§10.7):`)
       for (const item of own) out.push(line(item))
-      out.push('  The buyer already controlled the referring name, so the treasury paid the payer. A finding: the issuer does not do this, so something else did.')
+      out.push('  The buyer already controlled the referring name, so the treasury paid the payer — a share to themselves, or a rebate that is just a discount. A finding: the issuer does not do this, so something else did.')
     }
   }
 

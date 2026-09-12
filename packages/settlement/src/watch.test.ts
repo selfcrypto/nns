@@ -31,7 +31,7 @@ import { replayLog } from './replay.js'
 import type { Fetcher, LogSnapshot } from './source.js'
 import { createWatcher, obligationKey, takeSnapshot, WatchError } from './watch.js'
 import { parseRateTable } from './rates.js'
-import { createShareCollector, SHARE_KIND } from './share.js'
+import { createShareCollector, REBATE_KIND, SHARE_KIND } from './share.js'
 import { testAddress } from './test-fixtures.js'
 
 const config = testConfig()
@@ -332,6 +332,50 @@ describe('takeSnapshot — the §10.7 share (policy, beside the reducer’s legs
     const snapshot = withShares(paid)
     expect(snapshot.due).toEqual([])
     expect(snapshot.unmatched).toEqual([])
+  })
+
+  // One referral, two payouts: the issuer has to be handed both, under two
+  // keys, or half the programme never leaves the treasury.
+  describe('and the buyer’s rebate beside it', () => {
+    const SPLIT = parseRateTable({ rates: [{ ref: null, bp: 400, rebateBp: 400, selfBp: 0, fromHeight: 0 }] })
+    const NET = (newcomerFee * 400n) / 10_000n
+    const split = (sends: typeof referred) => {
+      const staged = stageLog(sends, config)
+      const collector = createShareCollector(SPLIT)
+      const replay = replayLog(staged.lines, initialState(), config, CP1, collector.observe)
+      return takeSnapshot(snapshotOf(staged.lines, CP1), replay, collector.result())
+    }
+
+    it('both payouts are due, under two keys, to two payees', () => {
+      const snapshot = split(referred)
+      expect(snapshot.due.map((leg) => [leg.key, leg.kind, leg.owedTo, leg.amount])).toEqual([
+        [`${H.offer}:0:${REBATE_KIND}`, REBATE_KIND, WINNER, NET],
+        [`${H.offer}:0:${SHARE_KIND}`, SHARE_KIND, REFERRER_OWNER, NET],
+      ])
+      expect(snapshot.due.every((leg) => leg.owedBy === TREASURY)).toBe(true)
+      expect(snapshot.totalDue).toBe(NET * 2n)
+    })
+
+    it('paying one leaves the other due', () => {
+      const snapshot = split([
+        ...referred,
+        send(H.buy, 0, TREASURY, encodeSettlement({ height: H.offer, txIndex: 0, payee: WINNER, amount: NET })),
+      ])
+      expect(snapshot.due.map((leg) => leg.kind)).toEqual([SHARE_KIND])
+      expect(snapshot.unmatched).toEqual([])
+    })
+
+    it('paying both leaves nothing due and nothing unexplained', () => {
+      const snapshot = split([
+        ...referred,
+        send(H.buy, 0, TREASURY, encodeSettlement({ height: H.offer, txIndex: 0, payee: REFERRER_OWNER, amount: NET })),
+        send(H.buy, 1, TREASURY, encodeSettlement({ height: H.offer, txIndex: 0, payee: WINNER, amount: NET })),
+      ])
+      expect(snapshot.due).toEqual([])
+      expect(snapshot.unmatched).toEqual([])
+      expect(snapshot.mispaidShares).toEqual([])
+      expect(snapshot.unpricedShares).toEqual([])
+    })
   })
 
   it('createWatcher pays shares only when handed a table', async () => {

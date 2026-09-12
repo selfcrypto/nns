@@ -53,10 +53,11 @@ import { formatAddress, refKey, type Address, type Obligation, type ObligationKi
 import {
   createShareCollector,
   explainedSettlements,
+  payoutWord,
   NO_SHARES,
-  SHARE_KIND,
   shareKey,
   type MispaidShare,
+  type ReferralKind,
   type ShareResult,
   type UnpricedShare,
 } from './share.js'
@@ -91,10 +92,11 @@ export const obligationKey = (obligation: Obligation): string =>
 /** One leg the log says is still owed, with the key it will be settled under. */
 /**
  * What the ledger records and the issuer pays: `core`'s three kinds, plus the
- * §10.7 share this package computes itself (`share.ts`). Kept as a union so a
- * protocol leg and a policy leg never share a type by accident.
+ * two §10.7 payouts this package computes itself (`share.ts`) — the
+ * referrer's share and the buyer's rebate. Kept as a union so a protocol leg
+ * and a policy leg never share a type by accident.
  */
-export type LedgerKind = ObligationKind | typeof SHARE_KIND
+export type LedgerKind = ObligationKind | ReferralKind
 
 export interface DueObligation {
   readonly key: string
@@ -246,20 +248,21 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult, shares: Sha
     }
   }
 
-  // The §10.7 shares, beside the reducer's legs. `created = settled +
+  // The §10.7 payouts, beside the reducer's legs. `created = settled +
   // outstanding` holds for them by construction (`share.ts` keeps one map),
-  // and their key cannot collide with a protocol leg's: a `G` that owes a
-  // share was `OK`, and an `OK` `G` creates no `REFUND`.
+  // and their keys cannot collide with a protocol leg's: a `G` that owes a
+  // referral was `OK`, and an `OK` `G` creates no `REFUND`. The two payouts
+  // of one `G` differ in the kind, which is in the key.
   for (const leg of shares.outstanding) {
     const key = shareKey(leg)
-    if (seen.has(key)) throw new WatchError(`two outstanding shares share the key ${key} — one G owes at most one share`)
+    if (seen.has(key)) throw new WatchError(`two outstanding payouts share the key ${key} — one G owes at most one payout per kind`)
     seen.add(key)
     due.push({
       key,
-      kind: SHARE_KIND,
+      kind: leg.kind,
       ref: leg.ref,
       owedBy: leg.owedBy,
-      owedTo: leg.owedTo,
+      owedTo: leg.payee,
       amount: leg.amount,
       ageBlocks: Math.max(0, log.checkpointHeight - leg.ref.height),
     })
@@ -402,7 +405,7 @@ export function describeSnapshot(snapshot: WatchSnapshot): readonly string[] {
     out.push(`${snapshot.mispaidShares.length} referral payment(s) DISAGREE with the rate table (§10.7):`)
     for (const item of snapshot.mispaidShares) {
       out.push(
-        `  ${refKey(item.paidAt)} for ${refKey(item.leg.ref)} ${item.leg.name} via ${item.leg.referrer}: table says ${nim(item.leg.amount)}, paid ${nim(item.paid)} NIM, tx ${item.paidBy}`,
+        `  ${refKey(item.paidAt)} ${payoutWord(item.leg.kind)} for ${refKey(item.leg.ref)} ${item.leg.name} via ${item.leg.referrer}: table says ${nim(item.leg.amount)}, paid ${nim(item.paid)} NIM, tx ${item.paidBy}`,
       )
     }
   }
@@ -411,7 +414,7 @@ export function describeSnapshot(snapshot: WatchSnapshot): readonly string[] {
     const own = snapshot.unpricedShares.filter((item) => item.reason === 'self-referral')
     const noRate = snapshot.unpricedShares.filter((item) => item.reason === 'no-rate')
     for (const [heading, group] of [
-      [`${own.length} SELF-REFERRAL(S) were paid a share the table prices at nothing (§10.7):`, own],
+      [`${own.length} SELF-REFERRAL payment(s) the table prices at nothing (§10.7):`, own],
       [`${noRate.length} referral payment(s) this table does not price:`, noRate],
     ] as const) {
       if (group.length === 0) continue
@@ -419,7 +422,7 @@ export function describeSnapshot(snapshot: WatchSnapshot): readonly string[] {
       out.push(heading)
       for (const item of group) {
         out.push(
-          `  ${refKey(item.paidAt)} for ${refKey(item.referral.ref)} ${item.referral.name} via ${item.referral.referrer}, ${nim(item.paid)} NIM, tx ${item.paidBy}`,
+          `  ${refKey(item.paidAt)} ${payoutWord(item.kind)} for ${refKey(item.referral.ref)} ${item.referral.name} via ${item.referral.referrer}, ${nim(item.paid)} NIM, tx ${item.paidBy}`,
         )
       }
     }

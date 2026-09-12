@@ -37,7 +37,7 @@ The mini app sends USDT through the wallet's EVM provider as a plain token trans
 Yes. The **Request Payment** tile on your name's card builds one: it opens Pay with your name, the amount and a reference already filled in, and copies it ready to paste into a chat or an invoice. It is a URL, not a transaction — the payer can change any field, and nothing is sent until they press Pay. Tapping such a link opens a browser rather than Nimiq Pay, so a payer already inside the mini app pastes it into the recipient field instead. [Using the app](app).
 
 **Can I earn anything for bringing people in?**
-Yes. Every registered name has a share link — `nimiqnames.com/?ref=<your name>` — from the **Share Link** tile. Whoever registers through it pays exactly the usual price, and the registry pays your name's address {{referral:default}} of the fee. [Referrals](referrals).
+Yes. Every registered name has a share link — `nimiqnames.com/?ref=<your name>` — from the **Share Link** tile. Whoever registers through it pays the usual price and gets {{referral:rebate}} of the fee back, and the registry pays your name's address {{referral:default}} of it. [Referrals](referrals).
 
 **Are messages private?**
 No — and this covers both kinds. An Inbox message is a transaction: public, permanent, and attached to your address, readable by anyone on chain forever; the composer says so before your first send. The **reference on a payment** travels in the same place, so an invoice number is public against both addresses too. Neither is a private channel. [Using the app](app).

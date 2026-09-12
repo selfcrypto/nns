@@ -722,7 +722,8 @@ NNS1G<name>||L
   — an empty `ref` is an absent one, as the next bullet says
 - `ref`: **optional** referrer, 1…`MAX_REF_LEN` characters from `a-z`,
   `0-9`, `-` — **a registered name** whose owner drove the registration, so
-  the referral share can be paid to it (§10.7). It has **no effect on
+  the referral share can be paid to it and the buyer's rebate returned
+  (§10.7). It has **no effect on
   validity, price, or ownership**: an unknown, malformed, or absent `ref` is
   recorded as absent and the registration proceeds normally. Deliberately
   inert — a revenue-sharing detail must never be able to reject a paid
@@ -999,7 +1000,7 @@ NNS1M<height>|<tx_index>
 - **To:** the party being paid or refunded
 - **Value:** the amount owed for the referenced transaction
 - Sender MUST be `MARKETPLACE_ADDRESS` (for a `B`) or `TREASURY_ADDRESS`
-  (for a refunded `G`, or the §10.7 referral share on one) — whichever
+  (for a refunded `G`, or a §10.7 referral payout on one) — whichever
   address holds the funds
 
 References the transaction being settled by block height and transaction
@@ -3096,66 +3097,94 @@ key. **OPEN:** admin key rotation — deferred to v2.
 
 ### 10.7 Ecosystem payouts — deliberately not protocol rules
 
-Two payouts exist, and neither is a consensus rule. Both are computable from
-the log, so they are auditable in the same way as the burn share, but an
+Two programmes exist, and neither is a consensus rule. Both are computable
+from the log, so they are auditable in the same way as the burn share, but an
 indexer never validates them and a missed payout can never invalidate a
 registration.
 
-**Referral share.** A percentage of the registration fee attributable to
-a `ref` (§6 `G`), paid to the owner of the name that drove it. This is the
-one place where a usage-based share is the right instrument: it rewards
-distribution, which is exactly what a referrer provides — an integrating
-app and a user sharing a link alike, since a `ref` is a registered name and
-nothing distinguishes the two.
+**Referral share and buyer rebate.** A percentage of the registration fee
+attributable to a `ref` (§6 `G`), paid to the owner of the name that drove
+it. This is the one place where a usage-based share is the right instrument:
+it rewards distribution, which is exactly what a referrer provides — an
+integrating app and a user sharing a link alike, since a `ref` is a
+registered name and nothing distinguishes the two.
+
+The same `ref` also pays the **buyer**: a second percentage of the same fee,
+returned to the `G`'s effective sender (§7.2) once the registration is final.
+It is a rebate after the fact and not a discount at the price because §6 `G`
+checks `value` against the band's fee — a referred buyer paying less would be
+`INSUFFICIENT_VALUE` and refunded (§7.4). Paying it as a second `M` changes
+no rule: the reducer sees a message that discharges nothing, exactly as it
+sees the share. The two are one programme with two payees, so the rules below
+govern both, and say where they differ.
 
 The rules the treasury's payer follows, stated here so that anyone holding
-the log and the published rate table computes the same shares:
+the log and the published rate table computes the same payouts:
 
 - **Eligibility and payee are read from state at the `G`'s own position in
   canonical order, before the `G` reduces.** The `ref` must name a
-  `REGISTERED` name at that position; its `target` then is the payee.
-  Anything else — absent, malformed, unregistered, in `GRACE` — is what §6
-  `G` already says: recorded as absent, nothing owed. A `G` cannot refer to
+  `REGISTERED` name at that position; its `target` then is the share's
+  payee. The rebate's payee is the `G`'s effective sender, a fact of the
+  transaction that needs no lookup. Anything else — absent, malformed,
+  unregistered, in `GRACE` — is what §6 `G` already says: recorded as absent,
+  nothing owed. A `G` cannot refer to
   the name it registers, since that name does not exist when it reduces.
-- **A share is owed only on an `OK` `G`.** A refunded or forfeited `G`
+- **Payouts are owed only on an `OK` `G`.** A refunded or forfeited `G`
   registered nothing.
-- **Amount is `⌊price × rate⌋`**, `rate` in basis points, `price` the fee
-  in effect at the `G`'s height for the name's band (§10.6) — never the
-  value sent, so an overpayment cannot farm a share. Nothing is owed when
-  the floor is zero; there is no refund-floor test, since the treasury is
-  paying out its own revenue.
-- **The rate is a published table**: a default (**1,000 bp** at launch) and
-  per-`ref` overrides, each row with the height it applies from. The row in
-  effect for a `(ref, height)` is the most specific `ref` among rows whose
-  height is at or below the `G`'s, latest height winning. Rows are appended
-  with a height and never edited, so a recomputation reproduces every past
-  share. A partner's larger row is a contract, published like the rest.
+- **Each amount is `⌊price × rate⌋`**, `rate` that payout's own basis
+  points, `price` the fee in effect at the `G`'s height for the name's band
+  (§10.6) — never the value sent, so an overpayment cannot farm a share.
+  Nothing is owed on a payout whose floor is zero; there is no refund-floor
+  test, since the treasury is paying out its own revenue.
+- **The rates are a published table**: a default row and per-`ref`
+  overrides, each row with the height it applies from and a column per
+  payout — `bp` for the share, `rebateBp` for the rebate. A row with no
+  `rebateBp` pays no rebate, which is what every row written before the
+  rebate existed meant. The row in effect for a `(ref, height)` is the most
+  specific `ref` among rows whose height is at or below the `G`'s, latest
+  height winning. Rows are appended with a height and never edited, so a
+  recomputation reproduces every past payout. A partner's larger row is a
+  contract, published like the rest.
+- **The published rates are net of the §10.2 burn share.** The burn base is
+  what the treasury *takes in* — value on `OK` `G`/`N`/`O`/`M` lines to
+  `TREASURY_ADDRESS` — so an `M` the treasury sends reduces nothing, and a
+  gross payout would leave the treasury burning on money that never stayed
+  with it. Deducting the burn from each payout instead puts the treasury in
+  exactly the position a burn on a net base would: `f(1−b)(1−s−r) =
+  f(1−s−r)(1−b)`, for any fee and any rates. §10.2 is therefore unamended,
+  and the burn stays a figure any outsider computes from the log alone. A
+  headline 5% is published as **400 bp**, and the referrer and the buyer
+  each carry the burn on their own portion.
 - **The wire is an `M` from `TREASURY_ADDRESS` to the payee, referencing
-  the `G`, whose value is the share** — issued per registration, past
-  finality, at the same cadence as a refund. The reducer creates no leg for
-  it, so under §6 `M` the transaction is accepted, `OK`, and discharges
-  nothing: the debt exists only in the payer's ledger, which is what keeps
-  this a policy rather than a rule. Settled-versus-owed for shares is
-  computable from the log and the table by anyone, and disagreeing with the
-  payer never changes a root.
+  the `G`, whose value is that payout** — one `M` per payout, so a referred
+  registration owing both sends two, told apart by their recipient. Both are
+  issued per registration, past finality, at the same cadence as a refund.
+  The reducer creates no leg for either, so under §6 `M` the transaction is
+  accepted, `OK`, and discharges nothing: the debt exists only in the payer's
+  ledger, which is what keeps this a policy rather than a rule.
+  Settled-versus-owed is computable from the log and the table by anyone, and
+  disagreeing with the payer never changes a root.
 
 - **Self-referral is priced by the table, not refused.** A `G` whose
   effective sender (§7.2) already controls the `ref` — as its owner, or as
   the `target` the share would be paid to — is a referral that brought
   nobody: the treasury would move money from the payer back to the payer.
-  The rate table carries a second column, `selfBp`, for exactly that case;
-  a row without one prices it at the row's own rate. The launch default is
-  **0 bp**, so nothing is owed. It is a rate rather than a switch because
-  it must inherit the row's height: a payer recomputing an old log has to
-  reproduce the shares that were actually paid, and a flag flipped today
-  would rewrite them.
+  The rate table carries a column, `selfBp`, for exactly that case, and it
+  prices **both** payouts; a row without one prices the case at each payout's
+  own rate. The launch default is **0 bp**, so nothing is owed. It has to
+  zero the rebate as well as the share, or anyone who owns a single name
+  holds a standing discount on every registration they ever make, which is
+  not a referral programme. It is a rate rather than a switch because it must
+  inherit the row's height: a payer recomputing an old log has to reproduce
+  the payouts that were actually paid, and a flag flipped today would rewrite
+  them.
 
-Farming is bounded independently of that rate. The referring name must
+Farming is bounded independently of those rates. The referring name must
 already be registered, so an owner registering junk under their own name
-pays the full fee and receives at most `rate` of it back — at any rate
-below 100% farming costs more than not registering, and the price floor
-that bounds the log (§8.2) holds. Self-referral is priced at nothing
-because it is not distribution, not because it is an attack.
+pays the full fee and receives at most the two rates of it back — while they
+sum below 100% farming costs more than not registering, and the price floor
+that bounds the log (§8.2) holds. Self-referral is priced at nothing because
+it is not distribution, not because it is an attack.
 
 **Independent-publisher stipend.** A per-checkpoint payment to operators who
 anchor a root matching consensus (§9). The qualifying condition is

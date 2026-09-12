@@ -5,10 +5,22 @@ import { CONSTANTS, encodeRegister, encodeSettlement, feeFor, initialState, refK
 import { LAUNCH_HEIGHT, TREASURY, WINNER, send, stageLog, testAddress, testConfig, type Send } from './test-fixtures.js'
 import { parseRateTable } from './rates.js'
 import { replayLog } from './replay.js'
-import { createShareCollector, explainedSettlements, NO_SHARES, referralOf, SHARE_KIND, shareKey, shareOwed } from './share.js'
+import {
+  createShareCollector,
+  explainedSettlements,
+  NO_SHARES,
+  payeeFor,
+  payoutsOwed,
+  REBATE_KIND,
+  referralOf,
+  SHARE_KIND,
+  shareKey,
+} from './share.js'
 
 const config = testConfig()
 const REFERRER_OWNER = testAddress(20)
+/** Neither payee: not the referrer's target, not the buyer. */
+const STRANGER = testAddress(21)
 const REFERRER = 'ricoref'
 const NEWCOMER = 'newcomer'
 const FEE = (name: string): bigint => feeFor(name, initialState().prices)
@@ -45,7 +57,7 @@ function collect(sends: readonly Send[], table = DEFAULT, through = THROUGH) {
 
 const SHARE = (FEE(NEWCOMER) * 1000n) / 10_000n
 
-describe('shareOwed — §10.7 in one function', () => {
+describe('payoutsOwed — §10.7 in one function', () => {
   it('owes the referrer’s target ⌊price × rate⌋ on an OK G that names a registered ref', () => {
     const { shares } = collect([referrerRegistered, referred()])
     expect(shares.created).toHaveLength(1)
@@ -55,7 +67,9 @@ describe('shareOwed — §10.7 in one function', () => {
       name: NEWCOMER,
       referrer: REFERRER,
       owedBy: TREASURY,
-      owedTo: REFERRER_OWNER,
+      referrerTarget: REFERRER_OWNER,
+      kind: SHARE_KIND,
+      payee: REFERRER_OWNER,
       amount: SHARE,
       price: FEE(NEWCOMER),
       rateBp: 1000n,
@@ -140,9 +154,9 @@ describe('shareOwed — §10.7 in one function', () => {
       networkId: config.networkId,
       isReward: false,
     }
-    const leg = shareOwed(before, tx, { height: H.register, txIndex: 0 }, { kind: 'OK', obligations: [] }, DEFAULT)
-    expect(leg?.amount).toBe(SHARE)
-    expect(shareOwed(before, tx, { height: H.register, txIndex: 0 }, { kind: 'FORFEIT', reason: 'RESERVED_NAME' }, DEFAULT)).toBeNull()
+    const legs = payoutsOwed(before, tx, { height: H.register, txIndex: 0 }, { kind: 'OK', obligations: [] }, DEFAULT)
+    expect(legs.map((leg) => [leg.kind, leg.amount])).toEqual([[SHARE_KIND, SHARE]])
+    expect(payoutsOwed(before, tx, { height: H.register, txIndex: 0 }, { kind: 'FORFEIT', reason: 'RESERVED_NAME' }, DEFAULT)).toEqual([])
   })
 })
 
@@ -160,7 +174,7 @@ describe('the share is settled by a treasury M with the four coordinates (§6 M)
   })
 
   it('a wrong payee or purse settles nothing, and is this referral’s payment in no sense', () => {
-    const wrongPayee = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: WINNER, amount: SHARE }))
+    const wrongPayee = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: STRANGER, amount: SHARE }))
     const other = collect([referrerRegistered, referred(), wrongPayee]).shares
     expect(other.outstanding).toHaveLength(1)
     expect([...other.settled, ...other.unpriced, ...other.mispaid]).toEqual([])
@@ -243,7 +257,9 @@ describe('a referral payment is recognised from the log, and priced by the table
       expect(shares.unpriced[0]).toMatchObject({
         paidAt: { height: H.settle, txIndex: 0 },
         paid: SHARE,
-        referral: { ref: { height: H.register, txIndex: 0 }, name: NEWCOMER, referrer: REFERRER, owedTo: REFERRER_OWNER },
+        kind: SHARE_KIND,
+        payee: REFERRER_OWNER,
+        referral: { ref: { height: H.register, txIndex: 0 }, name: NEWCOMER, referrer: REFERRER, referrerTarget: REFERRER_OWNER },
       })
       // The reducer still calls it an M that discharged nothing — and this is
       // the reading that stops a report from calling it unexplained money.
@@ -264,7 +280,7 @@ describe('a referral payment is recognised from the log, and priced by the table
     const short = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: SHARE - 1n }))
     const mispaidRun = collect([referrerRegistered, referred(), short]).shares
     expect([...explainedSettlements(mispaidRun)]).toEqual([refKey({ height: H.settle, txIndex: 0 })])
-    const wrongPayee = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: WINNER, amount: SHARE }))
+    const wrongPayee = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: STRANGER, amount: SHARE }))
     expect([...explainedSettlements(collect([referrerRegistered, referred(), wrongPayee]).shares)]).toEqual([])
   })
 
@@ -285,9 +301,174 @@ describe('a referral payment is recognised from the log, and priced by the table
       isReward: false,
     }
     const referral = referralOf(staged.state, tx, { height: H.register, txIndex: 0 }, { kind: 'OK', obligations: [] })
-    expect(referral).toMatchObject({ name: NEWCOMER, referrer: REFERRER, owedTo: REFERRER_OWNER, price: FEE(NEWCOMER) })
+    expect(referral).toMatchObject({ name: NEWCOMER, referrer: REFERRER, referrerTarget: REFERRER_OWNER, buyer: WINNER, price: FEE(NEWCOMER) })
     expect(referral).not.toHaveProperty('amount')
-    expect(leg).toMatchObject({ ...referral, amount: SHARE, rateBp: 1000n })
+    expect(leg).toMatchObject({ ...referral, kind: SHARE_KIND, payee: REFERRER_OWNER, amount: SHARE, rateBp: 1000n })
+  })
+})
+
+// ── the buyer's rebate (Kike, 2026-09-12) ──────────────────────────────────
+//
+// One referral, two payouts: the share to the referring name's `target`, the
+// rebate to the buyer. `DEFAULT` above deliberately carries no `rebateBp`, so
+// every test before this one is also the proof that a row written before the
+// column existed still makes exactly one payout.
+describe('a referred G owes the buyer a rebate as well as the referrer a share', () => {
+  const BOTH = parseRateTable({ rates: [{ ref: null, bp: 400, rebateBp: 400, selfBp: 0, fromHeight: 0 }] })
+  const RATE = (bp: bigint) => (FEE(NEWCOMER) * bp) / 10_000n
+
+  it('creates two legs, to two payees, each at its own rate', () => {
+    const { shares } = collect([referrerRegistered, referred()], BOTH)
+    expect(shares.created.map((leg) => [leg.kind, leg.payee, leg.amount, leg.rateBp])).toEqual([
+      [SHARE_KIND, REFERRER_OWNER, RATE(400n), 400n],
+      [REBATE_KIND, WINNER, RATE(400n), 400n],
+    ])
+    // Both are the treasury's, and neither is a leg the reducer knows about.
+    expect(shares.created.every((leg) => leg.owedBy === TREASURY)).toBe(true)
+    expect(shares.outstanding).toEqual(shares.created)
+    expect(shares.outstanding.map(shareKey)).toEqual([`${H.register}:0:${SHARE_KIND}`, `${H.register}:0:${REBATE_KIND}`])
+  })
+
+  it('the two rates are independent — a partner row can pay more share and the same rebate', () => {
+    const partner = parseRateTable({
+      rates: [
+        { ref: null, bp: 400, rebateBp: 400, selfBp: 0, fromHeight: 0 },
+        { ref: REFERRER, bp: 800, rebateBp: 400, selfBp: 0, fromHeight: 0 },
+      ],
+    })
+    const { shares } = collect([referrerRegistered, referred()], partner)
+    expect(shares.created.map((leg) => [leg.kind, leg.amount])).toEqual([
+      [SHARE_KIND, RATE(800n)],
+      [REBATE_KIND, RATE(400n)],
+    ])
+  })
+
+  it('a row with a rebate and no share pays only the buyer', () => {
+    const rebateOnly = parseRateTable({ rates: [{ ref: null, bp: 0, rebateBp: 400, fromHeight: 0 }] })
+    const { shares } = collect([referrerRegistered, referred()], rebateOnly)
+    expect(shares.created.map((leg) => [leg.kind, leg.payee])).toEqual([[REBATE_KIND, WINNER]])
+  })
+
+  it('the rebate is on the fee owed, so a lifetime G rebates ten yearly fees\u2019 worth, once', () => {
+    const { shares } = collect([referrerRegistered, referred({ lifetime: true })], BOTH)
+    expect(shares.created.map((leg) => leg.amount)).toEqual([
+      RATE(400n) * CONSTANTS.LIFETIME_MULTIPLIER,
+      RATE(400n) * CONSTANTS.LIFETIME_MULTIPLIER,
+    ])
+  })
+
+  it('an overpayment does not farm a rebate either — the rate is on the fee in effect', () => {
+    const { shares } = collect([referrerRegistered, referred({ fee: FEE(NEWCOMER) * 5n })], BOTH)
+    expect(shares.created.map((leg) => leg.amount)).toEqual([RATE(400n), RATE(400n)])
+  })
+
+  it('the recipient decides which payout an M settled — one M each, in either order', () => {
+    const m = {
+      share: encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: RATE(400n) }),
+      rebate: encodeSettlement({ height: H.register, txIndex: 0, payee: WINNER, amount: RATE(400n) }),
+    }
+    for (const order of [['share', 'rebate'], ['rebate', 'share']] as const) {
+      const { shares } = collect(
+        [referrerRegistered, referred(), ...order.map((which, i) => send(H.settle, i, TREASURY, m[which]))],
+        BOTH,
+      )
+      expect(shares.outstanding).toEqual([])
+      expect(shares.mispaid).toEqual([])
+      expect(shares.unpriced).toEqual([])
+      expect(shares.settled.map((item) => [item.leg.kind, item.settledAt.txIndex]).sort()).toEqual(
+        [
+          [SHARE_KIND, order.indexOf('share')],
+          [REBATE_KIND, order.indexOf('rebate')],
+        ].sort(),
+      )
+    }
+  })
+
+  it('paying only the referrer leaves the rebate outstanding, and nothing is mispaid', () => {
+    const onlyShare = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: RATE(400n) }))
+    const { shares } = collect([referrerRegistered, referred(), onlyShare], BOTH)
+    expect(shares.settled.map((item) => item.leg.kind)).toEqual([SHARE_KIND])
+    expect(shares.outstanding.map((leg) => [leg.kind, leg.payee])).toEqual([[REBATE_KIND, WINNER]])
+    expect(shares.mispaid).toEqual([])
+  })
+
+  it('a rebate at the wrong amount is MISPAID against the rebate, not against the share', () => {
+    const short = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: WINNER, amount: RATE(400n) - 1n }))
+    const { shares } = collect([referrerRegistered, referred(), short], BOTH)
+    expect(shares.mispaid.map((item) => [item.leg.kind, item.paid])).toEqual([[REBATE_KIND, RATE(400n) - 1n]])
+    expect(shares.outstanding.map((leg) => leg.kind)).toEqual([SHARE_KIND])
+  })
+
+  // Without this, owning one name buys a standing discount on every future
+  // registration — which is not a referral programme.
+  it('a self-referral earns NEITHER payout: selfBp prices both', () => {
+    const own = send(H.register, 0, REFERRER_OWNER, encodeRegister({ name: NEWCOMER, fee: FEE(NEWCOMER), ref: REFERRER }))
+    const { shares } = collect([referrerRegistered, own], BOTH)
+    expect(shares.created).toEqual([])
+    expect(shares.outstanding).toEqual([])
+  })
+
+  it('a self-referral that was paid anyway is reported as such, for either payout', () => {
+    const own = send(H.register, 0, REFERRER_OWNER, encodeRegister({ name: NEWCOMER, fee: FEE(NEWCOMER), ref: REFERRER }))
+    const anyway = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: RATE(400n) }))
+    const { shares } = collect([referrerRegistered, own, anyway], BOTH)
+    expect(shares.unpriced.map((item) => [item.kind, item.reason])).toEqual([[SHARE_KIND, 'self-referral']])
+  })
+
+  // `selfBp` absent still means "the row says nothing", per payout — the
+  // property that let the column be added without restating a published rate.
+  it('without selfBp, a self-referral is priced at each payout\u2019s own rate', () => {
+    const silent = parseRateTable({ rates: [{ ref: null, bp: 400, rebateBp: 400, fromHeight: 0 }] })
+    const own = send(H.register, 0, REFERRER_OWNER, encodeRegister({ name: NEWCOMER, fee: FEE(NEWCOMER), ref: REFERRER }))
+    const { shares } = collect([referrerRegistered, own], silent)
+    expect(shares.created.map((leg) => [leg.kind, leg.amount])).toEqual([
+      [SHARE_KIND, RATE(400n)],
+      [REBATE_KIND, RATE(400n)],
+    ])
+    // Both payees are the same address here, so the payee cannot tell the two
+    // apart; the fixed kind order does, and two runs agree.
+    expect(shares.created.every((leg) => leg.payee === REFERRER_OWNER)).toBe(true)
+  })
+
+  // The doctrine the collector was built on: who was paid and for what is in
+  // the log; only the amount needs the table. A treasury `M` to the buyer of a
+  // referred `G` is a rebate whether or not this reader holds a row for it.
+  it('a payment to the buyer under a table that prices no rebate is UNPRICED, not unexplained', () => {
+    const toBuyer = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: WINNER, amount: SHARE }))
+    const { replay, shares } = collect([referrerRegistered, referred(), toBuyer], DEFAULT)
+    expect(shares.unpriced.map((item) => [item.kind, item.reason, item.payee])).toEqual([[REBATE_KIND, 'no-rate', WINNER]])
+    expect(shares.outstanding.map((leg) => leg.kind)).toEqual([SHARE_KIND])
+    expect(explainedSettlements(shares).has(refKey(replay.unmatched[0]!.at))).toBe(true)
+  })
+
+  // The refund/payout collision, and with the rebate it stops being exotic:
+  // an ordinary buyer who overpays a referred `G` is owed a `REFUND` leg
+  // (§10.5) *and* a rebate — same ref, same payee, and here deliberately the
+  // same amount, so nothing but the reducer can tell the two `M`s apart.
+  for (const order of [['refund', 'rebate'], ['rebate', 'refund']] as const) {
+    it(`a refund and a rebate to the buyer for one G, ${order[0]} first: each M settles its own debt`, () => {
+      const surplus = RATE(400n)
+      const over = send(H.register, 0, WINNER, encodeRegister({ name: NEWCOMER, fee: FEE(NEWCOMER) + surplus, ref: REFERRER }))
+      const m = encodeSettlement({ height: H.register, txIndex: 0, payee: WINNER, amount: surplus })
+      const { replay, shares } = collect(
+        [referrerRegistered, over, ...order.map((_which, i) => send(H.settle, i, TREASURY, m))],
+        BOTH,
+      )
+      expect(replay.mismatches).toEqual([])
+      expect(replay.settled.map((item) => item.obligation.kind)).toEqual(['REFUND'])
+      expect(replay.unmatched).toHaveLength(1)
+      expect(shares.settled.map((item) => item.leg.kind)).toEqual([REBATE_KIND])
+      expect(shares.mispaid).toEqual([])
+      expect(shares.outstanding.map((leg) => leg.kind)).toEqual([SHARE_KIND])
+      expect(explainedSettlements(shares).has(refKey(replay.unmatched[0]!.at))).toBe(true)
+    })
+  }
+
+  it('payeeFor is the whole of who-gets-what', () => {
+    const { shares } = collect([referrerRegistered, referred()], BOTH)
+    const referral = shares.created[0]!
+    expect(payeeFor(referral, SHARE_KIND)).toBe(REFERRER_OWNER)
+    expect(payeeFor(referral, REBATE_KIND)).toBe(WINNER)
   })
 })
 

@@ -33,8 +33,9 @@ unknown key or an unknown format.
 | `{{n:MAX_NAME_LEN}}` | plain integer | `24` |
 | `{{addr:TREASURY_ADDRESS}}` | friendly address, grouped in fours | `NQ28 TKBF …` |
 | `{{height:LAUNCH_HEIGHT}}` | grouped integer | `58,842,720` |
-| `{{referral:rates}}` | `packages/settlement/referral-rates.json` as a Markdown table — referrer (or *default*), rate as a percentage, from height (or *launch* for 0), note | a table |
-| `{{referral:default}}` | the default row's rate as a percentage | `10%` |
+| `{{referral:rates}}` | `packages/settlement/referral-rates.json` as a Markdown table — referrer (or *default*), the referrer's rate, the buyer's rebate (or `—`), from height (or *launch* for 0), note | a table |
+| `{{referral:default}}` | the default row's referrer rate as a percentage | `4%` |
+| `{{referral:rebate}}` | the default row's buyer rebate as a percentage; throws where the row pays none | `4%` |
 
 Two figures are typed on purpose, because they are not constants: the
 renewal reminder's **60 days** (`GRACE_PERIOD × 2`, §10.4 — the app derives

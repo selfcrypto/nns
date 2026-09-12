@@ -21,7 +21,7 @@
 import { CONSTANTS, feeFor, LAUNCH_PRICES, LUNA_PER_NIM } from '@nns/core'
 
 import { displayAddress } from './format'
-import { percentOf, REFERRAL_RATES, referralRateBp } from './referralRates'
+import { percentOf, REFERRAL_RATES, referralRateBp, referralRebateBp } from './referralRates'
 
 export interface DocPage {
   readonly slug: string
@@ -152,14 +152,20 @@ export function feesTable(): string {
   return ['| Name length | Multiple of the base | A year | A lifetime |', '|---|---|---|---|', ...rows].join('\n')
 }
 
-/** `packages/settlement/referral-rates.json` as the published table §10.7 promises. */
+/**
+ * `packages/settlement/referral-rates.json` as the published table §10.7
+ * promises — both payouts, because a reader cannot check a payment they
+ * cannot see the rate for. A row that pays no rebate prints an em dash
+ * rather than 0%, which is the difference between a policy and a rate.
+ */
 export function referralRatesTable(): string {
   const rows = REFERRAL_RATES.map((row) => {
     const ref = row.ref === null ? '*default*' : `\`${row.ref}\``
     const from = row.fromHeight === 0 ? 'launch' : group(row.fromHeight)
-    return `| ${ref} | ${percentOf(row.bp)} | ${from} | ${row.note ?? ''} |`
+    const rebate = row.rebateBp === null || row.rebateBp === undefined ? '—' : percentOf(row.rebateBp)
+    return `| ${ref} | ${percentOf(row.bp)} | ${rebate} | ${from} | ${row.note ?? ''} |`
   })
-  return ['| Referrer | Share of the fee | From height | Note |', '|---|---|---|---|', ...rows].join('\n')
+  return ['| Referrer | To the referrer | Back to the buyer | From height | Note |', '|---|---|---|---|---|', ...rows].join('\n')
 }
 
 /** The rate a referrer with no row of their own earns, today. */
@@ -167,6 +173,12 @@ export function defaultReferralRate(): string {
   const bp = referralRateBp('', Number.MAX_SAFE_INTEGER)
   if (bp === null) throw new Error('referral-rates.json has no default row')
   return percentOf(bp)
+}
+
+/** What a referred buyer with no special row gets back, today — `null` where the row in effect pays no rebate. */
+export function defaultReferralRebate(): string | null {
+  const bp = referralRebateBp('', Number.MAX_SAFE_INTEGER)
+  return bp === null || bp === 0 ? null : percentOf(bp)
 }
 
 function nameLength(placeholder: string, key: string): number {
@@ -214,7 +226,12 @@ function render(placeholder: string, format: string, key: string): string {
     case 'referral':
       if (key === 'rates') return referralRatesTable()
       if (key === 'default') return defaultReferralRate()
-      throw new Error(`${placeholder}: the referral placeholders are {{referral:rates}} and {{referral:default}}`)
+      if (key === 'rebate') {
+        const rebate = defaultReferralRebate()
+        if (rebate === null) throw new Error(`${placeholder}: the default row pays no rebate`)
+        return rebate
+      }
+      throw new Error(`${placeholder}: the referral placeholders are {{referral:rates}}, {{referral:default}} and {{referral:rebate}}`)
     default:
       throw new Error(`${placeholder}: unknown format "${format}"`)
   }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 
 import { clearReferral, onReferralChange, storedReferral } from '../lib/referral'
-import { percentOf, referralRateBp } from '../lib/referralRates'
-import { REFERRER_STRIP, referrerEarnsLine } from '../lib/wording'
+import { percentOf, referralRateBp, referralRebateBp } from '../lib/referralRates'
+import { buyerRebateLine, REFERRER_STRIP, referrerEarnsLine } from '../lib/wording'
 
 /**
  * The referrer the app is holding (§10.7), shown where the registration is
@@ -48,6 +48,16 @@ export function ReferrerStrip({ className }: { className?: string | undefined })
   // for this referrer — the same reading the docs page takes. Nothing here
   // knows a height, and a share is priced at the registration, not now.
   const bp = referralRateBp(ref, Number.MAX_SAFE_INTEGER)
+  const rebateBp = referralRebateBp(ref, Number.MAX_SAFE_INTEGER) ?? 0
+  // The rebate is the half the reader benefits from, so it is what the strip
+  // says when there is one; without one the note falls back to the price
+  // being unchanged, which is all §10.7 promised a buyer before.
+  const note =
+    bp === null
+      ? REFERRER_STRIP.note
+      : rebateBp > 0
+        ? `${referrerEarnsLine(percentOf(bp))} ${buyerRebateLine(percentOf(rebateBp))}`
+        : `${referrerEarnsLine(percentOf(bp))} ${REFERRER_STRIP.note}.`
 
   return (
     <div className={className === undefined ? 'referrer-strip' : `referrer-strip ${className}`}>
@@ -59,7 +69,7 @@ export function ReferrerStrip({ className }: { className?: string | undefined })
         <span className="referrer-strip-label">{REFERRER_STRIP.label}</span>{' '}
         <span className="nns-name referrer-strip-name">{ref}</span>
         <span className="referrer-strip-note">
-          {bp === null ? REFERRER_STRIP.note : `${referrerEarnsLine(percentOf(bp))} ${REFERRER_STRIP.note}.`}
+          {note}
         </span>
       </span>
       <button type="button" className="referrer-strip-remove" onClick={() => void clearReferral()} aria-label={REFERRER_STRIP.removeLabel}>

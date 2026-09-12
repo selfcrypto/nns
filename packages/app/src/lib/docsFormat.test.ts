@@ -4,6 +4,7 @@ import { CONSTANTS } from '@nns/core'
 
 import {
   defaultReferralRate,
+  defaultReferralRebate,
   durationFromBlocks,
   durationFromSeconds,
   feesTable,
@@ -13,6 +14,7 @@ import {
   parseDocIndex,
   referralRatesTable,
 } from './docsFormat'
+import { REFERRAL_RATES } from './referralRates'
 
 describe('parseDocIndex', () => {
   it('keeps the file order, which is the sidebar and the prev/next chain', () => {
@@ -122,5 +124,24 @@ describe('the generated tables', () => {
     expect(table).toContain('| *default* |')
     expect(table).toContain('| launch |')
     expect(table).toContain(defaultReferralRate())
+  })
+
+  // Both payouts, or a reader cannot check a payment they hold no rate for.
+  // A row that pays no rebate prints an em dash: "the policy did not exist
+  // then" and "the policy pays zero" are different claims.
+  it('gives the rate table a column for the buyer’s rebate, and an em dash where a row pays none', () => {
+    const table = referralRatesTable()
+    expect(table).toContain('| Referrer | To the referrer | Back to the buyer | From height | Note |')
+    const rebate = defaultReferralRebate()
+    expect(rebate).not.toBeNull()
+    expect(table).toContain(`| ${rebate} |`)
+    expect(table).toContain('| — |')
+    // Every row renders, and the header and separator are the extra two.
+    expect(table.split('\n')).toHaveLength(REFERRAL_RATES.length + 2)
+  })
+
+  it('{{referral:rebate}} fills from the same row as {{referral:default}}', () => {
+    expect(fillPlaceholders('{{referral:rebate}}')).toBe(defaultReferralRebate())
+    expect(() => fillPlaceholders('{{referral:nonsense}}')).toThrow(/referral placeholders/)
   })
 })

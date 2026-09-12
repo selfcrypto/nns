@@ -489,12 +489,19 @@ export function priceHint(fees: readonly { readonly upTo: number; readonly yearl
 }
 
 /**
- * §10.7 on the review: who benefits, and that the price is unchanged. The
- * share comes out of the treasury's fee, so "you pay the same" is the fact
- * a payer needs before the wallet opens.
+ * §10.7 on the review: who benefits, and what the payer is actually about to
+ * pay. Both payouts come out of the treasury's fee, so the price on the
+ * screen is the price either way — and the rebate arrives **after**, as a
+ * second transaction, which is the part a payer must not be left to guess at
+ * when the wallet asks for the full amount.
+ *
+ * `rebate` is `null` where the row in effect pays none, and then the line is
+ * the one this said before the rebate existed.
  */
-export const referredByLine = (ref: string, percent: string): string =>
-  `Referred by ${ref}. Its owner earns ${percent} of the fee; you pay the same.`
+export const referredByLine = (ref: string, percent: string, rebate: string | null = null): string =>
+  rebate === null
+    ? `Referred by ${ref}. Its owner earns ${percent} of the fee; you pay the same.`
+    : `Referred by ${ref}. Its owner earns ${percent} of the fee, and ${rebate} comes back to you once the registration confirms.`
 
 /**
  * §10.7 made visible before the review: a stored ref is about to travel with a
@@ -509,6 +516,12 @@ export const REFERRER_STRIP = {
   removeLabel: 'Remove this referrer',
 } as const
 export const referrerEarnsLine = (percent: string): string => `Its owner earns ${percent} of the registration fee.`
+/**
+ * The buyer's half of §10.7, on the strip. The rebate is the reason a link is
+ * worth following at all, so it is the sentence that gets the numbers — and
+ * it says *back*, because the wallet will still ask for the whole fee.
+ */
+export const buyerRebateLine = (percent: string): string => `You get ${percent} of it back after you register.`
 /**
  * A pasted share link whose ref was **not** taken, because one is already
  * held: first wins (§10.7's client half). The strip answers the ordinary
@@ -1107,8 +1120,9 @@ export const copyLinkLabel = (): string => 'Copy link'
 /** A name in grace does not resolve (§7.3), so a link to it has nothing to pay. */
 export const requestInGraceLine = (): string => 'Renew first — a name in grace can’t be paid.'
 
-export const shareHint = (percent: string): string =>
-  `Anyone who registers through your link pays the same price, and this name’s address receives ${percent} of the fee, paid by the registry after each registration.`
+export const shareHint = (percent: string, rebate: string | null = null): string =>
+  `Anyone who registers through your link pays the same price${rebate === null ? '' : ` and gets ${rebate} of it back`}, ` +
+  `and this name’s address receives ${percent} of the fee, paid by the registry after each registration.`
 
 
 /** A tile's title, and the line under it while the record has nothing to show. */

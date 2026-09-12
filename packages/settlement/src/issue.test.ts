@@ -189,6 +189,16 @@ describe('buildPlan', () => {
     expect(Buffer.from(plan.data, 'hex').toString('ascii')).toBe('NNS1M1030|0')
   })
 
+  it('a §10.7 rebate is paid from the treasury to the buyer, under the same G’s ref', () => {
+    const rebate = entry({ ref: { height: 1_030, txIndex: 0 }, kind: 'REFERRAL_REBATE', amount: 4_00000n, owedBy: TREASURY, owedTo: SELLER })
+    const plan = buildPlan(config, rebate, HEAD, 0n, EXPIRY)
+    expect(plan.sender).toBe(TREASURY)
+    expect(plan.recipient).toBe(SELLER)
+    // Same `M` reference as the share: one `G`, two payouts, told apart by
+    // the payee — which is why §6 `M`'s four coordinates still identify each.
+    expect(Buffer.from(plan.data, 'hex').toString('ascii')).toBe('NNS1M1030|0')
+  })
+
   it('refuses a zero-luna leg, because the network rejects value 0', () => {
     const zero = entry({ ref: { height: 1_010, txIndex: 2 }, kind: 'COMMISSION', amount: 0n, owedTo: TREASURY })
     expect(() => buildPlan(config, zero, HEAD, 0n, EXPIRY)).toThrow(/value must be positive/)

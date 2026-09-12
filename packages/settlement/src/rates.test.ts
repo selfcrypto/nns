@@ -4,22 +4,40 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
+import { CONSTANTS } from '@nns/core'
+
 import { DEFAULT_RATES_PATH, parseRateTable, rateFor, RateTableError, readRateTable, shareAmount } from './rates.js'
 
 const table = (rates: readonly unknown[]) => parseRateTable({ rates })
 
 describe('parseRateTable', () => {
-  it('reads the committed table, which has exactly one default row at 1,000 bp', () => {
+  // Rows are appended, never edited, so this list only ever grows — and each
+  // entry is a rate that was in force over a range of the chain and must stay
+  // reproducible. A row changed rather than added is the failure this catches.
+  it('reads the committed table: the 10% row from height 0, then the 5%+5% split', () => {
     const committed = readRateTable(DEFAULT_RATES_PATH)
     const defaults = committed.rows.filter((row) => row.ref === null)
-    expect(defaults).toHaveLength(1)
-    expect(defaults[0]?.bp).toBe(1000n)
-    expect(defaults[0]?.fromHeight).toBe(0)
+    expect(defaults.map((row) => [row.fromHeight, row.bp, row.rebateBp, row.selfBp])).toEqual([
+      [0, 1000n, null, 0n],
+      [61_412_000, 400n, 400n, 0n],
+    ])
+  })
+
+  // 400 bp is a headline 5% with the §10.2 burn already taken off, so the
+  // treasury's net position is the same as burning on a net base. Written as
+  // one number because flooring twice can land a luna below flooring once.
+  it('the committed split is 5% gross net of the 20% burn, on both payouts', () => {
+    const row = readRateTable(DEFAULT_RATES_PATH).rows.find((candidate) => candidate.fromHeight === 61_412_000)
+    const gross = 500n
+    const net = (gross * (CONSTANTS.BASIS_POINTS - CONSTANTS.BURN_SHARE_BP)) / CONSTANTS.BASIS_POINTS
+    expect(net).toBe(400n)
+    expect(row?.bp).toBe(net)
+    expect(row?.rebateBp).toBe(net)
   })
 
   it('turns bp into bigint and keeps the note as text', () => {
     const parsed = table([{ ref: null, bp: 1000, fromHeight: 0, note: 'default' }])
-    expect(parsed.rows[0]).toEqual({ ref: null, bp: 1000n, selfBp: null, fromHeight: 0, note: 'default' })
+    expect(parsed.rows[0]).toEqual({ ref: null, bp: 1000n, rebateBp: null, selfBp: null, fromHeight: 0, note: 'default' })
   })
 
   // A row written before the field existed says nothing about the case, and
@@ -36,6 +54,22 @@ describe('parseRateTable', () => {
     expect(() => table([{ ref: null, bp: 1000, selfBp: -1, fromHeight: 0 }])).toThrow(/selfBp/)
     expect(() => table([{ ref: null, bp: 1000, selfBp: 10_001, fromHeight: 0 }])).toThrow(/selfBp/)
     expect(() => table([{ ref: null, bp: 1000, selfBp: '0', fromHeight: 0 }])).toThrow(/selfBp/)
+  })
+
+  // A row written before the rebate existed made one payout. Its silence must
+  // go on meaning that — reading it as `bp` would double every published rate.
+  it('rebateBp is optional, and absent is null rather than the share rate', () => {
+    expect(table([{ ref: null, bp: 1000, fromHeight: 0 }]).rows[0]?.rebateBp).toBeNull()
+    expect(table([{ ref: null, bp: 1000, rebateBp: null, fromHeight: 0 }]).rows[0]?.rebateBp).toBeNull()
+    expect(table([{ ref: null, bp: 1000, rebateBp: 0, fromHeight: 0 }]).rows[0]?.rebateBp).toBe(0n)
+    expect(table([{ ref: null, bp: 400, rebateBp: 400, fromHeight: 0 }]).rows[0]?.rebateBp).toBe(400n)
+  })
+
+  it('refuses a rebateBp that is not basis points', () => {
+    expect(() => table([{ ref: null, bp: 400, rebateBp: -1, fromHeight: 0 }])).toThrow(/rebateBp/)
+    expect(() => table([{ ref: null, bp: 400, rebateBp: 10_001, fromHeight: 0 }])).toThrow(/rebateBp/)
+    expect(() => table([{ ref: null, bp: 400, rebateBp: 12.5, fromHeight: 0 }])).toThrow(/rebateBp/)
+    expect(() => table([{ ref: null, bp: 400, rebateBp: '400', fromHeight: 0 }])).toThrow(/rebateBp/)
   })
 
   it('refuses a table with no default row — an unlisted name would have no rate', () => {

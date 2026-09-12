@@ -353,6 +353,24 @@ describe.skipIf(URL === undefined)('Ledger over Postgres', () => {
     expect(confirmed.confirmed.map((item) => item.kind)).toEqual(['REFERRAL_SHARE'])
   })
 
+  it('records a §10.7 rebate beside the share on one G — migration 003 widened the check', async () => {
+    const ledger = ledgerOf()
+    const share = leg(1_030, 0, 'REFERRAL_SHARE', 4_00000n, WINNER, TREASURY)
+    const rebate = leg(1_030, 0, 'REFERRAL_REBATE', 4_00000n, SELLER, TREASURY)
+    const update = await ledger.applySnapshot(snapshotOf(1_440, [share, rebate]))
+    // Two payouts on one `G`: the same ref, two kinds, two keys, two rows.
+    expect(update.inserted).toHaveLength(2)
+    expect(byKind(await ledger.entries(), 'REFERRAL_REBATE')).toMatchObject({
+      kind: 'REFERRAL_REBATE',
+      amount: 4_00000n,
+      owedTo: SELLER,
+      owedBy: TREASURY,
+      state: 'DUE',
+    })
+    const confirmed = await ledger.applySnapshot(snapshotOf(2_160, []))
+    expect(confirmed.confirmed.map((item) => item.kind).sort()).toEqual(['REFERRAL_REBATE', 'REFERRAL_SHARE'])
+  })
+
   it('records the due set, and re-reading the same log inserts nothing', async () => {
     const ledger = ledgerOf()
     const snapshot = snapshotOf(1_440, [first, commission])
