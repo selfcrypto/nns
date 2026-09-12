@@ -189,6 +189,8 @@ export interface ShareCollector {
   result(): ShareResult
 }
 
+const legsAt = (state: NnsState, ref: TxRef): number => state.outstanding.get(refKey(ref))?.length ?? 0
+
 export function createShareCollector(table: RateTable): ShareCollector {
   const created: ShareLeg[] = []
   const settled: SettledShare[] = []
@@ -212,13 +214,21 @@ export function createShareCollector(table: RateTable): ShareCollector {
       if (event.verdict.kind !== 'OK' || !addressEquals(event.tx.sender, CONSTANTS.TREASURY_ADDRESS)) return
       const parsed = parse(event.tx.recipientData)
       if (!parsed.ok || parsed.message.type !== 'M') return
-      const key = shareKey({ ref: { height: parsed.message.height, txIndex: parsed.message.txIndex } })
-      const candidate = open.get(key)
+      const named: TxRef = { height: parsed.message.height, txIndex: parsed.message.txIndex }
+      const candidate = open.get(shareKey({ ref: named }))
       if (candidate === undefined) return
+      // An `M` the reducer matched to one of its own legs is that leg's
+      // payment, whatever else it resembles. A refund and a share can name
+      // the same `G` and pay the same address — a referrer's target
+      // registering through its own link and overpaying — and only the
+      // reducer says which `M` was the refund. Without this the refund would
+      // close the share's entry at the wrong amount and the share itself
+      // would be left as money against nothing.
+      if (legsAt(event.before, named) !== legsAt(event.after, named)) return
       // A treasury `M` naming a referred `G` and paying somebody else is not
       // this referral's payment. Left to the reducer's own reading.
       if (!addressEquals(candidate.referral.owedTo, event.tx.recipient)) return
-      open.delete(key)
+      open.delete(shareKey({ ref: named }))
       const paid = { paidAt: event.at, paidBy: event.tx.hash, paid: event.tx.value }
       if (candidate.leg === null) unpriced.push({ referral: candidate.referral, ...paid })
       else if (candidate.leg.amount === event.tx.value) settled.push({ leg: candidate.leg, settledAt: event.at, settledBy: event.tx.hash })

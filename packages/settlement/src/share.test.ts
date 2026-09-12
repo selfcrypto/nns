@@ -187,6 +187,36 @@ describe('the share is settled by a treasury M with the four coordinates (§6 M)
     })
   })
 
+  // A referrer's target registers a second name through its own link and
+  // overpays: the treasury owes that one address a refund (a reducer leg) and
+  // a share (this ledger) on the same `G`. Only the reducer says which `M`
+  // was the refund, and it must be asked — the old four-coordinate match
+  // never took the refund because its amount differed, and a match that
+  // classifies by amount would take it as a mispaid share and leave the real
+  // share as money against nothing.
+  for (const [label, order] of [
+    ['refund first', ['refund', 'share']],
+    ['share first', ['share', 'refund']],
+  ] as const) {
+    it(`a refund and a share to one payee for one G, ${label}: each M settles its own debt`, () => {
+      const surplus = FEE(NEWCOMER)
+      const self = send(H.register, 0, REFERRER_OWNER, encodeRegister({ name: NEWCOMER, fee: FEE(NEWCOMER) + surplus, ref: REFERRER }))
+      const m = {
+        refund: encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: surplus }),
+        share: encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: SHARE }),
+      }
+      const { replay, shares } = collect([referrerRegistered, self, ...order.map((which, i) => send(H.settle, i, TREASURY, m[which]))])
+      expect(replay.mismatches).toEqual([])
+      expect(replay.settled.map((item) => item.obligation.kind)).toEqual(['REFUND'])
+      expect(replay.unmatched).toHaveLength(1)
+      expect(shares.settled).toHaveLength(1)
+      expect(shares.settled[0]?.settledAt).toEqual({ height: H.settle, txIndex: order.indexOf('share') })
+      expect(shares.mispaid).toEqual([])
+      expect(shares.outstanding).toEqual([])
+      expect(explainedSettlements(shares).has(refKey(replay.unmatched[0]!.at))).toBe(true)
+    })
+  }
+
   it('a second identical M settles nothing — the leg is already paid', () => {
     const again = send(H.settle, 1, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: SHARE }))
     const { shares } = collect([referrerRegistered, referred(), paid, again])
