@@ -19,10 +19,13 @@ import {
   SCREEN_TITLE,
   queryFaultLine,
   shortNameNoteLine,
+  referrerFromLinkLine,
   tryLabel,
   unreachableLine,
 } from '../lib/wording'
+import { referralFromLink, rememberReferral, storedReferral } from '../lib/referral'
 import { ACQUIRE_ACTIONS, NameCard } from '../components/NameCard'
+import { ReferrerStrip } from '../components/ReferrerStrip'
 import { TrustBar } from '../components/TrustBar'
 import { Spinner } from '../components/ui'
 import styles from './buysearch.module.css'
@@ -56,8 +59,36 @@ export function BuyScreen({
 }) {
   const [text, setText] = useState(seed)
   const [nonce, setNonce] = useState(0)
+  const [linkNote, setLinkNote] = useState<string | null>(null)
   const trimmed = text.trim().toLowerCase()
   const [query, flushQuery] = useDebounced(trimmed, SETTLE_MS)
+
+  /**
+   * Everything typed into the box arrives here, and a **share link** is taken
+   * as a link rather than searched as a name (`Pay`'s `acceptQuery` does the
+   * same for a payment link). It is the only route a reader already inside
+   * Nimiq Pay has: the mini app opens at a bare URL from Pay's own list, so a
+   * share link tapped in a chat app opens a browser instead, and without this
+   * the whole referral programme is unreachable from the wallet it is for.
+   *
+   * The box is emptied rather than filled, because a URL is not a name and a
+   * failing search would be the only other answer. What the strip then shows
+   * is read back from the store, not from the paste: first-wins means the ref
+   * already held keeps the slot, and saying otherwise would name the wrong
+   * owner.
+   */
+  const acceptQuery = (value: string) => {
+    const ref = referralFromLink(value)
+    if (ref === null) {
+      setLinkNote(null)
+      setText(value)
+      return
+    }
+    setText('')
+    void rememberReferral(ref)
+      .then(storedReferral)
+      .then((stored) => setLinkNote(stored === null ? null : referrerFromLinkLine(stored)))
+  }
 
   // Off `query`, not `text`: a hint about a string still being typed is the
   // thing that made these hints hated. At most one, and the tone means
@@ -114,7 +145,7 @@ export function BuyScreen({
                   spellCheck={false}
                   placeholder="name, or label.name"
                   value={text}
-                  onChange={(event) => setText(event.target.value)}
+                  onChange={(event) => acceptQuery(event.target.value)}
                   aria-label="Search names"
                 />
                 <button className={`search-go ${styles.searchBtn}`} type="submit" disabled={trimmed === ''}>
@@ -122,7 +153,9 @@ export function BuyScreen({
                 </button>
               </div>
             </form>
+            {linkNote !== null && <p className="note" style={{ textAlign: 'center', margin: '0' }}>{linkNote}</p>}
             {hint !== null && <p className={hint.tone} style={{ textAlign: 'center', margin: '0' }}>{hint.text}</p>}
+            <ReferrerStrip />
 
             {outcome.status === 'idle' && (
               <div className={styles.buyIdleContent}>

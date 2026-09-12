@@ -3562,3 +3562,68 @@ li.note {
   word-break: break-all;
   user-select: all;
 }
+
+/* The referrer strip (components/ReferrerStrip.tsx). A flat strip, not a card:
+   nothing here was looked up, so it must not float like an answer. Neutral,
+   because gold is the one next action and the rail's four colours each mean
+   something this is not. */
+.referrer-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px auto 0;
+  max-width: 560px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-field);
+  background: var(--card);
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-align: left;
+}
+
+.referrer-strip-icon {
+  color: var(--ink-faint);
+  flex-shrink: 0;
+}
+
+.referrer-strip-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.referrer-strip-label {
+  color: var(--ink-faint);
+}
+
+.referrer-strip-name {
+  color: var(--ink);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* Its own line on a phone, beside the name on a wider screen: the rate is the
+   part a reader checks, and wrapping it mid-sentence is what hides it. */
+.referrer-strip-note {
+  display: block;
+  color: var(--ink-faint);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.referrer-strip-remove {
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.referrer-strip-remove:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}

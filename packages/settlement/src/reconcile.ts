@@ -342,15 +342,25 @@ export function describeReport(report: Report): readonly string[] {
       out.push('  The payee and the registration are right and the amount is not. The log is still true; the operator paid the wrong figure.')
     }
 
-    if (report.shares.unpriced.length > 0) {
+    const line = (item: UnpricedShare): string =>
+      `  ${ref(item.paidAt).padEnd(20)} for ${ref(item.referral.ref).padEnd(20)} ${item.referral.name} via ${item.referral.referrer} ${nim(item.paid).padStart(14)} NIM  to ${formatAddress(item.referral.owedTo)}  tx ${item.paidBy}`
+
+    // Two answers with nothing in common but an empty amount: one table
+    // cannot price it, the other prices it at zero on purpose.
+    const noRate = report.shares.unpriced.filter((item) => item.reason === 'no-rate')
+    if (noRate.length > 0) {
       out.push('')
-      out.push(`${report.shares.unpriced.length} referral payment(s) this table does not price:`)
-      for (const item of report.shares.unpriced) {
-        out.push(
-          `  ${ref(item.paidAt).padEnd(20)} for ${ref(item.referral.ref).padEnd(20)} ${item.referral.name} via ${item.referral.referrer} ${nim(item.paid).padStart(14)} NIM  to ${formatAddress(item.referral.owedTo)}  tx ${item.paidBy}`,
-        )
-      }
+      out.push(`${noRate.length} referral payment(s) this table does not price:`)
+      for (const item of noRate) out.push(line(item))
       out.push('  The log says who was paid and for which registration; only the amount needs a rate row. Not a finding — the reading of anyone without the operator\'s table.')
+    }
+
+    const own = report.shares.unpriced.filter((item) => item.reason === 'self-referral')
+    if (own.length > 0) {
+      out.push('')
+      out.push(`${own.length} SELF-REFERRAL(S) were paid a share the table prices at nothing (§10.7):`)
+      for (const item of own) out.push(line(item))
+      out.push('  The buyer already controlled the referring name, so the treasury paid the payer. A finding: the issuer does not do this, so something else did.')
     }
   }
 

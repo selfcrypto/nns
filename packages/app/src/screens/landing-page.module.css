@@ -2707,6 +2707,26 @@
 }
 
 
+/* The referrer the app is holding, under the hero's search field
+   (components/ReferrerStrip.tsx). The landing page is where a share link
+   lands, so it is where the person who followed one is told it was read. The
+   strip's own styling is global `.referrer-strip` in app.css; these two rules
+   only place it in the hero's column. */
+.heroReferrer {
+  margin-top: 14px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.heroLinkNote {
+  margin: 12px 0 0;
+  width: 100%;
+  max-width: 480px;
+  font-size: 13px;
+  color: rgba(31, 35, 72, 0.7);
+  text-align: center;
+}
+
 /* The hero's other two doors (2026-09-12). The search field below the title
    serves someone who has a name in mind; these serve the owner who wants to
    manage a name they already hold, and the reader who wants to know what this

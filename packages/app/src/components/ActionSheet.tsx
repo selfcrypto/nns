@@ -1,8 +1,8 @@
 import { CONSTANTS } from '@nns/core'
 import { useMemo, useState } from 'react'
 import { prepareAction, ActionInputError, type ActionInputs } from '../lib/actions'
-import { getParams, type NameInfo } from '../lib/api'
-import { clearReferral, storedReferral } from '../lib/referral'
+import { getNameInfo, getParams, type NameInfo } from '../lib/api'
+import { clearReferral, isSelfReferral, storedReferral } from '../lib/referral'
 import { defaultTransport } from '../lib/history'
 import { apiBase } from '../lib/nns'
 import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
@@ -28,6 +28,7 @@ import {
   minimumBidLine,
   noBidsLine,
   noEvmLine,
+  referredBySelfLine,
   noHostLine,
   standingBidLine,
   suggestedEvmLabel,
@@ -78,8 +79,26 @@ export function ActionSheet({
   onClose?: () => void
 }) {
   const paramsState = useAsync(() => getParams(apiBase()), [])
-  // The share link's ref (§10.7), read once: it rides the `G` and nothing else.
-  const referral = useAsync(() => (action === 'register' ? storedReferral() : Promise.resolve(null)), [action])
+  /**
+   * The share link's ref (§10.7), read once: it rides the `G` and nothing else.
+   *
+   * A ref naming a name **this viewer already controls** is dropped here and
+   * reported instead. Settlement prices that case at `selfBp` — zero in the
+   * published table — so sending it would put a promise on the review sheet
+   * that the treasury will not keep. The record is fetched to decide; a
+   * fetch that fails leaves the ref alone, because refusing a real referral
+   * on a network error is the worse of the two mistakes.
+   */
+  const referral = useAsync(async (): Promise<{ readonly ref: string; readonly self: boolean } | null> => {
+    if (action !== 'register') return null
+    const ref = await storedReferral()
+    if (ref === null) return null
+    const referrer = await getNameInfo(apiBase(), ref).catch(() => null)
+    return { ref, self: isSelfReferral(referrer?.record ?? null, viewers) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the identity set is stable for the life of a sheet
+  }, [action])
+  const referredBy = referral.status === 'done' && referral.value !== null && !referral.value.self ? referral.value.ref : null
+  const selfReferred = referral.status === 'done' && referral.value?.self === true ? referral.value.ref : null
   const params = paramsState.status === 'done' ? paramsState.value : null
   const [target, setTarget] = useState('')
   const [resetTarget, setResetTarget] = useState(false)
@@ -123,14 +142,14 @@ export function ActionSheet({
       case 'bid':
         return { action, bidNim }
       case 'register':
-        return { action, ref: referral.status === 'done' ? referral.value : null, lifetime }
+        return { action, ref: referredBy, lifetime }
       case 'renew':
         return { action, lifetime }
       case 'cancel':
       case 'buy':
         return { action }
     }
-  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, priceNim, startingPriceNim, durationDays, bidNim, referral, lifetime])
+  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, priceNim, startingPriceNim, durationDays, bidNim, referredBy, lifetime])
 
   const inputsTouched = (() => {
     switch (action) {
@@ -386,6 +405,10 @@ export function ActionSheet({
       )}
 
       {prepared !== null && !prepared.ok && <p className="field-error">{prepared.message}</p>}
+
+      {/* A ref that was dropped is still worth a line: the user followed a
+          link, and silence would read as the link never having been read. */}
+      {selfReferred !== null && <p className="note">{referredBySelfLine(selfReferred)}</p>}
 
       {prepared?.ok === true && (
         <ul className="review">

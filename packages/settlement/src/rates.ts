@@ -11,7 +11,9 @@
  *
  * Rows are appended, never edited: a recomputation next month must reproduce
  * the shares paid last month, so a rate change is a new row with a height,
- * as a `P` is a new price with an effective height.
+ * as a `P` is a new price with an effective height. `selfBp` is part of that
+ * — the rate for a buyer who already owns the referring name is a price the
+ * row states, not a rule the code hides.
  */
 
 import { readFileSync } from 'node:fs'
@@ -28,6 +30,18 @@ export interface RateRow {
   readonly ref: string | null
   /** Basis points of the fee in effect at the `G`'s height (§10.7). */
   readonly bp: bigint
+  /**
+   * Basis points when the payee would be the payer — the buyer already owns
+   * the referring name. `null` means the row says nothing, and `bp` applies,
+   * which is what every row written before this field existed meant.
+   *
+   * It is a rate rather than a flag because it is a rate: a row is the place
+   * the operator states a price, and a policy that pays nothing for a
+   * self-referral is that price set to zero. It also inherits the row's
+   * `fromHeight` for free, so changing the policy is appending a row, and a
+   * recomputation of an old log still reproduces the shares that were paid.
+   */
+  readonly selfBp: bigint | null
   /** First height this row applies to, inclusive. */
   readonly fromHeight: number
   /** Free text for the reader of the published table. Never computed on. */
@@ -59,6 +73,13 @@ function parseRow(value: unknown, index: number): RateRow {
     throw new RateTableError(`${where}.bp must be an integer between 0 and ${CONSTANTS.BASIS_POINTS} (basis points)`)
   }
 
+  const selfBp = value['selfBp']
+  if (selfBp !== undefined && selfBp !== null) {
+    if (typeof selfBp !== 'number' || !Number.isInteger(selfBp) || selfBp < 0 || BigInt(selfBp) > CONSTANTS.BASIS_POINTS) {
+      throw new RateTableError(`${where}.selfBp must be an integer between 0 and ${CONSTANTS.BASIS_POINTS} (basis points), or absent`)
+    }
+  }
+
   const fromHeight = value['fromHeight']
   if (typeof fromHeight !== 'number' || !Number.isInteger(fromHeight) || fromHeight < 0) {
     throw new RateTableError(`${where}.fromHeight must be a non-negative integer height`)
@@ -69,7 +90,13 @@ function parseRow(value: unknown, index: number): RateRow {
     throw new RateTableError(`${where}.note must be a string when present`)
   }
 
-  return Object.freeze({ ref, bp: BigInt(bp), fromHeight, note: typeof note === 'string' ? note : null })
+  return Object.freeze({
+    ref,
+    bp: BigInt(bp),
+    selfBp: typeof selfBp === 'number' ? BigInt(selfBp) : null,
+    fromHeight,
+    note: typeof note === 'string' ? note : null,
+  })
 }
 
 /** Validates a parsed JSON document into a table. Refuses rather than guesses: a bad table pays wrong amounts into final `M`s. */

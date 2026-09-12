@@ -14,6 +14,8 @@ import table from '../../../settlement/referral-rates.json'
 export interface RateRow {
   readonly ref: string | null
   readonly bp: number
+  /** The rate when the buyer already controls the referring name — `null`/absent means the row's own `bp` (settlement's `rates.ts`). */
+  readonly selfBp?: number | null
   readonly fromHeight: number
   readonly note?: string
 }

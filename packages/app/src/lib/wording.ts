@@ -496,6 +496,30 @@ export function priceHint(fees: readonly { readonly upTo: number; readonly yearl
 export const referredByLine = (ref: string, percent: string): string =>
   `Referred by ${ref}. Its owner earns ${percent} of the fee; you pay the same.`
 
+/**
+ * §10.7 made visible before the review: a stored ref is about to travel with a
+ * registration, and a field the user cannot see is one they cannot correct.
+ * The strip is where it is shown, on the landing page and on Buy, and the
+ * remove control beside it is the correction.
+ */
+export const REFERRER_STRIP = {
+  label: 'Referred by',
+  note: 'Your price is unchanged',
+  remove: 'Remove',
+  removeLabel: 'Remove this referrer',
+} as const
+export const referrerEarnsLine = (percent: string): string => `Its owner earns ${percent} of the registration fee.`
+/** A pasted share link is a link, not a search — say which of the two just happened. */
+export const referrerFromLinkLine = (ref: string): string => `Share link read — referred by ${ref}.`
+/**
+ * The self-referral case (settlement's `selfBp`): the buyer already controls
+ * the referring name, so a share would move the treasury's money from the
+ * payer back to the payer. Nothing is refused — the ref is simply dropped,
+ * and this says so rather than promising a share that will not be paid.
+ */
+export const referredBySelfLine = (ref: string): string =>
+  `${ref} is your own name, so no referral share is paid. The price is the same either way.`
+
 export const giftRenewalLabel = (): string => 'Gift a renewal'
 
 /** The review line that makes the gift explicit before the wallet opens. */

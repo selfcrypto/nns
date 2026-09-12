@@ -3139,11 +3139,23 @@ the log and the published rate table computes the same shares:
   computable from the log and the table by anyone, and disagreeing with the
   payer never changes a root.
 
-Self-referral is bounded by construction. The referring name must already
-be registered, so an owner registering junk under their own name pays the
-full fee and receives `rate` of it back — at any rate below 100% farming
-costs more than not registering, and the price floor that bounds the log
-(§8.2) holds. The rate is otherwise set for distribution, not defence.
+- **Self-referral is priced by the table, not refused.** A `G` whose
+  effective sender (§7.2) already controls the `ref` — as its owner, or as
+  the `target` the share would be paid to — is a referral that brought
+  nobody: the treasury would move money from the payer back to the payer.
+  The rate table carries a second column, `selfBp`, for exactly that case;
+  a row without one prices it at the row's own rate. The launch default is
+  **0 bp**, so nothing is owed. It is a rate rather than a switch because
+  it must inherit the row's height: a payer recomputing an old log has to
+  reproduce the shares that were actually paid, and a flag flipped today
+  would rewrite them.
+
+Farming is bounded independently of that rate. The referring name must
+already be registered, so an owner registering junk under their own name
+pays the full fee and receives at most `rate` of it back — at any rate
+below 100% farming costs more than not registering, and the price floor
+that bounds the log (§8.2) holds. Self-referral is priced at nothing
+because it is not distribution, not because it is an attack.
 
 **Independent-publisher stipend.** A per-checkpoint payment to operators who
 anchor a root matching consensus (§9). The qualifying condition is

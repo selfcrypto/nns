@@ -26,7 +26,12 @@
  *   buyer who renews or extends next month earns the referrer nothing
  *   (Kike, 2026-09-12). Never `tx.value`: an overpayment must not farm a
  *   share;
- * - the rate is the table's row for `(ref, height)`;
+ * - the rate is the table's row for `(ref, height)`, and the row's `selfBp`
+ *   when the buyer already controls the referring name — the treasury does
+ *   not pay somebody for bringing themselves. Only the naive case is
+ *   catchable, since a second address defeats any test of this kind, but the
+ *   naive case is the one the share link makes easy: copy your own link,
+ *   open it once, and the next registration is self-referred;
  * - an `M` from `TREASURY_ADDRESS` referencing the `G`, to the payee, for
  *   exactly the amount, settles it — the four-coordinate match §6 `M` uses
  *   for the reducer's own legs.
@@ -52,6 +57,7 @@
 import {
   addressEquals,
   CONSTANTS,
+  effectiveSender,
   feeFor,
   parse,
   refKey,
@@ -83,6 +89,13 @@ export interface Referral {
   readonly owedBy: Address
   /** The referrer's `target` at the `G`'s position. */
   readonly owedTo: Address
+  /** Who bought — the `G`'s effective sender (§7.2), which is the new name's owner. */
+  readonly buyer: Address
+  /**
+   * The buyer already controls the referring name, so a share would move
+   * money from the payer back to the payer. Priced by the row's `selfBp`.
+   */
+  readonly selfReferred: boolean
   /** The fee owed the share is taken on — the band's, ×LIFETIME_MULTIPLIER for a lifetime `G`. */
   readonly price: bigint
 }
@@ -100,15 +113,21 @@ export interface SettledShare {
 }
 
 /**
- * A referral payment this process cannot check: the log says who was paid and
- * for which `G`, and no row prices it. Not a finding — the reading of someone
- * who does not hold the operator's table, which is most readers.
+ * A referral payment with no amount behind it: the log says who was paid and
+ * for which `G`, and the table priced it at nothing. `reason` says which of
+ * the two very different cases this is.
  */
 export interface UnpricedShare {
   readonly referral: Referral
   readonly paidAt: TxRef
   readonly paidBy: string
   readonly paid: bigint
+  /**
+   * Why no amount was owed. `no-rate` is the outsider's reading — no row here
+   * prices it. `self-referral` is a policy answer, not a missing one: the row
+   * prices this case at nothing, and somebody paid anyway.
+   */
+  readonly reason: 'no-rate' | 'self-referral'
 }
 
 /**
@@ -149,12 +168,21 @@ export function referralOf(before: NnsState, tx: ChainTransaction, at: TxRef, ve
   if (!parsed.ok || parsed.message.type !== 'G' || parsed.message.ref === null) return null
   const referrer = before.names.get(parsed.message.ref)
   if (referrer === undefined || referrer.status !== 'REGISTERED') return null
+  // Who bought is the attributed sender, never `tx.sender`: a registration
+  // from Nimiq Pay arrives from a one-shot HTLC, and comparing that address
+  // to anything would say no every time (§7.2).
+  const buyer = effectiveSender(tx)
   return Object.freeze({
     ref: at,
     name: parsed.message.name,
     referrer: parsed.message.ref,
     owedBy: CONSTANTS.TREASURY_ADDRESS,
     owedTo: referrer.target,
+    buyer,
+    // The owner as well as the payee: an owner who points `target` at a
+    // second address of their own would otherwise be paid for buying from
+    // themselves, which is the whole of what this catches.
+    selfReferred: addressEquals(buyer, referrer.target) || addressEquals(buyer, referrer.owner),
     price: feeFor(parsed.message.name, before.prices, parsed.message.lifetime),
   })
 }
@@ -178,9 +206,12 @@ export function shareOwed(before: NnsState, tx: ChainTransaction, at: TxRef, ver
 function priced(referral: Referral, table: RateTable): ShareLeg | null {
   const row = rateFor(table, referral.referrer, referral.ref.height)
   if (row === null) return null
-  const amount = shareAmount(referral.price, row.bp)
+  // A self-referral is priced by the row's own answer for that case, so the
+  // policy is published where the rates are and carries their height.
+  const bp = referral.selfReferred ? (row.selfBp ?? row.bp) : row.bp
+  const amount = shareAmount(referral.price, bp)
   if (amount <= 0n) return null
-  return Object.freeze({ ...referral, amount, rateBp: row.bp })
+  return Object.freeze({ ...referral, amount, rateBp: bp })
 }
 
 export interface ShareCollector {
@@ -230,7 +261,9 @@ export function createShareCollector(table: RateTable): ShareCollector {
       if (!addressEquals(candidate.referral.owedTo, event.tx.recipient)) return
       open.delete(shareKey({ ref: named }))
       const paid = { paidAt: event.at, paidBy: event.tx.hash, paid: event.tx.value }
-      if (candidate.leg === null) unpriced.push({ referral: candidate.referral, ...paid })
+      if (candidate.leg === null) {
+        unpriced.push({ referral: candidate.referral, ...paid, reason: candidate.referral.selfReferred ? 'self-referral' : 'no-rate' })
+      }
       else if (candidate.leg.amount === event.tx.value) settled.push({ leg: candidate.leg, settledAt: event.at, settledBy: event.tx.hash })
       else mispaid.push({ leg: candidate.leg, ...paid })
     },

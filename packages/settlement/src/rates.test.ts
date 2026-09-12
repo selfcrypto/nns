@@ -19,7 +19,23 @@ describe('parseRateTable', () => {
 
   it('turns bp into bigint and keeps the note as text', () => {
     const parsed = table([{ ref: null, bp: 1000, fromHeight: 0, note: 'default' }])
-    expect(parsed.rows[0]).toEqual({ ref: null, bp: 1000n, fromHeight: 0, note: 'default' })
+    expect(parsed.rows[0]).toEqual({ ref: null, bp: 1000n, selfBp: null, fromHeight: 0, note: 'default' })
+  })
+
+  // A row written before the field existed says nothing about the case, and
+  // saying nothing has to keep meaning what it meant — otherwise adding the
+  // field would silently restate every published rate.
+  it('selfBp is optional, and absent is null rather than zero', () => {
+    expect(table([{ ref: null, bp: 1000, fromHeight: 0 }]).rows[0]?.selfBp).toBeNull()
+    expect(table([{ ref: null, bp: 1000, selfBp: 0, fromHeight: 0 }]).rows[0]?.selfBp).toBe(0n)
+    expect(table([{ ref: null, bp: 1000, selfBp: 500, fromHeight: 0 }]).rows[0]?.selfBp).toBe(500n)
+    expect(table([{ ref: null, bp: 1000, selfBp: null, fromHeight: 0 }]).rows[0]?.selfBp).toBeNull()
+  })
+
+  it('refuses a selfBp that is not basis points', () => {
+    expect(() => table([{ ref: null, bp: 1000, selfBp: -1, fromHeight: 0 }])).toThrow(/selfBp/)
+    expect(() => table([{ ref: null, bp: 1000, selfBp: 10_001, fromHeight: 0 }])).toThrow(/selfBp/)
+    expect(() => table([{ ref: null, bp: 1000, selfBp: '0', fromHeight: 0 }])).toThrow(/selfBp/)
   })
 
   it('refuses a table with no default row — an unlisted name would have no rate', () => {

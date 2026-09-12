@@ -408,12 +408,20 @@ export function describeSnapshot(snapshot: WatchSnapshot): readonly string[] {
   }
 
   if (snapshot.unpricedShares.length > 0) {
-    out.push('')
-    out.push(`${snapshot.unpricedShares.length} referral payment(s) this table does not price:`)
-    for (const item of snapshot.unpricedShares) {
-      out.push(
-        `  ${refKey(item.paidAt)} for ${refKey(item.referral.ref)} ${item.referral.name} via ${item.referral.referrer}, ${nim(item.paid)} NIM, tx ${item.paidBy}`,
-      )
+    const own = snapshot.unpricedShares.filter((item) => item.reason === 'self-referral')
+    const noRate = snapshot.unpricedShares.filter((item) => item.reason === 'no-rate')
+    for (const [heading, group] of [
+      [`${own.length} SELF-REFERRAL(S) were paid a share the table prices at nothing (§10.7):`, own],
+      [`${noRate.length} referral payment(s) this table does not price:`, noRate],
+    ] as const) {
+      if (group.length === 0) continue
+      out.push('')
+      out.push(heading)
+      for (const item of group) {
+        out.push(
+          `  ${refKey(item.paidAt)} for ${refKey(item.referral.ref)} ${item.referral.name} via ${item.referral.referrer}, ${nim(item.paid)} NIM, tx ${item.paidBy}`,
+        )
+      }
     }
   }
 

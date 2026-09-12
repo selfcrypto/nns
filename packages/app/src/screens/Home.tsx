@@ -3,7 +3,9 @@ import { useAsync } from '../lib/useAsync'
 import { getBurn } from '../lib/api'
 import { apiBase } from '../lib/nns'
 import { lunaToNim } from '../lib/format'
-import { LANDING } from '../lib/wording'
+import { LANDING, referrerFromLinkLine } from '../lib/wording'
+import { referralFromLink, rememberReferral, storedReferral } from '../lib/referral'
+import { ReferrerStrip } from '../components/ReferrerStrip'
 import styles from './landing-page.module.css'
 
 /**
@@ -113,9 +115,29 @@ function RawAddresses({ prefix }: { prefix: string }) {
 
 export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) => void; onOpenApp: () => void }) {
   const [query, setQuery] = useState('')
+  const [linkNote, setLinkNote] = useState<string | null>(null)
   const burn = useAsync(() => getBurn(apiBase()), [])
   const searchInput = useRef<HTMLInputElement>(null)
   const { hero, features, steps, chains, burn: burnCopy, cta, footer } = LANDING
+
+  /**
+   * A **share link** pasted into the hero is read as a link, not searched as
+   * a name — the same rule Buy and Pay apply to their own boxes. Here it also
+   * covers the reader who was sent a link, opened it in a browser and then
+   * pasted it again out of habit.
+   */
+  const acceptQuery = (value: string) => {
+    const ref = referralFromLink(value)
+    if (ref === null) {
+      setLinkNote(null)
+      setQuery(value)
+      return
+    }
+    setQuery('')
+    void rememberReferral(ref)
+      .then(storedReferral)
+      .then((stored) => setLinkNote(stored === null ? null : referrerFromLinkLine(stored)))
+  }
 
   const stat = (value: bigint | null) => (value === null ? '…' : lunaToNim(value))
   const figures = burn.status === 'done' ? burn.value : null
@@ -154,7 +176,7 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
                   spellCheck={false}
                   placeholder={hero.placeholder}
                   value={query}
-                  onChange={(event) => setQuery(event.target.value)}
+                  onChange={(event) => acceptQuery(event.target.value)}
                   aria-label={hero.placeholder}
                 />
                 <button className={`hero-search-go ${styles.searchBtn}`} type="submit" disabled={query.trim() === ''}>
@@ -162,6 +184,9 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
                 </button>
               </div>
             </form>
+
+            {linkNote !== null && <p className={styles.heroLinkNote}>{linkNote}</p>}
+            <ReferrerStrip className={styles.heroReferrer} />
 
             <div className={styles.heroActions}>
               <button type="button" className={styles.heroAppBtn} onClick={onOpenApp}>
