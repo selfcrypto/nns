@@ -3,7 +3,7 @@ import { useAsync } from '../lib/useAsync'
 import { getBurn } from '../lib/api'
 import { apiBase } from '../lib/nns'
 import { lunaToNim } from '../lib/format'
-import { LANDING, referrerFromLinkLine } from '../lib/wording'
+import { LANDING, referrerKeptLine } from '../lib/wording'
 import { referralFromLink, rememberReferral, storedReferral } from '../lib/referral'
 import { ReferrerStrip } from '../components/ReferrerStrip'
 import styles from './landing-page.module.css'
@@ -136,7 +136,7 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
     setQuery('')
     void rememberReferral(ref)
       .then(storedReferral)
-      .then((stored) => setLinkNote(stored === null ? null : referrerFromLinkLine(stored)))
+      .then((stored) => setLinkNote(stored === null || stored === ref ? null : referrerKeptLine(stored)))
   }
 
   const stat = (value: bigint | null) => (value === null ? '…' : lunaToNim(value))

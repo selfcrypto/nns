@@ -19,7 +19,7 @@ import {
   SCREEN_TITLE,
   queryFaultLine,
   shortNameNoteLine,
-  referrerFromLinkLine,
+  referrerKeptLine,
   tryLabel,
   unreachableLine,
 } from '../lib/wording'
@@ -72,10 +72,10 @@ export function BuyScreen({
    * the whole referral programme is unreachable from the wallet it is for.
    *
    * The box is emptied rather than filled, because a URL is not a name and a
-   * failing search would be the only other answer. What the strip then shows
-   * is read back from the store, not from the paste: first-wins means the ref
-   * already held keeps the slot, and saying otherwise would name the wrong
-   * owner.
+   * failing search would be the only other answer. The strip appearing is the
+   * answer to "did that do anything"; the note beside it exists only for the
+   * case the strip cannot answer, a paste whose ref was **not** taken because
+   * first-wins kept the one already held.
    */
   const acceptQuery = (value: string) => {
     const ref = referralFromLink(value)
@@ -87,7 +87,7 @@ export function BuyScreen({
     setText('')
     void rememberReferral(ref)
       .then(storedReferral)
-      .then((stored) => setLinkNote(stored === null ? null : referrerFromLinkLine(stored)))
+      .then((stored) => setLinkNote(stored === null || stored === ref ? null : referrerKeptLine(stored)))
   }
 
   // Off `query`, not `text`: a hint about a string still being typed is the

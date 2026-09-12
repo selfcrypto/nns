@@ -509,8 +509,13 @@ export const REFERRER_STRIP = {
   removeLabel: 'Remove this referrer',
 } as const
 export const referrerEarnsLine = (percent: string): string => `Its owner earns ${percent} of the registration fee.`
-/** A pasted share link is a link, not a search — say which of the two just happened. */
-export const referrerFromLinkLine = (ref: string): string => `Share link read — referred by ${ref}.`
+/**
+ * A pasted share link whose ref was **not** taken, because one is already
+ * held: first wins (§10.7's client half). The strip answers the ordinary
+ * case by appearing, so this line exists only for the one it cannot — a box
+ * that emptied and a strip that did not change.
+ */
+export const referrerKeptLine = (ref: string): string => `You were already referred by ${ref}, so that link was not used.`
 /**
  * The self-referral case (settlement's `selfBp`): the buyer already controls
  * the referring name, so a share would move the treasury's money from the

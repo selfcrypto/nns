@@ -90,17 +90,23 @@ const helpers = `
 // A browser opens on the landing page; every scenario but `home` starts from
 // Buy, which is a route (`#/buy`, lib/route.ts) since 2026-09-09 — before
 // that, `load` had to go through the hero's search.
+// Scenarios share one profile, so state one leaves behind is the next one's
+// starting condition: an owner-* run's seeded identity would make the next
+// anonymous one the owner of `nns`, and a stored referral would put the
+// referrer strip on every shot after `*-referrer`.
+const clearProfile = `localStorage.removeItem('nns.hub.addresses'); indexedDB.deleteDatabase('nns-app-referral'); true`
 const landing = async () => {
+  await send('Page.navigate', { url: URL })
+  await sleep(300)
+  await evaluate(clearProfile)
   await send('Page.navigate', { url: URL })
   await sleep(1500)
   await evaluate(helpers)
 }
 const load = async () => {
-  // Scenarios share one profile, so an owner-* run's seeded identity would
-  // make the next anonymous one the owner of `nns`.
   await send('Page.navigate', { url: URL })
   await sleep(300)
-  await evaluate(`localStorage.removeItem('nns.hub.addresses'); true`)
+  await evaluate(clearProfile)
   await send('Page.navigate', { url: `${URL}#/buy` })
   await sleep(1500)
   await evaluate(helpers)
@@ -127,6 +133,8 @@ const tab = async (label) => {
 }
 
 const OWNER = process.env['NNS_SHOT_OWNER'] ?? 'NQ42 5QRF L5AV J6K3 BQHQ FAE8 XXHR TS8Y 9YRA'
+/** The referrer the strip scenarios credit — a name, not a resolution, so it need not exist. */
+const REF = process.env['NNS_SHOT_REF'] ?? 'erabexchange'
 const loadAsOwner = async () => {
   await send('Page.navigate', { url: URL })
   await sleep(300)
@@ -145,6 +153,23 @@ const scenarios = {
     await evaluate(`__clickText('button', 'My names')`)
     await sleep(2500)
     await shot('home-my-names')
+  },
+  // The referrer strip (§10.7, 2026-09-12). It is the only sight a user gets
+  // of a ref before the review sheet, and it carries the control that removes
+  // one — so it is worth looking at rather than reasoning about.
+  'home-referrer': async () => {
+    await landing()
+    await send('Page.navigate', { url: `${URL}?ref=${REF}` })
+    await sleep(2000)
+    await shot('home-referrer')
+  },
+  // Reached by pasting a share link into Buy's box, which is the route a
+  // reader inside Nimiq Pay has: no address bar, no app-link association.
+  'buy-referrer': async () => {
+    await load()
+    await evaluate(`__type('.search-input', ${JSON.stringify(`https://nimiqnames.com/?ref=${REF}`)})`)
+    await sleep(2000)
+    await shot('buy-referrer')
   },
   'owner-names': async () => { await loadAsOwner(); await tab('My Names'); await sleep(2500); await shot('owner-names') },
   'owner-detail': async () => {

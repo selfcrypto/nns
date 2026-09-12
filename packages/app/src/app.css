@@ -3585,6 +3585,8 @@ li.note {
 .referrer-strip-icon {
   color: var(--ink-faint);
   flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
 }
 
 .referrer-strip-text {
