@@ -56,12 +56,17 @@ The decision is the constants', not a deploy flag: `isCompressedEra`
 show it and an era bundle cannot forget it. Kike, 2026-09-11: testers must
 not think they are buying final names at a test price.
 
-**A browser opens on a landing page first** (`screens/Home.tsx`, since
-2026-09-07, Bakar's PR #1): marketing, full-width, the tab bar hidden, and
-one way in — its search hands the query to Buy. Inside Nimiq Pay the
-person already chose the app, so the front door there is Buy
-(`isHostedWebView`, corrected by `detectWallet` if the provider arrived
-late). The wordmark returns to the landing page.
+**Both hosts open on the landing page** (`screens/Home.tsx`, since
+2026-09-07, Bakar's PR #1; Nimiq Pay too since 2026-09-12): marketing,
+full-width, the tab bar hidden. Pay opened on Buy until then, on the
+reasoning that the person there had already chosen the app — but what Buy is
+is a search field, and an owner who wants to configure a name they hold had
+no way to say so, nor a reader any way to reach the docs. So the tab bar's
+absence is covered by three doors in the hero, all above the fold at 390 px:
+the search field hands a query to Buy, **My names** goes to `#/names` (where
+the tab bar appears and the other four are one tap away), and **How it
+works** goes to `#/docs/intro`. The wordmark returns to the landing page
+from anywhere.
 
 **The screen is the URL hash** (`lib/route.ts`, 2026-09-09, Bakar's
 suggestion): `#/buy/nns`, `#/pay/rico.nns`, `#/names/nns` (a name handed to
@@ -195,7 +200,9 @@ address, the verification line and the pin check, the same three the Buy
 card shows, so nobody pays for a name they have not seen verified. The
 custodial disclosure rides on the listing as well, and the §10.2 burn
 figures (`components/BurnFigures.tsx`) sit under it — Market is the app
-path's home for them, because Pay never opens the landing page.
+path's home for them, from when Pay never opened the landing page. It does
+since 2026-09-12, and the figures stay on Market: the landing page's copy is
+marketing, and a person deciding on a listing should not have to leave it.
 
 ### Pay — one payment to a name
 

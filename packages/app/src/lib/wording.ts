@@ -892,6 +892,13 @@ export const LANDING = {
     sub: 'One name instead of an address.',
     placeholder: 'Search for a name',
     go: 'Search',
+    // The search field is the door for someone who has a name in mind. These
+    // two are the other doors: an owner who wants to configure a name they
+    // already hold, and a reader who wants to know what this is before
+    // touching it. Nimiq Pay opens on this page, so they are the app's only
+    // entry points there that are not a search box (App.tsx).
+    openApp: 'My names',
+    learn: 'How it works',
     trust: ['On-chain', 'Self-custody', 'No smart contracts'],
   },
   marquee: { linked: 'Linked addresses' },

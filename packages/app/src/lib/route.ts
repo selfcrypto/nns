@@ -4,8 +4,8 @@
  * `#/<tab>[/<param>]` — `#/buy/nns`, `#/pay/rico.nns`, `#/names/nns` (the
  * name handed to My names to manage), `#/market/indigo` (the listing to open),
  * `#/docs/prices` (the documentation page), `#/inbox`, `#/home`. An empty or
- * unknown hash is the caller's default: the landing page in a browser, Buy
- * inside Nimiq Pay (`App.tsx`).
+ * unknown hash is the caller's default, which is the landing page in both
+ * hosts since 2026-09-12 — a browser and Nimiq Pay alike (`App.tsx`).
  *
  * The hash rather than the path, and no router library: `deploy/service`'s
  * nginx deliberately answers an unknown path with 404 so a stale script URL

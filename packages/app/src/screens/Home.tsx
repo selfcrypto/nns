@@ -7,11 +7,14 @@ import { LANDING } from '../lib/wording'
 import styles from './landing-page.module.css'
 
 /**
- * **Home** — the landing page a browser opens on (Pay opens on Buy, App.tsx).
- * Marketing, not the app: nothing here resolves a name or shows a state, and
- * the one action is handing a query to Buy. Every string is `LANDING` in
- * `wording.ts`; the layout is `landing-page.module.css`, which reaches into
- * the masthead through `:global(.frame.is-home …)`.
+ * **Home** — the landing page both hosts open on, a browser and Nimiq Pay
+ * alike (App.tsx). Marketing, not the app: nothing here resolves a name or
+ * shows a state. It has three ways in, because the tab bar is hidden here and
+ * a search field is only one of them: the hero's query goes to Buy,
+ * `onOpenApp` goes to My names, and "How it works" goes to the docs. Every
+ * string is `LANDING` in `wording.ts`; the layout is
+ * `landing-page.module.css`, which reaches into the masthead through
+ * `:global(.frame.is-home …)`.
  */
 
 /**
@@ -108,7 +111,7 @@ function RawAddresses({ prefix }: { prefix: string }) {
   )
 }
 
-export function HomeScreen({ onSearch }: { onSearch: (query: string) => void }) {
+export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) => void; onOpenApp: () => void }) {
   const [query, setQuery] = useState('')
   const burn = useAsync(() => getBurn(apiBase()), [])
   const searchInput = useRef<HTMLInputElement>(null)
@@ -159,6 +162,18 @@ export function HomeScreen({ onSearch }: { onSearch: (query: string) => void }) 
                 </button>
               </div>
             </form>
+
+            <div className={styles.heroActions}>
+              <button type="button" className={styles.heroAppBtn} onClick={onOpenApp}>
+                <span>{hero.openApp}</span>
+                <Arrow size={17} />
+              </button>
+              {/* A hash link, so the reader stays in this copy of the app — the
+                  footer's docs links say the same thing at more length. */}
+              <a className={styles.heroLearnLink} href="#/docs/intro">
+                {hero.learn}
+              </a>
+            </div>
 
             <div className={styles.trustLine}>
               {hero.trust.map((label, i) => (

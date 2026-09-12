@@ -2706,3 +2706,64 @@
   color: #F86E4B;
 }
 
+
+/* The hero's other two doors (2026-09-12). The search field below the title
+   serves someone who has a name in mind; these serve the owner who wants to
+   manage a name they already hold, and the reader who wants to know what this
+   is first. They matter most inside Nimiq Pay, which opens on this page and
+   hides the tab bar while it is showing — a person who scrolled past them
+   would find no way into the app but a search box. Above the fold on a phone,
+   so they cost no scroll to the person who opens the app twice a day. */
+.heroActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin-top: 18px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.heroAppBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFFFFF;
+  color: var(--ink);
+  border: 1px solid rgba(31, 35, 72, 0.14);
+  border-radius: 10px;
+  padding: 11px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 6px 18px rgba(31, 35, 72, 0.06);
+}
+
+.heroAppBtn:hover {
+  border-color: #F6851B;
+  color: #F6851B;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(246, 133, 27, 0.14);
+}
+
+.heroLearnLink {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(31, 35, 72, 0.2);
+  padding-bottom: 1px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.heroLearnLink:hover {
+  color: #F6851B;
+  border-bottom-color: #F6851B;
+}
+
+/* The trust line's own 28px assumed it followed the search field directly. */
+.heroActions + .trustLine {
+  margin-top: 20px;
+}

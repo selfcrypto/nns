@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { appConfig, ConfigParseError } from './config'
-import { applyHostChrome, describeChrome, isHostedWebView } from './lib/chrome'
+import { applyHostChrome, describeChrome } from './lib/chrome'
 import { formatRoute, parseRoute, TABS, type NavTab, type Route, type Tab } from './lib/route'
 import { detectWallet, type Wallet } from './lib/wallet'
 import { referralFromLocation, rememberReferral } from './lib/referral'
@@ -41,6 +41,9 @@ const TAB_ICON: Record<NavTab, TabIconName> = {
   market: 'market',
 }
 
+/** The tab an empty or unparseable hash means. See `App`'s first comment. */
+const DEFAULT_TAB: Tab = 'home'
+
 /**
  * `?diag=1` — the host readout. Nimiq Pay's WebView takes no console and no
  * remote debugger, so the only way facts about it reach a developer is on the
@@ -76,13 +79,15 @@ function configProblem(): string | null {
 
 export function App() {
   // The screen is the URL hash (`lib/route.ts`): a reload and a shared link
-  // land where the person was. An empty hash is the landing page for a
-  // browser and Buy inside Nimiq Pay — the person there already chose the
-  // app. `isHostedWebView` can miss the provider before the first paint, and
-  // `detectWallet` corrects the default below.
-  const [defaultTab, setDefaultTab] = useState<Tab>(() => (isHostedWebView(window) ? 'buy' : 'home'))
+  // land where the person was. An empty hash is the landing page, in a browser
+  // and inside Nimiq Pay alike. Pay opened on Buy until 2026-09-12, on the
+  // reasoning that the person there had already chosen the app; what they had
+  // actually chosen was a search field, which is the wrong door for someone
+  // who owns a name already and wants to configure it — and it left the docs
+  // with no entry point at all inside Pay. Home is the one page that names
+  // every way in, so both hosts start there.
   const [hash, setHash] = useState(() => window.location.hash)
-  const route = useMemo(() => parseRoute(hash, defaultTab), [hash, defaultTab])
+  const route = useMemo(() => parseRoute(hash, DEFAULT_TAB), [hash])
   const tab = route.tab
   const [wallet, setWallet] = useState<Wallet | null>(null)
   /** The identity row's address list, open or closed. */
@@ -139,7 +144,6 @@ export function App() {
       } catch {
         /* keep whatever the first pass decided */
       }
-      if (detected.identity.kind === 'pay') setDefaultTab('buy')
       setWallet(detected)
     })
     return () => {
@@ -228,7 +232,12 @@ export function App() {
       <EraNotice />
       <main className="content">
         {diagnostic && <ChromeDiagnostic wallet={wallet} />}
-        {tab === 'home' && <HomeScreen onSearch={(query) => navigate({ tab: 'buy', param: query })} />}
+        {tab === 'home' && (
+          <HomeScreen
+            onSearch={(query) => navigate({ tab: 'buy', param: query })}
+            onOpenApp={() => navigate({ tab: 'names', param: null })}
+          />
+        )}
         {tab === 'buy' && (
           <BuyScreen
             key={route.param ?? ''}

@@ -137,6 +137,15 @@ const loadAsOwner = async () => {
 }
 const scenarios = {
   'home': async () => { await landing(); await sleep(1500); await shot('home', true) },
+  // The hero's other two doors (2026-09-12). Both hosts open on Home and the
+  // tab bar is hidden while it shows, so a person who is not searching has to
+  // find one of these — which is the whole reason they exist.
+  'home-my-names': async () => {
+    await landing()
+    await evaluate(`__clickText('button', 'My names')`)
+    await sleep(2500)
+    await shot('home-my-names')
+  },
   'owner-names': async () => { await loadAsOwner(); await tab('My Names'); await sleep(2500); await shot('owner-names') },
   'owner-detail': async () => {
     await loadAsOwner(); await tab('My Names'); await sleep(2500)
