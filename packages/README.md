@@ -119,6 +119,11 @@ point it at other people's endpoints.
 
 ## Finding your way in
 
+**Integrating rather than contributing?** `docs/integration.md` is the guide:
+the HTTP API from any language, `@nns/resolver`, verifying proofs in your own
+language, subdomains for an exchange, writing to the registry, running a
+resolver, and names on EVM chains — every example checked against the code.
+
 Each package has its own `CLAUDE.md` with the spec sections it implements and
 the invariants that are easy to break. Six — `core`, `indexer`, `api`,
 `resolver`, `relay` and `delegate` — also have a `MAP.md` listing every

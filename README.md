@@ -98,6 +98,7 @@ is a lost name, as in ENS.
 | Path | |
 |---|---|
 | `docs/nns-spec-v1.md` | **The protocol specification.** Authoritative |
+| `docs/integration.md` | **The integration guide** — the HTTP API from any language, the `@nns/resolver` library, verifying proofs yourself, subdomains for exchanges, writing to the registry, running a resolver, names on EVM chains |
 | `docs/rpc-reference.md` | What Nimiq's RPC actually does, measured not assumed |
 | `docs/decisions.md` | Every reading taken where the spec was silent, with the argument |
 | `docs/status.md` | What is built, what is next. Where a new session starts |

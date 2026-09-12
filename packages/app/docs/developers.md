@@ -2,6 +2,8 @@
 
 Three ways in, from easiest to lowest level: the resolver library, the HTTP API, and the wire format itself. Everything on this page is MIT, and every rule the library applies comes from one reference implementation, `@nns/core`, so nothing here can drift from the protocol.
 
+This page is the short form. The exhaustive guide — every route with live examples, the library's full result and error shapes, verifying a proof in Python or Solidity, deposit subdomains for an exchange, sending every message from the Hub, from Nimiq Pay and from your own node, and running a resolver — is `docs/integration.md` in the repository, `github.com/selfcrypto/nns`.
+
 ## Resolve a name in your app
 
 ```sh

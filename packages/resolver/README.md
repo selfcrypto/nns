@@ -3,6 +3,11 @@
 Turn an NNS name into a Nimiq address, and check the answer before your users
 pay it.
 
+This is the library's own reference. The wider picture — the HTTP API from
+any language, verifying proofs without this package, subdomains for an
+exchange, writing to the registry, running a resolver — is
+`docs/integration.md` at the repository root.
+
 ```ts
 import { createResolver } from '@nns/resolver'
 
