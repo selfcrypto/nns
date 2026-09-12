@@ -475,6 +475,52 @@ describe('issuePass — what it does not pay', () => {
   })
 })
 
+describe('issuePass — two legs, one transaction', () => {
+  // A `G` whose buyer overpaid by exactly the rebate: §10.5 owes the buyer a
+  // REFUND and §10.7 owes the same buyer a REFERRAL_REBATE, same ref, same
+  // amount, same payer. `kind` is in the ledger key and in nothing the node
+  // hashes, so the two plans are the same bytes — and the node answers the
+  // second send with the first one's hash.
+  const surplus = 4_00000n
+  const owed = (kind: LedgerEntry['kind'], amount = surplus) =>
+    entry({ ref: { height: 1_010, txIndex: 0 }, kind, amount, owedBy: TREASURY, owedTo: WINNER })
+
+  it('sends one and defers the other rather than pinning bytes the node has taken', async () => {
+    const run = pass([owed('REFUND'), owed('REFERRAL_REBATE')], { send: true })
+    const report = await run.report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:REFUND sent', '1010:0:REFERRAL_REBATE collided'])
+    expect(report.outcomes[1]).toMatchObject({ withKey: '1010:0:REFUND' })
+    // Nothing pinned for the deferred leg: it stays DUE and is planned afresh
+    // next pass, at a later head, where the bytes differ.
+    expect(run.ledger.pins).toHaveLength(1)
+    expect(run.recorder.calls.filter((call) => call === 'sendBasicTransactionWithData')).toHaveLength(1)
+  })
+
+  it('spends no budget on the collided leg, so the next creditor is still paid', async () => {
+    const other = entry({ ref: { height: 1_011, txIndex: 0 }, kind: 'REFUND', amount: surplus, owedBy: TREASURY, owedTo: SELLER })
+    const report = await pass([owed('REFUND'), owed('REFERRAL_REBATE'), other], {
+      send: true,
+      balances: { [TREASURY]: 8_00000 },
+    }).report
+    expect(kinds(report.outcomes)).toEqual([
+      '1010:0:REFUND sent',
+      '1010:0:REFERRAL_REBATE collided',
+      '1011:0:REFUND sent',
+    ])
+  })
+
+  it('leaves two legs that differ by a single luna alone — they are two transactions', async () => {
+    const report = await pass([owed('REFUND'), owed('REFERRAL_REBATE', surplus - 1n)], { send: true }).report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:REFUND sent', '1010:0:REFERRAL_REBATE sent'])
+  })
+
+  it('says so on a dry run too, because that is what --send would do', async () => {
+    const report = await pass([owed('REFUND'), owed('REFERRAL_REBATE')]).report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:REFUND planned', '1010:0:REFERRAL_REBATE collided'])
+    expect(describeIssue(report).some((line) => line.includes('COLLIDED'))).toBe(true)
+  })
+})
+
 describe('issuePass — resuming a pinned attempt', () => {
   const live = attempt({ validityStartHeight: 1_400, expiresAfter: 1_520, attemptNo: 3 })
   const claimed = entry({

@@ -113,6 +113,8 @@ export type LegOutcome =
   | { readonly kind: 'stalled'; readonly key: string; readonly attemptNo: number; readonly expiresAfter: number }
   /** `--limit` stopped the pass before this leg. */
   | { readonly kind: 'deferred'; readonly key: string }
+  /** Another leg in this pass is the same transaction, byte for byte. Next pass, at a new head. */
+  | { readonly kind: 'collided'; readonly key: string; readonly withKey: string }
   /** The send, or the write after it, threw. See the class docs for what each costs. */
   | { readonly kind: 'failed'; readonly key: string; readonly stage: 'key' | 'pin' | 'send' | 'record'; readonly message: string }
 
@@ -178,6 +180,21 @@ export function buildPlan(
     expiresAfter: head + expiryBlocks,
   })
 }
+
+/**
+ * A transaction's identity on the wire: everything the node hashes.
+ *
+ * Two legs with the same key are **one transaction**, not two — measured on
+ * the era, 2026-09-12: the node answers the second `sendBasicTransaction` with
+ * the first one's hash and one transfer lands. Every new plan in a pass is
+ * pinned at the same `validityStartHeight` (the pass's head), so that is
+ * reachable whenever one `G` owes one payee two equal amounts — which the
+ * buyer's rebate makes ordinary rather than exotic: a surplus on a referred
+ * `G` is a `REFUND` to the same buyer under the same ref (§10.5), and a buyer
+ * who overpays by exactly the rebate owes twice the same bytes.
+ */
+const wireKey = (plan: TransactionPlan): string =>
+  [plan.sender, plan.recipient, plan.value, plan.fee, plan.validityStartHeight, plan.data].join('|')
 
 /**
  * The plan an earlier run pinned, read back out of the ledger unchanged.
@@ -394,6 +411,8 @@ export async function issuePass(options: IssueOptions): Promise<IssueReport> {
   const left = new Map(balances)
   const wanted = new Map<Address, bigint>()
   const exhausted = new Set<Address>()
+  /** Wire identity → the leg that took it this pass. See `wireKey`. */
+  const wires = new Map<string, string>()
   let broadcast = 0
 
   for (const item of work) {
@@ -418,6 +437,22 @@ export async function issuePass(options: IssueOptions): Promise<IssueReport> {
       })
       continue
     }
+
+    // Two legs that are the same transaction are one transaction, and the
+    // second would be pinned to bytes the node has already taken — the leg
+    // would then sit CLAIMED until its window expired, which is two hours of a
+    // debt the operator believes is paid. Defer it instead: the next pass
+    // plans at a later head, and different bytes land. Checked before the pin
+    // for the same reason the key is (nothing ambiguous is committed) and
+    // before the balance draw, so a deferred leg does not spend a budget it
+    // never used.
+    const wire = wireKey(plan)
+    const taken = wires.get(wire)
+    if (taken !== undefined) {
+      outcomes.push({ kind: 'collided', key: entry.key, withKey: taken })
+      continue
+    }
+    wires.set(wire, entry.key)
 
     // §11.5 rule 1, before anything is pinned and long before anything is
     // signed. A sender that has run out stops here rather than skipping ahead
@@ -578,6 +613,9 @@ export function describeIssue(report: IssueReport): readonly string[] {
         break
       case 'deferred':
         out.push(`  ${outcome.key}  DEFERRED  --limit reached`)
+        break
+      case 'collided':
+        out.push(`  ${outcome.key}  COLLIDED  the same bytes as ${outcome.withKey} — one transaction, not two; paid next pass at a later head`)
         break
       case 'failed':
         out.push(`  ${outcome.key}  FAILED    at ${outcome.stage}: ${outcome.message}`)
