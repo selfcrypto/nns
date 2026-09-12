@@ -1,5 +1,5 @@
 {
-  "$comment": "§10.7 referral rate table — the policy the treasury's payer follows. `ref: null` is the default row; a row with a name overrides it for that referrer. `bp` is basis points of the fee in effect at the G's height. The row in effect for (ref, height) is the most specific ref among rows with fromHeight ≤ height, latest fromHeight winning. Append rows with a height; never edit one — a recomputation must reproduce every past share. The app's docs page renders this file.",
+  "$comment": "§10.7 referral rate table — the policy the treasury's payer follows. `ref: null` is the default row; a row with a name overrides it for that referrer. `bp` is basis points of the fee in effect at the G's height. The row in effect for (ref, height) is the most specific ref among rows with fromHeight ≤ height, latest fromHeight winning. `selfBp` is the rate when the buyer already controls the referring name (§7.2 effective sender); a row without one prices that case at its own `bp`. Append rows with a height; never edit one — a recomputation must reproduce every past share. The app's docs page renders this file.",
   "rates": [
     { "ref": null, "bp": 1000, "selfBp": 0, "fromHeight": 0, "note": "default — 10% of the fee in effect (decided 2026-09-10); selfBp 0: a buyer who already owns the referring name brought nobody (2026-09-12)" }
   ]
