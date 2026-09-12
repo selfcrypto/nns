@@ -48,7 +48,30 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     const parsed = parse(prepared.request.dataHex)
     expect(parsed.ok && parsed.message.type === 'G' && parsed.message.ref).toBe('ricomav')
     expect(prepared.request.value).toBe(200_000_000n) // the price is unchanged
-    expect(prepared.review.some((line) => line.startsWith('Referred by ricomav.') && line.includes('you pay the same'))).toBe(true)
+    expect(prepared.review.some((line) => line.startsWith('Referred by ricomav.') && line.includes('You pay the same'))).toBe(true)
+    // The buyer's screen never says what the referrer earns (wording.ts).
+    expect(prepared.review.some((line) => /owner earns/i.test(line))).toBe(false)
+  })
+
+  // The review reads the rate at the chain head, like the expiry line beside
+  // it. It used to fall back to height 0 when `/name` had not answered, which
+  // quoted the launch row — 10%, no rebate — on a screen registering at the
+  // split's rates. Kike hit it on the first manual registration (2026-09-12).
+  it('prices the referral at the head even when the name’s record has not arrived', () => {
+    const prepared = prepareAction({
+      inputs: { action: 'register', ref: 'ricomav' },
+      name: 'example',
+      info: null,
+      signer: OWNER,
+      viewers: [OWNER],
+      params: { ...params, height: 61_412_000 },
+      apiBase: 'http://api',
+      nowMs: NOW,
+    })
+    const line = prepared.review.find((l) => l.startsWith('Referred by ricomav.'))
+    expect(line).toBeDefined()
+    expect(line).toContain('5%')
+    expect(line).toMatch(/comes back to you/)
   })
 
   it('a ref that is not a name is dropped, not refused — the field is inert (§6 G)', () => {

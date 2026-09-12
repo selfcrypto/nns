@@ -249,26 +249,32 @@ describe('the wallet seam shows through in wording as little as in code', () => 
 })
 
 describe('the referral lines (§10.7)', () => {
-  it('the review says who benefits and that the price is unchanged', () => {
-    const line = referredByLine('ricomav', '10%')
+  // The review is the **buyer's** screen. What the referrer earns changes
+  // nothing they decide, so it is not on it (Kike, 2026-09-12: "no point into
+  // showing an user that is going to pay the same how much is going to
+  // receive the referrer"). Naming the referrer stays — a field travelling
+  // with their registration that they cannot see is one they cannot correct.
+  it('the review names the referrer and never what the referrer earns', () => {
+    const line = referredByLine('ricomav', '5%', true)
     expect(line).toContain('ricomav')
-    expect(line).toContain('10%')
-    expect(line).toContain('you pay the same')
+    expect(line).toContain('5%')
+    expect(line).toMatch(/comes back to you/)
+    expect(line).not.toMatch(/its owner earns/i)
+    expect(line).not.toMatch(/discount|cheaper|less/i)
+    // One rate on the line, so one percentage on the line.
+    expect(line.match(/%/g)).toHaveLength(1)
   })
 
-  // The wallet will ask for the whole fee. A line that let a reader think the
-  // rebate came off the price would be the one misreading that matters.
-  it('with a rebate, the review names both payouts and says the rebate comes after', () => {
-    const line = referredByLine('ricomav', '4%', '4%')
+  it('with no rebate the review is the line it was before the rebate existed', () => {
+    const line = referredByLine('ricomav')
     expect(line).toContain('ricomav')
-    expect(line).toMatch(/comes back to you/)
-    expect(line).not.toContain('you pay the same')
-    expect(line).not.toMatch(/discount|cheaper|less/i)
+    expect(line).toContain('You pay the same')
+    expect(line).not.toMatch(/%/)
   })
 
   it('the strip’s rebate line says back, not off', () => {
-    const line = buyerRebateLine('4%')
-    expect(line).toContain('4%')
+    const line = buyerRebateLine('5%')
+    expect(line).toContain('5%')
     expect(line).toMatch(/back/)
     expect(line).not.toMatch(/discount|off the price/i)
   })
@@ -279,26 +285,17 @@ describe('the referral lines (§10.7)', () => {
     expect(shareHint('10%')).toContain('pays the same price')
   })
 
-  // Kike publishes 5%, the payer sends 4%, and both numbers on one screen is
-  // one number too many. Every line states the headline and names the burn —
-  // once per surface, because a strip that says it twice is a strip nobody
-  // reads (Kike, 2026-09-12: "5% (minus burn fee) or something like that").
+  // Kike publishes 5% and the payer sends 4%. The screens say 5% and name the
+  // burn once, beside the number (Kike, 2026-09-12: "5% (minus burn fee) or
+  // something like that").
   describe('the burn beside the rate', () => {
-    it('the review line qualifies both rates in one aside', () => {
-      const both = referredByLine('ricomav', '5%', '5%', true)
-      expect(both).toContain('5%')
-      expect(both).toMatch(/both minus the registry’s burn/)
-      expect(both.match(/burn/g)).toHaveLength(1)
-      const share = referredByLine('ricomav', '5%', null, true)
-      expect(share).toMatch(/5% \(minus the registry’s burn\)/)
-    })
-
-    it('the strip says it once, on the second sentence, for both rates', () => {
-      const earns = referrerEarnsLine('5%')
-      const back = buyerRebateLine('5%', true)
-      expect(earns).not.toMatch(/burn/)
-      expect(back).toMatch(/both rates before the registry’s burn/)
-      expect(`${earns} ${back}`.match(/burn/g)).toHaveLength(1)
+    it('the review and the strip each name it once', () => {
+      const review = referredByLine('ricomav', '5%', true)
+      expect(review).toMatch(/5% \(minus the registry’s burn\)/)
+      expect(review.match(/burn/g)).toHaveLength(1)
+      const strip = buyerRebateLine('5%', true)
+      expect(strip).toMatch(/5% \(minus the registry’s burn\)/)
+      expect(strip.match(/burn/g)).toHaveLength(1)
     })
 
     it('a row the burn is not out of gets no aside at all', () => {

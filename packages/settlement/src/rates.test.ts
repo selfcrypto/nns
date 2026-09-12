@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 import { CONSTANTS } from '@nns/core'
 
-import { DEFAULT_RATES_PATH, parseRateTable, rateFor, RateTableError, readRateTable, shareAmount } from './rates.js'
+import { DEFAULT_RATES_PATH, parseRateTable, rateFor, RateTableError, readRateTable, rebateFor, shareAmount } from './rates.js'
 
 const table = (rates: readonly unknown[]) => parseRateTable({ rates })
 
@@ -148,3 +148,44 @@ describe('shareAmount', () => {
     expect(shareAmount(40_000_000n, 2500n)).toBe(10_000_000n)
   })
 })
+
+/**
+ * The rebate is the **buyer's** (Kike, 2026-09-12: "any user using a referral
+ * gets a fixed 5%, always, no matter the % we set for a certain referral").
+ * A partner row raises that partner's share; before this it also silently
+ * took the buyer's half away whenever it did not restate it, so the person
+ * the programme exists to attract got less for using the better link.
+ */
+describe('rebateFor', () => {
+  const partner = table([
+    { ref: null, bp: 1000, fromHeight: 0 },
+    { ref: null, bp: 400, rebateBp: 400, fromHeight: 100 },
+    { ref: 'bigco', bp: 2000, fromHeight: 100 },
+    { ref: 'stingy', bp: 2000, rebateBp: 0, fromHeight: 100 },
+  ])
+
+  it('falls back to the default row where a partner row states none', () => {
+    expect(rebateFor(partner, 'bigco', 100)).toBe(400n)
+    expect(rateFor(partner, 'bigco', 100)?.bp).toBe(2000n)
+  })
+
+  it('lets a row state zero and mean it', () => {
+    expect(rebateFor(partner, 'stingy', 100)).toBe(0n)
+  })
+
+  it('pays an ordinary referrer the default', () => {
+    expect(rebateFor(partner, 'anyone', 100)).toBe(400n)
+  })
+
+  // The fallback must not invent a debt below the split: the default row
+  // there states no rebate either, so it is 0 exactly where 0 was paid.
+  it('owes nothing below the height the rebate starts at', () => {
+    expect(rebateFor(partner, 'bigco', 99)).toBe(0n)
+    expect(rebateFor(partner, 'anyone', 99)).toBe(0n)
+  })
+
+  it('is 0 before any row starts', () => {
+    expect(rebateFor(table([{ ref: null, bp: 400, rebateBp: 400, fromHeight: 100 }]), 'anyone', 1)).toBe(0n)
+  })
+})
+

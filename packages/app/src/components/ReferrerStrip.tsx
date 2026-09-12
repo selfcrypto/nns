@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 
 import { clearReferral, onReferralChange, storedReferral } from '../lib/referral'
-import { percentOf, rateIsNetOfBurn, rebateHeadlineBp, referralHeadlineBp } from '../lib/referralRates'
-import { buyerRebateLine, REFERRER_STRIP, referrerEarnsLine } from '../lib/wording'
+import { percentOf, rateIsNetOfBurn, rebateHeadlineBp } from '../lib/referralRates'
+import { buyerRebateLine, REFERRER_STRIP } from '../lib/wording'
 
 /**
  * The referrer the app is holding (§10.7), shown where the registration is
@@ -44,23 +44,17 @@ export function ReferrerStrip({ className }: { className?: string | undefined })
   const ref = useStoredReferral()
   if (ref === null) return null
 
-  // The rate that will be in effect when the `G` lands, which is the last row
-  // for this referrer — the same reading the docs page takes. Nothing here
-  // knows a height, and a share is priced at the registration, not now. The
-  // **headline** of that row, not its `bp`: the published programme is 5% and
-  // 5%, and the row holds both net of the burn (`referralRates.ts`).
-  const bp = referralHeadlineBp(ref, Number.MAX_SAFE_INTEGER)
+  // The rebate that will be in effect when the `G` lands, which is the last
+  // row for this referrer — the same reading the docs page takes. Nothing
+  // here knows a height, and a payout is priced at the registration, not now.
+  // The **headline** of that row, not its `bp`: the programme published 5%,
+  // and the row holds it net of the burn (`referralRates.ts`).
+  //
+  // Only the rebate. What the referrer earns is not shown to the person
+  // registering — it changes nothing they decide (`wording.ts`).
   const rebateBp = rebateHeadlineBp(ref, Number.MAX_SAFE_INTEGER) ?? 0
   const net = rateIsNetOfBurn(ref, Number.MAX_SAFE_INTEGER)
-  // The rebate is the half the reader benefits from, so it is what the strip
-  // says when there is one; without one the note falls back to the price
-  // being unchanged, which is all §10.7 promised a buyer before.
-  const note =
-    bp === null
-      ? REFERRER_STRIP.note
-      : rebateBp > 0
-        ? `${referrerEarnsLine(percentOf(bp))} ${buyerRebateLine(percentOf(rebateBp), net)}`
-        : `${referrerEarnsLine(percentOf(bp), net)} ${REFERRER_STRIP.note}.`
+  const note = rebateBp > 0 ? buyerRebateLine(percentOf(rebateBp), net) : `${REFERRER_STRIP.note}.`
 
   return (
     <div className={className === undefined ? 'referrer-strip' : `referrer-strip ${className}`}>

@@ -196,5 +196,27 @@ export function rateFor(table: RateTable, ref: string, height: number): RateRow 
   return best
 }
 
+/**
+ * The **buyer's** rebate at a height: the referrer's own row where it states
+ * one, otherwise the default row's.
+ *
+ * The rebate is the buyer's, not the referrer's (Kike, 2026-09-12: "any user
+ * using a referral gets a fixed 5%, always, no matter the % we set for a
+ * certain referral"). A partner's row exists to raise *their* share, and
+ * before this it silently dropped the buyer's rebate to nothing whenever it
+ * did not restate it — so the person the programme is meant to attract got
+ * less for using the better link. Falling back to the default is the rule
+ * that makes a partner row about one side only.
+ *
+ * It moves no past payout: below the 2026-09-12 split the default row states
+ * no rebate either, so the fallback is 0 exactly where 0 was paid.
+ */
+export function rebateFor(table: RateTable, ref: string, height: number): bigint {
+  const own = rateFor(table, ref, height)
+  if (own !== null && own.rebateBp !== null) return own.rebateBp
+  const fallback = rateFor(table, '', height)
+  return fallback === null || fallback.ref !== null ? 0n : (fallback.rebateBp ?? 0n)
+}
+
 /** `⌊price × bp ÷ 10,000⌋` — the §10.7 amount, on the fee in effect, never the value sent. */
 export const shareAmount = (price: bigint, bp: bigint): bigint => (price * bp) / CONSTANTS.BASIS_POINTS

@@ -58,13 +58,28 @@ export const referralRateBp = (name: string, height: number, rows: readonly Rate
   referralRowFor(name, height, rows)?.bp ?? null
 
 /**
- * The buyer's rebate in basis points: `0` where the row in effect states none,
+ * The row the **rebate** comes from: the referrer's own where it states one,
+ * otherwise the default row in effect. The rebate is the buyer's, not the
+ * referrer's (Kike, 2026-09-12: "any user using a referral gets a fixed 5%,
+ * always, no matter the % we set for a certain referral"), so a partner row
+ * that raises a share does not take the buyer's half away by not restating
+ * it. Settlement's `rebateFor` is the same rule, and pays from it.
+ */
+export function rebateRowFor(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): RateRow | null {
+  const own = referralRowFor(name, height, rows)
+  if (own !== null && own.rebateBp !== null && own.rebateBp !== undefined) return own
+  return referralRowFor('', height, rows)
+}
+
+/**
+ * The buyer's rebate in basis points: `0` where no row in effect states one,
  * `null` only when no row is in effect at all — the same two answers the
  * share gives, so a caller never has to tell "no table" from "no rebate".
  */
 export function referralRebateBp(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): number | null {
-  const row = referralRowFor(name, height, rows)
-  return row === null ? null : (row.rebateBp ?? 0)
+  if (referralRowFor(name, height, rows) === null) return null
+  const row = rebateRowFor(name, height, rows)
+  return row === null ? 0 : (row.rebateBp ?? 0)
 }
 
 /**
@@ -89,15 +104,25 @@ export function referralHeadlineBp(name: string, height: number, rows: readonly 
   return row === null ? null : headlineBp(row.bp, row)
 }
 
-/** The buyer's rebate as the app states it — `0` where the row pays none, `null` before any row starts. */
+/** The buyer's rebate as the app states it — `0` where no row pays one, `null` before any row starts. */
 export function rebateHeadlineBp(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): number | null {
-  const row = referralRowFor(name, height, rows)
-  return row === null ? null : headlineBp(row.rebateBp ?? 0, row)
+  if (referralRowFor(name, height, rows) === null) return null
+  const row = rebateRowFor(name, height, rows)
+  return row === null ? 0 : headlineBp(row.rebateBp ?? 0, row)
 }
 
-/** Whether the rates shown for this referrer have the burn to come out of them — the sentence beside the number depends on it. */
-export const rateIsNetOfBurn = (name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): boolean =>
-  referralRowFor(name, height, rows)?.netOfBurn === true
+/**
+ * Whether the rates shown for this referrer have the burn to come out of them
+ * — the sentence beside the number depends on it. Both rows must agree: the
+ * share's and the rebate's can differ once a partner row falls back, and one
+ * aside covering two rates has to be true of both.
+ */
+export function rateIsNetOfBurn(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): boolean {
+  const share = referralRowFor(name, height, rows)
+  if (share?.netOfBurn !== true) return false
+  const rebate = rebateRowFor(name, height, rows)
+  return rebate === null || (rebate.rebateBp ?? 0) === 0 || rebate.netOfBurn === true
+}
 
 /** `1000` → `10%`; `250` → `2.5%`. */
 export function percentOf(bp: number): string {

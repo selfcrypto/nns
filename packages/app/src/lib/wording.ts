@@ -489,21 +489,25 @@ export function priceHint(fees: readonly { readonly upTo: number; readonly yearl
 }
 
 /**
- * §10.7 on the review: who benefits, and what the payer is actually about to
- * pay. Both payouts come out of the treasury's fee, so the price on the
- * screen is the price either way — and the rebate arrives **after**, as a
- * second transaction, which is the part a payer must not be left to guess at
- * when the wallet asks for the full amount.
+ * §10.7 on the review: what the payer gets back. The price on the screen is
+ * the price either way, and the rebate arrives **after**, as a second
+ * transaction — the part a payer must not be left to guess at when the wallet
+ * asks for the full amount.
  *
- * `rebate` is `null` where the row in effect pays none, and then the line is
+ * **The referrer's own share is not on this screen** (Kike, 2026-09-12: "no
+ * point into showing an user that is going to pay the same how much is going
+ * to receive the referrer"). It changes nothing the buyer decides, and a
+ * number a reader cannot act on reads as a cost they are carrying. It stays
+ * where it is somebody's own business: the owner's Share tile, and the
+ * published table on the docs page.
+ *
+ * `rebate` is `null` where no row in effect pays one, and then the line is
  * the one this said before the rebate existed.
  */
-export const referredByLine = (ref: string, percent: string, rebate: string | null = null, netOfBurn = false): string => {
-  const burn = netOfBurn ? BURN_ASIDE : ''
-  return rebate === null
-    ? `Referred by ${ref}. Its owner earns ${percent}${burn} of the fee; you pay the same.`
-    : `Referred by ${ref}. Its owner earns ${percent} of the fee, and ${rebate} comes back to you once the registration confirms${netOfBurn ? ` — both ${BURN_WORD}` : ''}.`
-}
+export const referredByLine = (ref: string, rebate: string | null = null, netOfBurn = false): string =>
+  rebate === null
+    ? `Referred by ${ref}. You pay the same.`
+    : `Referred by ${ref}. ${rebate}${netOfBurn ? ` ${BURN_ASIDE}` : ''} of the fee comes back to you once the registration confirms.`
 
 /**
  * The rates Kike publishes are the ones he decided — 5% and 5% — and the
@@ -516,7 +520,7 @@ export const referredByLine = (ref: string, percent: string, rebate: string | nu
  * named beside it, in the fewest words that are still true.
  */
 export const BURN_WORD = 'minus the registry’s burn'
-const BURN_ASIDE = ` (${BURN_WORD})`
+const BURN_ASIDE = `(${BURN_WORD})`
 
 /**
  * §10.7 made visible before the review: a stored ref is about to travel with a
@@ -530,6 +534,7 @@ export const REFERRER_STRIP = {
   remove: 'Remove',
   removeLabel: 'Remove this referrer',
 } as const
+/** Kept for the one reader it is about: nowhere buyer-facing (see `referredByLine`). */
 export const referrerEarnsLine = (percent: string, netOfBurn = false): string =>
   `Its owner earns ${percent}${netOfBurn ? ` (${BURN_WORD})` : ''} of the registration fee.`
 /**
@@ -537,12 +542,11 @@ export const referrerEarnsLine = (percent: string, netOfBurn = false): string =>
  * worth following at all, so it is the sentence that gets the numbers — and
  * it says *back*, because the wallet will still ask for the whole fee.
  *
- * It carries the burn aside for **both** rates, because it is the second of
- * the pair: saying it twice on one strip is noise, and saying it on the first
- * sentence leaves the rebate looking like the exception.
+ * It is the **only** rate the strip shows: what the referrer earns is not the
+ * reader's business and not theirs to decide (`referredByLine`).
  */
 export const buyerRebateLine = (percent: string, netOfBurn = false): string =>
-  `You get ${percent} of it back after you register${netOfBurn ? ' — both rates before the registry’s burn' : ''}.`
+  `You get ${percent}${netOfBurn ? ` ${BURN_ASIDE}` : ''} of the fee back after you register.`
 /**
  * A pasted share link whose ref was **not** taken, because one is already
  * held: first wins (§10.7's client half). The strip answers the ordinary

@@ -40,7 +40,7 @@ import {
   soldByLine,
 } from './wording'
 import { isReferralName } from './referral'
-import { percentOf, rateIsNetOfBurn, rebateHeadlineBp, referralHeadlineBp } from './referralRates'
+import { percentOf, rateIsNetOfBurn, rebateHeadlineBp } from './referralRates'
 import { auctionEndHeight, auctionOutlivesTerm, cancellableNow, offerCancellableAt, sameAddress, registrationFee } from './states'
 import type { AppAction } from './states'
 import type { SubmitRequest } from './wallet'
@@ -180,20 +180,14 @@ export function prepareAction(options: {
           lifetime
             ? registerLifetimePaysLine(lunaToNim(fee), formatApproxDate(approxDate(head + termFor(true), head, nowMs)))
             : registerPaysLine(lunaToNim(fee), blocksApprox(CONSTANTS.TERM_LENGTH)),
-          // §10.7: both payouts come out of the treasury's fee, so the payer
-          // sees who benefits, that the price is unchanged, and — the part
-          // the wallet's own screen cannot say — that the rebate arrives
-          // afterwards, as a second transaction.
-          ...(ref === null
-            ? []
-            : [
-                referredByLine(
-                  ref,
-                  percentOf(referralHeadlineBp(ref, info?.height ?? 0) ?? 0),
-                  rebatePercent(ref, info?.height ?? 0),
-                  rateIsNetOfBurn(ref, info?.height ?? 0),
-                ),
-              ]),
+          // §10.7: the payer sees who referred them, that the price is
+          // unchanged, and — the part the wallet's own screen cannot say —
+          // that the rebate arrives afterwards, as a second transaction. The
+          // rate is read at `head`, the same height the expiry line uses: a
+          // `?? 0` here quoted the launch row's 10% with no rebate on every
+          // review whose `/name` read had not landed (found by Kike's M1,
+          // 2026-09-12).
+          ...(ref === null ? [] : [referredByLine(ref, rebatePercent(ref, head), rateIsNetOfBurn(ref, head))]),
         ],
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null

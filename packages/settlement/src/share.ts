@@ -93,7 +93,7 @@ import {
   type Verdict,
 } from '@nns/core'
 
-import { rateFor, shareAmount, type RateRow, type RateTable } from './rates.js'
+import { rateFor, rebateFor, shareAmount, type RateRow, type RateTable } from './rates.js'
 import type { LineEvent } from './replay.js'
 
 /** The ledger kind the referrer's share is recorded under — beside `core`'s three, never among them. */
@@ -271,7 +271,13 @@ export const payeeFor = (referral: Referral, kind: ReferralKind): Address =>
  * before the column existed made one payout, and reading its silence as
  * "rebate at `bp`" would double every published rate retroactively.
  */
-const rateOf = (row: RateRow, kind: ReferralKind): bigint => (kind === SHARE_KIND ? row.bp : (row.rebateBp ?? 0n))
+/**
+ * The share is the referrer's row's; the rebate is the **buyer's**, and a
+ * partner row that raises a share must not quietly take it away
+ * (`rates.ts`'s `rebateFor`).
+ */
+const rateOf = (table: RateTable, referral: Referral, kind: ReferralKind, row: RateRow): bigint =>
+  kind === SHARE_KIND ? row.bp : rebateFor(table, referral.referrer, referral.ref.height)
 
 /** The priced form of one of a referral's payouts, or `null` when no row prices it. */
 function priced(referral: Referral, kind: ReferralKind, table: RateTable): ShareLeg | null {
@@ -281,7 +287,7 @@ function priced(referral: Referral, kind: ReferralKind, table: RateTable): Share
   // both payouts, since a rebate to a buyer who brought themselves is a
   // standing discount rather than a referral. Published where the rates are,
   // so it carries their height.
-  const bp = referral.selfReferred ? (row.selfBp ?? rateOf(row, kind)) : rateOf(row, kind)
+  const bp = referral.selfReferred ? (row.selfBp ?? rateOf(table, referral, kind, row)) : rateOf(table, referral, kind, row)
   const amount = shareAmount(referral.price, bp)
   if (amount <= 0n) return null
   return Object.freeze({ ...referral, kind, payee: payeeFor(referral, kind), amount, rateBp: bp })
