@@ -37,6 +37,7 @@
 
 import { formatAddress, refKey, type Address, type ObligationKind, type TxRef } from '@nns/core'
 
+import { ADDRESS_COLUMN, nim } from './format.js'
 import type { CreatedLeg, ReplayResult, SettledLeg, UnmatchedSettlement, VerdictMismatch } from './replay.js'
 import {
   explainedSettlements,
@@ -137,7 +138,6 @@ export interface ReconcileInput {
 }
 
 const sumShares = (legs: readonly ShareLeg[]): bigint => legs.reduce((total, leg) => total + leg.amount, 0n)
-const refKeyOf = (leg: ShareLeg): string => `${leg.ref.height}:${leg.ref.txIndex}`
 
 function shareReport(shares: ShareResult, head: number): ShareReport {
   return Object.freeze({
@@ -146,7 +146,7 @@ function shareReport(shares: ShareResult, head: number): ShareReport {
     outstanding: sumShares(shares.outstanding),
     createdCount: shares.created.length,
     settledCount: shares.settled.length,
-    referralCount: new Set(shares.created.map((leg) => refKeyOf(leg))).size,
+    referralCount: new Set(shares.created.map((leg) => refKey(leg.ref))).size,
     shareTotal: sumShares(shares.created.filter((leg) => leg.kind === SHARE_KIND)),
     rebateTotal: sumShares(shares.created.filter((leg) => leg.kind === REBATE_KIND)),
     standing: shares.outstanding.map((leg) => ({
@@ -277,20 +277,6 @@ export function reconcile(input: ReconcileInput): Report {
  */
 export const isSound = (report: Report): boolean => report.balanced && report.mismatches.length === 0
 
-/** 1 NIM = 100,000 luna, and luna is `bigint`. Rendered, never computed on. */
-function nim(luna: bigint): string {
-  const negative = luna < 0n
-  const magnitude = negative ? -luna : luna
-  const whole = magnitude / 100_000n
-  const fraction = (magnitude % 100_000n).toString().padStart(5, '0')
-  return `${negative ? '-' : ''}${whole.toString()}.${fraction}`
-}
-
-const ref = (value: TxRef): string => refKey(value)
-
-/** Width of `formatAddress` output: 36 characters in nine groups, eight spaces. */
-const ADDRESS_COLUMN = 44
-
 export function describeReport(report: Report): readonly string[] {
   const out: string[] = []
   out.push(`log through checkpoint ${report.checkpointHeight}, ${report.lineCount} lines, hash ${report.logHash}`)
@@ -337,7 +323,7 @@ export function describeReport(report: Report): readonly string[] {
     out.push(`${report.standing.length} obligation(s) outstanding:`)
     for (const leg of report.standing) {
       out.push(
-        `  ${ref(leg.ref).padEnd(20)} ${leg.kind.padEnd(15)} ${nim(leg.amount).padStart(14)} NIM  to ${formatAddress(leg.owedTo)}  (standing ${leg.ageBlocks} blocks)`,
+        `  ${refKey(leg.ref).padEnd(20)} ${leg.kind.padEnd(15)} ${nim(leg.amount).padStart(14)} NIM  to ${formatAddress(leg.owedTo)}  (standing ${leg.ageBlocks} blocks)`,
       )
     }
     out.push('  An obligation in flight between a B and its M is normal; how long is too long is an operator policy, not a rule here.')
@@ -354,7 +340,7 @@ export function describeReport(report: Report): readonly string[] {
     )
     for (const leg of report.shares.standing) {
       out.push(
-        `  ${ref(leg.ref).padEnd(20)} ${payoutWord(leg.kind).padEnd(6)} ${leg.name} via ${leg.referrer} at ${leg.rateBp} bp ${nim(leg.amount).padStart(14)} NIM  to ${formatAddress(leg.owedTo)}  (standing ${leg.ageBlocks} blocks)`,
+        `  ${refKey(leg.ref).padEnd(20)} ${payoutWord(leg.kind).padEnd(6)} ${leg.name} via ${leg.referrer} at ${leg.rateBp} bp ${nim(leg.amount).padStart(14)} NIM  to ${formatAddress(leg.owedTo)}  (standing ${leg.ageBlocks} blocks)`,
       )
     }
 
@@ -363,7 +349,7 @@ export function describeReport(report: Report): readonly string[] {
       out.push(`${report.shares.mispaid.length} referral payment(s) DISAGREE with the rate table (§10.7):`)
       for (const item of report.shares.mispaid) {
         out.push(
-          `  ${ref(item.paidAt).padEnd(20)} ${payoutWord(item.leg.kind).padEnd(6)} for ${ref(item.leg.ref).padEnd(20)} ${item.leg.name} via ${item.leg.referrer} at ${item.leg.rateBp} bp:` +
+          `  ${refKey(item.paidAt).padEnd(20)} ${payoutWord(item.leg.kind).padEnd(6)} for ${refKey(item.leg.ref).padEnd(20)} ${item.leg.name} via ${item.leg.referrer} at ${item.leg.rateBp} bp:` +
             ` table says ${nim(item.leg.amount)}, paid ${nim(item.paid)} NIM  to ${formatAddress(item.leg.payee)}  tx ${item.paidBy}`,
         )
       }
@@ -371,7 +357,7 @@ export function describeReport(report: Report): readonly string[] {
     }
 
     const line = (item: UnpricedShare): string =>
-      `  ${ref(item.paidAt).padEnd(20)} ${payoutWord(item.kind).padEnd(6)} for ${ref(item.referral.ref).padEnd(20)} ${item.referral.name} via ${item.referral.referrer} ${nim(item.paid).padStart(14)} NIM  to ${formatAddress(item.payee)}  tx ${item.paidBy}`
+      `  ${refKey(item.paidAt).padEnd(20)} ${payoutWord(item.kind).padEnd(6)} for ${refKey(item.referral.ref).padEnd(20)} ${item.referral.name} via ${item.referral.referrer} ${nim(item.paid).padStart(14)} NIM  to ${formatAddress(item.payee)}  tx ${item.paidBy}`
 
     // Two answers with nothing in common but an empty amount: one table
     // cannot price it, the other prices it at zero on purpose.
@@ -397,7 +383,7 @@ export function describeReport(report: Report): readonly string[] {
     out.push(`${report.unmatched.length} settlement(s) discharged nothing — money moved, the debt still stands (§6 M):`)
     for (const item of report.unmatched) {
       out.push(
-        `  ${ref(item.at).padEnd(20)} claims ${ref(item.claims).padEnd(20)} ${nim(item.value).padStart(14)} NIM  ${formatAddress(item.sender)} → ${formatAddress(item.recipient)}  tx ${item.txHash}`,
+        `  ${refKey(item.at).padEnd(20)} claims ${refKey(item.claims).padEnd(20)} ${nim(item.value).padStart(14)} NIM  ${formatAddress(item.sender)} → ${formatAddress(item.recipient)}  tx ${item.txHash}`,
       )
     }
   }
@@ -406,7 +392,7 @@ export function describeReport(report: Report): readonly string[] {
     out.push('')
     out.push(`${report.mismatches.length} verdict(s) disagree with the replay — the served log is not what these rules produce:`)
     for (const item of report.mismatches) {
-      out.push(`  ${ref(item.at).padEnd(20)} log says ${item.logged}, replay says ${item.replayed}`)
+      out.push(`  ${refKey(item.at).padEnd(20)} log says ${item.logged}, replay says ${item.replayed}`)
     }
   }
 

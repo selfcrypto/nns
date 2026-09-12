@@ -1,86 +1,37 @@
 /**
  * The published §10.7 rate table, read for display.
  *
- * One source: `packages/settlement/referral-rates.json`, the file the
- * treasury's issuer pays from. The app imports it at build time so the
- * review line ("its owner earns 5%") and the docs page can never quote a
- * rate the payer does not use. The selection rule is settlement's
- * `rateFor` restated in the browser (that module reads files, so it cannot
- * be imported here); `referralRates.test.ts` holds the two to one answer.
+ * One source and one rule: `packages/settlement/referral-rates.json`, the file
+ * the treasury's issuer pays from, parsed and selected by settlement's own
+ * `rate-table.ts` — imported by path, because that module is pure (the file
+ * half is `rates.ts`, which the browser cannot load) and because a package
+ * dependency on `@nns/settlement` would drag `pg` into the web image's
+ * install. So the review line ("5% comes back to you") and the docs page can
+ * never quote a rate the payer does not use, and nothing here restates how a
+ * row is chosen.
  *
  * A row prices **two** payouts: `bp` to the referrer and `rebateBp` back to
  * the buyer. On a row marked `netOfBurn` both are stated with the §10.2 burn
  * already taken out — 400 bp — because the payer must not burn on money it
- * never kept (settlement's `rates.ts`). The **app states the rate it came
- * from**: 5%, with the burn named beside it. `headlineBp` is that one
- * conversion, and it lives here so no screen invents it.
+ * never kept. The **app states the rate it came from**: 5%, with the burn
+ * named beside it. `headlineBp` is that one conversion, and it lives here so
+ * no screen invents it. Anything that computes an amount keeps the paid rate
+ * (`referralRateBp`, `shareAmount`).
  */
 
 import { CONSTANTS } from '@nns/core'
 
 import table from '../../../settlement/referral-rates.json'
+import { parseRateTable, rateFor, rebateRowFor, type RateRow, type RateTable } from '../../../settlement/src/rate-table'
 
-export interface RateRow {
-  readonly ref: string | null
-  /** The referrer's share. */
-  readonly bp: number
-  /** The buyer's rebate — `null`/absent is **no rebate**, never a fallback to `bp` (settlement's `rates.ts`). */
-  readonly rebateBp?: number | null
-  /** The rate for both payouts when the buyer already controls the referring name — `null`/absent means each payout's own rate. */
-  readonly selfBp?: number | null
-  /** This row's rates already have the §10.2 burn out of them, so the app states the headline they came from. Absent is "as published". */
-  readonly netOfBurn?: boolean
-  readonly fromHeight: number
-  readonly note?: string
-}
+export { parseRateTable, shareAmount, type RateRow, type RateTable } from '../../../settlement/src/rate-table'
 
-export const REFERRAL_RATES: readonly RateRow[] = (table as { rates: readonly RateRow[] }).rates
+/** The committed table. A malformed file fails the build, as it fails the issuer's startup. */
+export const REFERRAL_RATES: RateTable = parseRateTable(table)
 
-/** The row in effect for a referrer at a height — most specific ref first, latest height within it. `null` before any row starts. */
-export function referralRowFor(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): RateRow | null {
-  let best: RateRow | null = null
-  for (const row of rows) {
-    if (row.fromHeight > height) continue
-    if (row.ref !== null && row.ref !== name) continue
-    if (best === null) {
-      best = row
-      continue
-    }
-    const moreSpecific = row.ref !== null && best.ref === null
-    const later = (row.ref === null) === (best.ref === null) && row.fromHeight > best.fromHeight
-    if (moreSpecific || later) best = row
-  }
-  return best
-}
-
-/** The referrer's share in basis points, or `null` before any row starts. */
-export const referralRateBp = (name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): number | null =>
-  referralRowFor(name, height, rows)?.bp ?? null
-
-/**
- * The row the **rebate** comes from: the referrer's own where it states one,
- * otherwise the default row in effect. The rebate is the buyer's, not the
- * referrer's (Kike, 2026-09-12: "any user using a referral gets a fixed 5%,
- * always, no matter the % we set for a certain referral"), so a partner row
- * that raises a share does not take the buyer's half away by not restating
- * it. Settlement's `rebateFor` is the same rule, and pays from it.
- */
-export function rebateRowFor(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): RateRow | null {
-  const own = referralRowFor(name, height, rows)
-  if (own !== null && own.rebateBp !== null && own.rebateBp !== undefined) return own
-  return referralRowFor('', height, rows)
-}
-
-/**
- * The buyer's rebate in basis points: `0` where no row in effect states one,
- * `null` only when no row is in effect at all — the same two answers the
- * share gives, so a caller never has to tell "no table" from "no rebate".
- */
-export function referralRebateBp(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): number | null {
-  if (referralRowFor(name, height, rows) === null) return null
-  const row = rebateRowFor(name, height, rows)
-  return row === null ? 0 : (row.rebateBp ?? 0)
-}
+/** The rate the payer **sends** to the referrer, in basis points — `null` before any row starts. */
+export const referralRateBp = (name: string, height: number, rates: RateTable = REFERRAL_RATES): bigint | null =>
+  rateFor(rates, name, height)?.bp ?? null
 
 /**
  * The rate a row states, before the §10.2 burn: `400` → `500`, so the app can
@@ -92,23 +43,23 @@ export function referralRebateBp(name: string, height: number, rows: readonly Ra
  * The burn share is a protocol constant, not a number retyped here: a
  * governance change to it moves both the payout and this line together.
  */
-export function headlineBp(bp: number, row: RateRow | null): number {
-  if (row === null || row.netOfBurn !== true) return bp
+export function headlineBp(bp: bigint, row: RateRow | null): number {
+  if (row === null || !row.netOfBurn) return Number(bp)
   const burn = Number(CONSTANTS.BURN_SHARE_BP)
-  return Math.round((bp * 10_000) / (10_000 - burn))
+  return Math.round((Number(bp) * 10_000) / (10_000 - burn))
 }
 
 /** The referrer's share as the app states it — `null` before any row starts. */
-export function referralHeadlineBp(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): number | null {
-  const row = referralRowFor(name, height, rows)
+export function referralHeadlineBp(name: string, height: number, rates: RateTable = REFERRAL_RATES): number | null {
+  const row = rateFor(rates, name, height)
   return row === null ? null : headlineBp(row.bp, row)
 }
 
 /** The buyer's rebate as the app states it — `0` where no row pays one, `null` before any row starts. */
-export function rebateHeadlineBp(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): number | null {
-  if (referralRowFor(name, height, rows) === null) return null
-  const row = rebateRowFor(name, height, rows)
-  return row === null ? 0 : headlineBp(row.rebateBp ?? 0, row)
+export function rebateHeadlineBp(name: string, height: number, rates: RateTable = REFERRAL_RATES): number | null {
+  if (rateFor(rates, name, height) === null) return null
+  const row = rebateRowFor(rates, name, height)
+  return row === null ? 0 : headlineBp(row.rebateBp ?? 0n, row)
 }
 
 /**
@@ -117,11 +68,10 @@ export function rebateHeadlineBp(name: string, height: number, rows: readonly Ra
  * share's and the rebate's can differ once a partner row falls back, and one
  * aside covering two rates has to be true of both.
  */
-export function rateIsNetOfBurn(name: string, height: number, rows: readonly RateRow[] = REFERRAL_RATES): boolean {
-  const share = referralRowFor(name, height, rows)
-  if (share?.netOfBurn !== true) return false
-  const rebate = rebateRowFor(name, height, rows)
-  return rebate === null || (rebate.rebateBp ?? 0) === 0 || rebate.netOfBurn === true
+export function rateIsNetOfBurn(name: string, height: number, rates: RateTable = REFERRAL_RATES): boolean {
+  if (rateFor(rates, name, height)?.netOfBurn !== true) return false
+  const rebate = rebateRowFor(rates, name, height)
+  return rebate === null || (rebate.rebateBp ?? 0n) === 0n || rebate.netOfBurn
 }
 
 /** `1000` → `10%`; `250` → `2.5%`. */
@@ -131,5 +81,8 @@ export function percentOf(bp: number): string {
   return rest === 0 ? `${whole}%` : `${whole}.${String(rest).padStart(2, '0').replace(/0$/, '')}%`
 }
 
-/** `⌊price × bp ÷ 10,000⌋`, as settlement computes it. */
-export const shareOf = (price: bigint, bp: number): bigint => (price * BigInt(bp)) / 10_000n
+/** The rebate to quote to a buyer — the headline, as a percentage — or `null` where the row in effect pays none. */
+export function rebatePercent(name: string, height: number, rates: RateTable = REFERRAL_RATES): string | null {
+  const bp = rebateHeadlineBp(name, height, rates) ?? 0
+  return bp > 0 ? percentOf(bp) : null
+}

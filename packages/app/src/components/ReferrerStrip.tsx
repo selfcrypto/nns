@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { clearReferral, onReferralChange, storedReferral } from '../lib/referral'
-import { percentOf, rateIsNetOfBurn, rebateHeadlineBp } from '../lib/referralRates'
+import { rateIsNetOfBurn, rebatePercent } from '../lib/referralRates'
 import { buyerRebateLine, REFERRER_STRIP } from '../lib/wording'
 
 /**
@@ -52,9 +52,8 @@ export function ReferrerStrip({ className }: { className?: string | undefined })
   //
   // Only the rebate. What the referrer earns is not shown to the person
   // registering — it changes nothing they decide (`wording.ts`).
-  const rebateBp = rebateHeadlineBp(ref, Number.MAX_SAFE_INTEGER) ?? 0
-  const net = rateIsNetOfBurn(ref, Number.MAX_SAFE_INTEGER)
-  const note = rebateBp > 0 ? buyerRebateLine(percentOf(rebateBp), net) : `${REFERRER_STRIP.note}.`
+  const rebate = rebatePercent(ref, Number.MAX_SAFE_INTEGER)
+  const note = rebate === null ? `${REFERRER_STRIP.note}.` : buyerRebateLine(rebate, rateIsNetOfBurn(ref, Number.MAX_SAFE_INTEGER))
 
   return (
     <div className={className === undefined ? 'referrer-strip' : `referrer-strip ${className}`}>

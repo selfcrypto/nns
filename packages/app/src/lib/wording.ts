@@ -534,9 +534,6 @@ export const REFERRER_STRIP = {
   remove: 'Remove',
   removeLabel: 'Remove this referrer',
 } as const
-/** Kept for the one reader it is about: nowhere buyer-facing (see `referredByLine`). */
-export const referrerEarnsLine = (percent: string, netOfBurn = false): string =>
-  `Its owner earns ${percent}${netOfBurn ? ` (${BURN_WORD})` : ''} of the registration fee.`
 /**
  * The buyer's half of §10.7, on the strip. The rebate is the reason a link is
  * worth following at all, so it is the sentence that gets the numbers — and

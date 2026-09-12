@@ -21,7 +21,7 @@
 import { CONSTANTS, feeFor, LAUNCH_PRICES, LUNA_PER_NIM } from '@nns/core'
 
 import { displayAddress } from './format'
-import { headlineBp, percentOf, rebateHeadlineBp, REFERRAL_RATES, referralHeadlineBp } from './referralRates'
+import { headlineBp, percentOf, rebatePercent, REFERRAL_RATES, referralHeadlineBp } from './referralRates'
 
 export interface DocPage {
   readonly slug: string
@@ -166,13 +166,12 @@ export function feesTable(): string {
  */
 export function referralRatesTable(): string {
   let footnoted = false
-  const rows = REFERRAL_RATES.map((row) => {
+  const rows = REFERRAL_RATES.rows.map((row) => {
     const ref = row.ref === null ? '*default*' : `\`${row.ref}\``
     const from = row.fromHeight === 0 ? 'launch' : group(row.fromHeight)
-    const mark = row.netOfBurn === true ? ((footnoted = true), '†') : ''
+    const mark = row.netOfBurn ? ((footnoted = true), '†') : ''
     const share = `${percentOf(headlineBp(row.bp, row))}${mark}`
-    const rebate =
-      row.rebateBp === null || row.rebateBp === undefined ? '—' : `${percentOf(headlineBp(row.rebateBp, row))}${mark}`
+    const rebate = row.rebateBp === null ? '—' : `${percentOf(headlineBp(row.rebateBp, row))}${mark}`
     return `| ${ref} | ${share} | ${rebate} | ${from} | ${row.note ?? ''} |`
   })
   const table = ['| Referrer | To the referrer | Back to the buyer | From height | Note |', '|---|---|---|---|---|', ...rows].join('\n')
@@ -188,10 +187,7 @@ export function defaultReferralRate(): string {
 }
 
 /** What a referred buyer with no special row gets back, today — `null` where the row in effect pays no rebate. */
-export function defaultReferralRebate(): string | null {
-  const bp = rebateHeadlineBp('', Number.MAX_SAFE_INTEGER)
-  return bp === null || bp === 0 ? null : percentOf(bp)
-}
+export const defaultReferralRebate = (): string | null => rebatePercent('', Number.MAX_SAFE_INTEGER)
 
 function nameLength(placeholder: string, key: string): number {
   const length = Number(key)

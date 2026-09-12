@@ -165,9 +165,9 @@ export interface ReferralStore {
 export function memoryReferralStore(): ReferralStore {
   let stored: StoredReferral | null = null
   return {
-    get: () => Promise.resolve(stored === null ? null : live(stored, Date.now())),
+    get: () => Promise.resolve(live(stored, Date.now())),
     remember: (ref) => {
-      if (stored === null || live(stored, Date.now()) === null) stored = { ref, at: Date.now() }
+      if (live(stored, Date.now()) === null) stored = { ref, at: Date.now() }
       return Promise.resolve()
     },
     clear: () => {

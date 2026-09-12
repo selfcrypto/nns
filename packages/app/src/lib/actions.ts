@@ -40,7 +40,7 @@ import {
   soldByLine,
 } from './wording'
 import { isReferralName } from './referral'
-import { percentOf, rateIsNetOfBurn, rebateHeadlineBp } from './referralRates'
+import { rateIsNetOfBurn, rebatePercent } from './referralRates'
 import { auctionEndHeight, auctionOutlivesTerm, cancellableNow, offerCancellableAt, sameAddress, registrationFee } from './states'
 import type { AppAction } from './states'
 import type { SubmitRequest } from './wallet'
@@ -110,12 +110,6 @@ const requireAddress = (input: string, what: string): string => {
   if (parsed === null) throw new ActionInputError(`${what} is not a Nimiq address`)
   // Spaced form: these strings reach review lines the user reads.
   return formatAddress(parsed)
-}
-
-/** The rebate to quote beside a share, or `null` when the row in effect pays none. The headline rate, as the line quotes both. */
-const rebatePercent = (ref: string, height: number): string | null => {
-  const bp = rebateHeadlineBp(ref, height) ?? 0
-  return bp > 0 ? percentOf(bp) : null
 }
 
 export function prepareAction(options: {

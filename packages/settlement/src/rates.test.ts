@@ -37,7 +37,7 @@ describe('parseRateTable', () => {
 
   it('turns bp into bigint and keeps the note as text', () => {
     const parsed = table([{ ref: null, bp: 1000, fromHeight: 0, note: 'default' }])
-    expect(parsed.rows[0]).toEqual({ ref: null, bp: 1000n, rebateBp: null, selfBp: null, fromHeight: 0, note: 'default' })
+    expect(parsed.rows[0]).toEqual({ ref: null, bp: 1000n, rebateBp: null, selfBp: null, netOfBurn: false, fromHeight: 0, note: 'default' })
   })
 
   // A row written before the field existed says nothing about the case, and

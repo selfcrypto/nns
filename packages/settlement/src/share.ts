@@ -27,8 +27,8 @@
  * making referrals consensus. Sending the money back afterwards costs the
  * protocol nothing and needs no rule.
  *
- * Both rates are published **net of the §10.2 burn share** (`rates.ts` has the
- * arithmetic). Nothing here knows that — a rate is a rate — but it is why the
+ * Both rates are published **net of the §10.2 burn share** (`rate-table.ts` has
+ * the arithmetic). Nothing here knows that — a rate is a rate — but it is why the
  * committed table says 400 bp where the programme says 5%.
  *
  * The rules are §10.7's, restated in code once:
@@ -66,7 +66,7 @@
  * **Who** was paid and **for what** is in the log: the `M` names a `G`, that
  * `G` is `OK` and carried a `ref`, that name was `REGISTERED` before it, and
  * the payee is its `target`. Only the **amount** needs the table. So the two
- * are separate here — `referralOf` reads the log, `shareOwed` prices what it
+ * are separate here — `referralOf` reads the log, `priced` prices what it
  * read — and an `M` is recognised as a referral payment whether or not this
  * process holds a rate for it.
  *
@@ -93,7 +93,7 @@ import {
   type Verdict,
 } from '@nns/core'
 
-import { rateFor, rebateFor, shareAmount, type RateRow, type RateTable } from './rates.js'
+import { rateFor, rebateFor, shareAmount, type RateRow, type RateTable } from './rate-table.js'
 import type { LineEvent } from './replay.js'
 
 /** The ledger kind the referrer's share is recorded under — beside `core`'s three, never among them. */
@@ -239,42 +239,17 @@ export function referralOf(before: NnsState, tx: ChainTransaction, at: TxRef, ve
   })
 }
 
-/**
- * What one `OK` `G` owes — zero, one or two payouts.
- *
- * An empty array covers both "no referral" and "no rate for it": a table with
- * no row for `(ref, height)`, or one that prices a payout at zero, is a table
- * saying it has no rate here — which is exactly how a reader without the
- * operator's rows says so, since §10.7's format has no way to express an
- * absent table. Nothing is owed on either, and the issuer pays nothing.
- */
-export function payoutsOwed(
-  before: NnsState,
-  tx: ChainTransaction,
-  at: TxRef,
-  verdict: Verdict,
-  table: RateTable,
-): readonly ShareLeg[] {
-  const referral = referralOf(before, tx, at, verdict)
-  if (referral === null) return []
-  return REFERRAL_KINDS.map((kind) => priced(referral, kind, table)).filter((leg): leg is ShareLeg => leg !== null)
-}
-
 /** Who a payout pays. The share's payee is the referrer's target; the rebate's is the buyer. */
 export const payeeFor = (referral: Referral, kind: ReferralKind): Address =>
   kind === SHARE_KIND ? referral.referrerTarget : referral.buyer
 
 /**
- * The row's rate for one payout.
- *
- * A missing `rebateBp` is **no rebate**, not the share's rate: a row written
- * before the column existed made one payout, and reading its silence as
- * "rebate at `bp`" would double every published rate retroactively.
- */
-/**
- * The share is the referrer's row's; the rebate is the **buyer's**, and a
- * partner row that raises a share must not quietly take it away
- * (`rates.ts`'s `rebateFor`).
+ * The row's rate for one payout. The share is the referrer's row's; the
+ * rebate is the **buyer's**, and a partner row that raises a share must not
+ * quietly take it away (`rebateFor`). A missing `rebateBp` is **no rebate**,
+ * not the share's rate: a row written before the column existed made one
+ * payout, and reading its silence as "rebate at `bp`" would double every
+ * published rate retroactively.
  */
 const rateOf = (table: RateTable, referral: Referral, kind: ReferralKind, row: RateRow): bigint =>
   kind === SHARE_KIND ? row.bp : rebateFor(table, referral.referrer, referral.ref.height)
@@ -287,7 +262,7 @@ function priced(referral: Referral, kind: ReferralKind, table: RateTable): Share
   // both payouts, since a rebate to a buyer who brought themselves is a
   // standing discount rather than a referral. Published where the rates are,
   // so it carries their height.
-  const bp = referral.selfReferred ? (row.selfBp ?? rateOf(table, referral, kind, row)) : rateOf(table, referral, kind, row)
+  const bp = (referral.selfReferred ? row.selfBp : null) ?? rateOf(table, referral, kind, row)
   const amount = shareAmount(referral.price, bp)
   if (amount <= 0n) return null
   return Object.freeze({ ...referral, kind, payee: payeeFor(referral, kind), amount, rateBp: bp })
@@ -307,7 +282,7 @@ export function createShareCollector(table: RateTable): ShareCollector {
   const unpriced: UnpricedShare[] = []
   const mispaid: MispaidShare[] = []
   /** Every payout seen and not yet paid, priced or not, keyed `<ref>:<KIND>`. */
-  const open = new Map<string, { referral: Referral; kind: ReferralKind; payee: Address; leg: ShareLeg | null }>()
+  const open = new Map<string, { referral: Referral; kind: ReferralKind; leg: ShareLeg | null }>()
 
   return {
     observe(event) {
@@ -316,7 +291,7 @@ export function createShareCollector(table: RateTable): ShareCollector {
         for (const kind of REFERRAL_KINDS) {
           const leg = priced(referral, kind, table)
           if (leg !== null) created.push(leg)
-          open.set(shareKey({ ref: referral.ref, kind }), { referral, kind, payee: payeeFor(referral, kind), leg })
+          open.set(shareKey({ ref: referral.ref, kind }), { referral, kind, leg })
         }
         return
       }
@@ -327,40 +302,38 @@ export function createShareCollector(table: RateTable): ShareCollector {
       const parsed = parse(event.tx.recipientData)
       if (!parsed.ok || parsed.message.type !== 'M') return
       const named: TxRef = { height: parsed.message.height, txIndex: parsed.message.txIndex }
-      if (!REFERRAL_KINDS.some((kind) => open.has(shareKey({ ref: named, kind })))) return
-      // An `M` the reducer matched to one of its own legs is that leg's
-      // payment, whatever else it resembles. This is load-bearing for the
-      // **rebate** rather than exotic: a surplus on a referred `G` is a
-      // `REFUND` leg to the same buyer under the same ref (§10.5), so the
-      // refund and the rebate differ only in amount, and only the reducer
-      // says which `M` was which. (The share has the same collision when the
-      // referrer's target registers through its own link and overpays.)
-      // Without this the refund would close the payout's entry at the wrong
-      // amount and the payout itself would be left as money against nothing.
-      if (legsAt(event.before, named) !== legsAt(event.after, named)) return
       // **The recipient decides which of the two payouts this is.** A treasury
       // `M` naming a referred `G` and paying neither payee is not a referral
       // payment at all; left to the reducer's own reading.
-      const key = REFERRAL_KINDS.map((kind) => shareKey({ ref: named, kind })).find((candidateKey) => {
-        const entry = open.get(candidateKey)
-        return entry !== undefined && addressEquals(entry.payee, event.tx.recipient)
-      })
-      if (key === undefined) return
-      const candidate = open.get(key)
-      if (candidate === undefined) return
-      open.delete(key)
-      const paid = { paidAt: event.at, paidBy: event.tx.hash, paid: event.tx.value }
-      if (candidate.leg === null) {
-        unpriced.push({
-          referral: candidate.referral,
-          kind: candidate.kind,
-          payee: candidate.payee,
-          ...paid,
-          reason: candidate.referral.selfReferred ? 'self-referral' : 'no-rate',
-        })
+      for (const kind of REFERRAL_KINDS) {
+        const key = shareKey({ ref: named, kind })
+        const entry = open.get(key)
+        if (entry === undefined || !addressEquals(payeeFor(entry.referral, kind), event.tx.recipient)) continue
+        // An `M` the reducer matched to one of its own legs is that leg's
+        // payment, whatever else it resembles. This is load-bearing for the
+        // **rebate** rather than exotic: a surplus on a referred `G` is a
+        // `REFUND` leg to the same buyer under the same ref (§10.5), so the
+        // refund and the rebate differ only in amount, and only the reducer
+        // says which `M` was which. (The share has the same collision when the
+        // referrer's target registers through its own link and overpays.)
+        // Without this the refund would close the payout's entry at the wrong
+        // amount and the payout itself would be left as money against nothing.
+        if (legsAt(event.before, named) !== legsAt(event.after, named)) return
+        open.delete(key)
+        const paid = { paidAt: event.at, paidBy: event.tx.hash, paid: event.tx.value }
+        if (entry.leg === null) {
+          unpriced.push({
+            referral: entry.referral,
+            kind,
+            payee: payeeFor(entry.referral, kind),
+            ...paid,
+            reason: entry.referral.selfReferred ? 'self-referral' : 'no-rate',
+          })
+        }
+        else if (entry.leg.amount === event.tx.value) settled.push({ leg: entry.leg, settledAt: event.at, settledBy: event.tx.hash })
+        else mispaid.push({ leg: entry.leg, ...paid })
+        return
       }
-      else if (candidate.leg.amount === event.tx.value) settled.push({ leg: candidate.leg, settledAt: event.at, settledBy: event.tx.hash })
-      else mispaid.push({ leg: candidate.leg, ...paid })
     },
     result() {
       // Only a priced referral can be outstanding: nobody may claim a debt

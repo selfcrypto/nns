@@ -50,6 +50,8 @@
 
 import { formatAddress, refKey, type Address, type Obligation, type ObligationKind } from '@nns/core'
 
+import { ADDRESS_COLUMN, nim } from './format.js'
+
 import {
   createShareCollector,
   explainedSettlements,
@@ -61,7 +63,7 @@ import {
   type ShareResult,
   type UnpricedShare,
 } from './share.js'
-import type { RateTable } from './rates.js'
+import type { RateTable } from './rate-table.js'
 
 import { replayLog, type ReplayResult, type UnmatchedSettlement } from './replay.js'
 import { fetchLatestCheckpoint, fetchLog, type Fetcher, type LogSnapshot } from './source.js'
@@ -209,7 +211,8 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult, shares: Sha
   }
 
   const due: DueObligation[] = []
-  const seen = new Set<string>()
+  /** Every key on `due`, with its amount — the balance check below reads it, and a repeat is the refusal. */
+  const seen = new Map<string, bigint>()
   let totalDue = 0n
   for (const leg of replay.outstanding) {
     const key = obligationKey(leg.obligation)
@@ -219,7 +222,7 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult, shares: Sha
           `this means core now creates more than one leg of a kind per transaction and the issuer would underpay`,
       )
     }
-    seen.add(key)
+    seen.set(key, leg.obligation.amount)
     due.push({
       key,
       kind: leg.obligation.kind,
@@ -240,7 +243,7 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult, shares: Sha
     settledByKey.set(key, (settledByKey.get(key) ?? 0n) + leg.obligation.amount)
   }
   for (const [key, amount] of created) {
-    const outstandingAmount = due.find((leg) => leg.key === key)?.amount ?? 0n
+    const outstandingAmount = seen.get(key) ?? 0n
     if (amount !== (settledByKey.get(key) ?? 0n) + outstandingAmount) {
       throw new WatchError(
         `leg ${key} does not balance: created ${amount}, settled ${settledByKey.get(key) ?? 0n}, outstanding ${outstandingAmount} luna`,
@@ -256,7 +259,7 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult, shares: Sha
   for (const leg of shares.outstanding) {
     const key = shareKey(leg)
     if (seen.has(key)) throw new WatchError(`two outstanding payouts share the key ${key} — one G owes at most one payout per kind`)
-    seen.add(key)
+    seen.set(key, leg.amount)
     due.push({
       key,
       kind: leg.kind,
@@ -358,15 +361,6 @@ export function createWatcher(options: WatcherOptions): Watcher {
     },
   }
 }
-
-/** 1 NIM = 100,000 luna, and luna is `bigint`. Rendered, never computed on. */
-function nim(luna: bigint): string {
-  const whole = luna / 100_000n
-  return `${whole.toString()}.${(luna % 100_000n).toString().padStart(5, '0')}`
-}
-
-/** Width of `formatAddress` output: 36 characters in nine groups, eight spaces. */
-const ADDRESS_COLUMN = 44
 
 export function describeSnapshot(snapshot: WatchSnapshot): readonly string[] {
   const out: string[] = []

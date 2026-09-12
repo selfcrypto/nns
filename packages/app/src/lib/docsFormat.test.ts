@@ -138,7 +138,7 @@ describe('the generated tables', () => {
     expect(table).toContain('| — |')
     // Every row renders; the header, the separator, the blank line and the
     // footnote are the extra four.
-    expect(table.split('\n')).toHaveLength(REFERRAL_RATES.length + 4)
+    expect(table.split('\n')).toHaveLength(REFERRAL_RATES.rows.length + 4)
   })
 
   // The published rates are the ones Kike decided — 5% and 5% — and the table
@@ -147,15 +147,15 @@ describe('the generated tables', () => {
   // pre-2026-09-12 default, which paid its 10% flat and carried no burn.
   it('states the headline rate and daggers the rows the burn comes out of', () => {
     const table = referralRatesTable()
-    const net = REFERRAL_RATES.filter((row) => row.netOfBurn === true)
+    const net = REFERRAL_RATES.rows.filter((row) => row.netOfBurn)
     expect(net.length).toBeGreaterThan(0)
     for (const row of net) {
-      expect(headlineBp(row.bp, row)).toBe(Math.round((row.bp * 10_000) / (10_000 - Number(CONSTANTS.BURN_SHARE_BP))))
+      expect(headlineBp(row.bp, row)).toBe(Math.round((Number(row.bp) * 10_000) / (10_000 - Number(CONSTANTS.BURN_SHARE_BP))))
       expect(table).toContain(`| ${percentOf(headlineBp(row.bp, row))}† |`)
     }
-    for (const row of REFERRAL_RATES.filter((r) => r.netOfBurn !== true)) {
-      expect(headlineBp(row.bp, row)).toBe(row.bp)
-      expect(table).toContain(`| ${percentOf(row.bp)} |`)
+    for (const row of REFERRAL_RATES.rows.filter((r) => !r.netOfBurn)) {
+      expect(headlineBp(row.bp, row)).toBe(Number(row.bp))
+      expect(table).toContain(`| ${percentOf(Number(row.bp))} |`)
     }
     expect(table).toContain('† Before the registry')
   })
@@ -163,10 +163,10 @@ describe('the generated tables', () => {
   // A headline that cannot be turned back into what the payer sends is a
   // wrong number on a page, so every published row must round-trip exactly.
   it('every headline divides back to the rate the payer holds', () => {
-    for (const row of REFERRAL_RATES) {
+    for (const row of REFERRAL_RATES.rows) {
       const burn = Number(CONSTANTS.BURN_SHARE_BP)
-      const back = row.netOfBurn === true ? (headlineBp(row.bp, row) * (10_000 - burn)) / 10_000 : headlineBp(row.bp, row)
-      expect(back).toBe(row.bp)
+      const back = row.netOfBurn ? (headlineBp(row.bp, row) * (10_000 - burn)) / 10_000 : headlineBp(row.bp, row)
+      expect(back).toBe(Number(row.bp))
     }
   })
 

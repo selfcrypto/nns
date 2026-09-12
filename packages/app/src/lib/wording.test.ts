@@ -15,7 +15,6 @@ import {
   sheetActionLabel,
   sheetDismissLabel,
   buyerRebateLine,
-  referrerEarnsLine,
   referredByLine,
   ownerShareLine,
   referralsCountLine,
@@ -301,7 +300,6 @@ describe('the referral lines (§10.7)', () => {
 
     it('a row the burn is not out of gets no aside at all', () => {
       expect(referredByLine('ricomav', '10%')).not.toMatch(/burn/)
-      expect(referrerEarnsLine('10%')).not.toMatch(/burn/)
       expect(buyerRebateLine('10%')).not.toMatch(/burn/)
       expect(shareHint('10%', '10%')).not.toMatch(/burn/)
     })

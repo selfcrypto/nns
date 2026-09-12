@@ -10,7 +10,6 @@ import {
   explainedSettlements,
   NO_SHARES,
   payeeFor,
-  payoutsOwed,
   REBATE_KIND,
   referralOf,
   SHARE_KIND,
@@ -57,7 +56,7 @@ function collect(sends: readonly Send[], table = DEFAULT, through = THROUGH) {
 
 const SHARE = (FEE(NEWCOMER) * 1000n) / 10_000n
 
-describe('payoutsOwed — §10.7 in one function', () => {
+describe('a referred G owes the referrer a share — §10.7 in one collector', () => {
   it('owes the referrer’s target ⌊price × rate⌋ on an OK G that names a registered ref', () => {
     const { shares } = collect([referrerRegistered, referred()])
     expect(shares.created).toHaveLength(1)
@@ -154,9 +153,9 @@ describe('payoutsOwed — §10.7 in one function', () => {
       networkId: config.networkId,
       isReward: false,
     }
-    const legs = payoutsOwed(before, tx, { height: H.register, txIndex: 0 }, { kind: 'OK', obligations: [] }, DEFAULT)
-    expect(legs.map((leg) => [leg.kind, leg.amount])).toEqual([[SHARE_KIND, SHARE]])
-    expect(payoutsOwed(before, tx, { height: H.register, txIndex: 0 }, { kind: 'FORFEIT', reason: 'RESERVED_NAME' }, DEFAULT)).toEqual([])
+    const at = { height: H.register, txIndex: 0 }
+    expect(referralOf(before, tx, at, { kind: 'OK', obligations: [] })).toMatchObject({ referrer: REFERRER, referrerTarget: REFERRER_OWNER, price: FEE(NEWCOMER) })
+    expect(referralOf(before, tx, at, { kind: 'FORFEIT', reason: 'RESERVED_NAME' })).toBeNull()
   })
 })
 
