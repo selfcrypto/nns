@@ -50,7 +50,16 @@
 
 import { formatAddress, refKey, type Address, type Obligation, type ObligationKind } from '@nns/core'
 
-import { createShareCollector, NO_SHARES, SHARE_KIND, shareKey, type ShareResult } from './share.js'
+import {
+  createShareCollector,
+  explainedSettlements,
+  NO_SHARES,
+  SHARE_KIND,
+  shareKey,
+  type MispaidShare,
+  type ShareResult,
+  type UnpricedShare,
+} from './share.js'
 import type { RateTable } from './rates.js'
 
 import { replayLog, type ReplayResult, type UnmatchedSettlement } from './replay.js'
@@ -120,6 +129,15 @@ export interface WatchSnapshot {
    * operator alarm, and the issuer's policy about halting on one is its own.
    */
   readonly unmatched: readonly UnmatchedSettlement[]
+  /**
+   * Referral payments that disagree with this watcher's own rate table
+   * (§10.7). The operator paid the right payee for the right registration and
+   * the wrong figure — the debt is not in `due` (it was paid, after a
+   * fashion), so this list is the only place it shows.
+   */
+  readonly mispaidShares: readonly MispaidShare[]
+  /** Referral payments this watcher's table does not price. Empty for an operator holding their own rows. */
+  readonly unpricedShares: readonly UnpricedShare[]
 }
 
 export type WatchResult =
@@ -250,10 +268,11 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult, shares: Sha
 
   due.sort((a, b) => a.ref.height - b.ref.height || a.ref.txIndex - b.ref.txIndex || a.kind.localeCompare(b.kind))
 
-  // An `M` that paid a share discharged nothing in the reducer's books and is
-  // matched in the share's. It is not a finding.
-  const paidShares = new Set(shares.settled.map((item) => refKey(item.settledAt)))
-  const unmatched = replay.unmatched.filter((item) => !paidShares.has(refKey(item.at)))
+  // An `M` that paid a referrer discharged nothing in the reducer's books and
+  // is accounted for in the share's — settled, unpriced or mispaid. Only what
+  // none of the three explains is a finding.
+  const explained = explainedSettlements(shares)
+  const unmatched = replay.unmatched.filter((item) => !explained.has(refKey(item.at)))
 
   return Object.freeze({
     checkpointHeight: log.checkpointHeight,
@@ -262,6 +281,8 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult, shares: Sha
     due: Object.freeze(due),
     totalDue,
     unmatched: Object.freeze(unmatched),
+    mispaidShares: shares.mispaid,
+    unpricedShares: shares.unpriced,
   })
 }
 
@@ -374,6 +395,26 @@ export function describeSnapshot(snapshot: WatchSnapshot): readonly string[] {
     out.push(
       'Every leg above is at or below the checkpoint height, which an indexer cannot advance past the last finalised macro block (§7.2). No confirmation depth is applied because none is needed.',
     )
+  }
+
+  if (snapshot.mispaidShares.length > 0) {
+    out.push('')
+    out.push(`${snapshot.mispaidShares.length} referral payment(s) DISAGREE with the rate table (§10.7):`)
+    for (const item of snapshot.mispaidShares) {
+      out.push(
+        `  ${refKey(item.paidAt)} for ${refKey(item.leg.ref)} ${item.leg.name} via ${item.leg.referrer}: table says ${nim(item.leg.amount)}, paid ${nim(item.paid)} NIM, tx ${item.paidBy}`,
+      )
+    }
+  }
+
+  if (snapshot.unpricedShares.length > 0) {
+    out.push('')
+    out.push(`${snapshot.unpricedShares.length} referral payment(s) this table does not price:`)
+    for (const item of snapshot.unpricedShares) {
+      out.push(
+        `  ${refKey(item.paidAt)} for ${refKey(item.referral.ref)} ${item.referral.name} via ${item.referral.referrer}, ${nim(item.paid)} NIM, tx ${item.paidBy}`,
+      )
+    }
   }
 
   if (snapshot.unmatched.length > 0) {

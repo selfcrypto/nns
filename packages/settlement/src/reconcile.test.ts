@@ -226,7 +226,7 @@ describe('reconcile — the §10.7 shares section', () => {
     expect(report.shares?.standing).toEqual([])
   })
 
-  it('without a table the section is null and the same M is an unmatched settlement', () => {
+  it('with no collector at all the section is null and the same M is an unmatched settlement', () => {
     const report = reportFor([...referred, paid])
     expect(report.shares).toBeNull()
     expect(report.unmatched).toHaveLength(1)
@@ -236,6 +236,42 @@ describe('reconcile — the §10.7 shares section', () => {
     const text = describeReport(reportWithShares(referred)).join('\n')
     expect(text).toContain('referral shares (§10.7, policy — in no root)')
     expect(text).toContain('newcomer via ricoref at 1000 bp')
+  })
+
+  // The reading of an outsider: §10.7's format cannot express "no table", so
+  // a reader without the operator's rows prices nothing. That used to make
+  // every share an `M` that "discharged nothing" — the words for money against
+  // no obligation at all. Who was paid and for which registration is in the
+  // log; only the amount needed the rows.
+  it('a table that prices nothing still recognises the payment, and calls it unpriced', () => {
+    const staged = stageLog([...referred, paid], config)
+    const collector = createShareCollector(parseRateTable({ rates: [{ ref: null, bp: 0, fromHeight: 0 }] }))
+    const replay = replayLog(staged.lines, initialState(), config, LAUNCH_HEIGHT + 720, collector.observe)
+    const report = reconcile({ replay, checkpointHeight: LAUNCH_HEIGHT + 720, boundToCheckpoint: true, logHash: '00'.repeat(32), shares: collector.result() })
+    expect(report.unmatched).toEqual([])
+    expect(report.shares?.unpriced).toHaveLength(1)
+    expect(report.shares?.mispaid).toEqual([])
+    expect(isSound(report)).toBe(true)
+    const text = describeReport(report).join('\n')
+    expect(text).toContain('1 referral payment(s) this table does not price')
+    expect(text).toContain('newcomer via ricoref')
+    expect(text).not.toContain('discharged nothing')
+  })
+
+  it('a share paid at the wrong amount is a finding of its own, not an unmatched settlement', () => {
+    const short = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.offer, txIndex: 0, payee: REFERRER_OWNER, amount: SHARE - 1n }))
+    const report = reportWithShares([...referred, short])
+    expect(report.unmatched).toEqual([])
+    expect(report.shares?.mispaid).toHaveLength(1)
+    expect(report.shares?.standing).toEqual([])
+    // The log is still true — the operator paid the wrong figure, which is a
+    // different thing from the bytes lying.
+    expect(isSound(report)).toBe(true)
+    const text = describeReport(report).join('\n')
+    expect(text).toContain('DISAGREE with the rate table')
+    // Rendered, never computed on: the report prints NIM with five decimals.
+    const nim = (luna: bigint): string => `${luna / 100_000n}.${(luna % 100_000n).toString().padStart(5, '0')}`
+    expect(text).toContain(`table says ${nim(SHARE)}, paid ${nim(SHARE - 1n)}`)
   })
 })
 

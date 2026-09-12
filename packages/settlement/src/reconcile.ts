@@ -38,7 +38,7 @@
 import { formatAddress, refKey, type Address, type ObligationKind, type TxRef } from '@nns/core'
 
 import type { CreatedLeg, ReplayResult, SettledLeg, UnmatchedSettlement, VerdictMismatch } from './replay.js'
-import { NO_SHARES, type ShareLeg, type ShareResult } from './share.js'
+import { explainedSettlements, NO_SHARES, type MispaidShare, type ShareLeg, type ShareResult, type UnpricedShare } from './share.js'
 
 /** Totals for one `(owedBy, kind)` pair. */
 export interface LedgerLine {
@@ -82,6 +82,10 @@ export interface ShareReport {
   readonly createdCount: number
   readonly settledCount: number
   readonly standing: readonly StandingShare[]
+  /** Referral payments no row here prices — the reading of someone without the operator's table. */
+  readonly unpriced: readonly UnpricedShare[]
+  /** Referral payments that disagree with a rate this table does hold. A finding. */
+  readonly mispaid: readonly MispaidShare[]
 }
 
 export interface Report {
@@ -130,6 +134,8 @@ function shareReport(shares: ShareResult, head: number): ShareReport {
       rateBp: leg.rateBp,
       ageBlocks: Math.max(0, head - leg.ref.height),
     })),
+    unpriced: shares.unpriced,
+    mispaid: shares.mispaid,
   })
 }
 
@@ -212,11 +218,13 @@ export function reconcile(input: ReconcileInput): Report {
 
   const sum = (pick: (line: LedgerLine) => bigint): bigint => lines.reduce((total, line) => total + pick(line), 0n)
 
-  // An `M` that paid a share matched nothing in the reducer's books, by
-  // design (§6 `M`, §10.7); it is matched here and is not a finding.
+  // An `M` that paid a referrer matched nothing in the reducer's books, by
+  // design (§6 `M`, §10.7). It is accounted for here — as settled, unpriced
+  // or mispaid — and only what none of the three explains is left in
+  // `unmatched`, which is what makes that word mean something.
   const shares = input.shares ?? null
-  const paidShares = new Set((shares ?? NO_SHARES).settled.map((item) => refKey(item.settledAt)))
-  const unmatched = replay.unmatched.filter((item) => !paidShares.has(refKey(item.at)))
+  const explained = explainedSettlements(shares ?? NO_SHARES)
+  const unmatched = replay.unmatched.filter((item) => !explained.has(refKey(item.at)))
 
   return Object.freeze({
     checkpointHeight: input.checkpointHeight,
@@ -320,6 +328,29 @@ export function describeReport(report: Report): readonly string[] {
       out.push(
         `  ${ref(leg.ref).padEnd(20)} ${leg.name} via ${leg.referrer} at ${leg.rateBp} bp ${nim(leg.amount).padStart(14)} NIM  to ${formatAddress(leg.owedTo)}  (standing ${leg.ageBlocks} blocks)`,
       )
+    }
+
+    if (report.shares.mispaid.length > 0) {
+      out.push('')
+      out.push(`${report.shares.mispaid.length} referral payment(s) DISAGREE with the rate table (§10.7):`)
+      for (const item of report.shares.mispaid) {
+        out.push(
+          `  ${ref(item.paidAt).padEnd(20)} for ${ref(item.leg.ref).padEnd(20)} ${item.leg.name} via ${item.leg.referrer} at ${item.leg.rateBp} bp:` +
+            ` table says ${nim(item.leg.amount)}, paid ${nim(item.paid)} NIM  to ${formatAddress(item.leg.owedTo)}  tx ${item.paidBy}`,
+        )
+      }
+      out.push('  The payee and the registration are right and the amount is not. The log is still true; the operator paid the wrong figure.')
+    }
+
+    if (report.shares.unpriced.length > 0) {
+      out.push('')
+      out.push(`${report.shares.unpriced.length} referral payment(s) this table does not price:`)
+      for (const item of report.shares.unpriced) {
+        out.push(
+          `  ${ref(item.paidAt).padEnd(20)} for ${ref(item.referral.ref).padEnd(20)} ${item.referral.name} via ${item.referral.referrer} ${nim(item.paid).padStart(14)} NIM  to ${formatAddress(item.referral.owedTo)}  tx ${item.paidBy}`,
+        )
+      }
+      out.push('  The log says who was paid and for which registration; only the amount needs a rate row. Not a finding — the reading of anyone without the operator\'s table.')
     }
   }
 

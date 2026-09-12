@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { CONSTANTS, encodeRegister, encodeSettlement, feeFor, initialState, type NnsState } from '@nns/core'
+import { CONSTANTS, encodeRegister, encodeSettlement, feeFor, initialState, refKey, type NnsState } from '@nns/core'
 
 import { LAUNCH_HEIGHT, TREASURY, WINNER, send, stageLog, testAddress, testConfig, type Send } from './test-fixtures.js'
 import { parseRateTable } from './rates.js'
 import { replayLog } from './replay.js'
-import { createShareCollector, NO_SHARES, SHARE_KIND, shareKey, shareOwed } from './share.js'
+import { createShareCollector, explainedSettlements, NO_SHARES, referralOf, SHARE_KIND, shareKey, shareOwed } from './share.js'
 
 const config = testConfig()
 const REFERRER_OWNER = testAddress(20)
@@ -69,9 +69,11 @@ describe('shareOwed — §10.7 in one function', () => {
     expect(shares.created[0]?.amount).toBe(SHARE)
   })
 
-  it('a lifetime G owes the share on the lifetime fee — ten yearly shares (2026-09-11)', () => {
+  it('a lifetime G owes one share of the lifetime fee (2026-09-11)', () => {
     // The fee owed is what the reducer checked the value against; a `G|L`
-    // owes LIFETIME_MULTIPLIER yearly fees, and the referrer drove all of it.
+    // pays LIFETIME_MULTIPLIER yearly fees at once, and the share is the rate
+    // on what was paid at the moment the link was used — once, and never
+    // again, since `N` carries no ref (Kike, 2026-09-12).
     const { replay, shares } = collect([referrerRegistered, referred({ lifetime: true })])
     expect(replay.mismatches).toEqual([])
     const lifetimeFee = feeFor(NEWCOMER, initialState().prices, true)
@@ -157,19 +159,105 @@ describe('the share is settled by a treasury M with the four coordinates (§6 M)
     expect(replay.unmatched[0]?.at).toEqual({ height: H.settle, txIndex: 0 })
   })
 
-  it('a wrong amount, payee, or purse settles nothing', () => {
-    const short = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: SHARE - 1n }))
-    expect(collect([referrerRegistered, referred(), short]).shares.outstanding).toHaveLength(1)
+  it('a wrong payee or purse settles nothing, and is this referral’s payment in no sense', () => {
     const wrongPayee = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: WINNER, amount: SHARE }))
-    expect(collect([referrerRegistered, referred(), wrongPayee]).shares.outstanding).toHaveLength(1)
+    const other = collect([referrerRegistered, referred(), wrongPayee]).shares
+    expect(other.outstanding).toHaveLength(1)
+    expect([...other.settled, ...other.unpriced, ...other.mispaid]).toEqual([])
     const wrongPurse = send(H.settle, 0, CONSTANTS.MARKETPLACE_ADDRESS, encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: SHARE }))
-    expect(collect([referrerRegistered, referred(), wrongPurse]).shares.outstanding).toHaveLength(1)
+    const purse = collect([referrerRegistered, referred(), wrongPurse]).shares
+    expect(purse.outstanding).toHaveLength(1)
+    expect([...purse.settled, ...purse.unpriced, ...purse.mispaid]).toEqual([])
+  })
+
+  it('the right payee for the wrong amount is MISPAID, not still owed', () => {
+    // Money left the treasury to the right person for this registration. The
+    // debt is not "standing" — it was paid, at a figure the table disagrees
+    // with — and topping it up automatically would pay a second time on a
+    // repriced row. A human decides.
+    const short = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: SHARE - 1n }))
+    const { shares } = collect([referrerRegistered, referred(), short])
+    expect(shares.outstanding).toEqual([])
+    expect(shares.settled).toEqual([])
+    expect(shares.mispaid).toHaveLength(1)
+    expect(shares.mispaid[0]).toMatchObject({
+      paidAt: { height: H.settle, txIndex: 0 },
+      paid: SHARE - 1n,
+      leg: { ref: { height: H.register, txIndex: 0 }, amount: SHARE, referrer: REFERRER },
+    })
   })
 
   it('a second identical M settles nothing — the leg is already paid', () => {
     const again = send(H.settle, 1, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: SHARE }))
     const { shares } = collect([referrerRegistered, referred(), paid, again])
     expect(shares.settled).toHaveLength(1)
+  })
+})
+
+describe('a referral payment is recognised from the log, and priced by the table', () => {
+  const paid = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: SHARE }))
+  // The two ways a table says "I have no rate here". §10.7's format cannot
+  // express an absent table — `parseRateTable` requires a default row — so
+  // this is how a reader without the operator's rows actually reads a log.
+  const zero = parseRateTable({ rates: [{ ref: null, bp: 0, fromHeight: 0 }] })
+  const notYet = parseRateTable({ rates: [{ ref: null, bp: 1000, fromHeight: H.settle + 1 }] })
+
+  for (const [label, table] of [['a zero rate', zero], ['no row in effect yet', notYet]] as const) {
+    it(`with ${label}: the payment is UNPRICED — who and for what, without the amount`, () => {
+      const { replay, shares } = collect([referrerRegistered, referred(), paid], table)
+      expect(shares.created).toEqual([])
+      expect(shares.outstanding).toEqual([])
+      expect(shares.settled).toEqual([])
+      expect(shares.mispaid).toEqual([])
+      expect(shares.unpriced).toHaveLength(1)
+      expect(shares.unpriced[0]).toMatchObject({
+        paidAt: { height: H.settle, txIndex: 0 },
+        paid: SHARE,
+        referral: { ref: { height: H.register, txIndex: 0 }, name: NEWCOMER, referrer: REFERRER, owedTo: REFERRER_OWNER },
+      })
+      // The reducer still calls it an M that discharged nothing — and this is
+      // the reading that stops a report from calling it unexplained money.
+      expect(replay.unmatched).toHaveLength(1)
+      expect(explainedSettlements(shares).has(refKey({ height: H.settle, txIndex: 0 }))).toBe(true)
+    })
+  }
+
+  it('an unpriced referral nobody paid is owed by nobody — it never reaches `due`', () => {
+    const { shares } = collect([referrerRegistered, referred()], zero)
+    expect(shares.outstanding).toEqual([])
+    expect(shares.unpriced).toEqual([])
+  })
+
+  it('explains a settled and a mispaid payment too, and nothing else', () => {
+    const settledRun = collect([referrerRegistered, referred(), paid]).shares
+    expect([...explainedSettlements(settledRun)]).toEqual([refKey({ height: H.settle, txIndex: 0 })])
+    const short = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: REFERRER_OWNER, amount: SHARE - 1n }))
+    const mispaidRun = collect([referrerRegistered, referred(), short]).shares
+    expect([...explainedSettlements(mispaidRun)]).toEqual([refKey({ height: H.settle, txIndex: 0 })])
+    const wrongPayee = send(H.settle, 0, TREASURY, encodeSettlement({ height: H.register, txIndex: 0, payee: WINNER, amount: SHARE }))
+    expect([...explainedSettlements(collect([referrerRegistered, referred(), wrongPayee]).shares)]).toEqual([])
+  })
+
+  it('referralOf reads the log and nothing else — the table decides only the amount', () => {
+    const { shares } = collect([referrerRegistered, referred()])
+    const leg = shares.created[0]!
+    const staged = stageLog([referrerRegistered], config)
+    const tx = {
+      blockNumber: H.register,
+      txIndex: 0,
+      hash: 'ab'.repeat(32),
+      sender: WINNER,
+      recipient: TREASURY,
+      value: FEE(NEWCOMER),
+      recipientData: encodeRegister({ name: NEWCOMER, fee: FEE(NEWCOMER), ref: REFERRER }).data,
+      executionResult: true,
+      networkId: config.networkId,
+      isReward: false,
+    }
+    const referral = referralOf(staged.state, tx, { height: H.register, txIndex: 0 }, { kind: 'OK', obligations: [] })
+    expect(referral).toMatchObject({ name: NEWCOMER, referrer: REFERRER, owedTo: REFERRER_OWNER, price: FEE(NEWCOMER) })
+    expect(referral).not.toHaveProperty('amount')
+    expect(leg).toMatchObject({ ...referral, amount: SHARE, rateBp: 1000n })
   })
 })
 

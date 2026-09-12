@@ -20,12 +20,33 @@
  * - only an `OK` `G` owes anything;
  * - the amount is `⌊price × bp⌋` on the fee **owed** at the `G`'s height —
  *   the band's yearly fee, or the lifetime fee when the `G` carried `L`
- *   (2026-09-11: a lifetime is ten yearly fees and pays ten shares; the
- *   referrer drove ten times the revenue) — never the value sent;
+ *   (§10.4). A referral is earned once, at the moment the link is used, on
+ *   what was paid then: a lifetime `G` pays one share of a fee that is ten
+ *   yearly ones, and nothing later — `N` carries no `ref`, so a referred
+ *   buyer who renews or extends next month earns the referrer nothing
+ *   (Kike, 2026-09-12). Never `tx.value`: an overpayment must not farm a
+ *   share;
  * - the rate is the table's row for `(ref, height)`;
  * - an `M` from `TREASURY_ADDRESS` referencing the `G`, to the payee, for
  *   exactly the amount, settles it — the four-coordinate match §6 `M` uses
  *   for the reducer's own legs.
+ *
+ * ## Recognising a payment is not the same as pricing it
+ *
+ * **Who** was paid and **for what** is in the log: the `M` names a `G`, that
+ * `G` is `OK` and carried a `ref`, that name was `REGISTERED` before it, and
+ * the payee is its `target`. Only the **amount** needs the table. So the two
+ * are separate here — `referralOf` reads the log, `shareOwed` prices what it
+ * read — and an `M` is recognised as a referral payment whether or not this
+ * process holds a rate for it.
+ *
+ * That split is what keeps three different things from being reported as one.
+ * A reader without the operator's table can price nothing, and used to see
+ * every share as an `M` that "discharged nothing" — the words for money that
+ * left the treasury against no obligation at all. It also hid the case worth
+ * shouting about: a share paid at the **wrong** amount against a rate that is
+ * right here in the table. `settled`, `unpriced` and `mispaid` are those three
+ * answers, and what is left unmatched is genuinely unexplained.
  */
 
 import {
@@ -47,8 +68,13 @@ import type { LineEvent } from './replay.js'
 /** The ledger kind a share is recorded under — beside `core`'s three, never among them. */
 export const SHARE_KIND = 'REFERRAL_SHARE' as const
 
-export interface ShareLeg {
-  /** The `G` that owes it. */
+/**
+ * A referral as the log alone establishes it: an `OK` `G` that named a
+ * registered `ref`, and the payee that `ref` resolved to at that position.
+ * Everything but the amount.
+ */
+export interface Referral {
+  /** The `G` that earned it. */
   readonly ref: TxRef
   /** The name the `G` registered. */
   readonly name: string
@@ -57,9 +83,13 @@ export interface ShareLeg {
   readonly owedBy: Address
   /** The referrer's `target` at the `G`'s position. */
   readonly owedTo: Address
-  readonly amount: bigint
-  /** The fee owed the share was taken on — the band's, ×LIFETIME_MULTIPLIER for a lifetime `G`. */
+  /** The fee owed the share is taken on — the band's, ×LIFETIME_MULTIPLIER for a lifetime `G`. */
   readonly price: bigint
+}
+
+/** A referral the table priced. */
+export interface ShareLeg extends Referral {
+  readonly amount: bigint
   readonly rateBp: bigint
 }
 
@@ -69,43 +99,88 @@ export interface SettledShare {
   readonly settledBy: string
 }
 
+/**
+ * A referral payment this process cannot check: the log says who was paid and
+ * for which `G`, and no row prices it. Not a finding — the reading of someone
+ * who does not hold the operator's table, which is most readers.
+ */
+export interface UnpricedShare {
+  readonly referral: Referral
+  readonly paidAt: TxRef
+  readonly paidBy: string
+  readonly paid: bigint
+}
+
+/**
+ * A referral payment that disagrees with a rate that *is* here: the treasury
+ * paid the right payee for the right `G`, and not the amount the published
+ * table says. A finding.
+ */
+export interface MispaidShare {
+  readonly leg: ShareLeg
+  readonly paidAt: TxRef
+  readonly paidBy: string
+  readonly paid: bigint
+}
+
 export interface ShareResult {
+  /** Referrals the table priced — the population `settled` and `outstanding` partition. */
   readonly created: readonly ShareLeg[]
   readonly settled: readonly SettledShare[]
   readonly outstanding: readonly ShareLeg[]
+  readonly unpriced: readonly UnpricedShare[]
+  readonly mispaid: readonly MispaidShare[]
 }
 
-export const shareKey = (leg: Pick<ShareLeg, 'ref'>): string => `${refKey(leg.ref)}:${SHARE_KIND}`
+export const shareKey = (leg: Pick<Referral, 'ref'>): string => `${refKey(leg.ref)}:${SHARE_KIND}`
 
 /**
- * What one `OK` `G` owes its referrer, or `null`.
+ * The referral one `OK` `G` earned, or `null` — read from the log, priced by
+ * nobody.
  *
  * `before` is the state the `G` reduced against — after the height's effects,
  * before the line — so a referrer that expired in the same block is already
  * in `GRACE` and owes nothing, and a `G` cannot refer to the name it is
  * registering.
  */
-export function shareOwed(before: NnsState, tx: ChainTransaction, at: TxRef, verdict: Verdict, table: RateTable): ShareLeg | null {
+export function referralOf(before: NnsState, tx: ChainTransaction, at: TxRef, verdict: Verdict): Referral | null {
   if (verdict.kind !== 'OK') return null
   const parsed = parse(tx.recipientData)
   if (!parsed.ok || parsed.message.type !== 'G' || parsed.message.ref === null) return null
   const referrer = before.names.get(parsed.message.ref)
   if (referrer === undefined || referrer.status !== 'REGISTERED') return null
-  const row = rateFor(table, parsed.message.ref, at.height)
-  if (row === null) return null
-  const price = feeFor(parsed.message.name, before.prices, parsed.message.lifetime)
-  const amount = shareAmount(price, row.bp)
-  if (amount <= 0n) return null
   return Object.freeze({
     ref: at,
     name: parsed.message.name,
     referrer: parsed.message.ref,
     owedBy: CONSTANTS.TREASURY_ADDRESS,
     owedTo: referrer.target,
-    amount,
-    price,
-    rateBp: row.bp,
+    price: feeFor(parsed.message.name, before.prices, parsed.message.lifetime),
   })
+}
+
+/**
+ * What one `OK` `G` owes its referrer, or `null`.
+ *
+ * `null` covers both "no referral" and "no rate for it": a table with no row
+ * for `(ref, height)`, or one that prices the referral at zero, is a table
+ * saying it has no rate here — which is exactly how a reader without the
+ * operator's rows says so, since §10.7's format has no way to express an
+ * absent table. Nothing is owed on either, and the issuer pays nothing.
+ */
+export function shareOwed(before: NnsState, tx: ChainTransaction, at: TxRef, verdict: Verdict, table: RateTable): ShareLeg | null {
+  const referral = referralOf(before, tx, at, verdict)
+  if (referral === null) return null
+  return priced(referral, table)
+}
+
+/** The priced form of a referral, or `null` when no row prices it. */
+function priced(referral: Referral, table: RateTable): ShareLeg | null {
+  const row = rateFor(table, referral.referrer, referral.ref.height)
+  if (row === null) return null
+  const amount = shareAmount(referral.price, row.bp)
+  if (amount <= 0n) return null
+  return Object.freeze({ ...referral, amount, rateBp: row.bp })
 }
 
 export interface ShareCollector {
@@ -117,34 +192,74 @@ export interface ShareCollector {
 export function createShareCollector(table: RateTable): ShareCollector {
   const created: ShareLeg[] = []
   const settled: SettledShare[] = []
-  const open = new Map<string, ShareLeg>()
+  const unpriced: UnpricedShare[] = []
+  const mispaid: MispaidShare[] = []
+  /** Every referral seen and not yet paid, priced or not. */
+  const open = new Map<string, { referral: Referral; leg: ShareLeg | null }>()
 
   return {
     observe(event) {
-      const leg = shareOwed(event.before, event.tx, event.at, event.verdict, table)
-      if (leg !== null) {
-        created.push(leg)
-        open.set(shareKey(leg), leg)
+      const referral = referralOf(event.before, event.tx, event.at, event.verdict)
+      if (referral !== null) {
+        const leg = priced(referral, table)
+        if (leg !== null) created.push(leg)
+        open.set(shareKey(referral), { referral, leg })
         return
       }
-      // A treasury `M` that names a share, to its payee, for its amount. The
-      // reducer already said `OK` and matched nothing; this is the match.
+      // A treasury `M` that names a referral, to its payee. The reducer
+      // already said `OK` and matched nothing; this is the match — and the
+      // amount is what tells the three answers apart.
       if (event.verdict.kind !== 'OK' || !addressEquals(event.tx.sender, CONSTANTS.TREASURY_ADDRESS)) return
       const parsed = parse(event.tx.recipientData)
       if (!parsed.ok || parsed.message.type !== 'M') return
       const key = shareKey({ ref: { height: parsed.message.height, txIndex: parsed.message.txIndex } })
       const candidate = open.get(key)
       if (candidate === undefined) return
-      if (!addressEquals(candidate.owedTo, event.tx.recipient) || candidate.amount !== event.tx.value) return
+      // A treasury `M` naming a referred `G` and paying somebody else is not
+      // this referral's payment. Left to the reducer's own reading.
+      if (!addressEquals(candidate.referral.owedTo, event.tx.recipient)) return
       open.delete(key)
-      settled.push({ leg: candidate, settledAt: event.at, settledBy: event.tx.hash })
+      const paid = { paidAt: event.at, paidBy: event.tx.hash, paid: event.tx.value }
+      if (candidate.leg === null) unpriced.push({ referral: candidate.referral, ...paid })
+      else if (candidate.leg.amount === event.tx.value) settled.push({ leg: candidate.leg, settledAt: event.at, settledBy: event.tx.hash })
+      else mispaid.push({ leg: candidate.leg, ...paid })
     },
     result() {
-      const outstanding = [...open.values()].sort((a, b) => a.ref.height - b.ref.height || a.ref.txIndex - b.ref.txIndex)
-      return Object.freeze({ created: Object.freeze([...created]), settled: Object.freeze([...settled]), outstanding: Object.freeze(outstanding) })
+      // Only a priced referral can be outstanding: nobody may claim a debt
+      // whose amount they cannot compute, and `watch` pays out of this list.
+      const outstanding = [...open.values()]
+        .map((entry) => entry.leg)
+        .filter((leg): leg is ShareLeg => leg !== null)
+        .sort((a, b) => a.ref.height - b.ref.height || a.ref.txIndex - b.ref.txIndex)
+      return Object.freeze({
+        created: Object.freeze([...created]),
+        settled: Object.freeze([...settled]),
+        outstanding: Object.freeze(outstanding),
+        unpriced: Object.freeze([...unpriced]),
+        mispaid: Object.freeze([...mispaid]),
+      })
     },
   }
 }
 
+/**
+ * Where every `M` this collector accounted for sits — settled, unpriced or
+ * mispaid. What the reducer calls an unmatched settlement and this explains,
+ * so the two readings are subtracted from each other in one place.
+ */
+export function explainedSettlements(shares: ShareResult): ReadonlySet<string> {
+  return new Set([
+    ...shares.settled.map((item) => refKey(item.settledAt)),
+    ...shares.unpriced.map((item) => refKey(item.paidAt)),
+    ...shares.mispaid.map((item) => refKey(item.paidAt)),
+  ])
+}
+
 /** The empty result, for callers that run without a table. */
-export const NO_SHARES: ShareResult = Object.freeze({ created: Object.freeze([]), settled: Object.freeze([]), outstanding: Object.freeze([]) })
+export const NO_SHARES: ShareResult = Object.freeze({
+  created: Object.freeze([]),
+  settled: Object.freeze([]),
+  outstanding: Object.freeze([]),
+  unpriced: Object.freeze([]),
+  mispaid: Object.freeze([]),
+})

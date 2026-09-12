@@ -80,6 +80,8 @@ const snapshotOf = (checkpointHeight: number, due: readonly DueObligation[], log
     due: Object.freeze([...due]),
     totalDue: due.reduce((sum, item) => sum + item.amount, 0n),
     unmatched: [],
+    mispaidShares: [],
+    unpricedShares: [],
   })
 
 const entryOf = (due: DueObligation, overrides: Partial<LedgerEntry> = {}): LedgerEntry => ({

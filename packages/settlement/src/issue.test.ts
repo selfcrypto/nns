@@ -597,6 +597,8 @@ describe.skipIf(URL === undefined)('issuePass over a real ledger', () => {
       due: Object.freeze(due),
       totalDue: due.reduce((sum, item) => sum + item.amount, 0n),
       unmatched: Object.freeze([]),
+      mispaidShares: Object.freeze([]),
+      unpricedShares: Object.freeze([]),
     })
 
   beforeAll(async () => {
