@@ -1,6 +1,6 @@
 # Publishing the libraries to npm
 
-Three of the thirteen workspace packages are published. The other ten are
+Three of the twelve workspace packages are published. The other nine are
 services and tooling: they reach a machine as a git checkout and a docker
 image (`deploy.md`), and an npm tarball of a server nobody installs from npm
 would be a second distribution channel to keep honest for no one's benefit.

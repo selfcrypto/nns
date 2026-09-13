@@ -23,9 +23,9 @@ challenge is answered. Delete the server blocks for roles you do not run — a
 hostname nginx is told to certify but nobody points DNS at is a renewal that
 fails forever.
 
-The status page of `deploy/monitor` is an overlay, not a fourth block:
+An uptime monitor's public status page is an overlay, not a fourth block:
 `COMPOSE_FILE=docker-compose.yml:status.yml` in `.env` plus
-`NNS_EDGE_STATUS_HOST`. Only the page's anonymous paths are proxied; the Kuma
+`NNS_EDGE_STATUS_HOST`. Only the page's anonymous paths are proxied; the
 dashboard and login stay loopback-only, reached over an SSH tunnel.
 
 ## Two things worth knowing before they cost a week
@@ -48,8 +48,7 @@ entry, so the edge **sets** the header and never appends.
 ## Migrating from a host terminator (Caddy, systemd nginx)
 
 Both want ports 80/443, so the rehearsal is the start of the cutover window.
-With `deploy/vps/nns-vps` this is `nns-vps up edge --staging` and then
-`nns-vps up edge`; by hand:
+Rehearse against the staging URI first, then reissue for real:
 
 1. Put the staging URI in `.env`. `sudo systemctl stop caddy` (stop, not
    disable — it is still the rollback), then `docker compose up -d` here.

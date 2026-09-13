@@ -31,7 +31,7 @@ export class ConfigParseError extends Error {
  * An endpoint this bundle may talk to: an absolute `http(s)` URL, or a
  * **root-relative path** meaning "the origin that served this bundle".
  *
- * The relative form is what makes the image domain-agnostic. `deploy/service`'s
+ * The relative form is what makes the image domain-agnostic. The
  * nginx already serves `/api/` and `/rpc` on the same origin as the bundle, so
  * requiring an absolute URL here was the only thing forcing an operator's
  * hostname into a build arg — and therefore a separate image per domain. With

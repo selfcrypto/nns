@@ -27,7 +27,7 @@ lays the roles side by side, and "a delegate is not a resolver" is the first
 of the things it lists as easy to get wrong.
 
 **It is also not the service.** The RPC relay and the mini app bundle
-(`deploy/service`) are not here: the relay holds the node's credential and
+(the role that hosts the app) are not here: the relay holds the node's credential and
 exists to host the app, not to resolve names. And nothing that holds a key is
 here either — settlement and anchor are separate machines, deliberately.
 

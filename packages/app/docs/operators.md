@@ -11,7 +11,7 @@ The point of NNS is that nobody has to take the operator's word. That is only tr
 | Notarise checkpoint roots on an EVM chain | **Anchor publisher** | nothing | a funded EVM key and two independent IPFS importers |
 | Both of the first two on one box | **Collaborator** | API and delegate | the same history node |
 
-Two further roles exist and are the operator's alone: **the service** (the resolver stack plus the app bundle and the RPC relay the app needs) and **settlement** (pays what the protocol owes; holds the system's only Nimiq hot keys). Nothing a third party can run holds a key of any kind.
+Two further roles exist and are the operator's alone: the one that hosts this app, and the one that pays what the protocol owes — the latter holds the system's only Nimiq hot keys. Neither is something a third party runs, and nothing in the table above holds a key of any kind.
 
 Run one, two or all of them; they are separate Compose projects and do not interfere.
 
@@ -84,11 +84,11 @@ The smallest thing in NNS to operate: one container, one JSON file, no node, no 
 
 ## Keys, TLS, backups
 
-**Keys.** A resolver, a delegate and a collaborator hold none. The service holds the node's RPC credential for the relay and no chain key. Settlement holds the two hot keys that pay refunds and proceeds; the anchor publisher holds a funded EVM key. Both keyed roles must live on a different machine from anything with a public surface.
+**Keys.** A resolver, a delegate and a collaborator hold none. The anchor publisher holds a funded EVM key, and it must live on a different machine from anything with a public surface.
 
 **TLS.** Both public roles need publicly trusted HTTPS, because clients are browsers and, for a delegate, the scheme is fixed by the protocol with no downgrade. No role bundles a terminator; the recipes in the delegate's README apply to every role with only the port changed.
 
-**Backups.** Exactly one thing in the whole system is worth backing up: the settlement ledger, which records payments that have already left a hot key. Everything else is derived — a resolver from the chain, a delegate from its JSON file, the app from the repository.
+**Backups.** Nothing you run here needs one. Every byte of it is derived — a resolver from the chain, a delegate from its JSON file, the app from the repository — so the only thing to keep safe is the `.env` you filled in.
 
 **Verify from outside.** A certificate only your browser trusts and a port only your LAN can reach both look perfect from the machine that serves them. Check every public URL from somewhere else.
 

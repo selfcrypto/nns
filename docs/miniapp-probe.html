@@ -123,7 +123,7 @@ const $ = (id) => document.getElementById(id);
 const show = (el, v) => { $(el).textContent = typeof v === 'string' ? v : JSON.stringify(v, null, 2); };
 
 /**
- * Report a finished pane to the box (`scripts/probe-host.sh install`), so the
+ * Report a finished pane to a log sink on the host serving this page, so the
  * numbers arrive as text rather than as a photograph of a phone. Entirely
  * best-effort: the sink is ephemeral and often absent, and the probe must
  * behave identically either way — so every failure here is swallowed.

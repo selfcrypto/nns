@@ -1,6 +1,6 @@
 # Operator roles
 
-Five things can be run, by different kinds of party. Each is a directory under
+Three things can be run, by different kinds of party. Each is a directory under
 `deploy/` with its own compose file, its own `.env.example` and its own README,
 so nobody reads configuration belonging to a role they do not run.
 
@@ -8,18 +8,16 @@ so nobody reads configuration belonging to a role they do not run.
 |---|---|---|---|
 | **Resolver** — `deploy/resolver` | Postgres → indexer → API | the API | a Nimiq history node whose retention covers `LAUNCH_HEIGHT` |
 | **Delegate** — `deploy/delegate` | the delegate | yes | a labels file, and publicly trusted TLS |
-| **The service** — `deploy/service` | the resolver stack + relay + app bundle | app, API, relay | the node's credential, for the relay |
-| **Settlement** — `deploy/settlement` | its own Postgres → ledger → issuer | **nothing** | the two §6 `M` hot keys, and a node it reaches privately |
 | **Anchor** — `deploy/anchor` | kubo → publisher | **nothing** | a funded EVM key, and §8.2's second CID implementation |
 
 Run one, or two, or all of them: they are separate compose projects and do not
 interfere. An exchange that wants `shop.exchange` to work needs only the second
 row — no node, no database, no indexer.
 
-The last two rows are ours alone and belong on a **different machine from the
-third** — both hold keys, and a box terminating TLS is the wrong home for one.
+The last row holds a funded key and belongs on a machine with **no public
+surface** — a box terminating TLS is the wrong home for one.
 
-The first two rows are also the two a third party can run, and
+The first two rows are the ones most parties run, and
 `deploy/collaborator` is both of them in one compose project: one `.env`, one
 `up`, the same four containers on the same two ports. It is a convenience, not
 a sixth row — the resolver still proves its answers and the delegate still
@@ -38,13 +36,6 @@ A **delegate** is a name owner answering for their own subdomains. It proves
 nothing — §8.6's answer carries no proof and clients render it differently for
 that reason — and it holds no chain data at all.
 
-**The service** is what we run: a resolver, plus the mini app, plus the RPC
-relay the app needs. Only this row exists once.
-
-**Settlement** pays what the protocol owes — marketplace payouts, commission
-forwards, and refunds. It is also ours alone, and it holds the system's only
-Nimiq hot key.
-
 **The anchor publisher** writes checkpoint commitments to an EVM chain (§9) so
 past claims cannot be quietly rewritten. It ships with a **kubo node**, because
 §8.2 pins and anchors a log snapshot only when two *independent* CID
@@ -53,33 +44,6 @@ implementations mint the same CID — kubo is one, Filebase the other, and
 the operator who also runs the resolver adds timestamping, not independence:
 `ANCHOR_QUORUM` is 2 and the contract is permissionless precisely so a second
 party can anchor without asking anyone.
-
-## The settlement issuer
-
-It settles **obligations, not message types**: nothing in it looks for a `B`
-or a `G`, so which verdicts owe money stays
-`core`'s decision. Three kinds — `REFUND`, `SALE_PROCEEDS`, `COMMISSION` — and
-two senders, with the key chosen by each obligation's `owedBy`:
-
-- `TREASURY_ADDRESS` refunds a `G` that lost a registration race.
-- `MARKETPLACE_ADDRESS` refunds a `B` against a closed offer or at the wrong
-  price, and pays a winning `B`'s proceeds and commission.
-
-So **both keys are needed by anyone running the marketplace** — three of the
-four obligation paths are the marketplace's, including two of the three refund
-reasons. `deploy/settlement`'s compose file therefore declares both as required
-rather than optional.
-
-**It must not share a machine with the service.** A box that terminates TLS is
-the wrong home for a hot key, and the issuer needs the node's *wallet* methods,
-which the relay deliberately does not allowlist. It needs no inbound
-reachability at all: it polls the API outbound and broadcasts `M` transactions,
-which every indexer then picks up like any other message. The chain is the only
-channel between the two halves — no shared database, no open port.
-
-Its ledger is **the one database in NNS worth backing up**. Everything else
-derives from the chain and rebuilds from `LAUNCH_HEIGHT`; this records payments
-that have already left a hot key.
 
 ## Four things that are easy to get wrong
 

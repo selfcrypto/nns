@@ -8,7 +8,7 @@
 # This is `deploy/resolver` (Postgres, indexer, API) and `deploy/delegate` (one
 # container, one JSON file) in a single compose project, with one `.env` and
 # one `up`. Nothing else fits here: the relay and the app bundle are the
-# service's (`deploy/service`), and settlement and anchor hold keys.
+# the app-hosting role's, and the keyed roles hold keys.
 #
 # **It is not a role, and it does not merge the two.** They stay what they
 # were: the resolver replays the chain and proves its answers, the delegate
@@ -20,7 +20,7 @@
 #
 # **Every service below is a verbatim copy**, and has to stay one: `docker
 # compose config` here renders each of the four identically to the same service
-# — and since 2026-08-22 that is enforced, not promised: `nns-vps check` fails
+# — and that is enforced, not promised: `scripts/check-deploy-drift.sh` fails
 # on any difference, naming the service and printing the diff. Edit a copied
 # service in its source role and this file in the same change.
 # in ../resolver and ../delegate, modulo the project name. That equality is the

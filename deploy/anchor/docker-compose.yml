@@ -16,11 +16,10 @@
 # half of the agreement gate, and there is no deployment of this role without
 # it.
 #
-# **This is a funded-key role.** `deploy/service/README.md` lists the anchor
-# publisher under "Never on this box" beside the settlement issuer and the
-# admin CLI. Like settlement it needs no inbound reachability at all: it reads
-# an NNS API outbound, pins to IPFS outbound, and sends to an EVM chain
-# outbound.
+# **This is a funded-key role**, and it belongs nowhere near a box that
+# terminates TLS (`../README.md`, "Keys, and where they may not be"). It needs
+# no inbound reachability at all: it reads an NNS API outbound, pins to IPFS
+# outbound, and sends to an EVM chain outbound.
 
 name: nns-anchor
 
@@ -74,7 +73,7 @@ services:
     # sat "Up" for three days while every run failed on a dead hostname. So
     # the loop carries a dead-man switch: when NNS_ANCHOR_PUSH_URL is set, a
     # run that exits 0 — anchored *or* legitimately unchanged — pings it, and
-    # a monitor (deploy/monitor) alerts when the pings stop. Only success
+    # a monitor alerts when the pings stop. Only success
     # pings; a failing run cannot keep the switch alive by mistake.
     command:
       - sh
@@ -141,9 +140,9 @@ services:
       # need this lowered — Sepolia's commonly cap at 50,000.
       NNS_ANCHOR_LOOKBACK_BLOCKS: ${NNS_ANCHOR_LOOKBACK_BLOCKS:-}
 
-      # The dead-man switch above. An Uptime Kuma push URL — deploy/monitor's
-      # provisioner prints the exact line, reachable as http://kuma:3001/…
-      # over the shared network its push-net.yml overlay joins. Optional:
+      # The dead-man switch above. An uptime monitor's push URL — Uptime Kuma
+      # calls these "push" monitors and prints the exact line. Reach it over a
+      # shared docker network if the monitor runs beside this role. Optional:
       # empty means no ping and no monitoring, which is where you started.
       NNS_ANCHOR_PUSH_URL: ${NNS_ANCHOR_PUSH_URL:-}
     logging:

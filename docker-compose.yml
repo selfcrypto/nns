@@ -5,7 +5,7 @@
 #
 # This file is the **development** stack: the indexer and its database, and
 # nothing that faces a network. Deployments live in `deploy/`, one directory
-# per operator role — `deploy/resolver`, `deploy/delegate`, `deploy/service` —
+# per operator role — `deploy/resolver`, `deploy/delegate`, `deploy/anchor` —
 # each with its own compose file, its own `.env.example` and its own README, so
 # an operator never reads a variable belonging to a role they do not run.
 # `docs/runbooks/operators.md` is the map.

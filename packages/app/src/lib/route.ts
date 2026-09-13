@@ -7,7 +7,7 @@
  * unknown hash is the caller's default, which is the landing page in both
  * hosts since 2026-09-12 — a browser and Nimiq Pay alike (`App.tsx`).
  *
- * The hash rather than the path, and no router library: `deploy/service`'s
+ * The hash rather than the path, and no router library: the app's
  * nginx deliberately answers an unknown path with 404 so a stale script URL
  * never gets HTML back, and every independent host (the package is MIT for
  * that reason) would need the same rewrite rule for path routes. A hash needs

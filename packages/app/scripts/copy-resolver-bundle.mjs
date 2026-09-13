@@ -4,7 +4,7 @@
  *
  * Why the app and not a static host of its own: `docs/integration.md` points a
  * page with no build step at a URL, and that URL has to exist on day one, for
- * every operator running `deploy/service` — not only on the day the packages
+ * every operator serving this app — not only on the day the packages
  * reach npm and jsDelivr can mirror them. One `web` image, one more file,
  * every deployment gets it.
  *

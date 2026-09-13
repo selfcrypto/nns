@@ -109,8 +109,8 @@ location /delegated/ {
 }
 ```
 
-with `D` = `example.com/delegated`. **No `rewrite`, unlike the registry API's
-`/api/`** (`deploy/service/nginx.conf`): the prefix is part of the address the
+with `D` = `example.com/delegated`. **No `rewrite`, unlike a registry API
+mounted under `/api/`**: the prefix is part of the address the
 client builds out of the `D`, so no proxy *could* strip it, and the container
 does not need it stripped — it reads the parent and the label as the last two
 segments and ignores the mount.

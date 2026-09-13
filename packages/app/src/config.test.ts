@@ -25,7 +25,7 @@ describe('parseResolverList', () => {
     expect(() => parseResolverList('[{"name":"A","url":"ftp://x"}]')).toThrow(ConfigParseError)
   })
 
-  // The whole point of the relative form: `deploy/service`'s nginx serves the
+  // The whole point of the relative form: the nginx in front of the app serves the
   // API on the bundle's own origin, so one image runs on any hostname.
   it('accepts a same-origin path, so no hostname is baked into the bundle', () => {
     expect(parseResolverList('[{"name":"This deployment","url":"/api"}]')).toEqual([

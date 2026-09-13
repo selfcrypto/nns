@@ -978,9 +978,9 @@ const hash = await rpc('sendBasicTransactionWithData', [
 ])
 ```
 
-The repository's `scripts/nns-send.mjs` is the worked version of (c): dry
-run by default, prints the built payload and where the fee figure came from,
-and only `--send` broadcasts.
+Whatever you build for (c), make it dry-run by default: print the payload it
+built and where the fee figure came from, and require an explicit flag before
+anything is broadcast. A fee read from the wrong era is silent otherwise.
 
 **Confirm by effect**, for all three:
 

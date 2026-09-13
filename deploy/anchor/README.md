@@ -4,10 +4,10 @@ Publishes checkpoint commitments to an EVM chain (§9), so past claims cannot be
 quietly rewritten. Two containers: the publisher, and the **kubo node §8.2
 requires beside it**.
 
-This is a funded-key role. `deploy/service/README.md` lists it under "Never on
-this box" alongside the settlement issuer and the admin CLI. Like settlement it
-needs **no inbound reachability at all** — it reads an NNS API outbound, pins
-outbound, and sends outbound.
+This is a funded-key role, and it belongs nowhere near a box that terminates
+TLS — `deploy/README.md`, "Keys, and where they may not be". It needs **no
+inbound reachability at all**: it reads an NNS API outbound, pins outbound, and
+sends outbound.
 
 ## Why there is a kubo in this directory
 

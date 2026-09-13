@@ -48,8 +48,8 @@ const accepted = new Set(options.accept ?? [])
 
 // ── The build the check reads, and whether it is the edit you just made ──────
 //
-// Everything here comes from `dist`, the same build `scripts/nns-send.mjs`
-// sends with. A stale one is the trap the runbook already names, and it would
+// Everything here comes from `dist`, the same build a sender would encode
+// with. A stale one is the trap the runbook already names, and it would
 // make this check answer about the *previous* profile — so compare mtimes and
 // refuse rather than reassure.
 

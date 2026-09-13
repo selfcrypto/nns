@@ -4,7 +4,7 @@
 # and login stay reachable only on 127.0.0.1:3001 over an SSH tunnel: the six
 # locations below are exactly what an anonymous status-page view fetches, and
 # everything else is redirected to the page rather than proxied. Widening this
-# list is how the admin UI ends up public — mirror deploy/monitor/README.md
+# list is how the admin UI ends up public — mirror the monitor's own docs
 # before touching it.
 #
 # The public paths poll over plain HTTP; only the logged-in dashboard uses a

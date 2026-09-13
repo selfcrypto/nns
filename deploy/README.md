@@ -1,6 +1,6 @@
 # deploy/
 
-Five things can be run, one directory each. Every directory carries its own
+Three things can be run, one directory each. Every directory carries its own
 compose file, its own `.env.example` and its own README, so an operator never
 reads a variable belonging to a role they do not run.
 
@@ -10,12 +10,10 @@ reads a variable belonging to a role they do not run.
 |---|---|---|---|
 | Serve the registry, so clients can verify it against someone other than us | [`resolver/`](resolver/) | its API | a Nimiq **history** node covering `LAUNCH_HEIGHT` |
 | Make `shop.myname` resolve, for names I own | [`delegate/`](delegate/) | its HTTP port | a JSON file and publicly trusted TLS |
-| Host the mini app and its RPC proxy | [`service/`](service/) | app, API, relay | the node's credential, for the relay |
-| Pay what the protocol owes — payouts and refunds | [`settlement/`](settlement/) | **nothing** | the two §6 `M` hot keys, and a node it reaches privately |
 | Anchor checkpoint roots to an EVM chain (§9) | [`anchor/`](anchor/) | **nothing** | a funded EVM key, and the bundled kubo — §8.2 needs two independent CID implementations |
 
 They are separate compose projects with separate names and do not interfere;
-run one, two, or all five. An exchange that wants `shop.exchange` to work needs
+run one, two, or all three. An exchange that wants `shop.exchange` to work needs
 only the second row — no node, no database, no indexer.
 
 [`../docs/runbooks/operators.md`](../docs/runbooks/operators.md) is the longer
@@ -59,16 +57,6 @@ Three things an operator should know before running it:
   database is disposable — every row is rebuildable from the chain — so
   retention is genuinely your call.
 
-## One box, one command
-
-[`vps/`](vps/) is the owner's tool, not a role: it composes every stack one
-box runs — including the keyed roles the table above deliberately keeps off
-the public machine — validates each role's `.env` against its own compose
-file, and moves the non-regenerable state between boxes (`bundle`/`restore`).
-If you are an operator, it is not for you; pick a row above. The
-key-separation rule below still stands, and running everything on one box is
-the explicit trade that kit's README owns up to.
-
 ## The root `docker-compose.yml` is not a deployment
 
 The compose file at the repository root is the **development** stack — the
@@ -91,14 +79,9 @@ services speak plain HTTP and expect a TLS terminator in front:
 |---|---|---|
 | `resolver` | 8635 | the API |
 | `collaborator` | 8635 / 8636 | the API and the delegate, on one box |
-| `service` | 8635 | the API, standalone |
-| `service` | 8080 | the app, with `/api/` and `/rpc` behind it |
 | `delegate` | 8636 | the delegate |
-| `settlement` | 5434 | its Postgres, for `psql` and backups only |
 
-Widen one only if you know what fronts it. `service`'s 8080 in particular must
-not be widened: the relay trusts `X-Forwarded-For` there, so a client that can
-reach it directly chooses its own rate-limit bucket.
+Widen one only if you know what fronts it.
 
 **No role bundles a TLS terminator.** Deliberately — bundling one means owning
 failure modes we do not control, in roles whose appeal is that they are small.
@@ -122,10 +105,9 @@ set is a value two operators can disagree about.
 
 ## The node, for the roles that need one
 
-`resolver`, `collaborator` and `service` all run the indexer, so all three need
-a Nimiq **history** node whose retention covers `LAUNCH_HEIGHT`. `settlement`
-needs a node too, but any node it can reach privately — it signs rather than
-replays. A `delegate` needs none.
+`resolver` and `collaborator` both run the indexer, so both need a Nimiq
+**history** node whose retention covers `LAUNCH_HEIGHT`. A `delegate` needs
+none, and neither does an `anchor` publisher — it reads a resolver's API.
 
 This is the one prerequisite that cannot be corrected afterwards, and its
 failure is the quietest in the system: a node brought up by state sync, or one
@@ -160,20 +142,13 @@ The two that hold a spending key are the two with no public surface:
 | `resolver` | none — spends nothing, signs nothing |
 | `delegate` | none — holds no chain data at all |
 | `collaborator` | none — it is those two rows on one box |
-| `service` | the node's RPC credential, for the relay. No chain key |
-| `settlement` | **both §6 `M` hot keys** |
 | `anchor` | **a funded EVM publisher key** (SHOULD be a multisig signer, §9) |
 
-**`settlement` must not share a machine with `service`.** A box that terminates
-TLS is the wrong home for a hot key, and the issuer needs the node's *wallet*
-methods, which the relay deliberately does not allowlist. It needs no inbound
-reachability: it polls an API outbound and broadcasts `M` transactions that
-every indexer then picks up. The chain is the only channel between the two
-halves — no shared database, no open port.
-
-`anchor` is in the same position as `settlement`: a funded key, no inbound
-reachability, and it must not share a machine with `service`. The admin CLI
-(cold key) has no directory here at all, for the same reason.
+**`anchor` must not share a machine with anything that terminates TLS.** A box
+with a public surface is the wrong home for a funded key, and the publisher
+needs no inbound reachability of its own: it reads a resolver's API outbound,
+pins outbound and sends outbound. The admin CLI (cold key) has no directory
+here at all, for the same reason.
 
 ## Secrets
 
@@ -200,17 +175,13 @@ happily and does nothing.
 
 ## Backups
 
-**There is exactly one thing here worth backing up: the settlement ledger.**
+**Nothing here is worth backing up.** Every byte these roles hold is derived:
+the indexer's Postgres rebuilds from `LAUNCH_HEIGHT`, a delegate is one JSON
+file and a `docker compose up`, the chat index is rebuildable from the chain.
+`docker compose down -v` is a supported, if slow, repair for any of them.
 
-Everything else is derived. The indexer's Postgres rebuilds from
-`LAUNCH_HEIGHT`; the app bundle rebuilds from the repo; a delegate is one JSON
-file and a `docker compose up`. `docker compose down -v` is a supported, if
-slow, repair for a resolver.
-
-The ledger records payments that have already left a hot key and cannot be
-fully rebuilt — an in-flight attempt exists nowhere else, and a rebuild is a
-quarantine, not a keystroke (decisions.md 2026-08-17). `down -v` on
-`settlement/` is never routine.
+The exception is the one thing you supply rather than derive — each role's
+`.env`. Keep that wherever you keep secrets; nothing else needs a schedule.
 
 ## Two cases where a rebuild is required, not optional
 
@@ -234,9 +205,6 @@ docker compose up -d      # the indexer migrates and replays from LAUNCH_HEIGHT
 ```
 
 (`template1`, because a session inside the doomed database blocks the drop.)
-On the one-box kit this is one command: `nns-vps rebuild <role>`. It refuses
-the settlement ledger by name — that database is not derived state and is
-never dropped.
 
 ## Verify from outside
 
@@ -244,8 +212,6 @@ Whatever you run, check it from a host that is not the one serving it. A
 certificate only your browser trusts, and a port only your LAN can reach, both
 look perfect from the machine that serves them.
 
-[`monitor/`](monitor/) is that check made continuous: an optional Uptime Kuma
-that probes the public URLs every minute and — the part no HTTP probe can do —
-holds a dead-man switch for the anchor publisher, whose failures otherwise
-look exactly like an idle container. Like everything optional here, NNS
-neither knows nor cares whether it runs.
+Worth making continuous: an uptime probe against the public URL every minute,
+and — the part no HTTP probe can do — a dead-man switch for an `anchor`
+publisher, whose failures otherwise look exactly like an idle container.

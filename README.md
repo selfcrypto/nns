@@ -111,7 +111,7 @@ package, dependency versions pinned once in the workspace catalog. Amounts are
 ## Status
 
 **Pre-launch.** All twelve packages are built and conform to spec r29. The wire
-format is settled and empirically verified against mainnet. 2,265 tests pass
+format is settled and empirically verified against mainnet. 2,268 tests pass
 with a database attached, none skipped.
 
 What remains before a mainnet launch is deployment and one irreversible input,
@@ -176,11 +176,6 @@ belonging to a role they do not run:
   project, one `.env` and one `up`. Everything a third party can run; it merges
   nothing, and the resolver's proofs and the delegate's unproven answers stay
   as different as they were.
-- **The service** (`deploy/service`) — our own deployment: the resolver stack
-  plus the RPC relay the mini app needs and the app bundle itself.
-- **Settlement** (`deploy/settlement`) — pays what the protocol owes. Holds the
-  system's only hot keys, needs no inbound reachability, and must not share a
-  machine with the service.
 - **An anchor publisher** (`deploy/anchor`) — notarises checkpoint roots on the
   EVM contract. The contract is permissionless on purpose: a second,
   independent party anchoring is what turns timestamping into §8.5's anchor
@@ -192,11 +187,22 @@ with the fact that a delegate is not a resolver, and that "resolver" names both
 a server (`packages/api`) and the client library that queries several of them
 (`packages/resolver`).
 
+## Running the app
+
+The mini app needs nothing but this repository — no node, no database, no
+configuration. `@nns/resolver` ships the endpoints it asks, so a dev server is
+pointed at the live registry from the first render:
+
+```bash
+pnpm install
+pnpm --filter @nns/app dev
+```
+
 ## Building and testing
 
 ```bash
 pnpm install
-pnpm test         # one Vitest run over every package — 2,265 tests
+pnpm test         # one Vitest run over every package — 2,268 tests
 pnpm typecheck    # strict, and wider than the build: tests and tooling too
 pnpm build
 ```

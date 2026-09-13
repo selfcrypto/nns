@@ -17,9 +17,8 @@
 -- log moves too: a name shorter than 12 characters paying the old flat fee
 -- is refunded under the bands, and a `U` that awards an unreserved name is
 -- `OK` where it forfeited `NAME_NOT_RESERVED`. Nothing in this database
--- survives the fold, so every layout-5 database is dropped and resynced
--- (`nns-vps rebuild <role>`), as every layout-4
--- database was at r26.
+-- survives the fold, so every layout-5 database is dropped and resynced,
+-- as every layout-4 database was at r26.
 --
 -- The columns are altered rather than the tables rebuilt only so a throwaway
 -- test database migrates forward from empty. A database holding layout-5

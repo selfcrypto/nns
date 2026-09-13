@@ -108,7 +108,7 @@ const timeoutMs = integer(opts.timeout, 'timeout', 1) * 1000
 const envPath = join(repo, opts.env)
 if (!existsSync(envPath)) fail(`no environment file at ${envPath} (--env)`)
 
-// Same shape as scripts/nns-send.mjs reads: KEY=value, comments and blanks out.
+// The usual .env shape: KEY=value, comments and blanks out.
 const baseEnv = Object.fromEntries(
   readFileSync(envPath, 'utf8')
     .split('\n')

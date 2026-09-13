@@ -89,7 +89,7 @@ My names), `#/market/indigo` (a listing to open), `#/inbox`, `#/home`. A
 reload and a shared link land where the person was; the WebView's back
 button has something to pop; Buy and Pay reflect their settled query into
 the hash so the card survives a reload. The hash rather than the path
-because `deploy/service`'s nginx deliberately 404s an unknown path and
+because the nginx in front of the app deliberately 404s an unknown path and
 every independent host would need the same rewrite; no router library
 (decisions.md, "Routes are the hash, and the hash is one function pair").
 
