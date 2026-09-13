@@ -582,7 +582,16 @@ select:focus-visible {
 
 /* The masthead's second row (App.tsx), so it cannot be covered by a screen
    that reaches up behind the chrome. A top hairline, not a bottom one: the
-   masthead already draws the line under itself. */
+   masthead already draws the line under itself.
+
+   The tint is `--grace-bg` as a *wash* rather than the token itself: the
+   masthead is frosted glass — translucent white over a blur — and an opaque
+   row welded under it made the bar two different materials, with the page
+   ghosting through the top half and stopping dead at the strip (Kike,
+   2026-09-13). Over white, rgba(218, 166, 0, 0.15) composites to #f8efd8,
+   so the strip keeps its colour and gains the glass; and because it tints
+   the masthead's own background rather than replacing it, the scrolled
+   state carries the strip with it for free. */
 .era-notice {
   display: flex;
   align-items: center;
@@ -590,7 +599,7 @@ select:focus-visible {
   flex-wrap: wrap;
   gap: 6px 10px;
   padding: 6px 16px;
-  background: var(--grace-bg);
+  background: rgba(218, 166, 0, 0.15);
   border-top: 1px solid var(--grace-border);
   color: var(--grace);
   font-size: 13px;
