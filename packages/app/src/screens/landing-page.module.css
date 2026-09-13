@@ -1,7 +1,11 @@
 /* Unified Parallax Wrapper for Hero and Features (Light Theme) */
 .lightThemeWrapper {
-  margin-top: -64px;
-  /* Pulls the wrapper up behind the masthead */
+  /* Pulls the wrapper up behind the masthead, whose height `App.tsx` measures
+     into `--masthead-h`. It was a flat -64px, which is the height of one
+     masthead on one screen: on a compressed-tempo build the beta strip makes
+     the chrome taller and the hero covered it, and at any other height it
+     leaves a band of bare frame above the gradient. */
+  margin-top: calc(-1 * var(--masthead-h, 64px));
   background-color: #FFFFFF;
   background-image:
     /* Soft Sunrise Glow (Top Center) */
@@ -59,7 +63,10 @@
   color: var(--ink);
   /* Dark navy text for light theme */
   margin-top: 0;
-  padding: 88px 16px 20px;
+  /* Clearance under the chrome the wrapper was just pulled behind — the same
+     measured height, so a taller masthead (the beta strip) moves the title
+     down with it instead of under it. */
+  padding: calc(var(--masthead-h, 64px) + 24px) 16px 20px;
   min-height: calc(100vh - 56px);
   min-height: calc(100svh - 56px);
   box-sizing: border-box;
@@ -190,10 +197,6 @@
 
 :global(.frame.is-home .masthead .wordmark::after) {
   color: rgba(31, 35, 72, 0.7);
-}
-
-:global(.frame.is-home .masthead .masthead-sub) {
-  color: rgba(31, 35, 72, 0.85);
 }
 
 /* Wallet connect pill (vibrant Nimiq orange) */
@@ -736,7 +739,7 @@
   }
 
   .heroSection {
-    padding: 84px 16px 20px;
+    padding: calc(var(--masthead-h, 64px) + 24px) 16px 20px;
     min-height: calc(100vh - 52px);
     min-height: calc(100svh - 52px);
     box-sizing: border-box;
@@ -878,7 +881,7 @@
   }
 
   .heroSection {
-    padding: 112px 16px 24px;
+    padding: calc(var(--masthead-h, 64px) + 52px) 16px 24px;
     min-height: calc(100vh - 49px);
     min-height: calc(100svh - 49px);
     box-sizing: border-box;
@@ -2109,14 +2112,19 @@
 }
 
 :global(.footer-logo) {
-  font-size: 32px;
-  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 28px;
+  font-weight: 700;
   margin-bottom: 14px;
   letter-spacing: -0.02em;
 }
 
-:global(.footer-logo span) {
-  color: var(--accent);
+:global(.footer-logo img) {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
 }
 
 :global(.footer-brand p) {
@@ -2561,8 +2569,13 @@
   }
 
   :global(.footer-logo) {
-    font-size: 26px;
+    font-size: 23px;
     margin-bottom: 8px;
+  }
+
+  :global(.footer-logo img) {
+    width: 28px;
+    height: 28px;
   }
 
   :global(.footer-brand p) {

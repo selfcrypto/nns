@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { appConfig, ConfigParseError } from './config'
 import { applyHostChrome, describeChrome } from './lib/chrome'
 import { formatRoute, parseRoute, TABS, type NavTab, type Route, type Tab } from './lib/route'
 import { detectWallet, type Wallet } from './lib/wallet'
 import { referralFromLocation, rememberReferral } from './lib/referral'
+import { BRAND_MARK as MARK } from './lib/brand'
+import { SITE_NAME } from './lib/wording'
 import { IdentityBar } from './components/IdentityBar'
 import { EraNotice } from './components/EraNotice'
 import { TabIcon, type TabIconName } from './components/icons'
@@ -95,6 +97,7 @@ export function App() {
   // Hub connects mutate the wallet's identity in place; this counter re-renders on them.
   const [, setIdentityNonce] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)
+  const masthead = useRef<HTMLElement>(null)
 
   const problem = useMemo(configProblem, [])
   const diagnostic = useMemo(() => new URLSearchParams(window.location.search).get('diag') === '1', [])
@@ -129,6 +132,26 @@ export function App() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  /**
+   * The chrome's height, published as `--masthead-h` for the landing page —
+   * the one screen that pulls its hero up behind the masthead. Measured, not
+   * typed: the beta strip sits in the masthead now and its line wraps to one,
+   * two or three rows depending on the phone, so any constant is wrong on some
+   * screen, and wrong here is a visible seam above the hero.
+   */
+  useEffect(() => {
+    const bar = masthead.current
+    if (bar === null) return
+    const publish = () => {
+      document.documentElement.style.setProperty('--masthead-h', `${Math.round(bar.getBoundingClientRect().height)}px`)
+    }
+    publish()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(publish)
+    observer.observe(bar)
+    return () => observer.disconnect()
+  }, [problem])
+
   useEffect(() => {
     if (problem !== null) return
     let cancelled = false
@@ -155,7 +178,12 @@ export function App() {
     return (
       <div className="frame">
         <header className="masthead">
-          <h1 className="wordmark">nns</h1>
+          <div className="masthead-row">
+            <h1 className="wordmark">
+              <img className="wordmark-mark" src={MARK} alt="" width="30" height="30" />
+              {SITE_NAME}
+            </h1>
+          </div>
         </header>
         <main className="content">
           <div className="screen">
@@ -215,21 +243,30 @@ export function App() {
 
   return (
     <div className={`frame is-${tab}`}>
-      <header className={`masthead ${isScrolled ? 'is-scrolled' : ''}`}>
-        <h1 className="wordmark" onClick={() => navigate({ tab: 'home', param: null })} style={{ cursor: 'pointer' }}>
-          nns
-        </h1>
-        <p className="masthead-sub">names on Nimiq</p>
-        <IdentityBar
-          placement="top"
-          wallet={wallet}
-          onConnect={connect}
-          onDisconnect={disconnect}
-          expanded={identityOpen}
-          onToggle={() => setIdentityOpen((open) => !open)}
-        />
+      {/*
+        The beta strip is *inside* the masthead, not a sibling under it. The
+        landing page pulls its hero up behind the chrome (`landing-page.module
+        .css`), which swallowed a strip sitting between the two: invisible in a
+        browser, a clipped sliver of the badge inside Nimiq Pay. Chrome the user
+        must read belongs to the element that stays put and paints on top.
+      */}
+      <header className={`masthead ${isScrolled ? 'is-scrolled' : ''}`} ref={masthead}>
+        <div className="masthead-row">
+          <h1 className="wordmark" onClick={() => navigate({ tab: 'home', param: null })} style={{ cursor: 'pointer' }}>
+            <img className="wordmark-mark" src={MARK} alt="" width="30" height="30" />
+            {SITE_NAME}
+          </h1>
+          <IdentityBar
+            placement="top"
+            wallet={wallet}
+            onConnect={connect}
+            onDisconnect={disconnect}
+            expanded={identityOpen}
+            onToggle={() => setIdentityOpen((open) => !open)}
+          />
+        </div>
+        <EraNotice />
       </header>
-      <EraNotice />
       <main className="content">
         {diagnostic && <ChromeDiagnostic wallet={wallet} />}
         {tab === 'home' && (

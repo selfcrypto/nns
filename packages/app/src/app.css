@@ -183,11 +183,16 @@ select:focus-visible {
   padding-bottom: var(--chrome-bottom);
 }
 
+/*
+ * Two rows, not one: the brand row, and — on a compressed-tempo build — the
+ * beta strip under it (`components/EraNotice.tsx`). The strip is part of the
+ * chrome because the landing page pulls its hero up behind the masthead, and
+ * anything between the two is drawn over. `z-index` covers both rows.
+ */
 .masthead {
-  padding: 16px 20px;
+  padding: 0;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -205,20 +210,6 @@ select:focus-visible {
   box-shadow: 0 8px 32px rgba(233, 178, 19, 0.1);
 }
 
-@media (max-width: 768px) {
-  .masthead {
-    padding: 12px 16px 8px;
-  }
-
-  .wordmark {
-    font-size: 24px;
-  }
-
-  .masthead-sub {
-    font-size: 12px;
-  }
-}
-
 /*
  * The masthead stays in Pay. It was hidden there for one build, on the
  * reasoning that Pay's own bar already names the app — but the wordmark was
@@ -228,42 +219,63 @@ select:focus-visible {
  * controls now, so nothing is at risk up here either way.
  */
 
+.masthead-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+}
+
+/*
+ * The mark and the site's name, which is **Nimiq Names** — the tagline that
+ * used to sit beside "nns." said the same thing twice and is gone with it.
+ */
 .wordmark {
-  margin: 0;
-  font-size: 26px;
-  line-height: 1;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  font-family: ui-monospace, 'JetBrains Mono', 'IBM Plex Mono', monospace;
-}
-
-.wordmark::after {
-  content: '.';
-  color: var(--accent);
-}
-
-.masthead-sub {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 13px;
-  /* The tagline yields, the connector does not: at 320 px the row was wrapping
-     "Connect Wallet" onto two lines to keep three words of decoration whole. */
+  display: flex;
+  align-items: center;
+  gap: 9px;
   min-width: 0;
+  margin: 0;
+  font-size: 21px;
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-/* Below this it yields entirely rather than by ellipsis. Sharing the row with
-   the connector, it truncated to "name…", and a fragment of a tagline reads as
-   a bug where no tagline at all reads as a decision. The address next to it is
-   the thing that has to stay legible. */
-@media (max-width: 380px) {
-  .masthead-sub {
-    display: none;
+.wordmark-mark {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
+
+@media (max-width: 768px) {
+  .masthead-row {
+    padding: 10px 16px;
   }
 
-  /* The room the tagline gave up goes to the address, which is what the corner
+  .wordmark {
+    font-size: 19px;
+  }
+
+  .wordmark-mark {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+/* The name yields before the address does: the corner is the half a user has
+   to be able to read, and the logo alone still says where they are. */
+@media (max-width: 380px) {
+  .wordmark {
+    font-size: 0;
+    gap: 0;
+  }
+
+  /* The room the name gave up goes to the address, which is what the corner
      is for — 46vw of a 320 px screen cuts it to "NQ14 LU5…". */
   .identity-top .identity-who {
     max-width: 68vw;
@@ -568,15 +580,18 @@ select:focus-visible {
 
 /* ── The era notice: a compressed-tempo era says so on every screen ── */
 
+/* The masthead's second row (App.tsx), so it cannot be covered by a screen
+   that reaches up behind the chrome. A top hairline, not a bottom one: the
+   masthead already draws the line under itself. */
 .era-notice {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
   gap: 6px 10px;
-  padding: 7px 16px;
+  padding: 6px 16px;
   background: var(--grace-bg);
-  border-bottom: 1px solid var(--grace-border);
+  border-top: 1px solid var(--grace-border);
   color: var(--grace);
   font-size: 13px;
   line-height: 1.35;

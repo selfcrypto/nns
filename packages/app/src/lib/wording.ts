@@ -18,6 +18,16 @@ import type { PayMessageFault } from './payRequest'
 import { CONSTANTS, type LabelInvalidReason, type NameInvalidReason } from '@nns/core'
 import { blocksApprox, lunaToNim } from './format'
 
+// ── The site's own name ─────────────────────────────────────────────────────
+
+/**
+ * What the product is called to a reader: **Nimiq Names**. `NNS` is the
+ * protocol — the thing the messages, the spec and the packages are named
+ * for — and it stays in the documentation and the social card, not in the
+ * chrome (Kike, 2026-09-13). The masthead and the footer both read this.
+ */
+export const SITE_NAME = 'Nimiq Names'
+
 // ── Verification lines ──────────────────────────────────────────────────────
 
 /**
@@ -923,9 +933,14 @@ function periodApprox(blocks: number): string {
 
 export const eraTag = (): string => 'Beta'
 
-/** The strip's one line: the two clocks a tester will be quoted, and what the names are for. */
-export const eraNoticeLine = (blocks: number = CONSTANTS.TERM_LENGTH): string =>
-  `Terms are ${periodApprox(blocks)}, a lifetime about ${periodApprox(blocks * CONSTANTS.LIFETIME_TERMS)}. Names and prices here are for testing.`
+/**
+ * The strip's one line. It carried both clocks until 2026-09-13, when the
+ * strip moved into the masthead and became chrome a phone keeps on screen:
+ * a sentence that wrapped to three rows there cost a fifth of the viewport
+ * on every screen. The clocks are a tap away in the hint, which quoted them
+ * already — what has to be read without tapping is that none of this is real.
+ */
+export const eraNoticeLine = (): string => 'Names and prices here are for testing.'
 
 /** Behind the strip's "?": why the clocks are short and what happens to a name at launch. */
 export const eraNoticeHint = (blocks: number = CONSTANTS.TERM_LENGTH): string =>
@@ -1029,7 +1044,7 @@ export const LANDING = {
       { title: 'Resources', links: [['Documentation', '#/docs/intro'], ['Developer docs', '#/docs/developers'], ['GitHub', 'https://github.com/selfcrypto/nns'], ['Nimiq', 'https://nimiq.com']] },
       { title: 'Community', links: [['X', 'https://x.com/nimiq'], ['Discord', 'https://discord.gg/nimiq'], ['Telegram', 'https://t.me/Nimiq']] },
     ],
-    copyright: (year: number): string => `© ${year} nns · MIT`,
+    copyright: (year: number): string => `© ${year} ${SITE_NAME} · MIT`,
   },
 } as const
 

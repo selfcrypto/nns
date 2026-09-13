@@ -3,7 +3,9 @@ import { useAsync } from '../lib/useAsync'
 import { getBurn } from '../lib/api'
 import { apiBase } from '../lib/nns'
 import { lunaToNim } from '../lib/format'
-import { LANDING, referrerKeptLine } from '../lib/wording'
+import { LANDING, SITE_NAME, referrerKeptLine } from '../lib/wording'
+import { BRAND_MARK } from '../lib/brand'
+import { EXAMPLE_PROFILES } from '../lib/examples'
 import { referralFromLink, rememberReferral, storedReferral } from '../lib/referral'
 import { ReferrerStrip } from '../components/ReferrerStrip'
 import styles from './landing-page.module.css'
@@ -18,19 +20,6 @@ import styles from './landing-page.module.css'
  * `landing-page.module.css`, which reaches into the masthead through
  * `:global(.frame.is-home …)`.
  */
-
-/**
- * The marquee's cards are illustrations, not records: five names nobody is
- * meant to look up, and addresses that pass no checksum. A card that showed
- * a real name would be a resolution the app did not verify.
- */
-const EXAMPLE_PROFILES = [
-  { name: 'alice', address: 'NQ00 0000 0000 0000 0000 0000 0000 0000 0000', evm: '0x0000000000000000000000000000000000000001', color: '#F6851B' },
-  { name: 'bob', address: 'NQ00 0000 0000 0000 0000 0000 0000 0000 0002', evm: '0x0000000000000000000000000000000000000002', color: '#E9B213' },
-  { name: 'carol', address: 'NQ00 0000 0000 0000 0000 0000 0000 0000 0003', evm: '0x0000000000000000000000000000000000000003', color: '#E25822' },
-  { name: 'dave', address: 'NQ00 0000 0000 0000 0000 0000 0000 0000 0004', evm: '0x0000000000000000000000000000000000000004', color: '#F9A826' },
-  { name: 'erin', address: 'NQ00 0000 0000 0000 0000 0000 0000 0000 0005', evm: '0x0000000000000000000000000000000000000005', color: '#D35400' },
-]
 
 const MARQUEE_ITEMS = Array<typeof EXAMPLE_PROFILES>(10).fill(EXAMPLE_PROFILES).flat()
 
@@ -434,7 +423,10 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
       <footer className="app-footer">
         <div className="footer-content">
           <div className="footer-brand">
-            <h2 className="footer-logo">nns<span>.</span></h2>
+            <h2 className="footer-logo">
+              <img src={BRAND_MARK} alt="" width="34" height="34" />
+              {SITE_NAME}
+            </h2>
             <p>{footer.tagline}</p>
           </div>
           <div className="footer-links">

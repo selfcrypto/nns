@@ -15,11 +15,10 @@ nothing more than two taps deep.
 ┌────────────────────────────┐
 │ ······ host chrome ······· │  --chrome-top (env only; 0 where the host insets)
 ├────────────────────────────┤
-│ nns.  names…   ◉ NQ52 … KF8N ▾ │  masthead — wordmark, and the connector
-├────────────────────────────┤     in the corner: the only connect UI
-│ Beta · 7-day terms…     ? │  era notice — only on a compressed-tempo build
-├────────────────────────────┤
-│                            │
+│ ◈ Nimiq Names  ◉ NQ52 … ▾ │  masthead row 1 — the logo, the site's name,
+│ Beta · for testing      ?  │  and the connector in the corner: the only
+├────────────────────────────┤  connect UI. Row 2 is the era notice, on a
+│                            │  compressed-tempo build only
 │         screen             │  one screen at a time, vertical scroll
 │                            │
 ├────────────────────────────┤
@@ -48,13 +47,29 @@ an on-screen keyboard is up (`data-keyboard`, both keyboard modes detected).
 `?chrome=<top>,<bottom>` and `?diag=1` remain the on-device instruments.
 
 **A compressed-tempo build says so on every screen** (`components/
-EraNotice.tsx`, 2026-09-11): one strip under the masthead — a *Beta* tag,
-the term and the lifetime it will quote, "names and prices here are for
-testing", and a hint with the why and that nothing carries over at launch.
+EraNotice.tsx`, 2026-09-11): a *Beta* tag, "names and prices here are for
+testing", and a hint with the two clocks, the why, and that nothing carries
+over at launch. It is the **masthead's second row**, not a strip under it
+(2026-09-13): the landing page pulls its hero up behind the chrome, which
+swallowed a sibling — invisible in a browser, a clipped sliver of the badge
+inside Nimiq Pay. Chrome a user must read belongs to the element that stays
+put and paints on top. The line lost the clocks in the same change, because
+chrome a phone keeps on screen may not spend three rows on a sentence the
+hint already carries.
 The decision is the constants', not a deploy flag: `isCompressedEra`
 (`wording.ts`) is `TERM_LENGTH` under a year, so a mainnet bundle cannot
 show it and an era bundle cannot forget it. Kike, 2026-09-11: testers must
 not think they are buying final names at a test price.
+
+**The site is called Nimiq Names; the protocol is NNS** (Kike, 2026-09-13).
+The masthead and the footer carry the hexagon mark (`public/brand`, from
+`assets/nns-lockup-2048.png`) beside `SITE_NAME`, and the tagline that used
+to sit beside the old `nns.` wordmark is gone — "Nimiq Names · names on
+Nimiq" said it twice. The favicon is that same mark; the full lockup — mark
+plus the letters NNS — is the social card (`og-image.png`), which is where
+the protocol's name belongs.
+Below 380 px the name yields and the mark stands alone, because the address
+in the corner is the half that has to stay legible.
 
 **Both hosts open on the landing page** (`screens/Home.tsx`, since
 2026-09-07, Bakar's PR #1; Nimiq Pay too since 2026-09-12): marketing,
@@ -65,7 +80,7 @@ no way to say so, nor a reader any way to reach the docs. So the tab bar's
 absence is covered by three doors in the hero, all above the fold at 390 px:
 the search field hands a query to Buy, **My names** goes to `#/names` (where
 the tab bar appears and the other four are one tap away), and **How it
-works** goes to `#/docs/intro`. The wordmark returns to the landing page
+works** goes to `#/docs/intro`. The logo returns to the landing page
 from anywhere.
 
 **The screen is the URL hash** (`lib/route.ts`, 2026-09-09, Bakar's

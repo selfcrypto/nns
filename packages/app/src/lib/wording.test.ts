@@ -344,16 +344,17 @@ describe('the era notice is derived from the term, never a deploy flag', () => {
     expect(isCompressedEra()).toBe(isCompressedEra(CONSTANTS.TERM_LENGTH))
   })
 
-  it('quotes the term and the lifetime from the constants', () => {
-    expect(eraNoticeLine(604_800)).toBe('Terms are 7 days, a lifetime about 2 years. Names and prices here are for testing.')
-    expect(eraNoticeLine(3_600)).toBe('Terms are 60 minutes, a lifetime about 4 days. Names and prices here are for testing.')
+  it('says what the names are for, and quotes both clocks in the hint', () => {
+    expect(eraNoticeLine()).toBe('Names and prices here are for testing.')
     expect(eraNoticeHint(604_800)).toContain('a term is 7 days instead of a year')
+    expect(eraNoticeHint(604_800)).toContain('a lifetime about 2 years')
+    expect(eraNoticeHint(3_600)).toContain('a term is 60 minutes instead of a year')
     expect(eraNoticeHint(604_800)).toContain(`instead of ${CONSTANTS.LIFETIME_TERMS} years`)
     expect(eraNoticeHint(604_800)).toContain('starts again at launch')
   })
 
   it('is neutral tone — a test era is not an alarm', () => {
-    for (const text of [eraNoticeLine(604_800), eraNoticeHint(604_800)]) {
+    for (const text of [eraNoticeLine(), eraNoticeHint(604_800)]) {
       expect(text).not.toMatch(/\b(stop|do not pay|divergence|warning)\b/i)
     }
   })
