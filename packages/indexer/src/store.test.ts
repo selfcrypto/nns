@@ -230,7 +230,7 @@ describe.skipIf(URL === undefined)('Store', () => {
     )
     try {
       await expect(store.loadCursor()).rejects.toThrow(
-        new RegExp(`layout ${COMMITMENT_LAYOUT - 1} \\(latest at height 58176720\\).*derives layout ${COMMITMENT_LAYOUT}.*nns-vps rebuild`),
+        new RegExp(`layout ${COMMITMENT_LAYOUT - 1} \\(latest at height 58176720\\).*derives layout ${COMMITMENT_LAYOUT}.*Rebuild from empty`),
       )
     } finally {
       await pool.query('DELETE FROM checkpoints WHERE height = 58176720')
