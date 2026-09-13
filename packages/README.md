@@ -96,11 +96,17 @@ Most people run one or two. `deploy/` has a directory per role — compose file,
 Embedding NNS in your own app needs none of them — `npm i @nns/resolver`, and
 `createResolver({})` asks the endpoints its shipped defaults name.
 
-**Three of the twelve are published to npm**: `core`, `anchor` and `resolver`,
-the ones a consumer imports. The other nine are services and tools — you run
-them, from this repository and its images, rather than installing them. What an
-integrator needs from `api` is its *HTTP* surface, which is
-`docs/integration.md`, not a package. Publishing is `docs/runbooks/release.md`.
+**Three of the twelve are the ones a consumer imports**: `core`, `anchor` and
+`resolver`. The other nine are services and tools — you run them, from this
+repository and its images, rather than installing them. What an integrator
+needs from `api` is its *HTTP* surface, which is `docs/integration.md`, not a
+package.
+
+They are release-ready but **not on the registry yet** — the `@nns` scope has
+still to be created, so `npm install @nns/resolver` 404s today and
+`https://nimiqnames.com/nns.js` is the working browser path meanwhile
+(`docs/integration.md` §3.1). Publishing is one run of
+`docs/runbooks/release.md`.
 
 ## Conventions every package inherits
 

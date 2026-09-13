@@ -50,7 +50,7 @@ chat.example.com {
 ```
 
 Then build the app with `VITE_NNS_CHAT=https://chat.example.com` (see
-[`../service/.env.example`](../service/.env.example)). CORS is already open on
+[`packages/app/.env.example`](../../packages/app/.env.example)). CORS is already open on
 every response: the app is independently hostable by design, so an origin
 allowlist would break the copies §2.2 exists to permit.
 
