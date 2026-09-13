@@ -3,13 +3,13 @@ import { useMemo, useState } from 'react'
 import { prepareAction, ActionInputError, type ActionInputs } from '../lib/actions'
 import { getNameInfo, getParams, type NameInfo } from '../lib/api'
 import { clearReferral, isSelfReferral, storedReferral } from '../lib/referral'
-import { defaultTransport } from '../lib/history'
+import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { apiBase } from '../lib/nns'
 import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
 import { discoverEvmProvider, probeHostEvmAddress, requestHostEvmAddress } from '../lib/sdk'
 import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
-import { cancellableNow, registrationFee, type AppAction } from '../lib/states'
+import { cancellableNow, registrationFee, shortfallFor, type AppAction } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import { Hint } from './Hint'
 import { Spinner } from './ui'
@@ -45,6 +45,7 @@ import {
   submittingLabel,
   sendUncheckedLine,
   sendUnconfirmedLine,
+  insufficientBalanceLine,
   choicePriceLine,
   lifetimeChoiceLabel,
   priceHint,
@@ -183,6 +184,21 @@ export function ActionSheet({
     }
   }, [inputs, inputsTouched, loadingParams, name, info, signer, viewers, params])
 
+  // Can this wallet pay at all? `shortfallFor` owns the rule; the sheet only
+  // fetches. A send re-reads, so a top-up in another tab clears the block.
+  const payers = wallet.balanceAddresses.length > 0 ? wallet.balanceAddresses : [signer]
+  const payerKey = `${payers.join(',')}:${result?.status ?? ''}`
+  const balances = useAsync(async (): Promise<readonly (bigint | null)[]> => {
+    const transport = defaultTransport()
+    if (transport === null) return []
+    return await Promise.all(payers.map((address) => fetchNimBalance(transport, address)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- payerKey is the cache key
+  }, [payerKey])
+  const shortfall = shortfallFor(
+    prepared?.ok === true ? prepared.value.request.value : null,
+    balances.status === 'done' ? balances.value : [],
+  )
+
   // Header and submit button carry the same label — for a `K`, the one the
   // cancellable set gives it, so the sheet cannot promise more than it clears.
   const actionLabel = sheetActionLabel(action, cancellableNow(info, info?.height ?? 0))
@@ -190,7 +206,12 @@ export function ActionSheet({
   // Both `B`s: a buy and a bid hand money to the marketplace (§8.5 #10).
   const needsAcknowledge = action === 'buy' || action === 'bid'
   const terminalSuccess = result?.status === 'confirmed' || result?.status === 'settling'
-  const ready = prepared?.ok === true && (!needsAcknowledge || acknowledged) && progress === 'idle' && !terminalSuccess
+  const ready =
+    prepared?.ok === true &&
+    (!needsAcknowledge || acknowledged) &&
+    progress === 'idle' &&
+    !terminalSuccess &&
+    shortfall === null
 
   const send = async () => {
     if (prepared?.ok !== true) return
@@ -420,6 +441,10 @@ export function ActionSheet({
             <span className="signer-address nns-name">{signer}</span>
           </li>
         </ul>
+      )}
+
+      {shortfall !== null && (
+        <p className="field-error">{insufficientBalanceLine(lunaToNim(shortfall.owed), lunaToNim(shortfall.held))}</p>
       )}
 
       {needsAcknowledge && (

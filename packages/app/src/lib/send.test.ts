@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { HistoryError } from './history'
 import { performSend } from './send'
 import type { SubmitOutcome, Wallet } from './wallet'
 
@@ -176,6 +177,35 @@ describe('performSend', () => {
     const result = await performSend({
       wallet: walletThat({ ok: true, hash: 'abc', serializedTxHex: null }),
       transport: () => Promise.reject(new Error('relay down')),
+      request: REQUEST,
+      confirm: { poll: () => Promise.resolve(false), timeoutMs: 30, intervalMs: 10 },
+      sleep: instantly,
+    })
+    expect(result).toEqual({ status: 'unchecked', hash: 'abc' })
+  })
+
+  /**
+   * The shape the live node actually answers with, and the one that made the
+   * `absent` branch dead code: an unknown hash is a JSON-RPC error body
+   * (`Transaction not found: …`), never a null result. Read as "could not
+   * ask", it turned every dropped transaction into "the service didn't
+   * answer, it may well have gone through".
+   */
+  it('a node that refuses the hash lookup is unconfirmed — a refusal is the answer', async () => {
+    const result = await performSend({
+      wallet: walletThat({ ok: true, hash: 'abc', serializedTxHex: null }),
+      transport: () => Promise.reject(new HistoryError('Transaction not found: abc', true)),
+      request: REQUEST,
+      confirm: { poll: () => Promise.resolve(false), timeoutMs: 30, intervalMs: 10 },
+      sleep: instantly,
+    })
+    expect(result).toEqual({ status: 'unconfirmed', hash: 'abc' })
+  })
+
+  it('an ambiguous failure is still unchecked — a 5xx may have been acted on', async () => {
+    const result = await performSend({
+      wallet: walletThat({ ok: true, hash: 'abc', serializedTxHex: null }),
+      transport: () => Promise.reject(new HistoryError('endpoint answered 502', false)),
       request: REQUEST,
       confirm: { poll: () => Promise.resolve(false), timeoutMs: 30, intervalMs: 10 },
       sleep: instantly,

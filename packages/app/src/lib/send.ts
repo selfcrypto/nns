@@ -6,7 +6,7 @@
  * and the SDK returns no hash at all on the Pay path).
  */
 
-import type { HistoryTransport } from './history'
+import { isDefiniteRejection, type HistoryTransport } from './history'
 import type { SubmitRequest, Wallet } from './wallet'
 
 export type SendPhase = 'submitting' | 'confirming'
@@ -130,8 +130,20 @@ async function inspectOnChain(
   let tx: unknown
   try {
     tx = await transport('getTransactionByHash', [hash])
-  } catch {
-    // The node could not be asked. That is not evidence of anything.
+  } catch (error) {
+    // A node that does not know the hash says so by *refusing*, not by
+    // answering null: `getTransactionByHash` on an unknown hash comes back
+    // as a JSON-RPC error body, `Transaction not found: <hash>` (measured
+    // against the live node, 2026-09-14). So the refusal is the answer —
+    // treating it as "could not ask" made the `absent` branch below
+    // unreachable, and every genuinely-dropped transaction reported itself
+    // as "the service didn't answer, it may well have gone through". A
+    // friend's 200 NIM registration from an empty wallet read that way.
+    //
+    // `definite` is the bit that separates the two: the node answered and
+    // refused (absent), versus a 5xx, a dead proxy or a network throw,
+    // which is still evidence of nothing.
+    if (isDefiniteRejection(error)) return 'absent'
     return 'unknown'
   }
   if (typeof tx !== 'object' || tx === null) return 'absent'

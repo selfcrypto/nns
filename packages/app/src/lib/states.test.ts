@@ -14,6 +14,7 @@ import {
   offerCancellableAt,
   feeRowFor,
   registrationFee,
+  shortfallFor,
   renewalUrgency,
   sameAddress,
   viewFor,
@@ -486,5 +487,39 @@ describe('the cancellable set (§6 `K`)', () => {
     expect(cancelTileGroup({ transfer: false, offer: true })).toBe('market')
     // Auction open: disabled, and it belongs beside the auction it is about.
     expect(cancelTileGroup({ transfer: false, offer: false })).toBe('market')
+  })
+})
+
+describe('shortfallFor', () => {
+  const FEE = 20_000_000n // 200 NIM, the lifetime band a friend tried to pay from an empty wallet
+
+  it('blocks the send when no account can cover the value, and names both numbers', () => {
+    expect(shortfallFor(FEE, [0n])).toEqual({ owed: FEE, held: 0n })
+    expect(shortfallFor(FEE, [1n, 19_999_999n])).toEqual({ owed: FEE, held: 19_999_999n })
+  })
+
+  it('lets it through the moment one account can pay — exactly the value is enough', () => {
+    expect(shortfallFor(FEE, [FEE])).toBeNull()
+    expect(shortfallFor(FEE, [0n, FEE + 1n])).toBeNull()
+  })
+
+  /**
+   * A transaction spends one account. Summing the set would clear a wallet
+   * where no single address can pay, and the send would be dropped by the
+   * network exactly as before.
+   */
+  it('takes the maximum of the set, never its sum', () => {
+    expect(shortfallFor(FEE, [12_000_000n, 12_000_000n])).toEqual({ owed: FEE, held: 12_000_000n })
+  })
+
+  /** A broken balance check is never a negative result — the confirm loop's rule. */
+  it('refuses nothing on an incomplete reading', () => {
+    expect(shortfallFor(FEE, [null])).toBeNull()
+    expect(shortfallFor(FEE, [0n, null])).toBeNull()
+    expect(shortfallFor(FEE, [])).toBeNull()
+  })
+
+  it('has no opinion before the action is prepared', () => {
+    expect(shortfallFor(null, [0n])).toBeNull()
   })
 })

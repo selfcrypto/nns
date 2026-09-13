@@ -363,6 +363,44 @@ export function registrationFee(name: string, params: ApiParams, lifetime = fals
   return lifetime ? row.lifetime : row.yearly
 }
 
+// ── Can this wallet pay at all? ─────────────────────────────────────────────
+
+export interface Shortfall {
+  readonly owed: bigint
+  /** The best any one of the wallet's accounts holds. */
+  readonly held: bigint
+}
+
+/**
+ * Whether the send is knowably unpayable, from the balances of every account
+ * the wallet may sign with. `null` means "do not stand in the way" — either
+ * it can pay, or we do not know.
+ *
+ * **The maximum, not the sum.** A transaction spends one account, and on the
+ * Pay path `SubmitRequest.sender` is not even consulted: `paySendTransaction`
+ * takes no sender and the wallet signs with whichever address holds the
+ * balance. So the question is whether *some* account could cover the value,
+ * and summing the set would pass a wallet where no single account can pay.
+ *
+ * **A partial reading refuses nothing.** One address the endpoint would not
+ * answer for leaves the set's maximum unknown, and a broken balance check is
+ * never a negative result — the same rule `performSend`'s confirm loop runs
+ * on. Blocking a send on a flaky read is the worse of the two mistakes.
+ *
+ * This exists because it did not: an account short of the value signs a
+ * transaction the network will never include, and the confirm loop then
+ * reports the drop as vaguely as it can. A friend's 200 NIM registration
+ * from a 0 NIM wallet spent four minutes on a spinner to reach "it may well
+ * have gone through" (2026-09-14). The number is one allowlisted call away
+ * before the wallet ever opens.
+ */
+export function shortfallFor(owed: bigint | null, balances: readonly (bigint | null)[]): Shortfall | null {
+  if (owed === null || balances.length === 0) return null
+  if (balances.some((balance) => balance === null)) return null
+  const held = balances.reduce((most: bigint, balance) => (balance !== null && balance > most ? balance : most), 0n)
+  return held < owed ? { owed, held } : null
+}
+
 // ── The identity row (docs/app-ux.md §1) ────────────────────────────────────
 
 /**

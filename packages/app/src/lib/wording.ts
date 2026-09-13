@@ -782,6 +782,17 @@ export const paySelfLine = (): string =>
 export const buyAcknowledgeLabel = (): string =>
   'I understand a refund would come from the marketplace operator'
 
+/**
+ * An account that cannot cover the value signs a transaction the network will
+ * never include, and the confirm loop then reports the drop as ambiguously as
+ * it can (a friend's 200 NIM registration from an empty wallet, 2026-09-14).
+ * The balance is knowable before the wallet opens, so this is where it is
+ * said — named in full, because "insufficient funds" makes the user go and
+ * look up two numbers the app already has.
+ */
+export const insufficientBalanceLine = (needNim: string, haveNim: string): string =>
+  `This costs ${needNim} NIM and the account that signs holds ${haveNim} NIM. Top it up first — sending now would pay nothing and register nothing.`
+
 // ── Pinning (§8.5; states doc §2 — mismatch is the alarm tier) ─────────────
 
 export const pinFirstUseLine = (): string => 'First time you’ve used this name on this device.'
