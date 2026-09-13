@@ -44,7 +44,7 @@ the only signal that separates a short node from an empty chain.
 
 **And only the first of its two suggestions applies to you.** "Start at or
 above" is for a throwaway test bench. `LAUNCH_HEIGHT` is a constant in
-`@nns/core`, not configuration — there is no environment variable for it,
+`@nimiqnames/core`, not configuration — there is no environment variable for it,
 deliberately, because a value an operator can set is a value two resolvers can
 disagree about. Raising it means editing `packages/core/src/constants.ts` and
 rebuilding, and what you would get is a resolver that has never seen the names
@@ -98,14 +98,14 @@ curl -s https://nns.example.com/resolve/<a-registered-name>
 ```
 
 The proof in that last response is the product. Anyone can check it against the
-root in `/checkpoints/latest` with `@nns/core` alone, and that is what makes
+root in `/checkpoints/latest` with `@nimiqnames/core` alone, and that is what makes
 your answers worth comparing rather than trusting.
 
 ## Joining the quorum
 
 Being independently runnable is not the same as being used. To have clients ask
 you, your endpoint has to appear in their resolver list — `DEFAULT_RESOLVERS`
-in `@nns/resolver`, which ships **empty on purpose**, and the app's
+in `@nimiqnames/resolver`, which ships **empty on purpose**, and the app's
 `VITE_NNS_RESOLVERS`.
 
 An entry is a URL and a **name**: the name is what a client shows a user when

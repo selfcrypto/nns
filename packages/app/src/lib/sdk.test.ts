@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { encodeRegister, encodeSetTarget, parseAddress } from '@nns/core'
+import { encodeRegister, encodeSetTarget, parseAddress } from '@nimiqnames/core'
 import { hexToText } from './hex'
 import { paySendTransaction, type PaySendOutcome } from './sdk'
 import type { NimiqProvider } from '@nimiq/mini-app-sdk'

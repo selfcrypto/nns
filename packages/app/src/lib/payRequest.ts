@@ -24,7 +24,7 @@
  * payment nobody is making.
  */
 
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 import { formatRoute, parseRoute } from './route'
 
 const AMOUNT = 'amount'

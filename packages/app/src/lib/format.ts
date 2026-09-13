@@ -1,4 +1,4 @@
-import { formatAddress, LUNA_PER_NIM, tryParseAddress } from '@nns/core'
+import { formatAddress, LUNA_PER_NIM, tryParseAddress } from '@nimiqnames/core'
 
 /** Integer luna → NIM display string, trailing zeros trimmed. */
 export function lunaToNim(luna: bigint): string {
@@ -33,7 +33,7 @@ export function blocksApprox(blocks: number): string {
 /**
  * The conventional spaced form, whatever spelling arrived.
  *
- * Addresses reach the UI two ways and they do not agree: `@nns/resolver`
+ * Addresses reach the UI two ways and they do not agree: `@nimiqnames/resolver`
  * returns the branded compact 36 characters, the API serves the spaced groups
  * of four. Everything on screen wants the spaced one — it is what the wallet,
  * the Hub and the explorer show, `ellipsizeAddress` below silently no-ops on

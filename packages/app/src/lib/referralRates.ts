@@ -19,7 +19,7 @@
  * (`referralRateBp`, `shareAmount`).
  */
 
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 
 import table from '../../../settlement/referral-rates.json'
 import { parseRateTable, rateFor, rebateRowFor, type RateRow, type RateTable } from '../../../settlement/src/rate-table'

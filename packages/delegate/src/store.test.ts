@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { addressFromBytes, formatAddress } from '@nns/core'
+import { addressFromBytes, formatAddress } from '@nimiqnames/core'
 
 import { LabelFileError, type NameLabels } from './labels.js'
 import { createLogger, type LogLevel } from './logger.js'

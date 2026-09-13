@@ -21,7 +21,7 @@
  * bootstrap needs all six components to compare against its own replay.
  */
 
-import { logFile, logHash, splitLogFile } from '@nns/core'
+import { logFile, logHash, splitLogFile } from '@nimiqnames/core'
 
 export class PeerError extends Error {
   override readonly name = 'PeerError'

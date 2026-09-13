@@ -1,5 +1,5 @@
 /**
- * `@nns/indexer` — RPC tail → `@nns/core` reducer → Postgres → §8.1 checkpoints.
+ * `@nns/indexer` — RPC tail → `@nimiqnames/core` reducer → Postgres → §8.1 checkpoints.
  *
  * The RPC client (envelope unwrapping, basic auth), the scan loop
  * (`FINALITY_RULE`, §7.1 prefix discovery, §5.2 canonical order), the reducer

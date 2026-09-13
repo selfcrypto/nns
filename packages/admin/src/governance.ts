@@ -30,7 +30,7 @@ import {
   governanceBoundViolation,
   type Address,
   type Prices,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 import {
   ADMIN_MIN_BALANCE,

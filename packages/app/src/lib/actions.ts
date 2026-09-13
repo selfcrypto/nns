@@ -1,6 +1,6 @@
 /**
  * The docs/app-ux.md §5 flow table as code: for each action, how to build
- * the transaction (always `@nns/core` encoders — never a payload
+ * the transaction (always `@nimiqnames/core` encoders — never a payload
  * concatenated here), what the review screen must say beyond the generic
  * lines, and which visible effect confirms it. Pure except the confirm
  * closures, which read the API.
@@ -25,7 +25,7 @@ import {
   tryParseEvmAddress,
   type BuiltTransaction,
   termFor,
-} from '@nns/core'
+} from '@nimiqnames/core'
 import { getNameInfo, type ApiParams, type NameInfo } from './api'
 import { approxDate, blocksApprox, ellipsizeAddress, formatApproxDate, lunaToNim } from './format'
 import {

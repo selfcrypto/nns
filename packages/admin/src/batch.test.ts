@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
-import { CONSTANTS, CodecError, encodeUnreserve, parseAddress } from '@nns/core'
+import { CONSTANTS, CodecError, encodeUnreserve, parseAddress } from '@nimiqnames/core'
 
 import { broadcastBatch, describeBatchPlan, parseBatchArgs, parseBatchRows, planBatch } from './batch.js'
 import { AdminRefusal, UsageError, blockingChecks, type AdminRpc } from './cli.js'

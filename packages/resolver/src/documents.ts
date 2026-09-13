@@ -29,7 +29,7 @@ import {
   type NameRecord,
   type NameStatus,
   type ProofStep,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 import { DocumentError } from './errors.js'
 

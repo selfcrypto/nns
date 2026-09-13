@@ -41,7 +41,7 @@
  * recombine.
  */
 
-import { compareNames, leafHash, verifyProof, type NameRecord } from '@nns/core'
+import { compareNames, leafHash, verifyProof, type NameRecord } from '@nimiqnames/core'
 
 import { toHex as hex, type InclusionDocument, type NonInclusionDocument, type ProvenLeaf } from './documents.js'
 import { ProofError } from './errors.js'

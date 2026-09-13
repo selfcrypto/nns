@@ -8,7 +8,7 @@
  * message invisible to every NNS indexer (§7.5), instead of a forfeited,
  * log-spamming `UNKNOWN_TYPE`.
  *
- * **`@nns/core` is imported for two things: `validateNameSyntax` and
+ * **`@nimiqnames/core` is imported for two things: `validateNameSyntax` and
  * `validateLabel`.** A subject is an NNS name or a `label.name` query, so its
  * syntax is §4.1's and §4.4's rule — reading those rules is not participating
  * in the protocol, while copying them would be a second implementation of a
@@ -16,7 +16,7 @@
  * any root.
  */
 
-import { validateLabel, validateNameSyntax } from '@nns/core'
+import { validateLabel, validateNameSyntax } from '@nimiqnames/core'
 import { bytesToHex, hexToBytes } from './hex.js'
 
 export const CHAT_PREFIX = 'NC1'

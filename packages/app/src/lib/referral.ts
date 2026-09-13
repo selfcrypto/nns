@@ -32,7 +32,7 @@
  * `payRequest.ts` does the same for a payment link, for the same reason.
  */
 
-import { isValidRef, validateNameSyntax } from '@nns/core'
+import { isValidRef, validateNameSyntax } from '@nimiqnames/core'
 import { sameAddress } from './states'
 
 const PARAM = 'ref'

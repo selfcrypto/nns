@@ -63,7 +63,7 @@ import {
   parseAddress,
   termFor,
   type Address,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 import {
   ADMIN_MIN_BALANCE,

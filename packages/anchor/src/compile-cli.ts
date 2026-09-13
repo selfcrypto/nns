@@ -1,7 +1,7 @@
 /**
  * Regenerates `src/artifact.ts` from `contracts/NnsAnchor.sol`.
  *
- *     pnpm --filter @nns/anchor compile
+ *     pnpm --filter @nimiqnames/anchor compile
  *
  * Run it after any change to the contract or to {@link SETTINGS}, and commit
  * the result. `artifact.test.ts` recompiles independently and fails if the

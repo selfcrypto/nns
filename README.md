@@ -98,7 +98,7 @@ is a lost name, as in ENS.
 | Path | |
 |---|---|
 | `docs/nns-spec-v1.md` | **The protocol specification.** Authoritative |
-| `docs/integration.md` | **The integration guide** — the HTTP API from any language, the `@nns/resolver` library, verifying proofs yourself, subdomains for exchanges, writing to the registry, running a resolver, names on EVM chains |
+| `docs/integration.md` | **The integration guide** — the HTTP API from any language, the `@nimiqnames/resolver` library, verifying proofs yourself, subdomains for exchanges, writing to the registry, running a resolver, names on EVM chains |
 | `docs/runbooks/` | `operators.md` (the role map), `release.md` (publishing the three npm packages) |
 | **`packages/`** | **Twelve packages — [`packages/README.md`](packages/README.md) explains each one and how they stack** |
 | **`deploy/`** | **One directory per operator role — [`deploy/README.md`](deploy/README.md) picks the right one and covers what they share** |
@@ -152,7 +152,7 @@ docker compose up
 Postgres comes with it, published on `127.0.0.1:5433` so it does not clash
 with a local server. Nothing else needs setting: since the launch freeze every
 §3 value — `LAUNCH_HEIGHT`, the four role addresses, `RESERVED_NAMES`, the `O`
-listing fee — is a constant in `@nns/core`, not configuration, because a value
+listing fee — is a constant in `@nimiqnames/core`, not configuration, because a value
 an operator can set is a value two indexers can disagree about.
 
 To run it outside a container instead, `packages/indexer/.env.example` is the
@@ -189,7 +189,7 @@ a server (`packages/api`) and the client library that queries several of them
 ## Running the app
 
 The mini app needs nothing but this repository — no node, no database, no
-configuration. `@nns/resolver` ships the endpoints it asks, so a dev server is
+configuration. `@nimiqnames/resolver` ships the endpoints it asks, so a dev server is
 pointed at the live registry from the first render:
 
 ```bash
@@ -211,7 +211,7 @@ only) and typecheck is wide, so a build can be broken while typecheck is green
 — a broken `core` build survived several commits exactly that way.
 
 **The build has to come first on a fresh clone**, and that is not a stylistic
-preference: every package consumes `@nns/core` through the `dist/` its
+preference: every package consumes `@nimiqnames/core` through the `dist/` its
 `exports` point at, never through `src/`. Until it exists, `typecheck` cannot
 resolve the module and 67 of the 103 test files fail. Once built, the order
 stops mattering.

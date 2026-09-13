@@ -9,7 +9,7 @@ import {
   parseAddress,
   type NameRecord,
   type NnsState,
-} from '@nns/core'
+} from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
 import {

@@ -42,7 +42,7 @@
  * verifying it, so nothing is lost today.
  */
 
-import { CONSTANTS, validateHost, validateNameSyntax } from '@nns/core'
+import { CONSTANTS, validateHost, validateNameSyntax } from '@nimiqnames/core'
 
 import { readDelegateResponse, readErrorCode, type DelegateResponse } from './documents.js'
 import { DelegateError } from './errors.js'

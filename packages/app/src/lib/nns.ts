@@ -1,12 +1,12 @@
 /**
- * The configured `@nns/resolver` instance. `resolve()` and `available()` on
+ * The configured `@nimiqnames/resolver` instance. `resolve()` and `available()` on
  * this instance are the only sources of an address or an availability verdict
  * in the whole app — no other module may produce either.
  *
  * The instance is held: it carries the §8.6 delegation cache.
  */
 
-import { createResolver, type HttpFetch, type NnsResolver } from '@nns/resolver'
+import { createResolver, type HttpFetch, type NnsResolver } from '@nimiqnames/resolver'
 import { appConfig, ConfigParseError } from '../config'
 
 /**

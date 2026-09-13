@@ -3,7 +3,7 @@
  * function — testable without a socket, and the server file stays dumb.
  *
  * No protocol rules live here. Name syntax, address parsing and `MIN_PRICE`
- * all come from `@nns/core`; the one state-dependent judgement — that a name
+ * all come from `@nimiqnames/core`; the one state-dependent judgement — that a name
  * resolves only while `REGISTERED` — is §7.3's rule as `core.resolve`
  * implements it, restated over a single row because the API reads rows, not
  * `NnsState`.
@@ -37,7 +37,7 @@ import {
   type Address,
   type NameInvalidReason,
   type Prices,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 import { inclusionDocument, nonInclusionDocument, type ProofContext } from './proofs.js'
 import {

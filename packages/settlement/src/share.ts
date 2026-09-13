@@ -91,7 +91,7 @@ import {
   type NnsState,
   type TxRef,
   type Verdict,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 import { rateFor, rebateFor, shareAmount, type RateRow, type RateTable } from './rate-table.js'
 import type { LineEvent } from './replay.js'

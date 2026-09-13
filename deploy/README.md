@@ -100,7 +100,7 @@ invisible to every client that tries to use it.
 **Nothing is baked into an image.** The same image runs against any node and any
 deployment. Since the launch freeze every §3 value — `LAUNCH_HEIGHT`, the four
 role addresses, `RESERVED_NAMES`, the listing fee — is a constant in
-`@nns/core` with no environment variable at all, because a value an operator can
+`@nimiqnames/core` with no environment variable at all, because a value an operator can
 set is a value two operators can disagree about.
 
 ## The node, for the roles that need one

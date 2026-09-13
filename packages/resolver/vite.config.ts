@@ -10,7 +10,7 @@ import { defineConfig } from 'vite'
  * HTTP API plus a hand-written keccak verifier, which is a page of code to
  * reproduce something already written and tested here.
  *
- * So: everything is inlined — `@nns/core`, `@nns/anchor/reader`, `@noble/*` —
+ * So: everything is inlined — `@nimiqnames/core`, `@nimiqnames/anchor/reader`, `@noble/*` —
  * and the output imports nothing. `<script type="module">` and a URL is the
  * whole integration. It is the same source as the npm package, built twice,
  * not a second implementation.
@@ -27,7 +27,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   build: {
     emptyOutDir: false,
-    // ES2022: the floor `@nns/core` already needs for bigint literals, and
+    // ES2022: the floor `@nimiqnames/core` already needs for bigint literals, and
     // every browser that can run a module can run it.
     target: 'es2022',
     minify: true,

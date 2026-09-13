@@ -17,8 +17,8 @@
     "@nimiq/identicons": "catalog:",
     "@nimiq/mini-app-sdk": "catalog:",
     "@nns/chat": "workspace:*",
-    "@nns/core": "workspace:*",
-    "@nns/resolver": "workspace:*",
+    "@nimiqnames/core": "workspace:*",
+    "@nimiqnames/resolver": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:"
   },

@@ -86,7 +86,7 @@ importers:
 
   packages/admin:
     dependencies:
-      '@nns/core':
+      '@nimiqnames/core':
         specifier: workspace:*
         version: link:../core
       '@nns/indexer':
@@ -105,7 +105,7 @@ importers:
 
   packages/anchor:
     dependencies:
-      '@nns/core':
+      '@nimiqnames/core':
         specifier: workspace:*
         version: link:../core
       '@noble/hashes':
@@ -130,7 +130,7 @@ importers:
 
   packages/api:
     dependencies:
-      '@nns/core':
+      '@nimiqnames/core':
         specifier: workspace:*
         version: link:../core
       '@nns/indexer':
@@ -161,15 +161,15 @@ importers:
       '@nimiq/mini-app-sdk':
         specifier: 'catalog:'
         version: 0.1.0
+      '@nimiqnames/core':
+        specifier: workspace:*
+        version: link:../core
+      '@nimiqnames/resolver':
+        specifier: workspace:*
+        version: link:../resolver
       '@nns/chat':
         specifier: workspace:*
         version: link:../chat
-      '@nns/core':
-        specifier: workspace:*
-        version: link:../core
-      '@nns/resolver':
-        specifier: workspace:*
-        version: link:../resolver
       react:
         specifier: 'catalog:'
         version: 19.2.8
@@ -201,7 +201,7 @@ importers:
 
   packages/chat:
     dependencies:
-      '@nns/core':
+      '@nimiqnames/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -258,11 +258,11 @@ importers:
 
   packages/delegate:
     dependencies:
-      '@nns/core':
+      '@nimiqnames/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
-      '@nns/resolver':
+      '@nimiqnames/resolver':
         specifier: workspace:*
         version: link:../resolver
       '@types/node':
@@ -277,10 +277,10 @@ importers:
 
   packages/indexer:
     dependencies:
-      '@nns/anchor':
+      '@nimiqnames/anchor':
         specifier: workspace:*
         version: link:../anchor
-      '@nns/core':
+      '@nimiqnames/core':
         specifier: workspace:*
         version: link:../core
       pg:
@@ -314,10 +314,10 @@ importers:
 
   packages/resolver:
     dependencies:
-      '@nns/anchor':
+      '@nimiqnames/anchor':
         specifier: workspace:*
         version: link:../anchor
-      '@nns/core':
+      '@nimiqnames/core':
         specifier: workspace:*
         version: link:../core
     devDependencies:
@@ -333,7 +333,7 @@ importers:
 
   packages/settlement:
     dependencies:
-      '@nns/core':
+      '@nimiqnames/core':
         specifier: workspace:*
         version: link:../core
       '@nns/indexer':

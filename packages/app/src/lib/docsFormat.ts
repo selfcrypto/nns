@@ -2,7 +2,7 @@
  * The docs section's build step, minus the file system.
  *
  * `packages/app/docs/*.md` is content only: every protocol figure in it is a
- * `{{format:KEY}}` placeholder, filled here from `@nns/core`'s `CONSTANTS` so
+ * `{{format:KEY}}` placeholder, filled here from `@nimiqnames/core`'s `CONSTANTS` so
  * the second launch freeze cannot leave a stale number in a sentence. The
  * contract is `packages/app/docs/README.md`'s table, and this module is its
  * one implementation.
@@ -18,7 +18,7 @@
  * mechanism exists to catch.
  */
 
-import { CONSTANTS, feeFor, LAUNCH_PRICES, LUNA_PER_NIM } from '@nns/core'
+import { CONSTANTS, feeFor, LAUNCH_PRICES, LUNA_PER_NIM } from '@nimiqnames/core'
 
 import { displayAddress } from './format'
 import { headlineBp, percentOf, rebatePercent, REFERRAL_RATES, referralHeadlineBp } from './referralRates'

@@ -35,7 +35,7 @@
  * fails. Those are the failures.
  */
 
-import { formatAddress, refKey, type Address, type ObligationKind, type TxRef } from '@nns/core'
+import { formatAddress, refKey, type Address, type ObligationKind, type TxRef } from '@nimiqnames/core'
 
 import { ADDRESS_COLUMN, nim } from './format.js'
 import type { CreatedLeg, ReplayResult, SettledLeg, UnmatchedSettlement, VerdictMismatch } from './replay.js'

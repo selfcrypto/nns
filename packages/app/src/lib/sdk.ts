@@ -16,7 +16,7 @@
  */
 
 import type { NimiqProvider } from '@nimiq/mini-app-sdk'
-import { tryParseAddress } from '@nns/core'
+import { tryParseAddress } from '@nimiqnames/core'
 import { hexToText } from './hex'
 
 export interface WalletSession {

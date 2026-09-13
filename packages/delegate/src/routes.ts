@@ -42,7 +42,7 @@
  *
  * A delegate genuinely knows whether it holds a label, and 404 is HTTP's word
  * for not holding it. That does not leak the distinction NNS must never draw,
- * because the distinction dies one layer up: `@nns/resolver`'s `askDelegate`
+ * because the distinction dies one layer up: `@nimiqnames/resolver`'s `askDelegate`
  * collapses every non-2xx, every timeout, every DNS and TLS failure and every
  * malformed body into the single code `DELEGATE_FAILED`. A client cannot tell
  * this 404 from a 502, so no user can ever be told a subdomain does not exist.
@@ -66,7 +66,7 @@
  *   adding a label a minute from now must not be shadowed by a cached 404.
  */
 
-import { formatAddress, validateLabel, validateNameSyntax } from '@nns/core'
+import { formatAddress, validateLabel, validateNameSyntax } from '@nimiqnames/core'
 
 import { countLabels } from './labels.js'
 import type { LabelSource } from './store.js'

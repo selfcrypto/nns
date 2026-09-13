@@ -11,11 +11,11 @@
  * - Depth (proof pending, anchor pending) is neutral, never a warning.
  */
 
-import type { QuorumReport, WarningCode } from '@nns/resolver'
+import type { QuorumReport, WarningCode } from '@nimiqnames/resolver'
 import type { AppAction, Cancellable, GateReason } from './states'
 import type { QueryFault } from './search'
 import type { PayMessageFault } from './payRequest'
-import { CONSTANTS, type LabelInvalidReason, type NameInvalidReason } from '@nns/core'
+import { CONSTANTS, type LabelInvalidReason, type NameInvalidReason } from '@nimiqnames/core'
 import { blocksApprox, lunaToNim } from './format'
 
 // ── The site's own name ─────────────────────────────────────────────────────

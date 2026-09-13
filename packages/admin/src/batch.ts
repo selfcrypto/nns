@@ -27,7 +27,7 @@
 
 import { readFileSync } from 'node:fs'
 
-import { CONSTANTS, formatAddress, parseAddress, type Address } from '@nns/core'
+import { CONSTANTS, formatAddress, parseAddress, type Address } from '@nimiqnames/core'
 
 import {
   ADMIN_MIN_BALANCE,

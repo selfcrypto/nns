@@ -196,7 +196,7 @@ export function compileAnchor(source: string = readContractSource()): Artifact {
 }
 
 /**
- * keccak256 through `@noble/hashes` — the same implementation `@nns/core`
+ * keccak256 through `@noble/hashes` — the same implementation `@nimiqnames/core`
  * derives the Merkle tree with, so the two constants below are hashed by the
  * code the rest of the protocol already trusts.
  *

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { CONSTANTS, encodeRegister, encodeSettlement, feeFor, initialState, refKey, type NnsState } from '@nns/core'
+import { CONSTANTS, encodeRegister, encodeSettlement, feeFor, initialState, refKey, type NnsState } from '@nimiqnames/core'
 
 import { LAUNCH_HEIGHT, TREASURY, WINNER, send, stageLog, testAddress, testConfig, type Send } from './test-fixtures.js'
 import { parseRateTable } from './rates.js'

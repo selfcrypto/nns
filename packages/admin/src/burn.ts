@@ -50,7 +50,7 @@ import {
   formatAddress,
   parse,
   type Address,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 import {
   AdminError,

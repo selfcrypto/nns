@@ -12,7 +12,7 @@
  * "as of block" stamp the RPC's `metadata` gives state reads.
  */
 
-import { BURN_ADDRESS, CONSTANTS, merkleRoot, parse, parseAddress, type Address, type Auction, type NameStatus } from '@nns/core'
+import { BURN_ADDRESS, CONSTANTS, merkleRoot, parse, parseAddress, type Address, type Auction, type NameStatus } from '@nimiqnames/core'
 import { logLineFromRow, toHeight, toLuna, type LogRow } from '@nns/indexer'
 import type { Pool, PoolClient } from 'pg'
 

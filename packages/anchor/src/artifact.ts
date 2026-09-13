@@ -1,7 +1,7 @@
 /**
  * GENERATED — do not edit by hand.
  *
- * Produced by `pnpm --filter @nns/anchor compile` from
+ * Produced by `pnpm --filter @nimiqnames/anchor compile` from
  * `contracts/NnsAnchor.sol`. Committed on purpose: this is the record of
  * what was compiled and what a deployment must match, and `artifact.test.ts`
  * recompiles from source and fails if the two disagree.

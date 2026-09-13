@@ -7,7 +7,7 @@
  * thing to leave lying around for the next reader.
  */
 
-import { encodeRegister, feeFor, initialState, logFile, logHash } from '@nns/core'
+import { encodeRegister, feeFor, initialState, logFile, logHash } from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
 import { fetchPeerSnapshot, PeerError, type Fetcher } from './peer.js'

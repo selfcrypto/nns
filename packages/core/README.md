@@ -1,4 +1,4 @@
-# `@nns/core`
+# `@nimiqnames/core`
 
 The protocol rules of the Nimiq Name Service, as a library: message encoding
 and parsing, name validity, the reducer, the §8.1 Merkle tree and the §8.2
@@ -10,13 +10,13 @@ same bytes from the same chain, and anything that could vary is a fork
 waiting to happen. It runs unchanged in a browser, in a worker and in Node.
 
 Most integrations do not need this package directly. If you want to resolve a
-name, use [`@nns/resolver`](https://www.npmjs.com/package/@nns/resolver),
-which uses this one. You want `@nns/core` when you are **building
+name, use [`@nimiqnames/resolver`](https://www.npmjs.com/package/@nimiqnames/resolver),
+which uses this one. You want `@nimiqnames/core` when you are **building
 transactions** — registering, renewing, transferring, pointing a name — or
 when you are verifying proofs yourself.
 
 ```sh
-npm install @nns/core
+npm install @nimiqnames/core
 ```
 
 ## Building a message
@@ -25,7 +25,7 @@ Every builder returns the three transaction fields, so nothing ever
 concatenates a payload by hand:
 
 ```ts
-import { encodeRegister } from '@nns/core'
+import { encodeRegister } from '@nimiqnames/core'
 
 // The fee is governed, so it is read from a resolver's /params — never
 // computed locally and never hard-coded. `mycoolshop` is 10 characters, which
@@ -48,7 +48,7 @@ float, never a `number`.
 ## The one thing to know before pinning a version
 
 ```ts
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 CONSTANTS.SPEC_REVISION  // 29
 ```
 

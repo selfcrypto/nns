@@ -67,7 +67,7 @@ import {
   type Obligation,
   type TxRef,
   type Verdict,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 export class ReplayError extends Error {
   override readonly name = 'ReplayError'

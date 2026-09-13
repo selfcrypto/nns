@@ -15,7 +15,7 @@
     "start": "node --env-file=.env dist/main.js"
   },
   "dependencies": {
-    "@nns/core": "workspace:*",
+    "@nimiqnames/core": "workspace:*",
     "@nns/indexer": "workspace:*"
   },
   "devDependencies": {

@@ -31,7 +31,7 @@ import {
   type NameRecord,
   type NnsState,
   type Obligation,
-} from '@nns/core'
+} from '@nimiqnames/core'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { CheckpointBuilder, checkpointRow, COMMITMENT_LAYOUT, hex, logLineFromRow } from './checkpoint.js'

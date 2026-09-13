@@ -10,14 +10,14 @@
  * gets to decide on its own — see the `quorum` option.
  *
  * The division of labour, kept to the same contract as `packages/api`: every
- * protocol rule is `@nns/core`'s. §4.1 and §4.4 name syntax is `parseQuery`,
+ * protocol rule is `@nimiqnames/core`'s. §4.1 and §4.4 name syntax is `parseQuery`,
  * §8.1 leaf encoding is `leafHash`, §8.1 recombination is `verifyProof`, §8.1
  * ordering is `compareNames`. What this file adds is transport, quorum policy
  * and the reconciliation of two clocks — none of which are protocol rules,
  * and none of which are restated anywhere in core.
  */
 
-import { CONSTANTS, parseQuery, type Address, type NameRecord } from '@nns/core'
+import { CONSTANTS, parseQuery, type Address, type NameRecord } from '@nimiqnames/core'
 
 import {
   ANCHORS_NOT_CONFIGURED,
@@ -146,7 +146,7 @@ export interface ResolverOptions {
    * Omitted by default, and **inert even when supplied** until
    * `ANCHOR_PUBLISHERS` has entries — nothing is deployed, so the shipped list
    * is empty and every result reports `not-checked`. The rule itself is
-   * `@nns/anchor/reader`'s and exists once; what this package adds is tying the
+   * `@nimiqnames/anchor/reader`'s and exists once; what this package adds is tying the
    * anchored commitment to the `nameRoot` the proof verified against.
    */
   readonly anchors?: AnchorPolicy
@@ -270,7 +270,7 @@ export class NnsResolver {
     // warning still gets told once that it is running without the quorum.
     if (options.onWarning === undefined) {
       for (const once of [this.#belowSpec, this.#duplicates]) {
-        if (once !== null) console.warn(`[@nns/resolver] ${once.detail}`)
+        if (once !== null) console.warn(`[@nimiqnames/resolver] ${once.detail}`)
       }
     }
   }

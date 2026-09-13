@@ -16,7 +16,7 @@ import {
   type ChainTransaction,
   type NnsConfig,
   type NnsState,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 import { BLOCKS_PER_BATCH } from './chain.js'
 import { createLogger, type Logger } from './logger.js'

@@ -28,7 +28,7 @@
  * be a short name a fired `U` released, which rule 6 still rejects.
  */
 
-import { parseAddress, validateLabel, validateNameSyntax, type Address } from '@nns/core'
+import { parseAddress, validateLabel, validateNameSyntax, type Address } from '@nimiqnames/core'
 
 /** One label's answer, as §8.6 step 3 puts it on the wire. */
 export interface LabelAnswer {

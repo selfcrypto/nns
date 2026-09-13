@@ -21,7 +21,7 @@ services:
   delegate:
     build:
       # The repository root: every service is a workspace member and the image
-      # needs the lockfile, the catalog and `@nns/core`.
+      # needs the lockfile, the catalog and `@nimiqnames/core`.
       context: ../..
       dockerfile: docker/Dockerfile
       args:

@@ -1,5 +1,5 @@
-import { CONSTANTS } from '@nns/core'
-import { DEFAULT_RESOLVERS, type ResolverEndpoint } from '@nns/resolver'
+import { CONSTANTS } from '@nimiqnames/core'
+import { DEFAULT_RESOLVERS, type ResolverEndpoint } from '@nimiqnames/resolver'
 
 /**
  * Deployment configuration, from Vite env vars at build time.
@@ -8,14 +8,14 @@ import { DEFAULT_RESOLVERS, type ResolverEndpoint } from '@nns/resolver'
  *   after `DEFAULT_RESOLVERS`, never replacing it. Since 2026-09-13 that
  *   default is two public endpoints, so an operator adds only their **own**
  *   box here — and adding one that is already in the default is not a
- *   mistake this file has to catch: `@nns/resolver` drops a repeated URL and
+ *   mistake this file has to catch: `@nimiqnames/resolver` drops a repeated URL and
  *   warns on every result.
  * - `VITE_NNS_QUORUM`: how many resolvers must agree. **Defaults to 2**,
  *   `CONSTANTS.RESOLVER_QUORUM`, because the shipped default list now meets
  *   it — the 1 this defaulted to was a deployment fact (one public endpoint
  *   existed) that stopped being true, and a default that silently keeps
  *   enforcing the weaker rule after the reason expired is the worst kind.
- *   `@nns/resolver` still makes a configured shortfall loud on every result;
+ *   `@nimiqnames/resolver` still makes a configured shortfall loud on every result;
  *   the UI renders it via the "Verified by N resolvers" line.
  */
 export interface AppConfig {
@@ -38,7 +38,7 @@ export class ConfigParseError extends Error {
  * `/api`, one `web` image runs on any hostname and a domain change needs no
  * rebuild. Every consumer concatenates and hands the result to `fetch`
  * (`api.ts`'s `request`, `chatIndex.ts`, `history.ts`'s `fetchTransport`,
- * `@nns/resolver`'s `join`), all of which resolve a relative URL against the
+ * `@nimiqnames/resolver`'s `join`), all of which resolve a relative URL against the
  * document — so nothing downstream has to change.
  *
  * `//host/path` is **rejected**. A protocol-relative URL reads as same-origin

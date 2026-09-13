@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BURN_ADDRESS, CONSTANTS, encodeBurn } from '@nns/core'
+import { BURN_ADDRESS, CONSTANTS, encodeBurn } from '@nimiqnames/core'
 
 import { AdminRefusal, blockingChecks, broadcast, UsageError, type AdminRpc } from './cli.js'
 import {

@@ -1,9 +1,9 @@
 /**
- * `@nns/anchor` — the NNS anchor contract (§9) and the record of its build.
+ * `@nimiqnames/anchor` — the NNS anchor contract (§9) and the record of its build.
  *
  * The publisher lives behind
- * `@nns/anchor/publisher` and the client-side reader behind
- * `@nns/anchor/reader` — kept off this root so that a mini app bundling
+ * `@nimiqnames/anchor/publisher` and the client-side reader behind
+ * `@nimiqnames/anchor/reader` — kept off this root so that a mini app bundling
  * the reader can never pull in key-handling code, a property
  * `browser-safety.test.ts` enforces over the import graph.
  *

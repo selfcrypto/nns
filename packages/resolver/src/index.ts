@@ -1,8 +1,8 @@
 /**
- * @nns/resolver — client-side NNS resolution.
+ * @nimiqnames/resolver — client-side NNS resolution.
  *
  * Quorum across independent resolvers, §8.3 proof verification against
- * `@nns/core`, and §8.6 delegated resolution for dotted queries. No protocol
+ * `@nimiqnames/core`, and §8.6 delegated resolution for dotted queries. No protocol
  * rule is implemented here: every rule this package applies is core's, and
  * what it adds is transport and policy around them.
  *
@@ -31,7 +31,7 @@ export {
 // pairs the unproven half with the proven one.
 export { DelegateCache, MAX_DELEGATE_TTL_SEC, askDelegate, type DelegateInfo } from './delegate.js'
 
-// §8.5 #1 is `@nns/anchor/reader`'s rule, wired here and not restated. What
+// §8.5 #1 is `@nimiqnames/anchor/reader`'s rule, wired here and not restated. What
 // this package adds is §8.5 #3's binding: the anchored commitment is compared
 // against the checkpoint the proof verified against, recomputed from its own
 // six components through core.
@@ -41,8 +41,8 @@ export {
   type AnchorPolicy,
   type AnchorReport,
 } from './anchors.js'
-export type { AnchorCheck, AnchorReadRpc } from '@nns/anchor/reader'
-export { createAnchorReadRpc } from '@nns/anchor/reader'
+export type { AnchorCheck, AnchorReadRpc } from '@nimiqnames/anchor/reader'
+export { createAnchorReadRpc } from '@nimiqnames/anchor/reader'
 
 // Two resolvers, no anchor publishers. Spread them rather than replacing
 // them, so the day either list grows an integrator picks the new entries up
@@ -57,7 +57,7 @@ export { DEFAULT_ANCHOR_PUBLISHERS, DEFAULT_RESOLVERS } from './defaults.js'
  * takes; a user reads the spaced form, and §4.3's rules about which glyphs
  * must be distinguishable are about what a user reads. This package already
  * owns that surface — it ships the stylesheet for it — so a host that took
- * the resolver and not `@nns/core` should not have to add a second dependency
+ * the resolver and not `@nimiqnames/core` should not have to add a second dependency
  * to render an address the way every Nimiq wallet does. Notably the
  * single-file browser build (`dist/nns.js`) has no other way to reach it.
  *
@@ -65,7 +65,7 @@ export { DEFAULT_ANCHOR_PUBLISHERS, DEFAULT_RESOLVERS } from './defaults.js'
  * job with a different dependency, and a barrel that forwards a whole package
  * is a barrel nobody can tell the boundary of.
  */
-export { formatAddress } from '@nns/core'
+export { formatAddress } from '@nimiqnames/core'
 
 export type { CheckpointRef } from './quorum.js'
 
@@ -75,7 +75,7 @@ export { warn, type ResolveWarning, type WarningCode } from './warnings.js'
 
 // §4.3 is a SHOULD that fails silently when it is not followed, so it ships
 // as CSS rather than as advice. The stylesheet is also a file —
-// `@nns/resolver/rendering.css` — for hosts with a CSS loader; the string and
+// `@nimiqnames/resolver/rendering.css` — for hosts with a CSS loader; the string and
 // the injector are the path for hosts with no build step at all.
 export {
   NNS_NAME_CLASS,

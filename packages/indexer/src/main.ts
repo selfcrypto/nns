@@ -5,15 +5,15 @@
  *
  * Reads `.env` (see `.env.example`), migrates the database, reloads state and
  * the cursor, then tails batches up to the last finalised macro block —
- * reducing each batch's messages through `@nns/core` and committing state, log
+ * reducing each batch's messages through `@nimiqnames/core` and committing state, log
  * lines, §8.1 checkpoints and the cursor in one transaction per batch.
  *
  * In a container this is `node dist/main.js` with the environment supplied by
  * `docker-compose.yml`; `--env-file` is the local-development path only.
  */
 
-import { CONSTANTS } from '@nns/core'
-import { createAnchorReadRpc } from '@nns/anchor/reader'
+import { CONSTANTS } from '@nimiqnames/core'
+import { createAnchorReadRpc } from '@nimiqnames/anchor/reader'
 import { bootstrap } from './bootstrap.js'
 import { CheckpointBuilder } from './checkpoint.js'
 import { createLogger, type Logger } from './logger.js'

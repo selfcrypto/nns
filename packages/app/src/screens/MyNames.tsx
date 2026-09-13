@@ -5,7 +5,7 @@
  */
 
 import { useState, type ReactNode } from 'react'
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 import { getOwnedNames, type OwnedName } from '../lib/api'
 import { approxDate, formatApproxDate } from '../lib/format'
 import { apiBase } from '../lib/nns'

@@ -1,4 +1,4 @@
-# @nns/resolver
+# @nimiqnames/resolver
 
 Turn an NNS name into a Nimiq address, and check the answer before your users
 pay it.
@@ -9,11 +9,11 @@ exchange, writing to the registry, running a resolver — is
 `docs/integration.md` at the repository root.
 
 ```sh
-npm install @nns/resolver
+npm install @nimiqnames/resolver
 ```
 
 ```ts
-import { createResolver } from '@nns/resolver'
+import { createResolver } from '@nimiqnames/resolver'
 
 // Zero configuration: the shipped resolver list has two public endpoints and
 // the default quorum is 2, so this asks both and requires them to agree.
@@ -34,15 +34,15 @@ against a published checkpoint root, and this package rebuilds the leaf,
 recombines the proof, and compares what several operators say before it returns
 an address. **You cannot turn that off**; there is no option for it.
 
-Browser and Node 20+, TypeScript, MIT, two dependencies (`@nns/core`,
-`@nns/anchor`), no Node builtins, no font downloads, no telemetry.
+Browser and Node 20+, TypeScript, MIT, two dependencies (`@nimiqnames/core`,
+`@nimiqnames/anchor`), no Node builtins, no font downloads, no telemetry.
 
 **No bundler?** `dist/nns.js` is the same source as one self-contained ES
 module — 68 kB, 24 kB over the wire, importing nothing:
 
 ```html
 <script type="module">
-  import { createResolver } from 'https://cdn.jsdelivr.net/npm/@nns/resolver/dist/nns.js'
+  import { createResolver } from 'https://cdn.jsdelivr.net/npm/@nimiqnames/resolver/dist/nns.js'
   const { address } = await createResolver({}).resolve('kike')
 </script>
 ```
@@ -52,7 +52,7 @@ module — 68 kB, 24 kB over the wire, importing nothing:
 ## Install and construct
 
 ```sh
-npm install @nns/resolver
+npm install @nimiqnames/resolver
 ```
 
 ```ts
@@ -439,13 +439,13 @@ stylesheet you adopt by adopting the package.
 With a bundler or a `<link>`:
 
 ```ts
-import '@nns/resolver/rendering.css'
+import '@nimiqnames/resolver/rendering.css'
 ```
 
 With no build step:
 
 ```ts
-import { injectRenderingCss } from '@nns/resolver'
+import { injectRenderingCss } from '@nimiqnames/resolver'
 injectRenderingCss(document)   // idempotent; call it wherever you need it
 ```
 
@@ -512,7 +512,7 @@ code, another implementation's output — run these against it rather than
 writing your own check. A second implementation of the verification is the one
 place a divergence could enter.
 
-Every protocol rule this package applies is `@nns/core`'s: name syntax, leaf
+Every protocol rule this package applies is `@nimiqnames/core`'s: name syntax, leaf
 encoding, proof recombination, ordering. Nothing is restated here, so there is
 nothing here that can drift from it.
 

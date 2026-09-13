@@ -1,5 +1,5 @@
 /**
- * Copy `@nns/resolver`'s self-contained browser build into this app's
+ * Copy `@nimiqnames/resolver`'s self-contained browser build into this app's
  * `public/`, so the deployment serves it at `/nns.js`.
  *
  * Why the app and not a static host of its own: `docs/integration.md` points a
@@ -10,7 +10,7 @@
  *
  * It is **copied, never committed**: the bundle is a build artifact of another
  * package, and a checked-in copy is a copy that goes stale silently. Run
- * `pnpm build` (this is its `prebuild`) or `pnpm --filter @nns/resolver build`
+ * `pnpm build` (this is its `prebuild`) or `pnpm --filter @nimiqnames/resolver build`
  * first — the script says so rather than producing a page that 404s.
  */
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
@@ -23,7 +23,7 @@ const to = join(here, '..', 'public', 'nns.js')
 
 if (!existsSync(from)) {
   console.error(
-    `[app] ${from} is missing — build @nns/resolver first (pnpm --filter @nns/resolver build).\n` +
+    `[app] ${from} is missing — build @nimiqnames/resolver first (pnpm --filter @nimiqnames/resolver build).\n` +
       '      Without it this deployment would serve a 404 at /nns.js, which docs/integration.md links.',
   )
   process.exit(1)
@@ -31,4 +31,4 @@ if (!existsSync(from)) {
 
 mkdirSync(dirname(to), { recursive: true })
 copyFileSync(from, to)
-console.log('[app] public/nns.js ← @nns/resolver/dist/nns.js')
+console.log('[app] public/nns.js ← @nimiqnames/resolver/dist/nns.js')

@@ -25,7 +25,7 @@ import {
   type ChainTransaction,
   type NnsConfig,
   type NnsState,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 /** Distinct, valid, and never the all-zero burn address. */
 export function testAddress(seed: number): Address {

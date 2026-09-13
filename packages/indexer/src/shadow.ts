@@ -41,7 +41,7 @@
  * the check circular. A restart begins again at `LAUNCH_HEIGHT`.
  */
 
-import { initialState, type NnsState } from '@nns/core'
+import { initialState, type NnsState } from '@nimiqnames/core'
 
 import { calibrate } from './chain.js'
 import { CheckpointBuilder, hex } from './checkpoint.js'
@@ -49,7 +49,7 @@ import type { Logger } from './logger.js'
 import { Pipeline } from './pipeline.js'
 import { Scanner, type ScanRpc } from './scan.js'
 import type { Store } from './store.js'
-import type { NnsConfig } from '@nns/core'
+import type { NnsConfig } from '@nimiqnames/core'
 
 export class VerificationError extends Error {
   override readonly name = 'VerificationError'

@@ -1,5 +1,5 @@
 {
-  "name": "@nns/resolver",
+  "name": "@nimiqnames/resolver",
   "version": "0.1.0",
   "type": "module",
   "description": "Client-side NNS resolution: resolver quorum, \u00a78.3 proof verification, \u00a78.6 delegation. Browser and Node.",
@@ -50,8 +50,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@nns/anchor": "workspace:*",
-    "@nns/core": "workspace:*"
+    "@nimiqnames/anchor": "workspace:*",
+    "@nimiqnames/core": "workspace:*"
   },
   "devDependencies": {
     "typescript": "catalog:",

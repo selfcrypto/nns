@@ -6,7 +6,7 @@
  * No webfont and no third-party request of any kind — a stylesheet that
  * fetched a font would add a party who learns every user's IP to an app
  * whose whole product is fewer parties (§2.2). Names render through
- * @nns/resolver/rendering.css and land on the platform monospace; the few
+ * @nimiqnames/resolver/rendering.css and land on the platform monospace; the few
  * icons are inline SVG (components/icons.tsx).
  *
  * Three surfaces, and the difference between them is information:

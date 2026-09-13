@@ -10,7 +10,7 @@ import {
   feeFor,
   initialState,
   minPrice,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 import {
   LAUNCH_HEIGHT,

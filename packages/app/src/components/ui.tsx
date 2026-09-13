@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
-import { NNS_NAME_CLASS } from '@nns/resolver'
+import { NNS_NAME_CLASS } from '@nimiqnames/resolver'
 import Identicons from '@nimiq/identicons/dist/identicons.bundle.min.js'
 import type { ReactNode } from 'react'
 import { displayAddress } from '../lib/format'
 import type { Tone } from '../lib/wording'
 
-/** Every name and label renders through this — §4.3 CSS via @nns/resolver. */
+/** Every name and label renders through this — §4.3 CSS via @nimiqnames/resolver. */
 export function NameText({ children }: { children: ReactNode }) {
   return <span className={NNS_NAME_CLASS}>{children}</span>
 }

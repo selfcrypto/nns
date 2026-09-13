@@ -23,7 +23,7 @@
  * operator's divergence.
  */
 
-import { defineConfig, type NnsConfig } from '@nns/core'
+import { defineConfig, type NnsConfig } from '@nimiqnames/core'
 
 import { DEFAULT_RATES_PATH, readRateTable, type RateTable } from './rates.js'
 

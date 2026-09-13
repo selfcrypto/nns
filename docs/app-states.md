@@ -216,7 +216,7 @@ include this transaction", never "sent".
    wrong with their name.
 8. **Renewal reminder** (§10.4, non-deferrable): approaching expiry surfaces
    prominently, in-app, from `GRACE_PERIOD` × 2 — 60 days — before the date.
-9. **Names render in the §4.3 CSS** (`@nns/resolver/rendering.css`,
+9. **Names render in the §4.3 CSS** (`@nimiqnames/resolver/rendering.css`,
    `nns-name` class) wherever shown or typed, with the **Nimiq identicon of
    the resolved address** beside any address a user might pay — it is a
    picture of what will actually be paid.

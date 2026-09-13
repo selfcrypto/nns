@@ -21,11 +21,11 @@
  *
  * It stops there on purpose. Comparing that commitment against an anchor, or
  * against a second resolver, is §8.5's job and it is already built —
- * `@nns/anchor`'s reader and `@nns/resolver`'s quorum. Reimplementing either
+ * `@nimiqnames/anchor`'s reader and `@nimiqnames/resolver`'s quorum. Reimplementing either
  * here would be a second opinion from the same code.
  */
 
-import { logFile, logHash, splitLogFile } from '@nns/core'
+import { logFile, logHash, splitLogFile } from '@nimiqnames/core'
 
 export class SourceError extends Error {
   override readonly name = 'SourceError'
@@ -72,7 +72,7 @@ function digest(value: string, field: string): string {
  * log too, to bootstrap from one. The two are deliberately independent of each
  * other; `core` is where they are allowed to agree.
  */
-export { splitLogFile } from '@nns/core'
+export { splitLogFile } from '@nimiqnames/core'
 
 function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) return false

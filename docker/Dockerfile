@@ -13,7 +13,7 @@
 #
 # Built from the **repository root** as context, because every service is a
 # workspace member: it needs `pnpm-workspace.yaml` for the catalog, the
-# lockfile, and its workspace dependencies — `@nns/core` for all of them, and
+# lockfile, and its workspace dependencies — `@nimiqnames/core` for all of them, and
 # `@nns/indexer` as well for `@nns/api`, which reads its log-level type from
 # there.
 #
@@ -59,14 +59,19 @@ COPY packages/relay/package.json packages/relay/
 COPY packages/resolver/package.json packages/resolver/
 COPY packages/settlement/package.json packages/settlement/
 
-# `--filter @nns/<pkg>...` — the package and its dependencies. Nothing else in
-# the workspace is fetched.
-RUN pnpm install --frozen-lockfile --filter "@nns/${PKG}..."
+# `--filter {./packages/<pkg>}...` — the package and its dependencies. Nothing
+# else in the workspace is fetched. The filter is by **directory**, not by
+# package name, because the three published packages carry a different scope
+# from the nine that are not (`@nimiqnames/` vs `@nns/`, 2026-09-14) and `PKG`
+# is a directory already. The braces are load-bearing: `./packages/anchor...`
+# selects the package *without* its dependencies, and fails later at the build
+# rather than here, where `{./packages/anchor}...` selects both.
+RUN pnpm install --frozen-lockfile --filter "{./packages/${PKG}}..."
 
 COPY packages packages
 
 # Same filter, so the workspace dependencies build first, in topological order.
-RUN pnpm --filter "@nns/${PKG}..." build
+RUN pnpm --filter "{./packages/${PKG}}..." build
 
 # Prune the build-only dependencies (typescript, vitest) in place. Re-running
 # install rather than deleting keeps pnpm's symlink layout coherent, which is
@@ -79,7 +84,7 @@ RUN pnpm --filter "@nns/${PKG}..." build
 # the documented answer. The refetch is free: pnpm's content-addressable store
 # is in this stage already, so the reinstall is relinking, not downloading.
 ENV CI=true
-# `@nns/anchor` is the one exception, and it is a packaging fact rather than a
+# `@nimiqnames/anchor` is the one exception, and it is a packaging fact rather than a
 # deployment one: since the package is published to npm, `viem` and `solc` are
 # **devDependencies** there — no module reachable from any of its three export
 # subpaths imports either, only the three CLIs do, so a library consumer that
@@ -90,7 +95,7 @@ ENV CI=true
 RUN if [ "${PKG}" = "anchor" ]; then \
       echo 'anchor keeps its build tree: its CLIs are its runtime (viem, solc)'; \
     else \
-      pnpm install --frozen-lockfile --prod --filter "@nns/${PKG}..."; \
+      pnpm install --frozen-lockfile --prod --filter "{./packages/${PKG}}..."; \
     fi
 
 
@@ -103,7 +108,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 
 # The whole tree: pnpm's `node_modules` is a symlink farm into `.pnpm`, and
-# `@nns/core` is itself a link into `packages/core`. Copying the parts
+# `@nimiqnames/core` is itself a link into `packages/core`. Copying the parts
 # separately would break both.
 COPY --from=build --chown=node:node /app /app
 

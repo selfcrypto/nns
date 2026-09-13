@@ -16,7 +16,7 @@ import { percentOf, rateIsNetOfBurn, rebatePercent, referralHeadlineBp, referral
 import { useAsync } from '../lib/useAsync'
 import { Hint } from './Hint'
 import { createPortal } from 'react-dom'
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 import { primaryAddress } from '../lib/identity'
 import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
 import type { SearchOutcome } from '../lib/search'

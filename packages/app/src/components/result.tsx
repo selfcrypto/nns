@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import type { ResolveResult, ResolveWarning } from '@nns/resolver'
+import type { ResolveResult, ResolveWarning } from '@nimiqnames/resolver'
 import type { NameInfo } from '../lib/api'
 import { displayAddress, ellipsizeAddress, formatApproxDate, approxDate, lunaToNim } from '../lib/format'
 import {

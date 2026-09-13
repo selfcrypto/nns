@@ -15,7 +15,7 @@
  * payment, 2 usage or environment.
  */
 
-import { initialState } from '@nns/core'
+import { initialState } from '@nimiqnames/core'
 import { createLogger } from '@nns/indexer'
 
 import { createPool } from './db.js'

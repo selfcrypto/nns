@@ -65,7 +65,7 @@
  * snapshot, so the ledger reads no node to decide either.
  */
 
-import { formatAddress, parseAddress, refKey, type Address, type NnsConfig, type TxRef } from '@nns/core'
+import { formatAddress, parseAddress, refKey, type Address, type NnsConfig, type TxRef } from '@nimiqnames/core'
 import { configFingerprint, toLuna, type Logger } from '@nns/indexer'
 
 import { obligationKey, type DueObligation, type LedgerKind, type WatchSnapshot } from './watch.js'

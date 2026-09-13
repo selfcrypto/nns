@@ -45,11 +45,11 @@ where the mistakes are.
 ```bash
 cp packages/anchor/.env.example packages/anchor/.env
 $EDITOR packages/anchor/.env
-pnpm --filter @nns/anchor deploy            # dry run: reads a nonce and a
+pnpm --filter @nimiqnames/anchor deploy            # dry run: reads a nonce and a
                                             # balance, predicts the CREATE
                                             # address, sends nothing
-pnpm --filter @nns/anchor deploy --send
-pnpm --filter @nns/anchor verify 0x…        # does that address hold this contract?
+pnpm --filter @nimiqnames/anchor deploy --send
+pnpm --filter @nimiqnames/anchor verify 0x…        # does that address hold this contract?
 ```
 
 `verify` is worth running against someone else's deployment too — it is the

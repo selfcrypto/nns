@@ -1,5 +1,5 @@
 /**
- * Fixtures: a real name tree from `@nns/core`, rendered into §8.3 documents.
+ * Fixtures: a real name tree from `@nimiqnames/core`, rendered into §8.3 documents.
  *
  * The rendering here is written **independently of `packages/api/src/proofs.ts`**
  * and deliberately not imported from it. If both sides shared one renderer, a
@@ -21,7 +21,7 @@ import {
   type CheckpointComponents,
   type MerkleProof,
   type NameRecord,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 export const address = (seed: number): Address => addressFromBytes(new Uint8Array(20).fill(seed))
 

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 import type { NameInfo } from './api'
 import type { Identity } from './identity'
-import { parseAddress } from '@nns/core'
-import type { ResolveResult } from '@nns/resolver'
+import { parseAddress } from '@nimiqnames/core'
+import type { ResolveResult } from '@nimiqnames/resolver'
 import type { SearchOutcome } from './search'
 import {
   actionGates,

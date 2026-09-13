@@ -39,7 +39,7 @@
  * delete the very object the anchor points at.
  */
 
-import { cidFromDigest } from '@nns/core'
+import { cidFromDigest } from '@nimiqnames/core'
 import { hmac } from '@noble/hashes/hmac.js'
 import { sha256 } from '@noble/hashes/sha2.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'

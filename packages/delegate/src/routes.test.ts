@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { addressFromBytes, formatAddress } from '@nns/core'
+import { addressFromBytes, formatAddress } from '@nimiqnames/core'
 
 import { parseLabelFile, type LabelFile } from './labels.js'
 import { createRoutes, type RouteOptions } from './routes.js'
@@ -97,7 +97,7 @@ describe('GET /{parent}/{label}', () => {
   it('does not answer the retired r22 label-only path', () => {
     // The break is deliberate and must stay loud: a client still speaking the
     // old shape gets nothing at all, rather than an answer that might belong
-    // to another name. `@nns/resolver` never falls back to it — a downgrade on
+    // to another name. `@nimiqnames/resolver` never falls back to it — a downgrade on
     // 404 would keep the shared-namespace shape reachable forever. It reads as
     // a lookup for `shop` under a parent `resolve` now, which this file has no
     // more than it had the old route.

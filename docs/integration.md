@@ -11,7 +11,7 @@ Pick the depth you need and skip the rest:
 | You want to… | Read | Effort |
 |---|---|---|
 | Show a name's address, from any language | [§2 The HTTP API](#2-the-http-api-any-language) | one GET |
-| Resolve names in a JS/TS app, verified the way the protocol requires | [§3 The `@nns/resolver` library](#3-the-nnsresolver-library-javascript--typescript) | one dependency |
+| Resolve names in a JS/TS app, verified the way the protocol requires | [§3 The `@nimiqnames/resolver` library](#3-the-nnsresolver-library-javascript--typescript) | one dependency |
 | Check the proofs yourself, in your own language | [§4 Verify proofs yourself](#4-verify-a-proof-yourself) | ~100 lines |
 | Give your users `deposit.yourexchange` style subdomains | [§5 Exchanges and services](#5-exchanges-and-services) | a JSON file and TLS |
 | Register, renew, repoint, sell names from your own software | [§6 Writing to the registry](#6-writing-to-the-registry) | a transaction builder |
@@ -102,7 +102,7 @@ Names of 1–4 characters are **reserved**
 one dot, `label.name`, is a **subdomain**: the part before the dot is the
 label (1–24 chars, same alphabet), the part after is a registered name.
 There is never more than one dot. Do not restate these rules in your code:
-`@nns/core` exports `validateName`, `validateLabel` and `parseQuery`, and the
+`@nimiqnames/core` exports `validateName`, `validateLabel` and `parseQuery`, and the
 API returns the exact reason code when a name fails.
 
 ---
@@ -320,7 +320,7 @@ endpoint exercises step 2 alone.)
 
 ---
 
-## 3. The `@nns/resolver` library (JavaScript / TypeScript)
+## 3. The `@nimiqnames/resolver` library (JavaScript / TypeScript)
 
 The client the app itself uses. It asks several resolvers, verifies every
 proof against the checkpoint root, requires agreement, handles subdomains,
@@ -341,7 +341,7 @@ gets postponed forever.
 **With a bundler:**
 
 ```sh
-npm install @nns/resolver          # and @nns/core if you build transactions (§6)
+npm install @nimiqnames/resolver          # and @nimiqnames/core if you build transactions (§6)
 ```
 
 **Without one** — one self-contained ES module, nothing to install, nothing
@@ -359,16 +359,15 @@ fetched at runtime beyond the resolvers themselves:
 
 68 kB, 24 kB over the wire. It is the *same source* as the npm package, built
 twice — not a cut-down copy, so everything in this section applies to it
-unchanged, and `https://cdn.jsdelivr.net/npm/@nns/resolver/dist/nns.js` is
+unchanged, and `https://cdn.jsdelivr.net/npm/@nimiqnames/resolver/dist/nns.js` is
 the same file from a CDN if you prefer one that is not ours.
 
-> **Status, 2026-09-13.** The `https://nimiqnames.com/nns.js` URL is live.
-> The three packages (`@nns/core`, `@nns/anchor`, `@nns/resolver`) are
-> release-ready but not yet on the registry — publishing is one command in
-> `docs/runbooks/release.md`, waiting on the `@nns` organisation being
-> created. Until it runs, `npm install @nns/resolver` will 404 and the
-> script tag above is the working path. Nothing else in this guide changes
-> when it does.
+> **Status, 2026-09-14.** The `https://nimiqnames.com/nns.js` URL is live.
+> The three packages (`@nimiqnames/core`, `@nimiqnames/anchor`,
+> `@nimiqnames/resolver`) are release-ready but not yet on the registry —
+> publishing is one command in `docs/runbooks/release.md`. Until it runs,
+> `npm install @nimiqnames/resolver` will 404 and the script tag above is the
+> working path. Nothing else in this guide changes when it does.
 
 Either way `dist/` is what ships: ESM, typed, plus `dist/rendering.css`
 (§4.3's type face) and `dist/nns.js` (the bundle above).
@@ -376,7 +375,7 @@ Either way `dist/` is what ships: ESM, typed, plus `dist/rendering.css`
 ### 3.2 Construct one, resolve one
 
 ```ts
-import { createResolver } from '@nns/resolver'
+import { createResolver } from '@nimiqnames/resolver'
 
 // Zero configuration is the supported path: the shipped resolver list has two
 // public endpoints and the default quorum is 2, so this asks both and requires
@@ -385,7 +384,7 @@ const nns = createResolver({})
 
 const r = await nns.resolve('ricochet')
 r.address        // 'NQ88XL24NHPUMYVX67ACTXLXNQX1R471EGM9' — pay here. Canonical compact form;
-                 //   formatAddress() from @nns/core gives the spaced display form
+                 //   formatAddress() from @nimiqnames/core gives the spaced display form
 r.evm            // '' or '0x…'                                     — the owner's EVM address, if declared
 r.verification   // 'PROVEN' | 'PROOF_PENDING' | 'DELEGATED'
 r.quorum         // { required: 2, queried: 2, agreed: 2, resolvers: [{ name, url }, …] }
@@ -471,7 +470,7 @@ Two more that cost one line each:
 3. **Show the address you resolved**, not only the name, wherever money is
    about to move. An identicon of the *address* (`@nimiq/identicons`) is the
    picture of what will actually be paid.
-4. **Draw names in the shipped CSS**: `import '@nns/resolver/rendering.css'`
+4. **Draw names in the shipped CSS**: `import '@nimiqnames/resolver/rendering.css'`
    and put `class="nns-name"` on the element (or
    `injectRenderingCss(document)` without a bundler). It selects a face that
    keeps `0`/`o`, `1`/`l` and `rn`/`m` apart, which is the whole of the
@@ -603,7 +602,7 @@ name and the address on the confirmation screen.
 
 For an integrator in Go, Rust, Python, Swift, or a language with no NNS
 library yet. Everything you need is one keccak-256 and a sort order. The
-JavaScript names below are `@nns/core`'s; a port of them is about a hundred
+JavaScript names below are `@nimiqnames/core`'s; a port of them is about a hundred
 lines.
 
 ### 4.1 The leaf
@@ -684,8 +683,8 @@ compare its `nameRoot` to `proof.root`.
 In TypeScript, all of that is:
 
 ```ts
-import { leafHash, verifyProof } from '@nns/core'
-import { verifyInclusion, readResolveResponse } from '@nns/resolver'
+import { leafHash, verifyProof } from '@nimiqnames/core'
+import { verifyInclusion, readResolveResponse } from '@nimiqnames/resolver'
 
 // the low-level pair: a NameRecord (addresses through parseAddress), the steps, the root — as bytes
 const ok = verifyProof(leafHash(record), steps, root)
@@ -711,14 +710,14 @@ bytewise, and — the check people forget — check the two are *adjacent*:
 proof and is not taken on faith: an odd index always has a sibling on its
 left, so the first step's `side` pins its parity. Without adjacency the
 "proof" is compatible with the name sitting between them.
-`verifyNonInclusion(document, name)` in `@nns/resolver` does all three.
+`verifyNonInclusion(document, name)` in `@nimiqnames/resolver` does all three.
 
 ### 4.4 Binding to the checkpoint
 
 The proof root is the `nameRoot` of the checkpoint at `proof.nimiq_height`
 (`/checkpoints/{height}`). The checkpoint's `commitment` is
 `keccak256` over its six components in layout order (`layout` is `6` today;
-`@nns/core`'s `commitmentFrom` is the reference), which is what an EVM anchor
+`@nimiqnames/core`'s `commitmentFrom` is the reference), which is what an EVM anchor
 notarises. To compare two resolvers, fetch `/checkpoints/{height}` from both
 at the same boundary and compare `nameRoot`; two honest indexers produce the
 same bytes.
@@ -834,7 +833,7 @@ rendering CSS, so a homoglyph `yourexchanqe` is visibly not you.
 
 Everything an owner can do is one transaction from the owner's wallet with a
 short ASCII payload. There is no API to call: you build the transaction and
-your user signs it. The builders in `@nns/core` produce the three fields a
+your user signs it. The builders in `@nimiqnames/core` produce the three fields a
 Nimiq transaction needs — `recipient`, `value`, `data` — and refuse anything
 that would be dropped silently on chain.
 
@@ -867,7 +866,7 @@ sending it.
 ### 6.2 Build the transaction
 
 ```ts
-import { encodeRegister, encodeSetTarget, encodeDelegate, encodeRenew, CONSTANTS } from '@nns/core'
+import { encodeRegister, encodeSetTarget, encodeDelegate, encodeRenew, CONSTANTS } from '@nimiqnames/core'
 
 // the fee comes from the resolver, never from arithmetic in your code
 const params = await (await fetch('https://api.nimiqnames.com/params')).json()
@@ -892,7 +891,7 @@ encodeDelegate({ name: 'mycoolshop', host: '' })                             // 
 Every builder validates the name, the byte ceiling (64), a positive value
 and, if you pass `sender`, that it differs from the recipient — the three
 things the network drops **silently**. Pass `sender` whenever you know it.
-`feeFor(name, prices, lifetime)` exists in `@nns/core` too, but it takes the
+`feeFor(name, prices, lifetime)` exists in `@nimiqnames/core` too, but it takes the
 `Prices` object; reading the served `fees` table is what the app does, and it
 keeps a `pendingGovernance` from surprising you.
 
@@ -1006,7 +1005,7 @@ three drops above. A message that reaches the chain and fails a rule gets a
 - **Forfeited** (`INVALID_NAME`, a `G` for a still-reserved name, a
   malformed payload, …): the value stays with the treasury. Every one of
   these is a check your client should have made before enabling the button;
-  `@nns/core`'s builders and `/available` cover all of them.
+  `@nimiqnames/core`'s builders and `/available` cover all of them.
 
 The full 28-token vocabulary is in the spec, §7.4. `/log/decoded?format=text`
 shows every verdict ever issued.
@@ -1065,7 +1064,7 @@ that no longer covers `LAUNCH_HEIGHT`.
 
 **Join the quorum, and this is the part that matters.** Being runnable is not
 being asked. Clients query the resolvers in their shipped list,
-`DEFAULT_RESOLVERS` in `@nns/resolver`, and today that list is two endpoints
+`DEFAULT_RESOLVERS` in `@nimiqnames/resolver`, and today that list is two endpoints
 **run by the same operator that publishes the package**. They are separately
 replayed — their own database, their own host, their own provider — so their
 agreement does prove the reducer was deterministic and neither box drifted.
@@ -1217,7 +1216,7 @@ Errors: `NAME_INVALID` · `NOT_FOUND` · `IN_GRACE` · `QUORUM_UNMET` ·
 
 ### 10.4 Constants
 
-Read them from `@nns/core`'s `CONSTANTS`, never from this table, which is
+Read them from `@nimiqnames/core`'s `CONSTANTS`, never from this table, which is
 here so a reader in another language knows the shape. The **public beta**
 (era `tempo/2026-09-11`, live on the URLs below) runs compressed values so a
 year passes in a week; **mainnet** values are what `main` compiles and what
@@ -1244,7 +1243,7 @@ freeze.
 
 The four addresses in full are `CONSTANTS.TREASURY_ADDRESS` and friends in
 `packages/core/src/constants.ts`; a client should read them from there or
-from the recipient a `@nns/core` builder returns, never retype them.
+from the recipient a `@nimiqnames/core` builder returns, never retype them.
 
 ### 10.5 Live URLs (2026-09-12)
 
@@ -1253,7 +1252,7 @@ from the recipient a `@nns/core` builder returns, never retype them.
 | The app | `https://nimiqnames.com` | Nimiq Pay mini app and web; docs at `#/docs/intro` |
 | Resolver 1 | `https://api.nimiqnames.com` | in `DEFAULT_RESOLVERS` |
 | Resolver 2 | `https://nns.sonartech.pro` | in `DEFAULT_RESOLVERS`. Same operator, separate box and separately replayed database — two indexes, not one mirrored twice |
-| The browser bundle | `https://nimiqnames.com/nns.js` | `@nns/resolver` as one self-contained ES module (§3.1) |
+| The browser bundle | `https://nimiqnames.com/nns.js` | `@nimiqnames/resolver` as one self-contained ES module (§3.1) |
 | The reference delegate | `https://delegated.nimiqnames.com` | `GET /nns/rico` answers; a client can test its delegate step against it |
 | Repository | `https://github.com/selfcrypto/nns` | `packages/`, `deploy/`, `docs/nns-spec-v1.md` |
 

@@ -1,7 +1,7 @@
 /**
  * @nns/chat — the NC message convention (`docs/app-chat.md`).
  *
- * **Not protocol.** Nothing in this package reaches `@nns/core`'s state, the
+ * **Not protocol.** Nothing in this package reaches `@nimiqnames/core`'s state, the
  * reducer, the log, the conformance vectors, a checkpoint or a root, and
  * nothing about NC goes in the spec. It exists so the app and the chat index
  * share one parser instead of drifting apart — the failure the app's

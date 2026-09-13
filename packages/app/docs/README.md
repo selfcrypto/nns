@@ -16,7 +16,7 @@ that is not a page. Cross-links are written as the bare slug —
 ## Placeholders — a number from `CONSTANTS` is never typed
 
 Every figure that is a protocol constant is written as a placeholder and
-filled at build time from `@nns/core`'s `CONSTANTS`, so the second launch
+filled at build time from `@nimiqnames/core`'s `CONSTANTS`, so the second launch
 freeze cannot leave a stale number in the docs. The build fails on an
 unknown key or an unknown format.
 

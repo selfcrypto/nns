@@ -1,4 +1,4 @@
-import { CONSTANTS, defineConfig, feeFor, formatAddress, initialState, LAUNCH_PRICES } from '@nns/core'
+import { CONSTANTS, defineConfig, feeFor, formatAddress, initialState, LAUNCH_PRICES } from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
 import {

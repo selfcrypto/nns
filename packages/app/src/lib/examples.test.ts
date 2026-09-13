@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseAddress, tryParseEvmAddress } from '@nns/core'
+import { parseAddress, tryParseEvmAddress } from '@nimiqnames/core'
 import { EXAMPLE_PROFILES } from './examples'
 
 describe('the landing marquee’s example profiles are illustrations', () => {

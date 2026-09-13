@@ -41,7 +41,7 @@
  * in {@link planPublish}.
  */
 
-import { CONSTANTS, digestFromCid, LogError } from '@nns/core'
+import { CONSTANTS, digestFromCid, LogError } from '@nimiqnames/core'
 import { keccak_256 } from '@noble/hashes/sha3.js'
 import { bytesToHex, hexToBytes, utf8ToBytes } from '@noble/hashes/utils.js'
 import { ANCHORED_TOPIC0 } from './artifact.js'

@@ -22,7 +22,7 @@
  * Nothing here decides anything protocol-shaped. It parses a response.
  */
 
-import type { PendingGovernance, Prices } from '@nns/core'
+import type { PendingGovernance, Prices } from '@nimiqnames/core'
 
 import { apiBase, getJson, heightField, lunaField } from './api.js'
 import { AdminError } from './cli.js'

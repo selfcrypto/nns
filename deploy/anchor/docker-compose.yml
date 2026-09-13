@@ -99,7 +99,7 @@ services:
       # URL, and deploying or anchoring to the wrong network succeeds silently.
       NNS_ANCHOR_RPC_URL: ${NNS_ANCHOR_RPC_URL:?the anchor chain RPC — 137 is Polygon PoS, 11155111 Sepolia}
       NNS_ANCHOR_CHAIN_ID: ${NNS_ANCHOR_CHAIN_ID:?must match the RPC above, and is never defaulted}
-      NNS_ANCHOR_CONTRACT_ADDRESS: ${NNS_ANCHOR_CONTRACT_ADDRESS:?an output of `pnpm --filter @nns/anchor deploy`; verified against the committed artifact on every run}
+      NNS_ANCHOR_CONTRACT_ADDRESS: ${NNS_ANCHOR_CONTRACT_ADDRESS:?an output of `pnpm --filter @nimiqnames/anchor deploy`; verified against the committed artifact on every run}
 
       # The NNS API serving /log and /checkpoints/{height}. Any operator's.
       NNS_ANCHOR_API_URL: ${NNS_ANCHOR_API_URL:?the NNS API to anchor, e.g. https://resolver.example.com}

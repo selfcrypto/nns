@@ -9,7 +9,7 @@
 -- One row, like `cursor` and `params`. **Absence means `scratch`** — every
 -- database that predates this migration was replayed from `LAUNCH_HEIGHT`,
 -- and backfilling a row would mean this file knowing `LAUNCH_HEIGHT`, which
--- is `@nns/core`'s to state and not a migration's to hard-code.
+-- is `@nimiqnames/core`'s to state and not a migration's to hard-code.
 
 BEGIN;
 

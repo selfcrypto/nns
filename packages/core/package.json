@@ -1,5 +1,5 @@
 {
-  "name": "@nns/core",
+  "name": "@nimiqnames/core",
   "version": "0.1.0",
   "type": "module",
   "description": "NNS protocol rules: encoding, validation, reducer, Merkle. Pure and deterministic.",

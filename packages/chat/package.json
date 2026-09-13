@@ -20,7 +20,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@nns/core": "workspace:*"
+    "@nimiqnames/core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",

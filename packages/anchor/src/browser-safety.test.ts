@@ -12,7 +12,7 @@ import { describe, expect, it } from 'vitest'
  *
  * It walks from **two** entry points, and the second is the one that makes
  * the property load-bearing: `packages/resolver` consumes the reader
- * (`@nns/anchor/reader`) so that §8.5 #1 exists exactly once, and the
+ * (`@nimiqnames/anchor/reader`) so that §8.5 #1 exists exactly once, and the
  * resolver is the package other apps embed. The walk follows that edge
  * across the package boundary, so the composite bundle an integrator would
  * get is what gets checked, not this package's half of it. The test lives
@@ -39,7 +39,7 @@ interface Module {
 
 /** The workspace entry points a bare specifier can resolve to. Anything else is external. */
 const WORKSPACE_ENTRIES: Record<string, Module> = {
-  '@nns/anchor/reader': { pkg: 'anchor', dir: ANCHOR_SRC, file: 'reader.ts' },
+  '@nimiqnames/anchor/reader': { pkg: 'anchor', dir: ANCHOR_SRC, file: 'reader.ts' },
 }
 
 /**
@@ -51,7 +51,7 @@ const WORKSPACE_ENTRIES: Record<string, Module> = {
  * follows them exactly like an import. A walker that only matched `import`
  * would traverse `index.ts` and find nothing, then pass while asserting
  * nothing (which is what this one did until the resolver edge was added, and
- * why `@nns/core`'s check below was vacuous).
+ * why `@nimiqnames/core`'s check below was vacuous).
  *
  * `import type` / `export type` carry no runtime code and are skipped.
  */
@@ -135,11 +135,11 @@ describe('the reader is browser-safe by import graph', () => {
     // of it is `import type`, so it costs a bundle nothing — asserted below.
     expect([...graph.local].sort()).toEqual([...READER_GRAPH].sort())
     for (const specifier of graph.external) {
-      expect(specifier).toMatch(/^@nns\/core$|^@noble\/hashes\//)
+      expect(specifier).toMatch(/^@nimiqnames\/core$|^@noble\/hashes\//)
     }
   })
 
-  it('@nns/core is itself free of node builtins on the runtime paths', () => {
+  it('@nimiqnames/core is itself free of node builtins on the runtime paths', () => {
     // The reader pulls core; core's one Node-touching module is the test
     // fixture, which index.ts must never reach.
     const walkCore = (file: string, seen: Set<string>): void => {
@@ -160,20 +160,20 @@ describe('the reader is browser-safe by import graph', () => {
   })
 })
 
-describe('the edge `@nns/resolver` → `@nns/anchor/reader` keeps that property', () => {
+describe('the edge `@nimiqnames/resolver` → `@nimiqnames/anchor/reader` keeps that property', () => {
   const graph = walk(RESOLVER)
 
   it('consumes the reader rather than reimplementing §8.5 #1', () => {
     // The assertion is deliberately positive. If this edge disappears, either
     // the resolver stopped checking anchors or it grew a second implementation
     // of a rule that must exist once — and both are worth failing over.
-    expect([...graph.external]).toContain('@nns/anchor/reader')
+    expect([...graph.external]).toContain('@nimiqnames/anchor/reader')
   })
 
   it('imports the reader by its subpath, never the package root', () => {
-    // `@nns/anchor` resolves to `index.ts`, which is fine today and is not
+    // `@nimiqnames/anchor` resolves to `index.ts`, which is fine today and is not
     // the contract: the subpath is what the browser-safety walk covers.
-    expect([...graph.external]).not.toContain('@nns/anchor')
+    expect([...graph.external]).not.toContain('@nimiqnames/anchor')
   })
 
   it('pulls no viem, no node builtin, and no credentialed module across the edge', () => {
@@ -191,9 +191,9 @@ describe('the edge `@nns/resolver` → `@nns/anchor/reader` keeps that property'
     expect(fromAnchor).toEqual([...READER_GRAPH].sort())
   })
 
-  it('leaves the workspace only for @nns/core, @noble/hashes and the reader', () => {
+  it('leaves the workspace only for @nimiqnames/core, @noble/hashes and the reader', () => {
     for (const specifier of graph.external) {
-      expect(specifier).toMatch(/^@nns\/core$|^@nns\/anchor\/reader$|^@noble\/hashes\//)
+      expect(specifier).toMatch(/^@nimiqnames\/core$|^@nimiqnames\/anchor\/reader$|^@noble\/hashes\//)
     }
   })
 })

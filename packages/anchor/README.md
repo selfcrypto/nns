@@ -1,4 +1,4 @@
-# `@nns/anchor`
+# `@nimiqnames/anchor`
 
 The §9 anchoring half of the Nimiq Name Service: the append-only EVM contract
 NNS checkpoints are published to, the committed record of its compilation, and
@@ -10,13 +10,13 @@ whether or not it is honest. A checkpoint commitment posted to an unrelated
 chain by several publishers is a statement no NNS operator can quietly revise.
 
 ```sh
-npm install @nns/anchor
+npm install @nimiqnames/anchor
 ```
 
 ## The part most people want: the reader
 
 ```ts
-import { checkAnchors, createAnchorReadRpc } from '@nns/anchor/reader'
+import { checkAnchors, createAnchorReadRpc } from '@nimiqnames/anchor/reader'
 
 const check = await checkAnchors(
   [createAnchorReadRpc('https://rpc-a.example'), createAnchorReadRpc('https://rpc-b.example')],
@@ -29,7 +29,7 @@ check.status // 'verified' | 'quorum-not-met' | 'divergence' | 'rpc-disagreement
 can serve a false anchor and no cross-check catches it, so the reader requires
 at least two independent ones.
 
-`@nns/resolver` wires this for you, including the step that actually makes it
+`@nimiqnames/resolver` wires this for you, including the step that actually makes it
 mean something — tying the anchored commitment to the checkpoint the proof
 verified against. Unless you are building your own client, use it from there
 rather than calling this directly.

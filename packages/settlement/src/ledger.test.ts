@@ -30,7 +30,7 @@ import {
   logHash as coreLogHash,
   type Address,
   type ObligationKind,
-} from '@nns/core'
+} from '@nimiqnames/core'
 import type { LedgerKind } from './watch.js'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 

@@ -1,4 +1,4 @@
-import { cidFromDigest, CONSTANTS } from '@nns/core'
+import { cidFromDigest, CONSTANTS } from '@nimiqnames/core'
 import { keccak_256 } from '@noble/hashes/sha3.js'
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js'
 import { encodeFunctionData } from 'viem'

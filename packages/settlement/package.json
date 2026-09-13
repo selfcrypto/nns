@@ -20,7 +20,7 @@
     "issue": "node --env-file=.env dist/issue-main.js"
   },
   "dependencies": {
-    "@nns/core": "workspace:*",
+    "@nimiqnames/core": "workspace:*",
     "@nns/indexer": "workspace:*",
     "pg": "catalog:"
   },

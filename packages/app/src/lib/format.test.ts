@@ -39,7 +39,7 @@ describe('ellipsizeAddress', () => {
 describe('displayAddress', () => {
   const spaced = 'NQ51 Q243 EF29 MTA3 LV3U F0JG LLP9 3SGP YXBF'
 
-  it('spaces the compact form @nns/resolver returns', () => {
+  it('spaces the compact form @nimiqnames/resolver returns', () => {
     expect(displayAddress('NQ51Q243EF29MTA3LV3UF0JGLLP93SGPYXBF')).toBe(spaced)
   })
 

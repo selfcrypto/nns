@@ -1,5 +1,5 @@
 {
-  "name": "@nns/anchor",
+  "name": "@nimiqnames/anchor",
   "version": "0.1.0",
   "type": "module",
   "description": "NNS anchor contract (\u00a79): a permissionless, append-only event emitter, and the committed record of its compilation.",
@@ -58,7 +58,7 @@
     "publisher": "pnpm build && node --env-file=.env dist/publish-cli.js publish"
   },
   "dependencies": {
-    "@nns/core": "workspace:*",
+    "@nimiqnames/core": "workspace:*",
     "@noble/hashes": "catalog:"
   },
   "devDependencies": {

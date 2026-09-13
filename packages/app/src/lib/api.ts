@@ -1,7 +1,7 @@
 /**
  * Raw NNS API reads, for non-address data only: `/name`, `/address/{addr}/names`,
  * `/offers`, `/auctions`, `/params`, `/burn`. Anything an address or an availability verdict
- * comes out of goes through `@nns/resolver` (`src/lib/nns.ts`) — never through here.
+ * comes out of goes through `@nimiqnames/resolver` (`src/lib/nns.ts`) — never through here.
  *
  * Luna amounts arrive as decimal strings (the API's rule: `bigint` does not
  * survive JSON) and are parsed to `bigint` here, never to `number`.

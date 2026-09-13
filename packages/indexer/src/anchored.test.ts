@@ -8,10 +8,10 @@
  * CID cannot answer it.
  */
 
-import { cidFromDigest, CONSTANTS, encodeRegister, feeFor, initialState, logFile, logHash } from '@nns/core'
-import { ANCHORED_TOPIC0 } from '@nns/anchor'
-import { addressTopic } from '@nns/anchor/publisher'
-import type { AnchorReadRpc } from '@nns/anchor/reader'
+import { cidFromDigest, CONSTANTS, encodeRegister, feeFor, initialState, logFile, logHash } from '@nimiqnames/core'
+import { ANCHORED_TOPIC0 } from '@nimiqnames/anchor'
+import { addressTopic } from '@nimiqnames/anchor/publisher'
+import type { AnchorReadRpc } from '@nimiqnames/anchor/reader'
 import { describe, expect, it } from 'vitest'
 
 import { anchoredSource, AnchorSourceError, gatewayUrl } from './anchored.js'

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 
 import { EnvError, loadSettings } from './env.js'
 

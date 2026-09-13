@@ -37,7 +37,7 @@
  * rules the code hides.
  */
 
-import { CONSTANTS, validateNameSyntax } from '@nns/core'
+import { CONSTANTS, validateNameSyntax } from '@nimiqnames/core'
 
 export class RateTableError extends Error {
   override readonly name = 'RateTableError'

@@ -27,7 +27,7 @@ info:
     Read-only HTTP over the NNS indexer's database: resolution, availability,
     name detail, ownership listings, offers, auctions, parameters, §8.3 Merkle proofs,
     the §8.2 log, checkpoints, settlements and the burn record. No writes, no
-    keys, no protocol rules — every rule and every hash comes from @nns/core.
+    keys, no protocol rules — every rule and every hash comes from @nimiqnames/core.
 
 paths:
   /referrals/{name}:

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CONSTANTS, LUNA_PER_NIM, parse, termFor } from '@nns/core'
+import { CONSTANTS, LUNA_PER_NIM, parse, termFor } from '@nimiqnames/core'
 import { ActionInputError, parseAuctionDuration, parseNimAmount, prepareAction, type ActionInputs } from './actions'
 import type { ApiParams, NameInfo } from './api'
 import { formatApproxDate } from './format'

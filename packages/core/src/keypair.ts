@@ -143,7 +143,7 @@ const platformRandomBytes: RandomBytes = (length) => {
 /**
  * Generate a fresh keypair.
  *
- * **The only function in `@nns/core` that is not a pure function of its
+ * **The only function in `@nimiqnames/core` that is not a pure function of its
  * arguments** — see the note at the top of this file. `randomBytes` defaults
  * to the platform CSPRNG (`crypto.getRandomValues`, present in Node ≥ 19 and
  * every browser); pass your own to make the call deterministic.

@@ -8,7 +8,7 @@
  * unlock, confirm, sign, lock, and lock *especially* when the signing throws.
  */
 
-import { generateKeypair } from '@nns/core'
+import { generateKeypair } from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
 import { EnvError } from './env.js'

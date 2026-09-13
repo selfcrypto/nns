@@ -1,4 +1,4 @@
-import { formatAddress } from '@nns/core'
+import { formatAddress } from '@nimiqnames/core'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { DelegateError, DocumentError, LookupError, ProofError, QuorumError } from './errors.js'

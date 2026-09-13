@@ -7,7 +7,7 @@
  * control until maturity.
  */
 
-import { CONSTANTS, tryParseAddress } from '@nns/core'
+import { CONSTANTS, tryParseAddress } from '@nimiqnames/core'
 import type { ApiParams, FeeRow, NameInfo } from './api'
 import type { Identity, WalletKind } from './identity'
 import type { SearchOutcome } from './search'

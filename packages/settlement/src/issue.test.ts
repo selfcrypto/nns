@@ -17,7 +17,7 @@
  * `settlement_test`, so both can point at one throwaway database at once.
  */
 
-import { formatAddress, LUNA_PER_NIM, type Address, type ObligationKind } from '@nns/core'
+import { formatAddress, LUNA_PER_NIM, type Address, type ObligationKind } from '@nimiqnames/core'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { createPool, migrateLedger, type Pool } from './db.js'

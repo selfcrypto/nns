@@ -1,4 +1,4 @@
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
 import { ConfigParseError, parseQuorum, parseResolverList } from './config'

@@ -3,7 +3,7 @@
  *
  * The rule itself (which publishers count, what quorum means, when two
  * endpoints disagreeing is "couldn't check" rather than "checked and
- * conflicting", how staleness is measured) lives in `@nns/anchor/reader` and
+ * conflicting", how staleness is measured) lives in `@nimiqnames/anchor/reader` and
  * exists exactly once. That module is browser-safe by a pinned import-graph
  * test, and the test now walks this package's graph too, so the edge cannot
  * quietly drag viem or a node builtin into a mini-app bundle.
@@ -36,8 +36,8 @@
  * shipped default, since `DEFAULT_ANCHOR_PUBLISHERS` is empty.
  */
 
-import { checkAnchors, createAnchorReadRpc, type AnchorCheck, type AnchorReadRpc } from '@nns/anchor/reader'
-import { CONSTANTS, commitmentFrom, type CheckpointComponents } from '@nns/core'
+import { checkAnchors, createAnchorReadRpc, type AnchorCheck, type AnchorReadRpc } from '@nimiqnames/anchor/reader'
+import { CONSTANTS, commitmentFrom, type CheckpointComponents } from '@nimiqnames/core'
 
 import { toHex } from './documents.js'
 import { DEFAULT_ANCHOR_PUBLISHERS } from './defaults.js'

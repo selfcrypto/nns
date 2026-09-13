@@ -18,7 +18,7 @@ import {
   type NameRecord,
   type NameStatus,
   type ProofStep,
-} from '@nns/core'
+} from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
 import {

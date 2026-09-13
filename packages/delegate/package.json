@@ -22,10 +22,10 @@
     "dev": "pnpm --filter @nns/delegate... build && node --env-file=.env dist/main.js"
   },
   "dependencies": {
-    "@nns/core": "workspace:*"
+    "@nimiqnames/core": "workspace:*"
   },
   "devDependencies": {
-    "@nns/resolver": "workspace:*",
+    "@nimiqnames/resolver": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

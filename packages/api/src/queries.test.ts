@@ -29,7 +29,7 @@ import {
   type NameRecord,
   type NameStatus,
   type ProofStep,
-} from '@nns/core'
+} from '@nimiqnames/core'
 import { createPool, logLineFromRow, migrate, type LogRow } from '@nns/indexer'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 

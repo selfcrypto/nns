@@ -1,4 +1,4 @@
-import { defineConfig, initialState, type Checkpoint, type NnsState } from '@nns/core'
+import { defineConfig, initialState, type Checkpoint, type NnsState } from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
 import { Progress } from './progress.js'

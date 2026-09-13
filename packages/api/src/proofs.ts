@@ -2,7 +2,7 @@
  * §8.3 proof documents, derived from a checkpoint's name records.
  *
  * Pure: records in, JSON-shaped objects out. Every hash and every tree walk
- * comes from `@nns/core` — this file only renders what core derives, and the
+ * comes from `@nimiqnames/core` — this file only renders what core derives, and the
  * This package answers proofs a client verifies for itself, because these
  * documents with core alone: rebuild the leaf with `encodeLeaf`/`leafHash`
  * from the fields, recombine with `verifyProof`, compare to the checkpoint's
@@ -25,7 +25,7 @@ import {
   merkleProof,
   type MerkleProof,
   type NameRecord,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 /** What proof derivation needs to know about the checkpoint it serves. */
 export interface ProofContext {

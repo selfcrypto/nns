@@ -48,7 +48,7 @@
  * fact about the log rather than about the service.
  */
 
-import { formatAddress, refKey, type Address, type Obligation, type ObligationKind } from '@nns/core'
+import { formatAddress, refKey, type Address, type Obligation, type ObligationKind } from '@nimiqnames/core'
 
 import { ADDRESS_COLUMN, nim } from './format.js'
 
@@ -67,7 +67,7 @@ import type { RateTable } from './rate-table.js'
 
 import { replayLog, type ReplayResult, type UnmatchedSettlement } from './replay.js'
 import { fetchLatestCheckpoint, fetchLog, type Fetcher, type LogSnapshot } from './source.js'
-import type { NnsConfig, NnsState } from '@nns/core'
+import type { NnsConfig, NnsState } from '@nimiqnames/core'
 
 export class WatchError extends Error {
   override readonly name = 'WatchError'

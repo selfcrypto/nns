@@ -18,7 +18,7 @@ import {
   logFile,
   logHash,
   type NnsState,
-} from '@nns/core'
+} from '@nimiqnames/core'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { bootstrap, BootstrapError } from './bootstrap.js'

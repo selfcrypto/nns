@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AddressError, BURN_ADDRESS, CodecError, CONSTANTS, encodeUnreserve, parseAddress } from '@nns/core'
+import { AddressError, BURN_ADDRESS, CodecError, CONSTANTS, encodeUnreserve, parseAddress } from '@nimiqnames/core'
 
 import { AdminRefusal, blockingChecks, broadcast, UsageError, type AdminRpc } from './cli.js'
 import type { NameAvailability, ReservationSource } from './reservation.js'

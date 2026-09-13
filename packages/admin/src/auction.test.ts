@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CodecError, CONSTANTS, encodeAuction, LUNA_PER_NIM } from '@nns/core'
+import { CodecError, CONSTANTS, encodeAuction, LUNA_PER_NIM } from '@nimiqnames/core'
 
 import { describeAuctionPlan, parseAuctionArgs, planAuction, type AuctionPlan, type AuctionSources } from './auction.js'
 import type { AuctionsSource, OpenAuction, OpenAuctions } from './auctions.js'

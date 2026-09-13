@@ -22,7 +22,7 @@
  * on, 2 usage or environment.
  */
 
-import { initialState } from '@nns/core'
+import { initialState } from '@nimiqnames/core'
 import { createLogger, RpcClient } from '@nns/indexer'
 
 import { createPool } from './db.js'

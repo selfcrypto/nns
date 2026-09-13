@@ -11,12 +11,12 @@
  *
  * **This file is the source of truth for both artefacts.** `RENDERING_CSS`
  * below is the stylesheet verbatim; `pnpm build` writes the same bytes to
- * `dist/rendering.css`, which is what the `@nns/resolver/rendering.css`
+ * `dist/rendering.css`, which is what the `@nimiqnames/resolver/rendering.css`
  * subpath resolves to. There is no second copy to drift from.
  *
  * Two ways in, because the package assumes no bundler:
  *
- * - a CSS loader or a `<link>`: `@nns/resolver/rendering.css`
+ * - a CSS loader or a `<link>`: `@nimiqnames/resolver/rendering.css`
  * - no build step at all: `injectRenderingCss(document)`
  *
  * Fonts are **referenced, never embedded**. No `@font-face`, no font binary,
@@ -46,7 +46,7 @@ export const NNS_NAME_CLASS = 'nns-name'
  */
 export const RENDERING_CSS = `/* NNS §4.3 — confusable-safe rendering for the name field.
  * Apply to the element that shows or accepts an NNS name, and to nothing
- * else: class="nns-name". Part of @nns/resolver; see its README. */
+ * else: class="nns-name". Part of @nimiqnames/resolver; see its README. */
 
 .nns-name {
   /* Ordered by how well the face separates 0/o, 1/l and rn/m, not by taste:

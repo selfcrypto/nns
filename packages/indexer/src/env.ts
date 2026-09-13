@@ -15,7 +15,7 @@
  * shape.
  */
 
-import { CONSTANTS, defineConfig, type NnsConfig } from '@nns/core'
+import { CONSTANTS, defineConfig, type NnsConfig } from '@nimiqnames/core'
 
 import { isLogLevel, type LogLevel } from './logger.js'
 
@@ -100,7 +100,7 @@ export interface IndexerSettings {
  *
  * A **flag** was the obvious shape and is the wrong one here: this indexer runs
  * under compose, and `deploy/README.md` is explicit that every value a role
- * needs goes in that role's `.env`. `@nns/anchor` already learned this the
+ * needs goes in that role's `.env`. `@nimiqnames/anchor` already learned this the
  * expensive way — `NNS_ANCHOR_SEND=--send` exists purely to thread a flag back
  * through an env var, which is the shape of the mistake, not a precedent.
  */

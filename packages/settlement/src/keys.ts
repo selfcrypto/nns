@@ -33,7 +33,7 @@
  * never tested; the confirmation is a second `isAccountUnlocked`.
  */
 
-import { CONSTANTS, formatAddress, keypairFromPrivateKey, parseAddress, type Address } from '@nns/core'
+import { CONSTANTS, formatAddress, keypairFromPrivateKey, parseAddress, type Address } from '@nimiqnames/core'
 
 import { EnvError, type EnvSource } from './env.js'
 import type { IssuerRpc, Wallet } from './issue.js'

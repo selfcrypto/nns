@@ -1,6 +1,6 @@
 -- 001 · initial schema
 --
--- Everything here is a projection of what `@nns/core` holds in `NnsState`,
+-- Everything here is a projection of what `@nimiqnames/core` holds in `NnsState`,
 -- plus the §8.2 log. Nothing is derived that a replay could not reproduce:
 -- drop the database, replay from LAUNCH_HEIGHT, and every row comes back.
 --

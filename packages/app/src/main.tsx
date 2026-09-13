@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import '@nns/resolver/rendering.css'
+import '@nimiqnames/resolver/rendering.css'
 import './app.css'
 import { App } from './App'
 import { applyHostChrome, watchViewport } from './lib/chrome'

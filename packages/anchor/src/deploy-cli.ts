@@ -91,7 +91,7 @@ async function deploy(send: boolean): Promise<number> {
   console.log('  code     verified against the committed artifact')
   console.log('')
   console.log('Record the address in the publisher and reader configuration. It is not a')
-  console.log('protocol constant (§9) and does not belong in @nns/core.')
+  console.log('protocol constant (§9) and does not belong in @nimiqnames/core.')
   return 0
 }
 

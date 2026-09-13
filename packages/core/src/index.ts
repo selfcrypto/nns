@@ -1,5 +1,5 @@
 /**
- * `@nns/core` — the protocol rules.
+ * `@nimiqnames/core` — the protocol rules.
  *
  * Pure and deterministic: no I/O, no network, no clock, no randomness. Two
  * independent implementations following `docs/nns-spec-v1.md` must produce

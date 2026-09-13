@@ -9,7 +9,7 @@
 
 import { createHash } from 'node:crypto'
 
-import { CONSTANTS, initialState, type Checkpoint, type NnsConfig, type NnsState } from '@nns/core'
+import { CONSTANTS, initialState, type Checkpoint, type NnsConfig, type NnsState } from '@nimiqnames/core'
 import type { Pool, PoolClient } from 'pg'
 
 import { checkpointRow, COMMITMENT_LAYOUT, hex, type CheckpointRow } from './checkpoint.js'

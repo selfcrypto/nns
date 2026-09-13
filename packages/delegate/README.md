@@ -33,7 +33,7 @@ That boundary is deliberate. An exchange already controls the deposit addresses
 it is naming; making the registry ratify them would buy nothing and would cost
 a per-subdomain fee, a growing log, and a Merkle tree that no longer fits in a
 phone. Clients are required to render the two halves differently
-(`@nns/resolver` marks every such answer `DELEGATED` and attaches a
+(`@nimiqnames/resolver` marks every such answer `DELEGATED` and attaches a
 `DELEGATED_ANSWER` warning), so a user is never told an unverified address is
 verified.
 
@@ -65,7 +65,7 @@ and you may answer them differently.
   your deployment — but the namespaces are separate whether or not you do, and
   a bare host leaves more of `MAX_HOST_LEN`'s 30 characters for the name.
 
-`@nns/resolver` keys its answer cache on host, parent and label — the same
+`@nimiqnames/resolver` keys its answer cache on host, parent and label — the same
 triple the request carries.
 
 **This changed in r23, and the old shape is dead.** Through r22 the request was
@@ -136,7 +136,7 @@ curl. Answers carry `cache-control: public, max-age=<ttl>`; everything else is
 `no-store`.
 
 **Your 404 is honest and it stays private.** A client cannot tell it from a
-timeout, a DNS failure or a 502: `@nns/resolver` collapses every one of them
+timeout, a DNS failure or a 502: `@nimiqnames/resolver` collapses every one of them
 into a single `DELEGATE_FAILED`. So NNS never reports that a subdomain does not
 exist — it reports that your host did not answer, which is the only thing it
 actually knows.
@@ -217,7 +217,7 @@ healthcheck does, or the mount root behind a proxy that strips.
 | `NNS_LOG_LEVEL` | `info` | |
 
 No keys, no database, no chain access, no §3 constants. The only NNS code it
-uses is `@nns/core` for label syntax and address parsing — the same functions
+uses is `@nimiqnames/core` for label syntax and address parsing — the same functions
 the client validates with, so this server cannot accept a label the client
 would never send or serve an address the client would reject.
 

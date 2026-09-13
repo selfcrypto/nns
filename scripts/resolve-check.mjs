@@ -1,4 +1,4 @@
-// Phase 13 of the battery: drive @nns/resolver against the run's own APIs and
+// Phase 13 of the battery: drive @nimiqnames/resolver against the run's own APIs and
 // the Sepolia anchor this run deployed. Tooling only — it touches no constant,
 // so it is cherry-pickable to main.
 //

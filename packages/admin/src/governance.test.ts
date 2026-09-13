@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CONSTANTS, CodecError, LAUNCH_PRICES, encodeGovernance, parseAddress } from '@nns/core'
+import { CONSTANTS, CodecError, LAUNCH_PRICES, encodeGovernance, parseAddress } from '@nimiqnames/core'
 
 import { AdminRefusal, blockingChecks, broadcast, NOTICE_MARGIN, UsageError, type AdminRpc } from './cli.js'
 import {

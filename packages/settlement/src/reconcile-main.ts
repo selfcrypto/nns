@@ -9,7 +9,7 @@
  * Exit codes: 0 sound, 1 unsound, 2 usage or environment.
  */
 
-import { initialState } from '@nns/core'
+import { initialState } from '@nimiqnames/core'
 
 import { loadSettings } from './env.js'
 import { describeReport, isSound, reconcile } from './reconcile.js'
@@ -20,7 +20,7 @@ import { fetchLog, httpFetcher } from './source.js'
 const USAGE = `usage: reconcile [--no-checkpoint-binding]
 
 Fetches the §8.2 log from NNS_API_URL, verifies it against the hash and the
-checkpoint served with it, replays it through @nns/core, and prints owed
+checkpoint served with it, replays it through @nimiqnames/core, and prints owed
 versus settled. Reads no database and holds no key.
 
 --no-checkpoint-binding  skip the /checkpoints/{height} confirmation. Only

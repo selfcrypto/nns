@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { addressFromBytes, formatAddress } from '@nns/core'
+import { addressFromBytes, formatAddress } from '@nimiqnames/core'
 
 import { countLabels, LabelFileError, parseLabelFile, readLabelFile, MAX_TTL_SEC } from './labels.js'
 

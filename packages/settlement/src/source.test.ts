@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { encodeRegister, feeFor, initialState, logFile, logHash } from '@nns/core'
+import { encodeRegister, feeFor, initialState, logFile, logHash } from '@nimiqnames/core'
 
 import { LAUNCH_HEIGHT, SELLER, send, stageLog, testConfig } from './test-fixtures.js'
 import { fetchLog, splitLogFile, type Fetcher } from './source.js'

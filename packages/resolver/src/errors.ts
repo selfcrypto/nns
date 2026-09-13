@@ -12,7 +12,7 @@
 // Type-only: erased at compile time, so it adds nothing to a bundle and
 // nothing to the reader's import graph (`browser-safety.test.ts` skips
 // `import type` for exactly this reason).
-import type { AnchorCheck } from '@nns/anchor/reader'
+import type { AnchorCheck } from '@nimiqnames/anchor/reader'
 
 // Type-only for a second reason as well: `resolve.ts` imports this module, so
 // a runtime import here would close the cycle.
@@ -173,7 +173,7 @@ export class LookupError extends ResolverError {
  */
 export class AnchorError extends ResolverError {
   override readonly name = 'AnchorError'
-  /** The `@nns/anchor/reader` verdict behind this failure, when the reader produced one. */
+  /** The `@nimiqnames/anchor/reader` verdict behind this failure, when the reader produced one. */
   readonly check: AnchorCheck | null
 
   constructor(

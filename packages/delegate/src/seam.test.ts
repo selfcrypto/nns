@@ -3,7 +3,7 @@
  *
  * Everything else in this package tests the delegate against its own idea of
  * §8.6. This file runs the real `node:http` server and drives
- * `@nns/resolver`'s `askDelegate` at it — the reference host and the reference
+ * `@nimiqnames/resolver`'s `askDelegate` at it — the reference host and the reference
  * client meeting over a socket, which is the only place a disagreement about
  * the URL shape or the body could show up.
  *
@@ -23,8 +23,8 @@ import type { AddressInfo } from 'node:net'
 
 import { afterEach, describe, expect, it } from 'vitest'
 
-import { addressFromBytes, formatAddress } from '@nns/core'
-import { DelegateCache, DelegateError, MAX_DELEGATE_TTL_SEC, askDelegate, type HttpFetch } from '@nns/resolver'
+import { addressFromBytes, formatAddress } from '@nimiqnames/core'
+import { DelegateCache, DelegateError, MAX_DELEGATE_TTL_SEC, askDelegate, type HttpFetch } from '@nimiqnames/resolver'
 
 import { parseLabelFile, type LabelFile } from './labels.js'
 import { createRoutes, type RouteOptions } from './routes.js'

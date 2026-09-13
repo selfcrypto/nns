@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Tails Nimiq RPC and replays NNS messages through @nns/core. Chain-facing half: RPC client and scan loop.",
+  "description": "Tails Nimiq RPC and replays NNS messages through @nimiqnames/core. Chain-facing half: RPC client and scan loop.",
   "license": "MIT",
   "exports": {
     ".": {
@@ -24,8 +24,8 @@
     "migrate": "node --env-file=.env dist/migrate.js"
   },
   "dependencies": {
-    "@nns/anchor": "workspace:*",
-    "@nns/core": "workspace:*",
+    "@nimiqnames/anchor": "workspace:*",
+    "@nimiqnames/core": "workspace:*",
     "pg": "catalog:"
   },
   "devDependencies": {

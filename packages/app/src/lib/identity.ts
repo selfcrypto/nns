@@ -5,7 +5,7 @@
  * across the set, and every owner action knows which address signs.
  */
 
-import { formatAddress, tryParseAddress } from '@nns/core'
+import { formatAddress, tryParseAddress } from '@nimiqnames/core'
 
 export type WalletKind = 'pay' | 'hub' | 'none'
 

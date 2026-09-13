@@ -9,7 +9,7 @@
  * the commitment being compared against was chosen by the party under
  * examination.
  *
- * The anchor path moves that value onto the chain. `@nns/anchor`'s reader runs
+ * The anchor path moves that value onto the chain. `@nimiqnames/anchor`'s reader runs
  * §8.5 #1 — `ANCHOR_QUORUM` distinct **listed** publishers agreeing, seen by
  * at least two independent RPC endpoints, with anything less reported as a
  * typed refusal rather than an answer — and hands back `(height, commitment,
@@ -39,8 +39,8 @@
  * to it. `hybrid` is what closes that, here as there.
  */
 
-import { CONSTANTS } from '@nns/core'
-import { checkAnchors, latestAnchoredHeight, type AnchorReadRpc } from '@nns/anchor/reader'
+import { CONSTANTS } from '@nimiqnames/core'
+import { checkAnchors, latestAnchoredHeight, type AnchorReadRpc } from '@nimiqnames/anchor/reader'
 
 import type { Logger } from './logger.js'
 import { fetchLogBytes, type Fetcher, type LogSource } from './peer.js'
@@ -69,7 +69,7 @@ export interface AnchoredSourceOptions {
    *
    * **Public endpoints cap `eth_getLogs` ranges**, and the common Sepolia one
    * caps it at 50,000 — below that default, which makes every check come back
-   * `unavailable` with the cap quoted in the error. `@nns/anchor`'s own
+   * `unavailable` with the cap quoted in the error. `@nimiqnames/anchor`'s own
    * publisher already ships `NNS_ANCHOR_LOOKBACK_BLOCKS=45000` for this. The
    * window only has to be wider than `ANCHOR_STALENESS_LIMIT_SEC` (48 h), and
    * 45,000 blocks is about a week.

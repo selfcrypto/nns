@@ -25,7 +25,7 @@
  *   ask-again failure, never an alarm.
  */
 
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 
 import { readErrorCode } from './documents.js'
 import { QuorumError, type ResolverReply } from './errors.js'

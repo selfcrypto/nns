@@ -50,13 +50,13 @@ curl -s https://nns.example.org/checkpoints/latest
 curl -s https://nns.example.org/resolve/<a-registered-name>
 ```
 
-The proof in that last reply is the product. Anyone can check it against the checkpoint with `@nns/core` alone, and that is what makes your answers worth comparing rather than trusting.
+The proof in that last reply is the product. Anyone can check it against the checkpoint with `@nimiqnames/core` alone, and that is what makes your answers worth comparing rather than trusting.
 
 ### Join the quorum
 
-Being runnable is not the same as being asked. Clients ask the resolvers in their shipped list, `DEFAULT_RESOLVERS` in `@nns/resolver`, which carries two entries — both run by the same operator, on two machines that replay separately. That is enough to catch a bug or a bad deploy on one box, and not enough to catch the operator. **A third entry run by somebody else is the check that list is still missing**, and it is the reason to run one.
+Being runnable is not the same as being asked. Clients ask the resolvers in their shipped list, `DEFAULT_RESOLVERS` in `@nimiqnames/resolver`, which carries two entries — both run by the same operator, on two machines that replay separately. That is enough to catch a bug or a bad deploy on one box, and not enough to catch the operator. **A third entry run by somebody else is the check that list is still missing**, and it is the reason to run one.
 
-An entry is a URL and a **name** — the name is what a client shows when resolvers disagree, so it names you, not the URL. Open an issue with both once your endpoint answers publicly; the count rises for every app on the next `@nns/resolver` upgrade, with no change in their code.
+An entry is a URL and a **name** — the name is what a client shows when resolvers disagree, so it names you, not the URL. Open an issue with both once your endpoint answers publicly; the count rises for every app on the next `@nimiqnames/resolver` upgrade, with no change in their code.
 
 ### Operating it
 

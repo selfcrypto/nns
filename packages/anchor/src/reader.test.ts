@@ -1,4 +1,4 @@
-import { cidFromDigest, CONSTANTS } from '@nns/core'
+import { cidFromDigest, CONSTANTS } from '@nimiqnames/core'
 import { hexToBytes } from '@noble/hashes/utils.js'
 import { describe, expect, it } from 'vitest'
 import { ANCHORED_TOPIC0 } from './artifact.js'

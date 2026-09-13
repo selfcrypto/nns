@@ -33,7 +33,7 @@ import {
   type EvmSendOutcome,
 } from '../lib/evm'
 import { requestHostEvmAddress } from '../lib/sdk'
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 import { bytesToHex } from '../lib/hex'
 import { payMessageBytes, payMessageFault, payRequestFromHash, payRequestFromLink } from '../lib/payRequest'
 import { lunaToNim } from '../lib/format'

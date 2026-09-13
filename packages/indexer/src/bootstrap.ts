@@ -68,7 +68,7 @@ import {
   type Checkpoint,
   type NnsConfig,
   type NnsState,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 import { BLOCKS_PER_BATCH, calibrate, type ChainGeometry } from './chain.js'
 import { CheckpointBuilder, COMMITMENT_LAYOUT, hex, logLineFromRow } from './checkpoint.js'

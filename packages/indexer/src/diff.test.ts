@@ -1,4 +1,4 @@
-import { defineConfig, initialState, parseAddress, type NameRecord, type NnsState, type Obligation } from '@nns/core'
+import { defineConfig, initialState, parseAddress, type NameRecord, type NnsState, type Obligation } from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
 import { diffState } from './diff.js'

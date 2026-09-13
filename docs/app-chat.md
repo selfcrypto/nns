@@ -73,7 +73,7 @@ Acceptable **for this feature only**: a chat message carries dust and text,
 so a wrong owner address wastes a message — unlike a payment, where the
 proof-verified path is mandatory and stays so. The upgrade path is real:
 the §8.1 leaf commits `owner` and `packages/api`'s proof documents already
-carry every leaf field, so `@nns/resolver` can expose a verified owner
+carry every leaf field, so `@nimiqnames/resolver` can expose a verified owner
 without new protocol. Do that before chat ever grows anything more valuable
 than text.
 

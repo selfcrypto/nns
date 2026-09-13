@@ -22,7 +22,7 @@ packages/delegate/labels.json
 deploy/delegate/labels/
 deploy/collaborator/labels/
 
-# Copied from @nns/resolver at build time (packages/app/scripts/copy-resolver-bundle.mjs).
+# Copied from @nimiqnames/resolver at build time (packages/app/scripts/copy-resolver-bundle.mjs).
 packages/app/public/nns.js
 
 # ── Working notes, kept out of the published tree ───────────────────────────

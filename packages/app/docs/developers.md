@@ -1,17 +1,17 @@
 # Integrating NNS
 
-Three ways in, from easiest to lowest level: the resolver library, the HTTP API, and the wire format itself. Everything on this page is MIT, and every rule the library applies comes from one reference implementation, `@nns/core`, so nothing here can drift from the protocol.
+Three ways in, from easiest to lowest level: the resolver library, the HTTP API, and the wire format itself. Everything on this page is MIT, and every rule the library applies comes from one reference implementation, `@nimiqnames/core`, so nothing here can drift from the protocol.
 
 This page is the short form. The exhaustive guide — every route with live examples, the library's full result and error shapes, verifying a proof in Python or Solidity, deposit subdomains for an exchange, sending every message from the Hub, from Nimiq Pay and from your own node, and running a resolver — is `docs/integration.md` in the repository, `github.com/selfcrypto/nns`.
 
 ## Resolve a name in your app
 
 ```sh
-npm install @nns/resolver
+npm install @nimiqnames/resolver
 ```
 
 ```ts
-import { createResolver } from '@nns/resolver'
+import { createResolver } from '@nimiqnames/resolver'
 
 const nns = createResolver({})   // DEFAULT_RESOLVERS, quorum 2 — nothing to configure
 
@@ -76,7 +76,7 @@ A `QuorumError` or `AnchorError` in front of a user is the rare event this desig
 **Render names in a face that separates `0`/`o`, `1`/`l` and `rn`/`m`**, and show the Nimiq identicon of `result.address` beside any address a user might pay. The stylesheet ships with the package:
 
 ```ts
-import '@nns/resolver/rendering.css'   // then class="nns-name" on the element
+import '@nimiqnames/resolver/rendering.css'   // then class="nns-name" on the element
 ```
 
 It references fonts and never embeds them, so it adds no third party who learns your users' IPs.
@@ -103,7 +103,7 @@ Every resolver serves the same read-only API, described by its own `GET /openapi
 | `/burn` | Burned so far, owed so far, computed from the log |
 | `/referrals/{name}` | Every registration that named this name as its referrer: height, transaction, the name registered, the sender, the value, and whether it was a lifetime. Log facts only — no share is computed, because the rate table is the operator's, not the protocol's |
 
-The proof in `/resolve` is the product. Anyone can check it against `/checkpoints/latest` with `@nns/core` alone. If a proof reaches you by another route — a cached reply, a QR code — verify it with the library's exported `verifyInclusion` / `verifyNonInclusion` rather than your own code; a second implementation of the check is the one place a divergence could enter.
+The proof in `/resolve` is the product. Anyone can check it against `/checkpoints/latest` with `@nimiqnames/core` alone. If a proof reaches you by another route — a cached reply, a QR code — verify it with the library's exported `verifyInclusion` / `verifyNonInclusion` rather than your own code; a second implementation of the check is the one place a divergence could enter.
 
 ## The wire format
 
@@ -138,7 +138,7 @@ The fourteen messages:
 | `U` | Unreserve | `<name>` or `<name>\|L` | admin | protocol (release) or the awardee (award) | 1 luna |
 | `F` | Burn attestation | — | treasury | burn address | the amount burned |
 
-Build payloads with `@nns/core` — `encodeRegister`, `encodeSetTarget`, `encodeSetEvm`, `encodeTransfer`, `encodeDelegate`, `encodeCancel`, `encodeRenew`, `encodeOffer`, `encodeBuy`, `encodeAuction` — which validate inputs and refuse anything the reducer would refuse. Every encoder checks the byte ceiling, because an over-length message fails silently.
+Build payloads with `@nimiqnames/core` — `encodeRegister`, `encodeSetTarget`, `encodeSetEvm`, `encodeTransfer`, `encodeDelegate`, `encodeCancel`, `encodeRenew`, `encodeOffer`, `encodeBuy`, `encodeAuction` — which validate inputs and refuse anything the reducer would refuse. Every encoder checks the byte ceiling, because an over-length message fails silently.
 
 **The `ref` field on a registration** is a registered name — up to {{n:MAX_REF_LEN}} characters (`a–z 0–9 -`) — whose owner drove the registration, so the referral share can be paid to it. It has no effect on validity, price or ownership: a malformed or unknown `ref` is ignored and the registration proceeds. The share is an operator policy, not a protocol rule; the rules and the rate table are on the referrals page.
 

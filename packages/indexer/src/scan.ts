@@ -16,7 +16,7 @@
  * wired. Surviving transactions are handed to `onCandidate` and logged.
  */
 
-import { CONSTANTS, rankMessages } from '@nns/core'
+import { CONSTANTS, rankMessages } from '@nimiqnames/core'
 
 import { type ChainGeometry, calibrate, lastFinalisedBatch } from './chain.js'
 import { assertHistoryHorizon } from './horizon.js'

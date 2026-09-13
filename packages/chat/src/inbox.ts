@@ -4,7 +4,7 @@
  * the chat index agree on what a conversation is.
  */
 
-import { SENDER_TYPE_HTLC, formatAddress, htlcAuthorizer } from '@nns/core'
+import { SENDER_TYPE_HTLC, formatAddress, htlcAuthorizer } from '@nimiqnames/core'
 import { parseChatPayload } from './format.js'
 
 

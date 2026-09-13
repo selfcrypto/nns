@@ -147,7 +147,7 @@ They are two separate publications, and neither happens automatically.
   for that name until it is. Steps and the 52-character cap:
   [`../delegate/README.md`](../delegate/README.md).
 - **The resolver** is used only once clients know about it: `DEFAULT_RESOLVERS`
-  in `@nns/resolver` and the app's `VITE_NNS_RESOLVERS`. An entry is a URL and
+  in `@nimiqnames/resolver` and the app's `VITE_NNS_RESOLVERS`. An entry is a URL and
   a name, and the name names the operator, because it is what a client shows a
   user when resolvers disagree. [`../resolver/README.md`](../resolver/README.md).
 

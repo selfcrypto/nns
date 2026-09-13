@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
 
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 
 import { DEFAULT_RATES_PATH, parseRateTable, rateFor, RateTableError, readRateTable, rebateFor, shareAmount } from './rates.js'
 

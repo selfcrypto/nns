@@ -14,7 +14,7 @@ import {
   logHash,
   minPrice,
   type NnsConfig,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 import {
   LAUNCH_HEIGHT,

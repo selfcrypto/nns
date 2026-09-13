@@ -32,7 +32,7 @@
  * tuned freely, and never with one eye on determinism.
  */
 
-import type { Checkpoint } from '@nns/core'
+import type { Checkpoint } from '@nimiqnames/core'
 
 import type { Logger } from './logger.js'
 import type { BatchResult, VerdictCounts } from './pipeline.js'

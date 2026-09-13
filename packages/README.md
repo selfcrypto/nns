@@ -93,7 +93,7 @@ Most people run one or two. `deploy/` has a directory per role — compose file,
 | Both of those, on one box | `deploy/collaborator` | `indexer`, `api`, `delegate` |
 | Anchor checkpoint roots to an EVM chain | `deploy/anchor` | `anchor` |
 
-Embedding NNS in your own app needs none of them — `npm i @nns/resolver`, and
+Embedding NNS in your own app needs none of them — `npm i @nimiqnames/resolver`, and
 `createResolver({})` asks the endpoints its shipped defaults name.
 
 **Three of the twelve are the ones a consumer imports**: `core`, `anchor` and
@@ -102,11 +102,13 @@ repository and its images, rather than installing them. What an integrator
 needs from `api` is its *HTTP* surface, which is `docs/integration.md`, not a
 package.
 
-They are release-ready but **not on the registry yet** — the `@nns` scope has
-still to be created, so `npm install @nns/resolver` 404s today and
-`https://nimiqnames.com/nns.js` is the working browser path meanwhile
-(`docs/integration.md` §3.1). Publishing is one run of
-`docs/runbooks/release.md`.
+They are release-ready but **not on the registry yet**, so `npm install
+@nimiqnames/resolver` 404s today and `https://nimiqnames.com/nns.js` is the
+working browser path meanwhile (`docs/integration.md` §3.1). Publishing is one
+run of `docs/runbooks/release.md`. **The published scope is `@nimiqnames`, not
+`@nns`** — `nns` is not available as an npm organisation — which is why the
+three carry a different scope from the nine that stay `@nns/` and are never
+published.
 
 ## Conventions every package inherits
 
@@ -123,7 +125,7 @@ still to be created, so `npm install @nns/resolver` 404s today and
   own `vitest.config.ts` — deliberate, so "no test files found" stays a real
   failure rather than the normal state of an empty package.
 - **Verification is `pnpm build && pnpm typecheck && pnpm test`, all three.**
-  Build first: every package consumes `@nns/core` through its `dist/`, so on a
+  Build first: every package consumes `@nimiqnames/core` through its `dist/`, so on a
   fresh clone the other two fail until it exists.
   The build config is narrow (`src/` only) and typecheck is wide, so a build can
   be broken while typecheck is green.
@@ -132,7 +134,7 @@ still to be created, so `npm install @nns/resolver` 404s today and
 ## Finding your way in
 
 **Integrating rather than contributing?** `docs/integration.md` is the guide:
-the HTTP API from any language, `@nns/resolver`, verifying proofs in your own
+the HTTP API from any language, `@nimiqnames/resolver`, verifying proofs in your own
 language, subdomains for an exchange, writing to the registry, running a
 resolver, and names on EVM chains — every example checked against the code.
 

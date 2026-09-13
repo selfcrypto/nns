@@ -61,7 +61,7 @@ import {
   type NnsConfig,
   type NnsState,
   type Verdict,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 import type { Logger } from './logger.js'
 import type { LogRow } from './rows.js'

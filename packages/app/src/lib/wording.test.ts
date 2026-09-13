@@ -2,7 +2,7 @@
  * The wording rules of docs/app-states.md §5 are decided, not stylistic —
  * these tests pin the ones a later edit would most plausibly break.
  */
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
 import { blocksApprox } from './format'

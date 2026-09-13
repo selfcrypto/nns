@@ -11,7 +11,7 @@
  * or environment.
  */
 
-import { initialState } from '@nns/core'
+import { initialState } from '@nimiqnames/core'
 
 import { loadWatcherSettings } from './env.js'
 import { httpFetcher } from './source.js'
@@ -20,7 +20,7 @@ import { createWatcher, describeSnapshot } from './watch.js'
 const USAGE = `usage: watch [--once] [--interval=<seconds>]
 
 Polls NNS_API_URL for new checkpoints, fetches and verifies the §8.2 log at
-each one, replays it through @nns/core, and prints every obligation still
+each one, replays it through @nimiqnames/core, and prints every obligation still
 outstanding. Holds no key, opens no database, broadcasts nothing.
 
 --once                 take one snapshot and exit.

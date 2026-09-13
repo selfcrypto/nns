@@ -11,7 +11,7 @@ import {
   type LabelInvalidReason,
   type NameInvalidReason,
   type QueryParse,
-} from '@nns/core'
+} from '@nimiqnames/core'
 import {
   AnchorError,
   DelegateError,
@@ -22,7 +22,7 @@ import {
   type AvailableResult,
   type DelegateErrorCode,
   type ResolveResult,
-} from '@nns/resolver'
+} from '@nimiqnames/resolver'
 import { getNameInfo, type NameInfo } from './api'
 import { apiBase, resolver } from './nns'
 
@@ -54,7 +54,7 @@ export type SearchOutcome =
  * `U`) — and since r18 an awarded short name — is an ordinary name that must
  * be searchable, resolvable and registrable. A browser cannot know
  * `state.unreserved`, so this does what the API's `/resolve` and
- * `@nns/resolver` both do: pass the candidate itself (the parent, for a
+ * `@nimiqnames/resolver` both do: pass the candidate itself (the parent, for a
  * dotted query) as `unreserved`, which covers both membership routes in one
  * move. Whether the name is *still* held is the server's answer, and arrives
  * as `available.reason === 'RESERVED'`.

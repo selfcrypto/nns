@@ -19,7 +19,7 @@ import {
   feeFor,
   initialState,
   logHash,
-} from '@nns/core'
+} from '@nimiqnames/core'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { bootstrap } from './bootstrap.js'

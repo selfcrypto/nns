@@ -8,7 +8,7 @@ import {
   type Obligation,
   type Offer,
   type PendingTransfer,
-} from '@nns/core'
+} from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
 import { RowError, rowsOf, stateFromRows, toHeight, toLuna } from './rows.js'

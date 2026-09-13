@@ -1,4 +1,4 @@
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 import { useMemo, useState } from 'react'
 import { prepareAction, ActionInputError, type ActionInputs } from '../lib/actions'
 import { getNameInfo, getParams, type NameInfo } from '../lib/api'

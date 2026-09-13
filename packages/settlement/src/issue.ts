@@ -56,7 +56,7 @@
  * agreed to.
  */
 
-import { CodecError, encodeSettlement, formatAddress, type Address, type NnsConfig } from '@nns/core'
+import { CodecError, encodeSettlement, formatAddress, type Address, type NnsConfig } from '@nimiqnames/core'
 import { METHOD_NOT_FOUND } from '@nns/indexer'
 
 import type { Logger } from '@nns/indexer'

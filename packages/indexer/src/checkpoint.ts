@@ -8,7 +8,7 @@
  * commitment = keccak256(0x02 ‖ name_root ‖ prices ‖ pending ‖ unreserved ‖ log_hash ‖ height:u64-BE)
  * ```
  *
- * **Not one byte of that layout is computed here.** `@nns/core` owns it, down
+ * **Not one byte of that layout is computed here.** `@nimiqnames/core` owns it, down
  * to the tag bytes; this file decides only *when* a checkpoint is due, *which
  * state* is current at that height, and *which log lines* the hash covers.
  * That split is the point: a second implementation reproducing these roots has
@@ -79,7 +79,7 @@ import {
   type Checkpoint,
   type LogHasher,
   type NnsState,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 import type { Logger } from './logger.js'
 import type { BatchResult } from './pipeline.js'

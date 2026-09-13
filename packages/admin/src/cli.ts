@@ -8,7 +8,7 @@
  * operational requirement, not a consensus rule.
  */
 
-import { CONSTANTS, LUNA_PER_NIM, formatAddress, type Address } from '@nns/core'
+import { CONSTANTS, LUNA_PER_NIM, formatAddress, type Address } from '@nimiqnames/core'
 
 /**
  * The slice of the RPC surface these commands touch. `@nns/indexer`'s

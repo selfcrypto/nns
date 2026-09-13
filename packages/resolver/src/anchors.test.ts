@@ -1,6 +1,6 @@
-import { ANCHORED_TOPIC0 } from '@nns/anchor'
-import type { AnchorReadRpc } from '@nns/anchor/reader'
-import { CONSTANTS } from '@nns/core'
+import { ANCHORED_TOPIC0 } from '@nimiqnames/anchor'
+import type { AnchorReadRpc } from '@nimiqnames/anchor/reader'
+import { CONSTANTS } from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
 import { DEFAULT_RESOLVERS } from './defaults.js'

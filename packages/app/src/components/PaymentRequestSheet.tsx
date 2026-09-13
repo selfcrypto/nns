@@ -22,7 +22,7 @@
 
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { CONSTANTS } from '@nns/core'
+import { CONSTANTS } from '@nimiqnames/core'
 import { payLinkFor, payMessageBytes, payMessageFault, type PayAsset } from '../lib/payRequest'
 import {
   closeLabel,

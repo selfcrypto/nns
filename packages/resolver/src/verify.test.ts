@@ -1,4 +1,4 @@
-import { formatAddress } from '@nns/core'
+import { formatAddress } from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
 import { readInclusionDocument, readNonInclusionDocument } from './documents.js'

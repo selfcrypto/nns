@@ -29,7 +29,7 @@ import {
   type PendingGovernance,
   type PendingTransfer,
   type Prices,
-} from '@nns/core'
+} from '@nimiqnames/core'
 
 export class RowError extends Error {
   override readonly name = 'RowError'
