@@ -6,7 +6,7 @@
 
 [![Spec](https://img.shields.io/badge/spec-v1%20draft%20r29-0582CA?style=flat-square)](docs/nns-spec-v1.md)
 [![Status](https://img.shields.io/badge/status-all%20packages%20built-EC991C?style=flat-square)](#status)
-[![Tests](https://img.shields.io/badge/tests-2265-1F2348?style=flat-square)](#building-and-testing)
+[![Tests](https://img.shields.io/badge/tests-2268-1F2348?style=flat-square)](#building-and-testing)
 [![License](https://img.shields.io/badge/license-MIT-1F2348?style=flat-square)](LICENSE)
 [![Nimiq](https://img.shields.io/badge/chain-Nimiq%20Albatross-0582CA?style=flat-square)](https://nimiq.com)
 
@@ -35,7 +35,7 @@ so anyone can run them.
 | **Independently verifiable** | Anyone with a Nimiq node can replay the same history and derive the same state. Not "trust our API" |
 | **Anchored** | Checkpoint roots are published to an EVM chain on every change, with a daily floor, so past claims cannot be quietly rewritten |
 | **Delegated subdomains** | An exchange registers one name and issues `user.exchange` addresses for free, with zero on-chain state |
-| **Cheap** | Two pricing bands, floored and governed within published bounds |
+| **Cheap** | One governed fee for names of twelve characters or more; shorter ones cost a frozen multiple of it |
 
 ## How it works
 
