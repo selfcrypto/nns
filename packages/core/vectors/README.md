@@ -258,12 +258,11 @@ vectors are the evidence for the clause rather than a substitute for it:
 
 The expiry pair was the fourth, and §7.3 now carries an interval table for it —
 `[registration, registration + TERM_LENGTH)` and `[expiry, expiry +
-GRACE_PERIOD)`. See `docs/decisions.md` for the arguments.
+GRACE_PERIOD)`.
 
 ## The readings these vectors pin
 
-Each was found while implementing `core`, argued in `docs/decisions.md`, and
-ratified into the spec by r15. They are listed here because each is a place two
+Each was found while implementing `core` and ratified into the spec by r15. They are listed here because each is a place two
 implementations fork *silently* if they read the clause differently:
 
 1. **Numeric fields are canonical decimal** — no sign, leading zeros or

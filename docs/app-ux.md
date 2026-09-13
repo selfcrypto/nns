@@ -228,8 +228,8 @@ Four things are specific to it, and three are refusals:
   about it was a dead end, and a handoff to Buy would have landed on a second
   Register button. Only `register` — a listing or a gifted renewal stays Buy's.
 - **A pin mismatch stops the button** until the user overrides it. §8.5 requires
-  the check on any screen paying a resolved address and CLAUDE.md requires a hard
-  stop when a known mapping changes; `pinMismatchBody` already says "do not pay
+  the check on any screen paying a resolved address, and a known mapping that
+  changes is a hard stop; `pinMismatchBody` already says "do not pay
   until you know which", so the button must honour it. `PinCheck` reports this
   through `onBlocking`.
 - **Sender ≠ recipient**, checked here because a payment is the one send that

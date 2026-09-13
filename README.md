@@ -5,8 +5,8 @@
 ### Human-readable names on Nimiq. No smart contracts.
 
 [![Spec](https://img.shields.io/badge/spec-v1%20draft%20r29-0582CA?style=flat-square)](docs/nns-spec-v1.md)
-[![Status](https://img.shields.io/badge/status-all%20packages%20built-EC991C?style=flat-square)](docs/status.md)
-[![Tests](https://img.shields.io/badge/tests-1867-1F2348?style=flat-square)](#building-and-testing)
+[![Status](https://img.shields.io/badge/status-all%20packages%20built-EC991C?style=flat-square)](#status)
+[![Tests](https://img.shields.io/badge/tests-2265-1F2348?style=flat-square)](#building-and-testing)
 [![License](https://img.shields.io/badge/license-MIT-1F2348?style=flat-square)](LICENSE)
 [![Nimiq](https://img.shields.io/badge/chain-Nimiq%20Albatross-0582CA?style=flat-square)](https://nimiq.com)
 
@@ -100,13 +100,9 @@ is a lost name, as in ENS.
 | `docs/nns-spec-v1.md` | **The protocol specification.** Authoritative |
 | `docs/integration.md` | **The integration guide** — the HTTP API from any language, the `@nns/resolver` library, verifying proofs yourself, subdomains for exchanges, writing to the registry, running a resolver, names on EVM chains |
 | `docs/rpc-reference.md` | What Nimiq's RPC actually does, measured not assumed |
-| `docs/decisions.md` | Every reading taken where the spec was silent, with the argument |
-| `docs/status.md` | What is built, what is next. Where a new session starts |
-| `docs/history/` | Revision narratives, the session journal, battery records |
-| `docs/runbooks/` | `operators.md` (the role map), `testing.md` (the mainnet battery), `deploy.md` (how a change reaches the deployed boxes), `release.md` (publishing the three npm packages) |
+| `docs/runbooks/` | `operators.md` (the role map), `release.md` (publishing the three npm packages) |
 | **`packages/`** | **Twelve packages — [`packages/README.md`](packages/README.md) explains each one and how they stack** |
 | **`deploy/`** | **One directory per operator role — [`deploy/README.md`](deploy/README.md) picks the right one and covers what they share** |
-| `tasks/` | One brief per package, naming the spec sections it needs |
 
 A pnpm workspace: TypeScript strict throughout, one Vitest run across every
 package, dependency versions pinned once in the workspace catalog. Amounts are
@@ -115,28 +111,27 @@ package, dependency versions pinned once in the workspace catalog. Amounts are
 ## Status
 
 **Pre-launch.** All twelve packages are built and conform to spec r29. The wire
-format is settled and empirically verified against mainnet. 1,867 tests pass
+format is settled and empirically verified against mainnet. 2,265 tests pass
 with a database attached, none skipped.
 
 What remains before a mainnet launch is deployment and one irreversible input,
 not code: completing `RESERVED_NAMES`, a full mainnet battery, and a second
 freeze that pins `LAUNCH_HEIGHT` to a future height and regenerates the four §3
-role addresses. [`docs/status.md`](docs/status.md) carries that checklist and is
-where a new session starts; [§12](docs/nns-spec-v1.md) is what remains undecided
-in the protocol itself.
+role addresses. [§12](docs/nns-spec-v1.md) is what remains undecided in the
+protocol itself.
 
 `core` is the reference implementation, and writing it is how the spec got past
 r15: it surfaced **ten places where two conforming implementations would have
 derived different roots** — same-height effect order, the log's `<data>` field,
 the checkpoint layout byte for byte, seven more. All ten are pinned in the spec
 and held by a vector, and nineteen further check-order choices stay deliberately
-unratified, pinned only by `packages/core/vectors/reduce.json`. The argument for
-each is in [`docs/decisions.md`](docs/decisions.md); that this list exists at all
-is the best evidence available that the design is being taken seriously.
+unratified, pinned only by `packages/core/vectors/reduce.json` — which records
+the reading taken for each, so a second implementation can match it byte for
+byte. That this list exists at all is the best evidence available that the
+design is being taken seriously.
 
-Spec revisions are numbered and narrated: `docs/history/revisions.md` has the
-r15 → r29 story, and is explicit about which ones moved bytes — those required
-every database derived under the old rules to be rebuilt, because
+Spec revisions are numbered, and the spec says which ones moved bytes — those
+required every database derived under the old rules to be rebuilt, because
 `configFingerprint` covers configuration and not rules, so nothing refuses the
 resume for you.
 
@@ -201,7 +196,7 @@ a server (`packages/api`) and the client library that queries several of them
 
 ```bash
 pnpm install
-pnpm test         # one Vitest run over every package — 1,867 tests
+pnpm test         # one Vitest run over every package — 2,265 tests
 pnpm typecheck    # strict, and wider than the build: tests and tooling too
 pnpm build
 ```

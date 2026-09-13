@@ -56,8 +56,8 @@ party can anchor without asking anyone.
 
 ## The settlement issuer
 
-It settles **obligations, not message types** (`packages/settlement/CLAUDE.md`):
-nothing in it looks for a `B` or a `G`, so which verdicts owe money stays
+It settles **obligations, not message types**: nothing in it looks for a `B`
+or a `G`, so which verdicts owe money stays
 `core`'s decision. Three kinds — `REFUND`, `SALE_PROCEEDS`, `COMMISSION` — and
 two senders, with the key chosen by each obligation's `owedBy`:
 
@@ -68,8 +68,7 @@ two senders, with the key chosen by each obligation's `owedBy`:
 So **both keys are needed by anyone running the marketplace** — three of the
 four obligation paths are the marketplace's, including two of the three refund
 reasons. `deploy/settlement`'s compose file therefore declares both as required
-rather than optional; the argument is in `docs/decisions.md`, "`deploy/settlement`
-requires both hot keys, and the chain is the channel".
+rather than optional.
 
 **It must not share a machine with the service.** A box that terminates TLS is
 the wrong home for a hot key, and the issuer needs the node's *wallet* methods,

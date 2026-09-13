@@ -29,3 +29,22 @@ deploy/collaborator/labels/
 
 # Copied from @nns/resolver at build time (packages/app/scripts/copy-resolver-bundle.mjs).
 packages/app/public/nns.js
+
+# ── Working notes, kept out of the published tree ───────────────────────────
+# These exist in the maintainer's checkout and are deliberately not part of the
+# repository: they are the internal working record, not the product. They name
+# hosts, describe unfinished mitigations and argue about rules that the spec
+# now states — material that helps nobody build against NNS and helps somebody
+# else find its soft edges. The spec (`docs/nns-spec-v1.md`) is the authority;
+# `docs/integration.md` is how to build on it.
+CLAUDE.md
+MAP.md
+.claude/
+/docs/claude-code-guide.md
+/docs/decisions.md
+/docs/status.md
+/docs/history/
+/docs/audit/
+/docs/runbooks/deploy.md
+/docs/runbooks/testing.md
+/tasks/

@@ -326,8 +326,8 @@ being first to script the launch; the operator may keep any of them.
 2. Update the inline pin in `constants.test.ts` (the `published` literal and
    its `toHaveLength(58)`) — the pin is the point, so it moves by hand.
 3. `pnpm typecheck && pnpm build && pnpm test`.
-4. It is a consensus input: **rebuild both boxes** (`nns-vps rebuild <role>`,
-   `docs/runbooks/deploy.md`), which on the demo forfeits `nimiqnames` and
+4. It is a consensus input: every deployed resolver **rebuilds from empty**
+   (`nns-vps rebuild <role>`), which on the demo forfeits `nimiqnames` and
    `satoshi` as above.
-5. Every pass before `tasks/08` step 7 is the last cheap one. After
+5. Every pass before the launch freeze is the last cheap one. After
    `LAUNCH_HEIGHT`, adding a name is a spec revision (§10.6).

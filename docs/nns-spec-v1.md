@@ -21,11 +21,9 @@ mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
 > changelog id. A change that touches a section an open revision already
 > touches goes into that revision's note — it does not open a new one.
 
-> **Change notes live out of line.** The per-revision "Changes in revision N"
-> notes (r7 → r27, verbatim) are `docs/history/spec-changelog.md`; the
-> condensed narratives are `docs/history/revisions.md` (r15 → r27). This
-> document states only the current rules — a revision note never overrides a
-> section's text.
+> **This document states only the current rules.** Per-revision change notes
+> are kept out of line and never override a section's text: where a revision
+> moved bytes, the section that moved says so.
 
 ## Contents
 
@@ -3381,7 +3379,7 @@ functional on first use, not a prototype.
 8. Marketplace (`O` + `B` + the `M` settlement service)
 9. Auctions (`A`, bids through `B`, the close as a §7.3 effect) — deferred to
    "v2" until 2026-09-02, then found to lean on nothing step 8 had not
-   already built; `tasks/13-auction.md`
+   already built
 
 Step 5 is small in code and large in pitch — it is the piece that makes the
 exchange story real, so it should not be cut before step 7 or 8.

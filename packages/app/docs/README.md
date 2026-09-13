@@ -63,9 +63,8 @@ applies here too:
   numbers, except in the reference table.
 
 What is provisional before launch is said once, on the Status page, not on
-every page. Nothing operator-private (box addresses, hostnames, tunnels) and
-nothing from `docs/status.md`, `docs/audit/` or `docs/decisions.md` is
-published here.
+every page. Nothing operator-private — box addresses, hostnames, tunnels — and
+nothing from the maintainer's working notes is published here.
 
 ## Voice
 

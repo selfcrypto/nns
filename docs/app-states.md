@@ -4,9 +4,8 @@ Every state a name can be in, every resolution outcome, and the required
 wording for each. `packages/app` is designed against this document; screens
 render these states and no others, and the wording rules in §5 are **already
 decided** — in the spec (§8.5, §8.7, §10.4), in `packages/resolver/README.md`
-(the launch-quorum and "Verified by N resolvers" decisions of 2026-08-14),
-and in `docs/decisions.md`. Nothing here invents; it collects, so a component
-author never has to.
+(the launch-quorum and "Verified by N resolvers" decisions of 2026-08-14).
+Nothing here invents; it collects, so a component author never has to.
 
 Strings live in `src/lib/wording.ts`, keyed by the state names below. A
 screen that needs a sentence this document does not define is a screen that
@@ -257,8 +256,7 @@ include this transaction", never "sent".
 | **Marketplace** | `/offers` and `/auctions` in one list; each offer's name, price, seller (with identicon); each auction's name, an "Auction" badge, the standing bid or the starting price, the minimum next bid, the seller and the end as ≈ date; the custodial nature disclosed on the buy and bid paths (§4 `B`) |
 
 Send flows (`G S E X D K N O A B` confirmations and the post-send confirm
-loop) are specified by §4 and §5; both adapters send since 2026-08-21
-(`packages/app/CLAUDE.md`).
+loop) are specified by §4 and §5; both adapters send since 2026-08-21.
 
 ## 7. Pay states (app-ux §3)
 

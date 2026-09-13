@@ -157,8 +157,8 @@ busy address chat can be pushed out of the window entirely. **The fix is an
 index, not a paging loop**: paging the raw history would spend more relay
 calls on every inbox open to postpone the same limit.
 
-**That index exists: `packages/chat-index`** (built 2026-08-20,
-`tasks/11-nc-index.md`). It walks batches, keeps the `NC1` rows, and serves
+**That index exists: `packages/chat-index`** (built 2026-08-20). It walks
+batches, keeps the `NC1` rows, and serves
 them by address, so a page is 500 *messages* rather than 500 mixed
 transactions. When `VITE_NNS_CHAT` is set the Inbox reads it; unset, the
 fallback above is what runs, and both paths hand the app the payload exactly

@@ -130,12 +130,7 @@ the HTTP API from any language, `@nns/resolver`, verifying proofs in your own
 language, subdomains for an exchange, writing to the registry, running a
 resolver, and names on EVM chains — every example checked against the code.
 
-Each package has its own `CLAUDE.md` with the spec sections it implements and
-the invariants that are easy to break. Six — `core`, `indexer`, `api`,
-`resolver`, `relay` and `delegate` — also have a `MAP.md` listing every
-exported symbol with its file: check there before grepping `src/`.
-
-Start from the spec, though: `docs/nns-spec-v1.md` is authoritative, and if code
+Start from the spec: `docs/nns-spec-v1.md` is authoritative, and if code
 and spec disagree the spec wins. It is ~180 KB, so navigate it rather than
 reading it:
 
