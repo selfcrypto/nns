@@ -325,7 +325,7 @@ being first to script the launch; the operator may keep any of them.
    `src/reserved-names.ts`.
 2. Update the inline pin in `constants.test.ts` (the `published` literal and
    its `toHaveLength(58)`) — the pin is the point, so it moves by hand.
-3. `pnpm typecheck && pnpm build && pnpm test`.
+3. `pnpm build && pnpm typecheck && pnpm test`.
 4. It is a consensus input: every deployed resolver **rebuilds from empty**
    (a drop and resync), which on the demo forfeits `nimiqnames` and
    `satoshi` as above.

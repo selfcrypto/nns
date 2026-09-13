@@ -44,7 +44,7 @@ git fetch origin && git status --short && git log --oneline HEAD..origin/main
 build config and the wide check config catch different things:
 
 ```sh
-pnpm typecheck && pnpm build && pnpm test
+pnpm build && pnpm typecheck && pnpm test
 ```
 
 **3. Check the revision number is the truth.** `CONSTANTS.SPEC_REVISION` is

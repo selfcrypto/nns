@@ -202,16 +202,22 @@ pnpm --filter @nns/app dev
 
 ```bash
 pnpm install
-pnpm test         # one Vitest run over every package — 2,268 tests
+pnpm build        # first — see below
 pnpm typecheck    # strict, and wider than the build: tests and tooling too
-pnpm build
+pnpm test         # one Vitest run over every package — 2,268 tests
 ```
 
 **All three, before calling anything done.** The build config is narrow (`src/`
 only) and typecheck is wide, so a build can be broken while typecheck is green
 — a broken `core` build survived several commits exactly that way.
 
-45 of those tests are gated on a database — the SQL seam, the migrations, the
+**The build has to come first on a fresh clone**, and that is not a stylistic
+preference: every package consumes `@nns/core` through the `dist/` its
+`exports` point at, never through `src/`. Until it exists, `typecheck` cannot
+resolve the module and 67 of the 103 test files fail. Once built, the order
+stops mattering.
+
+72 of those tests are gated on a database — the SQL seam, the migrations, the
 §8.1/§8.2 persistence rules, the settlement ledger's idempotency — and skip
 unless `NNS_TEST_DATABASE_URL` points at a Postgres. Give them one:
 

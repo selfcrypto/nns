@@ -116,7 +116,9 @@ integrator needs from `api` is its *HTTP* surface, which is
 - `pnpm test` runs one Vitest over every package. A package joins by having its
   own `vitest.config.ts` — deliberate, so "no test files found" stays a real
   failure rather than the normal state of an empty package.
-- **Verification is `pnpm typecheck && pnpm build && pnpm test`, all three.**
+- **Verification is `pnpm build && pnpm typecheck && pnpm test`, all three.**
+  Build first: every package consumes `@nns/core` through its `dist/`, so on a
+  fresh clone the other two fail until it exists.
   The build config is narrow (`src/` only) and typecheck is wide, so a build can
   be broken while typecheck is green.
 - **No secrets in the repo.** Keys come from the environment.
