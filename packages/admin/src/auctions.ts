@@ -8,7 +8,7 @@
  * state lives nowhere a `/available` read can see: the name has no record,
  * so `/available/{name}` answers `RESERVED` whether or not the admin opened an
  * auction on it last week. `GET /auctions` is the endpoint that lists every
- * open auction (tasks/13 D3), and membership there is `state.auctions.has`
+ * open auction, and membership there is `state.auctions.has`
  * exactly.
  *
  * Like `reservation.ts`, this decides nothing protocol-shaped. It parses a

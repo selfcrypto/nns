@@ -1,7 +1,7 @@
 /**
  * `ledger` — track the log in the ledger, and print what it holds.
  *
- * Deliverable 3 of `tasks/04`. **It still holds no key and broadcasts
+ * **It still holds no key and broadcasts
  * nothing.** What it does that `watch` cannot is remember: it records every
  * obligation the log has said is owed, confirms one when the log stops saying
  * so, and survives a restart knowing which log it has been paying against.

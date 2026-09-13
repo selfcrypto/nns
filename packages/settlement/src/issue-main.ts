@@ -1,7 +1,7 @@
 /**
  * `issue` — settle what the log says is owed. **The system's only hot keys.**
  *
- * Deliverable 2 of `tasks/04`, and the first command in this repository that
+ * The first command in this repository that
  * can move money on its own. Everything it pays comes from the ledger, which
  * got it from a verified `/log` at a stamped checkpoint height; everything it
  * signs it pinned first.

@@ -1,5 +1,5 @@
 /**
- * The NC chat index (`tasks/11-nc-index.md`) as an inbox source.
+ * The NC chat index as an inbox source.
  *
  * It answers the same shape the node's history call answers, deliberately: the
  * rows carry `recipientData` exactly as it appeared on chain, so the app parses

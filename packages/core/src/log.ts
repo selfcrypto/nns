@@ -27,7 +27,7 @@
  * containing a space or a newline — which nothing prevents, since a malformed
  * payload still earns a log line — break the field layout or **forge an
  * entire log line**. Hex is also the form the RPC uses in both directions
- * (§5.1). Recorded in `docs/decisions.md` as needing ratification.
+ * (§5.1). This is one of the readings that still wants ratification.
  */
 
 import { keccak_256 } from '@noble/hashes/sha3.js'
@@ -278,8 +278,8 @@ const BASE32 = 'abcdefghijklmnopqrstuvwxyz234567'
  * This is the repo's only CID computation, deliberately. Deriving a CID from
  * log *bytes* is UnixFS/dag-pb work done by whatever performs the IPFS add;
  * a client verifies fetched bytes with keccak256 against the committed log
- * hash, and IPFS itself refuses to serve content that does not match its CID.
- * See "The CID is a locator, not a verifier" in `docs/decisions.md`.
+ * hash, and IPFS itself refuses to serve content that does not match its CID:
+ * the CID is a locator, not a verifier.
  *
  * @throws {LogError} unless the digest is exactly 32 bytes.
  */

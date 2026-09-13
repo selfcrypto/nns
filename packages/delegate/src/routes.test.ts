@@ -254,7 +254,7 @@ describe('GET /healthz', () => {
     expect(response.body).toEqual({ ok: true, names: 2, labels: 3, loadedAt: 1_700_000_000 })
     expect(response.headers['cache-control']).toBe('no-store')
     // The roster is not the caller's. A public vhost serves this endpoint, and
-    // listing parents here would be the bulk listing endpoint CLAUDE.md
+    // listing parents here would be the bulk listing endpoint this package
     // forbids — the same property the NO_ANSWER collapse protects.
     expect(JSON.stringify(response.body)).not.toContain('binance')
     expect(JSON.stringify(response.body)).not.toContain('kraken')

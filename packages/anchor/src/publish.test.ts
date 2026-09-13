@@ -354,7 +354,7 @@ describe('planPublish', () => {
     // §8.1 binds the height into the commitment and the height has moved.
     // Only the log digest says "nothing happened", and comparing the
     // commitment instead anchored on every look (caught live 2026-09-01,
-    // docs/audit/anchor.md F4).
+    // the two services disagree).
     const priorRoot: Hex = `0x${'cd'.repeat(32)}`
     const d = deps({
       rpc: fakeRpc({ logs: [anchoredLog(priorRoot, PUBLISHER, HEIGHT - 720, NOW - 6 * 3_600)] }),

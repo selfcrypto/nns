@@ -1,5 +1,5 @@
 /**
- * The referral link's client half (§10.7, `tasks/18`).
+ * The referral link's client half (§10.7).
  *
  * `nimiqnames.com/?ref=<name>` — or `#/buy?ref=<name>` — names the owner who
  * brought this person here. The app remembers it until a registration is

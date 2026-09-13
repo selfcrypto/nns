@@ -9,7 +9,7 @@
 // the other constants, not any other path.
 //
 // Why it exists. A compressed-tempo run edits `constants.ts` on a throwaway
-// branch, and `tasks/09` §0.1 says every fix goes on **main, never on the
+// branch, and every fix goes on **main, never on the
 // branch** — precisely so a fix can never carry tempo values home. On
 // 2026-08-16 an r23 change was authored on the tempo branch anyway. Nothing
 // leaked: the paths moved to main were named individually and `constants.ts`
@@ -78,7 +78,7 @@ if (failures.length > 0) {
   }
   console.error(
     '\nA compressed-tempo profile belongs on a throwaway branch that never merges\n' +
-      "(`tasks/09` §0.1: every fix goes on main, never on the branch). If you are\n" +
+      "(every fix goes on main, never on the branch). If you are\n" +
       'deliberately changing a §3 constant, update the pin in constants.test.ts in\n' +
       'the same commit and this guard with it.',
   )

@@ -37,8 +37,8 @@
  * *address* — which is a hash of that key. There is nothing to verify
  * against. r23 added the parent to that payload, which closes a replay
  * between two names one owner holds, but does **not** make the scheme
- * implementable — the missing public key is a separate, still-open gap
- * recorded in `docs/decisions.md`. v1 requires neither producing nor
+ * implementable — the missing public key is a separate, still-open gap.
+ * v1 requires neither producing nor
  * verifying it, so nothing is lost today.
  */
 

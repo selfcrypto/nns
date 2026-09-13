@@ -14,8 +14,8 @@
  * the freeze (2026-08-14): the operator supplied the funded addresses whose
  * keys are held in `~/.nns`, deciding that this whole cast is replaced at
  * launch by a **second freeze** — a deliberate commit that edits these pinned
- * literals (`tasks/08` step 7 bumps the height; the addresses are regenerated
- * with it). What may never happen is a *silent* placeholder: every value here
+ * literals — the freeze bumps the height and regenerates the addresses with
+ * it. What may never happen is a *silent* placeholder: every value here
  * is pinned by `constants.test.ts`, so replacing one is a red diff on a
  * literal, not a config drift.
  *
@@ -59,7 +59,7 @@ export const CONSTANTS = Object.freeze({
    * So: assert on it if you derive anything consensus-relevant, and read it
    * beside a checkpoint's own `layout` field, which says the narrower thing
    * about the §8.1 commitment's shape alone. Bump it in the same commit that
-   * folds a revision (`CLAUDE.md`, "Revisions are per-week").
+   * folds a revision.
    */
   SPEC_REVISION: 29,
 
@@ -104,7 +104,7 @@ export const CONSTANTS = Object.freeze({
    *
    * **This list is not final.** It is battery-grade: enough to exercise the
    * `G`/`U`/award paths against real entries, not enough to launch behind.
-   * Completing it is a blocking pre-launch step (`tasks/08-launch-freeze.md`),
+   * Completing it is a blocking pre-launch step,
    * and it is free only until `LAUNCH_HEIGHT`.
    *
    * The asymmetry that governs edits: a name left off is registrable by anyone
@@ -283,7 +283,7 @@ export const CONSTANTS = Object.freeze({
    * already started from, 60 blocks above the node's measured history horizon
    * (58,842,660) so the determinism harness can run against this exact value.
    *
-   * **Provisional by design, not by accident**: `tasks/08` step 7 bumps this
+   * **Provisional by design, not by accident**: the launch freeze bumps this
    * pinned literal to a future mainnet height in a deliberate commit before
    * going live, and the compressed-tempo battery edits it on its throwaway
    * branch. Neither is a config override — there is no env var for it.
@@ -310,7 +310,7 @@ export const CONSTANTS = Object.freeze({
   MARKETPLACE_ADDRESS: parseAddress('NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB'),
   /**
    * Canonical Nimiq burn address. Decodes to 20 zero bytes, which is also the
-   * §8.1 encoding of an *unset* recovery address — see `docs/decisions.md`.
+   * §8.1 encoding of an *unset* recovery address.
    */
   BURN_ADDRESS: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
 } as const)

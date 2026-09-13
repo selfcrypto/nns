@@ -4,8 +4,8 @@
  * ceiling and a kill switch; CORS open (the clients are browsers); the node
  * credential attached upstream and nowhere else.
  *
- * Refusal semantics matter to the app's truthfulness rules
- * (docs/decisions.md, "a broken checker never reads as a negative result"):
+ * Refusal semantics matter to the app's truthfulness rules — a broken
+ * checker must never read as a negative result:
  * everything refused **before** the upstream call answers 4xx — a definite
  * "the node did not act" — while upstream trouble answers 502, which the
  * app correctly treats as ambiguous.

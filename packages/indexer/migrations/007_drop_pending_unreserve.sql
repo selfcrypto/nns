@@ -3,7 +3,7 @@
 -- r22 took `U` out of `GOVERNANCE_DELAY`. A notice window protects parties who
 -- can act on the warning, and a `U` has none: an award has no counterparty at
 -- all, and the only party a scheduled release warns is a frontrunner, who gets
--- a publicly timed starting gun out of it. See docs/decisions.md.
+-- a publicly timed starting gun out of it.
 --
 -- **This is NOT a layout migration.** `COMMITMENT_LAYOUT` stayed 4 here
 -- (r26's bump to 5 is migration 008's `evm` leaf field), and every

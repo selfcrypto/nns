@@ -298,6 +298,6 @@ export function describeMismatch(address: EvmAddress, verification: CodeVerifica
     `code at ${address} is not this contract: ` +
     `${(verification.actual.length - 2) / 2} bytes deployed, ` +
     `${(verification.expected.length - 2) / 2} bytes expected. ` +
-    'Either the address is wrong or it holds a different build — see packages/anchor/CLAUDE.md.'
+    'Either the address is wrong or it holds a different build.'
   )
 }

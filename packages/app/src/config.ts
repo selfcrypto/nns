@@ -109,7 +109,7 @@ export function rpcEndpoint(): string | null {
 }
 
 /**
- * The optional NC chat index (`tasks/11-nc-index.md`). When set, the Inbox
+ * The optional NC chat index. When set, the Inbox
  * reads messages from it instead of pulling each address's whole transaction
  * history from the node — the same messages, without shipping the ~99% that
  * are not chat, and without the 500-transaction window that pull carries.

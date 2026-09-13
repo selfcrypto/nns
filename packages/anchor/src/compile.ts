@@ -95,8 +95,8 @@ export interface Artifact {
   /**
    * keccak256 of {@link bytecode} — with no constructor arguments, the
    * CREATE2 init-code hash. Kept for third parties deploying through a
-   * factory; this package's own deploy is plain `CREATE`
-   * (`docs/decisions.md`, "CREATE2 dropped with the second chain").
+   * factory; this package's own deploy is plain `CREATE` — CREATE2 was dropped
+   * when the second chain arrived.
    */
   readonly initCodeHash: string
   /** `keccak256("Anchored(bytes32,address,uint64,uint64,bytes32)")`. */

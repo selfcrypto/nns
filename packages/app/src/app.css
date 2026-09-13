@@ -1759,7 +1759,7 @@ li.note {
 
 /* The wallet-address suggestion under the EVM field: an offer, not the action. */
 /* The term choice on Register and Renew: two segments in one track, each a
-   label over its price, read off /params.fees (tasks/19 D3). */
+   label over its price, read off /params.fees. */
 .term-choice {
   display: flex;
   align-items: center;

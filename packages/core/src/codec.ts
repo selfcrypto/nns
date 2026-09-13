@@ -200,8 +200,8 @@ function evmToBase64url(hex: string): string {
  *
  * §5.2 leaves the numeric encoding unstated. Two implementations disagreeing
  * about whether `0042` is a valid height would accept different sets of
- * messages and diverge — so a canonical form is chosen here and flagged in
- * `docs/decisions.md` as needing spec ratification.
+ * messages and diverge — so a canonical form is chosen here, and it is one of
+ * the readings that still wants spec ratification.
  */
 const CANONICAL_UINT = /^(?:0|[1-9][0-9]*)$/
 

@@ -33,7 +33,7 @@ export type SendResult =
   | { readonly status: 'unconfirmed'; readonly hash: string | null }
   /**
    * No poll ever answered: the checker was down, not the send. A broken
-   * checker never reads as a negative result (docs/decisions.md) — this is
+   * checker never reads as a negative result — this is
    * "couldn't check", never "not included".
    */
   | { readonly status: 'unchecked'; readonly hash: string | null }

@@ -1,7 +1,7 @@
 /**
  * `@nns/anchor` — the NNS anchor contract (§9) and the record of its build.
  *
- * Deliverable 1 of `tasks/05-anchor.md`. The publisher lives behind
+ * The publisher lives behind
  * `@nns/anchor/publisher` and the client-side reader behind
  * `@nns/anchor/reader` — kept off this root so that a mini app bundling
  * the reader can never pull in key-handling code, a property

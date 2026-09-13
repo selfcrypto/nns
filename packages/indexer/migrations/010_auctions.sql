@@ -1,7 +1,7 @@
 -- 010 · an open auction is pending state — r28 §6 `A`, §8.1 tag 0x0B
 --
--- r28 made `A` a v1 rule (docs/decisions.md, "r28: `A` activates before
--- launch…"). An open auction sits in the §8.1 pending set between offers and
+-- r28 made `A` a v1 rule: it activates before launch. An open auction sits
+-- in the §8.1 pending set between offers and
 -- governance, so the state the indexer reloads on restart has to carry it:
 -- `pending` gains the kind `AUCTION`, reusing `seller`, with the entry's own
 -- fields — `reserve`, `end_height`, and the standing bid as `bidder`/`bid`
@@ -25,7 +25,7 @@
 -- on replay wherever an `A` appears, and every checkpoint after it with it.
 -- `configFingerprint` covers configuration, not rules, so nothing refuses the
 -- resume for you — every database rebuilds at r28, on both boxes
--- (docs/runbooks/deploy.md).
+--.
 --
 -- The three existing shape checks are rebuilt rather than left alone, as 006
 -- did: each one is the complete statement of its row, and a TRANSFER row with

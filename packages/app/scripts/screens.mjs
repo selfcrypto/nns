@@ -11,9 +11,9 @@
 // address the owner-* scenarios seed into localStorage; defaults to the
 // mainnet owner of `nns`), `CHROMIUM` (default /usr/bin/chromium).
 //
-// A desktop Chromium is evidence the build shipped and nothing more
-// (CLAUDE.md, "Never reason about Pay's WebView from a desktop") — these are
-// for the look of a screen, never for where the tab bar sits.
+// A desktop Chromium is evidence the build shipped and nothing more — never
+// reason about Pay's WebView from a desktop. These shots are for the look of
+// a screen, never for where the tab bar sits.
 import { spawn } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -210,7 +210,7 @@ const scenarios = {
     try { await evaluate(`__clickText('.action-go', 'Register')`) } catch {}
     await sleep(800); await shot('buy-register', true)
   },
-  // The term choice (tasks/19 D3): the Lifetime segment, and the review under it as a date.
+  // The term choice: the Lifetime segment, and the review under it as a date.
   'buy-register-lifetime': async () => {
     await load(); await search('zebra-quick-fox')
     try { await evaluate(`__clickText('.action-go', 'Register')`) } catch {}

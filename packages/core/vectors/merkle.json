@@ -203,7 +203,7 @@
     ]
   },
   "proofs": {
-    "description": "Inclusion proofs. `side` is the side the SIBLING sits on. §8.3 prints a bare array of hashes, which is not verifiable: with odd-node promotion neither the side nor the promotion points can be recovered from the hashes alone. See docs/decisions.md.",
+    "description": "Inclusion proofs. `side` is the side the SIBLING sits on. §8.3 prints a bare array of hashes, which is not verifiable: with odd-node promotion neither the side nor the promotion points can be recovered from the hashes alone.",
     "tree": [
       "aaaaaname",
       "bbbbbname",

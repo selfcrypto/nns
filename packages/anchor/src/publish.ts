@@ -25,8 +25,7 @@
  *   CID; this module compares their two answers and hard-stops on any
  *   disagreement — never picking one — then extracts the event's digest from
  *   the agreed string with `core.digestFromCid`, which is parsing plus the
- *   §8.2 shape check ("The CID is a locator, not a verifier",
- *   `docs/decisions.md`).
+ *   §8.2 shape check — a CID is a locator, not a verifier.
  *
  * **Catch-up anchors only the latest boundary, and says so.** The log is
  * cumulative — the newest snapshot contains every line a missed boundary
@@ -368,7 +367,7 @@ export async function planPublish(deps: PublishDeps, options: PublishOptions): P
   // halves; its block timestamp is the clock the floor runs against.
   // Catch-up stays latest-only either way — the checkpoints between the
   // last anchor and this one stay unanchored, which the cadence makes the
-  // *normal* case rather than an outage (docs/decisions.md), so the warning
+  // *normal* case rather than an outage, so the warning
   // below is about time, not heights.
   let trigger: PublishPlan['trigger'] = 'change'
   const newest = mine.reduce(

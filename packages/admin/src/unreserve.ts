@@ -31,7 +31,7 @@
  * name or one in GRACE forfeits, `NAME_NOT_AVAILABLE`. So the two operations
  * now have two different prechecks on the same `/available` read: a release
  * still needs RESERVED, an award needs *not TAKEN*. The fold exists for the
- * re-award after a repricing rebuild (`tasks/19` D5), which is a list — hence
+ * re-award after a repricing rebuild, which is a list — hence
  * `--batch`.
  *
  * **The reservation precheck landed on 2026-08-21, after a `U` forfeited.**

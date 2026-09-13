@@ -28,8 +28,7 @@
  * a send, the publisher fetches its own `Anchored` events back and skips a
  * height it already anchored, so re-running after a crash or a double cron
  * fire never double-anchors. Catch-up anchors only the latest checkpoint,
- * and a missed daily floor is warned about, never silent
- * (see `docs/decisions.md`).
+ * and a missed daily floor is warned about, never silent.
  */
 
 import type { EvmAddress, Signer } from './chain.js'

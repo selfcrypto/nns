@@ -322,7 +322,7 @@ describe('the referral lines (§10.7)', () => {
   })
 })
 
-describe('the two lines a tempo era would otherwise turn into lies (tasks/17)', () => {
+describe('the two lines a tempo era would otherwise turn into lies', () => {
   it('render the term from TERM_LENGTH, never a typed period', () => {
     expect(termPerk(31_536_000)).toBe('One-year terms')
     expect(termPerk(604_800)).toBe('7-day terms')

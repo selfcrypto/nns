@@ -793,7 +793,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
 
       // §6 K vetoes "a pending X, or an O past OFFER_IRREVOCABLE — all
       // effective on inclusion". Read as: cancel everything currently
-      // cancellable. See docs/decisions.md.
+      // cancellable.
       const draft = draftOf(state)
       let cancelled = false
       if (draft.transfers.delete(message.name)) cancelled = true

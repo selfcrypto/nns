@@ -22,11 +22,6 @@ packages/delegate/labels.json
 deploy/delegate/labels/
 deploy/collaborator/labels/
 
-# Per-machine Claude Code settings. `claude plugin marketplace add
-# ./.claude/marketplace --scope local` writes an absolute path here, so it is
-# one operator's checkout location and useless in anybody else's.
-.claude/settings.local.json
-
 # Copied from @nns/resolver at build time (packages/app/scripts/copy-resolver-bundle.mjs).
 packages/app/public/nns.js
 
@@ -37,10 +32,7 @@ packages/app/public/nns.js
 # now states — material that helps nobody build against NNS and helps somebody
 # else find its soft edges. The spec (`docs/nns-spec-v1.md`) is the authority;
 # `docs/integration.md` is how to build on it.
-CLAUDE.md
 MAP.md
-.claude/
-/docs/claude-code-guide.md
 /docs/decisions.md
 /docs/status.md
 /docs/history/

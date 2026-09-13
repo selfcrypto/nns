@@ -6,7 +6,7 @@
  * `x-nns-checkpoint-height`, then `/checkpoints/{height}` at exactly that
  * height. The alternative — fetch latest, fetch log, compare, retry — loses a
  * race at every boundary, and its failure mode is a quietly mismatched
- * anchor. See `packages/api/CLAUDE.md`.
+ * anchor.
  *
  * The interface is what `publish.ts` runs on and what the tests fake; this
  * module's only other export is the `fetch` implementation of it.
@@ -36,7 +36,7 @@ export interface CheckpointDocument {
 
 /**
  * The four ways `/checkpoints/{height}` answers, kept distinct because they
- * are four different instructions (`packages/api/CLAUDE.md`): `ok` proceeds,
+ * are four different instructions: `ok` proceeds,
  * `pending` waits for the next run, `notRetained` and `missing` are alerts,
  * and a 400 does not appear here at all — the height came off the API's own
  * `/log` stamp, so a 400 is a bug in this package and the edge throws.

@@ -90,7 +90,7 @@ describe('configFingerprint', () => {
     // before launch and must both invalidate every database built earlier:
     // expanding RESERVED_NAMES (free until `LAUNCH_HEIGHT`, §10.6 closes it
     // afterwards) and the second freeze that bumps `LAUNCH_HEIGHT` and
-    // replaces the four battery addresses (tasks/08 step 7). This digest
+    // replaces the four battery addresses at the launch freeze. This digest
     // moving means "rebuild, do not resume" — recompute it and update the pin
     // alongside either edit.
     expect(BASELINE).toBe('8111f0c068d3fe5f7427b948ae7e89c1c05143ac3a544769d97ad8f9d624897b')

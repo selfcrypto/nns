@@ -6,8 +6,8 @@
 -- something else — a hidden threshold that bids below still stand under —
 -- and Kike read it that way from the app's own status line. The spec, the
 -- wire field, the API field (`startingPrice`) and this column were renamed
--- together (docs/decisions.md, "2026-09-04 · A starting price, not a
--- reserve"). Bytes on the wire and in the §8.1 entry are unchanged: nothing
+-- together on 2026-09-04: it is a starting price, not a reserve. Bytes on
+-- the wire and in the §8.1 entry are unchanged: nothing
 -- here is a layout or a rules change, and no database rebuilds.
 --
 -- A rename carries the three shape checks with it — Postgres binds a CHECK

@@ -4,7 +4,7 @@
 -- never defended against the key it existed to defend against: a holder of the
 -- owner key deleted a pending recovery-initiated `X` with a bare `K` at
 -- `DUST_VALUE`, indefinitely, and `O` + `B` moved a name in two blocks while
--- clearing the recovery field outright. See docs/decisions.md.
+-- clearing the recovery field outright.
 --
 -- **This is a layout migration, and it is destructive by design.** The §8.1
 -- name leaf lost its `recovery:20B` field and the pending-transfer entry lost

@@ -58,8 +58,8 @@ export interface WatcherSettings extends ReconcilerSettings {
  * **`NNS_SETTLEMENT_DATABASE_URL`, never `NNS_DATABASE_URL`.** The name is
  * different from the indexer's on purpose: one `.env` on a box serves several of
  * these processes, and a shared variable name is how a ledger ends up beside the
- * indexer's tables — the one arrangement `packages/settlement/CLAUDE.md` rules
- * out. It is loaded here and nowhere near {@link loadSettings}, so `reconcile`
+ * indexer's tables — the one arrangement this package rules out. It is
+ * loaded here and nowhere near {@link loadSettings}, so `reconcile`
  * and `watch` keep starting on a box that has no database at all.
  *
  * **There is still no key.** The issuer's keys are `keys.ts`'s.

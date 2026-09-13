@@ -9,7 +9,7 @@
 // likely to be wrong, and the habit becomes "expect red, move on". Worse, a
 // relational assertion sitting *after* a literal one in the same `it` never
 // runs at all on a tempo profile: the literal throws first. That is how the
-// 2026-08-16 fork found `docs/runbooks/testing.md` §2 recommending
+// 2026-08-16 fork found the tempo recipe recommending
 // TERM_LENGTH 600 with GRACE_PERIOD 300 — a profile whose own table cited the
 // `GRACE_PERIOD × 2 < TERM_LENGTH` bound it broke, unnoticed because no fork
 // had been built from those numbers since the bound was pinned.
@@ -23,7 +23,7 @@
 // silent green is exactly what it exists to replace: the point is that the
 // operator reads the profile back before spending three hours on it.
 //
-// Deviations are named, not discovered. `tasks/09` §0 permits one knowingly
+// Deviations are named, not discovered. The battery permits one knowingly
 // (GOVERNANCE_DELAY under XFER_TIMELOCK, for a thin horizon window) and asks
 // that it be recorded rather than found in the results — `--accept <id>` is
 // that record, and it prints loudly.
@@ -222,7 +222,7 @@ check(
   'GOVERNANCE_DELAY > XFER_TIMELOCK (§10.6 — notice is the whole protection since r20)',
   C.GOVERNANCE_DELAY > C.XFER_TIMELOCK,
   `${C.GOVERNANCE_DELAY} > ${C.XFER_TIMELOCK}` +
-    '\n      tasks/09 §0 permits inverting this for a thin horizon window: --accept governance-delay-ordering',
+    '\n      inverting this for a thin horizon window is allowed: --accept governance-delay-ordering',
 )
 check(
   'governance-delay-shape',
@@ -277,7 +277,7 @@ check(
   )
 }
 
-// Checkpoints and the launch height (§8.1, §8.8, §0.3/§0.5 of tasks/09).
+// Checkpoints and the launch height (§8.1, §8.8).
 check(
   'launch-height-on-boundary',
   'LAUNCH_HEIGHT is a multiple of CHECKPOINT_INTERVAL — §8.1 puts checkpoints at absolute multiples, so otherwise the genesis checkpoint is never taken',

@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     // Vite emits; tsc only checks. The base's NodeNext is overridden because
-    // this is the one bundled package (root CLAUDE.md, workspace conventions).
+    // this is the one bundled package.
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",

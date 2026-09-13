@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 /**
  * The search box queries as it is typed, so it needs to know when typing has
  * stopped. Hand-rolled rather than depended on: a debounce is nine lines, and
- * this package's dependency discipline (CLAUDE.md) is the §2.2 argument that
+ * this package's dependency discipline is the §2.2 argument that
  * every package in an app whose product is "trust this address" is
  * supply-chain surface.
  *

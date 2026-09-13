@@ -521,7 +521,7 @@ function treeOf(records: readonly ApiNameRecord[]): {
 }
 
 /**
- * The `tasks/02-api.md` "done when", as code: rebuild the leaf from the
+ * The package's promise, as code: rebuild the leaf from the
  * document's own fields and recombine it with the proof — **core only**, no
  * API code anywhere in the path. This is also why the document must carry
  * every §8.1 leaf field, `delegate` included: without them the preimage below

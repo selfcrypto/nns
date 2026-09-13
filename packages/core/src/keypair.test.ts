@@ -32,7 +32,7 @@ import {
  * - **The whole path** — an address produced by a Nimiq node's own
  *   `createAccount` was re-derived offline by `keypairFromPrivateKey` and
  *   matched. That check cannot live here: it needs a live key, and this file
- *   is public. It is recorded in `docs/decisions.md` instead.
+ *   is public.
  */
 const VECTORS: ReadonlyArray<readonly [string, string, string]> = [
   [

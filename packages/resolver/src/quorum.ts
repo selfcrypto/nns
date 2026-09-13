@@ -397,8 +397,8 @@ export function dedupeEndpoints(endpoints: readonly ResolverEndpoint[]): {
 
 /**
  * The warning that rides on every result when the host app configured a
- * quorum below the spec's. CLAUDE.md's rule for this package: disabling the
- * quorum must be loud, and loud means on the result, not in a log line.
+ * quorum below the spec's. This package's rule: disabling the quorum must be
+ * loud, and loud means on the result, not in a log line.
  */
 export function belowSpecWarning(required: number): ResolveWarning | null {
   if (required >= CONSTANTS.RESOLVER_QUORUM) return null

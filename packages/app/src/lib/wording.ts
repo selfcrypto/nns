@@ -68,7 +68,7 @@ export const hintLabel = (): string => 'More about this'
 export const verifiedHint = (): string =>
   'Each resolver answered with a Merkle proof, and this app checked it against the resolver’s published checkpoint before showing the address.'
 
-/** The interval is `CHECKPOINT_INTERVAL` rendered, never typed — a tempo era cuts one a minute (tasks/17). */
+/** The interval is `CHECKPOINT_INTERVAL` rendered, never typed — a tempo era cuts one a minute. */
 export const proofPendingLine = (): string =>
   `Proof pending — checkpoints are cut every ${blocksApprox(CONSTANTS.CHECKPOINT_INTERVAL)}. The name works now.`
 
@@ -440,12 +440,12 @@ export const ACTION_LABEL: Record<AppAction, string> = {
  * allow it as gift"). Anyone may renew (§6 `N`); the label says what the
  * payer gets — nothing — so the button cannot read as a way to acquire.
  */
-/** The registration review's first line; the term is `TERM_LENGTH` rendered, never typed (tasks/17). */
+/** The registration review's first line; the term is `TERM_LENGTH` rendered, never typed. */
 export const registerPaysLine = (nim: string, term: string): string =>
   `Pays ${nim} NIM to the registry for a ${term} term.`
 
 /**
- * The lifetime registration's first line (§10.4, tasks/19 D3): the date a
+ * The lifetime registration's first line (§10.4): the date a
  * hundred terms actually reach, never the word "lifetime" as a promise —
  * that word is the choice's label and nothing else.
  */
@@ -894,7 +894,7 @@ export const burnEvenLine = (): string => 'Burned exactly what is owed.'
 export const burnExplainer = (): string =>
   `${Number(CONSTANTS.BURN_SHARE_BP) / 100}% of registry revenue is committed to be burned. The figures come from the public log, so anyone can check.`
 
-// ── The era notice (a compressed-tempo era, docs/runbooks/testing.md §1) ────
+// ── The era notice (a compressed-tempo era) ────
 
 /**
  * Whether the constants this bundle was built with are a tempo era's. The
@@ -938,7 +938,7 @@ export const eraNoticeHint = (blocks: number = CONSTANTS.TERM_LENGTH): string =>
 /**
  * The landing's first perk. `TERM_LENGTH` rendered as a period, never typed:
  * mainnet's 31,536,000 blocks is "One-year terms", a tempo era's 604,800 is
- * "7-day terms" (tasks/17). Blocks ≈ seconds.
+ * "7-day terms". Blocks ≈ seconds.
  */
 export function termPerk(blocks: number = CONSTANTS.TERM_LENGTH): string {
   const days = blocks / 86_400

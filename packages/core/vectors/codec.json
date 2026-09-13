@@ -34,7 +34,7 @@
         },
         "recipient": "TREASURY",
         "value": "200000000",
-        "note": "The value verified on mainnet 2026-08-06 and quoted in CLAUDE.md: 4e4e533147746573746e616d65."
+        "note": "The value verified on mainnet 2026-08-06: 4e4e533147746573746e616d65."
       },
       {
         "id": "G_with_ref",
@@ -797,7 +797,7 @@
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
         },
-        "note": "Numeric fields are canonical decimal: exactly one representation per value. §5.2 does not settle this — see docs/decisions.md."
+        "note": "Numeric fields are canonical decimal: exactly one representation per value. §5.2 does not settle this."
       },
       {
         "id": "negative_rejected",

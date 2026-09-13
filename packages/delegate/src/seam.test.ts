@@ -15,8 +15,7 @@
  * What that rewrite does *not* cover is URL construction from a host recorded
  * on chain — `D` lands, the indexer stores the host, the client builds
  * `https://<host>/<parent>/<label>` and fetches it. That step ran for the
- * first time on 2026-08-18 against `delegated.nimiqnames.com` (`CLAUDE.md`,
- * "The gap that was open"); this file is the seam, not that coverage.
+ * first time on 2026-08-18 against `delegated.nimiqnames.com` (* "The gap that was open"); this file is the seam, not that coverage.
  */
 
 import { createServer as createHttpServer, type Server } from 'node:http'

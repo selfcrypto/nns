@@ -18,7 +18,7 @@ import { Identicon } from './ui'
  * is deliberately two-step: one tap to reveal the real button, one to act.
  *
  * `onBlocking` exists for screens that must *act* on a mismatch rather than
- * only show it: CLAUDE.md's rule is a hard stop when a known mapping changes,
+ * only show it: a known mapping that changes is a hard stop,
  * and `pinMismatchBody` tells the user "do not pay until you know which" — so
  * the Pay screen disables its button while this is true. It reports `false`
  * again once the user overrides, which is the two-step above having been taken

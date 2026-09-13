@@ -38,7 +38,7 @@ const parsed = (text: string): Message | null => {
 }
 
 describe('the mainnet-verified known answer', () => {
-  it('encodes NNS1Gtestname to 4e4e533147746573746e616d65 (CLAUDE.md, §5.1)', () => {
+  it('encodes NNS1Gtestname to 4e4e533147746573746e616d65 (§5.1)', () => {
     const tx = encodeRegister({ name: 'testname', fee: 2_000n * LUNA_PER_NIM })
     expect(tx.data).toBe('4e4e533147746573746e616d65')
   })

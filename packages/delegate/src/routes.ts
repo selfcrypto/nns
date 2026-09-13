@@ -181,7 +181,7 @@ export function createRoutes(source: LabelSource, _options: RouteOptions = {}): 
       const file = source.current()
       return {
         status: 200,
-        // Counts, never the roster. `CLAUDE.md` forbids a bulk listing
+        // Counts, never the roster. This package forbids a bulk listing
         // endpoint, and naming the served names here would be one — reachable
         // through the same public vhost that serves the answers. The boot log
         // names them, and logs are the operator's side of the wire.

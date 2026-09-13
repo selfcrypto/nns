@@ -243,7 +243,7 @@ export class Store {
         `this database holds checkpoints at §8.1 layout ${stale.layout} (latest at height ${stale.height}); ` +
           `this build derives layout ${COMMITMENT_LAYOUT}. No stored root is reproducible under the current ` +
           'rules, so continuing would stack two commitment functions in one table. ' +
-          'Rebuild from empty: nns-vps rebuild <role> (docs/runbooks/deploy.md).',
+          'Rebuild from empty: nns-vps rebuild <role>.',
       )
     }
     if (row.config_fingerprint !== this.fingerprint) {

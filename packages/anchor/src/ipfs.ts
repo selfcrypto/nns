@@ -3,9 +3,9 @@
  * string *it* minted back.
  *
  * This package never derives a CID from bytes — §8.2 reserves that for
- * reference implementations, and "The CID is a locator, not a verifier"
- * (`docs/decisions.md`) is the argument. The §8.2 mitigation for a
- * misconfigured or buggy service is operational and lives in `publish.ts`:
+ * reference implementations, and a CID is a locator rather than a verifier.
+ * The §8.2 mitigation for a misconfigured or buggy service is operational
+ * and lives in `publish.ts`:
  * the same snapshot goes through **two independent implementations**, and a
  * disagreement between them is a hard stop, never a choice of one.
  *

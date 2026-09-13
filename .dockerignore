@@ -9,7 +9,6 @@ node_modules
 .env
 **/.env
 *.log
-.claude
 assets
 docs
 tasks

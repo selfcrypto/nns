@@ -38,8 +38,8 @@ export const ANCHORED_TOPIC0 = ARTIFACT.anchoredTopic0
 
 /**
  * CREATE2 init-code hash — kept for third parties deploying through a
- * factory. This package's own deploy is plain \`CREATE\`
- * (\`docs/decisions.md\`, "CREATE2 dropped with the second chain").
+ * factory. This package's own deploy is plain \`CREATE\` — CREATE2 was
+ * dropped when the second chain arrived.
  */
 export const INIT_CODE_HASH = ARTIFACT.initCodeHash
 `

@@ -163,8 +163,8 @@ describe('CONSTANTS — §3', () => {
   it('equals the mainnet values, field for field', () => {
     // Every value restated as an inline literal — never derived from
     // constants.ts, or an edit there would move both sides. Compressed-tempo
-    // testing edits CONSTANTS on a throwaway branch that is never merged
-    // ("Constants profiles" in docs/decisions.md); this is the test that
+    // testing edits CONSTANTS on a throwaway branch that is never merged;
+    // this is the test that
     // fails CI if such an edit ever reaches master. It also covers
     // CHECKPOINT_INTERVAL, which no conformance vector exercises.
     // RESERVED_NAMES is pinned separately, as a set: it is the one entry whose
@@ -221,7 +221,7 @@ describe('CONSTANTS — §3', () => {
       // The launch freeze's second half (2026-08-14). The height and the
       // four addresses are the operator-supplied battery cast; launch
       // replaces them in a second freeze that edits these exact literals
-      // (tasks/08 step 7). Compact form: parseAddress strips the spaces.
+      // (the launch freeze). Compact form: parseAddress strips the spaces.
       LAUNCH_HEIGHT: 58_842_720,
       TREASURY_ADDRESS: 'NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3',
       PROTOCOL_ADDRESS: 'NQ38NKD47ALGYRDQDXL8PARE7JRSJGJDMAU8',
@@ -396,7 +396,7 @@ describe('CONSTANTS — §3', () => {
     // Split out of the literal list pin above: a duplicate is what set
     // comparison alone swallows, and behind that pin this never ran on a tempo
     // branch — which is exactly the branch that appends throwaway entries to
-    // the list (`tasks/09` §0).
+    // the list.
     expect(new Set(CONSTANTS.RESERVED_NAMES).size).toBe(CONSTANTS.RESERVED_NAMES.length)
   })
 

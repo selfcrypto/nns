@@ -1,7 +1,7 @@
 /* The documentation screen. Phone first: the page list is a strip that
    scrolls sideways above the article, and becomes a column beside it when
    there is room for one. Nothing here is a card — a doc is a page, not an
-   answer (app CLAUDE.md, "three surfaces"). */
+   answer — three surfaces. */
 
 .docs {
   flex: 1;

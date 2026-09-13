@@ -19,8 +19,8 @@
  * ## The CID is a locator, not a verifier
  *
  * `logDigest` in an `Anchored` event is the **CID's sha2-256 multihash**, not
- * the §8.2 keccak log hash (`core.cidFromDigest`'s note, and "The CID is a
- * locator, not a verifier" in `docs/decisions.md`). Rebuilding it from the
+ * the §8.2 keccak log hash (`core.cidFromDigest`'s note: the CID is a
+ * locator, not a verifier). Rebuilding it from the
  * fetched bytes would mean implementing UnixFS chunking and dag-pb here, which
  * is a second IPFS implementation to keep correct and worth nothing.
  *

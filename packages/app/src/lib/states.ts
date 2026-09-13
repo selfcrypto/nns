@@ -30,7 +30,7 @@ export interface NameView {
  * and never fetches it at all for a dotted query. A null info therefore means
  * "not asked, or the ask failed", which is not a state and above all is not
  * `available`: reading it as one is the app minting an availability verdict out
- * of a failed fetch, which packages/app/CLAUDE.md gives to `resolve()` and
+ * of a failed fetch, which this package gives to `resolve()` and
  * `available()` alone. It shipped as the default and offered **Register** on a
  * delegated subdomain — for the *parent*, whose `G` would have been forfeited
  * as `NAME_TAKEN` (Kike, 2026-08-28).
@@ -313,7 +313,7 @@ export const cancellableNow = (info: NameInfo | null, head: number): Cancellable
  * fixed in `market` and called itself a listing.
  *
  * Here rather than inline in the component for the reason packages/app's
- * CLAUDE.md gives: a branch a component decides for itself is an untested one.
+ * rule: a branch a component decides for itself is an untested one.
  */
 export const cancelTileGroup = (set: Cancellable): 'ownership' | 'market' =>
   set.transfer && !set.offer ? 'ownership' : 'market'
@@ -349,7 +349,7 @@ export const auctionOutlivesTerm = (endHeight: number, expiry: number): boolean 
 /**
  * The §10.1 band that prices this name: the first row its length fits. The
  * rows are `/params.fees`, priced by the api through core — the app reads a
- * figure off the table and never multiplies (tasks/19 D3).
+ * figure off the table and never multiplies.
  */
 export function feeRowFor(name: string, fees: readonly FeeRow[]): FeeRow {
   const row = fees.find((band) => name.length <= band.upTo)

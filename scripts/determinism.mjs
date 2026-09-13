@@ -4,7 +4,7 @@
 //   node scripts/determinism.mjs                     # 3 runs, target derived from head
 //   node scripts/determinism.mjs --runs 5 --height 58852320
 //
-// This is `docs/runbooks/testing.md` §8 made repeatable, and it closes the one
+// This is the determinism check made repeatable, and it closes the one
 // hole that recipe has: runs E/F compared two databases capped at the height
 // both happened to reach, because head moves between runs. Here the target is
 // fixed **before the first run**, so every run replays the identical window and
@@ -340,7 +340,7 @@ async function replay(index) {
   const { seconds } = run
 
   // The §8 recipe, reproduced byte for byte so its digest is quotable beside
-  // the ones in docs/status.md: psql -At -F '|' over the same column list.
+  // psql -At -F '|' over the same column list.
   const dump = run.checkpoints
     .map((row) => [row.height, ...COLUMNS.map((column) => row[column])].join('|'))
     .join('\n')
@@ -456,7 +456,7 @@ try {
       `IDENTICAL — ${first.checkpoints.length} checkpoints, ` +
         `${first.checkpoints[0]?.height.toLocaleString()}–${target.toLocaleString()}, ` +
         `${COLUMNS.length} committed columns, across ${runs} runs from empty.\n` +
-        `sha256 ${first.digest} on every run (docs/runbooks/testing.md §8 recipe).\n` +
+        `sha256 ${first.digest} on every run.\n` +
         `migrations applied fresh: ${first.migrations.join(', ')}\n`,
     )
   } else {

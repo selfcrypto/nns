@@ -1,7 +1,7 @@
 /**
  * `watch` — print what the log says is owed, and keep printing it.
  *
- * Deliverable 1 of `tasks/04`. It holds **no key and opens no database**, so it
+ * It holds **no key and opens no database**, so it
  * can be left running against any operator's API by anyone, including someone
  * checking on the operator. The issuer is the next deliverable; until it exists
  * this binary is the whole service, and running it is how the due set gets

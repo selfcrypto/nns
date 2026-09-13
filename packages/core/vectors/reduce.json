@@ -730,7 +730,7 @@
     },
     {
       "id": "K_with_nothing_pending_forfeits",
-      "note": "§7.4 lists no such reason. The value at stake is DUST_VALUE; the code records why the message had no effect. See docs/decisions.md.",
+      "note": "§7.4 lists no such reason. The value at stake is DUST_VALUE; the code records why the message had no effect.",
       "steps": [
         {
           "tx": {
@@ -3437,7 +3437,7 @@
     },
     {
       "id": "a_maturing_transfer_runs_before_the_expiry_it_collides_with",
-      "note": "§7.3 fixes no order for effects due at the same height, and the two readings disagree: expire-first would cancel the pending X as part of the grace reset. See docs/decisions.md.",
+      "note": "§7.3 fixes no order for effects due at the same height, and the two readings disagree: expire-first would cancel the pending X as part of the grace reset.",
       "steps": [
         {
           "tx": {
@@ -4125,7 +4125,7 @@
     },
     {
       "id": "the_open_bands_are_multiples_of_FEE_BASE",
-      "note": "§10.1 since 2026-09-11: 5 → 25×, 6 → 10×, 7–11 → 5×, 12+ → 1× of FEE_BASE (400 NIM). The first step is the vector that pins the reprice: a 5-character G paying the pre-fold flat 2,000 NIM is short of its 10,000 NIM band and is refunded, which is what a rules rebuild does to every such registration already landed (tasks/19 D5). Each band's exact fee then registers.",
+      "note": "§10.1 since 2026-09-11: 5 → 25×, 6 → 10×, 7–11 → 5×, 12+ → 1× of FEE_BASE (400 NIM). The first step is the vector that pins the reprice: a 5-character G paying the pre-fold flat 2,000 NIM is short of its 10,000 NIM band and is refunded, which is what a rules rebuild does to every such registration already landed. Each band's exact fee then registers.",
       "steps": [
         {
           "tx": {

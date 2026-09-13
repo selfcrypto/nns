@@ -28,7 +28,7 @@ catalog:
   '@vitejs/plugin-react': ^6.0.0
   '@vitest/coverage-v8': ^4.1.10
   # Build-time only, and the one dependency the docs section is allowed
-  # (packages/app/CLAUDE.md): it turns the Markdown under packages/app/docs
+  #: it turns the Markdown under packages/app/docs
   # into HTML during `vite build` and never reaches the bundle, the same
   # relationship solc has to the anchor contract. Zero dependencies of its own.
   marked: ^18.0.12

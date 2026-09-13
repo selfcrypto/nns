@@ -1,7 +1,7 @@
 /**
  * `u --batch <file>` — a list of awards, as one plan.
  *
- * The re-award after a repricing rebuild is a list (`tasks/19` D5: every name
+ * The re-award after a repricing rebuild is a list (every name
  * the fold repriced is AVAILABLE after the rebuild and goes back to its old
  * owner by one `U` each), and so is a giveaway. Typing them one at a time
  * through the prompt is the wrong shape for a list whose whole point is to

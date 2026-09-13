@@ -1,8 +1,8 @@
 /**
  * Nimiq address codec — user-friendly `NQ…` string ↔ raw 20 bytes.
  *
- * Not one of the seven deliverables in `tasks/00-core.md`, but required by
- * them: §8.1 says a Merkle leaf carries "the raw 20-byte form, never the `NQ`
+ * Not a protocol rule of its own, but required by them: §8.1 says a Merkle
+ * leaf carries "the raw 20-byte form, never the `NQ`
  * string", while the RPC hands the indexer `NQ…`. Somebody has to convert, and
  * it must be byte-exact or every root forks.
  *

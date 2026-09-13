@@ -14,8 +14,8 @@ import {
 import { Hint } from './Hint'
 
 /**
- * §10.2's burn record, both halves — burned means nothing without owed
- * (packages/app/CLAUDE.md, "Show the burned quantities"). The landing page
+ * §10.2's burn record, both halves — burned means nothing without owed, so
+ * both quantities are shown. The landing page
  * has its own rendering in `LANDING`'s voice; this one is for the app path,
  * which Nimiq Pay opens on and which never sees the landing page. It sits on
  * Market, where the registry's money is discussed. Quiet when the API does

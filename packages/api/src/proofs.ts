@@ -3,7 +3,7 @@
  *
  * Pure: records in, JSON-shaped objects out. Every hash and every tree walk
  * comes from `@nns/core` — this file only renders what core derives, and the
- * "done when" of `tasks/02-api.md` holds because a client verifies these
+ * This package answers proofs a client verifies for itself, because these
  * documents with core alone: rebuild the leaf with `encodeLeaf`/`leafHash`
  * from the fields, recombine with `verifyProof`, compare to the checkpoint's
  * `name_root`. No code here is in that path.
@@ -46,7 +46,7 @@ const hex0x = (bytes: Uint8Array): string => `0x${Buffer.from(bytes).toString('h
  * re-derives the leaf hash from these fields and a proof whose leaf the
  * verifier cannot rebuild binds nothing. `delegate` and `evm` (r26) are the
  * fields that witness that rule now — `recovery` carried it until r20 deleted
- * the recovery address. See `docs/decisions.md`.
+ * the recovery address.
  */
 function leafDocument(proof: MerkleProof): Record<string, unknown> {
   return {
