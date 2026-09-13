@@ -26,3 +26,6 @@ deploy/collaborator/labels/
 # ./.claude/marketplace --scope local` writes an absolute path here, so it is
 # one operator's checkout location and useless in anybody else's.
 .claude/settings.local.json
+
+# Copied from @nns/resolver at build time (packages/app/scripts/copy-resolver-bundle.mjs).
+packages/app/public/nns.js

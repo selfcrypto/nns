@@ -1,10 +1,35 @@
 {
   "name": "@nns/resolver",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
-  "description": "Client-side NNS resolution: resolver quorum, §8.3 proof verification, §8.6 delegation. Browser and Node.",
+  "description": "Client-side NNS resolution: resolver quorum, \u00a78.3 proof verification, \u00a78.6 delegation. Browser and Node.",
   "license": "MIT",
+  "author": "Enrique Ferrater",
+  "homepage": "https://github.com/selfcrypto/nns/blob/main/docs/integration.md",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/selfcrypto/nns.git",
+    "directory": "packages/resolver"
+  },
+  "bugs": {
+    "url": "https://github.com/selfcrypto/nns/issues"
+  },
+  "keywords": [
+    "nimiq",
+    "nns",
+    "name-service",
+    "resolver",
+    "merkle-proof",
+    "browser",
+    "wallet",
+    "exchange"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "sideEffects": [
     "*.css"
   ],
@@ -13,13 +38,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./rendering.css": "./dist/rendering.css"
+    "./rendering.css": "./dist/rendering.css",
+    "./nns.js": "./dist/nns.js"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && node scripts/emit-css.mjs",
+    "build": "tsc -p tsconfig.json && node scripts/emit-css.mjs && vite build",
     "typecheck": "tsc -p tsconfig.check.json",
     "test": "vitest run"
   },
@@ -29,6 +55,7 @@
   },
   "devDependencies": {
     "typescript": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }

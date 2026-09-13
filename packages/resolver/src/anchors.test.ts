@@ -1,7 +1,9 @@
 import { ANCHORED_TOPIC0 } from '@nns/anchor'
 import type { AnchorReadRpc } from '@nns/anchor/reader'
+import { CONSTANTS } from '@nns/core'
 import { describe, expect, it } from 'vitest'
 
+import { DEFAULT_RESOLVERS } from './defaults.js'
 import { AnchorError, ConfigurationError } from './errors.js'
 import { NnsResolver, type ResolverOptions } from './resolve.js'
 import { CHECKPOINT_HEIGHT, availableJson, checkpointJson, commitmentOf, record, resolveJson } from './test-fixtures.js'
@@ -354,8 +356,18 @@ describe('configuration', () => {
     )
   })
 
-  it('refuses to construct with no resolvers, naming the empty default', () => {
-    expect(() => new NnsResolver({ fetch: net.fetchImpl })).toThrow(/DEFAULT_RESOLVERS is empty/)
+  it('constructs with no resolvers at all: the shipped default meets RESOLVER_QUORUM', () => {
+    // The list is two entries since 2026-09-13, so the zero-configuration
+    // construction is the one that enforces the spec's quorum rather than the
+    // one that cannot be built. If this ever fails, `DEFAULT_RESOLVERS` went
+    // back below `RESOLVER_QUORUM` and every consumer who omits `resolvers`
+    // is broken.
+    expect(DEFAULT_RESOLVERS.length).toBeGreaterThanOrEqual(CONSTANTS.RESOLVER_QUORUM)
+    expect(() => new NnsResolver({ fetch: net.fetchImpl })).not.toThrow()
+  })
+
+  it('refuses an explicitly empty list, naming the way back to the default', () => {
+    expect(() => new NnsResolver({ resolvers: [], fetch: net.fetchImpl })).toThrow(/omit `resolvers`/)
   })
 })
 

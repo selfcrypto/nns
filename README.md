@@ -103,7 +103,7 @@ is a lost name, as in ENS.
 | `docs/decisions.md` | Every reading taken where the spec was silent, with the argument |
 | `docs/status.md` | What is built, what is next. Where a new session starts |
 | `docs/history/` | Revision narratives, the session journal, battery records |
-| `docs/runbooks/` | `operators.md` (the role map), `testing.md` (the mainnet battery), `deploy.md` (how a change reaches the deployed boxes) |
+| `docs/runbooks/` | `operators.md` (the role map), `testing.md` (the mainnet battery), `deploy.md` (how a change reaches the deployed boxes), `release.md` (publishing the three npm packages) |
 | **`packages/`** | **Twelve packages — [`packages/README.md`](packages/README.md) explains each one and how they stack** |
 | **`deploy/`** | **One directory per operator role — [`deploy/README.md`](deploy/README.md) picks the right one and covers what they share** |
 | `tasks/` | One brief per package, naming the spec sections it needs |

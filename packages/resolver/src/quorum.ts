@@ -353,6 +353,49 @@ function checkpointNameRoot(body: unknown): string | null {
 }
 
 /**
+ * Drop endpoints that are the same URL twice, and say so.
+ *
+ * A list holding one URL twice does not query two parties: it queries one
+ * party twice and counts the answer twice, so `agreed: 2` is reported for a
+ * quorum that was never met. That is the one failure §8.5 #2 cannot survive,
+ * and it arrives by the most ordinary route there is — an operator who added
+ * their own endpoint by hand upgrades this package on the day that endpoint
+ * joins {@link DEFAULT_RESOLVERS}, and the spread produces a duplicate.
+ *
+ * Which is exactly why this **warns rather than throws**. Refusing would turn
+ * a routine upgrade into a broken app, and punish the operator who got listed.
+ * The first occurrence wins, so a host app's own name for an endpoint survives
+ * over the shipped one.
+ *
+ * Comparison is on the URL with case and trailing slashes normalised away, and
+ * nothing more: two different hostnames served by one machine (an operator's
+ * own `/api` beside the absolute URL of the same box) are indistinguishable
+ * from here, and are a deployment question rather than a library one.
+ */
+export function dedupeEndpoints(endpoints: readonly ResolverEndpoint[]): {
+  readonly endpoints: readonly ResolverEndpoint[]
+  readonly warning: ResolveWarning | null
+} {
+  const seen = new Map<string, ResolverEndpoint>()
+  const dropped: string[] = []
+  for (const endpoint of endpoints) {
+    const key = endpoint.url.trim().replace(/\/+$/, '').toLowerCase()
+    const first = seen.get(key)
+    if (first === undefined) seen.set(key, endpoint)
+    else dropped.push(`${endpoint.name} repeats ${first.name}'s ${endpoint.url}`)
+  }
+  if (dropped.length === 0) return { endpoints, warning: null }
+  return {
+    endpoints: [...seen.values()],
+    warning: warn(
+      'DUPLICATE_RESOLVER',
+      `${dropped.length} duplicate resolver endpoint(s) dropped — ${dropped.join('; ')}. ` +
+        'One URL listed twice is one party counted twice, which meets a quorum without meeting it (§8.5 #2)',
+    ),
+  }
+}
+
+/**
  * The warning that rides on every result when the host app configured a
  * quorum below the spec's. CLAUDE.md's rule for this package: disabling the
  * quorum must be loud, and loud means on the result, not in a log line.

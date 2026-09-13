@@ -44,6 +44,25 @@ const nim = (amount: bigint): bigint => amount * LUNA_PER_NIM
 const MAX_NAME_LEN = 24
 
 export const CONSTANTS = Object.freeze({
+  // ── What this build implements (§1) ───────────────────────────────────────
+  /**
+   * The `docs/nns-spec-v1.md` revision these rules are, as a number.
+   *
+   * It exists because this package is published, and a published protocol
+   * library has a failure mode a private one does not: a consumer pins a
+   * version, a revision moves a reducer rule or a §8.1 layout, and their
+   * build keeps deriving roots and log hashes that no longer match anyone
+   * else's — silently, since nothing about a stale pin looks wrong. `version`
+   * cannot carry that, because it tracks this package's API, and an API can
+   * be identical across a revision that moves every root.
+   *
+   * So: assert on it if you derive anything consensus-relevant, and read it
+   * beside a checkpoint's own `layout` field, which says the narrower thing
+   * about the §8.1 commitment's shape alone. Bump it in the same commit that
+   * folds a revision (`CLAUDE.md`, "Revisions are per-week").
+   */
+  SPEC_REVISION: 29,
+
   // ── Wire format (§5.1, §5.2) ──────────────────────────────────────────────
   /** Prefix of every NNS message. 4 ASCII bytes. */
   PROTOCOL_ID: 'NNS1',

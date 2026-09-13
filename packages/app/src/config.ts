@@ -1,16 +1,22 @@
+import { CONSTANTS } from '@nns/core'
 import { DEFAULT_RESOLVERS, type ResolverEndpoint } from '@nns/resolver'
 
 /**
  * Deployment configuration, from Vite env vars at build time.
  *
  * - `VITE_NNS_RESOLVERS`: JSON array of `{ "name": …, "url": … }`. Appended
- *   after `DEFAULT_RESOLVERS`, never replacing it — the day the shipped
- *   default has entries, this app picks them up by upgrading `@nns/resolver`.
- * - `VITE_NNS_QUORUM`: how many resolvers must agree. **Defaults to 1**: the
- *   launch decision (resolver README, "At launch, the quorum is 1") is an
- *   explicit deployment override with a single named operator, and this app
- *   is that deployment. `@nns/resolver` makes the shortfall loud on every
- *   result; the UI renders it via the "Verified by N resolvers" line.
+ *   after `DEFAULT_RESOLVERS`, never replacing it. Since 2026-09-13 that
+ *   default is two public endpoints, so an operator adds only their **own**
+ *   box here — and adding one that is already in the default is not a
+ *   mistake this file has to catch: `@nns/resolver` drops a repeated URL and
+ *   warns on every result.
+ * - `VITE_NNS_QUORUM`: how many resolvers must agree. **Defaults to 2**,
+ *   `CONSTANTS.RESOLVER_QUORUM`, because the shipped default list now meets
+ *   it — the 1 this defaulted to was a deployment fact (one public endpoint
+ *   existed) that stopped being true, and a default that silently keeps
+ *   enforcing the weaker rule after the reason expired is the worst kind.
+ *   `@nns/resolver` still makes a configured shortfall loud on every result;
+ *   the UI renders it via the "Verified by N resolvers" line.
  */
 export interface AppConfig {
   readonly resolvers: readonly ResolverEndpoint[]
@@ -73,7 +79,7 @@ export function parseResolverList(raw: string | undefined): readonly ResolverEnd
 }
 
 export function parseQuorum(raw: string | undefined): number {
-  if (raw === undefined || raw.trim() === '') return 1
+  if (raw === undefined || raw.trim() === '') return CONSTANTS.RESOLVER_QUORUM
   const quorum = Number(raw)
   if (!Number.isInteger(quorum) || quorum < 1) {
     throw new ConfigParseError('VITE_NNS_QUORUM must be a positive integer')

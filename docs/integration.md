@@ -325,55 +325,70 @@ endpoint exercises step 2 alone.)
 The client the app itself uses. It asks several resolvers, verifies every
 proof against the checkpoint root, requires agreement, handles subdomains,
 and hands you a result whose `verification` field tells you what you are
-allowed to claim. Browser and Node 18+; no Node built-ins, two workspace
-dependencies (`@nns/core`, `@nns/anchor/reader`), no network access it does
-not tell you about.
+allowed to claim. Browser and Node 20+; no Node built-ins, no network access
+it does not tell you about.
 
 Its own README (`packages/resolver/README.md`) is the long form; this section
 is the integration path.
 
 ### 3.1 Getting it
 
-The packages are not on the npm registry yet — every workspace package is
-`"private": true` until launch. Two ways to consume it today:
+Two ways in, and the second one exists because most of the pages that should
+resolve a name — a checkout on a CMS, a static site, a donate button — have
+no build step at all, and "install a bundler first" is how an integration
+gets postponed forever.
+
+**With a bundler:**
 
 ```sh
-git clone https://github.com/selfcrypto/nns && cd nns
-npx -y pnpm@11.21.0 install && npx -y pnpm@11.21.0 build
-
-# a) your app lives in this workspace: add it under packages/ and depend on
-#    "@nns/resolver": "workspace:*"   (and "@nns/core": "workspace:*" if you use the builders)
-
-# b) your app lives elsewhere on the same machine: link the built package
-cd packages/resolver && npx -y pnpm@11.21.0 link --global
-cd /path/to/your/app && npx -y pnpm@11.21.0 link --global @nns/resolver
+npm install @nns/resolver          # and @nns/core if you build transactions (§6)
 ```
 
-A plain `npm install <git url>` does not work yet: the package's own
-dependencies are `workspace:` references to `@nns/core` and `@nns/anchor`,
-which only resolve inside the workspace (or through the link above).
-`dist/` is what ships: ESM, typed, plus `dist/rendering.css`. When the
-packages are published the import lines below do not change.
+**Without one** — one self-contained ES module, nothing to install, nothing
+fetched at runtime beyond the resolvers themselves:
+
+```html
+<script type="module">
+  import { createResolver } from 'https://nimiqnames.com/nns.js'
+
+  const nns = createResolver({})
+  const { address, verification } = await nns.resolve('ricochet')
+  console.log(address, verification)   // NQ88…EGM9  PROVEN
+</script>
+```
+
+68 kB, 24 kB over the wire. It is the *same source* as the npm package, built
+twice — not a cut-down copy, so everything in this section applies to it
+unchanged, and `https://cdn.jsdelivr.net/npm/@nns/resolver/dist/nns.js` is
+the same file from a CDN if you prefer one that is not ours.
+
+> **Status, 2026-09-13.** The `https://nimiqnames.com/nns.js` URL is live.
+> The three packages (`@nns/core`, `@nns/anchor`, `@nns/resolver`) are
+> release-ready but not yet on the registry — publishing is one command in
+> `docs/runbooks/release.md`, waiting on the `@nns` organisation being
+> created. Until it runs, `npm install @nns/resolver` will 404 and the
+> script tag above is the working path. Nothing else in this guide changes
+> when it does.
+
+Either way `dist/` is what ships: ESM, typed, plus `dist/rendering.css`
+(§4.3's type face) and `dist/nns.js` (the bundle above).
 
 ### 3.2 Construct one, resolve one
 
 ```ts
-import { createResolver, DEFAULT_RESOLVERS } from '@nns/resolver'
+import { createResolver } from '@nns/resolver'
 
-const nns = createResolver({
-  resolvers: [
-    ...DEFAULT_RESOLVERS,                                   // empty until launch — spread it anyway, so real entries arrive by upgrading
-    { name: 'Nimiq Names', url: 'https://api.nimiqnames.com' },
-  ],
-  quorum: 1,           // launch: one operator. The default is 2 and stays the target — see 3.6
-})
+// Zero configuration is the supported path: the shipped resolver list has two
+// public endpoints and the default quorum is 2, so this asks both and requires
+// them to agree.
+const nns = createResolver({})
 
 const r = await nns.resolve('ricochet')
 r.address        // 'NQ88XL24NHPUMYVX67ACTXLXNQX1R471EGM9' — pay here. Canonical compact form;
                  //   formatAddress() from @nns/core gives the spaced display form
 r.evm            // '' or '0x…'                                     — the owner's EVM address, if declared
 r.verification   // 'PROVEN' | 'PROOF_PENDING' | 'DELEGATED'
-r.quorum         // { required: 1, queried: 1, agreed: 1, resolvers: [{ name, url }] }
+r.quorum         // { required: 2, queried: 2, agreed: 2, resolvers: [{ name, url }, …] }
 r.warnings       // [] or [{ code, detail }, …]
 ```
 
@@ -392,7 +407,7 @@ All options:
 
 | Option | Default | What it does |
 |---|---|---|
-| `resolvers` | *required* (default list is empty) | `{ name, url }[]`. The name is what you show the user |
+| `resolvers` | `DEFAULT_RESOLVERS` (two entries) | `{ name, url }[]`. The name is what you show the user. **Add**, never replace: `[...DEFAULT_RESOLVERS, mine]` |
 | `quorum` | `2` | how many resolvers must agree. Below 2 warns on every result |
 | `timeoutMs` | `5000` | per resolver request |
 | `delegateTimeoutMs` | `timeoutMs` | per delegate request. Do not shorten it — a cold host handshaking legitimately takes seconds |
@@ -440,11 +455,13 @@ exist.
 These are not style suggestions; the protocol requires clients to do them
 (spec §8.5), and the library's result shape is built so they are cheap.
 
-1. **Say who verified it, by name, every time.** `Verified by 1 resolver ·
-   Nimiq Names` at launch; `Verified by 2 resolvers` with both names when a
-   second party joins — with no code change in your app, because the count is
-   `r.quorum.agreed` and the names are `r.quorum.resolvers`. Do **not** label
-   the healthy quorum-1 case "unverified": that spends the word before the
+1. **Say who verified it, by name, every time.** `Verified by 2 resolvers`
+   with both names on the shipped defaults; a third party joining raises it to
+   3 with no code change in your app, because the count is `r.quorum.agreed`
+   and the names are `r.quorum.resolvers`. Naming them is what keeps the count
+   honest — today both are run by one operator (§7), and a user who can read
+   the two URLs can see that for themselves. Do **not** label a healthy answer
+   "unverified" because the count is small: that spends the word before the
    case it is for arrives.
 2. **Render `DELEGATED` differently.** Different colour, different sentence,
    no checkmark. A user must never be told an unverified address is verified.
@@ -523,19 +540,25 @@ requests.
 
 ### 3.8 A complete example: a checkout page
 
+This is a complete, working page. Save it as `.html`, open it, resolve a
+name — there is no build step and nothing to install.
+
 ```html
-<link rel="stylesheet" href="./node_modules/@nns/resolver/dist/rendering.css">
 <input id="q" placeholder="name or address"> <button id="go">Resolve</button>
 <div id="out"></div>
 
 <script type="module">
-import { createResolver, ResolverError } from '@nns/resolver'
-import { formatAddress } from '@nns/core'
+import {
+  createResolver, ResolverError, formatAddress, injectRenderingCss,
+} from 'https://nimiqnames.com/nns.js'
 
-const nns = createResolver({
-  resolvers: [{ name: 'Nimiq Names', url: 'https://api.nimiqnames.com' }],
-  quorum: 1,
-})
+// §4.3: names must be drawn in a face that separates 0/o, 1/l and rn/m.
+// Ignoring it produces no error — only a name that reads as another name.
+injectRenderingCss(document)
+
+// No bundler, no install, and still the full quorum: two resolvers must agree
+// and the §8.3 proof must recombine before `address` is handed back.
+const nns = createResolver({})
 
 const out = document.getElementById('out')
 document.getElementById('go').onclick = async () => {
@@ -1040,11 +1063,18 @@ resume: a protocol revision that changes the rules or constants (release
 notes say so; roots under old rules are not comparable), and a resynced node
 that no longer covers `LAUNCH_HEIGHT`.
 
-**Join the quorum.** Being runnable is not being asked. Clients query the
-resolvers in their shipped list, `DEFAULT_RESOLVERS` in `@nns/resolver` —
-empty until launch — and each entry is a URL and a **name** (what a client
-shows when resolvers disagree). Open an issue with both once your endpoint
-answers publicly from outside. `deploy/collaborator/` runs a resolver and a
+**Join the quorum, and this is the part that matters.** Being runnable is not
+being asked. Clients query the resolvers in their shipped list,
+`DEFAULT_RESOLVERS` in `@nns/resolver`, and today that list is two endpoints
+**run by the same operator that publishes the package**. They are separately
+replayed — their own database, their own host, their own provider — so their
+agreement does prove the reducer was deterministic and neither box drifted.
+What it cannot prove is the stronger thing §8.5 is actually after: a client
+checking only those two is trusting one party twice. You running a third
+endpoint is what closes that, and it is the single most useful thing an
+integrator can contribute to this protocol. Each entry is a URL and a **name**
+(what a client shows when resolvers disagree). Open an issue with both once
+your endpoint answers publicly from outside. `deploy/collaborator/` runs a resolver and a
 delegate on one box. `deploy/README.md` maps all the roles.
 
 ---
@@ -1221,14 +1251,18 @@ from the recipient a `@nns/core` builder returns, never retype them.
 | What | URL | Notes |
 |---|---|---|
 | The app | `https://nimiqnames.com` | Nimiq Pay mini app and web; docs at `#/docs/intro` |
-| The operator's resolver | `https://api.nimiqnames.com` | the entry to put in `resolvers` today |
-| A replica | `https://nns.sonartech.pro` | same operator, second box — useful to check equality of roots; **not** an independent quorum member |
+| Resolver 1 | `https://api.nimiqnames.com` | in `DEFAULT_RESOLVERS` |
+| Resolver 2 | `https://nns.sonartech.pro` | in `DEFAULT_RESOLVERS`. Same operator, separate box and separately replayed database — two indexes, not one mirrored twice |
+| The browser bundle | `https://nimiqnames.com/nns.js` | `@nns/resolver` as one self-contained ES module (§3.1) |
 | The reference delegate | `https://delegated.nimiqnames.com` | `GET /nns/rico` answers; a client can test its delegate step against it |
 | Repository | `https://github.com/selfcrypto/nns` | `packages/`, `deploy/`, `docs/nns-spec-v1.md` |
 
-Quorum today is one named operator. The moment a second independent resolver
-is listed in `DEFAULT_RESOLVERS`, every client that spread it and kept
-`quorum: 2` starts requiring both — with no code change.
+The shipped default meets `RESOLVER_QUORUM` (2) with no configuration, so a
+client that passes no `resolvers` at all still requires two agreeing answers
+and a verified proof. Both entries are ours, which is the gap §7 asks you to
+help close: the day a third, independently operated endpoint is listed, every
+client that spread the defaults picks it up by upgrading the package — no code
+change, and the count on screen goes up on its own.
 
 ### 10.6 Where to read more
 

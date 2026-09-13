@@ -395,6 +395,36 @@ describe('quorum configuration', () => {
     expect(result.quorum.required).toBe(1)
   })
 
+  it('drops a repeated URL and says so on every result, rather than counting one party twice', async () => {
+    const console_ = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    // The ordinary route to this: an app spread the shipped defaults and had
+    // already added the same endpoint by hand, under its own name.
+    const resolver = new NnsResolver({
+      resolvers: [A, { name: 'ours', url: 'https://a.example/' }],
+      quorum: 1,
+      fetch: fakeFetch({ 'a.example': serves(resolveJson(RECORDS, 'kikeee')) }),
+    })
+    expect(console_).toHaveBeenCalled()
+
+    const result = await resolver.resolve('kikeee')
+    expect(result.warnings.map((w) => w.code)).toContain('DUPLICATE_RESOLVER')
+    // The list that was queried is one endpoint, and the name that survived is
+    // the first one given.
+    expect(result.quorum.queried).toBe(1)
+    expect(result.quorum.resolvers.map((r) => r.name)).toEqual(['reference'])
+  })
+
+  it('constructing with a quorum of two over a duplicated single endpoint is refused, not silently met', () => {
+    expect(
+      () =>
+        new NnsResolver({
+          resolvers: [A, { name: 'ours', url: 'https://a.example' }],
+          quorum: 2,
+          fetch: fakeFetch({}),
+        }),
+    ).toThrow(/cannot be met/)
+  })
+
   it('says on every result that the anchor was never checked', async () => {
     const body = resolveJson(RECORDS, 'kikeee')
     const result = await resolverOver({ 'a.example': serves(body), 'b.example': serves(body) }).resolve('kikeee')

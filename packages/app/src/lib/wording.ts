@@ -86,6 +86,11 @@ export type Tone = 'depth' | 'info' | 'couldnt-check' | 'alarm'
 
 export const WARNING_TONE: Record<WarningCode, Tone> = {
   QUORUM_BELOW_SPEC: 'info',
+  // A misconfiguration of this deployment, not a finding about a name: the
+  // count the "Verified by N" line shows is already the deduplicated one, so
+  // the user is not being told something false. It is the operator who needs
+  // to know, and `info` is where an operator looks.
+  DUPLICATE_RESOLVER: 'info',
   PROOF_PENDING: 'depth',
   TARGET_CHANGED_SINCE_CHECKPOINT: 'depth',
   DELEGATE_HOST_UNPROVEN: 'info',
@@ -114,6 +119,7 @@ export const RENDERED_ELSEWHERE: ReadonlySet<WarningCode> = new Set([
 
 export const WARNING_TEXT: Record<WarningCode, string> = {
   QUORUM_BELOW_SPEC: 'One resolver is configured to answer.',
+  DUPLICATE_RESOLVER: 'One resolver was listed twice and counted once.',
   PROOF_PENDING: proofPendingLine(),
   TARGET_CHANGED_SINCE_CHECKPOINT: targetChangedLine(),
   DELEGATE_HOST_UNPROVEN: 'The delegate host came from the live record, not a proven one.',

@@ -22,6 +22,13 @@ export type WarningCode =
    */
   | 'QUORUM_BELOW_SPEC'
   /**
+   * The configured list held one URL more than once, and the repeats were
+   * dropped. Rides on **every** result for the same reason
+   * `QUORUM_BELOW_SPEC` does: the list a client actually queried is not the
+   * list it was handed, and the difference is how many parties it checked.
+   */
+  | 'DUPLICATE_RESOLVER'
+  /**
    * The agreeing resolvers were at different checkpoint heights **and the
    * cross-height comparison could not complete** — an ahead resolver could
    * not serve the behind one's boundary (pruned, pending, unreachable, or a

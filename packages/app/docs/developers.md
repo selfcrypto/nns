@@ -11,11 +11,9 @@ npm install @nns/resolver
 ```
 
 ```ts
-import { createResolver, DEFAULT_RESOLVERS } from '@nns/resolver'
+import { createResolver } from '@nns/resolver'
 
-const nns = createResolver({
-  resolvers: [...DEFAULT_RESOLVERS],   // { name, url } pairs, shipped in your bundle
-})
+const nns = createResolver({})   // DEFAULT_RESOLVERS, quorum 2 — nothing to configure
 
 const result = await nns.resolve('kike')
 result.address        // 'NQ…' — the address to pay
@@ -32,9 +30,11 @@ Keep the instance if you resolve more than one name; it carries the subdomain ca
 
 ### The resolver list ships in your bundle
 
-`resolvers` is required and is never fetched at runtime. A list downloaded at runtime can be swapped for one user on one network without a trace; a list compiled into your app can only change by publishing a version everyone can inspect. Spread `DEFAULT_RESOLVERS` so upgrades bring new operators, and only ever **add** to it — never replace, remove, or lower the quorum from a fetched source.
+`resolvers` is never fetched at runtime. A list downloaded at runtime can be swapped for one user on one network without a trace; a list compiled into your app can only change by publishing a version everyone can inspect. Omit the option to take `DEFAULT_RESOLVERS` — two entries since 2026-09-13 — or spread it and add your own, so upgrades bring new operators. Only ever **add**: never replace, remove, or lower the quorum from a fetched source. A URL that appears twice is counted once, with `DUPLICATE_RESOLVER` on the result.
 
-`quorum` defaults to 2 and is how many resolvers must agree. Setting it to 1 is allowed and loud: every result carries `QUORUM_BELOW_SPEC` for as long as you run that way. At launch there is one resolver, so the launch app sets `quorum: 1` explicitly ([Status](status)).
+`quorum` defaults to 2 and is how many resolvers must agree, which the shipped list satisfies on its own. Setting it to 1 is allowed and loud: every result carries `QUORUM_BELOW_SPEC` for as long as you run that way.
+
+Both default endpoints are run by the same operator on two separately-replayed boxes. That catches a bug or a bad deploy on one of them; it does not catch the operator. The names and URLs are in `result.quorum.resolvers` precisely so a user can see which of the two they are getting ([Status](status)).
 
 ### What `verification` means
 
@@ -71,7 +71,7 @@ A `QuorumError` or `AnchorError` in front of a user is the rare event this desig
 
 ### The two lines your UI owes the user
 
-**"Verified by N resolvers"**, with each agreeing resolver's name and URL listed under it. `N` is `result.quorum.agreed`, singular at 1, never hidden or greyed. Do not label a quorum-1 answer "unverified": the proof verified, and alarm vocabulary spent on a healthy answer is worthless the day a real divergence arrives wearing the same word. Reserve red for the halting errors above.
+**"Verified by N resolvers"**, with each agreeing resolver's name and URL listed under it. `N` is `result.quorum.agreed`, singular at 1, never hidden or greyed. Do not label a healthy answer "unverified" because the count is small: the proof verified, and alarm vocabulary spent on a healthy answer is worthless the day a real divergence arrives wearing the same word. Reserve red for the halting errors above.
 
 **Render names in a face that separates `0`/`o`, `1`/`l` and `rn`/`m`**, and show the Nimiq identicon of `result.address` beside any address a user might pay. The stylesheet ships with the package:
 

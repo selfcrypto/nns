@@ -44,9 +44,28 @@ export {
 export type { AnchorCheck, AnchorReadRpc } from '@nns/anchor/reader'
 export { createAnchorReadRpc } from '@nns/anchor/reader'
 
-// Both empty: nothing is deployed. Spread them, so the day they have entries
-// an integrator picks those up by upgrading rather than by editing.
+// Two resolvers, no anchor publishers. Spread them rather than replacing
+// them, so the day either list grows an integrator picks the new entries up
+// by upgrading rather than by editing.
 export { DEFAULT_ANCHOR_PUBLISHERS, DEFAULT_RESOLVERS } from './defaults.js'
+
+/**
+ * `formatAddress` is core's, re-exported here for one reason: the only
+ * correct way to *display* what `resolve()` returns.
+ *
+ * `result.address` is the canonical compact form, which is what a payment
+ * takes; a user reads the spaced form, and §4.3's rules about which glyphs
+ * must be distinguishable are about what a user reads. This package already
+ * owns that surface — it ships the stylesheet for it — so a host that took
+ * the resolver and not `@nns/core` should not have to add a second dependency
+ * to render an address the way every Nimiq wallet does. Notably the
+ * single-file browser build (`dist/nns.js`) has no other way to reach it.
+ *
+ * Nothing else from core is re-exported: the builders in §6 are a different
+ * job with a different dependency, and a barrel that forwards a whole package
+ * is a barrel nobody can tell the boundary of.
+ */
+export { formatAddress } from '@nns/core'
 
 export type { CheckpointRef } from './quorum.js'
 

@@ -8,15 +8,16 @@ any language, verifying proofs without this package, subdomains for an
 exchange, writing to the registry, running a resolver — is
 `docs/integration.md` at the repository root.
 
+```sh
+npm install @nns/resolver
+```
+
 ```ts
 import { createResolver } from '@nns/resolver'
 
-const nns = createResolver({
-  resolvers: [
-    { name: 'Example Labs', url: 'https://nns.example.org' },
-    { name: 'Second Operator', url: 'https://nns.other.example' },
-  ],
-})
+// Zero configuration: the shipped resolver list has two public endpoints and
+// the default quorum is 2, so this asks both and requires them to agree.
+const nns = createResolver({})
 
 const result = await nns.resolve('kike')
 result.address       // 'NQ...' — the address to pay
@@ -33,8 +34,18 @@ against a published checkpoint root, and this package rebuilds the leaf,
 recombines the proof, and compares what several operators say before it returns
 an address. **You cannot turn that off**; there is no option for it.
 
-Browser and Node, TypeScript, MIT, two dependencies (`@nns/core`,
+Browser and Node 20+, TypeScript, MIT, two dependencies (`@nns/core`,
 `@nns/anchor`), no Node builtins, no font downloads, no telemetry.
+
+**No bundler?** `dist/nns.js` is the same source as one self-contained ES
+module — 68 kB, 24 kB over the wire, importing nothing:
+
+```html
+<script type="module">
+  import { createResolver } from 'https://cdn.jsdelivr.net/npm/@nns/resolver/dist/nns.js'
+  const { address } = await createResolver({}).resolve('kike')
+</script>
+```
 
 ---
 
@@ -102,15 +113,20 @@ spread them:
 resolvers: [...DEFAULT_RESOLVERS, { name: 'Ours', url: 'https://nns.ours.example' }]
 ```
 
-Written that way, the day the defaults have entries you pick them up by
+Written that way, the day either default grows an entry you pick it up by
 upgrading this package, not by editing your own code.
 
-**Today both defaults are empty**, and that is a fact about the deployment
-rather than a TODO: no NNS API is publicly deployed and no anchor contract
-exists on any chain, so there is no honest entry to put in either. Inventing
-one would ship a party of our choosing into every app that embeds this — which
-is exactly the dependency the design exists to avoid. So omitting `resolvers`
-throws a `ConfigurationError` that says so, instead of answering from nowhere.
+**`DEFAULT_RESOLVERS` has two entries** (since 2026-09-13) and
+`DEFAULT_ANCHOR_PUBLISHERS` is still empty, because no anchor contract exists
+on any chain yet. Omitting `resolvers` therefore works and meets the default
+quorum; passing an **empty** list still throws a `ConfigurationError`, since
+that is a mistake rather than a choice.
+
+Listing the same URL twice does not raise the quorum. The repeat is dropped
+and a `DUPLICATE_RESOLVER` warning rides on every result — it warns rather
+than throws because the ordinary way to get there is an app that added an
+endpoint by hand and then upgraded on the day that endpoint joined the
+defaults, and breaking that app would punish the operator who got listed.
 
 If a directory of operators is published somewhere (a `resolvers.json` in a
 repo, say), you may use it to **add** endpoints to your list. Never to replace
@@ -121,48 +137,47 @@ told to everyone at once and permanently inspectable. Adding endpoints can only
 make an answer harder to obtain — quorum here is an AND, never a vote — so
 add-only is safe in a way that replace is not.
 
-### At launch, the quorum is 1
+### Two resolvers, one operator — say which of the two checks you are getting
 
-State it plainly, because your users deserve it stated plainly: **NNS launches
-with a single resolver, run by one named, identifiable operator, and the
-launch app configures `quorum: 1` explicitly.** This library's own default is
-2; `quorum: 1` is a deployment override for the launch app alone, and it goes
-away the day a second resolver exists. The package default stays 2 and
-`QUORUM_BELOW_SPEC` stays on every result; the launch configuration is an
-override, not a silencing.
+State it plainly, because your users deserve it stated plainly: **the two
+endpoints in `DEFAULT_RESOLVERS` are run by the same operator that publishes
+this package.** A client on the defaults alone is trusting one party twice.
 
-There is no honest way to conjure a second operator before the service exists
-and someone wants to run one. And a second copy of the same indexer, on the
-same account, run by the same people, would be worse than one: identical
-inputs, identical bugs, guaranteed agreement, and a `required: 2` on every
-result claiming corroboration that never happened. **A mirror is not a quorum
-member.** So: one operator, named — a name can be asked questions and held to
-its answers, and an anonymous single resolver is the same trust with nobody
-answerable for it.
+That is not the same as trusting one endpoint, and the difference is worth
+being precise about, because there are two distinct checks here and this
+configuration buys exactly one of them.
 
-What quorum 1 still buys, exactly — it is not "no verification":
+- **The determinism check — yes.** The two are separately replayed: their own
+  database, their own host, their own provider, each one rebuilding the
+  registry from the chain on its own. Agreement means the reducer produced the
+  same bytes on two machines and neither one drifted, resynced past its
+  history horizon, or took a bad deploy. That is the failure mode this whole
+  design rests on not having, and a single endpoint cannot detect it at all.
+- **The independence check — no.** They share code and they share an operator,
+  so a bug in the shared reducer produces the same wrong answer twice, and a
+  deliberate lie can be told twice. A `required: 2` here is not two parties
+  corroborating each other.
 
-- The Merkle proof is verified in full. The answer really is in the tree under
-  the root that operator published.
-- The checkpoint binding is verified: the root the proof used must be the root
-  inside that operator's own checkpoint document, whose commitment is
-  recomputed from its own parts.
-- The anchor tier, once publishers are listed, is cross-checked against a
-  **different chain by parties who are not the resolver.** At quorum 1 this is
-  the one independent check the client has, which is why it is worth
-  configuring on day one rather than later.
+An earlier version of this file argued that a second box under one operator
+was therefore *worse* than one, because it claims corroboration that never
+happened. That was right about the claim and wrong about the remedy: the
+remedy is to name what the count means, not to withhold a check that catches
+the most likely failure. So the resolvers are **named** on every result
+(`quorum.resolvers`), and two names under one operator are visible as such to
+anyone who looks — rather than a quorum of 1 that silently checks less.
 
-What is missing is precisely the cross-party comparison: an operator serving a
-wholly fabricated state passes everything above **except** the anchor. That is
-the exposure, it has one name, and the anchor is the mitigation until there is
-a second operator.
+What is still missing is precisely the cross-party comparison: an operator
+serving a wholly fabricated state passes the proof check, the checkpoint
+binding and the agreement of its own two boxes. The mitigations are the §9
+anchor tier — a **different chain, parties who are not the resolver** — and,
+above everything, a third endpoint someone else runs.
 
-**When a second operator appears**, they run their own indexer against their
-own Nimiq node on unshared infrastructure, the two states are compared at
-shared checkpoint boundaries, and a version of this package ships with both in
-`DEFAULT_RESOLVERS`. Apps that spread the defaults drop their `quorum: 1`
-override, the default of 2 takes effect, `QUORUM_BELOW_SPEC` disappears on its
-own, and the count you display moves from 1 to 2 with no code change.
+**When an independent operator appears**, they run their own indexer against
+their own Nimiq node on unshared infrastructure and a version of this package
+ships with them in `DEFAULT_RESOLVERS`. Apps that spread the defaults pick
+them up by upgrading, the count they display moves from 2 to 3, and nothing in
+their code changes. If that could be you, `docs/integration.md` §7 is the
+whole procedure and it is the most useful thing an integrator can contribute.
 
 ---
 
@@ -386,10 +401,13 @@ and on a phone it should: a quorum of eight is longer than the answer it
 supports. What this rule forbids is a client where the list is *absent* — a
 count with nowhere to go — or where the count itself is hidden.
 
-**Do not label a quorum-1 answer "unverified".** It is factually wrong: the
-proof verified, the checkpoint binding held, and — with publishers configured —
-another chain agrees. Every check the client ran passed. What is absent is
-corroboration by a second party, which is a different sentence.
+**Do not label an answer "unverified" because the quorum is small.** It is
+factually wrong: the proof verified, the checkpoint binding held, and — with
+publishers configured — another chain agrees. Every check the client ran
+passed. What is thin is the number of parties that corroborate it, which is a
+different sentence, and `quorum.resolvers` is where that sentence belongs.
+This is the rule at `required: 2` with the shipped defaults, and it is the same
+rule for an operator who deliberately configures a single endpoint of their own.
 
 And the cost of saying it anyway is the thing this design exists to prevent. If
 the normal, healthy, everyday answer is labelled "unverified", users learn

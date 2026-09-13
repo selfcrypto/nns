@@ -111,9 +111,6 @@ importers:
       '@noble/hashes':
         specifier: 'catalog:'
         version: 2.3.0
-      viem:
-        specifier: 'catalog:'
-        version: 2.55.15(bufferutil@4.1.0)(typescript@7.0.2)(utf-8-validate@5.0.10)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -124,6 +121,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      viem:
+        specifier: 'catalog:'
+        version: 2.55.15(bufferutil@4.1.0)(typescript@7.0.2)(utf-8-validate@5.0.10)
       vitest:
         specifier: 'catalog:'
         version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@26.2.0))
@@ -324,6 +324,9 @@ importers:
       typescript:
         specifier: 'catalog:'
         version: 7.0.2
+      vite:
+        specifier: 'catalog:'
+        version: 8.2.1(@types/node@26.2.0)
       vitest:
         specifier: 'catalog:'
         version: 4.1.10(@types/node@26.2.0)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@26.2.0))

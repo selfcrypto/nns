@@ -1,4 +1,6 @@
+import { CONSTANTS } from '@nns/core'
 import { describe, expect, it } from 'vitest'
+
 import { ConfigParseError, parseQuorum, parseResolverList } from './config'
 
 describe('parseResolverList', () => {
@@ -42,8 +44,9 @@ describe('parseResolverList', () => {
 })
 
 describe('parseQuorum', () => {
-  it('defaults to 1 — the launch decision, explicit in this deployment', () => {
-    expect(parseQuorum(undefined)).toBe(1)
+  it("defaults to the spec's RESOLVER_QUORUM, not to what one endpoint could meet", () => {
+    expect(parseQuorum(undefined)).toBe(CONSTANTS.RESOLVER_QUORUM)
+    expect(parseQuorum(undefined)).toBe(2)
   })
 
   it('accepts integers ≥ 1 and refuses the rest', () => {

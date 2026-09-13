@@ -44,6 +44,7 @@ import {
   agree,
   answered,
   belowSpecWarning,
+  dedupeEndpoints,
   unavailable,
   type Agreement,
   type CheckpointRef,
@@ -233,10 +234,12 @@ export class NnsResolver {
   readonly #cache: DelegateCache
   readonly #delegateTimeoutMs: number
   readonly #belowSpec: ResolveWarning | null
+  readonly #duplicates: ResolveWarning | null
 
   constructor(options: ResolverOptions) {
     const required = options.quorum ?? CONSTANTS.RESOLVER_QUORUM
-    const resolvers = options.resolvers ?? DEFAULT_RESOLVERS
+    const deduped = dedupeEndpoints(options.resolvers ?? DEFAULT_RESOLVERS)
+    const resolvers = deduped.endpoints
     if (!Number.isSafeInteger(required) || required < 1) {
       throw new ConfigurationError(`quorum must be a positive integer, got ${String(options.quorum)}`)
     }
@@ -244,7 +247,9 @@ export class NnsResolver {
       throw new ConfigurationError(
         `quorum is ${required} but only ${resolvers.length} resolvers are configured — ` +
           'a quorum that cannot be met is a quorum that is not enforced' +
-          (resolvers.length === 0 ? '. DEFAULT_RESOLVERS is empty: no NNS API is deployed yet, so pass your own' : ''),
+          (resolvers.length === 0
+            ? '. You passed an empty list: omit `resolvers` to take DEFAULT_RESOLVERS, or spread it and add your own'
+            : ''),
       )
     }
 
@@ -259,11 +264,14 @@ export class NnsResolver {
     this.#cache = new DelegateCache(options.now ?? Date.now)
     this.#delegateTimeoutMs = options.delegateTimeoutMs ?? options.timeoutMs ?? 5_000
     this.#belowSpec = belowSpecWarning(required)
+    this.#duplicates = deduped.warning
 
     // Loud at construction, not only on results: an app that never renders a
     // warning still gets told once that it is running without the quorum.
-    if (this.#belowSpec !== null && options.onWarning === undefined) {
-      console.warn(`[@nns/resolver] ${this.#belowSpec.detail}`)
+    if (options.onWarning === undefined) {
+      for (const once of [this.#belowSpec, this.#duplicates]) {
+        if (once !== null) console.warn(`[@nns/resolver] ${once.detail}`)
+      }
     }
   }
 
@@ -435,6 +443,7 @@ export class NnsResolver {
     const warnings = [
       ...agreement.warnings,
       ...(this.#belowSpec === null ? [] : [this.#belowSpec]),
+      ...(this.#duplicates === null ? [] : [this.#duplicates]),
       ...(proved
         ? []
         : [
@@ -531,6 +540,7 @@ export class NnsResolver {
     const warnings = [
       ...agreement.warnings,
       ...(this.#belowSpec === null ? [] : [this.#belowSpec]),
+      ...(this.#duplicates === null ? [] : [this.#duplicates]),
       ...(proven
         ? []
         : stale

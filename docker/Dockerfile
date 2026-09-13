@@ -79,7 +79,19 @@ RUN pnpm --filter "@nns/${PKG}..." build
 # the documented answer. The refetch is free: pnpm's content-addressable store
 # is in this stage already, so the reinstall is relinking, not downloading.
 ENV CI=true
-RUN pnpm install --frozen-lockfile --prod --filter "@nns/${PKG}..."
+# `@nns/anchor` is the one exception, and it is a packaging fact rather than a
+# deployment one: since the package is published to npm, `viem` and `solc` are
+# **devDependencies** there — no module reachable from any of its three export
+# subpaths imports either, only the three CLIs do, so a library consumer that
+# had them installed would be carrying ~85 MB for code it can never call. But
+# one of those CLIs *is* this role's entrypoint, so pruning here would leave
+# the publisher unable to sign. It keeps its build tree; every other service
+# runs on its production one.
+RUN if [ "${PKG}" = "anchor" ]; then \
+      echo 'anchor keeps its build tree: its CLIs are its runtime (viem, solc)'; \
+    else \
+      pnpm install --frozen-lockfile --prod --filter "@nns/${PKG}..."; \
+    fi
 
 
 FROM node:24-alpine AS runtime
