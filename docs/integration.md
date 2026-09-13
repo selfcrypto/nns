@@ -1270,5 +1270,4 @@ change, and the count on screen goes up on its own.
 - `packages/api/openapi.yaml` — every route and schema.
 - `packages/delegate/README.md`, `deploy/delegate/README.md` — the host, the TLS recipes.
 - `deploy/README.md`, `deploy/resolver/README.md` — running the roles.
-- `docs/rpc-reference.md` — what Nimiq's RPC actually does, measured.
 - `docs/nns-spec-v1.md` — the protocol. §4 names, §5 wire, §6 messages, §7 rules, §8 checkpoints/proofs/clients, §9 anchoring, §10 economics.

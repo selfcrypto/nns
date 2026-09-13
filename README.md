@@ -99,7 +99,6 @@ is a lost name, as in ENS.
 |---|---|
 | `docs/nns-spec-v1.md` | **The protocol specification.** Authoritative |
 | `docs/integration.md` | **The integration guide** — the HTTP API from any language, the `@nns/resolver` library, verifying proofs yourself, subdomains for exchanges, writing to the registry, running a resolver, names on EVM chains |
-| `docs/rpc-reference.md` | What Nimiq's RPC actually does, measured not assumed |
 | `docs/runbooks/` | `operators.md` (the role map), `release.md` (publishing the three npm packages) |
 | **`packages/`** | **Twelve packages — [`packages/README.md`](packages/README.md) explains each one and how they stack** |
 | **`deploy/`** | **One directory per operator role — [`deploy/README.md`](deploy/README.md) picks the right one and covers what they share** |
