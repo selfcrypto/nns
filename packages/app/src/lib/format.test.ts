@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { approxDate, blocksApprox, displayAddress, ellipsizeAddress, formatApproxDate, group, lunaToNim } from './format'
+import { approxDate, blocksApprox, displayAddress, ellipsizeAddress, formatApproxDate, group, looksGrouped, lunaToNim, lunaToNimInput } from './format'
+import { parseNimAmount } from './actions'
 
 describe('lunaToNim', () => {
   it('renders whole NIM without decimals and fractions trimmed', () => {
@@ -72,5 +73,44 @@ describe('thousands grouping', () => {
     // Five decimals is the whole precision, so a fraction can never reach the
     // length where a separator would even be a question.
     expect(lunaToNim(99_999n)).toBe('0.99999')
+  })
+})
+
+describe('the read form and the typed form', () => {
+  it('differ in exactly one thing', () => {
+    expect(lunaToNim(1_876_584_304n)).toBe('18,765.84304')
+    expect(lunaToNimInput(1_876_584_304n)).toBe('18765.84304')
+    expect(lunaToNim(0n)).toBe(lunaToNimInput(0n))
+    expect(lunaToNim(150_000n)).toBe(lunaToNimInput(150_000n))
+  })
+
+  /**
+   * The bug this pair exists for: Pay's MAX filled the amount field from the
+   * *read* form, so a balance of 18,765.84304 went in and the parser rejected
+   * it on the next keystroke (Kike, 2026-09-14). Anything a button puts into
+   * a field has to survive the parser behind it.
+   */
+  it('round-trips the typed form through the parser, which is what MAX needs', () => {
+    for (const luna of [0n, 1n, 150_000n, 100_000_000n, 1_876_584_304n, 123_456_789_012_345n]) {
+      expect(parseNimAmount(lunaToNimInput(luna)), String(luna)).toBe(luna)
+    }
+  })
+
+  it('and the read form does not, which is why the two are separate functions', () => {
+    expect(() => parseNimAmount(lunaToNim(1_876_584_304n))).toThrow(/without thousands separators/)
+  })
+})
+
+describe('looksGrouped', () => {
+  it('catches a grouped amount with or without a fraction behind it', () => {
+    for (const grouped of ['1,000', '12,345', '18,765.84304', '123,456,789', '1.234.567', '1.234.567,89']) {
+      expect(looksGrouped(grouped), grouped).toBe(true)
+    }
+  })
+
+  it('leaves every unambiguous amount alone', () => {
+    for (const plain of ['450', '1.5', '1,5', '0.00001', '12.345', '18765.84304', '', 'abc']) {
+      expect(looksGrouped(plain), plain).toBe(false)
+    }
   })
 })

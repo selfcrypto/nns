@@ -319,7 +319,7 @@ describe('parseNimAmount', () => {
     // would take it as 12.345 NIM. A thousandfold underbid that passes every
     // check after it is the one outcome this field may not have, so the shape
     // is refused by name rather than guessed at.
-    for (const bad of ['1,000', '12,345', '123,456,789', '1.234.567']) {
+    for (const bad of ['1,000', '12,345', '123,456,789', '1.234.567', '18,765.84304']) {
       expect(() => parseNimAmount(bad), bad).toThrow(/without thousands separators/)
     }
     expect(() => parseNimAmount('12,345', 'Bid')).toThrow(/^Bid is typed without/)

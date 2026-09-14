@@ -27,6 +27,7 @@ import {
   EvmAmountError,
   fetchUsdtBalanceFor,
   formatUsdt,
+  formatUsdtInput,
   parseUsdtAmount,
   sendUsdtOnPolygon,
   silentEvmAccount,
@@ -36,7 +37,7 @@ import { requestHostEvmAddress } from '../lib/sdk'
 import { CONSTANTS } from '@nimiqnames/core'
 import { bytesToHex } from '../lib/hex'
 import { payMessageBytes, payMessageFault, payRequestFromHash, payRequestFromLink } from '../lib/payRequest'
-import { lunaToNim } from '../lib/format'
+import { lunaToNim, lunaToNimInput } from '../lib/format'
 import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
 import { search } from '../lib/search'
@@ -579,7 +580,7 @@ export function PayScreen({
                       <button
                         type="button"
                         className={styles.maxBtn}
-                        onClick={() => setAmount(formatUsdt(usdtHeld))}
+                        onClick={() => setAmount(formatUsdtInput(usdtHeld))}
                       >
                         MAX ({formatUsdt(usdtHeld)})
                       </button>
@@ -723,7 +724,7 @@ export function PayScreen({
                       <button
                         type="button"
                         className={styles.maxBtn}
-                        onClick={() => setAmount(lunaToNim(nimMine))}
+                        onClick={() => setAmount(lunaToNimInput(nimMine))}
                       >
                         {maxLabel(lunaToNim(nimMine))}
                       </button>

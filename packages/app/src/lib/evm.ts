@@ -16,6 +16,7 @@
  */
 
 import { discoverEvmProvider } from './sdk'
+import { group, looksGrouped } from './format'
 
 /** The provider shape `discoverEvmProvider` answers with — re-declared here for the injectable parameter. */
 interface Eip1193Like {
@@ -48,19 +49,31 @@ export class EvmAmountError extends Error {
  * separator per amount, no thousands grouping.
  */
 export const parseUsdtAmount = (text: string): bigint => {
-  const match = /^([0-9]+)(?:[.,]([0-9]{1,6}))?$/.exec(text.trim())
+  const trimmed = text.trim()
+  // Same refusal as `parseNimAmount`, same reason: `,` is a decimal separator
+  // here, so a grouped amount has two honest readings (`format.ts`'s
+  // `looksGrouped`). One screen, one rule — the Pay form takes both assets.
+  if (looksGrouped(trimmed)) {
+    throw new EvmAmountError('Amount is typed without thousands separators — 12345, not 12,345')
+  }
+  const match = /^([0-9]+)(?:[.,]([0-9]{1,6}))?$/.exec(trimmed)
   if (match === null || match[1] === undefined) {
     throw new EvmAmountError('Amount must be a USDT amount, like 25 or 9.50')
   }
   return BigInt(match[1]) * 1_000_000n + BigInt((match[2] ?? '').padEnd(6, '0'))
 }
 
-/** Integer units back to a display string, trailing zeros trimmed. */
-export const formatUsdt = (units: bigint): string => {
-  const whole = units / 1_000_000n
+/** Six decimals, trailing zeros trimmed; `whole` is read or typed. */
+const usdt = (units: bigint, whole: (value: bigint) => string): string => {
   const frac = (units % 1_000_000n).toString().padStart(6, '0').replace(/0+$/, '')
-  return frac === '' ? whole.toString() : `${whole}.${frac}`
+  return frac === '' ? whole(units / 1_000_000n) : `${whole(units / 1_000_000n)}.${frac}`
 }
+
+/** Integer units → USDT, grouped. **For reading.** */
+export const formatUsdt = (units: bigint): string => usdt(units, group)
+
+/** The same number, ungrouped. **For a field** — see `lunaToNimInput`. */
+export const formatUsdtInput = (units: bigint): string => usdt(units, String)
 
 /**
  * `transfer(address,uint256)` calldata: the selector `0xa9059cbb` and two

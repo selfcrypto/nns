@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { EvmAmountError, FALLBACK_TRANSFER_GAS, POLYGON_PUBLIC_RPCS, USDT_POLYGON, erc20TransferData, evmErrorMessage, fetchPolBalanceFor, fetchUsdtBalanceFor, formatUsdt, gasLimitFor, parseUsdtAmount, sendUsdtOnPolygon, silentEvmAccount } from './evm'
+import { EvmAmountError, FALLBACK_TRANSFER_GAS, POLYGON_PUBLIC_RPCS, USDT_POLYGON, erc20TransferData, evmErrorMessage, fetchPolBalanceFor, fetchUsdtBalanceFor, formatUsdt, formatUsdtInput, gasLimitFor, parseUsdtAmount, sendUsdtOnPolygon, silentEvmAccount } from './evm'
 
 const noFetch = (() => Promise.reject(new Error('no network in tests'))) as unknown as typeof fetch
 
@@ -17,6 +17,24 @@ describe('parseUsdtAmount', () => {
     // differently per locale, so they never parse.
     for (const bad of ['', '1.2345678', '1,2345678', '-2', '1e3', '0x10', ',5', '1.000,5', '1,000.5']) {
       expect(() => parseUsdtAmount(bad)).toThrow(EvmAmountError)
+    }
+  })
+
+  it('refuses a grouped amount rather than reading it as a decimal', () => {
+    // `,` is a decimal separator here, so `12,345` would be 12.345 USDT —
+    // the same trap `parseNimAmount` carries, on the same form.
+    for (const bad of ['1,000', '12,345', '18,765.843040']) {
+      expect(() => parseUsdtAmount(bad), bad).toThrow(/without thousands separators/)
+    }
+    expect(parseUsdtAmount('9,5')).toBe(9_500_000n)
+  })
+
+  it('separates the read form from the typed one, as NIM does', () => {
+    expect(formatUsdt(18_765_843_040n)).toBe('18,765.84304')
+    expect(formatUsdtInput(18_765_843_040n)).toBe('18765.84304')
+    // What MAX puts in the field must survive the parser behind it.
+    for (const units of [0n, 1n, 9_500_000n, 18_765_843_040n]) {
+      expect(parseUsdtAmount(formatUsdtInput(units)), String(units)).toBe(units)
     }
   })
 

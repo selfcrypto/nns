@@ -19,21 +19,55 @@ export function group(value: bigint | number): string {
 }
 
 /**
- * Integer luna → NIM display string: grouped in threes, trailing zeros
- * trimmed.
+ * A grouped amount, in either notation: a comma with exactly three digits
+ * behind it, or two or more period-separated runs of three — each with an
+ * optional fraction after it, because `18,765.84304` is the shape a balance
+ * takes and it is every bit as grouped as `18,765`.
  *
- * **Display only, and now provably so.** The result carries commas, and
- * `parseNimAmount` reads a comma as a decimal point — so handing this back to
- * it would turn 12,345 NIM into 12.345. Nothing does: every amount field in
- * the app starts empty (`ActionSheet`) or is seeded from the payment link's
- * own query (`Pay`), never from here. The parser refuses the grouped shape
- * anyway, because the reader can retype what they see.
+ * Shared by both parsers (`parseNimAmount`, `parseUsdtAmount`), which read a
+ * comma as a *decimal point* for the keyboards that write `1,5`. That makes
+ * `12,345` two honest readings — twelve thousand, or twelve and a third — and
+ * a money field is the last place to guess between them, so the shape is
+ * refused by name rather than interpreted.
+ *
+ * A single period with three decimals is deliberately absent: `12.345` is
+ * unambiguous in the notation this app writes, and has always meant 12.345.
  */
-export function lunaToNim(luna: bigint): string {
-  const whole = luna / LUNA_PER_NIM
+export function looksGrouped(text: string): boolean {
+  return /^[0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?$|^[0-9]{1,3}(?:\.[0-9]{3}){2,}(?:,[0-9]+)?$/.test(text)
+}
+
+/**
+ * The NIM of an integer luna, five decimals, trailing zeros trimmed. The
+ * `whole` argument is the *only* difference between the two exports below,
+ * which is the point: one of them is read and the other is typed, and the
+ * split is a comma.
+ */
+function nim(luna: bigint, whole: (value: bigint) => string): string {
+  const w = luna / LUNA_PER_NIM
   const frac = luna % LUNA_PER_NIM
-  if (frac === 0n) return group(whole)
-  return `${group(whole)}.${frac.toString().padStart(5, '0').replace(/0+$/, '')}`
+  if (frac === 0n) return whole(w)
+  return `${whole(w)}.${frac.toString().padStart(5, '0').replace(/0+$/, '')}`
+}
+
+/** Integer luna → NIM, grouped. **For reading.** */
+export function lunaToNim(luna: bigint): string {
+  return nim(luna, group)
+}
+
+/**
+ * The same number, ungrouped. **For a field**, whose contents are parsed
+ * again — `parseNimAmount` reads the comma `lunaToNim` writes as a decimal
+ * point, so filling an input from the grouped form puts a value in it that
+ * the app then refuses.
+ *
+ * Which is not hypothetical: Pay's MAX button did exactly that the day
+ * grouping shipped, offering a balance of `18,765.84304` and rejecting it on
+ * the next keystroke (Kike, 2026-09-14). `format.test.ts` pins the round trip
+ * through the parser so the pair cannot drift apart again.
+ */
+export function lunaToNimInput(luna: bigint): string {
+  return nim(luna, String)
 }
 
 /**
