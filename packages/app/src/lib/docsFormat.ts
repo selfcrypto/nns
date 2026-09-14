@@ -19,8 +19,10 @@
  */
 
 import { CONSTANTS, feeFor, LAUNCH_PRICES, LUNA_PER_NIM } from '@nimiqnames/core'
-
-import { displayAddress } from './format'
+// `group` was written here and now lives in `format.ts`: the app's own
+// amounts group the same way, and two implementations of a separator is two
+// that drift.
+import { displayAddress, group } from './format'
 import { headlineBp, percentOf, rebatePercent, REFERRAL_RATES, referralHeadlineBp } from './referralRates'
 
 export interface DocPage {
@@ -47,13 +49,6 @@ export function parseDocIndex(markdown: string): readonly DocPage[] {
 }
 
 /** Thousands separators, without asking the platform for a locale. */
-function group(value: bigint | number): string {
-  const digits = (typeof value === 'bigint' ? value : Math.trunc(value)).toString()
-  const sign = digits.startsWith('-') ? '-' : ''
-  const body = sign === '' ? digits : digits.slice(1)
-  return sign + body.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
-}
-
 /** Integer luna → `400 NIM`, grouped, fractions kept (`REFUND_FLOOR` has been one). */
 export function formatNim(luna: bigint): string {
   const whole = luna / LUNA_PER_NIM

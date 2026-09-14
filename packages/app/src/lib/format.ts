@@ -1,11 +1,39 @@
 import { formatAddress, LUNA_PER_NIM, tryParseAddress } from '@nimiqnames/core'
 
-/** Integer luna → NIM display string, trailing zeros trimmed. */
+/**
+ * Digits in threes: `1234567` → `1,234,567`. The integer part only — a
+ * fraction is never grouped.
+ *
+ * A comma, because every decimal this app writes is a point (`lunaToNim`
+ * below, and `docsFormat.ts`, which is where this function was first written
+ * and now imports it), so the two can never be read for each other *within a
+ * page*. It stays ambiguous to a reader who writes `1,5` for one and a half,
+ * which is why `parseNimAmount` refuses a comma-grouped amount by name rather
+ * than guessing at it.
+ */
+export function group(value: bigint | number): string {
+  const digits = (typeof value === 'bigint' ? value : Math.trunc(value)).toString()
+  const sign = digits.startsWith('-') ? '-' : ''
+  const body = sign === '' ? digits : digits.slice(1)
+  return sign + body.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+/**
+ * Integer luna → NIM display string: grouped in threes, trailing zeros
+ * trimmed.
+ *
+ * **Display only, and now provably so.** The result carries commas, and
+ * `parseNimAmount` reads a comma as a decimal point — so handing this back to
+ * it would turn 12,345 NIM into 12.345. Nothing does: every amount field in
+ * the app starts empty (`ActionSheet`) or is seeded from the payment link's
+ * own query (`Pay`), never from here. The parser refuses the grouped shape
+ * anyway, because the reader can retype what they see.
+ */
 export function lunaToNim(luna: bigint): string {
   const whole = luna / LUNA_PER_NIM
   const frac = luna % LUNA_PER_NIM
-  if (frac === 0n) return whole.toString()
-  return `${whole}.${frac.toString().padStart(5, '0').replace(/0+$/, '')}`
+  if (frac === 0n) return group(whole)
+  return `${group(whole)}.${frac.toString().padStart(5, '0').replace(/0+$/, '')}`
 }
 
 /**

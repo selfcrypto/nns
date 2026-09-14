@@ -92,7 +92,7 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     const parsed = parse(prepared.request.dataHex)
     expect(parsed.ok && parsed.message.type === 'G' && parsed.message.lifetime).toBe(true)
     // No record to measure from: the head is the one `/params` was served at.
-    expect(prepared.review[0]).toBe(`Pays 20000 NIM to the registry — yours until ${dateAt(termFor(true))}.`)
+    expect(prepared.review[0]).toBe(`Pays 20,000 NIM to the registry — yours until ${dateAt(termFor(true))}.`)
     expect(prepared.review[0]).not.toMatch(/lifetime/i)
   })
 
@@ -269,7 +269,7 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
       expect(prepared.request.value).toBe(1000n * LUNA_PER_NIM)
       const parsed = parse(prepared.request.dataHex)
       expect(parsed.ok && parsed.message.type === 'B').toBe(true)
-      expect(() => prepare({ action: 'bid', bidNim: '999.99999' }, underAuction, OTHER)).toThrow(/at least 1000 NIM/)
+      expect(() => prepare({ action: 'bid', bidNim: '999.99999' }, underAuction, OTHER)).toThrow(/at least 1,000 NIM/)
     })
 
     it('the bid review names the seller and the refund reading of WRONG_PRICE', () => {
@@ -311,6 +311,25 @@ describe('parseNimAmount', () => {
       expect(() => parseNimAmount(bad), bad).toThrow(ActionInputError)
     }
     expect(() => parseNimAmount('abc', 'Amount')).toThrow(/^Amount must be/)
+  })
+
+  it('refuses an amount grouped the way the app now prints one', () => {
+    // `format.ts` groups in threes, so `12,345` is a string the reader can see
+    // and retype — and the rule above reads `,` as a decimal point, which
+    // would take it as 12.345 NIM. A thousandfold underbid that passes every
+    // check after it is the one outcome this field may not have, so the shape
+    // is refused by name rather than guessed at.
+    for (const bad of ['1,000', '12,345', '123,456,789', '1.234.567']) {
+      expect(() => parseNimAmount(bad), bad).toThrow(/without thousands separators/)
+    }
+    expect(() => parseNimAmount('12,345', 'Bid')).toThrow(/^Bid is typed without/)
+    // The price of that: `1,500` meaning one and a half is an error now. Both
+    // unambiguous spellings of it still parse.
+    expect(parseNimAmount('1.5')).toBe(LUNA_PER_NIM + LUNA_PER_NIM / 2n)
+    expect(parseNimAmount('1,5')).toBe(LUNA_PER_NIM + LUNA_PER_NIM / 2n)
+    // A period with three decimals is not grouping in this notation, and has
+    // always meant what it says.
+    expect(parseNimAmount('12.345')).toBe(12n * LUNA_PER_NIM + 34_500n)
   })
 })
 

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { approxDate, blocksApprox, displayAddress, ellipsizeAddress, formatApproxDate, lunaToNim } from './format'
+import { approxDate, blocksApprox, displayAddress, ellipsizeAddress, formatApproxDate, group, lunaToNim } from './format'
 
 describe('lunaToNim', () => {
   it('renders whole NIM without decimals and fractions trimmed', () => {
-    expect(lunaToNim(200_000_000n)).toBe('2000')
+    expect(lunaToNim(200_000_000n)).toBe('2,000')
     expect(lunaToNim(100_000n)).toBe('1')
     expect(lunaToNim(150_000n)).toBe('1.5')
     expect(lunaToNim(1n)).toBe('0.00001')
@@ -53,5 +53,24 @@ describe('displayAddress', () => {
 
   it('lets ellipsizeAddress shorten a compact address', () => {
     expect(ellipsizeAddress('NQ51Q243EF29MTA3LV3UF0JGLLP93SGPYXBF')).toBe('NQ51 Q243 … YXBF')
+  })
+})
+
+describe('thousands grouping', () => {
+  it('groups the integer part in threes and nothing else', () => {
+    expect(group(0n)).toBe('0')
+    expect(group(999n)).toBe('999')
+    expect(group(1000n)).toBe('1,000')
+    expect(group(1_234_567n)).toBe('1,234,567')
+    expect(group(-1_234_567n)).toBe('-1,234,567')
+    expect(group(12_345)).toBe('12,345')
+  })
+
+  it('never groups a fraction — those digits are precision, not magnitude', () => {
+    expect(lunaToNim(1_234_567_800_000n)).toBe('12,345,678')
+    expect(lunaToNim(1_234_512_345n)).toBe('12,345.12345')
+    // Five decimals is the whole precision, so a fraction can never reach the
+    // length where a separator would even be a question.
+    expect(lunaToNim(99_999n)).toBe('0.99999')
   })
 })

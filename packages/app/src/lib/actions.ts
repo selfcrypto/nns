@@ -78,13 +78,35 @@ export class ActionInputError extends Error {
 }
 
 /**
+ * A grouped amount, as the app now prints one (`format.ts`'s `group`): either
+ * a comma with exactly three digits behind it, or two or more separators.
+ *
+ * It is **refused, not interpreted.** The rule below reads `,` as a decimal
+ * point, so `12,345` would parse as 12.345 NIM — a bid a thousandfold under
+ * the one that was typed, and one that passes every check after it. The two
+ * readings are genuinely ambiguous (a German keyboard writes `1,5` for one and
+ * a half; an English card prints `1,500` for fifteen hundred), and a money
+ * field is the last place to guess between them. The cost is that `1,500`
+ * meaning 1.5 is now an error rather than an answer; `1.5` and `1,5` both
+ * still work, and the message says so.
+ *
+ * `.` with three digits is deliberately not here: `12.345` is unambiguous in
+ * the notation this app writes, and has always meant 12.345 NIM.
+ */
+const GROUPED = /^[0-9]{1,3}(?:,[0-9]{3})+$|^[0-9]{1,3}(?:\.[0-9]{3}){2,}$/
+
+/**
  * A NIM decimal to `bigint` luna — five decimals, the whole precision there is.
  * Exported because the Pay screen takes an amount too, and two parsers for one
  * notation is how they come to disagree. `,` separates decimals as well as `.`
  * — regional keyboards write 1,5 — and only that: no thousands grouping.
  */
 export const parseNimAmount = (text: string, what = 'Price'): bigint => {
-  const match = /^([0-9]+)(?:[.,]([0-9]{1,5}))?$/.exec(text.trim())
+  const trimmed = text.trim()
+  if (GROUPED.test(trimmed)) {
+    throw new ActionInputError(`${what} is typed without thousands separators — 12345, not 12,345`)
+  }
+  const match = /^([0-9]+)(?:[.,]([0-9]{1,5}))?$/.exec(trimmed)
   if (match === null || match[1] === undefined) throw new ActionInputError(`${what} must be a NIM amount, like 450 or 1.5`)
   return BigInt(match[1]) * LUNA_PER_NIM + BigInt((match[2] ?? '').padEnd(5, '0'))
 }
