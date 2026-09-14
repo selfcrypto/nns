@@ -280,16 +280,27 @@ select:focus-visible {
   cursor: pointer;
 }
 
-/* Logo · nav · account, the arrangement a reader already knows. This
-   `margin-right: auto` and the corner's `margin-left: auto` meet in the same
-   gap and split it, so the links sit beside the wordmark and the wallet stays
-   in the corner. */
+/* Logo left, account right, nav centred on the viewport — out of the flex
+   flow, because in it the nav can only ever be centred *between* its two
+   neighbours, and those are not the same width: the corner is a 161px address
+   chip or a 127px Connect pill depending on the wallet, which slides a
+   flow-centred nav 20px sideways on the landing page alone. Everything the
+   reader sees below it here — the hero title, the search field — is centred on
+   the viewport, so the nav has to be too or it reads as the one thing that
+   missed.
+
+   Out of flow it cannot push the corner, so the clearance is arithmetic rather
+   than a promise — which is what sets the breakpoint below, at 860 rather than
+   768: measured at 769 a three-address wallet left 15px between the last link
+   and the chip, and that is a near miss, not a margin. */
 .masthead-nav {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   gap: 20px;
-  margin-right: auto;
-  margin-left: 8px;
   font-size: 14px;
   font-weight: 600;
 }
@@ -415,12 +426,22 @@ select:focus-visible {
     width: 26px;
     height: 26px;
   }
+}
 
-  /* Below here the row has no width for four labels: the chip is ~156px and
-     the wordmark ~143px, which spends ~343px of it before the nav asks for
-     ~220px. The button costs 34px and no height at all — and height is the
-     scarce one inside Nimiq Pay, where the top reserve is 0 and the bottom is
-     already down ~120px before the tab bar's pill. */
+/*
+ * Where the four labels stop fitting beside the corner, and the button takes
+ * over. 860 rather than the 768 the rest of this file breaks at, because the
+ * nav is centred on the viewport and therefore cannot push anything: the
+ * clearance to the corner is arithmetic, and it has to hold for the widest
+ * corner the identity draws. Measured at 769px with a three-address wallet —
+ * a chip plus its "+1" badge — the gap was 15px, which is not a collision and
+ * is not a margin either. At 860 the same case clears ~60.
+ *
+ * The button is no loss on the way down: it holds the same four, costs 30px of
+ * width and no height, and height is the scarce one inside Nimiq Pay, where
+ * the top reserve is 0 and the bottom is down ~120px before the tab bar.
+ */
+@media (max-width: 860px) {
   .masthead-nav {
     display: none;
   }
