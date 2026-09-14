@@ -362,12 +362,10 @@ twice — not a cut-down copy, so everything in this section applies to it
 unchanged, and `https://cdn.jsdelivr.net/npm/@nimiqnames/resolver/dist/nns.js` is
 the same file from a CDN if you prefer one that is not ours.
 
-> **Status, 2026-09-14.** The `https://nimiqnames.com/nns.js` URL is live.
-> The three packages (`@nimiqnames/core`, `@nimiqnames/anchor`,
-> `@nimiqnames/resolver`) are release-ready but not yet on the registry —
-> publishing is one command in `docs/runbooks/release.md`. Until it runs,
-> `npm install @nimiqnames/resolver` will 404 and the script tag above is the
-> working path. Nothing else in this guide changes when it does.
+> **Status, 2026-09-14.** `@nimiqnames/core`, `@nimiqnames/anchor` and
+> `@nimiqnames/resolver` are on npm at `0.1.0`, and `https://nimiqnames.com/nns.js`
+> is live. A CDN copy appears a few minutes after each publish, so a fresh
+> version reaches jsDelivr slightly later than it reaches `npm install`.
 
 Either way `dist/` is what ships: ESM, typed, plus `dist/rendering.css`
 (§4.3's type face) and `dist/nns.js` (the bundle above).

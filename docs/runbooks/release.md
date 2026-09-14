@@ -28,6 +28,9 @@ npm whoami                      # confirms which account is about to publish
 npm access ls-packages          # nothing yet, on the first run
 ```
 
+Done on 2026-09-14: the organisation exists, `selfcrypto` owns it, and all
+three packages went out at `0.1.0`.
+
 **The scope is `@nimiqnames`, not `@nns`** (2026-09-14). `nns` is not
 available as an organisation — an unrelated package of that name has held it
 since long before this project — and an npm scope that is not your username
@@ -101,6 +104,19 @@ pnpm publish --filter @nimiqnames/resolver --access public
 `pnpm publish` refuses a dirty tree by default. Let it — a release built from
 uncommitted edits is a release nobody can reproduce.
 
+If npm's 2FA path is what you need (below), pack with pnpm and hand the
+tarball to npm instead — the upload then goes through npm's own client, which
+is the one that knows how to answer a 2FA challenge:
+
+```sh
+pnpm --filter @nimiqnames/core exec pnpm pack --pack-destination /tmp
+npm publish /tmp/nimiqnames-core-<version>.tgz --access public
+```
+
+**Pack with pnpm, never `npm pack`.** The manifests carry `catalog:` and
+`workspace:*`, which only pnpm rewrites into real versions; npm would upload
+those strings verbatim and every install would fail on them.
+
 **7. Verify from outside the workspace**, which is the only verification that
 means anything: a package that resolves only inside the monorepo is the exact
 failure publishing exists to end.
@@ -130,6 +146,26 @@ else changed with it (`deploy.md`).
 
 ## Things that will bite
 
+- **npm has no authenticator-app option any more.** New TOTP enrolments were
+  disabled in September 2025 — 2FA is WebAuthn only. An account can sit at
+  `auth-and-writes` with no factor actually registered, which is this one's
+  state: `npm profile enable-2fa` answers "already enabled", every publish 403s
+  with *"Two-factor authentication or granular access token with bypass 2fa
+  enabled is required"*, and passing `--otp` changes nothing because there is
+  no secret to check it against. `0.1.0` went out on a granular token with
+  **Bypass 2FA** ticked. npm restricted those for account changes in August
+  2026 and **stops accepting them for publishing in January 2027**, so before
+  then either register a passkey — a password manager holds one; Firefox on
+  Linux offers only a hardware key, Chrome also offers the phone over QR — or
+  move releases to trusted publishing from a GitHub Actions workflow. Trusted
+  publishing could not have done the first release: npm wants the package to
+  exist before you can name its publisher.
+- **A new package reads as 404 for a few minutes after it publishes.** The
+  write path is ahead of the read path — `npm install` and even an
+  authenticated `GET` answer 404 while the publish has plainly succeeded. The
+  way to tell that apart from a failed publish is to publish the same tarball
+  again: *"You cannot publish over the previously published versions"* means it
+  is there and you are waiting on replication.
 - **A version is forever.** npm does not allow republishing one, and
   `npm unpublish` is available for 72 hours and breaks anyone who already
   installed it. A mistake is fixed by publishing the next patch.
