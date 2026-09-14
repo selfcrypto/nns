@@ -18,6 +18,7 @@ import { useAsync } from '../lib/useAsync'
 import type { Wallet } from '../lib/wallet'
 import { ActionSheet } from '../components/ActionSheet'
 import { BurnFigures } from '../components/BurnFigures'
+import { Hint } from '../components/Hint'
 import { PinCheck } from '../components/PinCheck'
 import { AddressRow, VerificationLine } from '../components/result'
 import {
@@ -33,7 +34,8 @@ import {
   connectToBidLine,
   connectToBuyLine,
   connectWalletLabel,
-  custodialWarning,
+  marketCustodialHint,
+  marketCustodialLine,
   expiryUntilLine,
   fixedPriceLabel,
   listedByLabel,
@@ -569,16 +571,17 @@ export function OffersScreen({
               </ul>
             )}
 
-            {/* Custodial Settlement Notice */}
+            {/* The screen's own disclosure. Neutral wording, not the buy
+                variant it used to carry: this list holds auctions too, and half
+                its rows take a bid rather than a payment. The circle was a
+                decorative SVG beside a paragraph; it is a real `Hint` button
+                now, so the detail is reachable by keyboard and announced as a
+                control. */}
             <div className={styles.custodialBox}>
-              <div className={styles.custodialIcon}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-              </div>
-              <p className={styles.custodialText}>{custodialWarning()}</p>
+              <p className={styles.custodialText}>
+                {marketCustodialLine()}
+                <Hint glyph="i">{marketCustodialHint()}</Hint>
+              </p>
             </div>
 
             <BurnFigures />

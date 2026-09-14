@@ -16,6 +16,7 @@ import { Spinner } from './ui'
 import {
   sheetActionLabel,
   sheetDismissLabel,
+  bidCustodialHint,
   bidCustodialWarning,
   buyAcknowledgeLabel,
   connectEvmFailedLine,
@@ -24,6 +25,7 @@ import {
   currentExpiryLine,
   currentHostLine,
   currentTargetLine,
+  custodialHint,
   custodialWarning,
   minimumBidLine,
   noBidsLine,
@@ -455,7 +457,14 @@ export function ActionSheet({
 
       {needsAcknowledge && (
         <>
-          <p className="note note-info">{action === 'bid' ? bidCustodialWarning() : custodialWarning()}</p>
+          {/* §8.5 #10's two halves are both here: the fact, and the checkbox
+              below that gates the send button. The bubble carries when a
+              refund arises — the why, which the hint decision lets go one
+              gesture away. */}
+          <p className="note note-info">
+            {action === 'bid' ? bidCustodialWarning() : custodialWarning()}
+            <Hint glyph="i">{action === 'bid' ? bidCustodialHint() : custodialHint()}</Hint>
+          </p>
           <label className="sheet-check">
             <input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />
             {buyAcknowledgeLabel()}

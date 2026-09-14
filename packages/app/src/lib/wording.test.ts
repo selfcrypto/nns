@@ -16,6 +16,13 @@ import {
   sheetDismissLabel,
   buyerRebateLine,
   referredByLine,
+  bidCustodialHint,
+  bidCustodialWarning,
+  buyAcknowledgeLabel,
+  custodialHint,
+  custodialWarning,
+  marketCustodialHint,
+  marketCustodialLine,
   ownerShareLine,
   referralsCountLine,
   shareHint,
@@ -400,5 +407,35 @@ describe('a `K` is named by what it will clear (§6 `K`)', () => {
     expect(offerStaysLine('450', CONSTANTS.OFFER_IRREVOCABLE)).toBe(
       `The 450 NIM listing stays — it can’t be withdrawn for another ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}.`,
     )
+  })
+})
+
+describe('the custodial disclosure keeps §8.5 #10 on the card', () => {
+  // The spec wants two things before a `B`: *show* that settlement is
+  // custodial, and require explicit confirmation. The visible line and the
+  // checkbox label are those two; the hint carries only when a refund arises.
+  it('the visible line names custody and the operator, in one short sentence', () => {
+    for (const line of [custodialWarning(), bidCustodialWarning(), marketCustodialLine()]) {
+      expect(line).toMatch(/marketplace operator holds/)
+      expect(line.split(' ').length).toBeLessThan(14)
+    }
+  })
+
+  it('the checkbox still says whose money would come back', () => {
+    expect(buyAcknowledgeLabel()).toMatch(/refund would come from the marketplace operator/)
+  })
+
+  it('the hint carries the circumstances the line no longer states', () => {
+    expect(custodialHint()).toMatch(/loses a race or hits a cancelled offer/)
+    expect(bidCustodialHint()).toMatch(/higher bid lands/)
+    for (const hint of [custodialHint(), bidCustodialHint(), marketCustodialHint()]) {
+      expect(hint).toMatch(/a promise, not a protocol rule/)
+    }
+  })
+
+  // The Market list holds auctions as well as offers, so its one disclosure
+  // cannot be the buy variant — which is what it had been showing.
+  it('the Market line covers bids as well as payments', () => {
+    expect(marketCustodialLine()).toMatch(/payments and bids/)
   })
 })

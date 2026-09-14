@@ -19,6 +19,15 @@
  * the *why* beside it. The resolver list under the count is the one fact kept
  * folded, and by a disclosure of its own (result.tsx), not by a hint: it is
  * evidence, and evidence is read on demand.
+ *
+ * `glyph="i"` is the one variant, and it is not a second `?`. The `?` explains
+ * a line; the `(i)` marks the one place the protocol hands custody of money to
+ * a person, which is a disclosure rather than an explanation — and the Market
+ * screen had already drawn that circle by hand. The visible custodial line and
+ * its acknowledgement still sit on the card beside it, so §8.5 #10's "show"
+ * and "require explicit confirmation" are unaffected; what the bubble carries
+ * is when the refund arises. If it ever lands on a third kind of line it has
+ * become a second `?` and should be merged back.
  */
 
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
@@ -31,7 +40,7 @@ const MARGIN = 12
 const GAP = 8
 const MAX_WIDTH = 320
 
-export function Hint({ children, label }: { children: ReactNode; label?: string }) {
+export function Hint({ children, label, glyph = '?' }: { children: ReactNode; label?: string; glyph?: '?' | 'i' }) {
   const [open, setOpen] = useState<Opened | null>(null)
   const [placed, setPlaced] = useState<CSSProperties | null>(null)
   const button = useRef<HTMLButtonElement>(null)
@@ -100,7 +109,7 @@ export function Hint({ children, label }: { children: ReactNode; label?: string 
       <button
         ref={button}
         type="button"
-        className="hint-btn"
+        className={glyph === 'i' ? 'hint-btn hint-btn-info' : 'hint-btn'}
         aria-label={label ?? hintLabel()}
         aria-expanded={open !== null}
         onClick={() => {
@@ -110,7 +119,7 @@ export function Hint({ children, label }: { children: ReactNode; label?: string 
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
       >
-        ?
+        {glyph}
       </button>
       {typeof document !== 'undefined' &&
         open !== null &&

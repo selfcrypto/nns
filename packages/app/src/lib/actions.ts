@@ -22,6 +22,7 @@ import {
   LUNA_PER_NIM,
   parseAddress,
   tryParseAddress,
+  commissionOn,
   tryParseEvmAddress,
   type BuiltTransaction,
   termFor,
@@ -30,6 +31,7 @@ import { getNameInfo, type ApiParams, type NameInfo } from './api'
 import { approxDate, blocksApprox, ellipsizeAddress, formatApproxDate, lunaToNim } from './format'
 import {
   auctionOutlivesTermLine,
+  auctionProceedsLine,
   bidRefundLine,
   delegateClearedLines,
   delegateSetLines,
@@ -39,9 +41,11 @@ import {
   referredByLine,
   registerLifetimePaysLine,
   registerPaysLine,
+  sellerProceedsLine,
   soldByLine,
 } from './wording'
 import { isReferralName } from './referral'
+import { percentOf } from './referralRates'
 import { rateIsNetOfBurn, rebatePercent } from './referralRates'
 import { auctionEndHeight, auctionOutlivesTerm, cancellableNow, offerCancellableAt, sameAddress, registrationFee } from './states'
 import type { AppAction } from './states'
@@ -334,13 +338,18 @@ export function prepareAction(options: {
     case 'offer': {
       const price = parseNimPrice(inputs.priceNim)
       const minPrice = needParams().minPrice
+      // The rate is the one `/params` served, run through the reducer's own
+      // `commissionOn` — floor rounding, remainder to the seller. Restating
+      // `CONSTANTS.COMMISSION_RATE` here would survive a `P` as a wrong number
+      // on screen (§10.6).
+      const commissionBp = needParams().prices.commissionBp
       return {
         action: 'offer',
         request: asRequest(encodeOffer({ name, price, minPrice, sender })),
         review: [
           `Lists ${name} at ${lunaToNim(price)} NIM.`,
           'Irrevocable for ~2.4 hours, cancellable after, expires by itself in ~15 days.',
-          'The marketplace takes its commission from the sale, not from listing.',
+          sellerProceedsLine(lunaToNim(price - commissionOn(price, commissionBp)), percentOf(Number(commissionBp))),
         ],
         confirm: async () => {
           const pending = (await infoNow())?.pending.offer ?? null
@@ -379,7 +388,13 @@ export function prepareAction(options: {
       const lines = [
         `Opens an auction on ${name} with a starting price of ${lunaToNim(startingPrice)} NIM, ending ${when(endHeight)}.`,
         `Neither the auction nor a bid can be withdrawn — it runs to the end, and a bid in the last ${extension} extends it by ${extension}.`,
-        'The highest bid wins and the name transfers at the end; the proceeds arrive from the marketplace operator, less its commission.',
+        'The highest bid wins and the name transfers at the end; the proceeds arrive from the marketplace operator.',
+        // A minimum, not a figure: the starting price is the floor the first
+        // bid must meet, and the winning bid can only be higher.
+        auctionProceedsLine(
+          lunaToNim(startingPrice - commissionOn(startingPrice, needParams().prices.commissionBp)),
+          percentOf(Number(needParams().prices.commissionBp)),
+        ),
       ]
       // Opening voids both (§6 `A`) — the rule a later `O` or `X` already
       // applies to its predecessor — so the review says what goes.

@@ -315,9 +315,16 @@ export const auctionOutlivesTermLine = (expiryDate: string): string =>
 export const bidRefundLine = (): string =>
   'A bid below the minimum is refunded, not accepted — and so is yours the moment a higher one lands.'
 
-/** §8.5 #10 for a bid: money is held for the whole window, not only in flight. */
+/**
+ * §8.5 #10 for a bid: money is held for the whole window, not only in flight.
+ * The line states the custody; `bidCustodialHint` carries when the money comes
+ * back — see `custodialWarning` for why the two are split.
+ */
 export const bidCustodialWarning = (): string =>
-  'Settlement is custodial: the marketplace operator holds your bid until the auction ends, and refunds it if it is outbid — auditable in the public log, but a promise, not a protocol rule.'
+  'The marketplace operator holds your bid until the auction ends.'
+
+export const bidCustodialHint = (): string =>
+  'It is refunded the moment a higher bid lands, and again if the auction is cancelled. What is owed and what has been paid are both computable from the public log, so a shortfall cannot be hidden — but it is a promise, not a protocol rule.'
 
 export const feeChangeLine = (whenDate: string): string =>
   `Fees change ${whenDate} — a scheduled governance update.`
@@ -426,13 +433,61 @@ export function queryFaultLine(fault: QueryFault): string {
   }
 }
 
-// ── Buy (§8.5 #10 — wording fixed now, flow blocked on the probe) ──────────
+// ── Buy (§8.5 #10) ────────────────────────────────────────────────────────
 
+/**
+ * §8.5 #10 wants two things: **show** that settlement is custodial, and
+ * **require explicit confirmation**. Both are still on the card — this line,
+ * and `buyAcknowledgeLabel`'s checkbox, which gates the send button. What
+ * moved behind the hint is the *when*: a lost race, a cancelled offer, the
+ * auditability aside. That is the why, and the 2026-09-04 hint decision is
+ * explicit that the why may go one gesture away while the warning stays.
+ *
+ * It was one 62-word sentence fusing all four facts (Kike, 2026-09-14: *"is
+ * awful, bad worded and long"*). A warning nobody finishes reading is not a
+ * warning, which is the failure this split is fixing — not a relaxation of
+ * the rule.
+ */
 export const custodialWarning = (): string =>
-  'Settlement is custodial: if this purchase loses a race or hits a cancelled offer, the refund comes from the marketplace operator — auditable in the public log, but a promise, not a protocol rule.'
+  'The marketplace operator holds your payment until settlement.'
+
+export const custodialHint = (): string =>
+  'The name is yours as soon as your payment is final — that part is protocol. The money is not: if this purchase loses a race or hits a cancelled offer, the operator refunds you. What is owed and what has been paid are both computable from the public log, so a shortfall cannot be hidden — but it is a promise, not a protocol rule.'
+
+/**
+ * The Market screen's own disclosure. The list holds offers **and** auctions,
+ * so it says the neutral fact once rather than the buy variant, which is what
+ * it had been showing over a list half of which takes bids.
+ */
+export const marketCustodialLine = (): string =>
+  'The marketplace operator holds payments and bids until settlement.'
+
+export const marketCustodialHint = (): string =>
+  'A name transfers on the chain the moment the payment is final; the money is settled separately, by the operator — a purchase that loses a race or hits a cancelled offer is refunded, and so is a bid the moment it is outbid. What is owed and what has been paid are both computable from the public log, so a shortfall cannot be hidden — but it is a promise, not a protocol rule.'
 
 /** app-ux §5: the sheet shows only the marketplace address, so the app says who is selling. */
 export const soldByLine = (seller: string): string => `Sold by ${seller}.`
+
+/**
+ * What a seller actually receives. The line it replaced was "The marketplace
+ * takes its commission from the sale, not from listing" — which contrasts the
+ * sale against a charge that does not exist (`LISTING_FEE` is 0, settled at
+ * zero by §12 item 3), so it read as a warning about a fee nobody pays. Kike,
+ * 2026-09-14: *"doesn't make sense since the user doesn't pay anything. That
+ * amount is just the initial price he asks for, so no coins to take a fee
+ * from."*
+ *
+ * The amount comes from `core.commissionOn` against the **served**
+ * `commissionBp`, never `CONSTANTS.COMMISSION_RATE`: a `P` moves the rate
+ * (§10.6), and a restated constant would put a number on screen that the
+ * settlement will not honour.
+ */
+export const sellerProceedsLine = (netNim: string, percent: string): string =>
+  `You receive ${netNim} NIM if it sells — the marketplace’s ${percent} commission comes out of the sale price.`
+
+/** The auction form: the starting price is a floor, so the proceeds are a minimum. */
+export const auctionProceedsLine = (minNetNim: string, percent: string): string =>
+  `If it sells you receive at least ${minNetNim} NIM — the marketplace’s ${percent} commission comes out of the winning bid.`
 
 // ── Send flows (docs/app-ux.md §4 — one state machine, one vocabulary) ─────
 

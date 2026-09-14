@@ -49,7 +49,7 @@ Two ways, and they are different. To keep the name but pay into a new wallet, ch
 Nothing on NNS. The parent's owner runs a small server with a JSON file of labels and addresses, and hands out as many as they like. Nothing about a subdomain is stored on chain, and nothing about it is proven. [Subdomains](subdomains).
 
 **What does the "?" next to a line do?**
-It explains the line. What must be visible is on the card; the reason is one tap away.
+It explains the line. What must be visible is on the card; the reason is one tap away. A blue **(i)** is the same control in the one place money changes hands without the protocol holding it: the marketplace's custody of a payment or a bid. The fact is always on the card, and a purchase still asks you to acknowledge it — the bubble carries when a refund arises.
 
 **Why do dates say ≈?**
 The protocol counts blocks, not seconds. A block is roughly a second, so a date computed from a block height is an estimate, and the app says so.

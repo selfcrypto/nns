@@ -386,3 +386,39 @@ describe('delegate: the review names the mechanism, and a no-op `D` is refused',
     expect(() => prepare({ action: 'delegate', host: '' }, null)).not.toThrow()
   })
 })
+
+describe('the seller is told what they receive, at the rate /params served', () => {
+  // The old line — "the marketplace takes its commission from the sale, not
+  // from listing" — contrasted the sale against a charge that does not exist:
+  // LISTING_FEE is 0, so nothing is paid at listing at all.
+  it('the offer review names the amount and no longer mentions listing', () => {
+    const review = prepare({ action: 'offer', priceNim: '1000' }).review.join(' ')
+    expect(review).toContain('You receive 975 NIM if it sells')
+    expect(review).toContain('2.5%')
+    expect(review).not.toMatch(/not from listing/)
+  })
+
+  // The rate is governable (§10.6), so a restated CONSTANTS.COMMISSION_RATE
+  // would put a number on screen the settlement will not honour. Prove the
+  // line follows the served value.
+  it('follows a governed rate rather than the compiled-in constant', () => {
+    const governed: ApiParams = { ...params, prices: { ...params.prices, commissionBp: 100n } }
+    const review = prepareAction({
+      inputs: { action: 'offer', priceNim: '1000' },
+      name: 'example',
+      info: registered(),
+      signer: OWNER,
+      viewers: [OWNER],
+      params: governed,
+      apiBase: 'http://api',
+      nowMs: NOW,
+    }).review.join(' ')
+    expect(review).toContain('You receive 990 NIM if it sells')
+    expect(review).toContain('1%')
+  })
+
+  it('an auction quotes a minimum, since the starting price is only a floor', () => {
+    const review = prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '3' }).review.join(' ')
+    expect(review).toContain('at least 975 NIM')
+  })
+})

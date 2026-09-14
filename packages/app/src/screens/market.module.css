@@ -590,21 +590,12 @@
 
 /* Custodial Notice Note */
 .custodialBox {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
   background: rgba(5, 130, 202, 0.05);
   border: 1px solid rgba(5, 130, 202, 0.15);
   border-radius: 16px;
   padding: 14px 16px;
   text-align: left;
   margin-top: 4px;
-}
-
-.custodialIcon {
-  color: var(--nimiq-blue);
-  flex: none;
-  margin-top: 1px;
 }
 
 .custodialText {

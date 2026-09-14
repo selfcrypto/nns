@@ -832,6 +832,21 @@ select:focus-visible {
   color: var(--ink);
 }
 
+/* The custody disclosure's bubble. Blue rather than the faint grey the `?`
+   wears, because this one is the notice itself and not a footnote to a line
+   the reader has already understood — and it is the blue the Market screen's
+   own custodial box was already drawing by hand. */
+.hint-btn-info {
+  border-color: var(--nimiq-blue);
+  color: var(--nimiq-blue);
+}
+
+.hint-btn-info[aria-expanded='true'] {
+  border-color: var(--nimiq-blue);
+  color: var(--card);
+  background: var(--nimiq-blue);
+}
+
 /* Above every modal (1200/1201): a hint sits inside the sheet and its
    popover is portaled to the body, so a lower index put the explanation
    under the thing it explains (Kike, 2026-09-11). */
