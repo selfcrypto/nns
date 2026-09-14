@@ -564,9 +564,28 @@ select:focus-visible {
   }
 }
 
-/* The name yields before the address does: the corner is the half a user has
-   to be able to read, and the logo alone still says where they are. */
-@media (max-width: 380px) {
+/*
+ * The name yields before the address does: the corner is the half a user has
+ * to be able to read, and the mark alone still says where they are.
+ *
+ * 480 rather than the 380 this was written at, which never fired on a phone
+ * anyone owns (Kike, 2026-09-14: *"I would remove Nimiq Names entirely after a
+ * certain px is reached and just leave the logo"*). Measured: the lockup is
+ * 152px, the row spends 32px of padding and a 12px gap, so the text fits only
+ * at `196 + corner` — and the corner is not a constant. It is 200px on a
+ * Connect pill, 234px on a one-address chip and 267px with a "+2" badge, which
+ * puts the real threshold at 396, 430 and 463. A 390px phone was therefore
+ * clipping the wordmark to "Nimiq Na" whenever a wallet was connected.
+ *
+ * Like the 860 above it, the number is picked for the widest corner the
+ * identity can draw rather than the common one: a fixed breakpoint against a
+ * variable neighbour is arithmetic, not a promise, and 430 "exactly fitting"
+ * is a near miss. 480 clears 463 and is still below every tablet.
+ *
+ * `font-size: 0` rather than `display: none` — the `h1` keeps its text for a
+ * screen reader, which is the whole point of the mark being `alt=""`.
+ */
+@media (max-width: 480px) {
   .wordmark {
     font-size: 0;
     gap: 0;
@@ -2345,9 +2364,11 @@ li.note {
 }
 
 /*
- * Below 380px the wordmark gives up its text (see the masthead block) and the
+ * The wordmark gives up its text below 480px (see the masthead block) and the
  * room goes to the address, which is the half of the corner a user has to be
- * able to read.
+ * able to read. This cap is a narrower question — it only bites once 46vw
+ * falls under the chip's natural ~162px, which is below ~352px — so it keeps
+ * its own breakpoint rather than following that one up.
  *
  * This lived up in that masthead block until 2026-09-14 and never once
  * applied: it is the same specificity as the `46vw` above and sat ~1,700 lines
