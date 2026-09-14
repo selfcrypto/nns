@@ -93,7 +93,7 @@ export function verifiedByLine(quorum: QuorumReport): string {
  * the URL is the half a user can go and check.
  */
 export const resolverIdentityLine = (resolver: { readonly name: string; readonly url: string }): string =>
-  `${resolver.name} — ${resolverUrlShown(resolver.url)}`
+  `${resolver.name} · ${resolverUrlShown(resolver.url)}`
 
 /**
  * The URL as a user can go and check it: absolute. The configured value may
@@ -124,15 +124,15 @@ export const verifiedHint = (): string =>
 
 /** The interval is `CHECKPOINT_INTERVAL` rendered, never typed — a tempo era cuts one a minute. */
 export const proofPendingLine = (): string =>
-  `Proof pending — checkpoints are cut every ${blocksApprox(CONSTANTS.CHECKPOINT_INTERVAL)}. The name works now.`
+  `Proof pending. The name works now. Checkpoints are cut every ${blocksApprox(CONSTANTS.CHECKPOINT_INTERVAL)}.`
 
 export const delegatedLine = (parent: string): string => `Resolved by ${parent}`
 
 export const delegatedExplainer = (parent: string): string =>
-  `${parent} is verified and delegates this resolver. The address is ${parent}’s word — no proof covers it.`
+  `${parent} is verified and delegates this resolver. The address is ${parent}’s word, with no proof behind it.`
 
 export const targetChangedLine = (): string =>
-  'Repointed since the last checkpoint — the current address is newer than its proof.'
+  'Repointed since the last checkpoint. This address is newer than its proof.'
 
 // ── Warning tones (states doc §2) ───────────────────────────────────────────
 
@@ -177,25 +177,25 @@ export const WARNING_TEXT: Record<WarningCode, string> = {
   PROOF_PENDING: proofPendingLine(),
   TARGET_CHANGED_SINCE_CHECKPOINT: targetChangedLine(),
   DELEGATE_HOST_UNPROVEN: 'The delegate host came from the live record, not a proven one.',
-  DELEGATED_ANSWER: 'This address is the delegate host’s word — no proof covers it.',
+  DELEGATED_ANSWER: 'This address is the delegate host’s word, with no proof behind it.',
   ROOT_HEIGHTS_DIFFER: 'Couldn’t compare resolver checkpoints this time.',
   ANCHOR_NOT_CHECKED: 'Second-chain check not run.',
   ANCHOR_UNAVAILABLE: 'Couldn’t check the second-chain anchor.',
-  ANCHOR_QUORUM_NOT_MET: 'Anchor pending — publishers post each checkpoint within hours.',
+  ANCHOR_QUORUM_NOT_MET: 'Anchor pending. Publishers post each checkpoint within hours.',
   ANCHOR_STALE: 'Couldn’t confirm a recent anchor.',
 }
 
 // ── Halting failures (alarm tier) and availability failures ────────────────
 
-export const alarmHeadline = (): string => 'Stop — resolvers disagree'
+export const alarmHeadline = (): string => 'Stop. Resolvers disagree'
 
 export const alarmBody = (code: string): string => {
   switch (code) {
     case 'PROOF_INVALID':
-      return 'A resolver served a proof that does not hold. Do not pay any address it showed. This is the failure the verification exists to catch.'
+      return 'A resolver served a proof that does not hold. Do not pay any address it showed.'
     case 'QUORUM_DISAGREEMENT':
     case 'QUORUM_ROOT_MISMATCH':
-      return 'The configured resolvers gave different answers. No address is shown, because there is no basis to pick one.'
+      return 'The resolvers gave different answers. No address is shown, because there is no way to pick one.'
     case 'CHECKPOINT_BINDING_INVALID':
       return 'A resolver contradicted its own checkpoint. Do not pay any address it showed.'
     case 'ANCHOR_MISMATCH':
@@ -208,7 +208,7 @@ export const alarmBody = (code: string): string => {
 }
 
 export const unreachableLine = (): string =>
-  'Couldn’t reach enough resolvers. Nothing is wrong with the name — try again.'
+  'Couldn’t reach enough resolvers. Try again.'
 
 // ── Propagation (states doc §2, `QUORUM_LAGGING`) ───────────────────────────
 
@@ -224,12 +224,12 @@ export const propagatingLine = (): string =>
 
 /** Under the line above: whether the screen is asking again on its own. */
 export const propagatingRetryLine = (retrying: boolean): string =>
-  retrying ? 'Checking again…' : 'Still catching up — search again in a moment.'
+  retrying ? 'Checking again…' : 'Still catching up. Search again in a moment.'
 
 // ── Delegates (never blame the subdomain) ───────────────────────────────────
 
 export const delegateFailedLine = (parent: string): string =>
-  `${parent}’s resolver did not answer. Whether the subdomain exists is only its owner’s to say.`
+  `${parent}’s resolver did not answer. Only its owner can say whether the subdomain exists.`
 
 export const parentNotDelegatingLine = (parent: string): string =>
   `${parent} doesn’t delegate subdomains.`
@@ -241,7 +241,7 @@ export const parentNotDelegatingLine = (parent: string): string =>
  * parent's owner.
  */
 export const subdomainNotRegistrableLine = (parent: string): string =>
-  `Subdomains aren’t registered on NNS — ${parent}’s owner issues them.`
+  `Subdomains aren’t registered on NNS. ${parent}’s owner issues them.`
 
 /** The handoff from a resolved card to the Pay tab, seeded with the query. */
 export const payThisLabel = (): string => 'Pay this address'
@@ -257,17 +257,17 @@ export const manageThisLabel = (): string => 'Manage this name'
 export const messageSubdomainLabel = (): string => 'Message this address'
 
 export const messageSubdomainNote = (parent: string): string =>
-  `Goes to the address above — ${parent}’s resolver gave it, and it may not be ${parent}’s owner.`
+  `Goes to the address above, which ${parent}’s resolver gave. It may not be ${parent}’s owner.`
 
 // ── Name states (states doc §1) ─────────────────────────────────────────────
 
 export const availableLine = (): string => 'Available'
 
 export const reservedLine = (): string =>
-  'Reserved — held by the registry and not open for registration.'
+  'Reserved by the registry. Not open for registration.'
 
 export const graceLine = (untilDate: string): string =>
-  `Expired — in grace until ${untilDate}. Still its owner’s to renew; not available.`
+  `Expired and not available. The owner can renew until ${untilDate}.`
 
 /** `graceLine`'s date slot when no height is at hand to compute one. */
 export const graceEndsUnknownPhrase = (): string => 'its grace period ends'
@@ -280,7 +280,7 @@ export const expiryUntilLine = (whenDate: string): string => `until ${whenDate}`
 
 /** An availability miss that is neither reserved nor free: someone beat the lookup. */
 export const justRegisteredLine = (): string =>
-  'Just registered by someone — search again to see it.'
+  'Just registered by someone else. Search again to see it.'
 
 export const parentNotRegisteredLine = (parent: string): string =>
   `${parent} isn’t registered, so nothing can answer for its subdomains.`
@@ -293,7 +293,7 @@ export const forSaleLine = (priceNim: string): string => `For sale at ${priceNim
 // ── Auctions (§6 `A`, r28) ──────────────────────────────────────────────────
 
 export const auctionLine = (startingPriceNim: string, endDate: string): string =>
-  `Up for auction — starting price ${startingPriceNim} NIM, ends ${endDate}.`
+  `Up for auction. Starting price ${startingPriceNim} NIM, ends ${endDate}.`
 
 export const standingBidLine = (bidNim: string, bidder: string): string => `Highest bid ${bidNim} NIM from ${bidder}.`
 
@@ -301,6 +301,10 @@ export const noBidsLine = (): string => 'No bids yet.'
 
 /** The API's `minimumBid` — `core.requiredBid`; a `B` below it refunds, it is not accepted. */
 export const minimumBidLine = (nim: string): string => `Next bid: at least ${nim} NIM.`
+
+/** The bid field's own placeholder. `null` while the minimum has not loaded. */
+export const bidAmountPlaceholder = (minNim: string | null): string =>
+  minNim === null ? 'Bid in NIM' : `Bid in NIM (at least ${minNim})`
 
 /** Market row: what an auction is asking for while no bid stands. */
 export const startingPriceLine = (nim: string): string => `Starting price ${nim} NIM`
@@ -315,14 +319,14 @@ export const auctionEndsLine = (whenDate: string): string => `ends ${whenDate}`
  * sent, because the owner's fix — renew first — is only available before.
  */
 export const auctionOutlivesTermLine = (expiryDate: string): string =>
-  `This auction would outlive the name’s term (${expiryDate}), and only the current term can be sold — renew first, or shorten it.`
+  `The auction would end after the name expires (${expiryDate}), and only the current term can be sold. Renew first, or set an earlier end.`
 
 /**
  * The bid reading of `WRONG_PRICE`, and of being outbid: neither is a
  * forfeit. Both are refunds, and both come from the operator (§8.5 #10).
  */
 export const bidRefundLine = (): string =>
-  'A bid below the minimum is refunded, not accepted — and so is yours the moment a higher one lands.'
+  'A bid below the minimum is refunded, not accepted. So is yours, the moment a higher bid lands.'
 
 /**
  * §8.5 #10 for a bid: money is held for the whole window, not only in flight.
@@ -333,34 +337,34 @@ export const bidCustodialWarning = (): string =>
   'The marketplace operator holds your bid until the auction ends.'
 
 export const bidCustodialHint = (): string =>
-  'It is refunded the moment a higher bid lands, and again if the auction is cancelled. What is owed and what has been paid are both computable from the public log, so a shortfall cannot be hidden — but it is a promise, not a protocol rule.'
+  'It comes back the moment a higher bid lands, and again if the auction is cancelled. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.'
 
 export const feeChangeLine = (whenDate: string): string =>
-  `Fees change ${whenDate} — a scheduled governance update.`
+  `Fees change ${whenDate} (a scheduled governance update).`
 
 export const renewDueLine = (whenDate: string): string => `Renew before ${whenDate}`
 
 /** List-row form of the grace state: renewable until the grace **end** date. */
-export const graceBadge = (untilDate: string): string => `In grace — renew by ${untilDate}`
+export const graceBadge = (untilDate: string): string => `In grace, renew by ${untilDate}`
 
 // ── Gate reasons (states doc §4; shown on disabled actions) ─────────────────
 
 export const GATE_REASON_TEXT: Record<GateReason, string> = {
   taken: 'This name is registered.',
   reserved: 'Reserved names can’t be registered.',
-  'in-grace': 'In grace — only renewal works until it ends.',
+  'in-grace': 'In grace. Only renewal works until it ends.',
   'no-record': 'This name isn’t registered.',
   'no-viewer': 'Connect a wallet to act on names.',
   'not-owner': 'Only the owner can do this.',
   'nothing-to-cancel': 'Nothing is pending on this name.',
   'offer-irrevocable': 'The offer is in its irrevocable window.',
-  'offer-open': 'An offer is already open — cancel it first.',
+  'offer-open': 'An offer is already open. Cancel it first.',
   'no-offer': 'No open offer on this name.',
   // One short line, because it appears on up to four rows at once — the
   // auction's own facts are in the overlay above them.
   'auction-open': 'Locked while the auction runs.',
   'no-auction': 'No open auction on this name.',
-  'state-unknown': 'Couldn’t read this name’s record — try again.',
+  'state-unknown': 'Couldn’t read this name’s record. Try again.',
 }
 
 // ── Input validation (§4.1 in plain words, field-level) ────────────────────
@@ -382,13 +386,13 @@ export const GATE_REASON_TEXT: Record<GateReason, string> = {
  *   about length would be wrong every time it appeared.
  */
 const NAME_REASON_TEXT: Partial<Record<NameInvalidReason, string>> = {
-  TOO_LONG: `Too long — ${CONSTANTS.MAX_NAME_LEN} characters at most.`,
+  TOO_LONG: `Too long. ${CONSTANTS.MAX_NAME_LEN} characters at most.`,
   BAD_CHARACTER: 'Only a–z, 0–9 and hyphens.',
   NO_LETTER: 'A name needs at least one letter.',
   LEADING_HYPHEN: 'Can’t start with a hyphen.',
   TRAILING_HYPHEN: 'Can’t end with a hyphen.',
   DOUBLE_HYPHEN: 'No two hyphens in a row.',
-  INTERIOR_DIGIT: 'Digits can’t sit inside letters — only lead or trail.',
+  INTERIOR_DIGIT: 'Digits go at the start or the end, never in the middle.',
   // §4.2's r6 boundary clause, which this used to describe as "digits can only
   // lead or trail, not both" — a rule that does not exist: `2nimiq2`,
   // `9nimiq9` and `23nimiq45` are all valid. What is barred is `0` and `1` at
@@ -406,7 +410,7 @@ const NAME_REASON_TEXT: Partial<Record<NameInvalidReason, string>> = {
  */
 const LABEL_REASON_TEXT: Record<LabelInvalidReason, string> = {
   TOO_SHORT: 'The part before the dot can’t be empty.',
-  TOO_LONG: `The part before the dot is too long — ${CONSTANTS.MAX_LABEL_LEN} characters at most.`,
+  TOO_LONG: `The part before the dot is too long. ${CONSTANTS.MAX_LABEL_LEN} characters at most.`,
   BAD_CHARACTER: 'Before the dot: only a–z, 0–9 and hyphens.',
   LEADING_HYPHEN: 'The part before the dot can’t start with a hyphen.',
   TRAILING_HYPHEN: 'The part before the dot can’t end with a hyphen.',
@@ -430,9 +434,9 @@ export const shortNameNoteLine = (): string =>
 export function queryFaultLine(fault: QueryFault): string {
   switch (fault.kind) {
     case 'many-dots':
-      return 'One dot at most — name, or label.name.'
+      return 'One dot at most. Write name, or label.name.'
     case 'dot-shape':
-      return 'Write a subdomain as label.name — for example pay.shopper.'
+      return 'Write a subdomain as label.name (for example pay.shopper).'
     case 'label':
       return LABEL_REASON_TEXT[fault.reason]
     case 'name':
@@ -461,7 +465,7 @@ export const custodialWarning = (): string =>
   'The marketplace operator holds your payment until settlement.'
 
 export const custodialHint = (): string =>
-  'The name is yours as soon as your payment is final — that part is protocol. The money is not: if this purchase loses a race or hits a cancelled offer, the operator refunds you. What is owed and what has been paid are both computable from the public log, so a shortfall cannot be hidden — but it is a promise, not a protocol rule.'
+  'The name is yours as soon as your payment is final. That part is protocol; the money is not. If this purchase loses a race or hits a cancelled offer, the operator refunds you. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.'
 
 /**
  * The Market screen's own disclosure. The list holds offers **and** auctions,
@@ -472,7 +476,7 @@ export const marketCustodialLine = (): string =>
   'The marketplace operator holds payments and bids until settlement.'
 
 export const marketCustodialHint = (): string =>
-  'A name transfers on the chain the moment the payment is final; the money is settled separately, by the operator — a purchase that loses a race or hits a cancelled offer is refunded, and so is a bid the moment it is outbid. What is owed and what has been paid are both computable from the public log, so a shortfall cannot be hidden — but it is a promise, not a protocol rule.'
+  'A name transfers on the chain the moment the payment is final. The money settles separately, through the operator: a purchase that loses a race or hits a cancelled offer is refunded, and so is a bid the moment it is outbid. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.'
 
 /** app-ux §5: the sheet shows only the marketplace address, so the app says who is selling. */
 export const soldByLine = (seller: string): string => `Sold by ${seller}.`
@@ -492,11 +496,11 @@ export const soldByLine = (seller: string): string => `Sold by ${seller}.`
  * settlement will not honour.
  */
 export const sellerProceedsLine = (netNim: string, percent: string): string =>
-  `You receive ${netNim} NIM if it sells — the marketplace’s ${percent} commission comes out of the sale price.`
+  `You receive ${netNim} NIM if it sells, after the marketplace’s ${percent} commission.`
 
 /** The auction form: the starting price is a floor, so the proceeds are a minimum. */
 export const auctionProceedsLine = (minNetNim: string, percent: string): string =>
-  `If it sells you receive at least ${minNetNim} NIM — the marketplace’s ${percent} commission comes out of the winning bid.`
+  `You receive at least ${minNetNim} NIM if it sells, after the marketplace’s ${percent} commission on the winning bid.`
 
 // ── Send flows (docs/app-ux.md §4 — one state machine, one vocabulary) ─────
 
@@ -528,12 +532,12 @@ export const noHostLine = (): string => 'No subdomain resolver set.'
  * assume a fallback.
  */
 export const delegateSetLines = (host: string, name: string): readonly string[] => [
-  `${host} will answer for everything under ${name} — its answers are the host’s word, not proven.`,
+  `${host} will answer for everything under ${name}. Its answers are the host’s word, not proven.`,
 ]
 
 export const delegateClearedLines = (name: string): readonly string[] => [
   `No host will answer for subdomains under ${name}.`,
-  'Subdomains resolve through the host, never on-chain — with none set, nothing resolves them.',
+  'Subdomains only ever resolve through the host. With none set, nothing resolves them.',
 ]
 
 export const currentExpiryLine = (approx: string): string => `Currently expires ${approx}.`
@@ -548,7 +552,7 @@ export const suggestedEvmLabel = (evm: string): string => `Use this wallet’s a
  */
 export const connectEvmLabel = (): string => 'Use my wallet’s USDC / USDT address…'
 
-export const connectEvmFailedLine = (): string => 'The wallet offered no address — paste it instead.'
+export const connectEvmFailedLine = (): string => 'The wallet offered no address. Paste one instead.'
 
 export const ACTION_LABEL: Record<AppAction, string> = {
   register: 'Register',
@@ -569,9 +573,15 @@ export const ACTION_LABEL: Record<AppAction, string> = {
  * allow it as gift"). Anyone may renew (§6 `N`); the label says what the
  * payer gets — nothing — so the button cannot read as a way to acquire.
  */
-/** The registration review's first line; the term is `TERM_LENGTH` rendered, never typed. */
+/**
+ * The registration review's first line. The term is `TERM_LENGTH` rendered,
+ * never typed, and rendered by `termChoiceLabel` so it is spelled the way the
+ * choice directly above it spells it. No article and no "term" after it:
+ * `termChoiceLabel` is already a period, and "a 7 days term" is what the
+ * alternative reads as in a compressed era.
+ */
 export const registerPaysLine = (nim: string, term: string): string =>
-  `Pays ${nim} NIM to the registry for a ${term} term.`
+  `Pays ${nim} NIM to the registry for ${term}.`
 
 /**
  * The lifetime registration's first line (§10.4): the date a
@@ -579,7 +589,7 @@ export const registerPaysLine = (nim: string, term: string): string =>
  * that word is the choice's label and nothing else.
  */
 export const registerLifetimePaysLine = (nim: string, untilDate: string): string =>
-  `Pays ${nim} NIM to the registry — yours until ${untilDate}.`
+  `Pays ${nim} NIM to the registry. Yours until ${untilDate}.`
 
 /** Where a renewal's clock lands, as ≈ date — for a lifetime the only honest rendering of a hundred terms. */
 export const newExpiryLine = (approx: string): string => `New expiry ${approx}.`
@@ -618,7 +628,7 @@ export function priceHint(fees: readonly { readonly upTo: number; readonly yearl
     return `${lunaToNim(row.yearly)} NIM for ${span}`
   })
   return (
-    `Price follows length — a year is ${parts.join(', ')} characters; shorter names are reserved. ` +
+    `Price follows length: a year is ${parts.join(', ')} characters. Shorter names are reserved. ` +
     `A lifetime is ${CONSTANTS.LIFETIME_TERMS} terms for the price of ${CONSTANTS.LIFETIME_MULTIPLIER}.`
   )
 }
@@ -699,7 +709,7 @@ export const giftRenewalLabel = (): string => 'Gift a renewal'
 
 /** The review line that makes the gift explicit before the wallet opens. */
 export const giftRenewalLine = (owner: string): string =>
-  `You don’t own this name — it stays ${owner}’s, and the term extends for them.`
+  `You don’t own this name. It stays ${owner}’s, and the term extends for them.`
 
 export const sendSubmittingLine = (): string => 'Waiting for the wallet…'
 
@@ -709,7 +719,7 @@ export const sendSubmittingLine = (): string => 'Waiting for the wallet…'
  * the API when the batch's macro block closes — measured in exact 60-block
  * steps (2026-08-21, `send.ts`'s `settling`).
  */
-export const sendConfirmingLine = (): string => 'Sent — waiting for the macro block that confirms it (~1 min).'
+export const sendConfirmingLine = (): string => 'Sent. Waiting for the block that confirms it (~1 min).'
 
 export const sendConfirmedLine = (): string => 'Done.'
 
@@ -727,7 +737,7 @@ export const sendDeclinedLine = (): string => 'Nothing was sent.'
  * flight, and a retry re-signs a different one and pays a second fee.
  */
 export const sendUnconfirmedLine = (): string =>
-  'Not confirmed — it hasn’t appeared on chain. It may still arrive; check the name before retrying.'
+  'Not confirmed. It hasn’t appeared on chain yet. Check the name before sending again.'
 
 /**
  * On chain and executed, with the effect not yet visible at the API. The
@@ -736,7 +746,7 @@ export const sendUnconfirmedLine = (): string =>
  * chain. Says nothing went wrong, because nothing did.
  */
 export const sendSettlingLine = (): string =>
-  'Confirmed on chain — the registry is catching up. It will show within a minute or two; no need to send again.'
+  'Confirmed on chain. The registry will show it within a minute or two. Nothing more to send.'
 
 /**
  * In a block, and it did not execute. The one case where the transaction is
@@ -744,7 +754,7 @@ export const sendSettlingLine = (): string =>
  * either of the "check again" outcomes.
  */
 export const sendRejectedLine = (): string =>
-  'Included on chain but did not execute. Nothing changed and the fee is spent — check the name before trying again.'
+  'Included on chain but it did not execute. Nothing changed and the fee is spent. Check the name first.'
 
 /**
  * The checker was down, not the send — a broken checker never reads as a
@@ -752,7 +762,7 @@ export const sendRejectedLine = (): string =>
  * different transaction and can pay a second fee.
  */
 export const sendUncheckedLine = (): string =>
-  'Sent to the wallet, but the service didn’t answer, so it couldn’t be confirmed. It may well have gone through — check again later.'
+  'Sent to the wallet. The service didn’t answer, so this could not be confirmed. Check again later.'
 
 export const sendNoRpcLine = (): string =>
   'No RPC endpoint is configured (VITE_NNS_RPC), so nothing can be broadcast.'
@@ -811,7 +821,7 @@ export const payMessageLabel = (): string => 'Message'
 export const payMessagePlaceholder = (): string => 'What it’s for'
 
 export const payMessageHint = (): string =>
-  `A note for whoever receives this — an invoice or an order number, so they can tell which payment is which. It travels with the payment and is written on the chain: public, permanent, and readable by anyone, against both addresses. There is room for ${CONSTANTS.MAX_DATA_BYTES} bytes, which is ${CONSTANTS.MAX_DATA_BYTES} ordinary letters and fewer when it carries accents or emoji.`
+  `A note for whoever receives this, like an invoice or an order number. It is written on the chain against both addresses: public, permanent, readable by anyone. Room for ${CONSTANTS.MAX_DATA_BYTES} bytes, which is ${CONSTANTS.MAX_DATA_BYTES} ordinary letters and fewer with accents or emoji.`
 
 export const payMessageBudgetLine = (used: number, budget: number): string => `${used}/${budget} bytes`
 
@@ -821,8 +831,8 @@ export const payMessageFromLinkLine = (): string => 'Came with the payment link.
 export const payMessageEditLabel = (): string => 'Edit'
 
 export const PAY_MESSAGE_FAULT_TEXT: Record<PayMessageFault, string> = {
-  OVER_BUDGET: `Too long — a message travels in ${CONSTANTS.MAX_DATA_BYTES} bytes.`,
-  RESERVED_PREFIX: 'A message can’t start with NNS1 — that is how a name message is written.',
+  OVER_BUDGET: `Too long. A message travels in ${CONSTANTS.MAX_DATA_BYTES} bytes.`,
+  RESERVED_PREFIX: 'A message can’t start with NNS1. That prefix is reserved for name messages.',
 }
 
 /** An ERC-20 transfer has two arguments and nowhere to put a note (`lib/evm.ts`). */
@@ -850,7 +860,7 @@ export const usdtButtonLabel = (amount: string | null): string =>
 export const usdtNoProviderLine = (): string =>
   'No EVM wallet answered. Open this page inside Nimiq Pay, or in a browser with an EVM wallet.'
 
-export const usdtWrongChainLine = (): string => 'The wallet wouldn’t switch to Polygon — nothing was sent.'
+export const usdtWrongChainLine = (): string => 'The wallet wouldn’t switch to Polygon. Nothing was sent.'
 
 /**
  * Not enough USDT for the amount typed. One line for both moments it can
@@ -859,7 +869,7 @@ export const usdtWrongChainLine = (): string => 'The wallet wouldn’t switch to
  * so it states the shortfall and stays silent about sending.
  */
 export const usdtShortBalanceLine = (held: string, asked: string): string =>
-  `The wallet holds ${held} USDT — not enough to send ${asked}.`
+  `The wallet holds ${held} USDT, not enough to send ${asked}.`
 
 /**
  * Only ever shown on a *measured* zero POL balance with enough USDT — never
@@ -871,14 +881,14 @@ export const usdtShortBalanceLine = (held: string, asked: string): string =>
  * on-chain transaction, and that path pays Polygon's fee in POL.
  */
 export const usdtNoGasLine = (): string =>
-  'The wallet has no POL to pay Polygon’s network fee — nothing was sent.'
+  'The wallet has no POL for Polygon’s network fee. Nothing was sent.'
 
 /**
  * The wallet returned a hash — which is not confirmation, and no endpoint of
  * ours watches Polygon, so the honest report names the wallet as the actor
  * and hands over the one thing that can be tracked.
  */
-export const usdtAcceptedLine = (): string => 'The wallet accepted it — track it on Polygonscan:'
+export const usdtAcceptedLine = (): string => 'The wallet accepted it. Track it on Polygonscan:'
 
 /**
  * A known account whose balance no endpoint would answer. Shown in the
@@ -896,7 +906,7 @@ export const payZeroLine = (): string => 'Enter an amount above zero.'
  * with a hash — so this is the only place it can be reported.
  */
 export const paySelfLine = (): string =>
-  'This is your own address — Nimiq drops a payment to yourself, so nothing would arrive.'
+  'This is your own address. Nimiq drops a payment to yourself, so nothing would arrive.'
 
 export const buyAcknowledgeLabel = (): string =>
   'I understand a refund would come from the marketplace operator'
@@ -905,21 +915,27 @@ export const buyAcknowledgeLabel = (): string =>
  * An account that cannot cover the value signs a transaction the network will
  * never include, and the confirm loop then reports the drop as ambiguously as
  * it can (a friend's 200 NIM registration from an empty wallet, 2026-09-14).
- * The balance is knowable before the wallet opens, so this is where it is
- * said — named in full, because "insufficient funds" makes the user go and
- * look up two numbers the app already has.
+ * The balance is knowable before the wallet opens, so it is said here, with
+ * both numbers: "insufficient funds" makes the user go and look up two
+ * figures the app already has.
+ *
+ * Two numbers and nothing else. It used to add "Top it up first, sending now
+ * would pay nothing and register nothing" — describing a send the sheet had
+ * already blocked (`ready` requires `shortfall === null`), which is what made
+ * a reader ask why it would let the transaction through (Kike, 2026-09-14).
+ * A line under a disabled button does not need to argue against pressing it.
  */
 export const insufficientBalanceLine = (needNim: string, haveNim: string): string =>
-  `This costs ${needNim} NIM and the account that signs holds ${haveNim} NIM. Top it up first — sending now would pay nothing and register nothing.`
+  `Needs ${needNim} NIM. Your wallet holds ${haveNim} NIM.`
 
 // ── Pinning (§8.5; states doc §2 — mismatch is the alarm tier) ─────────────
 
 export const pinFirstUseLine = (): string => 'First time you’ve used this name on this device.'
 
-export const pinMismatchTitle = (): string => 'Stop — this name changed address'
+export const pinMismatchTitle = (): string => 'Stop. This name changed address'
 
 export const pinMismatchBody = (query: string, sinceDate: string): string =>
-  `When you last used ${query} on this device (${sinceDate}), it pointed to a different address. The owner may have repointed it — or someone is redirecting payments. Do not pay until you know which.`
+  `When you last used ${query} on this device (${sinceDate}), it pointed to a different address. The owner may have repointed it, or someone may be redirecting payments. Do not pay until you know which.`
 
 export const pinPreviousLabel = (): string => 'Address you used before'
 
@@ -927,25 +943,25 @@ export const pinCurrentLabel = (): string => 'Address it points to now'
 
 export const pinOverrideLabel = (): string => 'Use the new address anyway'
 
-export const pinOverrideConfirmLabel = (): string => 'Yes — replace what this device remembers'
+export const pinOverrideConfirmLabel = (): string => 'Yes, replace what this device remembers'
 
 // ── NC chat (docs/app-chat.md §5 — wording is part of the threat model) ────
 
 export const messageOwnerLabel = (): string => 'Message the owner'
 
 export const chatPublicNotice = (): string =>
-  'Messages are public, permanent, and attached to your address — anyone can read them on-chain, forever.'
+  'Messages are public, permanent, and attached to your address. Anyone can read them on-chain, forever.'
 
 export const chatOwnNameLine = (): string =>
-  'This name is yours — a message to yourself can’t be sent.'
+  'This name is yours. A message to yourself can’t be sent.'
 
 export const chatBudgetLine = (used: number, budget: number): string => `${used}/${budget} bytes`
 
 export const CHAT_ENCODE_TEXT: Record<'BAD_NAME' | 'EMPTY_MESSAGE' | 'CONTROL_CHARS' | 'OVER_BUDGET', string> = {
   BAD_NAME: 'Not a valid name.',
   EMPTY_MESSAGE: 'Write something first.',
-  CONTROL_CHARS: 'Plain text only — no control characters.',
-  OVER_BUDGET: 'Too long — messages travel in a 64-byte transaction.',
+  CONTROL_CHARS: 'Plain text only. No control characters.',
+  OVER_BUDGET: 'Too long. A message travels in a 64-byte transaction.',
 }
 
 export const inboxWindowLine = (sinceDate: string): string => `Messages since ${sinceDate}.`
@@ -958,7 +974,7 @@ export const inboxWindowLine = (sinceDate: string): string => `Messages since ${
  * about what someone else claimed.
  */
 export const notYourNameLine = (): string =>
-  'Not one of your names — the name in a message is only the sender’s claim.'
+  'Not one of your names. The name in a message is only the sender’s claim.'
 
 export const hiddenSendersLabel = (count: number): string => `Hidden (${count})`
 
@@ -974,7 +990,7 @@ export const inboxNotConfiguredLine = (): string =>
 
 /** Attributed to the inbox service, never to resolvers — and nothing is lost. */
 export const inboxDownLine = (): string =>
-  'Couldn’t load messages — the inbox service didn’t answer. They are on-chain and will appear when it returns.'
+  'The inbox service didn’t answer. Messages are on-chain and will appear when it returns.'
 
 export const inboxEmptyLine = (): string =>
   'When someone messages one of your names, it lands here.'
@@ -999,7 +1015,7 @@ export const myNamesNoWalletBody = (): string => 'Your names are listed by your 
 export const myNamesEmptyTitle = (): string => 'No names yet'
 
 export const myNamesEmptyBody = (): string =>
-  'Register a free name in Buy — it points at your address from the moment it lands.'
+  'Register a name in Buy. It points at your address from the moment it lands.'
 
 /** The button under that line — the sentence names Buy, this goes there. */
 export const myNamesEmptyAction = (): string => 'Find a name'
@@ -1022,9 +1038,9 @@ export const burnBurnedLabel = (): string => 'Burned so far'
 
 export const burnOwedLabel = (): string => 'Owed so far'
 
-export const burnShortfallLine = (nim: string): string => `Behind by ${nim} NIM — owed but not yet burned.`
+export const burnShortfallLine = (nim: string): string => `Behind by ${nim} NIM, owed but not yet burned.`
 
-export const burnSurplusLine = (nim: string): string => `Ahead by ${nim} NIM — more burned than owed.`
+export const burnSurplusLine = (nim: string): string => `Ahead by ${nim} NIM, more burned than owed.`
 
 export const burnEvenLine = (): string => 'Burned exactly what is owed.'
 
@@ -1079,7 +1095,7 @@ export const eraNoticeLine = (): string => 'Names and prices here are for testin
 export const eraNoticeHint = (blocks: number = CONSTANTS.TERM_LENGTH): string =>
   `This is a test era. Every clock runs short so a name's whole life fits a few days: a term is ${periodApprox(blocks)} instead of a year, ` +
   `a lifetime about ${periodApprox(blocks * CONSTANTS.LIFETIME_TERMS)} instead of ${CONSTANTS.LIFETIME_TERMS} years, and prices are set for testing. ` +
-  `Nothing registered here carries over — the registry starts again at launch.`
+  `Nothing registered here carries over. The registry starts again at launch.`
 
 // ── The landing page (a browser's front door; Pay opens on Buy) ─────────────
 
@@ -1286,7 +1302,7 @@ export const SHARE_TILE = { title: 'Share Link', hint: 'Earn on registrations yo
 export const shareCopiedLine = (): string => 'Link copied'
 export const shareCopyFailedLine = (link: string): string => `Copy this link: ${link}`
 /** A name in grace cannot refer: §10.7 reads the referrer's status at the registration. */
-export const shareInGraceLine = (): string => 'Renew first — a name in grace can’t refer.'
+export const shareInGraceLine = (): string => 'A name in grace earns no referral share. Renew it first.'
 export const referralsCountLine = (count: number, nim: string): string =>
   count === 0 ? 'No registrations referred yet' : `${count} referred · ≈${nim} NIM at today’s prices`
 /** The owner's payment link (`lib/payRequest.ts`): builds `#/pay/<name>`; not a transaction. */
@@ -1304,15 +1320,20 @@ export const requestLinkLabel = (): string => 'Your link'
  * `OWNER_ACTION_TILE.setEvm`, named here so the line points somewhere.
  */
 export const requestNoEvmLine = (): string =>
-  'USDT needs an address linked to this name — the EVM Resolution action.'
+  'USDT needs an address linked to this name. Use the EVM Resolution action.'
 export const copyLinkLabel = (): string => 'Copy link'
-/** A name in grace does not resolve (§7.3), so a link to it has nothing to pay. */
-export const requestInGraceLine = (): string => 'Renew first — a name in grace can’t be paid.'
+/**
+  * A name in grace does not resolve (§7.3), so a link to it has nothing to send
+  * to. It said "a name in grace can’t be paid", which reads as the name being
+  * bought (Kike, 2026-09-14: *"What that 'paid' means? Don't you mean 'sold'?"*).
+  * The subject is the payment, not the name.
+  */
+export const requestInGraceLine = (): string => 'Payments can’t reach a name in grace. Renew it first.'
 
 export const shareHint = (percent: string, rebate: string | null = null, netOfBurn = false): string =>
-  `Anyone who registers through your link pays the same price${rebate === null ? '' : ` and gets ${rebate} of it back`}, ` +
-  `and this name’s address receives ${percent} of the fee, paid by the registry after each registration` +
-  `${netOfBurn ? ` — ${rebate === null ? 'that rate is' : 'both rates are'} before the registry’s burn, which takes a fifth of each` : ''}.`
+  `Anyone who registers through your link pays the same price${rebate === null ? '' : ` and gets ${rebate} of it back`}. ` +
+  `This name’s address receives ${percent} of the fee, paid by the registry after each registration.` +
+  `${netOfBurn ? ` ${rebate === null ? 'That rate is' : 'Both rates are'} before the registry’s burn, which takes a fifth of each.` : ''}`
 
 
 /** A tile's title, and the line under it while the record has nothing to show. */
@@ -1368,7 +1389,7 @@ export const cancelHint = (
  * and the message lands later than this line is written.
  */
 export const offerStaysLine = (nim: string, blocksLeft: number): string =>
-  `The ${nim} NIM listing stays — it can’t be withdrawn for another ${blocksApprox(blocksLeft)}.`
+  `The ${nim} NIM listing stays. It can’t be withdrawn for another ${blocksApprox(blocksLeft)}.`
 
 // Buy's card: a name for sale or under auction hands off to Market.
 export const listedForSaleLine = (nim: string): string => `Listed at the marketplace for ${nim} NIM. `
@@ -1401,7 +1422,7 @@ export const clearLabel = (): string => 'Clear'
 // refusal names the way out — the field still takes a long-press paste.
 export const pasteLabel = (): string => 'Paste'
 export const pasteEmptyLine = (): string => 'Nothing on the clipboard.'
-export const pasteRefusedLine = (): string => 'This app cannot read the clipboard — paste into the field instead.'
+export const pasteRefusedLine = (): string => 'This app can’t read the clipboard. Paste into the field instead.'
 export const signsWithLabel = (): string => 'Signs with'
 export const submittingLabel = (): string => 'Submitting…'
 export const confirmingLabel = (): string => 'Confirming…'
@@ -1420,7 +1441,7 @@ export const buySheetTitle = (name: string): string => `Buy ${name}`
 export const bidSheetTitle = (name: string): string => `Bid on ${name}`
 export const connectToBuyLine = (name: string): string => `Connect your wallet to buy ${name}.`
 export const connectToBidLine = (name: string): string => `Connect your wallet to place a bid on ${name}.`
-export const listingLoadFailedLine = (name: string): string => `Could not load details for ${name} — try again.`
+export const listingLoadFailedLine = (name: string): string => `Couldn’t load details for ${name}. Try again.`
 export const marketFilterPlaceholder = (): string => 'Filter listings by name…'
 export const marketFilterAria = (): string => 'Filter listings by name'
 export const MARKET_FILTER: Record<'all' | 'offers' | 'auctions', string> = { all: 'All', offers: 'Buy Now', auctions: 'Auctions' }
@@ -1437,7 +1458,7 @@ export const payNameAria = (): string => 'Name to pay'
 /** Short: the paste button sits in this field, and a long one clips under it. */
 export const payNamePlaceholder = (): string => 'name, or a link'
 export const payIdleTitle = (): string => 'Pay any NNS name'
-export const payNimEmptyBody = (): string => 'Type a registered name to resolve its on-chain Nimiq address and send NIM.'
+export const payNimEmptyBody = (): string => 'Type a name to send NIM to the address it points to.'
 
 // Inbox.
 export const backToInboxLabel = (): string => 'Inbox'

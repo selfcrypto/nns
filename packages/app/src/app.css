@@ -1120,10 +1120,6 @@ select:focus-visible {
   line-height: 1.2;
 }
 
-.resolver-sep {
-  color: var(--ink-faint);
-}
-
 .resolver-url {
   color: var(--ink-soft);
 }

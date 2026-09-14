@@ -41,6 +41,7 @@ import {
   referredByLine,
   registerLifetimePaysLine,
   registerPaysLine,
+  termChoiceLabel,
   sellerProceedsLine,
   soldByLine,
 } from './wording'
@@ -184,7 +185,9 @@ export function prepareAction(options: {
         review: [
           lifetime
             ? registerLifetimePaysLine(lunaToNim(fee), formatApproxDate(approxDate(head + termFor(true), head, nowMs)))
-            : registerPaysLine(lunaToNim(fee), blocksApprox(CONSTANTS.TERM_LENGTH)),
+            : // The same spelling as the choice above it: the tab says "1 year",
+              // and `blocksApprox` said "~365 d" one line below it.
+              registerPaysLine(lunaToNim(fee), termChoiceLabel()),
           // §10.7: the payer sees who referred them, that the price is
           // unchanged, and — the part the wallet's own screen cannot say —
           // that the rebate arrives afterwards, as a second transaction. The

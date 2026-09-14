@@ -47,6 +47,7 @@ import {
   submittingLabel,
   sendUncheckedLine,
   sendUnconfirmedLine,
+  bidAmountPlaceholder,
   insufficientBalanceLine,
   choicePriceLine,
   lifetimeChoiceLabel,
@@ -419,9 +420,9 @@ export function ActionSheet({
         <input
           className="sheet-input"
           inputMode="decimal"
-          placeholder={
-            info?.pending.auction ? `Bid in NIM — at least ${lunaToNim(info.pending.auction.minimumBid)}` : 'Bid in NIM'
-          }
+          placeholder={bidAmountPlaceholder(
+            info?.pending.auction ? lunaToNim(info.pending.auction.minimumBid) : null,
+          )}
           value={bidNim}
           onChange={(event) => setBidNim(event.target.value)}
         />

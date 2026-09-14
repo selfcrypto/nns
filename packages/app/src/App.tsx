@@ -78,7 +78,7 @@ function configProblem(): string | null {
   try {
     const { resolvers } = appConfig()
     if (resolvers.length === 0) {
-      return 'No resolver endpoints configured. Set VITE_NNS_RESOLVERS — the shipped default list is empty until a public NNS API exists.'
+      return 'No resolver endpoints configured. Set VITE_NNS_RESOLVERS. The shipped default list is empty until a public NNS API exists.'
     }
     return null
   } catch (error) {

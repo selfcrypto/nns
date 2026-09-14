@@ -3,6 +3,7 @@ import { CONSTANTS, LUNA_PER_NIM, parse, termFor } from '@nimiqnames/core'
 import { ActionInputError, parseAuctionDuration, parseNimAmount, prepareAction, type ActionInputs } from './actions'
 import type { ApiParams, NameInfo } from './api'
 import { formatApproxDate } from './format'
+import { termChoiceLabel } from './wording'
 
 const OWNER = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
 const OTHER = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
@@ -81,9 +82,12 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     expect(prepared.review.some((line) => line.includes('Referred by'))).toBe(false)
   })
 
-  it('the registration review states the term from TERM_LENGTH, never a typed year', () => {
+  it('the registration review spells the term as the choice above it does, from TERM_LENGTH', () => {
     const prepared = prepare({ action: 'register' }, null)
-    expect(prepared.review[0]).toMatch(/^Pays 2,?000 NIM to the registry for a ~\d+ d term\.$/)
+    // The tab said "1 year" and the review under it said "~365 d" (screenshot,
+    // 2026-09-14). One term, one spelling, and both derived.
+    expect(prepared.review[0]).toBe(`Pays 2,000 NIM to the registry for ${termChoiceLabel()}.`)
+    expect(termChoiceLabel()).toBe(termChoiceLabel(CONSTANTS.TERM_LENGTH))
   })
 
   it('a lifetime registration pays ten yearly fees, carries L, and reviews the date it reaches (§10.4)', () => {
@@ -92,7 +96,7 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     const parsed = parse(prepared.request.dataHex)
     expect(parsed.ok && parsed.message.type === 'G' && parsed.message.lifetime).toBe(true)
     // No record to measure from: the head is the one `/params` was served at.
-    expect(prepared.review[0]).toBe(`Pays 20,000 NIM to the registry — yours until ${dateAt(termFor(true))}.`)
+    expect(prepared.review[0]).toBe(`Pays 20,000 NIM to the registry. Yours until ${dateAt(termFor(true))}.`)
     expect(prepared.review[0]).not.toMatch(/lifetime/i)
   })
 
@@ -258,9 +262,9 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
       const prepared = prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '2' }, withBoth)
       expect(prepared.review.some((line) => line.includes('transfer'))).toBe(true)
       expect(prepared.review.some((line) => line.includes('offer'))).toBe(true)
-      expect(prepared.review.some((line) => line.includes('renew first'))).toBe(false)
+      expect(prepared.review.some((line) => line.includes('Renew first'))).toBe(false)
       // Expiry at 2_000_000; 12 days from 1_000_000 lands past it — the message would forfeit, so the sheet refuses.
-      expect(() => prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '12' })).toThrow(/renew first/)
+      expect(() => prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '12' })).toThrow(/Renew first/)
     })
 
     it('a bid is a B to the marketplace whose value is the bid — at least the minimum, never less', () => {
@@ -393,7 +397,7 @@ describe('delegate: the review names the mechanism, and a no-op `D` is refused',
   it('clearing a host never implies an on-chain fallback', () => {
     const review = prepare({ action: 'delegate', host: '' }, withHost('nns.example.com')).review
     expect(review.join(' ')).toContain('No host will answer for subdomains under example')
-    expect(review.join(' ')).toMatch(/never on-chain/)
+    expect(review.join(' ')).toMatch(/only ever resolve through the host/)
     expect(review.join(' ')).not.toMatch(/stop resolving/)
   })
 

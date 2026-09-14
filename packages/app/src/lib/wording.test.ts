@@ -3,6 +3,7 @@
  * these tests pin the ones a later edit would most plausibly break.
  */
 import { CONSTANTS } from '@nimiqnames/core'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import { blocksApprox } from './format'
@@ -20,6 +21,7 @@ import {
   bidCustodialWarning,
   buyAcknowledgeLabel,
   custodialHint,
+  insufficientBalanceLine,
   custodialWarning,
   marketCustodialHint,
   marketCustodialLine,
@@ -70,7 +72,7 @@ describe('"Verified by N resolvers" (resolver README decision, 2026-08-14)', () 
   // The count names nobody, which is the whole complaint at N = 2 (Kike,
   // 2026-08-28). The party is the name; the URL is the half a user can check.
   it('names every agreeing resolver by name and API URL', () => {
-    expect(resolverIdentityLine(LABS)).toBe('Example Labs — https://api.example.com')
+    expect(resolverIdentityLine(LABS)).toBe('Example Labs · https://api.example.com')
     expect(resolverIdentityLine(OURS)).toContain('https://nns.ours.example')
   })
 
@@ -305,6 +307,12 @@ describe('the referral lines (§10.7)', () => {
       expect(strip.match(/burn/g)).toHaveLength(1)
     })
 
+    it('ends in a full stop with the aside and without it', () => {
+      expect(shareHint('5%', '5%', true).endsWith('.')).toBe(true)
+      expect(shareHint('5%', '5%').endsWith('.')).toBe(true)
+      expect(shareHint('5%').endsWith('.')).toBe(true)
+    })
+
     it('a row the burn is not out of gets no aside at all', () => {
       expect(referredByLine('ricomav', '10%')).not.toMatch(/burn/)
       expect(buyerRebateLine('10%')).not.toMatch(/burn/)
@@ -312,8 +320,8 @@ describe('the referral lines (§10.7)', () => {
     })
 
     it('the owner’s hint says what the burn takes', () => {
-      expect(shareHint('5%', '5%', true)).toMatch(/both rates are before the registry’s burn, which takes a fifth of each/)
-      expect(shareHint('5%', null, true)).toMatch(/that rate is before/)
+      expect(shareHint('5%', '5%', true)).toMatch(/Both rates are before the registry’s burn, which takes a fifth of each/)
+      expect(shareHint('5%', null, true)).toMatch(/That rate is before/)
     })
   })
 
@@ -339,7 +347,9 @@ describe('the two lines a tempo era would otherwise turn into lies', () => {
   })
 
   it('render the checkpoint interval from CHECKPOINT_INTERVAL', () => {
-    expect(proofPendingLine()).toBe(`Proof pending — checkpoints are cut every ${blocksApprox(CONSTANTS.CHECKPOINT_INTERVAL)}. The name works now.`)
+    expect(proofPendingLine()).toBe(
+      `Proof pending. The name works now. Checkpoints are cut every ${blocksApprox(CONSTANTS.CHECKPOINT_INTERVAL)}.`,
+    )
   })
 })
 
@@ -405,8 +415,52 @@ describe('a `K` is named by what it will clear (§6 `K`)', () => {
 
   it('says how long an offer the `K` will not touch stays standing', () => {
     expect(offerStaysLine('450', CONSTANTS.OFFER_IRREVOCABLE)).toBe(
-      `The 450 NIM listing stays — it can’t be withdrawn for another ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}.`,
+      `The 450 NIM listing stays. It can’t be withdrawn for another ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}.`,
     )
+  })
+})
+
+/**
+ * Kike, 2026-09-14, forwarding a Nimiq team member on the balance block:
+ * *"This text is so obviously Claude speak"* — *"please stop using the '-' to
+ * split sentences. I prefer a dot or brackets (only when needed)."*
+ *
+ * Read off the source rather than by calling every export, because the rule is
+ * about the strings themselves and a function's arguments are not the point.
+ * Comments keep their dashes: they are read by whoever edits this file, not by
+ * anyone using the app.
+ */
+describe('no em dash splits a sentence a user reads', () => {
+  const visibleLines = (): readonly string[] => {
+    const source = readFileSync(new URL('./wording.ts', import.meta.url), 'utf8').split('\n')
+    const out: string[] = []
+    let inBlockComment = false
+    for (const line of source) {
+      const text = line.trim()
+      if (text.startsWith('/*')) inBlockComment = true
+      if (inBlockComment) {
+        if (text.includes('*/')) inBlockComment = false
+        continue
+      }
+      if (text.startsWith('//') || text.startsWith('*')) continue
+      out.push(line)
+    }
+    return out
+  }
+
+  it('holds for every string in the file', () => {
+    expect(visibleLines().filter((line) => line.includes('—'))).toEqual([])
+  })
+})
+
+describe('the balance block (the line a Nimiq reviewer quoted)', () => {
+  it('is the two numbers and nothing else', () => {
+    expect(insufficientBalanceLine('400', '0')).toBe('Needs 400 NIM. Your wallet holds 0 NIM.')
+  })
+
+  it('never describes sending, because the sheet has already disabled it', () => {
+    const line = insufficientBalanceLine('400', '0').toLowerCase()
+    expect(line).not.toMatch(/send|top it up|would/)
   })
 })
 

@@ -75,12 +75,11 @@ function ProvenVerification({ result }: { result: ResolveResult }) {
         <ul className="verify-resolvers" id={listId}>
           {resolvers.map((resolver) => (
             <li key={resolver.url}>
-              <span className="resolver-pill">{resolver.name}</span>
-              {/* Dash and URL wrap as one: on a phone the endpoint drops to its own
-                  line, and a separator left behind on the line above reads as a typo. */}
-              <span className="resolver-url">
-                <span className="resolver-sep">—</span> {resolverUrlShown(resolver.url)}
-              </span>
+              <span className="resolver-pill">{resolver.name}</span>{' '}
+              {/* No separator between the two: on a phone the endpoint drops to its
+                  own line, and a dash or dot then leads that line as debris. The
+                  pill's own background is the separation at every width. */}
+              <span className="resolver-url">{resolverUrlShown(resolver.url)}</span>
             </li>
           ))}
         </ul>
