@@ -15,13 +15,13 @@ The parent is in the request, so one server can answer for every name that point
 
 NNS proves two things: that `exchange` belongs to a particular owner, and that its owner designated **this host**. Both come out of the checkpoint through an ordinary proof.
 
-The address the host returns for `shop` is the owner's word and nothing else's. No signature, no proof, no protocol recourse past the dot. That boundary is deliberate: an exchange already controls the deposit addresses it names, and having the registry ratify each one would cost a fee per subdomain and a log that never stops growing. So every client shows a delegated answer differently from a proven one — the app marks it *Subdomain* and says "The address is `exchange`'s word — no proof covers it."
+The address the host returns for `shop` is the owner's word and nothing else's. No signature, no proof, no protocol recourse past the dot. That boundary is deliberate: an exchange already controls the deposit addresses it names, and having the registry ratify each one would cost a fee per subdomain and a log that never stops growing. So every client shows a delegated answer differently from a proven one: the app marks it *Subdomain* and says "The address is `exchange`'s word, with no proof behind it."
 
 **The consequence for a host operator: your server's security is your subdomains' security.** A compromised host serves whatever addresses the attacker likes, and no part of NNS will notice. A signed-response format is fixed for a future version that requires it.
 
 ## NNS never says whether a subdomain exists
 
-A 404, a timeout, a DNS failure and a wrong-shaped reply all reach the client as one thing: the host did not answer. The client shows the parent still verified and says "`exchange`'s resolver did not answer" — never "`shop.exchange` does not exist", because only the owner can know that, and a server that told callers which labels it serves would be an enumeration surface.
+A 404, a timeout, a DNS failure and a wrong-shaped reply all reach the client as one thing: the host did not answer. The client shows the parent still verified and says "`exchange`'s resolver did not answer", never "`shop.exchange` does not exist", because only the owner can know that, and a server that told callers which labels it serves would be an enumeration surface.
 
 ## Setting one up
 
@@ -46,7 +46,7 @@ You need: the owner key of the name, a server reachable over **publicly trusted 
 
    Edit the file and it reloads within seconds. A bad entry rejects the whole file and names the key, while the previous file keeps serving; nothing goes silently missing.
 
-2. **Put TLS in front of it.** Clients build `https://<host>/…` and nothing else; a host on plain HTTP is a host no client will ever reach. Any terminator works — Caddy, nginx with certbot, a tunnel, a hosting panel. Check from a machine that is not the server: `curl https://<host>/exchange/shop`.
+2. **Put TLS in front of it.** Clients build `https://<host>/…` and nothing else; a host on plain HTTP is a host no client will ever reach. Any terminator works: Caddy, nginx with certbot, a tunnel, a hosting panel. Check from a machine that is not the server: `curl https://<host>/exchange/shop`.
 
 3. **Then set the host on the name**, from My names → Subdomain host. Lowercase, no scheme, up to {{n:MAX_HOST_LEN}} characters, and **name and host together within 52 characters**. A short path is allowed (`example.com/nns`) and says where the server is mounted; it is not how two names share a host, since the parent in the request already does that.
 
@@ -64,7 +64,7 @@ Adding a customer afterwards is an edit to the JSON file, nothing else.
 
 ## Labels
 
-1 to {{n:MAX_LABEL_LEN}} characters from `a–z 0–9 -`, no hyphen at either end or doubled. No letter required and no digit rule — labels are not scarce, not sold, and the parent keeps them apart. Only one dot: nested subdomains are not part of this version.
+1 to {{n:MAX_LABEL_LEN}} characters from `a–z 0–9 -`, no hyphen at either end or doubled. No letter required and no digit rule. Labels are not scarce, not sold, and the parent keeps them apart. Only one dot: nested subdomains are not part of this version.
 
 ## What the reference host promises
 

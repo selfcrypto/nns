@@ -127,15 +127,20 @@ describe('the generated tables', () => {
   })
 
   // Both payouts, or a reader cannot check a payment they hold no rate for.
-  // A row that pays no rebate prints an em dash: "the policy did not exist
-  // then" and "the policy pays zero" are different claims.
-  it('gives the rate table a column for the buyer’s rebate, and an em dash where a row pays none', () => {
+  // A row that pays no rebate prints "none", not a blank: "the policy did not
+  // exist then" and "the policy pays zero" are different claims, and an empty
+  // cell reads as neither. It was an em dash until the 2026-09-14 wording pass
+  // took the character out of everything a reader sees.
+  it('gives the rate table a column for the buyer’s rebate, and says none where a row pays none', () => {
     const table = referralRatesTable()
     expect(table).toContain('| Referrer | To the referrer | Back to the buyer | From height | Note |')
     const rebate = defaultReferralRebate()
     expect(rebate).not.toBeNull()
     expect(table).toContain(`| ${rebate}† |`)
-    expect(table).toContain('| — |')
+    expect(table).toContain('| none |')
+    // The `note` column is the JSON's prose, printed straight onto the page,
+    // so the pages' em-dash rule (docsPages.test.ts) has to reach it there.
+    expect(table).not.toContain('—')
     // Every row renders; the header, the separator, the blank line and the
     // footnote are the extra four.
     expect(table.split('\n')).toHaveLength(REFERRAL_RATES.rows.length + 4)

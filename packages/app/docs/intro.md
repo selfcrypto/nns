@@ -10,7 +10,7 @@ One name instead of an address. `kike` pays `NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M 
 
 ## What that buys you
 
-- **Your name is held by your key.** Ownership follows whoever signed the registration. Nobody can take it, freeze it or move it — not the people who run the service, not anyone else.
+- **Your name is held by your key.** Ownership follows whoever signed the registration. Nobody can take it, freeze it or move it. Not the people who run the service, not anyone else.
 - **Nothing to trust or upgrade on chain.** The chain is used as what it already is: an ordered, finalised list of transactions. Everything else is interpretation, and the interpretation rules are public so anyone can re-run them.
 - **Answers you can check.** Every lookup carries a proof. If a resolver's answer and the chain disagree, your wallet stops and says so instead of guessing.
 - **Subdomains for free.** Register `exchange` once and hand out `alice.exchange` from a server you run, with nothing stored on chain per user.
@@ -21,10 +21,10 @@ One name instead of an address. `kike` pays `NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M 
 
 | You want to… | Read |
 |---|---|
-| Pay someone by name | [Using the app](app) — the Pay tab |
-| Ask someone to pay you | [Using the app](app) — payment links |
-| Get a name of your own | [Names](names), [Prices](prices), then [Using the app](app) — the Buy tab |
-| Manage a name you hold | [Using the app](app) — My names |
+| Pay someone by name | [Using the app](app) (the Pay tab) |
+| Ask someone to pay you | [Using the app](app) (payment links) |
+| Get a name of your own | [Names](names), [Prices](prices), then [Using the app](app) (the Buy tab) |
+| Manage a name you hold | [Using the app](app) (My names) |
 | Give your users `name.yourname` addresses | [Subdomains](subdomains) |
 | Know what the proofs actually guarantee | [How you know the answer is right](trust) |
 | Resolve names in your own app or contract | [Integrating NNS](developers) |
@@ -36,4 +36,4 @@ One name instead of an address. `kike` pays `NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M 
 - **Not a rollup.** Checkpoint roots are notarised on an EVM chain so past claims cannot be quietly rewritten. That is a timestamp, not a court: the other chain cannot reconstruct or arbitrate NNS state.
 - **Not a custodian.** Names are never held for you. The one place money passes through the operator is the marketplace, between a purchase and its settlement, and that is said plainly wherever it applies.
 
-Everything here — the protocol specification included — is MIT licensed. An interpretation layer that anyone may reimplement is the only kind worth trusting.
+Everything here is MIT licensed, the protocol specification included. An interpretation layer that anyone may reimplement is the only kind worth trusting.

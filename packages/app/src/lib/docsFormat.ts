@@ -149,9 +149,11 @@ export function feesTable(): string {
 
 /**
  * `packages/settlement/referral-rates.json` as the published table §10.7
- * promises — both payouts, because a reader cannot check a payment they
- * cannot see the rate for. A row that pays no rebate prints an em dash
- * rather than 0%, which is the difference between a policy and a rate.
+ * promises: both payouts, because a reader cannot check a payment they cannot
+ * see the rate for. A row that pays no rebate prints "none" rather than 0%,
+ * which is the difference between a policy and a rate. The `note` column is
+ * the JSON's own prose and reaches a reader unedited, so it follows the pages'
+ * wording rules (`docs/README.md`) like the pages do.
  *
  * Every rate is the **headline** — 5%, the figure that was published — and a
  * row whose rates are held net of the burn gets a dagger and one footnote.
@@ -166,7 +168,7 @@ export function referralRatesTable(): string {
     const from = row.fromHeight === 0 ? 'launch' : group(row.fromHeight)
     const mark = row.netOfBurn ? ((footnoted = true), '†') : ''
     const share = `${percentOf(headlineBp(row.bp, row))}${mark}`
-    const rebate = row.rebateBp === null ? '—' : `${percentOf(headlineBp(row.rebateBp, row))}${mark}`
+    const rebate = row.rebateBp === null ? 'none' : `${percentOf(headlineBp(row.rebateBp, row))}${mark}`
     return `| ${ref} | ${share} | ${rebate} | ${from} | ${row.note ?? ''} |`
   })
   const table = ['| Referrer | To the referrer | Back to the buyer | From height | Note |', '|---|---|---|---|---|', ...rows].join('\n')
@@ -181,7 +183,7 @@ export function defaultReferralRate(): string {
   return percentOf(bp)
 }
 
-/** What a referred buyer with no special row gets back, today — `null` where the row in effect pays no rebate. */
+/** What a referred buyer with no special row gets back, today. `null` where the row in effect pays no rebate. */
 export const defaultReferralRebate = (): string | null => rebatePercent('', Number.MAX_SAFE_INTEGER)
 
 function nameLength(placeholder: string, key: string): number {

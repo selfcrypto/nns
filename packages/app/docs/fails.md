@@ -12,10 +12,10 @@ The value sits at the address that received it, which owes you a refund. The set
 
 | What happened | Log reason | Refunded by |
 |---|---|---|
-| You registered or renewed and paid less than the price in effect — including when a price change landed while your transaction was on its way | `INSUFFICIENT_VALUE` | The treasury |
-| You registered or renewed and paid **more** than the price in effect — the name is yours, and the surplus comes back | (accepted, `OK`) | The treasury |
+| You registered or renewed and paid less than the price in effect, including when a price change landed while your transaction was on its way | `INSUFFICIENT_VALUE` | The treasury |
+| You registered or renewed and paid **more** than the price in effect (the name is yours, and the surplus comes back) | (accepted, `OK`) | The treasury |
 | You registered a name that someone else's registration reached first, in block order | `LOST_REGISTRATION_RACE` | The treasury |
-| You bought a name whose offer was gone — sold to someone ahead of you, cancelled, or expired — or bid after an auction closed | `OFFER_NOT_OPEN` | The marketplace |
+| You bought a name whose offer was gone (sold to someone ahead of you, cancelled, or expired), or bid after an auction closed | `OFFER_NOT_OPEN` | The marketplace |
 | You paid the wrong amount for an offer (more *or* less than the exact price), or bid below the minimum | `WRONG_PRICE` | The marketplace |
 | **You were outbid** | (your bid was accepted, `OK`) | The marketplace, the moment the higher bid lands |
 | An auction was cancelled by the name entering grace while your bid stood | (your bid was accepted, `OK`) | The marketplace |
@@ -33,7 +33,7 @@ The value stays where it was sent. Every row here is checkable before sending, f
 | Data began `NNS1` but the type letter is not one of the fourteen | `UNKNOWN_TYPE` |
 | A known type whose fields do not parse | `MALFORMED_PAYLOAD` |
 | Sent to the wrong address for its type | `WRONG_RECIPIENT` |
-| Over the 64-byte budget | `OVER_LENGTH` — in practice never seen, because the network drops such a transaction before it reaches a block |
+| Over the 64-byte budget | `OVER_LENGTH`. In practice never seen, because the network drops such a transaction before it reaches a block |
 
 **Registering or renewing**
 
@@ -44,7 +44,7 @@ The value stays where it was sent. Every row here is checkable before sending, f
 | Registered a name that is in grace | `NAME_IN_GRACE` |
 | Renewed a name that has no record at all | `NAME_NOT_FOUND` |
 
-**Owner actions** — target, EVM address, transfer, subdomain host, offer, auction, cancel
+**Owner actions**: target, EVM address, transfer, subdomain host, offer, auction, cancel
 
 | What happened | Log reason |
 |---|---|
@@ -57,7 +57,7 @@ The value stays where it was sent. Every row here is checkable before sending, f
 | An auction ending at or after the name's expiry | `AUCTION_BEYOND_TERM` |
 | A cancel with nothing to cancel | `NOTHING_TO_CANCEL` |
 
-**Administrative and service messages** — governance, unreserve, settlement, burn attestation
+**Administrative and service messages**: governance, unreserve, settlement, burn attestation
 
 | What happened | Log reason |
 |---|---|
@@ -66,7 +66,7 @@ The value stays where it was sent. Every row here is checkable before sending, f
 | A price change outside its bounds | `GOVERNANCE_BOUND_VIOLATED` |
 | A price change with less than {{dur:GOVERNANCE_DELAY}} notice | `INSUFFICIENT_NOTICE` |
 | Releasing a name that is not reserved, or already released | `NAME_NOT_RESERVED` |
-| Awarding a name that somebody already holds — registered, or in grace | `NAME_NOT_AVAILABLE` |
+| Awarding a name that somebody already holds, registered or in grace | `NAME_NOT_AVAILABLE` |
 | Awarding a name to the burn address | `INVALID_RECIPIENT` |
 
 A message can break several rules at once; the log records the first one in a fixed order that every implementation shares. A message's own contents are judged before the money it carried, so an unusable message is refused for being unusable whatever it paid.
@@ -81,9 +81,9 @@ The wallet returning a transaction hash means the transaction was accepted for b
 
 The app checks all three before opening the wallet. If a transaction still does not appear, the app asks the chain directly and says one of:
 
-- **Confirmed on chain — the registry is catching up.** It landed; the resolver is a minute or two behind. Nothing to do.
+- **Confirmed on chain. The registry will show it within a minute or two.** It landed; the resolver is a minute or two behind. Nothing to do.
 - **Included on chain but did not execute.** Nimiq puts failed transactions in blocks. The network fee is spent, nothing else happened, and the registry ignores it entirely.
-- **Not confirmed — it hasn't appeared on chain.** It may still arrive. Check the name before retrying: a retry signs a second transaction and pays a second fee.
+- **Not confirmed. It hasn't appeared on chain yet.** It may still arrive. Check the name before retrying: a retry signs a second transaction and pays a second fee.
 - **Sent to the wallet, but the service didn't answer.** The checker was unreachable, which says nothing about the send.
 
 The app never reports "the network refused it", because it never observes that. A broken or lagging checker is not a negative result.

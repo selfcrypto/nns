@@ -11,19 +11,19 @@ The point of NNS is that nobody has to take the operator's word. That is only tr
 | Notarise checkpoint roots on an EVM chain | **Anchor publisher** | nothing | a funded EVM key and two independent IPFS importers |
 | Both of the first two on one box | **Collaborator** | API and delegate | the same history node |
 
-Two further roles exist and are the operator's alone: the one that hosts this app, and the one that pays what the protocol owes — the latter holds the system's only Nimiq hot keys. Neither is something a third party runs, and nothing in the table above holds a key of any kind.
+Two further roles exist and are the operator's alone: the one that hosts this app, and the one that pays what the protocol owes, which holds the system's only Nimiq hot keys. Neither is something a third party runs, and nothing in the table above holds a key of any kind.
 
 Run one, two or all of them; they are separate Compose projects and do not interfere.
 
 ## Run a resolver
 
-A resolver replays the chain into name → address and serves it with proofs. It is three containers — Postgres, the indexer, the read-only API — of which only the API is published. No keys, no wallet, no chain writes.
+A resolver replays the chain into name → address and serves it with proofs. It is three containers (Postgres, the indexer, the read-only API), of which only the API is published. No keys, no wallet, no chain writes.
 
 ### The node comes first
 
-You need a Nimiq **history node** whose retention covers `LAUNCH_HEIGHT`, {{height:LAUNCH_HEIGHT}}. This is the one prerequisite that cannot be corrected afterwards, and its failure is the quietest in the system: a node brought up by state sync, or one that has pruned, answers a batch below its horizon with an empty list — exactly what an empty batch looks like. An indexer pointed at one would scan the whole backfill, find nothing, and report success with an empty registry, reproducibly.
+You need a Nimiq **history node** whose retention covers `LAUNCH_HEIGHT`, {{height:LAUNCH_HEIGHT}}. This is the one prerequisite that cannot be corrected afterwards, and its failure is the quietest in the system: a node brought up by state sync, or one that has pruned, answers a batch below its horizon with an empty list, which is exactly what an empty batch looks like. An indexer pointed at one would scan the whole backfill, find nothing, and report success with an empty registry, reproducibly.
 
-The indexer refuses to start instead, naming the earliest block the node holds. **That refusal is the good outcome.** Get a node with the history. Raising the start height is not an option: `LAUNCH_HEIGHT` is a constant in the code, not configuration, because a value one operator can set is a value two resolvers can disagree about — and a resolver that started later would confidently disagree with every other one about who owns what.
+The indexer refuses to start instead, naming the earliest block the node holds. **That refusal is the good outcome.** Get a node with the history. Raising the start height is not an option: `LAUNCH_HEIGHT` is a constant in the code, not configuration, because a value one operator can set is a value two resolvers can disagree about, and a resolver that started later would confidently disagree with every other one about who owns what.
 
 Two more things about the node: do not run it on validator hardware (a bootstrap is I/O-heavy, and disk contention risks the validator's block production), and start the history sync early, because it takes days.
 
@@ -36,7 +36,7 @@ docker compose up -d --build
 docker compose logs -f indexer
 ```
 
-The first run backfills from `LAUNCH_HEIGHT` to the head, then tails. The API answers `503 NOT_SYNCED` until the indexer has written state, and serves `proof: null` until the first checkpoint boundary — every ~{{dur:CHECKPOINT_INTERVAL}} — after which proofs appear.
+The first run backfills from `LAUNCH_HEIGHT` to the head, then tails. The API answers `503 NOT_SYNCED` until the indexer has written state, and serves `proof: null` until the first checkpoint boundary (every ~{{dur:CHECKPOINT_INTERVAL}}), after which proofs appear.
 
 **Start modes.** `scratch` replays from the chain. `snapshot` seeds an empty database from another operator's public log, verified against the checkpoint that operator published, and scans forward from there; it takes minutes instead of hours and costs independence over the seeded range, which the resolver discloses on `/params` rather than hiding. `hybrid` seeds the same way and re-derives the range from the chain in the background, so it needs the full history like `scratch`.
 
@@ -54,9 +54,9 @@ The proof in that last reply is the product. Anyone can check it against the che
 
 ### Join the quorum
 
-Being runnable is not the same as being asked. Clients ask the resolvers in their shipped list, `DEFAULT_RESOLVERS` in `@nimiqnames/resolver`, which carries two entries — both run by the same operator, on two machines that replay separately. That is enough to catch a bug or a bad deploy on one box, and not enough to catch the operator. **A third entry run by somebody else is the check that list is still missing**, and it is the reason to run one.
+Being runnable is not the same as being asked. Clients ask the resolvers in their shipped list, `DEFAULT_RESOLVERS` in `@nimiqnames/resolver`, which carries two entries, both run by the same operator, on two machines that replay separately. That is enough to catch a bug or a bad deploy on one box, and not enough to catch the operator. **A third entry run by somebody else is the check that list is still missing**, and it is the reason to run one.
 
-An entry is a URL and a **name** — the name is what a client shows when resolvers disagree, so it names you, not the URL. Open an issue with both once your endpoint answers publicly; the count rises for every app on the next `@nimiqnames/resolver` upgrade, with no change in their code.
+An entry is a URL and a **name**. The name is what a client shows when resolvers disagree, so it names you, not the URL. Open an issue with both once your endpoint answers publicly; the count rises for every app on the next `@nimiqnames/resolver` upgrade, with no change in their code.
 
 ### Operating it
 
@@ -73,7 +73,7 @@ A publisher posts each checkpoint's commitment to the anchor contract on an EVM 
 
 - **The contract is permissionless.** One function, one event, no owner. Anyone can anchor. Clients count only publishers on their shipped list, so a publisher earns trust by being listed, not by deploying anything.
 - **A second publisher adds independence, not timestamping.** One publisher run by the operator who also runs the resolver proves only that the operator said it. Two must agree before a client trusts an anchor, and that second party is the whole point.
-- **Two independent IPFS importers are required.** Each anchor names the public log snapshot by its IPFS address, and the publisher pins and anchors only when two different implementations mint the same address — a bundled kubo node and a second, non-kubo service. The publisher refuses to start with one.
+- **Two independent IPFS importers are required.** Each anchor names the public log snapshot by its IPFS address, and the publisher pins and anchors only when two different implementations mint the same address: a bundled kubo node and a second, non-kubo service. The publisher refuses to start with one.
 - **The key should be a multisig signer**, and it must not share a machine with anything that terminates TLS.
 
 The contract's compiled artifact is committed, and a `verify` command checks that a deployed address holds exactly it. Rehearse on a testnet first: what the rehearsal exercises is the configuration, which is where the mistakes are.
@@ -88,7 +88,7 @@ The smallest thing in NNS to operate: one container, one JSON file, no node, no 
 
 **TLS.** Both public roles need publicly trusted HTTPS, because clients are browsers and, for a delegate, the scheme is fixed by the protocol with no downgrade. No role bundles a terminator; the recipes in the delegate's README apply to every role with only the port changed.
 
-**Backups.** Nothing you run here needs one. Every byte of it is derived — a resolver from the chain, a delegate from its JSON file, the app from the repository — so the only thing to keep safe is the `.env` you filled in.
+**Backups.** Nothing you run here needs one. Every byte of it is derived (a resolver from the chain, a delegate from its JSON file, the app from the repository), so the only thing to keep safe is the `.env` you filled in.
 
 **Verify from outside.** A certificate only your browser trusts and a port only your LAN can reach both look perfect from the machine that serves them. Check every public URL from somewhere else.
 

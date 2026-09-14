@@ -2,7 +2,7 @@
 
 Three ways in, from easiest to lowest level: the resolver library, the HTTP API, and the wire format itself. Everything on this page is MIT, and every rule the library applies comes from one reference implementation, `@nimiqnames/core`, so nothing here can drift from the protocol.
 
-This page is the short form. The exhaustive guide — every route with live examples, the library's full result and error shapes, verifying a proof in Python or Solidity, deposit subdomains for an exchange, sending every message from the Hub, from Nimiq Pay and from your own node, and running a resolver — is `docs/integration.md` in the repository, `github.com/selfcrypto/nns`.
+This page is the short form. The exhaustive guide is `docs/integration.md` in the repository, `github.com/selfcrypto/nns`: every route with live examples, the library's full result and error shapes, verifying a proof in Python or Solidity, deposit subdomains for an exchange, sending every message from the Hub, from Nimiq Pay and from your own node, and running a resolver.
 
 ## Resolve a name in your app
 
@@ -13,24 +13,24 @@ npm install @nimiqnames/resolver
 ```ts
 import { createResolver } from '@nimiqnames/resolver'
 
-const nns = createResolver({})   // DEFAULT_RESOLVERS, quorum 2 — nothing to configure
+const nns = createResolver({})   // DEFAULT_RESOLVERS, quorum 2. Nothing to configure
 
 const result = await nns.resolve('kike')
-result.address        // 'NQ…' — the address to pay
+result.address        // 'NQ…', the address to pay
 result.verification   // 'PROVEN' | 'PROOF_PENDING' | 'DELEGATED'
 result.quorum         // { required, queried, agreed, resolvers: [{ name, url }] }
-result.warnings       // [{ code, detail }] — things the user should be told
+result.warnings       // [{ code, detail }], things the user should be told
 ```
 
 Keep the instance if you resolve more than one name; it carries the subdomain cache.
 
-**The proof is checked before you get an answer, and you cannot turn that off.** Every resolver reply carries a Merkle proof; the library rebuilds the leaf, recombines the path, and compares the result to the resolver's own published checkpoint. A proof that does not hold throws, even when other resolvers agree — dropping the liar and answering from the rest is exactly how someone controlling one resolver would degrade your quorum silently.
+**The proof is checked before you get an answer, and you cannot turn that off.** Every resolver reply carries a Merkle proof; the library rebuilds the leaf, recombines the path, and compares the result to the resolver's own published checkpoint. A proof that does not hold throws, even when other resolvers agree. Dropping the liar and answering from the rest is exactly how someone controlling one resolver would degrade your quorum silently.
 
 **Before you let anyone pay to register**, call `nns.available(name)`. An available answer is backed by a proof of *absence* from the checkpoint, not merely a missing reply.
 
 ### The resolver list ships in your bundle
 
-`resolvers` is never fetched at runtime. A list downloaded at runtime can be swapped for one user on one network without a trace; a list compiled into your app can only change by publishing a version everyone can inspect. Omit the option to take `DEFAULT_RESOLVERS` — two entries since 2026-09-13 — or spread it and add your own, so upgrades bring new operators. Only ever **add**: never replace, remove, or lower the quorum from a fetched source. A URL that appears twice is counted once, with `DUPLICATE_RESOLVER` on the result.
+`resolvers` is never fetched at runtime. A list downloaded at runtime can be swapped for one user on one network without a trace; a list compiled into your app can only change by publishing a version everyone can inspect. Omit the option to take `DEFAULT_RESOLVERS` (two entries since 2026-09-13), or spread it and add your own, so upgrades bring new operators. Only ever **add**: never replace, remove, or lower the quorum from a fetched source. A URL that appears twice is counted once, with `DUPLICATE_RESOLVER` on the result.
 
 `quorum` defaults to 2 and is how many resolvers must agree, which the shipped list satisfies on its own. Setting it to 1 is allowed and loud: every result carries `QUORUM_BELOW_SPEC` for as long as you run that way.
 
@@ -48,7 +48,7 @@ A proof that verifies for the *previous* address, because the name was repointed
 
 ### Subdomains
 
-`resolve('alice.exchange')` resolves `exchange` with a proof, then asks the host its owner set. The result carries `verification: 'DELEGATED'` and a `DELEGATED_ANSWER` warning, and must look different in your UI from a proven answer. When the host fails, the `DelegateError` carries `.parent`, the parent's own verified resolution: show it, so a third party's cold server never reads as NNS being down. Attribute the failure to the host, never to the subdomain — a 404, a timeout and a bad reply are indistinguishable, and NNS is not entitled to say a subdomain does not exist.
+`resolve('alice.exchange')` resolves `exchange` with a proof, then asks the host its owner set. The result carries `verification: 'DELEGATED'` and a `DELEGATED_ANSWER` warning, and must look different in your UI from a proven answer. When the host fails, the `DelegateError` carries `.parent`, the parent's own verified resolution: show it, so a third party's cold server never reads as NNS being down. Attribute the failure to the host, never to the subdomain: a 404, a timeout and a bad reply are indistinguishable, and NNS is not entitled to say a subdomain does not exist.
 
 ### Warnings and errors
 
@@ -96,14 +96,14 @@ Every resolver serves the same read-only API, described by its own `GET /openapi
 | `/name/{name}` | Everything known: the record or `null`, `reserved`, `unreserved`, and `pending.transfer` / `.offer` / `.auction` (never both of the last two) |
 | `/address/{addr}/names` | Names an address owns |
 | `/offers`, `/auctions` | Every open offer; every running auction with its standing bid and the minimum next bid |
-| `/params` | The prices in effect, any scheduled change, and what a client needs to build fee-bearing messages — including how deep this resolver's own replay goes. `fees` is the length bands already priced (`upTo`, `times`, `yearly`, `lifetime`, in luna), so a client never multiplies a fee itself |
+| `/params` | The prices in effect, any scheduled change, and what a client needs to build fee-bearing messages, including how deep this resolver's own replay goes. `fees` is the length bands already priced (`upTo`, `times`, `yearly`, `lifetime`, in luna), so a client never multiplies a fee itself |
 | `/checkpoints/latest`, `/checkpoints/{height}` | A checkpoint document: the six components and their commitment |
 | `/log`, `/log/decoded` | The complete public log through the latest checkpoint; decoded renders the data field as text |
-| `/settlements` | Outstanding settlement obligations — what the marketplace and treasury owe |
+| `/settlements` | Outstanding settlement obligations: what the marketplace and treasury owe |
 | `/burn` | Burned so far, owed so far, computed from the log |
-| `/referrals/{name}` | Every registration that named this name as its referrer: height, transaction, the name registered, the sender, the value, and whether it was a lifetime. Log facts only — no share is computed, because the rate table is the operator's, not the protocol's |
+| `/referrals/{name}` | Every registration that named this name as its referrer: height, transaction, the name registered, the sender, the value, and whether it was a lifetime. Log facts only. No share is computed, because the rate table is the operator's, not the protocol's |
 
-The proof in `/resolve` is the product. Anyone can check it against `/checkpoints/latest` with `@nimiqnames/core` alone. If a proof reaches you by another route — a cached reply, a QR code — verify it with the library's exported `verifyInclusion` / `verifyNonInclusion` rather than your own code; a second implementation of the check is the one place a divergence could enter.
+The proof in `/resolve` is the product. Anyone can check it against `/checkpoints/latest` with `@nimiqnames/core` alone. If a proof reaches you by another route (a cached reply, a QR code), verify it with the library's exported `verifyInclusion` / `verifyNonInclusion` rather than your own code; a second implementation of the check is the one place a divergence could enter.
 
 ## The wire format
 
@@ -136,17 +136,17 @@ The fourteen messages:
 | `M` | Settlement | `<height>\|<tx index>` | marketplace or treasury | the party paid | the amount owed |
 | `P` | Governance | `<fee base>\|<commission bp>\|<effective height>` | admin | protocol | 1 luna |
 | `U` | Unreserve | `<name>` or `<name>\|L` | admin | protocol (release) or the awardee (award) | 1 luna |
-| `F` | Burn attestation | — | treasury | burn address | the amount burned |
+| `F` | Burn attestation | none | treasury | burn address | the amount burned |
 
-Build payloads with `@nimiqnames/core` — `encodeRegister`, `encodeSetTarget`, `encodeSetEvm`, `encodeTransfer`, `encodeDelegate`, `encodeCancel`, `encodeRenew`, `encodeOffer`, `encodeBuy`, `encodeAuction` — which validate inputs and refuse anything the reducer would refuse. Every encoder checks the byte ceiling, because an over-length message fails silently.
+Build payloads with `@nimiqnames/core`: `encodeRegister`, `encodeSetTarget`, `encodeSetEvm`, `encodeTransfer`, `encodeDelegate`, `encodeCancel`, `encodeRenew`, `encodeOffer`, `encodeBuy`, `encodeAuction`. They validate inputs and refuse anything the reducer would refuse. Every encoder checks the byte ceiling, because an over-length message fails silently.
 
-**The `ref` field on a registration** is a registered name — up to {{n:MAX_REF_LEN}} characters (`a–z 0–9 -`) — whose owner drove the registration, so the referral share can be paid to it. It has no effect on validity, price or ownership: a malformed or unknown `ref` is ignored and the registration proceeds. The share is an operator policy, not a protocol rule; the rules and the rate table are on the referrals page.
+**The `ref` field on a registration** is a registered name of up to {{n:MAX_REF_LEN}} characters (`a–z 0–9 -`) whose owner drove the registration, so the referral share can be paid to it. It has no effect on validity, price or ownership: a malformed or unknown `ref` is ignored and the registration proceeds. The share is an operator policy, not a protocol rule; the rules and the rate table are on the referrals page.
 
 Same-block order is by transaction hash, ascending. A message that is refused still occupies its position.
 
 ## Names on EVM chains
 
-The owner can bind one 20-byte EVM address to a name. It sits inside the Merkle leaf, and the tree is keccak256, so **an EVM contract can verify an NNS proof directly and bind a name to `msg.sender`** with no oracle. One record covers every EVM chain, because multicoin wallets derive the same address on all of them. Anything further — per-chain records, other chains — composes on the EVM side, authorised through this one record; the protocol deliberately holds nothing else.
+The owner can bind one 20-byte EVM address to a name. It sits inside the Merkle leaf, and the tree is keccak256, so **an EVM contract can verify an NNS proof directly and bind a name to `msg.sender`** with no oracle. One record covers every EVM chain, because multicoin wallets derive the same address on all of them. Anything further (per-chain records, other chains) composes on the EVM side, authorised through this one record; the protocol deliberately holds nothing else.
 
 The record is self-declared: NNS verifies that the owner said it, not that the owner controls the EVM key. Control is demonstrated on the EVM side by transacting. The record clears on transfer and on the fall to available, and survives grace.
 
@@ -163,7 +163,7 @@ Two URL conventions, both read entirely on the client, both inert to the registr
 | **Payment link** | `https://<host>/pay/<name>?amount=<n>&message=<text>[&asset=usdt]` | Opens the Pay screen with the recipient, amount and reference filled in. Every field stays editable and nothing is sent until the payer presses Pay. Pasted into a chat, it previews as a card naming the payee and the amount; `https://<host>/#/pay/<name>?…` is the same link without the card |
 | **Referral link** | `https://<host>/?ref=<name>` | Records who introduced a visitor, until their next registration carries it as `G`'s `ref` field |
 
-A payment link is the useful one to emit from an invoice or a checkout: it needs no integration at all beyond building the URL. The `message` becomes the transaction's data field, so it is bound by the two rules that fail silently on chain — **64 bytes**, and never the prefix `NNS1` (§7.5, exact case) — which is why the app refuses such a reference before it sends rather than after. `asset=usdt` asks for the name's linked EVM address instead, and a USDT payment carries no message, an ERC-20 transfer having nowhere to put one.
+A payment link is the useful one to emit from an invoice or a checkout: it needs no integration at all beyond building the URL. The `message` becomes the transaction's data field, so it is bound by the two rules that fail silently on chain: **64 bytes**, and never the prefix `NNS1` (§7.5, exact case). That is why the app refuses such a reference before it sends rather than after. `asset=usdt` asks for the name's linked EVM address instead, and a USDT payment carries no message, an ERC-20 transfer having nowhere to put one.
 
 A payment link is a *request*, not an obligation: it commits nobody, proves nothing, and the payer's app resolves and verifies the name exactly as if they had typed it.
 

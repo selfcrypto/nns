@@ -4,11 +4,11 @@ A price that follows length, a one-year term or a lifetime, a grace period, and 
 
 ## Price follows length
 
-One base price, {{nim:FEE_BASE}} a year, buys a name of {{n:LONG_BAND_FROM}} characters or more. Shorter names cost a fixed multiple of it — the multiples never change; the base can, by governance, with notice.
+One base price, {{nim:FEE_BASE}} a year, buys a name of {{n:LONG_BAND_FROM}} characters or more. Shorter names cost a fixed multiple of it. The multiples never change; the base can, by governance, with notice.
 
 | Name length | A year | A lifetime | Why |
 |---|---|---|---|
-| 1–4 characters | Reserved — released by award or auction; then {{fee:4}} to {{fee:1}} a year | — | Too valuable to sell first come, first served |
+| 1–4 characters | Reserved. Released by award or auction, then {{fee:4}} to {{fee:1}} a year | none | Too valuable to sell first come, first served |
 | 5 characters | {{fee:5}} | {{lifetime:5}} | Scarce |
 | 6 characters | {{fee:6}} | {{lifetime:6}} | |
 | 7–11 characters | {{fee:7}} | {{lifetime:7}} | The desirable range |
@@ -20,13 +20,13 @@ Renewal costs the same as registration for that length, at the price in effect w
 
 ## A year or a lifetime
 
-Every registration and renewal offers two terms. **A year** is one term. **A lifetime** is {{n:LIFETIME_TERMS}} terms bought at once for the price of {{n:LIFETIME_MULTIPLIER}}, and it is exactly that: an expiry {{n:LIFETIME_TERMS}} years out, which the app shows as the date it is. Nothing else about the name changes — it can be renewed again, transferred, sold. The word "lifetime" is the label on the choice, not a promise the registry makes about you.
+Every registration and renewal offers two terms. **A year** is one term. **A lifetime** is {{n:LIFETIME_TERMS}} terms bought at once for the price of {{n:LIFETIME_MULTIPLIER}}, and it is exactly that: an expiry {{n:LIFETIME_TERMS}} years out, which the app shows as the date it is. Nothing else about the name changes: it can be renewed again, transferred, sold. The word "lifetime" is the label on the choice, not a promise the registry makes about you.
 
 ## Pay exactly the price
 
 The app always sends the exact fee, so this only matters if you build a transaction yourself:
 
-- **Pay less** and the registration does not happen and the money is **refunded** in full. The treasury keeps nothing it did not earn — and a price change can take effect while your transaction is still on its way, which is not your mistake.
+- **Pay less** and the registration does not happen and the money is **refunded** in full. The treasury keeps nothing it did not earn, and a price change can take effect while your transaction is still on its way, which is not your mistake.
 - **Pay more** and the registration succeeds and the surplus is **refunded**, for the same reason: the treasury keeps nothing it did not earn, and a price cut can land while your transaction is on its way.
 - **Someone else registered the name a moment before you** and your payment is **refunded** in full. That loss was caused by the race, not by you.
 
@@ -36,7 +36,7 @@ The full list of what is refunded and what is not: [When a transaction is refuse
 
 ## The term
 
-A registration lasts **{{dur:TERM_LENGTH}}** from the block it lands in — or {{n:LIFETIME_TERMS}} of them, for a lifetime. Renewing extends it by another term, or a lifetime, **from the current expiry**, not from today, so renewing early never costs you time.
+A registration lasts **{{dur:TERM_LENGTH}}** from the block it lands in, or {{n:LIFETIME_TERMS}} of them for a lifetime. Renewing extends it by another term, or a lifetime, **from the current expiry**, not from today, so renewing early never costs you time.
 
 **Anyone can renew any name.** A renewal is a payment to the treasury naming the name; it needs no signature from the owner. Ownership does not change.
 
@@ -54,7 +54,7 @@ registered ──── {{dur:TERM_LENGTH}} ────▶ expiry ──── 
 ```
 
 - **Until expiry** the name resolves and every owner action works. The last block it resolves is the one before the expiry block.
-- **From expiry, for {{dur:GRACE_PERIOD}}, the name is in grace.** It does not resolve, so payments to it will not find an address and its subdomains stop answering. It is **not free**: nobody can register it, and a renewal — by anyone — brings it back with its address and records intact. The app says "Expired — in grace until ≈ date. Still its owner's to renew; not available."
+- **From expiry, for {{dur:GRACE_PERIOD}}, the name is in grace.** It does not resolve, so payments to it will not find an address and its subdomains stop answering. It is **not free**: nobody can register it, and a renewal, by anyone, brings it back with its address and records intact. The app says "Expired and not available. The owner can renew until ≈ date."
 - **After grace** the name is available to anyone, and the old record is gone entirely.
 
 **Entering grace cancels what was pending.** An open offer, a pending transfer and a running auction are all cancelled, a standing bid is refunded, and the subdomain host is cleared. The target address and the linked EVM address stay with the record, so a renewal restores the name exactly as it was, minus the subdomain host, which the owner sets again.
@@ -63,7 +63,7 @@ registered ──── {{dur:TERM_LENGTH}} ────▶ expiry ──── 
 
 All fees go to the registry's treasury address. Three rules govern what happens next:
 
-- **{{pct:BURN_SHARE_BP}} of registry revenue is committed to be burned** — sent to Nimiq's burn address, {{addr:BURN_ADDRESS}}, whose key nobody has. What counts as revenue is defined over the public log, not the treasury's balance: accepted registrations, renewals and marketplace commission. Anyone can compute what is owed from the log alone, and the app shows *burned so far*, *owed so far* and the gap between them. The commitment is a policy, not a contract, but a policy whose breach is permanently visible.
+- **{{pct:BURN_SHARE_BP}} of registry revenue is committed to be burned**, sent to Nimiq's burn address, {{addr:BURN_ADDRESS}}, whose key nobody has. What counts as revenue is defined over the public log, not the treasury's balance: accepted registrations, renewals and marketplace commission. Anyone can compute what is owed from the log alone, and the app shows *burned so far*, *owed so far* and the gap between them. The commitment is a policy, not a contract, but a policy whose breach is permanently visible.
 - **Marketplace sales pay a commission** of {{pct:COMMISSION_RATE}}, deducted from the seller's proceeds at settlement. Listing a name costs nothing beyond the network fee.
 - **Auctions of reserved names** pay their proceeds to the treasury.
 
