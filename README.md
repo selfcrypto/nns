@@ -61,6 +61,14 @@ Three clocks, and only the first decides whether a name works:
 | Checkpoint | ~12 min | A Merkle proof exists for it |
 | Anchor | on change, daily floor | The root is notarised on an EVM chain |
 
+## Building on it
+
+Your payee field takes `NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M QCQ4 8P8M`. It
+could take `kike`, in two minutes and one script tag — and you can hand every
+one of your own users a name for free, with no per-user registration and no
+on-chain state. [**INTEGRATE.md**](INTEGRATE.md) is the one-page version;
+[`docs/integration.md`](docs/integration.md) is the whole of it.
+
 ## Verification, in three tiers
 
 1. **Anyone, no node, seconds** — fetch the log by its CID, replay it, compare

@@ -57,7 +57,7 @@ npm install @nimiqnames/resolver
 
 ```ts
 const nns = createResolver({
-  resolvers,          // required today — see "Who you ask", below
+  resolvers,          // who to ask. Defaults to DEFAULT_RESOLVERS — see below
   quorum,             // how many must agree. Default 2
   anchors,            // optional second-chain cross-check. See "Anchors"
   timeoutMs,          // per request. Default 5000
