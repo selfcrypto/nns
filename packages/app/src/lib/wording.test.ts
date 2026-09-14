@@ -311,8 +311,8 @@ describe('the referral lines (§10.7)', () => {
   })
 
   it('the owner sees the rate configured for their own name', () => {
-    expect(ownerShareLine('5%')).toBe('· 5% to you')
-    expect(ownerShareLine('20%')).toBe('· 20% to you')
+    expect(ownerShareLine('5%')).toBe('You get 5%')
+    expect(ownerShareLine('20%')).toBe('You get 20%')
   })
 
   it('the tile never spends alarm vocabulary on a name in grace', () => {

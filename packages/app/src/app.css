@@ -3163,6 +3163,9 @@ li.note {
 }
 
 .owner-action-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -3172,12 +3175,22 @@ li.note {
 }
 
 /* The rate configured for this name, beside the title: a number, not a
-   heading — so it keeps its own case and reads as data. */
+   heading — so it keeps its own case and reads as data. A bubble in the same
+   blue as the tile icons, because the share is the good news on this panel and
+   a mid-dot hung off an uppercase heading buried it — the separator sat on the
+   heading's baseline while the words beside it sat on their own, so nothing in
+   the pair lined up. The bubble has no hover and no cursor: it is a label with
+   a shape, and the only pressable things in this group are the tiles below. */
 .owner-action-group-rate {
+  flex: none;
   text-transform: none;
   letter-spacing: 0;
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--nimiq-blue);
+  background: rgba(5, 130, 202, 0.1);
+  border-radius: 999px;
+  padding: 2px 8px;
+  line-height: 1.5;
 }
 
 .owner-actions-grid {

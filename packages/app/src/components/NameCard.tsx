@@ -489,7 +489,7 @@ function Actions({
           <div className="owner-action-group">
             <span className="owner-action-group-title">
               {OWNER_GROUP_TITLE.referrals}
-              <span className="owner-action-group-rate">{ownerShareLine(sharePercent)}</span>{' '}
+              <span className="owner-action-group-rate">{ownerShareLine(sharePercent)}</span>
               <Hint>{shareHint(sharePercent, rebatePercent(name, height), rateIsNetOfBurn(name, height))}</Hint>
             </span>
             <div className="owner-actions-grid">
