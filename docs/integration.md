@@ -366,6 +366,15 @@ the same file from a CDN if you prefer one that is not ours.
 > `@nimiqnames/resolver` are on npm at `0.1.0`, and `https://nimiqnames.com/nns.js`
 > is live. A CDN copy appears a few minutes after each publish, so a fresh
 > version reaches jsDelivr slightly later than it reaches `npm install`.
+>
+> **The two copies carry different constants until launch.** npm and jsDelivr
+> are built from `main`, so they hold the mainnet values; the copy served from
+> `nimiqnames.com` is built from the era the public beta runs, so it holds the
+> compressed ones (§10.4's table). Nothing in resolution depends on that — a
+> name resolves and a proof verifies identically either way — but a fee or a
+> term read straight out of `CONSTANTS` is the mainnet number while the beta
+> chain wants the compressed one. Read prices from `/params` (§6), which is
+> right in both.
 
 Either way `dist/` is what ships: ESM, typed, plus `dist/rendering.css`
 (§4.3's type face) and `dist/nns.js` (the bundle above).
@@ -1215,7 +1224,10 @@ Errors: `NAME_INVALID` · `NOT_FOUND` · `IN_GRACE` · `QUORUM_UNMET` ·
 ### 10.4 Constants
 
 Read them from `@nimiqnames/core`'s `CONSTANTS`, never from this table, which is
-here so a reader in another language knows the shape. The **public beta**
+here so a reader in another language knows the shape — but note which column
+your copy holds: the published packages are built from `main` and carry the
+mainnet column, so during the beta they disagree with the chain on every
+compressed value. `/params` is the authority on prices while both eras exist. The **public beta**
 (era `tempo/2026-09-11`, live on the URLs below) runs compressed values so a
 year passes in a week; **mainnet** values are what `main` compiles and what
 launch will run. Everything registered in the beta is discarded at the launch
