@@ -42,7 +42,7 @@ import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
 import { search } from '../lib/search'
 import { performSend, type SendPhase, type SendResult } from '../lib/send'
-import { sameAddress, type AppAction } from '../lib/states'
+import { connectInstead, sameAddress, type AppAction } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
 import { useRetryWhilePropagating } from '../lib/useRetryWhilePropagating'
 import { useDebounced } from '../lib/useDebounced'
@@ -97,6 +97,7 @@ import {
   unreachableLine,
 } from '../lib/wording'
 import { Hint } from '../components/Hint'
+import { IdentityBar } from '../components/IdentityBar'
 import { NameCard } from '../components/NameCard'
 import { PasteButton } from '../components/PasteButton'
 import { PinCheck } from '../components/PinCheck'
@@ -202,6 +203,9 @@ export function PayScreen({
 
   const addresses = wallet?.identity.addresses ?? []
   const sender = chosenSender ?? (wallet === null ? null : primaryAddress(wallet.identity))
+  /** No address to sign with: the form ends in the connect control, not in a
+   *  dead Pay button (states.ts, `connectInstead`). */
+  const offerConnect = connectInstead(wallet, onConnect != null)
 
   // Only a resolved answer can be paid: everything else is a state, not an
   // address, and the shared card already says which.
@@ -788,16 +792,30 @@ export function PayScreen({
                   <p className="field-error" style={{ margin: 0 }}>{paySelfLine()}</p>
                 )}
 
-                {progress === 'idle' && (
-                  <button
-                    className={`pay-go ${styles.payBtn}`}
-                    type="button"
-                    disabled={!canPay}
-                    onClick={() => void pay()}
-                  >
-                    {luna === null ? payButtonLabel(null) : payButtonLabel(lunaToNim(luna))}
-                  </button>
-                )}
+                {progress === 'idle' &&
+                  (offerConnect ? (
+                    /* Nothing here can be signed without an address, and a
+                       greyed Pay button says only that. The masthead's own
+                       control, moved, the way My names moves it into its
+                       empty card. */
+                    <IdentityBar
+                      wallet={wallet}
+                      onConnect={onConnect ?? null}
+                      onDisconnect={null}
+                      expanded={false}
+                      onToggle={() => {}}
+                      placement="empty"
+                    />
+                  ) : (
+                    <button
+                      className={`pay-go ${styles.payBtn}`}
+                      type="button"
+                      disabled={!canPay}
+                      onClick={() => void pay()}
+                    >
+                      {luna === null ? payButtonLabel(null) : payButtonLabel(lunaToNim(luna))}
+                    </button>
+                  ))}
 
                 {progress === 'submitting' && (
                   <div className={`${styles.statusBanner} ${styles.statusInfo}`}>

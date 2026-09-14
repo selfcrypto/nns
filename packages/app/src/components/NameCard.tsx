@@ -20,8 +20,9 @@ import { CONSTANTS } from '@nimiqnames/core'
 import { primaryAddress } from '../lib/identity'
 import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
 import type { SearchOutcome } from '../lib/search'
-import { actionGates, cancellableNow, cancelTileGroup, registrationFee, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
+import { actionGates, cancellableNow, cancelTileGroup, connectInstead, registrationFee, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
+import { IdentityBar } from './IdentityBar'
 import {
   ACTION_LABEL,
   GATE_REASON_TEXT,
@@ -44,9 +45,7 @@ import {
   cancelTitle,
   checkNowLabel,
   closeLabel,
-  connectToLabel,
   connectWalletHint,
-  connectWalletLabel,
   delegateFailedLine,
   detailsLabel,
   expiresLine,
@@ -232,6 +231,10 @@ function Actions({
   const { name, info } = view
   const viewers = wallet?.identity.addresses ?? []
   const gates = actionGates({ view, viewers, head: info?.height ?? 0 })
+  // No address yet, so the row's job is to offer the wallet, not to explain a
+  // gate. `wallet === null` is detection in flight and was never this state
+  // (states.ts, `connectInstead`).
+  const offerConnect = connectInstead(wallet, onConnect != null)
 
   useEffect(() => {
     if (open === null) return
@@ -254,7 +257,7 @@ function Actions({
   useEffect(() => {
     if (openAction == null) return
     if (usableAction(openAction)) setOpen(openAction)
-    else if (wallet === null && onConnect != null) onConnect()
+    else if (offerConnect && onConnect != null) onConnect()
     onOpenActionHandled?.()
     // Only `openAction`: the request is consumed once, on arrival.
   }, [openAction])
@@ -441,7 +444,7 @@ function Actions({
                   // Connect is the answer to *no wallet*, never to a gated
                   // action: a connected owner tapping "renew" in the wrong
                   // window got the Hub's connect popup for one build.
-                  const canConnect = wallet === null && onConnect != null
+                  const canConnect = offerConnect && onConnect != null
                   const meta = actionMeta(action)
                   return (
                     <button
@@ -460,7 +463,7 @@ function Actions({
                         <span className="owner-action-meta">
                           {!usable && gate.reason !== null
                             ? GATE_REASON_TEXT[gate.reason]
-                            : !usable && wallet === null
+                            : !usable && offerConnect
                               ? connectWalletHint()
                               : meta.subtitle}
                         </span>
@@ -585,10 +588,19 @@ function Actions({
                   >
                     {open === action ? closeLabel() : ctaMode ? label : detailsLabel()}
                   </button>
-                ) : wallet === null && onConnect ? (
-                  <button type="button" className="action-go action-connect" onClick={onConnect}>
-                    {ctaMode ? connectToLabel(label) : connectWalletLabel()}
-                  </button>
+                ) : offerConnect ? (
+                  /* The masthead's control, moved — not a second one. The card
+                     had a connect button of its own, and it was drawn on
+                     `wallet === null`, so it never appeared for the user who
+                     needed it. */
+                  <IdentityBar
+                    wallet={wallet}
+                    onConnect={onConnect ?? null}
+                    onDisconnect={null}
+                    expanded={false}
+                    onToggle={() => {}}
+                    placement="empty"
+                  />
                 ) : (
                   <span className="action-state">{gate.reason !== null ? GATE_REASON_TEXT[gate.reason] : GATE_REASON_TEXT['no-viewer']}</span>
                 )}

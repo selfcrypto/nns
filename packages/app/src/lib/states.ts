@@ -447,3 +447,28 @@ export function identityRow(
     canDisconnect: wallet.disconnect !== null,
   }
 }
+
+/**
+ * Whether a screen holding an action should draw the identity control where
+ * the action would be. Two states answer yes: detection in flight, which
+ * `IdentityBar` draws as "Checking wallet…", and a wallet with no address,
+ * which it draws as the Connect button.
+ *
+ * It exists because every screen was asking `wallet === null`, and that is the
+ * *first* state, not the second. The Hub adapter hands back a wallet before
+ * anybody has connected — a real object whose address set is empty — so the
+ * test was false exactly when a user needed the button, and Pay's card said
+ * "Connect a wallet to act on names" with nothing on it to press (Kike,
+ * 2026-09-14, on the deployed app).
+ *
+ * `canConnect` is whether the screen has a connect handler at all. Without one
+ * there is nothing to draw in the `connect` state, so the caller keeps
+ * whatever it says today rather than rendering an empty row.
+ */
+export function connectInstead(
+  wallet: Parameters<typeof identityRow>[0],
+  canConnect: boolean,
+): boolean {
+  const { kind } = identityRow(wallet)
+  return kind === 'checking' || (kind === 'connect' && canConnect)
+}

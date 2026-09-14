@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ellipsizeAddress } from '../lib/format'
+import { connectInstead } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import { closeLabel, connectWalletLabel, GATE_REASON_TEXT, messageOwnerLabel, messageSubdomainLabel, toLabel } from '../lib/wording'
 import { Composer } from './Composer'
@@ -94,7 +95,10 @@ export function MessageModal({
 
         <Composer name={name} recipient={recipient} wallet={wallet} sender={sender} heading={null} onBusy={setBusy} />
 
-        {wallet === null && (
+        {/* No address to sign with — `wallet === null` is detection in flight,
+            and on that test this block never reached the user who needed it
+            (states.ts, `connectInstead`). */}
+        {connectInstead(wallet, true) && (
           <div className="modal-wallet-warning">
             <div className="modal-wallet-warning-text">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

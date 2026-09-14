@@ -1396,7 +1396,6 @@ export const listedForSaleLine = (nim: string): string => `Listed at the marketp
 export const listedForBiddingLine = (nim: string): string => `Listed at the marketplace for bidding (${nim} NIM). `
 export const checkNowLabel = (): string => 'Check now.'
 export const detailsLabel = (): string => 'Details'
-export const connectToLabel = (action: string): string => `Connect to ${action}`
 
 // Sheets and buttons shared by every flow.
 export const closeLabel = (): string => 'Close'

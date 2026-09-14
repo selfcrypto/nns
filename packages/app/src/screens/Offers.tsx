@@ -13,7 +13,7 @@ import { getAuctions, getOffers, type ApiAuction, type ApiOffer } from '../lib/a
 import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
 import { apiBase } from '../lib/nns'
 import { search } from '../lib/search'
-import { nameView, signerFor } from '../lib/states'
+import { connectInstead, nameView, signerFor } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
 import type { Wallet } from '../lib/wallet'
 import { ActionSheet } from '../components/ActionSheet'
@@ -112,7 +112,10 @@ function MarketActionSheetWrapper({
 
   const title = action === 'buy' ? buySheetTitle(name) : bidSheetTitle(name)
 
-  if (wallet === null) {
+  // Not "no wallet object" — no *address*. The Hub adapter answers before
+  // anybody connects, and on that answer this sheet used to open with an empty
+  // signer instead of asking for the wallet (states.ts, `connectInstead`).
+  if (wallet === null || connectInstead(wallet, true)) {
     return (
       <SheetShell title={title} onClose={onClose}>
         <p className="sheet-current">{action === 'buy' ? connectToBuyLine(name) : connectToBidLine(name)}</p>

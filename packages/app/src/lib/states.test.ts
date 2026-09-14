@@ -9,6 +9,7 @@ import {
   actionGates,
   cancelTileGroup,
   cancellableNow,
+  connectInstead,
   identityRow,
   nameView,
   offerCancellableAt,
@@ -446,6 +447,37 @@ describe('identityRow', () => {
   it('never offers an action the wallet does not have', () => {
     const row = identityRow(wallet({ kind: 'hub', addresses: [A] }, null, null))
     expect(row).toMatchObject({ kind: 'connected', canAdd: false, canDisconnect: false })
+  })
+})
+
+/**
+ * The regression this was written for: Pay's card said "Connect a wallet to act
+ * on names" and offered nothing to press, because every screen asked
+ * `wallet === null` and the Hub adapter answers with a real wallet holding no
+ * address (Kike, 2026-09-14, on the deployed app).
+ */
+describe('connectInstead', () => {
+  const wallet = (addresses: readonly string[]) => ({
+    identity: { kind: 'hub' as const, addresses },
+    connect: () => {},
+    disconnect: () => {},
+  })
+
+  it('is true for the wallet a browser has before anybody connects', () => {
+    expect(connectInstead(wallet([]), true)).toBe(true)
+  })
+
+  it('is true while detection is still in flight, so the row says so', () => {
+    // `IdentityBar` draws this one as "Checking wallet…" — a state, not a gap.
+    expect(connectInstead(null, false)).toBe(true)
+  })
+
+  it('is false with an address, whatever the action gate then says', () => {
+    expect(connectInstead(wallet([OWNER]), true)).toBe(false)
+  })
+
+  it('is false with no connect handler: an empty row is the dead end again', () => {
+    expect(connectInstead(wallet([]), false)).toBe(false)
   })
 })
 
