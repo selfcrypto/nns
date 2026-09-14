@@ -25,6 +25,7 @@ import {
 } from '../lib/wording'
 import { referralFromLink, rememberReferral, storedReferral } from '../lib/referral'
 import { ACQUIRE_ACTIONS, NameCard } from '../components/NameCard'
+import { PasteButton } from '../components/PasteButton'
 import { ReferrerStrip } from '../components/ReferrerStrip'
 import { TrustBar } from '../components/TrustBar'
 import { Spinner } from '../components/ui'
@@ -148,6 +149,7 @@ export function BuyScreen({
                   onChange={(event) => acceptQuery(event.target.value)}
                   aria-label="Search names"
                 />
+                {text === '' && <PasteButton onPaste={acceptQuery} onNote={setLinkNote} />}
                 <button className={`search-go ${styles.searchBtn}`} type="submit" disabled={trimmed === ''}>
                   Lookup
                 </button>

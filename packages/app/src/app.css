@@ -3490,6 +3490,33 @@ li.note {
 }
 
 /* The trust bar under every screen's panel (components/TrustBar.tsx). */
+/* The paste button inside a search field (`components/PasteButton.tsx`).
+   Global, like `.trust-*` below: one button sits in three fields that each
+   have their own CSS module, and a copy per module is three that drift. */
+.paste-btn {
+  background: rgba(31, 35, 72, 0.05);
+  border: none;
+  color: var(--ink-soft);
+  cursor: pointer;
+  padding: 9px;
+  margin-right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex: none;
+  transition: all 0.15s ease;
+}
+
+.paste-btn:hover {
+  color: var(--ink);
+  background: rgba(31, 35, 72, 0.1);
+}
+
+.paste-btn:active {
+  transform: scale(0.92);
+}
+
 .trust-bar {
   display: flex;
   align-items: center;

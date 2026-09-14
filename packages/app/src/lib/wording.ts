@@ -1271,6 +1271,11 @@ export const sheetActionLabel = (action: AppAction, set: Cancellable): string =>
 export const sheetDismissLabel = (action: AppAction): string =>
   action === 'cancel' ? closeLabel() : cancelLabel()
 export const clearLabel = (): string => 'Clear'
+// The paste button beside a search field (`components/PasteButton.tsx`). A
+// refusal names the way out — the field still takes a long-press paste.
+export const pasteLabel = (): string => 'Paste'
+export const pasteEmptyLine = (): string => 'Nothing on the clipboard.'
+export const pasteRefusedLine = (): string => 'This app cannot read the clipboard — paste into the field instead.'
 export const signsWithLabel = (): string => 'Signs with'
 export const submittingLabel = (): string => 'Submitting…'
 export const confirmingLabel = (): string => 'Confirming…'
@@ -1303,6 +1308,8 @@ export const balanceLabel = (): string => 'Balance:'
 export const maxLabel = (nim: string): string => `MAX (${nim} NIM)`
 export const resolveLabel = (): string => 'Resolve'
 export const payNameAria = (): string => 'Name to pay'
+/** Short: the paste button sits in this field, and a long one clips under it. */
+export const payNamePlaceholder = (): string => 'name, or a link'
 export const payIdleTitle = (): string => 'Pay any NNS name'
 export const payNimEmptyBody = (): string => 'Type a registered name to resolve its on-chain Nimiq address and send NIM.'
 

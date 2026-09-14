@@ -7,6 +7,7 @@ import { LANDING, SITE_NAME, referrerKeptLine } from '../lib/wording'
 import { BRAND_MARK } from '../lib/brand'
 import { EXAMPLE_PROFILES } from '../lib/examples'
 import { referralFromLink, rememberReferral, storedReferral } from '../lib/referral'
+import { PasteButton } from '../components/PasteButton'
 import { ReferrerStrip } from '../components/ReferrerStrip'
 import styles from './landing-page.module.css'
 
@@ -168,6 +169,7 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
                   onChange={(event) => acceptQuery(event.target.value)}
                   aria-label={hero.placeholder}
                 />
+                {query === '' && <PasteButton onPaste={acceptQuery} onNote={setLinkNote} />}
                 <button className={`hero-search-go ${styles.searchBtn}`} type="submit" disabled={query.trim() === ''}>
                   {hero.go}
                 </button>

@@ -68,6 +68,7 @@ import {
   payModeUsdtAria,
   payModeUsdtLabel,
   payNameAria,
+  payNamePlaceholder,
   payNimEmptyBody,
   paySelfLine,
   payToLabel,
@@ -96,6 +97,7 @@ import {
 } from '../lib/wording'
 import { Hint } from '../components/Hint'
 import { NameCard } from '../components/NameCard'
+import { PasteButton } from '../components/PasteButton'
 import { PinCheck } from '../components/PinCheck'
 import { AddressRow } from '../components/result'
 import { TrustBar } from '../components/TrustBar'
@@ -156,6 +158,8 @@ export function PayScreen({
   const [usdtResult, setUsdtResult] = useState<EvmSendOutcome | null>(null)
   const [chosenSender, setChosenSender] = useState<string | null>(null)
   const [pinBlocking, setPinBlocking] = useState(false)
+  /** Why a paste did nothing, on the one screen with no other note line. */
+  const [pasteNote, setPasteNote] = useState<string | null>(null)
   const [progress, setProgress] = useState<SendPhase | 'idle'>('idle')
   const [result, setResult] = useState<SendResult | null>(null)
 
@@ -172,6 +176,7 @@ export function PayScreen({
    * way the link arrived.
    */
   const acceptQuery = (value: string) => {
+    setPasteNote(null)
     const link = payRequestFromLink(value)
     if (link === null) {
       setText(value)
@@ -459,7 +464,7 @@ export function PayScreen({
                   autoCapitalize="none"
                   autoCorrect="off"
                   spellCheck={false}
-                  placeholder="name, label.name, or a link"
+                  placeholder={payNamePlaceholder()}
                   value={text}
                   onChange={(event) => acceptQuery(event.target.value)}
                   aria-label={payNameAria()}
@@ -482,11 +487,14 @@ export function PayScreen({
                     </svg>
                   </button>
                 )}
+                {text === '' && <PasteButton onPaste={acceptQuery} onNote={setPasteNote} />}
                 <button className={styles.searchSubmitBtn} type="submit" disabled={trimmed === ''}>
                   {resolveLabel()}
                 </button>
               </div>
             </form>
+
+            {pasteNote !== null && <p className="note" style={{ textAlign: 'center', margin: '8px 0 0' }}>{pasteNote}</p>}
 
             {/* Idle State with Description Card */}
             {outcome.status === 'idle' && (
