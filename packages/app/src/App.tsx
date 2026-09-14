@@ -8,6 +8,7 @@ import { BRAND_MARK as MARK } from './lib/brand'
 import { SITE_NAME } from './lib/wording'
 import { IdentityBar } from './components/IdentityBar'
 import { EraNotice } from './components/EraNotice'
+import { MastheadLinks, MastheadMenu } from './components/MastheadNav'
 import { TabIcon, type TabIconName } from './components/icons'
 import { HomeScreen } from './screens/Home'
 import { BuyScreen } from './screens/Buy'
@@ -94,6 +95,8 @@ export function App() {
   const [wallet, setWallet] = useState<Wallet | null>(null)
   /** The identity row's address list, open or closed. */
   const [identityOpen, setIdentityOpen] = useState(false)
+  /** The nav menu, open or closed — a phone's form of the masthead links. */
+  const [menuOpen, setMenuOpen] = useState(false)
   // Hub connects mutate the wallet's identity in place; this counter re-renders on them.
   const [, setIdentityNonce] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)
@@ -252,18 +255,36 @@ export function App() {
       */}
       <header className={`masthead ${isScrolled ? 'is-scrolled' : ''}`} ref={masthead}>
         <div className="masthead-row">
-          <h1 className="wordmark" onClick={() => navigate({ tab: 'home', param: null })} style={{ cursor: 'pointer' }}>
-            <img className="wordmark-mark" src={MARK} alt="" width="30" height="30" />
-            {SITE_NAME}
+          <h1 className="wordmark">
+            <button type="button" className="wordmark-btn" onClick={() => navigate({ tab: 'home', param: null })}>
+              <img className="wordmark-mark" src={MARK} alt="" width="30" height="30" />
+              {SITE_NAME}
+            </button>
           </h1>
-          <IdentityBar
-            placement="top"
-            wallet={wallet}
-            onConnect={connect}
-            onDisconnect={disconnect}
-            expanded={identityOpen}
-            onToggle={() => setIdentityOpen((open) => !open)}
-          />
+          <MastheadLinks />
+          {/* One corner, two controls: the nav button and the wallet. Both hang
+              a panel from here, so opening either closes the other — two panels
+              overlapping in one corner is a bug you only ever see on a phone. */}
+          <div className="masthead-corner">
+            <MastheadMenu
+              open={menuOpen}
+              onToggle={() => {
+                setIdentityOpen(false)
+                setMenuOpen((open) => !open)
+              }}
+            />
+            <IdentityBar
+              placement="top"
+              wallet={wallet}
+              onConnect={connect}
+              onDisconnect={disconnect}
+              expanded={identityOpen}
+              onToggle={() => {
+                setMenuOpen(false)
+                setIdentityOpen((open) => !open)
+              }}
+            />
+          </div>
         </div>
         <EraNotice />
       </header>

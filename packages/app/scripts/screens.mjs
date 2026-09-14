@@ -184,6 +184,18 @@ const scenarios = {
     await evaluate(`__type('.sheet-input', 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000')`)
     await sleep(800); await shot('owner-sheet', true)
   },
+  // The masthead nav's collapsed form. At 390px the button is the nav, so
+  // every other scenario already shows it beside the chip; these two are the
+  // panel open — on Home, where the masthead is transparent and the pill is
+  // glass, and on a tab screen, where both are card.
+  'masthead-menu': async () => {
+    await landing(); await sleep(500)
+    await evaluate(`__click('.masthead-menu')`); await sleep(400); await shot('masthead-menu')
+  },
+  'masthead-menu-owner': async () => {
+    await loadAsOwner()
+    await evaluate(`__click('.masthead-menu')`); await sleep(400); await shot('masthead-menu-owner')
+  },
   'owner-panel': async () => {
     await loadAsOwner(); await sleep(1500)
     await evaluate(`__click('.identity-who')`); await sleep(500); await shot('owner-panel')

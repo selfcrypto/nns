@@ -199,6 +199,59 @@
   color: rgba(31, 35, 72, 0.7);
 }
 
+/* The masthead's nav (components/MastheadNav.tsx). Same argument as the
+   wordmark above: over the light hero the chrome's text is ink, not the grey
+   it wears against paper. */
+:global(.frame.is-home .masthead .masthead-nav a) {
+  color: rgba(31, 35, 72, 0.72);
+}
+
+:global(.frame.is-home .masthead .masthead-nav a:hover) {
+  color: var(--ink);
+}
+
+/*
+ * The nav button here is glass, not the chip's material — the one screen where
+ * "same material as the wallet chip" has to bend. Home repaints the chip itself
+ * in Nimiq orange (below), and two orange pills six pixels apart read as one
+ * control split in two, which is exactly the fusion this button is deliberately
+ * not doing. Glass keeps it visibly its own pill and visibly the quieter of the
+ * two, which is the right order: identity is the corner's primary control.
+ * `var(--card)` would also paint a white hole in a masthead that is transparent
+ * until the page scrolls.
+ */
+:global(.frame.is-home .masthead .masthead-menu) {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(31, 35, 72, 0.08);
+  box-shadow: 0 4px 12px rgba(31, 35, 72, 0.08);
+  color: var(--ink);
+}
+
+/* The panel takes the wallet panel's glass: one masthead, one material for
+   anything that drops out of it. */
+:global(.frame.is-home .masthead .masthead-menu-panel) {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(246, 133, 27, 0.22);
+  border-radius: 16px;
+  box-shadow: 0 16px 36px -4px rgba(31, 35, 72, 0.14), 0 4px 14px rgba(246, 133, 27, 0.08);
+}
+
+:global(.frame.is-home .masthead .masthead-menu-panel a) {
+  background: rgba(31, 35, 72, 0.03);
+  border: 1px solid rgba(31, 35, 72, 0.06);
+  color: var(--ink);
+}
+
+:global(.frame.is-home .masthead .masthead-menu-panel a:hover) {
+  background: rgba(246, 133, 27, 0.08);
+  border-color: rgba(246, 133, 27, 0.3);
+  color: #D35400;
+}
+
 /* Wallet connect pill (vibrant Nimiq orange) */
 :global(.frame.is-home .masthead .identity-top .identity-who) {
   border: 1px solid rgba(246, 133, 27, 0.2);

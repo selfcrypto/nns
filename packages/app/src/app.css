@@ -224,6 +224,12 @@ select:focus-visible {
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
+  /* The nav panel hangs off this, not off its 30px button: `right: 0` against
+     the button puts the panel's right edge ~154px in from the screen, and a
+     200px panel then runs off the left at 320px. A panel belongs on the row's
+     edge. (The wallet panel anchors to `.identity-top`, which already *is* at
+     that edge, so it needs none of this.) */
+  position: relative;
 }
 
 /*
@@ -252,6 +258,150 @@ select:focus-visible {
   object-fit: contain;
 }
 
+/* The wordmark is a control — it goes home. It used to be an `h1` with a click
+   handler and a `cursor: pointer`, which no keyboard could reach and no screen
+   reader announced; on Docs, where there is no tab bar, that was the only way
+   back into the app. The `h1` keeps the heading, the button takes the job. */
+.wordmark-btn {
+  display: flex;
+  align-items: center;
+  gap: inherit;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+/* Logo · nav · account, the arrangement a reader already knows. This
+   `margin-right: auto` and the corner's `margin-left: auto` meet in the same
+   gap and split it, so the links sit beside the wordmark and the wallet stays
+   in the corner. */
+.masthead-nav {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-right: auto;
+  margin-left: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.masthead-nav a,
+.masthead-menu-panel a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.masthead-nav a:hover,
+.masthead-menu-panel a:hover {
+  color: var(--ink);
+}
+
+.masthead-nav a:focus-visible,
+.masthead-menu-panel a:focus-visible,
+.masthead-menu:focus-visible,
+.wordmark-btn:focus-visible {
+  outline: 2px solid #F6851B;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* The nav button and the wallet chip are one corner: same material, 6px apart,
+   two controls. Not one pill — the chip has four looks (the orange Connect
+   button, the "Checking wallet…" note, the chip, and a flat disabled chip),
+   so three of them have no edge to fuse to. */
+.masthead-corner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex: none;
+}
+
+/* Its own auto margin has nothing left to push against inside the corner. */
+.masthead-corner .identity-top {
+  margin-left: 0;
+}
+
+/* `position: relative` for the same reason the wallet corner has it: the panel
+   is absolute against the button, and the masthead is the only ancestor that
+   stays put when the screen scrolls. */
+.masthead-menu-wrap {
+  flex: none;
+  display: none;
+}
+
+/* The chip's material exactly — `.identity-top .identity-who` — so the pair
+   reads as one corner rather than two visitors. */
+.masthead-menu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* The same drop as the wallet panel, from the button instead of the chip. */
+.masthead-menu-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 8px);
+  right: 16px;
+  width: 200px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+}
+
+.masthead-menu-panel a {
+  justify-content: space-between;
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.masthead-menu-panel a:hover {
+  background: var(--depth-bg);
+}
+
+/* `.identity-scrim` is named for its owner; these are its declarations under a
+   name this one owns. */
+.nav-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  appearance: none;
+  border: none;
+  padding: 0;
+  background: transparent;
+}
+
 @media (max-width: 768px) {
   .masthead-row {
     padding: 10px 16px;
@@ -265,6 +415,19 @@ select:focus-visible {
     width: 26px;
     height: 26px;
   }
+
+  /* Below here the row has no width for four labels: the chip is ~156px and
+     the wordmark ~143px, which spends ~343px of it before the nav asks for
+     ~220px. The button costs 34px and no height at all — and height is the
+     scarce one inside Nimiq Pay, where the top reserve is 0 and the bottom is
+     already down ~120px before the tab bar's pill. */
+  .masthead-nav {
+    display: none;
+  }
+
+  .masthead-menu-wrap {
+    display: block;
+  }
 }
 
 /* The name yields before the address does: the corner is the half a user has
@@ -273,12 +436,6 @@ select:focus-visible {
   .wordmark {
     font-size: 0;
     gap: 0;
-  }
-
-  /* The room the name gave up goes to the address, which is what the corner
-     is for — 46vw of a 320 px screen cuts it to "NQ14 LU5…". */
-  .identity-top .identity-who {
-    max-width: 68vw;
   }
 }
 
@@ -2024,6 +2181,25 @@ li.note {
   border-radius: 999px;
   background: var(--card);
   box-shadow: var(--shadow-card);
+}
+
+/*
+ * Below 380px the wordmark gives up its text (see the masthead block) and the
+ * room goes to the address, which is the half of the corner a user has to be
+ * able to read.
+ *
+ * This lived up in that masthead block until 2026-09-14 and never once
+ * applied: it is the same specificity as the `46vw` above and sat ~1,700 lines
+ * earlier in the file, so the cap it was written to raise always won. The
+ * address has been clipped to "NQ42 5QRF … 9…" on a 320px screen ever since.
+ * 60vw rather than the 68vw it said, because the nav button and its gap now
+ * take 36px of that row — 60 still clears the address's natural width, so the
+ * cap stops biting at all.
+ */
+@media (max-width: 380px) {
+  .identity-top .identity-who {
+    max-width: 60vw;
+  }
 }
 
 .identity-top .identity-who[disabled] {

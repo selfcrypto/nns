@@ -28,6 +28,41 @@ import { blocksApprox, lunaToNim } from './format'
  */
 export const SITE_NAME = 'Nimiq Names'
 
+// ── The masthead's nav ──────────────────────────────────────────────────────
+
+/**
+ * The repository, named once. The nav, the protocol document's URL and the
+ * footer's Resources column all derive from it, so the three cannot drift.
+ */
+const REPO = 'https://github.com/selfcrypto/nns'
+
+/**
+ * The four doors in the masthead — `[label, href]` pairs, the same shape and
+ * for the same reason as `LANDING.footer.columns`: a route is not normally a
+ * string this file holds, but here the link *is* the content.
+ *
+ * The order is increasing depth and then the action — read about it, read the
+ * rules, read the code, go use it — which also puts Dashboard beside the
+ * wallet corner on a wide screen, where an action belongs.
+ *
+ * **Protocol** rather than "spec": it is the word that means something to a
+ * reader who is not already inside the project. It points at GitHub because
+ * the document has no nimiqnames.com URL — nginx serves the bundle and
+ * `/pay/<name>` and 404s the rest — and GitHub renders it. **Dashboard** is
+ * `#/buy` rather than `#/names`: it is the tab bar's first entry and the one
+ * screen worth arriving at with no wallet and no name, so it brings the whole
+ * tab bar back rather than opening one empty room.
+ */
+export const NAV: readonly (readonly [string, string])[] = [
+  ['Docs', '#/docs/intro'],
+  ['Protocol', `${REPO}/blob/main/docs/nns-spec-v1.md`],
+  ['GitHub', REPO],
+  ['Dashboard', '#/buy'],
+] as const
+
+/** The phone button that holds `NAV`, for screen readers — it draws as a glyph. */
+export const menuLabel = (): string => 'Menu'
+
 // ── Verification lines ──────────────────────────────────────────────────────
 
 /**
@@ -1055,7 +1090,7 @@ export const LANDING = {
       // The first two are this app's own documentation (`#/docs/<slug>`,
       // screens/Docs.tsx). A hash link stays inside the app; Home.tsx opens
       // only the absolute ones in a new tab.
-      { title: 'Resources', links: [['Documentation', '#/docs/intro'], ['Developer docs', '#/docs/developers'], ['GitHub', 'https://github.com/selfcrypto/nns'], ['Nimiq', 'https://nimiq.com']] },
+      { title: 'Resources', links: [['Documentation', '#/docs/intro'], ['Developer docs', '#/docs/developers'], ['GitHub', REPO], ['Nimiq', 'https://nimiq.com']] },
       { title: 'Community', links: [['X', 'https://x.com/nimiq'], ['Discord', 'https://discord.gg/nimiq'], ['Telegram', 'https://t.me/Nimiq']] },
     ],
     copyright: (year: number): string => `© ${year} ${SITE_NAME} · MIT`,

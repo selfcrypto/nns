@@ -4,10 +4,12 @@
  * `currentColor`, so each takes the colour of the text beside it and a tab or
  * a verification line recolours them for free.
  *
- * Five for the tab bar and three for the verification line. Nothing else in
- * the app earns a pictogram: the proof rail and the identicon already carry
- * the meanings that matter, and a glyph beside every sentence would spend
- * the reader's attention on decoration.
+ * Five for the tab bar, three for the verification line, and two for the
+ * masthead's nav — the button that holds it on a phone, where there is room
+ * for a glyph and not for the word, and the mark on the rows that leave the
+ * app. Nothing else earns a pictogram: the proof rail and the identicon
+ * already carry the meanings that matter, and a glyph beside every sentence
+ * would spend the reader's attention on decoration.
  */
 
 import type { ReactNode } from 'react'
@@ -100,6 +102,31 @@ export function ChevronIcon() {
   return (
     <Glyph size={16}>
       <path d="M6 9.5l6 6 6-6" />
+    </Glyph>
+  )
+}
+
+/**
+ * The masthead's nav button on a phone. Not a `TabIcon`: that union is the
+ * five tab-bar destinations, and this is chrome rather than a destination.
+ */
+export function MenuIcon() {
+  return (
+    <Glyph size={20}>
+      <path d="M4 7h16" />
+      <path d="M4 12h16" />
+      <path d="M4 17h16" />
+    </Glyph>
+  )
+}
+
+/** Marks a nav row that leaves the app, so a new tab is never a surprise. */
+export function ExternalIcon() {
+  return (
+    <Glyph size={14}>
+      <path d="M14 4h6v6" />
+      <path d="M20 4l-8.5 8.5" />
+      <path d="M18 14.5V20H4V6h5.5" />
     </Glyph>
   )
 }
