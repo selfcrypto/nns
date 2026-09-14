@@ -56,7 +56,7 @@
   left: -10%;
   width: 700px;
   height: 700px;
-  background: radial-gradient(circle, rgba(5, 130, 202, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(var(--tint-blue), 0.08) 0%, transparent 70%);
   filter: blur(120px);
   z-index: 0;
   pointer-events: none;
@@ -141,9 +141,9 @@
   font-weight: 700;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(5, 130, 202, 0.1);
+  background: rgba(var(--tint-blue), 0.1);
   color: var(--nimiq-blue);
-  border: 1px solid rgba(5, 130, 202, 0.2);
+  border: 1px solid rgba(var(--tint-blue), 0.2);
 }
 
 .namesSubtitle {
@@ -159,13 +159,13 @@
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(var(--tint-glass), 0.68);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(var(--tint-glass), 0.9);
   border-radius: 28px;
   padding: 24px 20px;
-  box-shadow: 0 12px 40px rgba(31, 35, 72, 0.06), 0 4px 12px rgba(31, 35, 72, 0.03);
+  box-shadow: 0 12px 40px rgba(var(--tint-shadow), 0.06), 0 4px 12px rgba(var(--tint-shadow), 0.03);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -183,7 +183,7 @@
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 28px;
-  box-shadow: 0 12px 40px rgba(31, 35, 72, 0.05), 0 4px 12px rgba(31, 35, 72, 0.02);
+  box-shadow: 0 12px 40px rgba(var(--tint-shadow), 0.05), 0 4px 12px rgba(var(--tint-shadow), 0.02);
 }
 
 .detailNav {
@@ -212,14 +212,14 @@
   color: var(--ink);
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow: 0 1px 3px rgba(31, 35, 72, 0.03);
+  box-shadow: 0 1px 3px rgba(var(--tint-shadow), 0.03);
   flex-shrink: 0;
 }
 
 .backBtn:hover {
   border-color: var(--nimiq-blue);
   color: var(--nimiq-blue);
-  background: rgba(5, 130, 202, 0.03);
+  background: rgba(var(--tint-blue), 0.03);
   transform: translateX(-1px);
 }
 
@@ -317,7 +317,7 @@
   text-align: left;
   transition: all 0.18s ease;
   font-family: inherit;
-  box-shadow: 0 2px 6px rgba(31, 35, 72, 0.02);
+  box-shadow: 0 2px 6px rgba(var(--tint-shadow), 0.02);
   box-sizing: border-box;
 }
 
@@ -325,20 +325,20 @@
   border-color: var(--nimiq-blue);
   background: var(--card);
   transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(5, 130, 202, 0.09);
+  box-shadow: 0 6px 20px rgba(var(--tint-blue), 0.09);
 }
 
 .nameAvatar {
   width: 40px;
   height: 40px;
   border-radius: 12px;
-  background: rgba(5, 130, 202, 0.06);
+  background: rgba(var(--tint-blue), 0.06);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   overflow: hidden;
-  border: 1px solid rgba(5, 130, 202, 0.15);
+  border: 1px solid rgba(var(--tint-blue), 0.15);
 }
 
 .nameInfo {
@@ -398,7 +398,7 @@
   width: 58px;
   height: 58px;
   border-radius: 18px;
-  background: rgba(5, 130, 202, 0.08);
+  background: rgba(var(--tint-blue), 0.08);
   color: var(--nimiq-blue);
   display: flex;
   align-items: center;
@@ -429,21 +429,21 @@
   text-decoration: none;
   border: none;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--nimiq-blue) 0%, var(--nimiq-blue-deep) 100%);
-  color: var(--card);
+  background: linear-gradient(135deg, #0582CA 0%, #0368A3 100%);
+  color: #ffffff;
   font-family: inherit;
   font-size: 14px;
   font-weight: 600;
   padding: 10px 22px;
   cursor: pointer;
   margin-top: 8px;
-  box-shadow: 0 4px 14px rgba(5, 130, 202, 0.25);
+  box-shadow: 0 4px 14px rgba(var(--tint-blue), 0.25);
   transition: all 0.15s ease;
 }
 
 .emptyActionBtn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(5, 130, 202, 0.35);
+  box-shadow: 0 6px 18px rgba(var(--tint-blue), 0.35);
 }
 
 @media (max-width: 600px) {

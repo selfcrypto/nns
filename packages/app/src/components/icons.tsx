@@ -4,12 +4,14 @@
  * `currentColor`, so each takes the colour of the text beside it and a tab or
  * a verification line recolours them for free.
  *
- * Five for the tab bar, three for the verification line, and two for the
- * masthead's nav — the button that holds it on a phone, where there is room
- * for a glyph and not for the word, and the mark on the rows that leave the
- * app. Nothing else earns a pictogram: the proof rail and the identicon
- * already carry the meanings that matter, and a glyph beside every sentence
- * would spend the reader's attention on decoration.
+ * Five for the tab bar, three for the verification line, and four for the
+ * masthead — the button that holds the nav on a phone, where there is room
+ * for a glyph and not for the word, the mark on the rows that leave the app,
+ * and the sun and moon on the night-mode switch, which is the one control in
+ * the chrome whose whole label is its picture. Nothing else earns a
+ * pictogram: the proof rail and the identicon already carry the meanings that
+ * matter, and a glyph beside every sentence would spend the reader's
+ * attention on decoration.
  */
 
 import type { ReactNode } from 'react'
@@ -127,6 +129,29 @@ export function ExternalIcon() {
       <path d="M14 4h6v6" />
       <path d="M20 4l-8.5 8.5" />
       <path d="M18 14.5V20H4V6h5.5" />
+    </Glyph>
+  )
+}
+
+/**
+ * Night mode's two faces. Each shows the *destination*, not the state: the
+ * moon on a lit page is what pressing it gets you. That is the convention
+ * every phone's own switch uses, and the button says the same thing in words
+ * (`themeToggleLabel`) for anything that cannot see it.
+ */
+export function MoonIcon() {
+  return (
+    <Glyph size={18}>
+      <path d="M20 14.5A8.5 8.5 0 019.5 4a8.5 8.5 0 1010.5 10.5z" />
+    </Glyph>
+  )
+}
+
+export function SunIcon() {
+  return (
+    <Glyph size={18}>
+      <circle cx="12" cy="12" r="4.2" />
+      <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" />
     </Glyph>
   )
 }

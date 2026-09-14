@@ -140,13 +140,13 @@
   width: 100%;
   max-width: 580px;
   margin: 0 auto;
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(var(--tint-glass), 0.65);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(var(--tint-glass), 0.9);
   border-radius: 28px;
   padding: 32px 24px;
-  box-shadow: 0 12px 40px rgba(31, 35, 72, 0.06), 0 4px 12px rgba(31, 35, 72, 0.03);
+  box-shadow: 0 12px 40px rgba(var(--tint-shadow), 0.06), 0 4px 12px rgba(var(--tint-shadow), 0.03);
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -164,7 +164,7 @@
 /* Search bar styling */
 .searchWrapper {
   background: var(--card);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(var(--tint-ink), 0.1);
   box-shadow: 0 20px 40px rgba(246, 133, 27, 0.08);
   transition: all 0.3s ease;
   padding: 6px;
@@ -231,7 +231,7 @@
 .searchBtn:hover:not(:disabled) {
   background: var(--ink-soft);
   transform: translateY(-1px);
-  box-shadow: 0 8px 16px rgba(31, 35, 72, 0.2);
+  box-shadow: 0 8px 16px rgba(var(--tint-shadow), 0.2);
 }
 
 .searchBtn:disabled {
@@ -266,8 +266,8 @@
 }
 
 .suggestionChip {
-  background: rgba(31, 35, 72, 0.04);
-  border: 1px solid rgba(31, 35, 72, 0.08);
+  background: rgba(var(--tint-shadow), 0.04);
+  border: 1px solid rgba(var(--tint-shadow), 0.08);
   border-radius: 16px;
   padding: 6px 14px;
   font-size: 14px;
@@ -288,8 +288,8 @@
 /* Override the RailCard inside the Dashboard Panel to blend smoothly */
 :global(.buy-screen .rail) {
   border-radius: 20px;
-  box-shadow: 0 4px 16px rgba(31, 35, 72, 0.04);
-  border: 1px solid rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 16px rgba(var(--tint-shadow), 0.04);
+  border: 1px solid rgba(var(--tint-ink), 0.04);
   background: var(--card);
   margin: 0;
 }

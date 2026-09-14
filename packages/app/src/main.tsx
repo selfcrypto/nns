@@ -2,8 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import '@nimiqnames/resolver/rendering.css'
 import './app.css'
-import { App } from './App'
+import { App, DEFAULT_TAB } from './App'
 import { applyHostChrome, watchViewport } from './lib/chrome'
+import { parseRoute } from './lib/route'
+import { applyTheme, loadTheme, systemPrefersDark } from './lib/theme'
 
 const container = document.getElementById('root')
 if (container === null) throw new Error('missing #root')
@@ -21,6 +23,20 @@ try {
   watchViewport()
 } catch {
   /* keep the stylesheet's defaults */
+}
+
+// And before it too: `App` re-applies this on every render, but its first one
+// is already a paint late, and a dark-mode user would watch the app flash
+// white on the way in. Same guard, same reason — the light palette is a
+// working page on its own, so a store that throws costs nothing here.
+try {
+  applyTheme(
+    document,
+    loadTheme(window.localStorage, systemPrefersDark(window)),
+    parseRoute(window.location.hash, DEFAULT_TAB).tab !== 'home',
+  )
+} catch {
+  /* keep the light palette */
 }
 
 createRoot(container).render(

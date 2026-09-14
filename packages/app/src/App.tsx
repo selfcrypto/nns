@@ -4,11 +4,13 @@ import { applyHostChrome, describeChrome } from './lib/chrome'
 import { formatRoute, parseRoute, TABS, type NavTab, type Route, type Tab } from './lib/route'
 import { detectWallet, type Wallet } from './lib/wallet'
 import { referralFromLocation, rememberReferral } from './lib/referral'
+import { applyTheme, loadTheme, saveTheme, systemPrefersDark, type Theme } from './lib/theme'
 import { BRAND_MARK as MARK } from './lib/brand'
 import { SITE_NAME } from './lib/wording'
 import { IdentityBar } from './components/IdentityBar'
 import { EraNotice } from './components/EraNotice'
 import { MastheadLinks, MastheadMenu } from './components/MastheadNav'
+import { ThemeToggle } from './components/ThemeToggle'
 import { TabIcon, type TabIconName } from './components/icons'
 import { HomeScreen } from './screens/Home'
 import { BuyScreen } from './screens/Buy'
@@ -44,8 +46,12 @@ const TAB_ICON: Record<NavTab, TabIconName> = {
   market: 'market',
 }
 
-/** The tab an empty or unparseable hash means. See `App`'s first comment. */
-const DEFAULT_TAB: Tab = 'home'
+/**
+ * The tab an empty or unparseable hash means. See `App`'s first comment.
+ * Exported for `main.tsx`, which has to know whether the first paint is the
+ * landing page before there is a component to ask.
+ */
+export const DEFAULT_TAB: Tab = 'home'
 
 /**
  * `?diag=1` — the host readout. Nimiq Pay's WebView takes no console and no
@@ -100,6 +106,13 @@ export function App() {
   // Hub connects mutate the wallet's identity in place; this counter re-renders on them.
   const [, setIdentityNonce] = useState(0)
   const [isScrolled, setIsScrolled] = useState(false)
+  /**
+   * Night mode (`lib/theme.ts`). Seeded from the store — or from the device's
+   * own preference, when nothing has been stored — by `main.tsx`, which has
+   * already painted the root before this component exists; reading the same
+   * source here is how the button starts on the face that matches the page.
+   */
+  const [theme, setTheme] = useState<Theme>(() => loadTheme(window.localStorage, systemPrefersDark(window)))
   const masthead = useRef<HTMLElement>(null)
 
   const problem = useMemo(configProblem, [])
@@ -154,6 +167,14 @@ export function App() {
     observer.observe(bar)
     return () => observer.disconnect()
   }, [problem])
+
+  /**
+   * The landing page never takes the dark palette, so the route is half of
+   * this — a trip home relights the page and brings it back on the way in.
+   */
+  useEffect(() => {
+    applyTheme(document, theme, tab !== 'home')
+  }, [theme, tab])
 
   useEffect(() => {
     if (problem !== null) return
@@ -262,10 +283,24 @@ export function App() {
             </button>
           </h1>
           <MastheadLinks />
-          {/* One corner, two controls: the nav button and the wallet. Both hang
-              a panel from here, so opening either closes the other — two panels
-              overlapping in one corner is a bug you only ever see on a phone. */}
+          {/* One corner, three controls: the night switch, the nav button and
+              the wallet. Only the last two hang a panel from here, so opening
+              either closes the other — two panels overlapping in one corner is
+              a bug you only ever see on a phone. The switch hangs nothing,
+              which is why it can sit outermost without joining that dance. */}
           <div className="masthead-corner">
+            {/* Left of both, and absent on the landing page: see
+                `ThemeToggle`. */}
+            {tab !== 'home' && (
+              <ThemeToggle
+                theme={theme}
+                onToggle={() => {
+                  const next = theme === 'dark' ? 'light' : 'dark'
+                  saveTheme(window.localStorage, next)
+                  setTheme(next)
+                }}
+              />
+            )}
             <MastheadMenu
               open={menuOpen}
               onToggle={() => {

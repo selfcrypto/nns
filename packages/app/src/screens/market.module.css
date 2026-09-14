@@ -67,7 +67,7 @@
   left: -10%;
   width: 700px;
   height: 700px;
-  background: radial-gradient(circle, rgba(5, 130, 202, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(var(--tint-blue), 0.08) 0%, transparent 70%);
   filter: blur(120px);
   z-index: 0;
   pointer-events: none;
@@ -150,13 +150,13 @@
   width: 100%;
   max-width: 640px;
   margin: 0 auto;
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(var(--tint-glass), 0.68);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(var(--tint-glass), 0.9);
   border-radius: 28px;
   padding: 24px 20px;
-  box-shadow: 0 12px 40px rgba(31, 35, 72, 0.06), 0 4px 12px rgba(31, 35, 72, 0.03);
+  box-shadow: 0 12px 40px rgba(var(--tint-shadow), 0.06), 0 4px 12px rgba(var(--tint-shadow), 0.03);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -182,10 +182,10 @@
   display: flex;
   align-items: center;
   background: var(--card);
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(var(--tint-ink), 0.1);
   border-radius: 14px;
   padding: 4px 12px;
-  box-shadow: 0 4px 12px rgba(31, 35, 72, 0.03);
+  box-shadow: 0 4px 12px rgba(var(--tint-shadow), 0.03);
   transition: all 0.2s ease;
 }
 
@@ -245,7 +245,7 @@
 .filterPills {
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(var(--tint-ink), 0.04);
   padding: 3px;
   border-radius: 12px;
   gap: 2px;
@@ -276,19 +276,19 @@
 .filterBtnActive {
   background: var(--card);
   color: var(--ink);
-  box-shadow: 0 2px 8px rgba(31, 35, 72, 0.08);
+  box-shadow: 0 2px 8px rgba(var(--tint-shadow), 0.08);
 }
 
 .filterBadge {
   font-size: 11px;
   padding: 1px 6px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(var(--tint-ink), 0.06);
   font-weight: 700;
 }
 
 .filterBtnActive .filterBadge {
-  background: rgba(5, 130, 202, 0.12);
+  background: rgba(var(--tint-blue), 0.12);
   color: var(--nimiq-blue);
 }
 
@@ -306,9 +306,9 @@
 /* Listing Card */
 .marketCard {
   background: var(--card);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(var(--tint-ink), 0.08);
   border-radius: 20px;
-  box-shadow: 0 4px 16px rgba(31, 35, 72, 0.04);
+  box-shadow: 0 4px 16px rgba(var(--tint-shadow), 0.04);
   overflow: hidden;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
   position: relative;
@@ -316,14 +316,14 @@
 }
 
 .marketCard:hover {
-  border-color: rgba(5, 130, 202, 0.3);
-  box-shadow: 0 8px 24px rgba(31, 35, 72, 0.08);
+  border-color: rgba(var(--tint-blue), 0.3);
+  box-shadow: 0 8px 24px rgba(var(--tint-shadow), 0.08);
   transform: translateY(-1px);
 }
 
 .marketCardOpen {
   border-color: var(--nimiq-blue);
-  box-shadow: 0 8px 28px rgba(5, 130, 202, 0.12);
+  box-shadow: 0 8px 28px rgba(var(--tint-blue), 0.12);
 }
 
 /* Card Main Button/Trigger */
@@ -344,7 +344,7 @@
 }
 
 .cardTrigger:hover {
-  background: rgba(0, 0, 0, 0.01);
+  background: rgba(var(--tint-ink), 0.01);
 }
 
 /* Card Header: Name + Badge */
@@ -398,8 +398,8 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--nimiq-blue);
-  background: rgba(5, 130, 202, 0.08);
-  border: 1px solid rgba(5, 130, 202, 0.22);
+  background: rgba(var(--tint-blue), 0.08);
+  border: 1px solid rgba(var(--tint-blue), 0.22);
   border-radius: 999px;
   white-space: nowrap;
   flex: none;
@@ -420,7 +420,7 @@
 
 .tagAuction .statusDot {
   background: var(--nimiq-blue);
-  box-shadow: 0 0 0 2px rgba(5, 130, 202, 0.25);
+  box-shadow: 0 0 0 2px rgba(var(--tint-blue), 0.25);
 }
 
 /* Card Body / Details Grid */
@@ -483,7 +483,7 @@
   gap: 16px;
   flex-wrap: wrap;
   padding-top: 10px;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  border-top: 1px solid rgba(var(--tint-ink), 0.05);
   font-size: 12.5px;
   color: var(--ink-soft);
 }
@@ -503,8 +503,8 @@
 /* Action CTA inside card */
 .cardActionBtn {
   appearance: none;
-  background: linear-gradient(135deg, var(--nimiq-blue) 0%, #0368A3 100%);
-  color: var(--card);
+  background: linear-gradient(135deg, #0582CA 0%, #0368A3 100%);
+  color: #ffffff;
   border: none;
   border-radius: 12px;
   padding: 10px 18px;
@@ -515,7 +515,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  box-shadow: 0 4px 12px rgba(5, 130, 202, 0.25);
+  box-shadow: 0 4px 12px rgba(var(--tint-blue), 0.25);
   transition: all 0.18s ease;
   user-select: none;
   width: 100%;
@@ -529,23 +529,23 @@
 
 .cardActionBtn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px rgba(5, 130, 202, 0.35);
+  box-shadow: 0 6px 16px rgba(var(--tint-blue), 0.35);
 }
 
 .cardActionBtnOpen {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(var(--tint-ink), 0.06);
   color: var(--ink);
   box-shadow: none;
 }
 
 .cardActionBtnOpen:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(var(--tint-ink), 0.1);
   box-shadow: none;
 }
 
 /* Inline Action Sheet Dropdown Container */
 .dropdownWrap {
-  border-top: 1px solid rgba(5, 130, 202, 0.18);
+  border-top: 1px solid rgba(var(--tint-blue), 0.18);
   background: var(--card);
   padding: 18px 20px 20px;
   animation: fadeIn 0.25s ease-out forwards;
@@ -565,7 +565,7 @@
   width: 56px;
   height: 56px;
   border-radius: 16px;
-  background: rgba(5, 130, 202, 0.08);
+  background: rgba(var(--tint-blue), 0.08);
   color: var(--nimiq-blue);
   display: flex;
   align-items: center;
@@ -590,8 +590,8 @@
 
 /* Custodial Notice Note */
 .custodialBox {
-  background: rgba(5, 130, 202, 0.05);
-  border: 1px solid rgba(5, 130, 202, 0.15);
+  background: rgba(var(--tint-blue), 0.05);
+  border: 1px solid rgba(var(--tint-blue), 0.15);
   border-radius: 16px;
   padding: 14px 16px;
   text-align: left;

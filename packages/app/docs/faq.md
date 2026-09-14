@@ -51,6 +51,9 @@ Nothing on NNS. The parent's owner runs a small server with a JSON file of label
 **What does the "?" next to a line do?**
 It explains the line. What must be visible is on the card; the reason is one tap away. A blue **(i)** is the same control in the one place money changes hands without the protocol holding it: the marketplace's custody of a payment or a bid. The fact is always on the card, and a purchase still asks you to acknowledge it — the bubble carries when a refund arises.
 
+**Is there a dark mode?**
+Yes, on the app. The sun/moon button in the top corner switches it, and the choice is remembered on the device — before you press it the app follows whatever the device itself is set to. The landing page stays light: its photographs were shot for a white page.
+
 **Why do dates say ≈?**
 The protocol counts blocks, not seconds. A block is roughly a second, so a date computed from a block height is an estimate, and the app says so.
 

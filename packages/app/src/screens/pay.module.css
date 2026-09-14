@@ -140,13 +140,13 @@
   width: 100%;
   max-width: 580px;
   margin: 0 auto;
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(var(--tint-glass), 0.68);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(var(--tint-glass), 0.9);
   border-radius: 28px;
   padding: 24px 20px;
-  box-shadow: 0 12px 40px rgba(31, 35, 72, 0.06), 0 4px 12px rgba(31, 35, 72, 0.03);
+  box-shadow: 0 12px 40px rgba(var(--tint-shadow), 0.06), 0 4px 12px rgba(var(--tint-shadow), 0.03);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -173,7 +173,7 @@
 .assetSwitchTrack {
   display: inline-flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(var(--tint-ink), 0.05);
   padding: 3px;
   border-radius: 12px;
   gap: 2px;
@@ -202,14 +202,14 @@
 
 .assetTab:hover:not(.assetTabActive) {
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(var(--tint-glass), 0.4);
 }
 
 .assetTabActive {
   background: var(--card);
   color: var(--ink);
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(31, 35, 72, 0.08);
+  box-shadow: 0 2px 8px rgba(var(--tint-shadow), 0.08);
 }
 
 .assetBadgeDot {
@@ -236,13 +236,13 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(var(--tint-glass), 0.65);
+  border: 1px solid rgba(var(--tint-ink), 0.06);
   border-radius: 12px;
   padding: 6px 12px;
   font-size: 13px;
   color: var(--ink-soft);
-  box-shadow: 0 1px 4px rgba(31, 35, 72, 0.03);
+  box-shadow: 0 1px 4px rgba(var(--tint-shadow), 0.03);
   backdrop-filter: blur(8px);
   white-space: nowrap;
   flex-shrink: 0;
@@ -287,8 +287,8 @@
 
 .searchWrapper {
   background: var(--card);
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  box-shadow: 0 4px 14px rgba(31, 35, 72, 0.04);
+  border: 1px solid rgba(var(--tint-ink), 0.1);
+  box-shadow: 0 4px 14px rgba(var(--tint-shadow), 0.04);
   transition: all 0.25s ease;
   padding: 4px 6px;
   border-radius: 14px;
@@ -358,7 +358,7 @@
 
 .searchClearBtn:hover {
   color: var(--ink);
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(var(--tint-ink), 0.05);
 }
 
 .searchSubmitBtn {
@@ -385,7 +385,7 @@
 .searchSubmitBtn:hover:not(:disabled) {
   background: var(--ink-soft);
   transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(31, 35, 72, 0.2);
+  box-shadow: 0 6px 14px rgba(var(--tint-shadow), 0.2);
 }
 
 /* Idle State Content */
@@ -401,8 +401,8 @@
 
 .idleCard {
   width: 100%;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1px dashed rgba(0, 0, 0, 0.1);
+  background: rgba(var(--tint-glass), 0.5);
+  border: 1px dashed rgba(var(--tint-ink), 0.1);
   border-radius: 18px;
   padding: 24px 20px;
   display: flex;
@@ -456,8 +456,8 @@
   background: var(--card);
   border-radius: 20px;
   padding: 22px;
-  box-shadow: 0 4px 20px rgba(31, 35, 72, 0.05);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 20px rgba(var(--tint-shadow), 0.05);
+  border: 1px solid rgba(var(--tint-ink), 0.06);
   width: 100%;
   box-sizing: border-box;
   animation: fadeIn 0.3s ease-out forwards;
@@ -468,8 +468,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: rgba(0, 0, 0, 0.02);
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  background: rgba(var(--tint-ink), 0.02);
+  border: 1px solid rgba(var(--tint-ink), 0.05);
   border-radius: 14px;
   padding: 14px;
 }
@@ -500,7 +500,7 @@
 }
 
 .evmAddressBox {
-  background: rgba(0, 0, 0, 0.03);
+  background: rgba(var(--tint-ink), 0.03);
   border-radius: 8px;
   padding: 8px 10px;
   font-size: 12.5px;
@@ -530,7 +530,7 @@
   appearance: none;
   width: 100%;
   background: var(--card);
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(var(--tint-ink), 0.12);
   border-radius: 12px;
   padding: 10px 36px 10px 12px;
   font-size: 13.5px;
@@ -572,7 +572,7 @@
 }
 
 .maxBtn {
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(var(--tint-ink), 0.05);
   border: none;
   border-radius: 6px;
   padding: 2px 8px;
@@ -584,7 +584,7 @@
 }
 
 .maxBtn:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(var(--tint-ink), 0.1);
   color: var(--ink);
 }
 
@@ -593,7 +593,7 @@
   display: flex;
   align-items: center;
   background: var(--card);
-  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  border: 1.5px solid rgba(var(--tint-ink), 0.12);
   border-radius: 14px;
   padding: 4px 12px;
   transition: all 0.2s ease;
@@ -601,7 +601,7 @@
 
 .amountInputContainer:focus-within {
   border-color: var(--nimiq-blue);
-  box-shadow: 0 0 0 3px rgba(5, 130, 202, 0.12);
+  box-shadow: 0 0 0 3px rgba(var(--tint-blue), 0.12);
 }
 
 .amountInput {
@@ -638,7 +638,7 @@
   font-size: 12px;
   font-weight: 700;
   color: var(--ink-soft);
-  background: rgba(0, 0, 0, 0.05);
+  background: rgba(var(--tint-ink), 0.05);
   padding: 4px 8px;
   border-radius: 8px;
   margin-left: 8px;
@@ -650,8 +650,8 @@
   appearance: none;
   border: none;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--nimiq-blue) 0%, #0368A3 100%);
-  color: var(--card);
+  background: linear-gradient(135deg, #0582CA 0%, #0368A3 100%);
+  color: #ffffff;
   font: inherit;
   font-size: 15.5px;
   font-weight: 700;
@@ -663,7 +663,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 4px 14px rgba(5, 130, 202, 0.25);
+  box-shadow: 0 4px 14px rgba(var(--tint-blue), 0.25);
   width: 100%;
   box-sizing: border-box;
   user-select: none;
@@ -672,16 +672,16 @@
 .payBtn:hover:not(:disabled) {
   background: linear-gradient(135deg, #0368A3 0%, #025E8C 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(5, 130, 202, 0.32);
+  box-shadow: 0 6px 18px rgba(var(--tint-blue), 0.32);
 }
 
 .payBtn:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(5, 130, 202, 0.2);
+  box-shadow: 0 2px 6px rgba(var(--tint-blue), 0.2);
 }
 
 .payBtn:disabled {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(var(--tint-ink), 0.06);
   color: var(--ink-faint);
   box-shadow: none;
   cursor: not-allowed;

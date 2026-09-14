@@ -29,6 +29,9 @@
   --ink-faint: #8d93a8;
   --paper: #eef1f6;
   --card: #ffffff;
+  /* One step off paper, for a sheet that opens inside a card rather than on
+     the page — the only surface with three layers under it. */
+  --paper-soft: #f8fafc;
   --line: #e1e5ee;
   --line-strong: #c9cfdd;
   --proven: #0e7c5b;
@@ -68,6 +71,92 @@
      both before the first render; these are what a plain browser gets. */
   --chrome-top: env(safe-area-inset-top, 0px);
   --chrome-bottom: env(safe-area-inset-bottom, 0px);
+  /*
+   * The three washes, as channels rather than colours — `rgba(var(--tint-x),
+   * <alpha>)` at every site that used to write the channels out. Night mode
+   * (`lib/theme.ts`) then retints all of them in three lines instead of
+   * chasing forty alphas, and each site keeps the alpha its designer chose.
+   *
+   *   --tint-ink    a wash that darkens the surface: hairlines, hovers, the
+   *                 flat fills that mark a row as pressed. Inverted in the
+   *                 dark, where a surface is lifted by light, not by shade.
+   *   --tint-glass  the frosted panels and their highlight edge.
+   *   --tint-shadow the navy cast under a card. Plain black in the dark,
+   *                 where navy over navy is nothing at all.
+   *
+   * Colours that sit on the accent — white text and the button spinner over
+   * the blue gradient — are written out and stay written out: they belong to
+   * the fill under them, not to the page.
+   */
+  --tint-ink: 0, 0, 0;
+  --tint-glass: 255, 255, 255;
+  --tint-shadow: 31, 35, 72;
+  --tint-blue: 5, 130, 202;
+  color-scheme: light;
+}
+
+/*
+ * Night mode, on the dashboard only (`lib/theme.ts`, `components/ThemeToggle
+ * .tsx`). The same design, relit: paper goes to near-black navy, a card is
+ * the lighter surface rather than the whiter one, and every accent moves up
+ * in lightness so it still reads against it — Nimiq blue at #0582CA is a hole
+ * in a dark page, and the proof rail's green, indigo and red have to stay as
+ * legible as they are on paper, because they are the one thing on a card the
+ * reader is meant to act on.
+ *
+ * The attribute lands on `<html>`, and only for the dashboard: the landing
+ * page is photographs and a video shot for a white ground, and a relit
+ * palette under them is worse than no night mode at all (Kike, 2026-09-14).
+ * Gold is the one hue that does not move — it is the brand's, it carries on
+ * both grounds, and the honeycomb is drawn in it.
+ */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --ink: #e8ebf5;
+  --ink-soft: #a9b0c8;
+  --ink-faint: #7c8399;
+  --paper: #0f1320;
+  --card: #181d2e;
+  --paper-soft: #12172a;
+  --line: #2a3044;
+  --line-strong: #3d4459;
+  --proven: #3fc294;
+  --proven-bg: #14302a;
+  --depth: #9aa3bd;
+  --depth-bg: #232939;
+  --delegated: #929aee;
+  --delegated-bg: #23264f;
+  --alarm: #ff7a6e;
+  --alarm-bg: #3a1a18;
+  --grace: #e2a93f;
+  --grace-bg: #33280f;
+  --accent: #e9b213;
+  --accent-deep: #f2c034;
+  --nimiq-blue: #3aa8e8;
+  --nimiq-blue-deep: #2b93d1;
+  --nimiq-blue-dark: #1f7db5;
+  --nimiq-blue-glow: rgba(58, 168, 232, 0.22);
+  --nimiq-blue-tint: rgba(58, 168, 232, 0.1);
+  --nimiq-blue-border: rgba(58, 168, 232, 0.3);
+  --proven-border: rgba(63, 194, 148, 0.3);
+  --grace-border: rgba(226, 169, 63, 0.3);
+  --alarm-border: rgba(255, 122, 110, 0.3);
+  --alarm-tint: rgba(255, 122, 110, 0.08);
+  --scrim: rgba(3, 6, 15, 0.62);
+  --accent-bg: #332a10;
+  --accent-line: #4d3f18;
+  /* The same honeycomb at less than half the ink. Gold on porcelain is a
+     watermark; the identical gold on near-black is a lattice you read
+     instead of the page in front of it — the pattern's weight is contrast,
+     not opacity, so the number has to move with the ground. */
+  --pattern-honeycomb: url("data:image/svg+xml,%3Csvg width='56' height='100' viewBox='0 0 56 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M28 66L0 50L0 16L28 0L56 16L56 50L28 66L28 100' fill='none' stroke='%23E9B213' stroke-width='1.5' stroke-opacity='0.06'/%3E%3Cpath d='M28 0L28 34L0 50L0 84L28 100L56 84L56 50L28 34' fill='none' stroke='%23E9B213' stroke-width='1.5' stroke-opacity='0.06'/%3E%3C/svg%3E");
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px -10px rgb(0 0 0 / 60%);
+  --shadow-panel: 0 12px 32px -8px rgb(0 0 0 / 70%);
+  --tint-ink: 255, 255, 255;
+  --tint-glass: 45, 54, 84;
+  --tint-shadow: 0, 0, 0;
+  --tint-blue: 58, 168, 232;
 }
 
 * {
@@ -196,16 +285,16 @@ select:focus-visible {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(var(--tint-glass), 0.75);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(233, 178, 19, 0.15); /* Nimiq Orange Hint */
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 4px 30px rgba(var(--tint-ink), 0.03);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .masthead.is-scrolled {
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(var(--tint-glass), 0.9);
   border-bottom: 1px solid rgba(233, 178, 19, 0.3);
   box-shadow: 0 8px 32px rgba(233, 178, 19, 0.1);
 }
@@ -323,16 +412,17 @@ select:focus-visible {
 .masthead-nav a:focus-visible,
 .masthead-menu-panel a:focus-visible,
 .masthead-menu:focus-visible,
+.theme-toggle:focus-visible,
 .wordmark-btn:focus-visible {
   outline: 2px solid #F6851B;
   outline-offset: 3px;
   border-radius: 4px;
 }
 
-/* The nav button and the wallet chip are one corner: same material, 6px apart,
-   two controls. Not one pill — the chip has four looks (the orange Connect
-   button, the "Checking wallet…" note, the chip, and a flat disabled chip),
-   so three of them have no edge to fuse to. */
+/* The night switch, the nav button and the wallet chip are one corner: same
+   material, 6px apart, three controls. Not one pill — the chip has four looks
+   (the orange Connect button, the "Checking wallet…" note, the chip, and a
+   flat disabled chip), so three of them have no edge to fuse to. */
 .masthead-corner {
   display: flex;
   align-items: center;
@@ -354,9 +444,10 @@ select:focus-visible {
   display: none;
 }
 
-/* The chip's material exactly — `.identity-top .identity-who` — so the pair
-   reads as one corner rather than two visitors. */
-.masthead-menu {
+/* The chip's material exactly — `.identity-top .identity-who` — so the set
+   reads as one corner rather than three visitors. */
+.masthead-menu,
+.theme-toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -369,6 +460,28 @@ select:focus-visible {
   box-shadow: var(--shadow-card);
   color: var(--ink);
   cursor: pointer;
+}
+
+/* The switch hangs nothing and so can afford to answer the pointer; the nav
+   button opening a panel is answer enough on its own. */
+.theme-toggle {
+  flex: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.theme-toggle:hover {
+  color: var(--nimiq-blue);
+}
+
+/* Gold for the sun, and only for the sun: it is the one hue that does not
+   move between the palettes, and a lit face on a dark corner is the clearest
+   thing this button can say about what pressing it does. */
+:root[data-theme='dark'] .theme-toggle {
+  color: var(--accent);
+}
+
+:root[data-theme='dark'] .theme-toggle:hover {
+  color: var(--accent-deep);
 }
 
 /* The same drop as the wallet panel, from the button instead of the chip. */
@@ -499,12 +612,12 @@ select:focus-visible {
   display: flex;
   z-index: 2;
   padding: 8px 6px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(var(--tint-glass), 0.85);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-radius: 24px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08), 0 2px 10px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(var(--tint-ink), 0.06);
+  box-shadow: 0 8px 30px rgba(var(--tint-ink), 0.08), 0 2px 10px rgba(var(--tint-ink), 0.04);
 }
 
 /* The reserve below the bar is the host's. Since it's a floating pill now, we don't need a solid background cover. */
@@ -516,7 +629,10 @@ select:focus-visible {
   right: 0;
   height: calc(var(--chrome-bottom) + 16px);
   pointer-events: none;
-  background: linear-gradient(to top, rgba(255,255,255,0.9), transparent);
+  /* The page fading out under the bar, so it is paper it fades into — it was
+     written as white, which is paper in the light and a band of the wrong
+     colour in the dark. */
+  background: linear-gradient(to top, var(--paper), transparent);
 }
 
 /* An on-screen keyboard resizes the viewport, sticky resolves against the
@@ -595,8 +711,8 @@ select:focus-visible {
   padding: 6px 6px 6px 12px;
   background: var(--card);
   border-radius: 20px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(var(--tint-ink), 0.08);
+  box-shadow: 0 4px 12px rgba(var(--tint-ink), 0.03);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -639,7 +755,7 @@ select:focus-visible {
 .screen > .search-input {
   flex: none;
   padding: 15px 16px;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(var(--tint-glass), 0.8);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-radius: 20px;
@@ -1072,7 +1188,7 @@ li.note {
   margin: -20px -18px -18px -22px; /* Pull to edges of parent .card */
   padding: 22px 22px 20px;
   border-radius: var(--radius-card);
-  background: #ffffff;
+  background: var(--card);
   z-index: 1;
   text-align: left;
 }
@@ -1304,8 +1420,8 @@ li.note {
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--nimiq-blue);
-  background: rgba(5, 130, 202, 0.08);
-  border: 1px solid rgba(5, 130, 202, 0.22);
+  background: rgba(var(--tint-blue), 0.08);
+  border: 1px solid rgba(var(--tint-blue), 0.22);
   border-radius: 999px;
   line-height: 1.4;
   user-select: none;
@@ -1316,7 +1432,7 @@ li.note {
   height: 6px;
   border-radius: 50%;
   background: var(--nimiq-blue);
-  box-shadow: 0 0 0 2px rgba(5, 130, 202, 0.25);
+  box-shadow: 0 0 0 2px rgba(var(--tint-blue), 0.25);
   flex: none;
 }
 
@@ -1396,6 +1512,15 @@ li.note {
   margin-top: 4px;
 }
 
+/*
+ * The card's one blue button. Its fill is written out rather than taken from
+ * `--nimiq-blue`, and its text is white rather than `--card`, because both
+ * belong to the button and not to the page: the token moves up in lightness
+ * for the dark palette so it can be read *as text* there, and a gradient that
+ * followed it would run from a pale blue into the old dark one with nothing
+ * legible on top. A saturated blue fill carries white on either ground, which
+ * is why every other button here was already written this way.
+ */
 .btn-action-primary {
   appearance: none;
   display: inline-flex;
@@ -1406,26 +1531,26 @@ li.note {
   padding: 12px 18px;
   border: none;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--nimiq-blue) 0%, #0368A3 100%);
-  color: var(--card);
+  background: linear-gradient(135deg, #0582CA 0%, #0368A3 100%);
+  color: #ffffff;
   font-family: inherit;
   font-size: 14.5px;
   font-weight: 600;
   line-height: 1.2;
   cursor: pointer;
-  box-shadow: 0 3px 12px rgba(5, 130, 202, 0.22);
+  box-shadow: 0 3px 12px rgba(var(--tint-blue), 0.22);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
 
 .btn-action-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(5, 130, 202, 0.32);
+  box-shadow: 0 6px 18px rgba(var(--tint-blue), 0.32);
 }
 
 .btn-action-primary:active {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(5, 130, 202, 0.2);
+  box-shadow: 0 2px 6px rgba(var(--tint-blue), 0.2);
 }
 
 .btn-action-secondary {
@@ -1436,9 +1561,9 @@ li.note {
   gap: 8px;
   width: 100%;
   padding: 12px 18px;
-  border: 1.5px solid rgba(5, 130, 202, 0.22);
+  border: 1.5px solid rgba(var(--tint-blue), 0.22);
   border-radius: 14px;
-  background: rgba(5, 130, 202, 0.06);
+  background: rgba(var(--tint-blue), 0.06);
   color: #0368A3;
   font-family: inherit;
   font-size: 14.5px;
@@ -1450,15 +1575,15 @@ li.note {
 }
 
 .btn-action-secondary:hover {
-  background: rgba(5, 130, 202, 0.12);
-  border-color: rgba(5, 130, 202, 0.4);
+  background: rgba(var(--tint-blue), 0.12);
+  border-color: rgba(var(--tint-blue), 0.4);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(5, 130, 202, 0.1);
+  box-shadow: 0 4px 12px rgba(var(--tint-blue), 0.1);
 }
 
 .btn-action-secondary:active {
   transform: translateY(0);
-  background: rgba(5, 130, 202, 0.16);
+  background: rgba(var(--tint-blue), 0.16);
 }
 
 .btn-action-primary svg,
@@ -1477,7 +1602,7 @@ li.note {
 
 .available-actions .actions {
   margin-top: 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba(var(--tint-ink), 0.06);
 }
 
 .available-actions .action-row-cta {
@@ -1503,13 +1628,13 @@ li.note {
   font-size: 14px;
   transition: all 0.2s ease;
   border: none;
-  box-shadow: 0 2px 8px rgba(5, 130, 202, 0.18);
+  box-shadow: 0 2px 8px rgba(var(--tint-blue), 0.18);
 }
 
 .available-actions .action-go:hover {
   background: linear-gradient(135deg, #0368A3 0%, #025E8C 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(5, 130, 202, 0.25);
+  box-shadow: 0 4px 12px rgba(var(--tint-blue), 0.25);
 }
 
 .available-actions .action-go.is-loading {
@@ -1519,12 +1644,12 @@ li.note {
 
 /* Sheet inside available card */
 .available-card-premium .sheet {
-  background: #f8fafc;
-  border: 1px solid rgba(5, 130, 202, 0.15);
+  background: var(--paper-soft);
+  border: 1px solid rgba(var(--tint-blue), 0.15);
   border-radius: 16px;
   padding: 18px 16px 16px;
   margin: 12px 0 0;
-  box-shadow: 0 4px 16px rgba(31, 35, 72, 0.04);
+  box-shadow: 0 4px 16px rgba(var(--tint-shadow), 0.04);
   gap: 14px;
 }
 
@@ -1534,7 +1659,7 @@ li.note {
   align-items: center;
   justify-content: space-between;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(var(--tint-ink), 0.06);
 }
 
 .sheet-title,
@@ -1560,7 +1685,7 @@ li.note {
 
 .sheet-close:hover,
 .available-card-premium .sheet-close:hover {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(var(--tint-ink), 0.06);
   color: var(--ink);
 }
 
@@ -1583,11 +1708,11 @@ li.note {
 
 .review,
 .available-card-premium .review {
-  background: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--card);
+  border: 1px solid rgba(var(--tint-ink), 0.08);
   border-radius: 12px;
   padding: 14px 16px;
-  box-shadow: 0 2px 6px rgba(31, 35, 72, 0.03);
+  box-shadow: 0 2px 6px rgba(var(--tint-shadow), 0.03);
   gap: 8px;
   margin: 0;
   list-style: none;
@@ -1656,7 +1781,7 @@ li.note {
   padding: 12px 18px;
   border: none;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--nimiq-blue) 0%, #0368A3 100%);
+  background: linear-gradient(135deg, #0582CA 0%, #0368A3 100%);
   color: #ffffff;
   font-family: inherit;
   font-size: 14.5px;
@@ -1664,7 +1789,7 @@ li.note {
   line-height: 1.2;
   min-height: 46px;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(5, 130, 202, 0.25);
+  box-shadow: 0 4px 14px rgba(var(--tint-blue), 0.25);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
 }
@@ -1673,13 +1798,13 @@ li.note {
 .available-card-premium .sheet-send:hover:not(:disabled) {
   background: linear-gradient(135deg, #0368A3 0%, #025E8C 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(5, 130, 202, 0.32);
+  box-shadow: 0 6px 18px rgba(var(--tint-blue), 0.32);
 }
 
 .sheet-send:active:not(:disabled),
 .available-card-premium .sheet-send:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(5, 130, 202, 0.2);
+  box-shadow: 0 2px 6px rgba(var(--tint-blue), 0.2);
 }
 
 .sheet-send:disabled,
@@ -1700,9 +1825,9 @@ li.note {
   gap: 8px;
   width: 100%;
   padding: 12px 18px;
-  border: 1.5px solid rgba(5, 130, 202, 0.22);
+  border: 1.5px solid rgba(var(--tint-blue), 0.22);
   border-radius: 14px;
-  background: rgba(5, 130, 202, 0.06);
+  background: rgba(var(--tint-blue), 0.06);
   color: #0368A3;
   font-family: inherit;
   font-size: 14.5px;
@@ -1716,17 +1841,17 @@ li.note {
 
 .sheet-cancel:hover,
 .available-card-premium .sheet-cancel:hover {
-  background: rgba(5, 130, 202, 0.12);
-  border-color: rgba(5, 130, 202, 0.4);
+  background: rgba(var(--tint-blue), 0.12);
+  border-color: rgba(var(--tint-blue), 0.4);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(5, 130, 202, 0.1);
+  box-shadow: 0 4px 12px rgba(var(--tint-blue), 0.1);
   color: var(--ink);
 }
 
 .sheet-cancel:active,
 .available-card-premium .sheet-cancel:active {
   transform: translateY(0);
-  background: rgba(5, 130, 202, 0.16);
+  background: rgba(var(--tint-blue), 0.16);
 }
 
 .btn-loading-content {
@@ -1842,12 +1967,12 @@ li.note {
   padding: 8px 20px;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(5, 130, 202, 0.18);
+  box-shadow: 0 2px 8px rgba(var(--tint-blue), 0.18);
 }
 
 .action-go:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(5, 130, 202, 0.25);
+  box-shadow: 0 4px 12px rgba(var(--tint-blue), 0.25);
 }
 
 .action-row:has(+ .sheet) .action-go {
@@ -1859,13 +1984,13 @@ li.note {
 
 .action-connect {
   background: linear-gradient(135deg, #0582CA 0%, #0368A3 100%) !important;
-  box-shadow: 0 2px 8px rgba(5, 130, 202, 0.18) !important;
+  box-shadow: 0 2px 8px rgba(var(--tint-blue), 0.18) !important;
 }
 
 .action-connect:hover {
   background: linear-gradient(135deg, #0368A3 0%, #025E8C 100%) !important;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(5, 130, 202, 0.25) !important;
+  box-shadow: 0 4px 12px rgba(var(--tint-blue), 0.25) !important;
 }
 
 .action-row-marketplace {
@@ -2467,7 +2592,7 @@ li.note {
   border-top-right-radius: 0;
   border: 1px solid var(--nimiq-blue);
   border-top: 1px dashed var(--line);
-  box-shadow: 0 4px 14px rgba(31, 35, 72, 0.05);
+  box-shadow: 0 4px 14px rgba(var(--tint-shadow), 0.05);
 }
 
 .name-row-name {
@@ -2675,9 +2800,9 @@ li.note {
   width: calc(100% - 32px);
   max-width: 480px;
   background: var(--card);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(var(--tint-glass), 0.9);
   border-radius: 24px;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2), 0 4px 16px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 24px 60px rgba(var(--tint-shadow), 0.2), 0 4px 16px rgba(var(--tint-shadow), 0.06);
   padding: 24px 26px;
   display: flex;
   flex-direction: column;
@@ -2712,7 +2837,7 @@ li.note {
     width: 44px;
     height: 4.5px;
     border-radius: 999px;
-    background: rgba(31, 35, 72, 0.18);
+    background: rgba(var(--tint-shadow), 0.18);
     margin: 0 auto 16px;
     flex-shrink: 0;
   }
@@ -2756,7 +2881,7 @@ li.note {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: rgba(5, 130, 202, 0.1);
+  background: rgba(var(--tint-blue), 0.1);
   color: var(--nimiq-blue);
   display: flex;
   align-items: center;
@@ -2921,8 +3046,8 @@ li.note {
   appearance: none;
   border: none;
   border-radius: 999px;
-  background: linear-gradient(135deg, var(--nimiq-blue) 0%, var(--nimiq-blue-deep) 100%);
-  color: var(--card);
+  background: linear-gradient(135deg, #0582CA 0%, #0368A3 100%);
+  color: #ffffff;
   font-family: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -2936,7 +3061,7 @@ li.note {
 
 .modal-wallet-connect-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(5, 130, 202, 0.28);
+  box-shadow: 0 4px 12px rgba(var(--tint-blue), 0.28);
 }
 
 @media (max-width: 440px) {
@@ -3002,8 +3127,8 @@ li.note {
   padding: 12px 18px;
   border: none;
   border-radius: 14px;
-  background: linear-gradient(135deg, var(--nimiq-blue) 0%, var(--nimiq-blue-deep) 100%);
-  color: var(--card);
+  background: linear-gradient(135deg, #0582CA 0%, #0368A3 100%);
+  color: #ffffff;
   font-family: inherit;
   font-size: 14.5px;
   font-weight: 700;
@@ -3016,14 +3141,14 @@ li.note {
 }
 
 .modal-btn-send:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--nimiq-blue-deep) 0%, var(--nimiq-blue-dark) 100%);
+  background: linear-gradient(135deg, #0368A3 0%, #025E8C 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(5, 130, 202, 0.32);
+  box-shadow: 0 6px 18px rgba(var(--tint-blue), 0.32);
 }
 
 .modal-btn-send:active:not(:disabled) {
   transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(5, 130, 202, 0.2);
+  box-shadow: 0 2px 6px rgba(var(--tint-blue), 0.2);
 }
 
 .modal-btn-send:disabled {
@@ -3097,9 +3222,9 @@ li.note {
   max-height: calc(100vh - 64px);
   overflow-y: auto;
   background: var(--card);
-  border: 1px solid rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(var(--tint-glass), 0.9);
   border-radius: 28px;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22), 0 4px 16px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 24px 60px rgba(var(--tint-shadow), 0.22), 0 4px 16px rgba(var(--tint-shadow), 0.08);
   padding: 24px 26px;
   display: flex;
   flex-direction: column;
@@ -3141,7 +3266,7 @@ li.note {
     width: 44px;
     height: 4.5px;
     border-radius: 999px;
-    background: rgba(31, 35, 72, 0.18);
+    background: rgba(var(--tint-shadow), 0.18);
     margin: 0 auto 16px;
     flex-shrink: 0;
   }
@@ -3202,7 +3327,7 @@ li.note {
   letter-spacing: 0;
   font-weight: 600;
   color: var(--nimiq-blue);
-  background: rgba(5, 130, 202, 0.1);
+  background: rgba(var(--tint-blue), 0.1);
   border-radius: 999px;
   padding: 2px 8px;
   line-height: 1.5;
@@ -3228,14 +3353,14 @@ li.note {
   transition: all 0.15s ease;
   font-family: inherit;
   position: relative;
-  box-shadow: 0 1px 3px rgba(31, 35, 72, 0.03);
+  box-shadow: 0 1px 3px rgba(var(--tint-shadow), 0.03);
 }
 
 .owner-action-tile:hover:not(:disabled) {
   border-color: var(--nimiq-blue);
-  background: rgba(5, 130, 202, 0.025);
+  background: rgba(var(--tint-blue), 0.025);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(5, 130, 202, 0.08);
+  box-shadow: 0 4px 12px rgba(var(--tint-blue), 0.08);
 }
 
 .owner-action-tile:active:not(:disabled) {
@@ -3264,7 +3389,7 @@ li.note {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: rgba(5, 130, 202, 0.08);
+  background: rgba(var(--tint-blue), 0.08);
   color: var(--nimiq-blue);
   display: flex;
   align-items: center;
@@ -3739,7 +3864,7 @@ li.note {
    Global, like `.trust-*` below: one button sits in three fields that each
    have their own CSS module, and a copy per module is three that drift. */
 .paste-btn {
-  background: rgba(31, 35, 72, 0.05);
+  background: rgba(var(--tint-shadow), 0.05);
   border: none;
   color: var(--ink-soft);
   cursor: pointer;
@@ -3755,7 +3880,7 @@ li.note {
 
 .paste-btn:hover {
   color: var(--ink);
-  background: rgba(31, 35, 72, 0.1);
+  background: rgba(var(--tint-shadow), 0.1);
 }
 
 .paste-btn:active {

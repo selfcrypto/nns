@@ -63,6 +63,15 @@ export const NAV: readonly (readonly [string, string])[] = [
 /** The phone button that holds `NAV`, for screen readers — it draws as a glyph. */
 export const menuLabel = (): string => 'Menu'
 
+/**
+ * The night-mode switch, which also draws as a glyph. The label is the
+ * action, not the state, because the icon beside it is already the action —
+ * a moon on a lit page. A button whose picture says "go dark" and whose
+ * label says "light" is one the two halves disagree about.
+ */
+export const themeToggleLabel = (dark: boolean): string =>
+  dark ? 'Switch to day mode' : 'Switch to night mode'
+
 // ── Verification lines ──────────────────────────────────────────────────────
 
 /**
