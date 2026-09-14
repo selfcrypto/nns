@@ -44,6 +44,7 @@ import {
 } from '../lib/wording'
 import { Composer } from '../components/Composer'
 import { Hint } from '../components/Hint'
+import { IdentityBar } from '../components/IdentityBar'
 import { TrustBar } from '../components/TrustBar'
 import { Identicon, NameText, Spinner } from '../components/ui'
 import styles from './inbox.module.css'
@@ -54,7 +55,14 @@ import styles from './inbox.module.css'
  *
  * **One conversation per peer**, as any messenger has.
  */
-export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
+export function InboxScreen({
+  wallet,
+  onConnect,
+}: {
+  wallet: Wallet | null
+  /** For the no-wallet card's own copy of the identity control. */
+  onConnect: (() => void) | null
+}) {
   const viewers = wallet?.identity.addresses ?? []
   const transport = defaultTransport()
   // The index when an operator runs one, the chain when nobody does. Both
@@ -218,6 +226,15 @@ export function InboxScreen({ wallet }: { wallet: Wallet | null }) {
                 </div>
                 <h3 className={styles.emptyTitle}>{inboxNoWalletTitle()}</h3>
                 <p className={styles.emptyBody}>{inboxNoWalletLine()}</p>
+                {/* The identity control, moved here — this card exists only
+                    while there is no wallet, the state it draws as a lone
+                    Connect button, so there is no panel to open. Not while
+                    detection is still running: the bar's "Checking wallet…"
+                    under this card's "No wallet connected" is a card
+                    contradicting itself (MyNames.tsx says it at length). */}
+                {wallet !== null && (
+                  <IdentityBar wallet={wallet} onConnect={onConnect} onDisconnect={null} expanded={false} onToggle={() => {}} placement="empty" />
+                )}
               </div>
             ) : source === null ? (
               <div className={styles.emptyCard}>

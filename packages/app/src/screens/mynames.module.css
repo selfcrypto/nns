@@ -421,8 +421,12 @@
   margin: 0;
 }
 
+/* An anchor, not a button — the destination is a route (`#/buy`), so it is a
+   link and the browser's link chrome is what has to come off. */
 .emptyActionBtn {
   appearance: none;
+  display: inline-block;
+  text-decoration: none;
   border: none;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--nimiq-blue) 0%, var(--nimiq-blue-deep) 100%);

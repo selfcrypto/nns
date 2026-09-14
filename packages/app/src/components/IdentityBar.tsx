@@ -10,8 +10,13 @@
  * where the collapsed control is the address alone and everything else — the
  * rest of the set, Add another address, Disconnect — hangs under it. The corner
  * has room for one control, and the address is the one that has to be legible.
- * Both read the same `identityRow`, so no state can exist in one and not in the
- * other.
+ * `empty` is inside My names' and the Inbox's "No wallet connected" card, which
+ * exists only in the state this bar draws as a single Connect button: the card
+ * named the missing wallet and left the fix in another corner of the screen,
+ * and a dead end that states its own cure is still a dead end. It is the same
+ * control, moved — not a second one, which is the whole reason this component
+ * exists. All three read the same `identityRow`, so no state can exist in one
+ * and not in the others.
  *
  * What it must never do, either way, is render nothing — a blank row and a
  * broken control look identical on a phone, and that is how a Pay session with
@@ -32,7 +37,7 @@ import {
 } from '../lib/wording'
 import { Identicon } from './ui'
 
-export type IdentityPlacement = 'top' | 'bottom'
+export type IdentityPlacement = 'top' | 'bottom' | 'empty'
 
 export function IdentityBar({
   wallet,

@@ -1945,6 +1945,26 @@ li.note {
   font-size: 15px;
 }
 
+/*
+ * `.identity-empty` is the bar inside My names' and the Inbox's "No wallet
+ * connected" card. The card is already a panel, so the row's own chrome —
+ * the rule above it, the paper behind it, the full-bleed padding — would
+ * draw a strip across the middle of one. Only the button is left, sized to
+ * itself rather than the card's width, because a card centred on an icon and
+ * two lines of text reads as a statement and this is the one thing on it to
+ * press.
+ */
+.identity-empty {
+  border-top: none;
+  background: transparent;
+  padding: 4px 0 0;
+}
+
+.identity-empty .identity-connect {
+  width: auto;
+  padding: 10px 22px;
+}
+
 .identity-note {
   margin: 0;
   font-size: 12.5px;

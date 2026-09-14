@@ -297,10 +297,10 @@ export function App() {
           />
         )}
         {tab === 'names' && (
-          <MyNamesScreen wallet={wallet} manage={route.param} onManageHandled={() => replace({ tab: 'names', param: null }, true)} />
+          <MyNamesScreen wallet={wallet} manage={route.param} onManageHandled={() => replace({ tab: 'names', param: null }, true)} onConnect={connect} />
         )}
         {tab === 'docs' && <DocsScreen slug={route.param} />}
-        {tab === 'inbox' && <InboxScreen wallet={wallet} />}
+        {tab === 'inbox' && <InboxScreen wallet={wallet} onConnect={connect} />}
         {tab === 'market' && (
           <OffersScreen
             wallet={wallet}

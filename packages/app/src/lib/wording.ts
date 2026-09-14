@@ -882,6 +882,9 @@ export const myNamesEmptyTitle = (): string => 'No names yet'
 export const myNamesEmptyBody = (): string =>
   'Register a free name in Buy — it points at your address from the moment it lands.'
 
+/** The button under that line — the sentence names Buy, this goes there. */
+export const myNamesEmptyAction = (): string => 'Find a name'
+
 export const offersEmptyTitle = (): string => 'Nothing for sale'
 
 export const offersEmptyBody = (): string => 'Names for sale and open auctions show here.'

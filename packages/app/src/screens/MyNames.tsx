@@ -20,6 +20,7 @@ import {
   backToNamesLabel,
   expiryUntilLine,
   graceBadge,
+  myNamesEmptyAction,
   myNamesEmptyBody,
   myNamesEmptyTitle,
   myNamesNoWalletBody,
@@ -28,6 +29,7 @@ import {
   unreachableLine,
 } from '../lib/wording'
 import type { Wallet } from '../lib/wallet'
+import { IdentityBar } from '../components/IdentityBar'
 import { NameCard, OWNER_ACTIONS } from '../components/NameCard'
 import { TrustBar } from '../components/TrustBar'
 import { Badge, Identicon, NameText, Spinner } from '../components/ui'
@@ -169,11 +171,14 @@ export function MyNamesScreen({
   wallet,
   manage,
   onManageHandled,
+  onConnect,
 }: {
   wallet: Wallet | null
   /** A name Buy handed over; opens straight into its detail. */
   manage: string | null
   onManageHandled: () => void
+  /** For the no-wallet card's own copy of the identity control. */
+  onConnect: (() => void) | null
 }) {
   const [selected, setSelected] = useState<string | null>(null)
   const [listNonce, setListNonce] = useState(0)
@@ -208,6 +213,21 @@ export function MyNamesScreen({
           </div>
           <h3 className={styles.emptyTitle}>{myNamesNoWalletTitle()}</h3>
           <p className={styles.emptyBody}>{myNamesNoWalletBody()}</p>
+          {/* The identity control itself, not a second one: this card exists
+              only while there is no wallet, which is the state IdentityBar
+              draws as a lone Connect button, so there is never a panel to
+              open. Saying "no wallet connected" and leaving the connect
+              button in the masthead corner is a dead end that names its own
+              cure — the landing page's cards send first-time readers straight
+              here. Mounted only once detection has answered: while the
+              wallet is still being looked for, the bar draws "Checking
+              wallet…" and this card's own title already says there is none,
+              which is a card arguing with itself. `detectWallet` always
+              resolves — outside a WebView to the Hub — so the button is a
+              moment late, never absent. */}
+          {wallet !== null && (
+            <IdentityBar wallet={wallet} onConnect={onConnect} onDisconnect={null} expanded={false} onToggle={() => {}} placement="empty" />
+          )}
         </div>
       </NamesShell>
     )
@@ -246,6 +266,11 @@ export function MyNamesScreen({
           </div>
           <h3 className={styles.emptyTitle}>{myNamesEmptyTitle()}</h3>
           <p className={styles.emptyBody}>{myNamesEmptyBody()}</p>
+          {/* The body has always named Buy; this performs it. A hash link,
+              like the landing page's cards — the hash is the route. */}
+          <a className={styles.emptyActionBtn} href="#/buy">
+            {myNamesEmptyAction()}
+          </a>
         </div>
       ) : (
         <ul className={styles.nameList}>

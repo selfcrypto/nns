@@ -280,6 +280,18 @@ const scenarios = {
     await sleep(4000); await shot('pay-paste', true)
   },
   'names': async () => { await load(); await tab('My Names'); await shot('names') },
+  // Connected, owning nothing — the other empty state, and the only one the
+  // seeded owner can never show. The address is a syntactically valid one
+  // that holds no name, so `/address/{addr}/names` answers an empty list.
+  'names-empty': async () => {
+    await send('Page.navigate', { url: URL })
+    await sleep(300)
+    await evaluate(`localStorage.setItem('nns.hub.addresses', ${JSON.stringify(JSON.stringify(['NQ07 0000 0000 0000 0000 0000 0000 0000 0000']))}); true`)
+    await send('Page.navigate', { url: `${URL}#/names` })
+    // Long enough for wallet detection *and* the owned-names lookup: at 2.5s
+    // the shot caught "Checking wallet…", which is a different state.
+    await sleep(5000); await evaluate(helpers); await shot('names-empty')
+  },
   'inbox': async () => { await load(); await tab('Inbox'); await shot('inbox') },
   'market': async () => { await load(); await tab('Market'); await shot('market', true) },
   // One scenario per documentation page, read from `docs/index.md` — the
