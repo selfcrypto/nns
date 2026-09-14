@@ -2,9 +2,10 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 import { docsPlugin } from './plugins/docs'
+import { socialPlugin } from './plugins/social'
 
 export default defineConfig({
-  plugins: [react(), docsPlugin()],
+  plugins: [react(), docsPlugin(), socialPlugin()],
   // Relative asset paths: the bundle must work from any static host and any
   // path — independent hosting is a §2.2 mitigation, not a convenience.
   base: './',

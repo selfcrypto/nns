@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#eef1f6" />
-    <title>Nimiq Names</title>
+    <title>Nimiq Names — your name on Nimiq</title>
     <meta name="description" content="One name instead of an address. Register and manage your name on Nimiq — on-chain, self-custody, no smart contracts." />
 
     <!-- The mark alone, not the NNS lockup: the site is Nimiq Names, NNS is the
@@ -14,13 +14,25 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/brand/favicon-192.png" />
     <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
 
-    <!-- Relative, like every other URL this bundle ships: one image runs on any
-         hostname, and a crawler resolves it against the page it just fetched. -->
+    <!-- The social card. A link preview crawler is not a browser: Telegram,
+         WhatsApp and Slack drop a relative og:image instead of resolving it
+         against the page they just fetched, so these are the only absolute
+         URLs in a bundle that is otherwise `base: './'`. Serving it from
+         another host? NNS_SITE_URL rewrites them — plugins/social.ts. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Nimiq Names" />
+    <meta property="og:url" content="https://nimiqnames.com/" />
     <meta property="og:title" content="Nimiq Names — your name on Nimiq" />
-    <meta property="og:description" content="One name instead of an address. On-chain, self-custody, no smart contracts." />
-    <meta property="og:image" content="/brand/og-image.png" />
+    <meta property="og:description" content="One name instead of an address. Register and manage your name on Nimiq — on-chain, self-custody, no smart contracts." />
+    <meta property="og:image" content="https://nimiqnames.com/brand/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Nimiq Names" />
+
+    <!-- Twitter falls back to the og: tags for everything but the card shape.
+         WhatsApp does not read these at all; Telegram reads whichever it
+         finds first, so the two descriptions say the same thing. -->
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
