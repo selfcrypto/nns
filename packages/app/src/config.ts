@@ -1,4 +1,5 @@
 import { CONSTANTS } from '@nimiqnames/core'
+import type { PayLinkForm } from './lib/payRequest'
 import { DEFAULT_RESOLVERS, type ResolverEndpoint } from '@nimiqnames/resolver'
 
 /**
@@ -128,6 +129,17 @@ export function chatEndpoint(): string | null {
 export function hubEndpoint(): string {
   const raw = import.meta.env['VITE_NNS_HUB_URL'] as string | undefined
   return raw !== undefined && raw.trim() !== '' ? raw : 'https://hub.nimiq.com'
+}
+
+/**
+ * Which shape the payment link takes (`lib/payRequest.ts`, `PayLinkForm`).
+ * `path` unless told otherwise: it is the shape a chat can draw a card for,
+ * and `deploy/service/nginx.conf` answers it. A host serving the bundle with
+ * no server rule of its own sets `VITE_NNS_PAY_LINKS=hash`.
+ */
+export function payLinkForm(): PayLinkForm {
+  const raw = import.meta.env['VITE_NNS_PAY_LINKS'] as string | undefined
+  return raw?.trim().toLowerCase() === 'hash' ? 'hash' : 'path'
 }
 
 /** Shown by the Hub in every popup. */

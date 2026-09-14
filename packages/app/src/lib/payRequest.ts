@@ -1,14 +1,24 @@
 /**
- * The payment link: `#/pay/<name>?amount=25&message=INV-42[&asset=usdt]`.
+ * The payment link: `/pay/<name>?amount=25&message=INV-42[&asset=usdt]` is
+ * what a seller shares, and `#/pay/<name>?…` is the route it becomes.
  *
  * A seller sends one and the payer only presses Pay. Same shape and the same
  * never-throw rule as `lib/referral.ts`, and a separate module for the same
  * reason the router has one: this is parsing, and parsing belongs where it
  * can be tested — the package's Vitest environment is `node`.
  *
+ * Two shapes, one meaning (`PayLinkForm`). The app routes by hash, and a hash
+ * never leaves the browser: a chat's link-preview crawler fetching
+ * `/#/pay/kike?amount=25` sees `/` and draws the site's generic card. The
+ * path form is the one a crawler can read — the reference edge
+ * (`deploy/service/nginx.conf`) answers it with a card naming the payee and
+ * the amount, then sends the browser on to the hash route — so it is what
+ * `payLinkFor` writes unless the host has no such rule (`VITE_NNS_PAY_LINKS`).
+ *
  * A link arrives two ways and means the same thing both times: opened from the
- * address bar (`payRequestFromHash`, read once in a render-phase initializer),
- * or **pasted into the recipient field** (`payRequestFromLink`), which is the
+ * address bar (`payRequestFromHash`, read once in a render-phase initializer,
+ * after the edge has turned a path link into the hash one), or **pasted into
+ * the recipient field** (`payRequestFromLink`, either shape), which is the
  * only route a payer already inside Nimiq Pay has.
  *
  * Nothing here validates an amount. The text goes into the field as typed and
@@ -112,19 +122,29 @@ export interface PayLink {
  * route in, and the field the payer already has is where a pasted address goes
  * in every other wallet.
  *
- * The `#` is the whole test: a name can never contain one (§4.1's alphabet),
- * and every shape this app emits or a person retypes carries it — the full
- * `https://host/#/pay/donald?amount=25`, a bare `#/pay/donald`, a `/#/…`
- * copied out of an address bar. The host is not checked, because the bundle
- * is deliberately domain-agnostic (`payLinkFor`) and an independent deployment
- * serving the same app under its own name is a link this app should still read.
- * A path-shaped link is not accepted: nothing here emits one and nginx answers
- * it 404 (`lib/route.ts`).
+ * Either shape is read. A `#` means the hash form — a name can never contain
+ * one (§4.1's alphabet), so the full `https://host/#/pay/donald?amount=25`, a
+ * bare `#/pay/donald` and a `/#/…` copied out of an address bar are all one
+ * case. Without one, the path form: `https://host/pay/donald?amount=25`, the
+ * same with no scheme, or a bare `/pay/donald` — `/pay/` is the test there,
+ * and a name can never contain a slash either. The host is not checked,
+ * because the bundle is deliberately domain-agnostic (`payLinkFor`) and an
+ * independent deployment serving the same app under its own name is a link
+ * this app should still read.
  */
 export function payRequestFromLink(text: string): PayLink | null {
   const trimmed = text.trim()
   const mark = trimmed.indexOf('#')
-  if (mark === -1) return null
+  if (mark === -1) {
+    const match = PATH_LINK.exec(trimmed)
+    if (match === null) return null
+    const [, raw = '', query = ''] = match
+    try {
+      return { name: decodeURIComponent(raw), request: payRequestFromHash(query) }
+    } catch {
+      return null
+    }
+  }
   const hash = trimmed.slice(mark)
   // `home` as the fallback, so only a hash that genuinely names Pay is read as
   // one — the fallback is what an unparseable hash becomes.
@@ -134,22 +154,42 @@ export function payRequestFromLink(text: string): PayLink | null {
 }
 
 /**
- * The link a seller shares: this app's own origin and `#/pay/<name>`,
- * domain-agnostic like `shareLinkFor`, with the hash built by `formatRoute`
- * so the name is encoded the one way. Only the parts asked for are written —
- * `asset` never for NIM, which is what an absent one already means.
+ * Which shape `payLinkFor` writes. `path` — `/pay/<name>?…` — is the one a
+ * chat can draw a card for, and the default: the image's own nginx answers
+ * it. `hash` — `/#/pay/<name>?…` — needs nothing from any server, for a host
+ * that serves the bundle with no rule of its own (`config.ts`, `payLinkForm`).
+ */
+export type PayLinkForm = 'path' | 'hash'
+
+/**
+ * The path form, as pasted: an optional host (with or without a scheme), then
+ * `/pay/<name>` and at most a query. A second path segment or a trailing
+ * slash is not a link — the edge answers those 404, so neither is one.
+ */
+const PATH_LINK = /^(?:(?:https?:\/\/)?[^\s/]+)?\/pay\/([^\s/?#]+)(\?[^\s#]*)?$/
+
+/**
+ * The link a seller shares: this app's own origin and `/pay/<name>` — or
+ * `#/pay/<name>` through `formatRoute`, for a host with no edge rule —
+ * domain-agnostic like `shareLinkFor`, the name encoded the one way. Only the
+ * parts asked for are written — `asset` never for NIM, which is what an
+ * absent one already means.
  */
 export function payLinkFor(
   name: string,
   request: PayRequest,
   base: string = globalThis.document?.baseURI ?? '',
+  form: PayLinkForm = 'path',
 ): string {
   const query = new URLSearchParams()
   if (request.amount !== null && request.amount.trim() !== '') query.set(AMOUNT, request.amount.trim())
   if (request.message !== null && request.message !== '') query.set(MESSAGE, request.message)
   if (request.asset === 'usdt') query.set(ASSET, 'usdt')
   const tail = query.toString() === '' ? '' : `?${query.toString()}`
-  const route = `${formatRoute({ tab: 'pay', param: name })}${tail}`
+  const route =
+    form === 'hash'
+      ? `${formatRoute({ tab: 'pay', param: name })}${tail}`
+      : `pay/${encodeURIComponent(name)}${tail}`
   try {
     return `${new URL(base).origin}/${route}`
   } catch {

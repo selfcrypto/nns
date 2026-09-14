@@ -75,42 +75,74 @@ describe('payMessageFault', () => {
 describe('payLinkFor', () => {
   const base = 'https://nimiqnames.com/#/names/donald'
 
-  it('builds the link a seller shares', () => {
+  it('builds the link a seller shares — the path form, so a chat can draw a card for it', () => {
     expect(payLinkFor('donald', { amount: '25', message: 'INV-42', asset: null }, base)).toBe(
+      'https://nimiqnames.com/pay/donald?amount=25&message=INV-42',
+    )
+  })
+
+  it('writes the hash form for a host with no edge rule', () => {
+    expect(payLinkFor('donald', { amount: '25', message: 'INV-42', asset: null }, base, 'hash')).toBe(
       'https://nimiqnames.com/#/pay/donald?amount=25&message=INV-42',
+    )
+    expect(payLinkFor('donald', { amount: null, message: null, asset: null }, base, 'hash')).toBe(
+      'https://nimiqnames.com/#/pay/donald',
     )
   })
 
   it('writes only what was asked for, and never asset=nim — absent already says NIM', () => {
     expect(payLinkFor('donald', { amount: null, message: null, asset: null }, base)).toBe(
-      'https://nimiqnames.com/#/pay/donald',
+      'https://nimiqnames.com/pay/donald',
     )
     expect(payLinkFor('donald', { amount: '25', message: null, asset: 'nim' }, base)).toBe(
-      'https://nimiqnames.com/#/pay/donald?amount=25',
+      'https://nimiqnames.com/pay/donald?amount=25',
     )
     expect(payLinkFor('donald', { amount: '25', message: null, asset: 'usdt' }, base)).toBe(
-      'https://nimiqnames.com/#/pay/donald?amount=25&asset=usdt',
+      'https://nimiqnames.com/pay/donald?amount=25&asset=usdt',
     )
   })
 
   it('round-trips through its own parser, whatever the reference contains', () => {
     for (const message of ['INV-42', 'order 17', 'a&b=c', 'für Kaffee', '#3 / 2026', '100% paid']) {
-      const link = payLinkFor('donald', { amount: '1.5', message, asset: null }, base)
+      const link = payLinkFor('donald', { amount: '1.5', message, asset: null }, base, 'hash')
       expect(payRequestFromHash(new URL(link).hash)).toEqual({ amount: '1.5', message, asset: null })
+      expect(payRequestFromLink(payLinkFor('donald', { amount: '1.5', message, asset: null }, base))).toEqual({
+        name: 'donald',
+        request: { amount: '1.5', message, asset: null },
+      })
     }
   })
 
   it('leaves the query out of the route, so the link still opens Pay on the name', () => {
-    const link = payLinkFor('donald', { amount: '25', message: 'INV-42', asset: 'usdt' }, base)
+    const link = payLinkFor('donald', { amount: '25', message: 'INV-42', asset: 'usdt' }, base, 'hash')
     expect(parseRoute(new URL(link).hash, 'home')).toEqual({ tab: 'pay', param: 'donald' })
   })
 
   it('falls back to a relative link when there is no origin to read', () => {
-    expect(payLinkFor('donald', { amount: '25', message: null, asset: null }, '')).toBe('/#/pay/donald?amount=25')
+    expect(payLinkFor('donald', { amount: '25', message: null, asset: null }, '')).toBe('/pay/donald?amount=25')
+    expect(payLinkFor('donald', { amount: '25', message: null, asset: null }, '', 'hash')).toBe('/#/pay/donald?amount=25')
   })
 })
 
 describe('payRequestFromLink', () => {
+  it('reads the path form — the one the sheet copies — with or without a scheme', () => {
+    const expected = { name: 'donald', request: { amount: '25', message: 'INV-42', asset: null } }
+    expect(payRequestFromLink('https://nimiqnames.com/pay/donald?amount=25&message=INV-42')).toEqual(expected)
+    expect(payRequestFromLink('nimiqnames.com/pay/donald?amount=25&message=INV-42')).toEqual(expected)
+    expect(payRequestFromLink('/pay/donald?amount=25&message=INV-42')).toEqual(expected)
+    expect(payRequestFromLink('  https://nimiqnames.com/pay/donald  ')).toEqual({
+      name: 'donald',
+      request: { amount: null, message: null, asset: null },
+    })
+  })
+
+  it('is null for what the edge answers 404 — a second segment, a trailing slash, no name', () => {
+    expect(payRequestFromLink('https://nimiqnames.com/pay/donald/')).toBeNull()
+    expect(payRequestFromLink('https://nimiqnames.com/pay/a/b')).toBeNull()
+    expect(payRequestFromLink('https://nimiqnames.com/pay/')).toBeNull()
+    expect(payRequestFromLink('https://nimiqnames.com/pay/%E0%A4%A')).toBeNull()
+  })
+
   it('reads a full link, so a payer inside Nimiq Pay can paste one in', () => {
     expect(payRequestFromLink('https://nimiqnames.com/#/pay/donald?amount=25&message=INV-42')).toEqual({
       name: 'donald',

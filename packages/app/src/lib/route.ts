@@ -10,7 +10,10 @@
  * The hash rather than the path, and no router library: the app's
  * nginx deliberately answers an unknown path with 404 so a stale script URL
  * never gets HTML back, and every independent host (the package is MIT for
- * that reason) would need the same rewrite rule for path routes. A hash needs
+ * that reason) would need the same rewrite rule for path routes. The one
+ * path it does answer, `/pay/<name>`, is not a route: it is the shareable
+ * form of the payment link, and the edge turns it into `#/pay/<name>` after
+ * a crawler has read its card (`lib/payRequest.ts`). A hash needs
  * nothing from any server, survives a reload, gives the WebView's back button
  * something to pop, and makes a name linkable. `?diag=1` and `?chrome=`
  * live in the search string and are untouched (decisions.md, "Routes are the

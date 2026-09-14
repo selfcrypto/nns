@@ -160,7 +160,7 @@ Two URL conventions, both read entirely on the client, both inert to the registr
 
 | Link | Shape | What it does |
 |---|---|---|
-| **Payment link** | `https://<host>/#/pay/<name>?amount=<n>&message=<text>[&asset=usdt]` | Opens the Pay screen with the recipient, amount and reference filled in. Every field stays editable and nothing is sent until the payer presses Pay |
+| **Payment link** | `https://<host>/pay/<name>?amount=<n>&message=<text>[&asset=usdt]` | Opens the Pay screen with the recipient, amount and reference filled in. Every field stays editable and nothing is sent until the payer presses Pay. Pasted into a chat, it previews as a card naming the payee and the amount; `https://<host>/#/pay/<name>?…` is the same link without the card |
 | **Referral link** | `https://<host>/?ref=<name>` | Records who introduced a visitor, until their next registration carries it as `G`'s `ref` field |
 
 A payment link is the useful one to emit from an invoice or a checkout: it needs no integration at all beyond building the URL. The `message` becomes the transaction's data field, so it is bound by the two rules that fail silently on chain — **64 bytes**, and never the prefix `NNS1` (§7.5, exact case) — which is why the app refuses such a reference before it sends rather than after. `asset=usdt` asks for the name's linked EVM address instead, and a USDT payment carries no message, an ERC-20 transfer having nowhere to put one.

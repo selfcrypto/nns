@@ -258,6 +258,11 @@ Four things are specific to it, and three are refusals:
 `#/pay/<name>?amount=25&message=INV-42[&asset=usdt]` opens this screen with the
 fields already filled, so the payer only presses Pay. `lib/payRequest.ts` parses
 it and builds it; the owner's **Request Payment** tile (My names) is the builder.
+What the tile copies is the path form, `/pay/<name>?…` (2026-09-14): a hash
+never leaves the browser, so a chat's preview crawler could only ever draw the
+site's generic card, while the path form is answered by the edge with a card
+naming the payee and the amount before the browser is sent on to the hash
+route. The recipient field reads both.
 
 - Every parameter is optional and an unparseable one is simply absent — a
   mistyped link still opens the screen. `asset` is read only as `nim` or

@@ -2,10 +2,9 @@
  * **Request payment** — the owner's half of the payment link.
  *
  * A seller fills in what they want asked for and copies
- * `<origin>/#/pay/<name>?amount=…&message=…`; the payer opens it and presses
+ * `<origin>/pay/<name>?amount=…&message=…`; the payer opens it and presses
  * Pay (`lib/payRequest.ts`, `screens/Pay.tsx`). Every field is optional, so an
- * empty form still yields the plain `#/pay/<name>` link that worked before this
- * screen existed.
+ * empty form still yields the plain `/pay/<name>` link.
  *
  * Not `ActionSheet`: that one is keyed on `AppAction` and builds transactions
  * through `core`'s encoders. Nothing here is sent — it is a string being
@@ -24,6 +23,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { CONSTANTS } from '@nimiqnames/core'
 import { payLinkFor, payMessageBytes, payMessageFault, type PayAsset } from '../lib/payRequest'
+import { payLinkForm } from '../config'
 import {
   closeLabel,
   copyLinkLabel,
@@ -85,7 +85,7 @@ export function PaymentRequestSheet({
   // rather than written into one that cannot deliver it.
   const carried = asset === 'usdt' ? '' : message
   const fault = payMessageFault(carried)
-  const link = payLinkFor(name, { amount: amount.trim() || null, message: carried || null, asset })
+  const link = payLinkFor(name, { amount: amount.trim() || null, message: carried || null, asset }, document.baseURI, payLinkForm())
 
   const copy = async () => {
     try {

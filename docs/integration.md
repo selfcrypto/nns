@@ -1149,7 +1149,7 @@ same ones.
 
 | Link | Shape | What it does |
 |---|---|---|
-| **Payment link** | `https://nimiqnames.com/#/pay/<name>?amount=<NIM>&message=<text>[&asset=usdt]` | opens Pay with recipient, amount and reference filled in. Every field stays editable; nothing is sent until the payer presses Pay |
+| **Payment link** | `https://nimiqnames.com/pay/<name>?amount=<NIM>&message=<text>[&asset=usdt]` | opens Pay with recipient, amount and reference filled in. Every field stays editable; nothing is sent until the payer presses Pay. Pasted into a chat, it previews as a card naming the payee and the amount (`/#/pay/<name>?…` is the same link without the card) |
 | **Referral link** | `https://nimiqnames.com/?ref=<name>` | records who introduced a visitor (7 days, first wins); their next registration carries it as `G`'s `ref` and the referrer is paid a published share by the treasury |
 
 A payment link is what an invoice or a checkout emits: it needs no
@@ -1160,7 +1160,7 @@ and never the prefix `NNS1` — which the app checks before sending.
 
 ```js
 const pay = (name, nim, ref) =>
-  `https://nimiqnames.com/#/pay/${name}?amount=${nim}&message=${encodeURIComponent(ref)}`
+  `https://nimiqnames.com/pay/${name}?amount=${nim}&message=${encodeURIComponent(ref)}`
 pay('mycoolshop', '25', 'INV-42')
 ```
 

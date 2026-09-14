@@ -69,12 +69,12 @@ A NIM payment can carry a short **message** — an invoice or an order number, s
 A link opens Pay with the fields already filled:
 
 ```
-https://nimiqnames.com/#/pay/donald?amount=25&message=INV-42
+https://nimiqnames.com/pay/donald?amount=25&message=INV-42
 ```
 
-The name is the recipient, `amount` and `message` fill the two fields, and `asset=usdt` asks for USDT instead of NIM. Nothing is committed by opening one: every field stays editable, and the message that came with the link is read-only until you tap **Edit**, so the payee's wording is not lost by accident. Nothing is sent until you press Pay.
+The name is the recipient, `amount` and `message` fill the two fields, and `asset=usdt` asks for USDT instead of NIM. Pasted into a chat, the link draws a card that says who is being paid and how much — the site answers it with that card, then opens the app at `#/pay/donald?…`, the same screen either way. Nothing is committed by opening one: every field stays editable, and the message that came with the link is read-only until you tap **Edit**, so the payee's wording is not lost by accident. Nothing is sent until you press Pay.
 
-**A link you were sent can be pasted into the recipient field.** Tapping a link in a chat app opens your browser, not Nimiq Pay — no association exists between the wallet and this site, and half of that is Nimiq's to publish — so a payer already inside the mini app would otherwise have no way to use one. Paste it where a name goes and it applies whole, exactly as it would from the address bar. The field tells the two apart by the `#`, which a name can never contain, so typing an ordinary name is untouched.
+**A link you were sent can be pasted into the recipient field.** Tapping a link in a chat app opens your browser, not Nimiq Pay — no association exists between the wallet and this site, and half of that is Nimiq's to publish — so a payer already inside the mini app would otherwise have no way to use one. Paste it where a name goes and it applies whole, exactly as it would from the address bar. The field tells a link from a name by the `/pay/` or the `#` in it, neither of which a name can contain, so typing an ordinary name is untouched.
 
 **Owners build one from their name's card**, under *Payment Links* in My names — see below.
 
