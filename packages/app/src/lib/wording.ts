@@ -452,6 +452,26 @@ export const currentHostLine = (host: string): string => `${host} currently answ
 
 export const noHostLine = (): string => 'No subdomain resolver set.'
 
+/**
+ * The `D` review, both directions (Kike, 2026-09-14: *"Subdomains under
+ * ricomaverick stop resolving" … doesn't make sense, since they're resolved
+ * too, but by the delegated host*). The old clear line said resolution stops,
+ * which reads as NNS taking away something it was doing — and NNS never
+ * resolved a subdomain at all. §8.6 gives a label no record and no owner: the
+ * host is the whole mechanism, so clearing it is not a downgrade to on-chain
+ * resolution, it is the end of the only resolution there was. The second line
+ * says that, because a review that only states the loss invites the reader to
+ * assume a fallback.
+ */
+export const delegateSetLines = (host: string, name: string): readonly string[] => [
+  `${host} will answer for everything under ${name} — its answers are the host’s word, not proven.`,
+]
+
+export const delegateClearedLines = (name: string): readonly string[] => [
+  `No host will answer for subdomains under ${name}.`,
+  'Subdomains resolve through the host, never on-chain — with none set, nothing resolves them.',
+]
+
 export const currentExpiryLine = (approx: string): string => `Currently expires ${approx}.`
 
 /** The silent pre-fill: the host wallet already exposed the address. */

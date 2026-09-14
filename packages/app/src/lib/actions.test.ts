@@ -355,3 +355,34 @@ describe('an acquisition confirms against the whole identity set, not the assume
     expect(await confirmAgainst('NQ42 5QRF L5AV J6K3 BQHQ FAE8 XXHR TS8Y 9YRA', [LOCAL, REMOTE])).toBe(false)
   })
 })
+
+describe('delegate: the review names the mechanism, and a no-op `D` is refused', () => {
+  const withHost = (host: string): NameInfo => {
+    const info = registered()
+    return { ...info, record: { ...info.record!, host } }
+  }
+
+  it('setting a host says the host answers, and that its word is not proven', () => {
+    const review = prepare({ action: 'delegate', host: 'nns.example.com' }, withHost('')).review
+    expect(review.join(' ')).toContain('nns.example.com will answer for everything under example')
+    expect(review.join(' ')).toMatch(/not proven/)
+  })
+
+  // The old line was "Subdomains under example stop resolving", which reads as
+  // NNS withdrawing a resolution it was performing. §8.6 gives a label no
+  // record, so the host is the only thing that ever answered.
+  it('clearing a host never implies an on-chain fallback', () => {
+    const review = prepare({ action: 'delegate', host: '' }, withHost('nns.example.com')).review
+    expect(review.join(' ')).toContain('No host will answer for subdomains under example')
+    expect(review.join(' ')).toMatch(/never on-chain/)
+    expect(review.join(' ')).not.toMatch(/stop resolving/)
+  })
+
+  it('refuses an empty host on a name that has none — the `D` would change nothing', () => {
+    expect(() => prepare({ action: 'delegate', host: '' }, withHost(''))).toThrow(ActionInputError)
+  })
+
+  it('still clears when the record could not be read, rather than refusing a real clear', () => {
+    expect(() => prepare({ action: 'delegate', host: '' }, null)).not.toThrow()
+  })
+})

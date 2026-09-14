@@ -166,6 +166,12 @@ export function ActionSheet({
         return startingPriceNim.trim() !== '' && durationDays.trim() !== ''
       case 'bid':
         return bidNim.trim() !== ''
+      // An empty field is itself an input — a clear — but only on a name that
+      // has a host to clear. Without one the sheet opened previewing the
+      // clear's review on a name nothing was delegating, which is the review
+      // of a transaction with no effect.
+      case 'delegate':
+        return host.trim() !== '' || (info?.record?.host ?? '') !== ''
       default:
         return true
     }

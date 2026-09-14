@@ -31,6 +31,8 @@ import { approxDate, blocksApprox, ellipsizeAddress, formatApproxDate, lunaToNim
 import {
   auctionOutlivesTermLine,
   bidRefundLine,
+  delegateClearedLines,
+  delegateSetLines,
   giftRenewalLine,
   newExpiryLine,
   offerStaysLine,
@@ -279,14 +281,18 @@ export function prepareAction(options: {
 
     case 'delegate': {
       const host = inputs.host.trim()
+      // An empty field on a name that has no host is a `D` that changes
+      // nothing — a paid transaction whose whole effect is to rewrite the
+      // record with the value it already holds. A null record means the fetch
+      // failed, and refusing a real clear on a network error is the worse
+      // mistake, so the guard only fires on a record that answered.
+      if (host === '' && record !== null && record.host === '') {
+        throw new ActionInputError('No subdomain resolver is set, so there is nothing to clear')
+      }
       return {
         action: 'delegate',
         request: asRequest(encodeDelegate({ name, host, sender })),
-        review: [
-          host === ''
-            ? `Subdomains under ${name} stop resolving.`
-            : `${host} will answer for everything under ${name} — its answers are the host's word, not proven.`,
-        ],
+        review: [...(host === '' ? delegateClearedLines(name) : delegateSetLines(host, name))],
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null
           return rec !== null && rec.host === host
