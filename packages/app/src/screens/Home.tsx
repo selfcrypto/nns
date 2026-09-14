@@ -14,9 +14,14 @@ import styles from './landing-page.module.css'
 /**
  * **Home** — the landing page both hosts open on, a browser and Nimiq Pay
  * alike (App.tsx). Marketing, not the app: nothing here resolves a name or
- * shows a state. It has three ways in, because the tab bar is hidden here and
- * a search field is only one of them: the hero's query goes to Buy,
- * `onOpenApp` goes to My names, and "How it works" goes to the docs. Every
+ * shows a state. The tab bar is hidden here, so every way into the app is on
+ * the page itself: the hero's query goes to Buy, `onOpenApp` goes to My
+ * names, "How it works" goes to the docs — and **every card below the hero
+ * is a link to the screen or the page it describes**, because a card that
+ * names a tab and does nothing when pressed is a dead end on the one screen
+ * with no bar to fall back on. The two callbacks are the hero's; the cards
+ * are plain hash links, since a destination that is a route belongs in the
+ * hash (lib/route.ts) and nothing about them needs App to mediate. Every
  * string is `LANDING` in `wording.ts`; the layout is
  * `landing-page.module.css`, which reaches into the masthead through
  * `:global(.frame.is-home …)`.
@@ -25,6 +30,13 @@ import styles from './landing-page.module.css'
 const MARQUEE_ITEMS = Array<typeof EXAMPLE_PROFILES>(10).fill(EXAMPLE_PROFILES).flat()
 
 const IMAGES = '/assets/images'
+
+/**
+ * Where the three burn figures come from: §10.2's share, the term, and what
+ * the treasury does with a fee. The numbers are the claim; this page is the
+ * explanation behind it.
+ */
+const PRICES_DOC = '#/docs/prices'
 
 function Arrow({ size = 20 }: { size?: number }) {
   return (
@@ -49,20 +61,38 @@ const TRUST_ICONS = [
   <g key="box"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></g>,
 ]
 
+/**
+ * The five cards, in `LANDING.features.cards` order, each with the screen it
+ * describes. A card that names a tab is the fastest way into that tab from a
+ * page whose tab bar is hidden, and the arrow on it has promised a
+ * destination since the redesign. Hash links, not `onSearch`-style callbacks:
+ * the destination is a route, and routes are the hash (lib/route.ts).
+ */
 const FEATURE_CARDS = [
-  { image: 'feature_search_register', mobile: 'feature_search_register_mobile', span: 'half', arrow: 'orange' },
-  { image: 'feature_manage_identity', span: 'half', arrow: 'orange' },
-  { image: 'feature_marketplace', span: 'third', arrow: 'purple' },
-  { image: 'feature_instant_payments', span: 'third', arrow: 'blue' },
-  { image: 'feature_secure_chat', span: 'third', arrow: 'coral' },
+  { image: 'feature_search_register', mobile: 'feature_search_register_mobile', span: 'half', arrow: 'orange', href: '#/buy' },
+  { image: 'feature_manage_identity', span: 'half', arrow: 'orange', href: '#/names' },
+  { image: 'feature_marketplace', span: 'third', arrow: 'purple', href: '#/market' },
+  { image: 'feature_instant_payments', span: 'third', arrow: 'blue', href: '#/pay' },
+  { image: 'feature_secure_chat', span: 'third', arrow: 'coral', href: '#/inbox' },
 ] as const
 
-const STEP_IMAGES = ['how_it_works_search', 'how_it_works_profile', 'how_it_works_transact'] as const
+/** The three steps, in `LANDING.steps.items` order: the screen each step is done on. */
+const STEPS = [
+  { image: 'how_it_works_search', href: '#/buy' },
+  { image: 'how_it_works_profile', href: '#/names' },
+  { image: 'how_it_works_transact', href: '#/pay' },
+] as const
 
-const CHAIN_ICONS = [
-  { tone: 'gold', shape: <g><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></g> },
-  { tone: 'purple', shape: <g><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></g> },
-  { tone: 'blue', shape: <g><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></g> },
+/**
+ * The three claims, in `LANDING.chains.items` order. These are explanations,
+ * not features, so two of them go to the page that explains them and only
+ * the payment one goes to a screen — Pay is where the linked EVM address is
+ * actually spent to.
+ */
+const CHAIN_ITEMS = [
+  { tone: 'gold', href: '#/docs/trust', shape: <g><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></g> },
+  { tone: 'purple', href: '#/pay', shape: <g><polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" /></g> },
+  { tone: 'blue', href: '#/docs/subdomains', shape: <g><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></g> },
 ] as const
 
 function ProfileCards({ prefix }: { prefix: string }) {
@@ -235,7 +265,7 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
               const copy = features.cards[i]
               if (copy === undefined) return null
               return (
-                <div key={card.image} className={`feature-card glass-card bento-${card.span}`}>
+                <a key={card.image} href={card.href} className={`feature-card glass-card bento-${card.span} ${styles.cardLink}`}>
                   <div className={`feature-image-wrapper feature-image-${card.span}`}>
                     {'mobile' in card ? (
                       <picture>
@@ -255,7 +285,7 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
                       <Arrow />
                     </div>
                   </div>
-                </div>
+                </a>
               )
             })}
           </div>
@@ -274,18 +304,18 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
             </div>
             <div className="steps-flow-grid">
               {steps.items.map((step, i) => (
-                <div key={step.title} className="step-flow-item">
+                <a key={step.title} href={STEPS[i]?.href ?? '#/buy'} className={`step-flow-item ${styles.cardLink}`}>
                   <div className="step-node">
                     <span className="step-num">{String(i + 1).padStart(2, '0')}</span>
                   </div>
                   <div className="step-stage">
-                    <img src={`${IMAGES}/${STEP_IMAGES[i]}.webp`} alt="" loading="lazy" />
+                    <img src={`${IMAGES}/${STEPS[i]?.image}.webp`} alt="" loading="lazy" />
                   </div>
                   <div className="step-meta">
                     <h4>{step.title}</h4>
                     <p>{step.body}</p>
                   </div>
-                </div>
+                </a>
               ))}
             </div>
           </div>
@@ -304,17 +334,17 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
             </h3>
 
             {chains.items.map((item, i) => (
-              <div key={item.title} className="security-feature">
-                <div className={`security-icon icon-${CHAIN_ICONS[i]?.tone ?? 'blue'}`}>
+              <a key={item.title} href={CHAIN_ITEMS[i]?.href ?? '#/docs/intro'} className={`security-feature ${styles.cardLink}`}>
+                <div className={`security-icon icon-${CHAIN_ITEMS[i]?.tone ?? 'blue'}`}>
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    {CHAIN_ICONS[i]?.shape}
+                    {CHAIN_ITEMS[i]?.shape}
                   </svg>
                 </div>
                 <div className="security-text">
                   <h4>{item.title}</h4>
                   <p>{item.body}</p>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
 
@@ -342,16 +372,16 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
           </div>
 
           <div className="stats-grid">
-            <div className="stat-card">
+            <a href={PRICES_DOC} className={`stat-card ${styles.cardLink}`}>
               <div className="stat-icon-wrap">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 14 14" /></svg>
               </div>
               <div className="stat-value">{stat(figures?.revenue ?? null)}</div>
               <div className="stat-label">{burnCopy.revenue.label}</div>
               <div className="stat-sublabel">{burnCopy.revenue.sub}</div>
-            </div>
+            </a>
 
-            <div className="stat-card highlight">
+            <a href={PRICES_DOC} className={`stat-card highlight ${styles.cardLink}`}>
               <div className="stat-icon-wrap burn-icon">
                 <svg className="burn-flame" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
@@ -360,16 +390,16 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
               <div className="stat-value">{stat(figures?.burned ?? null)}</div>
               <div className="stat-label">{burnCopy.burned.label}</div>
               <div className="stat-sublabel">{burnCopy.burned.sub}</div>
-            </div>
+            </a>
 
-            <div className="stat-card">
+            <a href={PRICES_DOC} className={`stat-card ${styles.cardLink}`}>
               <div className="stat-icon-wrap">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>
               </div>
               <div className="stat-value">{stat(figures?.owed ?? null)}</div>
               <div className="stat-label">{burnCopy.owed.label}</div>
               <div className="stat-sublabel">{burnCopy.owed.sub}</div>
-            </div>
+            </a>
           </div>
         </div>
       </section>
