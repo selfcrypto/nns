@@ -750,6 +750,20 @@ export function NameCard({
                 name and a delegate's word looking identical on the front door. */}
             <div className="resolved-meta-section">
               <VerificationLine result={outcome.result} />
+              {/* When the term ends — app-states §1/§6, and the §10.4 reminder
+                  inside the 60-day window. A card that says "Registered" and not
+                  until when withholds the one fact that makes the word mean
+                  something; the renewal sheet had it all along, which is where
+                  Kike found it missing from here (2026-09-15). */}
+              {record !== null && height !== null && record.status === 'REGISTERED' && (
+                <p className="expiry-line">
+                  {renewalUrgency(record.expiry, height) === 'due' ? (
+                    <Badge tone="couldnt-check">{renewDueLine(formatApproxDate(approxDate(record.expiry, height, nowMs)))}</Badge>
+                  ) : (
+                    expiresLine(formatApproxDate(approxDate(record.expiry, height, nowMs)))
+                  )}
+                </p>
+              )}
             </div>
             {outcome.info !== null && <Overlays info={outcome.info} nowMs={nowMs} hideMarketplace={actions === ACQUIRE_ACTIONS || !isOwner} />}
             <WarningNotes warnings={outcome.result.warnings} />

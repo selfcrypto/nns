@@ -14,7 +14,15 @@
 
     <!-- The mark alone, not the NNS lockup: the site is Nimiq Names, NNS is the
          protocol it speaks. Apple composites its icon on black, so that one is
-         flattened. -->
+         flattened.
+
+         `/favicon.ico` is here for the fetchers that never read this file.
+         Nimiq Pay's app list draws its icon from Google's favicon service
+         (`t2.gstatic.com/faviconV2`, `nimpay-website`'s `getFaviconUrl`), which
+         answered 404 for this origin and left the app under a globe while every
+         neighbour in the list had a mark. Declared as well as served, so a
+         reader of the head and a reader of the root agree. -->
+    <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/brand/favicon-192.png" />
     <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
