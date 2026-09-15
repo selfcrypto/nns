@@ -286,6 +286,7 @@
     <string id="CHAT_ENCODE_TEXT.EMPTY_MESSAGE">Write something first.</string>
     <string id="CHAT_ENCODE_TEXT.OVER_BUDGET">Too long. A message travels in 64 bytes.</string>
     <string id="inboxWindowLine" params="sinceDate">Messages since {sinceDate}.</string>
+    <string id="viewOnExplorerLabel">Check this message on a block explorer</string>
     <string id="hiddenSendersLabel" params="count">Hidden (2)</string>
     <string id="hideSenderAction">Hide sender</string>
     <string id="unhideSenderAction">Unhide</string>

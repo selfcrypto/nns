@@ -9,13 +9,13 @@ import {
   type PeerName,
 } from '@nns/chat'
 import { getOwnedNames, getParams } from '../lib/api'
-import { chatEndpoint } from '../config'
+import { chatEndpoint, explorerTxUrl } from '../config'
 import { fetchChatIndex, type ChatIndexPage } from '../lib/chatIndex'
 import { hideSender, loadHiddenSenders, unhideSender } from '../lib/hidden'
 import { defaultTransport, fetchHistory } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
 import { formatBubbleTimestamp, formatThreadDate } from '../lib/dates'
-import { approxDate, ellipsizeAddress, formatApproxDate } from '../lib/format'
+import { approxDate, ellipsizeAddress, formatApproxDate, isTxHash } from '../lib/format'
 import { apiBase } from '../lib/nns'
 import { useAsync } from '../lib/useAsync'
 import type { Wallet } from '../lib/wallet'
@@ -39,10 +39,12 @@ import {
   peerMoreNamesLine,
   peerNamesHint,
   unhideSenderAction,
+  viewOnExplorerLabel,
 } from '../lib/wording'
 import { Composer } from '../components/Composer'
 import { Hint } from '../components/Hint'
 import { IdentityBar } from '../components/IdentityBar'
+import { ExternalIcon } from '../components/icons'
 import { TrustBar } from '../components/TrustBar'
 import { Identicon, NameText, Spinner } from '../components/ui'
 import styles from './inbox.module.css'
@@ -539,7 +541,24 @@ function ConversationView({
           <div key={message.hash} className={styles.bubbleGroup}>
             <div className={message.direction === 'in' ? styles.bubbleIn : styles.bubbleOut}>
               <span>{message.message}</span>
-              <span className={styles.bubbleTime}>{formatBubbleTimestamp(message.timestamp, nowMs)}</span>
+              {/* Time and link share a row rather than stacking: the bubble is
+                  `white-space: pre-wrap`, so an inline anchor beside the time
+                  would render the JSX's own indentation. */}
+              <span className={styles.bubbleMeta}>
+                <span className={styles.bubbleTime}>{formatBubbleTimestamp(message.timestamp, nowMs)}</span>
+                {isTxHash(message.hash) && (
+                  <a
+                    className={styles.bubbleTxLink}
+                    href={explorerTxUrl(message.hash)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={viewOnExplorerLabel()}
+                    aria-label={viewOnExplorerLabel()}
+                  >
+                    <ExternalIcon />
+                  </a>
+                )}
+              </span>
             </div>
           </div>
         ))}

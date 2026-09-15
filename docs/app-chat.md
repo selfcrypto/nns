@@ -227,6 +227,17 @@ names — and nothing on the screen distinguished them, so it read as the app
 contradicting itself (Kike: *"both estatements say the opposite"*). Deleting
 the field deleted the line.
 
+**Every message links to its own transaction** (2026-09-15). The Inbox renders
+a message as a bubble, which is the app asserting that a transaction exists and
+said this; an explorer link is how a reader checks that without trusting the
+assertion. It is per message, because each message *is* a transaction, and it
+goes to an independent site — `VITE_NNS_EXPLORER`, a `{hash}` template
+defaulting to nimiq.watch. Both Nimiq explorers decode the payload and show it
+under a field called *Message*, which is the only reason the link is worth
+having; one that showed a transaction without its data would confirm nothing
+about the text. The cost, as with any outbound link: the explorer learns that
+someone looked at that transaction. The data is public either way.
+
 **Encryption is a v2 note, not a v1 gap to paper over.** NNS state holds
 only the owner's address — a hash of the key — so there is nothing to
 encrypt to, the same gap that blocks §16.5 signed delegate responses. (Once

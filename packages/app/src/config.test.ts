@@ -1,7 +1,7 @@
 import { CONSTANTS } from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
-import { ConfigParseError, parseQuorum, parseResolverList } from './config'
+import { ConfigParseError, parseExplorerTemplate, parseQuorum, parseResolverList } from './config'
 
 describe('parseResolverList', () => {
   it('parses named endpoints', () => {
@@ -53,5 +53,35 @@ describe('parseQuorum', () => {
     expect(parseQuorum('2')).toBe(2)
     expect(() => parseQuorum('0')).toThrow(ConfigParseError)
     expect(() => parseQuorum('1.5')).toThrow(ConfigParseError)
+  })
+})
+
+/**
+ * The explorer link exists so a reader does not have to take the app's word
+ * that a message is a real transaction (Kike, 2026-09-15). A template rather
+ * than a base, because the two Nimiq explorers route differently and neither
+ * is wrong.
+ */
+describe('parseExplorerTemplate', () => {
+  it('defaults to nimiq.watch, whose transaction view shows the payload', () => {
+    expect(parseExplorerTemplate(undefined)).toBe('https://nimiq.watch/#{hash}')
+    expect(parseExplorerTemplate('   ')).toBe('https://nimiq.watch/#{hash}')
+  })
+
+  it('takes an override verbatim, whatever shape it routes on', () => {
+    // The other explorer checked against a real transaction: a path, not a
+    // fragment. A base URL could not have expressed both.
+    expect(parseExplorerTemplate('https://www.nimiqhub.com/tx/{hash}')).toBe('https://www.nimiqhub.com/tx/{hash}')
+  })
+
+  it('refuses a template with nowhere to put the hash', () => {
+    expect(() => parseExplorerTemplate('https://example.test/tx/')).toThrow(ConfigParseError)
+  })
+
+  it('refuses a non-http value, including a same-origin path', () => {
+    // Unlike the endpoints, this one is always a third-party site: a relative
+    // path here would be a link back into the app, which proves nothing.
+    expect(() => parseExplorerTemplate('ftp://x/{hash}')).toThrow(ConfigParseError)
+    expect(() => parseExplorerTemplate('/tx/{hash}')).toThrow(ConfigParseError)
   })
 })

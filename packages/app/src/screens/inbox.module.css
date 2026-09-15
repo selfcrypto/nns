@@ -566,8 +566,33 @@
   gap: 4px;
 }
 
-.bubbleTime {
+/* The bubble's metadata line: timestamp, and the link that lets a reader check
+   the message against an independent explorer. A row, so the anchor does not
+   inherit the bubble's `pre-wrap` and pick up the markup's own whitespace. */
+.bubbleMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   align-self: flex-end;
+}
+
+.bubbleTxLink {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-faint);
+  opacity: 0.75;
+  transition: color 120ms ease, opacity 120ms ease;
+}
+
+.bubbleTxLink:hover,
+.bubbleTxLink:focus-visible {
+  color: var(--nimiq-blue);
+  opacity: 1;
+}
+
+/* `.bubbleMeta` owns the alignment now; keeping `align-self: flex-end` here
+   would bottom-align the time against the icon inside that row. */
+.bubbleTime {
   font-size: 10px;
   color: var(--ink-faint);
   font-variant-numeric: tabular-nums;

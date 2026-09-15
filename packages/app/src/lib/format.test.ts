@@ -6,6 +6,7 @@ import {
   ellipsizeAddress,
   formatApproxDate,
   formatApproxIn,
+  isTxHash,
   formatApproxWhen,
   group,
   looksGrouped,
@@ -185,5 +186,28 @@ describe('formatApproxWhen', () => {
   // "Messages since" is the one past-facing use; a past instant keeps its date.
   it('keeps a date for anything already past', () => {
     expect(formatApproxWhen(at(-48), NOON, 'en-GB')).not.toMatch(/today|tomorrow/)
+  })
+})
+
+/**
+ * A guard, because nothing upstream promises the shape: `ChatTx.hash` arrives
+ * from the node and from the chat index on a bare `typeof === 'string'` check,
+ * and until the Inbox linked it to an explorer it was only a React key.
+ */
+describe('isTxHash', () => {
+  it('accepts 64 lowercase hex', () => {
+    expect(isTxHash('fc02eaeced5a9bd7e687d58d64424e9dd497485ba7e3ed29c046bbd369e228ac')).toBe(true)
+  })
+
+  it('rejects the EVM spelling, the wrong length, and uppercase', () => {
+    expect(isTxHash('0xfc02eaeced5a9bd7e687d58d64424e9dd497485ba7e3ed29c046bbd369e228ac')).toBe(false)
+    expect(isTxHash('fc02eaec')).toBe(false)
+    expect(isTxHash('FC02EAECED5A9BD7E687D58D64424E9DD497485BA7E3ED29C046BBD369E228AC')).toBe(false)
+  })
+
+  // The chat fixtures use these, and a test that rendered a link to
+  // `https://nimiq.watch/#h1` would be pinning a broken link.
+  it('rejects the placeholder hashes the chat fixtures use', () => {
+    for (const dummy of ['abc', 'h1', 'htlc', '']) expect(isTxHash(dummy)).toBe(false)
   })
 })

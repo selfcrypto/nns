@@ -125,6 +125,41 @@ export function chatEndpoint(): string | null {
   return raw.replace(/\/+$/, '')
 }
 
+/**
+ * Where a transaction can be checked by someone who does not take this app's
+ * word for it (Kike, 2026-09-15: *"to give more confidence to the service"*).
+ *
+ * A **template**, not a base, because the two Nimiq explorers disagree about
+ * URL shape and neither is wrong: `https://nimiq.watch/#{hash}` routes on the
+ * fragment, `https://www.nimiqhub.com/tx/{hash}` on the path. One placeholder,
+ * `{hash}`, absorbs both and anything later.
+ *
+ * Both were checked in a browser against a real data-carrying transaction
+ * before this shipped, because a link that proves a transaction exists while
+ * hiding its payload proves nothing about a message: each renders the data
+ * under a field labelled *Message*.
+ *
+ * Set-but-malformed throws rather than falling back. A silent default would
+ * turn "the operator chose this" into "nobody noticed", which is the rule
+ * every other variable here follows.
+ */
+const DEFAULT_EXPLORER = 'https://nimiq.watch/#{hash}'
+
+export function parseExplorerTemplate(raw: string | undefined): string {
+  if (raw === undefined || raw.trim() === '') return DEFAULT_EXPLORER
+  const template = raw.trim()
+  if (!/^https?:\/\//.test(template)) {
+    throw new ConfigParseError('VITE_NNS_EXPLORER must be an http(s) URL')
+  }
+  if (!template.includes('{hash}')) {
+    throw new ConfigParseError('VITE_NNS_EXPLORER must contain {hash}, the placeholder for the transaction hash')
+  }
+  return template
+}
+
+export const explorerTxUrl = (hash: string): string =>
+  parseExplorerTemplate(import.meta.env['VITE_NNS_EXPLORER'] as string | undefined).replace('{hash}', hash)
+
 /** The Nimiq Hub the desktop adapter opens popups against. */
 export function hubEndpoint(): string {
   const raw = import.meta.env['VITE_NNS_HUB_URL'] as string | undefined

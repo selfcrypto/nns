@@ -33,6 +33,22 @@ export function group(value: bigint | number): string {
  * A single period with three decimals is deliberately absent: `12.345` is
  * unambiguous in the notation this app writes, and has always meant 12.345.
  */
+/**
+ * Whether a string is a Nimiq transaction hash: 64 lowercase hex, no `0x`
+ * (the prefixed form is EVM-only in this app).
+ *
+ * A guard rather than an assumption. `ChatTx.hash` reaches the Inbox from two
+ * sources — the node over `getTransactionsByAddress` and the chat index's
+ * rows — and both pass it through on a bare `typeof === 'string'` check, so
+ * nothing upstream has ever promised its shape. Until an explorer link was
+ * added it was only a React key, where any string works. Now a wrong one
+ * would be a link to nothing, so a message whose hash does not look like one
+ * simply gets no link.
+ */
+export function isTxHash(value: string): boolean {
+  return /^[0-9a-f]{64}$/.test(value)
+}
+
 export function looksGrouped(text: string): boolean {
   return /^[0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?$|^[0-9]{1,3}(?:\.[0-9]{3}){2,}(?:,[0-9]+)?$/.test(text)
 }

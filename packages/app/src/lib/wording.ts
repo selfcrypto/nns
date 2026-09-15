@@ -1208,6 +1208,14 @@ export const CHAT_ENCODE_TEXT: Record<'EMPTY_MESSAGE' | 'CONTROL_CHARS' | 'OVER_
 
 export const inboxWindowLine = (sinceDate: string): string => `Messages since ${sinceDate}.`
 
+/**
+ * The accessible name of the per-message explorer link (Kike, 2026-09-15: *"to
+ * give more confidence to the service"*). It draws as `ExternalIcon` alone —
+ * a bubble is the wrong place for a sentence — so this carries the whole
+ * meaning for a screen reader and for the tooltip.
+ */
+export const viewOnExplorerLabel = (): string => 'Check this message on a block explorer'
+
 /*
  * `notYourNameLine` was here: *"Not one of your names. The name in a message
  * is only the sender's claim."* It is gone with the subject field it policed
