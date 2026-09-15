@@ -1,70 +1,68 @@
 # How you know the answer is right
 
-An operator's answer is an operator's word. NNS is built so you never have to take it. Every answer carries a proof, several parties can be asked and compared, and the whole registry can be recomputed from the chain by anyone, without the operator's help.
+An operator's answer is an operator's word. NNS is built so you never have to take it. Every answer carries a proof, several resolvers can be asked and compared, and the whole registry can be recomputed from the chain by anyone.
 
 ## Three clocks
 
 | Clock | Every | What it gates |
 |---|---|---|
-| **Finality** | ~minutes | **The name is registered and resolves.** Payments to it work |
+| **Finality** | ~minutes | The name is registered and resolves. Payments to it work |
 | **Checkpoint** | ~{{dur:CHECKPOINT_INTERVAL}} | A Merkle proof exists for it |
 | **Anchor** | on change, at least daily | The root is notarised on an EVM chain |
 
-Only the first decides whether a name works. A name registered a minute ago resolves normally and shows "Proof pending". Ten minutes later it has a proof, and within the day the root that covers it is anchored. Those two later lines are depth, not doubt, and the app words them that way. Someone who just paid for a name is never told something is wrong with it.
+Only the first decides whether a name works. A name registered a minute ago resolves normally and shows "Proof pending". The two later clocks add depth, not doubt.
 
 ## What a proof is
 
-Every resolver publishes a **checkpoint** every ~{{dur:CHECKPOINT_INTERVAL}}: one hash that commits to every name, every address, the prices in effect, every pending sale, transfer and auction, and the hash of the public log up to that block. An answer comes with the leaf for the name and the path from that leaf to the root. Your device rebuilds the leaf from the fields it was given, recombines the path, and compares the result to the committed root. If a single byte of the answer differs from what the checkpoint commits to, the comparison fails.
+Every resolver publishes a **checkpoint** every ~{{dur:CHECKPOINT_INTERVAL}}: one hash that commits to every name, every address, the prices in effect, every pending sale, transfer and auction, and the public log up to that block. An answer comes with the leaf for the name and the path from that leaf to the root. Your device rebuilds the leaf, recombines the path, and compares the result to the committed root. If one byte of the answer differs, the comparison fails.
 
-Two facts follow. A resolver cannot serve you an address the checkpoint does not contain. And a resolver cannot tell you and your neighbour different things under one root. What a proof cannot do is tell you whether the checkpoint itself is honest: a resolver that invented an entire registry can build a consistent tree over it. That is what the next two mechanisms are for.
+So a resolver cannot serve you an address the checkpoint does not contain, and cannot tell you and your neighbour different things under one root. What a proof cannot do is tell you whether the checkpoint itself is honest. That is what the next two mechanisms are for.
 
 ## Quorum
 
-The client asks **several independent resolvers** and compares both their roots and their answers. If they disagree, it stops and says so. It never quietly prefers one. Independence is the point: two copies of the same indexer run by the same people have the same bugs and agree by construction.
+The client asks **several independent resolvers** and compares their roots and their answers. If they disagree, it stops and says so. It never quietly prefers one.
 
-The resolver list ships inside the client and is never fetched. A list downloaded at runtime could be swapped for one user on one network without a trace. A list compiled into the app can only change by publishing a version everyone can inspect.
+The resolver list ships inside the client and is never downloaded, so it can only change by publishing a version everyone can inspect.
 
-At launch the two shipped resolvers are run by one operator on two machines that replay separately. That catches a bug or a bad deploy on one of them. It does not catch the operator. The count in "Verified by N resolvers" is exact, so the day a second operator runs one, it moves with no change to the app ([The verification line](verification)).
+At launch the two shipped resolvers are run by one operator on two machines that replay separately. That catches a bug or a bad deploy on one of them. It does not catch the operator. The count in "Verified by N resolvers" is exact, so the day a second operator runs one, it moves ([The verification line](verification)).
 
 ## Anchoring
 
-Publishers post each checkpoint's commitment to a contract on an EVM chain, on change and at least once a day. The client reads that back from a public RPC, not from the resolver, and requires the checkpoint its proof used to be the one that was published. Two independent publishers must agree. An anchor older than {{sec:ANCHOR_STALENESS_LIMIT_SEC}} makes the client say so, because it cannot tell "nothing changed" from "the publisher stopped".
+Publishers post each checkpoint's commitment to a contract on an EVM chain, on change and at least once a day. The client reads that back from a public RPC and requires the checkpoint its proof used to be the one that was published. Two independent publishers must agree. An anchor older than {{sec:ANCHOR_STALENESS_LIMIT_SEC}} makes the client say so.
 
-Anchoring is a timestamp, not a court. It stops the operator rewriting a past claim and telling different stories to different people. It does not let the other chain arbitrate NNS state. The contract is permissionless, so a second party can anchor without asking anyone, and a second party is what turns a timestamp into corroboration.
+Anchoring is a timestamp, not a court. It stops the operator rewriting a past claim. It does not let the other chain arbitrate NNS state. The contract is permissionless, so a second party can anchor without asking anyone.
 
 ## The public log
 
-Every NNS transaction, accepted or refused, is one line in a public log: block, position, hash, sender, recipient, value, data, verdict. Its hash is inside every checkpoint, and each snapshot is published to IPFS with its address in the anchor. It is under 15 MB for a hundred thousand messages. It is what makes the burn commitment auditable ([Prices](prices)), what lets a refused transaction be checked rather than inferred, and what lets anyone rebuild the registry in seconds on a laptop with no node at all.
+Every NNS transaction, accepted or refused, is one line in a public log: block, position, hash, sender, recipient, value, data, verdict. Its hash is inside every checkpoint, and each snapshot is published to IPFS. It is what makes the burn commitment auditable ([Prices](prices)) and what lets anyone rebuild the registry in seconds on a laptop with no node at all.
 
-## Three ways to verify, from cheapest to strongest
+## Three ways to verify
 
 1. **Anyone, no node, seconds.** Fetch the log, replay it with the reference implementation, compare the derived checkpoint to the anchored root. Catches any manipulation of state or rules.
 2. **Anyone with a node or a public RPC endpoint.** Spot-check log lines by transaction hash against the chain. Catches fabricated entries.
-3. **Anyone with a Nimiq history node.** Replay the chain itself from the launch height. The only tier that catches **omission**, and the only one that catches a wholly forged state.
+3. **Anyone with a Nimiq history node.** Replay the chain itself from the launch height. The only tier that catches **omission**.
 
-The third is the one that matters, and the project actively wants other people running it ([Running your own](operators)). An NNS with no independent replay has an honest-operator assumption, however many proofs it serves.
+The third is the one that matters, and the project wants other people running it ([Running your own](operators)).
 
 ## What is guaranteed, and what is not
 
-**Proofs and anchors alone do not stop a dishonest operator.** One party that produces the state and publishes the anchor can build a false registry, anchor it, and serve proofs that verify. What defeats that is not cryptography but the three things above: independent replay, a client that compares more than one source, and more than one publisher. The property that makes the attack pointless is that the true registry is **recomputable from the chain without the operator**. A stolen namespace would be honoured only by a resolver nobody uses.
+Proofs and anchors alone do not stop a dishonest operator. One party that produces the state and publishes the anchor can build a false registry, anchor it, and serve proofs that verify. What defeats that is independent replay, a client that compares more than one source, and more than one publisher. The guarantee is *the registry can be rebuilt without the operator*, not *the operator cannot cheat*.
 
-So the guarantee is *the registry can be reconstituted without the operator*, not *the operator cannot cheat*. Everything above exists to make the first statement cheap enough to be true in practice.
+Outside the guarantee:
 
-**Outside the guarantee:**
+- **The app you are running.** A hostile page could show any address for any name. That is the trust boundary of every web app, and why the app is MIT and anyone can host their own copy.
+- **The marketplace's money in flight.** Between a purchase or bid and its settlement, the operator holds it ([Market](market)).
+- **Subdomain answers.** A subdomain's address is its parent owner's word ([Subdomains](subdomains)).
+- **Censorship.** A resolver that refuses to answer for a name is detectable but not preventable. Switch resolver.
 
-- **The app you are running.** Every check above is code served by the operator's website. A hostile page could show any address for any name. That is the ordinary trust boundary of every web app, and it is why the app is MIT and anyone can host their own copy, why third-party apps embedding the resolver library are outside the operator's reach entirely, and why resolution built into the wallet itself would close the hole rather than narrow it.
-- **The marketplace's money in flight.** Between a purchase or bid and its settlement, the operator holds it. Auditable, not trustless ([Market](market)).
-- **Delegated answers.** A subdomain's address is its parent owner's word ([Subdomains](subdomains)).
-- **Censorship.** A resolver that refuses to answer for a name is detectable, since the entry is in the log and any other resolver answers it, but not preventable. Switch resolver.
+## Front-running
 
-## Front-running, accepted
-
-A registration is one transaction, so someone watching the network could race you for a name after seeing yours. This is accepted rather than mitigated, and the reasons are written down. Nimiq has no established MEV tooling, every 1 to 4 character name is reserved so the prize is thin, and the realistic launch threat is a scripted grab of unreserved names, which commit-reveal schemes do nothing against. The mitigation that works is the reserved list. The triggers for revisiting this are recorded in the specification: a registration price above ~$20, more than 1% of registrations lost to races, or an observed bot.
+A registration is one transaction, so someone watching the network could race you for a name. This is accepted rather than mitigated: short names are reserved, so the prize is thin, and Nimiq has no established MEV tooling. The specification records what would reopen the decision.
 
 ## The pin, and your own key
 
-**The pin** is the one defence that needs nobody else. The first time you use a name on a device, the app remembers the address. If the name later points elsewhere, the app stops before you pay. A mass redirection becomes many simultaneous alarms, and it covers the look-alike names no rule can catch.
+**The pin** is the one defence that needs nobody else. The first time you use a name on a device, the app remembers the address. If the name later points elsewhere, the app stops before you pay.
 
-**A lost or stolen owner key is a lost name**, as in ENS. There is no recovery mechanism, deliberately: every version the owner key could cancel was theatre, and every version it could not outranked the owner. The transfer's waiting period guards a mistyped recipient, not a thief, who can sell the name to themselves in two blocks.
+**A lost or stolen owner key is a lost name**, as in ENS. There is no recovery mechanism. The transfer's waiting period guards a mistyped recipient, not a thief.
 
 **Ownership follows the signing key.** Nimiq Pay sends from a contract it may later rebuild. The registry attributes a message to the key that authorised it, so a name registered from Pay stays yours across that.

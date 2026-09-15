@@ -1,58 +1,52 @@
 # Questions
 
 **Why no smart contracts?**
-Nimiq has no virtual machine, and none is needed. Names travel in ordinary transaction data. A published set of rules turns that history into a registry, and proofs let anyone check the result. There is nothing to deploy, nothing to upgrade, and nothing on chain that could be exploited. [What NNS is](intro).
+Nimiq has no virtual machine, and none is needed. Names travel in ordinary transaction data, published rules turn that history into a registry, and proofs let anyone check the result. [What NNS is](intro).
 
 **Is this an official Nimiq project?**
-No. It is built on Nimiq by an independent team, MIT licensed, specification included.
+No. It is built on Nimiq by an independent team, MIT licensed. The source is at [github.com/selfcrypto/nns](https://github.com/selfcrypto/nns).
 
-**What does "Verified by 1 resolver" mean? Is that unverified?**
-One resolver answered with a Merkle proof and your device checked the proof against that resolver's published checkpoint. Every check the app can run passed. What is absent is a second party's corroboration, and the number moves to 2 the day a second operator runs a resolver. [The verification line](verification).
+**What does "Verified by 1 resolver" mean?**
+One resolver answered with a Merkle proof and your device checked it. The number is how many independent resolvers agreed. [The verification line](verification).
 
 **Can I recover my name if I lose my key?**
-No. A lost or stolen owner key is a lost name, as in ENS. There is deliberately no recovery mechanism: every version of one either could be cancelled by the owner key, which is useless against a thief, or outranked the owner. Keep the key safe. [How you know the answer is right](trust).
+No. A lost or stolen owner key is a lost name, as in ENS. Keep the key safe. [How you know the answer is right](trust).
 
 **Why can't I register `nimiq`, or a three-letter name?**
-Both are reserved: every name of 1 to 4 characters by rule, and a curated list of brands, products, exchanges and impersonation words by list. Reserved names are held, awarded to their rightful owner, or auctioned. [Rules and reserved names](names).
-
-**Can someone front-run my registration?**
-In principle, yes. A registration is one transaction, and a watcher could race it. This is accepted rather than mitigated, because short names are reserved and Nimiq has no established MEV tooling. The specification records what would reopen the decision. [How you know the answer is right](trust).
+Both are reserved: every name of 1 to 4 characters, and a list of brands, products, exchanges and impersonation words. [Rules and reserved names](names).
 
 **Can I renew a name I don't own?**
-Yes. Renewal is a payment naming the name, and anyone can make it. On another person's name the app calls it *Gift a renewal* and says before you sign that the name stays theirs. [Buy](buy).
+Yes. Anyone can renew any name. The app calls it **Gift a renewal**, and the name stays the owner's. [Buy](buy).
 
 **What is a "lifetime" registration?**
-{{n:LIFETIME_TERMS}} terms bought at once for the price of {{n:LIFETIME_MULTIPLIER}}, offered beside the one-year term on every registration and renewal. It is an ordinary expiry {{n:LIFETIME_TERMS}} years out, which the app shows as the date it reaches. The name can still be renewed, transferred and sold. [Prices](prices).
+{{n:LIFETIME_TERMS}} years for the price of {{n:LIFETIME_MULTIPLIER}}. The app shows the date it reaches. [Prices](prices).
 
 **What happens when my name expires?**
-It enters a {{dur:GRACE_PERIOD}} grace period. It stops resolving, nobody else can register it, and a renewal by anyone brings it back with its records. After grace it is available to anyone and the old record is gone. The app reminds you from 60 days before. [Prices](prices).
+It enters a {{dur:GRACE_PERIOD}} grace period: it stops resolving, nobody else can register it, and a renewal brings it back. After grace it is available to anyone. The app reminds you from 60 days before. [Prices](prices).
 
 **Is the marketplace custodial?**
-Between your payment and its settlement, yes. The operator holds the money and pays the seller, or refunds you, in a separate transaction. Ownership of the name never waits for that: it moves the moment your payment is final. What is owed and what has been paid are computable from the public log, so a shortfall cannot be hidden. The app asks you to acknowledge this before every purchase and bid. [Market](market).
+Between your payment and its settlement, yes. The operator holds the money and pays the seller, or refunds you, in a separate transaction. The name itself moves the moment your payment is final. [Market](market).
 
 **Why does paying USDT need POL?**
-The mini app sends USDT through the wallet's EVM provider as a plain token transfer, and that path pays Polygon's fee in POL. The wallet's own USDT flow is fee-free because it uses a relay the mini app cannot reach. [Pay](pay).
+The mini app sends USDT as a plain Polygon token transfer, and Polygon charges its fee in POL. [Pay](pay).
 
 **Can I send someone a link that asks them to pay?**
-Yes. The **Request Payment** tile on your name's card builds one. It opens Pay with your name, the amount and a reference already filled in. It is a URL, not a transaction: the payer can change any field, and nothing is sent until they press Pay. [Pay](pay).
+Yes. The **Request Payment** tile on your name's card builds one. [Pay](pay).
 
 **Can I earn anything for bringing people in?**
-Yes. Every registered name has a share link from the **Share Link** tile. Whoever registers through it pays the usual price and gets {{referral:rebate}} of the fee back, and the registry pays your name's address {{referral:default}} of it. Both rates are before the registry's burn. [Referrals](referrals).
+Yes. Whoever registers through your name's share link gets {{referral:rebate}} of the fee back, and your name's address receives {{referral:default}}. [Referrals](referrals).
 
 **Are messages private?**
-No, and this covers both kinds. An Inbox message is a transaction: public, permanent, attached to your address, and readable by anyone on chain forever. The reference on a payment travels in the same place, so an invoice number is public against both addresses too. [Inbox](inbox).
+No. An Inbox message is a transaction, readable by anyone on chain forever. So is the message on a payment. [Inbox](inbox).
 
 **Can I move my name to another wallet?**
-Two ways, and they are different. To keep the name but pay into a new wallet, change the **target**. To hand the name to someone else, **transfer** it. The transfer takes {{dur:XFER_TIMELOCK}} to complete and can be cancelled meanwhile, which guards a mistyped address. [My Names](my-names).
+To keep the name but pay into a new wallet, change the **Target Address**. To hand it to someone else, use **Transfer Ownership**. [My Names](my-names).
 
 **Does a subdomain cost anything?**
-Nothing on NNS. The parent's owner runs a small server with a JSON file of labels and addresses, and hands out as many as they like. Nothing about a subdomain is stored on chain or proven. [Subdomains](subdomains).
+Nothing. The name's owner runs a small server with a JSON file of labels and addresses. [Subdomains](subdomains).
 
 **Why do dates say ≈?**
-The protocol counts blocks, not seconds. A block is roughly a second, so a date computed from a block height is an estimate. [Getting started](getting-started).
+The protocol counts blocks, and a block is roughly a second. [Getting started](getting-started).
 
 **Can I run this myself?**
-Yes, and the project wants you to. A resolver needs a Nimiq history node and one `docker compose up`. A subdomain host needs a JSON file. An anchor publisher needs a funded EVM key. [Running your own](operators).
-
-**Where is the source?**
-In the repository, under an MIT licence, specification included. [Pre-launch status](status).
+Yes. A resolver needs a Nimiq history node and one `docker compose up`. A subdomain host needs a JSON file. [Running your own](operators).

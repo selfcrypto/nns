@@ -1,27 +1,25 @@
 # Subdomains
 
-Register `exchange` once, and hand out `alice.exchange`, `shop.exchange` and `pay.exchange` from a server you run. NNS stores nothing per subdomain, charges nothing per subdomain, and knows nothing about them.
+Register `exchange` once, and hand out `alice.exchange`, `shop.exchange` and `pay.exchange` from a server you run. NNS stores nothing per subdomain and charges nothing for them.
 
 ## How a subdomain resolves
 
-`shop.exchange` is a **label** under a **parent**. When a client sees the dot, it does two things.
+`shop.exchange` is a **label** (`shop`) under a **parent** (`exchange`). A client does two things:
 
-1. Resolves `exchange` normally, with a proof. If the parent is not registered, or its owner has not set a subdomain host, the query fails there.
-2. Asks the host the owner designated: `GET https://<host>/exchange/shop`. The host answers `{"address": "NQ…", "ttl": 300}`.
+1. Resolves `exchange` normally, with a proof. If the parent is not registered, or its owner has not set a subdomain host, the query stops there.
+2. Asks the host the owner set: `GET https://<host>/exchange/shop`. The host answers `{"address": "NQ…", "ttl": 300}`.
 
-The parent is in the request, so one server can answer for every name that points at it, each with its own labels. `shop.a` and `shop.b` are different questions.
+The parent is in the request, so one server can answer for several names, each with its own labels.
 
 ## What is proven, and what is not
 
-NNS proves two things: that `exchange` belongs to a particular owner, and that its owner designated **this host**. Both come out of the checkpoint through an ordinary proof.
+NNS proves that `exchange` belongs to its owner and that the owner set **this host**. The address the host returns for `shop` is the owner's word alone: no signature, no proof. So every client shows a subdomain differently from a proven name. The app marks it *Subdomain* and badges it *Resolved by `exchange`*.
 
-The address the host returns for `shop` is the owner's word and nothing else. No signature, no proof, no protocol recourse past the dot. That boundary is deliberate: an exchange already controls the deposit addresses it names, and having the registry ratify each one would cost a fee per subdomain and a log that never stops growing. So every client shows a delegated answer differently from a proven one. The app marks it *Subdomain*, badges it *Resolved by `exchange`*, and says behind the "?" that the delegation is verified on chain and the address is the one the host answered with.
-
-**For a host operator: your server's security is your subdomains' security.** A compromised host serves whatever addresses the attacker likes, and no part of NNS will notice. A signed-response format is fixed for a future version that requires it.
+**Your server's security is your subdomains' security.** A compromised host serves whatever addresses the attacker likes, and NNS will not notice.
 
 ## NNS never says whether a subdomain exists
 
-A 404, a timeout, a DNS failure and a wrong-shaped reply all reach the client as one thing: the host did not answer. The client shows the parent still verified and says "exchange's host did not answer. Only its owner can say whether the subdomain exists." Never "`shop.exchange` does not exist". Only the owner can know that, and a server that told callers which labels it serves would be an enumeration surface.
+A 404, a timeout, a DNS failure and a malformed reply all reach the client as one thing: the host did not answer. The app keeps the parent verified and says "exchange's host did not answer. Only its owner can say whether the subdomain exists."
 
 ## Setting one up
 
@@ -44,34 +42,38 @@ You need the owner key of the name, a server reachable over **publicly trusted H
    }
    ```
 
-   Edit the file and it reloads within seconds. A bad entry rejects the whole file and names the key, and the previous file keeps serving. Nothing goes silently missing.
+   Edit the file and it reloads within seconds. A bad entry rejects the whole file and names the key, and the previous file keeps serving.
 
-2. **Put TLS in front of it.** Clients build `https://<host>/…` and nothing else, so a host on plain HTTP is a host no client will ever reach. Any terminator works: Caddy, nginx with certbot, a tunnel, a hosting panel. Check from a machine that is not the server: `curl https://<host>/exchange/shop`.
+2. **Put TLS in front of it.** Any terminator works: Caddy, nginx with certbot, a tunnel, a hosting panel. Check from a machine that is not the server:
 
-3. **Then set the host on the name**, from the **Subdomain Host** tile in My Names. Lowercase, no scheme, up to {{n:MAX_HOST_LEN}} characters, and **name and host together within 52 characters**. A short path is allowed (`example.com/nns`) and says where the server is mounted. It is not how two names share a host, since the parent in the request already does that.
+   ```bash
+   curl https://<host>/exchange/shop
+   ```
 
-   The order matters. A host set before it answers over HTTPS turns subdomains **off** for the name until it does.
+3. **Set the host on the name**, from the **Subdomain Host** tile in My Names. Lowercase, no scheme, up to {{n:MAX_HOST_LEN}} characters, and name and host together within 52 characters. A path is allowed (`example.com/nns`) if the server is mounted under one.
 
-4. **Resolve `shop.exchange` in a client** and check the address it shows.
+   Do this last. A host set before it answers over HTTPS leaves subdomains off until it does.
 
-Adding a customer afterwards is an edit to the JSON file, nothing else.
+4. **Resolve `shop.exchange` in the app** and check the address it shows.
+
+Adding a customer afterwards is an edit to the JSON file.
 
 ## What clears it
 
-- **Transferring the name** clears the host. The new owner sets their own.
-- **Entering grace** clears it, and subdomains stop answering because the parent no longer resolves. Renewing restores the name, and the host is set again.
-- **Ticking "Remove the current host"** in the Subdomain Host sheet switches subdomains off deliberately.
+- **Transferring the name.** The new owner sets their own host.
+- **Entering grace.** Renewing restores the name, and the host is set again.
+- **Ticking "Remove the current host"** in the Subdomain Host sheet.
 
 ## Labels
 
-1 to {{n:MAX_LABEL_LEN}} characters from `a-z 0-9 -`, no hyphen at either end or doubled. No letter required and no digit rule. Labels are not scarce, not sold, and the parent keeps them apart. Only one dot: nested subdomains are not part of this version.
+1 to {{n:MAX_LABEL_LEN}} characters from `a-z 0-9 -`, no hyphen at either end or doubled. No letter required and no digit rule. Only one dot: nested subdomains are not part of this version.
 
 ## What the reference host promises
 
-- `GET /<parent>/<label>` answers, under any path prefix it happens to be mounted at.
+- `GET /<parent>/<label>` answers, under any path prefix it is mounted at.
 - Its 404 is the same for an unknown label and for a name it does not serve.
 - `/healthz` reports counts, never which names.
-- Every answer carries open CORS headers, because clients are browsers.
-- The labels file is the whole product. There is nothing to back up except a copy of it, and a lost host is a `docker compose up` and a JSON file from being back.
+- Every answer carries open CORS headers.
+- The labels file is the whole product. Keep a copy of it and nothing else.
 
-Details of the container and the TLS recipes are in the repository under `deploy/delegate`.
+The container and the TLS recipes are in the repository under `deploy/delegate`.

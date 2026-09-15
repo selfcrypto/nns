@@ -14,20 +14,18 @@ The fourteen messages, and the 28 words that can end a log line. Payloads and ro
 | `D` | Set subdomain host | owner | Enables `label.name` via that host. Empty clears |
 | `K` | Cancel | owner | Cancels a pending transfer and a cancellable sale |
 | `O` | Offer | owner | Puts the name up for sale at a fixed price |
-| `B` | Buy, or bid | anyone | Buys an open sale, or bids in an open auction. The state decides which |
+| `B` | Buy, or bid | anyone | Buys an open sale, or bids in an open auction |
 | `A` | Auction | owner, or admin for a reserved name | Opens a timed auction |
 | `M` | Settlement | marketplace or treasury | Pays a proceeds, commission or refund obligation |
 | `P` | Governance | admin | Schedules a new base price and commission |
-| `U` | Unreserve | admin | Releases a reserved name, or awards any name nobody holds to an address |
+| `U` | Unreserve | admin | Releases a reserved name, or awards any name nobody holds |
 | `F` | Burn attestation | treasury | Records a burn-share transfer in the log |
 
-There is no recovery message. Every version the owner key could cancel was theatre, and every version it could not outranked the owner.
+There is no recovery message. A lost owner key is a lost name.
 
 ## Verdicts
 
-Two implementations that disagreed by one character would derive different checkpoints, so the vocabulary is closed.
-
-**Accepted:** `OK`. The message took effect, whatever it did.
+**Accepted:** `OK`. The message took effect.
 
 **Refunded.** The value is owed back.
 
@@ -57,13 +55,13 @@ Two implementations that disagreed by one character would derive different check
 | `INVALID_HOST` | A subdomain host that breaks a host rule |
 | `NOT_ADMIN` | Sender is not the administrator |
 | `INSUFFICIENT_NOTICE` | A governance change or auction end too soon |
-| `NAME_NOT_RESERVED` | Releasing a name that is not reserved, or already released |
-| `NAME_NOT_AVAILABLE` | Awarding a name somebody holds, registered or in grace |
+| `NAME_NOT_RESERVED` | Releasing a name that is not reserved |
+| `NAME_NOT_AVAILABLE` | Awarding a name somebody holds |
 | `GOVERNANCE_BOUND_VIOLATED` | A price or commission outside its bounds |
 | `NOTHING_TO_CANCEL` | A cancel with nothing cancellable |
-| `BELOW_MIN_PRICE` | A sale or starting price below the base price in effect |
+| `BELOW_MIN_PRICE` | A sale or starting price below the base price |
 | `AUCTION_OPEN` | A sale, transfer or auction while an auction runs |
 | `AUCTION_BEYOND_TERM` | An owner's auction ending at or past the name's expiry |
 | `BELOW_REFUND_FLOOR` | Would have been refunded, but the amount is below the floor |
 
-What each one means for your money, in plain words: [Refused transactions](fails).
+What each one means for your money: [Refused transactions](fails).
