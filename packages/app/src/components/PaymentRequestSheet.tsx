@@ -22,6 +22,7 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { CONSTANTS } from '@nimiqnames/core'
+import { type CopyOutcome, writeClipboard } from '../lib/clipboard'
 import { payLinkFor, payMessageBytes, payMessageFault, type PayAsset } from '../lib/payRequest'
 import { payLinkForm } from '../config'
 import {
@@ -62,7 +63,7 @@ export function PaymentRequestSheet({
   const [amount, setAmount] = useState('')
   const [message, setMessage] = useState('')
   const [asset, setAsset] = useState<PayAsset>('nim')
-  const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
+  const [copied, setCopied] = useState<CopyOutcome | null>(null)
 
   useEffect(() => {
     if (!isOpen) return
@@ -87,15 +88,7 @@ export function PaymentRequestSheet({
   const fault = payMessageFault(carried)
   const link = payLinkFor(name, { amount: amount.trim() || null, message: carried || null, asset }, document.baseURI, payLinkForm())
 
-  const copy = async () => {
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error('no clipboard')
-      await navigator.clipboard.writeText(link)
-      setCopied('ok')
-    } catch {
-      setCopied('failed')
-    }
-  }
+  const copy = () => void writeClipboard(link).then(setCopied)
 
   return createPortal(
     <>

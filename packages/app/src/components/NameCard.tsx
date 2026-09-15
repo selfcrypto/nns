@@ -9,6 +9,7 @@
  */
 
 import { Fragment, useEffect, useState } from 'react'
+import { type CopyOutcome, writeClipboard } from '../lib/clipboard'
 import { apiBase } from '../lib/nns'
 import { getParams, getReferrals } from '../lib/api'
 import { shareLinkFor } from '../lib/referral'
@@ -101,7 +102,7 @@ export const OWNER_ACTIONS: readonly AppAction[] = ['setTarget', 'setEvm', 'tran
  * referrer's status at the registration), so the tile says to renew first.
  */
 function ShareTile({ name, height, inGrace }: { name: string; height: number; inGrace: boolean }) {
-  const [copied, setCopied] = useState<'ok' | 'failed' | null>(null)
+  const [copied, setCopied] = useState<CopyOutcome | null>(null)
   const referrals = useAsync(() => getReferrals(apiBase(), name), [name])
   const params = useAsync(() => getParams(apiBase()), [])
   // The rate the payer **sends**, not the headline the hint states: this is an
@@ -127,15 +128,7 @@ function ShareTile({ name, height, inGrace }: { name: string; height: number; in
     return referralsCountLine(referrals.value.count, lunaToNim(total))
   })()
 
-  const copy = async () => {
-    try {
-      if (!navigator.clipboard?.writeText) throw new Error('no clipboard')
-      await navigator.clipboard.writeText(link)
-      setCopied('ok')
-    } catch {
-      setCopied('failed')
-    }
-  }
+  const copy = () => void writeClipboard(link).then(setCopied)
 
   return (
     <button

@@ -881,6 +881,78 @@ select:focus-visible {
   overflow-wrap: anywhere;
 }
 
+/* The resolved address copies on a tap (`AddressRow`). A real button, so the
+   focus ring, the keyboard and the tap target come from the platform; what
+   follows is only undoing what a button looks like. The negative inline
+   margin keeps the address's left edge exactly where it was before the row
+   grew a padding to be pressed by. */
+.address-copy {
+  appearance: none;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 6px 8px;
+  margin-inline: -8px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.address-copy:active {
+  transform: scale(0.995);
+}
+
+/* The mark at the row's end. It sits at half strength on a touch screen,
+   where there is no hover to reveal it and an invisible affordance is no
+   affordance, and comes up to full under a pointer. */
+.address-copy-mark {
+  margin-left: auto;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: var(--ink-faint);
+  opacity: 0.5;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+@media (hover: hover) {
+  .address-copy-mark {
+    opacity: 0;
+  }
+
+  .address-copy:hover {
+    background: rgba(var(--tint-ink), 0.05);
+    border-color: var(--line);
+  }
+
+  .address-copy:hover .address-copy-mark {
+    opacity: 1;
+  }
+}
+
+.address-copy.is-ok {
+  background: var(--proven-bg);
+  border-color: var(--proven-bg);
+}
+
+.address-copy.is-ok .address-copy-mark {
+  color: var(--proven);
+  opacity: 1;
+}
+
+.address-copy.is-failed .address-copy-mark {
+  color: var(--ink-soft);
+  opacity: 1;
+}
+
 .identicon {
   flex: none;
   display: inline-block;
@@ -1033,6 +1105,12 @@ select:focus-visible {
 
 .answer-block .address-row {
   margin: 0;
+}
+
+/* The copy row keeps its negative inline margin inside the block, so its text
+   still lines up with the foot below it. */
+.answer-block .address-copy {
+  margin: 0 -8px;
 }
 
 .answer-foot {

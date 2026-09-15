@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import type { ResolveResult, ResolveWarning, ResolverReply } from '@nimiqnames/resolver'
 import type { NameInfo } from '../lib/api'
 import { displayAddress, ellipsizeAddress, formatApproxWhen, formatApproxIn, approxDate, lunaToNim } from '../lib/format'
@@ -7,6 +7,9 @@ import {
   WARNING_TEXT,
   WARNING_TONE,
   auctionLine,
+  copiedLabel,
+  copyAddressLabel,
+  copyFailedLine,
   delegatedExplainer,
   delegatedLine,
   feeChangeLine,
@@ -21,8 +24,9 @@ import {
   verifiedByLine,
   verifiedHint,
 } from '../lib/wording'
+import { type CopyOutcome, writeClipboard } from '../lib/clipboard'
 import { Hint } from './Hint'
-import { CheckIcon, ChevronIcon, ClockIcon } from './icons'
+import { CheckIcon, ChevronIcon, ClockIcon, CopyIcon, TickIcon } from './icons'
 import { Badge, Identicon, NameText, type RailTier } from './ui'
 
 export const tierOf = (result: ResolveResult): RailTier => {
@@ -185,13 +189,59 @@ export function WarningNotes({ warnings }: { warnings: readonly ResolveWarning[]
   )
 }
 
-/** The address being answered, with its identicon — what will actually be paid. */
+/**
+ * The address being answered, with its identicon — what will actually be
+ * paid, and the whole row is the copy control.
+ *
+ * Copying is offered here and not on every address the app draws (Kike,
+ * 2026-09-16: *"I don't know if add a copy option always on every case"*).
+ * The line is whether the address is the **object** of the screen or a word
+ * inside something else: this row and the Inbox's thread header are objects,
+ * while the My Names tiles, the identity rows and the conversation list are
+ * labels on buttons that already do a different thing, and the seller, the
+ * bidder and a pending transfer's recipient are words in sentences. A copy
+ * control nested in a button is invalid and, on a thumb in Pay's WebView,
+ * puts two targets in one row. A hover highlight that means "this copies"
+ * only half the time means nothing, so it is spent where the copy is a task
+ * somebody actually has: the address they are about to pay, on its way to an
+ * explorer or a message.
+ *
+ * What lands on the clipboard is always `displayAddress` — the full spaced
+ * form, the spelling the wallet and the explorer show, whatever this row has
+ * room to draw.
+ */
 export function AddressRow({ address, full = false }: { address: string; full?: boolean }) {
+  const [copied, setCopied] = useState<CopyOutcome | null>(null)
+  useEffect(() => {
+    if (copied === null) return
+    const timer = setTimeout(() => setCopied(null), 2_500)
+    return () => clearTimeout(timer)
+  }, [copied])
+
+  const label = copied === 'ok' ? copiedLabel() : copyAddressLabel()
   return (
-    <div className="address-row">
+    <button
+      type="button"
+      className={`address-row address-copy${copied === null ? '' : ` is-${copied}`}`}
+      onClick={() => void writeClipboard(displayAddress(address)).then(setCopied)}
+      title={label}
+      aria-label={label}
+    >
       <Identicon address={address} />
       <span className="address nns-name">{full ? displayAddress(address) : ellipsizeAddress(address)}</span>
-    </div>
+      <span className="address-copy-mark" aria-hidden>
+        {copied === 'ok' ? (
+          <>
+            <TickIcon />
+            {copiedLabel()}
+          </>
+        ) : copied === 'failed' ? (
+          copyFailedLine()
+        ) : (
+          <CopyIcon />
+        )}
+      </span>
+    </button>
   )
 }
 

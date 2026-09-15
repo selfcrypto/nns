@@ -1714,9 +1714,23 @@ export const payNamePlaceholder = (): string => 'name, or a link'
 export const payIdleTitle = (): string => 'Pay any NNS name'
 export const payNimEmptyBody = (): string => 'Type a name to send NIM to the address it points to.'
 
+/**
+ * Copying an address. Shared by the Inbox's thread header and the resolved
+ * address on Pay and in a result, which are the two places an address is the
+ * object of the screen rather than a word inside a sentence or the label on
+ * a control that does something else (2026-09-16).
+ *
+ * "full" because both copy the whole spaced address whatever the row shows:
+ * the Inbox's is ellipsized, and half an address on the clipboard is worse
+ * than none. A copy the host refuses says so — the address is on screen, so
+ * the recovery is to select it, and a control that silently does nothing is
+ * the failure this says out loud.
+ */
+export const copyAddressLabel = (): string => 'Copy full address'
+export const copiedLabel = (): string => 'Copied'
+export const copyFailedLine = (): string => 'Select it to copy'
+
 // Inbox.
 export const backToInboxLabel = (): string => 'Inbox'
 export const backToInboxAria = (): string => 'Back to inbox'
-export const copyAddressLabel = (): string => 'Copy full address'
-export const copiedLabel = (): string => 'Copied'
 export const yesterdayLabel = (): string => 'Yesterday'

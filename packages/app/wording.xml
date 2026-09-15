@@ -430,10 +430,11 @@
     <string id="payNamePlaceholder">name, or a link</string>
     <string id="payIdleTitle">Pay any NNS name</string>
     <string id="payNimEmptyBody">Type a name to send NIM to the address it points to.</string>
-    <string id="backToInboxLabel">Inbox</string>
-    <string id="backToInboxAria">Back to inbox</string>
     <string id="copyAddressLabel">Copy full address</string>
     <string id="copiedLabel">Copied</string>
+    <string id="copyFailedLine">Select it to copy</string>
+    <string id="backToInboxLabel">Inbox</string>
+    <string id="backToInboxAria">Back to inbox</string>
     <string id="yesterdayLabel">Yesterday</string>
   </group>
 </wording>

@@ -15,7 +15,8 @@ import { hideSender, loadHiddenSenders, unhideSender } from '../lib/hidden'
 import { defaultTransport, fetchHistory } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
 import { formatBubbleTimestamp, formatThreadDate } from '../lib/dates'
-import { approxDate, ellipsizeAddress, formatApproxDate, isTxHash } from '../lib/format'
+import { approxDate, displayAddress, ellipsizeAddress, formatApproxDate, isTxHash } from '../lib/format'
+import { writeClipboard } from '../lib/clipboard'
 import { apiBase } from '../lib/nns'
 import { useAsync } from '../lib/useAsync'
 import type { Wallet } from '../lib/wallet'
@@ -376,22 +377,6 @@ function ConversationList({
   )
 }
 
-async function copyToClipboard(text: string): Promise<void> {
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(text)
-    return
-  }
-  const textarea = document.createElement('textarea')
-  textarea.value = text
-  textarea.style.position = 'fixed'
-  textarea.style.opacity = '0'
-  document.body.appendChild(textarea)
-  textarea.focus()
-  textarea.select()
-  document.execCommand('copy')
-  document.body.removeChild(textarea)
-}
-
 function ConversationView({
   conversation,
   names,
@@ -416,16 +401,17 @@ function ConversationView({
   const bubblesEndRef = useRef<HTMLDivElement | null>(null)
   const hasPeerNames = peerIdentity(names).shown.length > 0
 
+  // The whole spaced address, not the ellipsized one the row shows: half an
+  // address on the clipboard is worse than none.
   const handleCopyAddress = useCallback(() => {
     if (!conversation.peer) return
-    copyToClipboard(conversation.peer).then(() => {
+    void writeClipboard(displayAddress(conversation.peer)).then((outcome) => {
+      if (outcome === 'failed') return
       setCopied(true)
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current)
       copyTimeoutRef.current = setTimeout(() => {
         setCopied(false)
       }, 2000)
-    }).catch(() => {
-      // ignore
     })
   }, [conversation.peer])
 

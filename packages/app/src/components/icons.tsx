@@ -4,12 +4,14 @@
  * `currentColor`, so each takes the colour of the text beside it and a tab or
  * a verification line recolours them for free.
  *
- * Five for the tab bar, three for the verification line, and four for the
+ * Five for the tab bar, three for the verification line, four for the
  * masthead — the button that holds the nav on a phone, where there is room
  * for a glyph and not for the word, the mark on the rows that leave the app,
  * and the sun and moon on the night-mode switch, which is the one control in
- * the chrome whose whole label is its picture. Nothing else earns a
- * pictogram: the proof rail and the identicon already carry the meanings that
+ * the chrome whose whole label is its picture — and two for the copy control
+ * on a resolved address, which is a picture because the row it sits in is
+ * already a full address and has no room for a word until it is pressed.
+ * Nothing else earns a pictogram: the proof rail and the identicon already carry the meanings that
  * matter, and a glyph beside every sentence would spend the reader's
  * attention on decoration.
  */
@@ -129,6 +131,26 @@ export function ExternalIcon() {
       <path d="M14 4h6v6" />
       <path d="M20 4l-8.5 8.5" />
       <path d="M18 14.5V20H4V6h5.5" />
+    </Glyph>
+  )
+}
+
+/** The copy control on a rendered address: the two-sheets mark every platform uses. */
+export function CopyIcon() {
+  return (
+    <Glyph size={14}>
+      <rect x="9" y="9" width="11" height="11" rx="2.5" />
+      <path d="M5.5 15H5a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 5 3.5h8.5A1.5 1.5 0 0 1 15 5v0.5" />
+    </Glyph>
+  )
+}
+
+/** What the copy control becomes for a moment. Bare, not `CheckIcon`'s circle:
+ *  that one is the §8.3 proven mark and means something on its own. */
+export function TickIcon() {
+  return (
+    <Glyph size={14}>
+      <path d="M4.5 12.5l5 5 10-10" />
     </Glyph>
   )
 }

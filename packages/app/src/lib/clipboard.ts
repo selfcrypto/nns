@@ -1,5 +1,6 @@
 /**
- * Reading the clipboard, for the paste button beside a search field.
+ * The clipboard, both directions: the paste button beside a search field
+ * reads it, and everything that offers a copy writes through here.
  *
  * Both of the app's links — a referral link (`referral.ts`) and a payment
  * link (`payRequest.ts`) — do their work by being **pasted into a field**,
@@ -42,4 +43,67 @@ export async function readClipboard(source: ClipboardLike | null): Promise<Paste
     return { kind: 'refused' }
   }
   return typeof text === 'string' && text.trim() !== '' ? { kind: 'text', text } : { kind: 'empty' }
+}
+
+
+/** A copy either reached the clipboard or it did not. There is no third case to show. */
+export type CopyOutcome = 'ok' | 'failed'
+
+export interface ClipboardWriter {
+  writeText(text: string): Promise<void>
+}
+
+/** The host's clipboard, or `null` where it cannot be written. */
+export function clipboardWriter(): ClipboardWriter | null {
+  const clipboard = globalThis.navigator?.clipboard
+  return typeof clipboard?.writeText === 'function' ? clipboard : null
+}
+
+/**
+ * Copy, through whichever of the two mechanisms this host has.
+ *
+ * Writing is not the mirror of reading: a page may write the clipboard from a
+ * user gesture without asking anyone, which is why this returns `'ok'` far
+ * more often than `readClipboard` returns text. What it does share is that
+ * `navigator.clipboard` may simply be absent — a WebView can ship without it,
+ * and Pay's is the host this app was built for. `document.execCommand('copy')`
+ * is deprecated and still the only thing that works there, so a missing or
+ * throwing `writeText` falls through to a hidden textarea rather than
+ * reporting a failure the host could have honoured. Every copy in the app
+ * went through its own `navigator.clipboard.writeText`, and only the Inbox's
+ * had the fallback, so copying a referral or payment link failed silently on
+ * exactly the wallet the links are for (2026-09-16).
+ *
+ * Call it from a click handler. Both mechanisms require the gesture.
+ */
+export async function writeClipboard(text: string, target: ClipboardWriter | null = clipboardWriter()): Promise<CopyOutcome> {
+  if (target !== null) {
+    try {
+      await target.writeText(text)
+      return 'ok'
+    } catch {
+      // Fall through: a refusal from one mechanism says nothing about the other.
+    }
+  }
+  return copyByTextarea(text)
+}
+
+function copyByTextarea(text: string): CopyOutcome {
+  if (typeof document === 'undefined' || typeof document.execCommand !== 'function') return 'failed'
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  // Fixed and transparent, so the selection never scrolls the page under a
+  // thumb or flashes a box where the address was.
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  try {
+    textarea.focus()
+    textarea.select()
+    return document.execCommand('copy') ? 'ok' : 'failed'
+  } catch {
+    return 'failed'
+  } finally {
+    document.body.removeChild(textarea)
+  }
 }
