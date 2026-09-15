@@ -208,8 +208,8 @@ export const WARNING_TEXT: Record<WarningCode, string> = {
   DUPLICATE_RESOLVER: 'One resolver was listed twice and counted once.',
   PROOF_PENDING: proofPendingLine(),
   TARGET_CHANGED_SINCE_CHECKPOINT: targetChangedLine(),
-  DELEGATE_HOST_UNPROVEN: 'The delegate host came from the live record, not a proven one.',
-  DELEGATED_ANSWER: 'This address is the delegate host’s word, with no proof behind it.',
+  DELEGATE_HOST_UNPROVEN: 'The host came from the live record, not a proven one.',
+  DELEGATED_ANSWER: 'This address is the host’s word, with no proof behind it.',
   ROOT_HEIGHTS_DIFFER: 'Couldn’t compare resolver checkpoints this time.',
   ANCHOR_NOT_CHECKED: 'Second-chain check not run.',
   ANCHOR_UNAVAILABLE: 'Couldn’t check the second-chain anchor.',
@@ -252,7 +252,7 @@ export const unreachableLine = (): string =>
  * 2026-09-10, on the first live registration of the demo era).
  */
 export const propagatingLine = (): string =>
-  'A recent change is still reaching every resolver. This takes a few seconds.'
+  'A recent change is still reaching every resolver. It clears at the next macro block (<1 min).'
 
 /** Under the line above: whether the screen is asking again on its own. */
 export const propagatingRetryLine = (retrying: boolean): string =>
@@ -401,9 +401,9 @@ export const GATE_REASON_TEXT: Record<GateReason, string> = {
   'no-viewer': 'Connect a wallet to act on names.',
   'not-owner': 'Only the owner can do this.',
   'nothing-to-cancel': 'Nothing is pending on this name.',
-  'offer-irrevocable': 'The offer is in its irrevocable window.',
-  'offer-open': 'An offer is already open. Cancel it first.',
-  'no-offer': 'No open offer on this name.',
+  'offer-irrevocable': 'The sale is in its irrevocable window.',
+  'offer-open': 'This name is already for sale. Cancel that first.',
+  'no-offer': 'This name is not for sale.',
   // One short line, because it appears on up to four rows at once — the
   // auction's own facts are in the overlay above them.
   'auction-open': 'Locked while the auction runs.',
@@ -562,7 +562,7 @@ export const noEvmLine = (): string => 'No address linked yet.'
 
 export const currentHostLine = (host: string): string => `${host} currently answers for subdomains.`
 
-export const noHostLine = (): string => 'No subdomain resolver set.'
+export const noHostLine = (): string => 'No subdomain host set.'
 
 /**
  * The `D` review, both directions (Kike, 2026-09-14: *"Subdomains under
@@ -603,7 +603,7 @@ export const delegateClearedHint = (): string =>
  */
 export const clearHostCheckLabel = (): string => 'Remove the current host'
 
-export const clearHostLabel = (): string => 'Clear subdomain resolver'
+export const clearHostLabel = (): string => 'Clear subdomain host'
 
 /** The field, which must never echo the current host: a placeholder that
  *  repeats it reads as a filled box (Kike, 2026-09-15). */
@@ -641,7 +641,7 @@ export const transferHint = (): string =>
   'A second transfer replaces this one and restarts the clock. The delay guards a mistyped address, not a stolen key.'
 
 export const offerHint = (): string =>
-  'Irrevocable for ~2.4 hours, cancellable after, and it expires by itself in ~15 days.'
+  `Irrevocable for ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}, cancellable after, and it expires by itself in ${blocksApprox(CONSTANTS.OFFER_MAX_LIFETIME)}.`
 
 export const auctionHint = (extension: string): string =>
   `Nothing can be withdrawn once open, and a bid in the last ${extension} extends the end by ${extension}. The highest bid wins and the name transfers at the close.`
@@ -668,10 +668,10 @@ export const ACTION_LABEL: Record<AppAction, string> = {
   setTarget: 'Change where it points',
   setEvm: 'Link USDC / USDT address',
   transfer: 'Transfer ownership',
-  delegate: 'Set subdomain resolver',
+  delegate: 'Set subdomain host',
   cancel: 'Cancel what’s pending',
   renew: 'Renew',
-  offer: 'Put up for sale',
+  offer: 'Put up for sale',  /* the action; every status word is "sale" */
   buy: 'Buy',
   auction: 'Put up for auction',
   bid: 'Bid',
@@ -974,8 +974,16 @@ export const payMessageFromLinkLine = (): string => 'Came with the payment link.
 
 export const payMessageEditLabel = (): string => 'Edit'
 
+/**
+ * One refusal for one limit, on both surfaces that can hit it. Pay read the
+ * budget from `MAX_DATA_BYTES` and the chat composer typed *"a 64-byte
+ * transaction"*, so the same rule met the user as two sentences with two
+ * spellings of the same number (2026-09-15).
+ */
+export const overBudgetLine = (): string => `Too long. A message travels in ${CONSTANTS.MAX_DATA_BYTES} bytes.`
+
 export const PAY_MESSAGE_FAULT_TEXT: Record<PayMessageFault, string> = {
-  OVER_BUDGET: `Too long. A message travels in ${CONSTANTS.MAX_DATA_BYTES} bytes.`,
+  OVER_BUDGET: overBudgetLine(),
   RESERVED_PREFIX: 'A message can’t start with NNS1. That prefix is reserved for name messages.',
 }
 
@@ -1094,7 +1102,7 @@ export const pinOverrideConfirmLabel = (): string => 'Yes, replace what this dev
 export const messageOwnerLabel = (): string => 'Message the owner'
 
 export const chatPublicNotice = (): string =>
-  'Messages are public, permanent, and attached to your address. Anyone can read them on-chain, forever.'
+  'Messages are public, permanent, and attached to your address. Anyone can read them on chain, forever.'
 
 export const chatOwnNameLine = (): string =>
   'This name is yours. A message to yourself can’t be sent.'
@@ -1105,7 +1113,7 @@ export const CHAT_ENCODE_TEXT: Record<'BAD_NAME' | 'EMPTY_MESSAGE' | 'CONTROL_CH
   BAD_NAME: 'Not a valid name.',
   EMPTY_MESSAGE: 'Write something first.',
   CONTROL_CHARS: 'Plain text only. No control characters.',
-  OVER_BUDGET: 'Too long. A message travels in a 64-byte transaction.',
+  OVER_BUDGET: overBudgetLine(),
 }
 
 export const inboxWindowLine = (sinceDate: string): string => `Messages since ${sinceDate}.`
@@ -1134,7 +1142,7 @@ export const inboxNotConfiguredLine = (): string =>
 
 /** Attributed to the inbox service, never to resolvers — and nothing is lost. */
 export const inboxDownLine = (): string =>
-  'The inbox service didn’t answer. Messages are on-chain and will appear when it returns.'
+  'The inbox service didn’t answer. Messages are on chain and will appear when it returns.'
 
 export const inboxEmptyLine = (): string =>
   'When someone messages one of your names, it lands here.'
@@ -1289,13 +1297,13 @@ export const LANDING = {
       { title: 'Manage records', body: 'Point it at your address, link an EVM address, delegate subdomains.' },
       { title: 'Market', body: 'Buy and sell names, or bid in an auction.' },
       { title: 'Pay by name', body: 'Send NIM to a name.' },
-      { title: 'Messages', body: 'Write to a name’s owner, on-chain.' },
+      { title: 'Messages', body: 'Write to a name’s owner, on chain.' },
     ],
   },
   steps: {
     title: 'How it works',
     items: [
-      { title: 'Search & register', body: 'Pick a free name and register it on-chain.' },
+      { title: 'Search & register', body: 'Pick a free name and register it on chain.' },
       { title: 'Link addresses', body: 'Set your Nimiq address; add an EVM address for USDC and USDT.' },
       { title: 'Get paid', body: 'People send to the name. It resolves to you.' },
     ],
@@ -1362,7 +1370,7 @@ export const SCREEN_TITLE: Record<AppScreen, string> = {
 }
 
 export const SCREEN_SUB: Record<Exclude<AppScreen, 'buy'>, string> = {
-  names: 'Manage your on-chain identities, records, and marketplace listings',
+  names: 'Manage your on-chain identities, records, and sales',
   pay: 'Send NIM or Polygon USDT directly to any verified NNS address.',
   inbox: 'On-chain, wallet-to-wallet decentralized messaging on Nimiq.',
   market: 'Acquire registered NNS names or place bids on live auctions.',
@@ -1512,7 +1520,7 @@ export const connectWalletHint = (): string => 'Connect wallet'
  * place of the hint — so it must not name a listing either.
  */
 export const cancelTitle = (set: Cancellable): string =>
-  set.transfer && set.offer ? 'Cancel Pending' : set.transfer ? 'Cancel Transfer' : set.offer ? 'Cancel Listing' : 'Cancel Pending'
+  set.transfer && set.offer ? 'Cancel Pending' : set.transfer ? 'Cancel Transfer' : set.offer ? 'Cancel Sale' : 'Cancel Pending'
 
 /** The line under that title. Rendered only where the gate is open, so the
  *  empty set's is the unreachable one. */
@@ -1524,9 +1532,9 @@ export const cancelHint = (
   // one number the tile owes you (Kike, 2026-09-15), and it is short by
   // design — 10 min in a tempo era, 12 h on mainnet.
   const left = subject.leftBlocks == null ? '' : `, ${blocksApprox(subject.leftBlocks)} left`
-  if (set.transfer && set.offer) return `Transfer and listing${left}`
+  if (set.transfer && set.offer) return `Transfer and sale${left}`
   if (set.transfer) return subject.to === null ? `Stop the pending transfer${left}` : `To ${subject.to}${left}`
-  if (set.offer) return subject.priceNim === null ? 'Withdraw the listing' : `Withdraw the ${subject.priceNim} NIM offer`
+  if (set.offer) return subject.priceNim === null ? 'Take it off sale' : `Take it off sale (${subject.priceNim} NIM)`
   return 'Nothing to cancel'
 }
 
@@ -1537,11 +1545,11 @@ export const cancelHint = (
  * and the message lands later than this line is written.
  */
 export const offerStaysLine = (nim: string, blocksLeft: number): string =>
-  `The ${nim} NIM listing stays, locked for another ${blocksApprox(blocksLeft)}.`
+  `The ${nim} NIM sale stays, locked for another ${blocksApprox(blocksLeft)}.`
 
 // Buy's card: a name for sale or under auction hands off to Market.
-export const listedForSaleLine = (nim: string): string => `Listed at the marketplace for ${nim} NIM. `
-export const listedForBiddingLine = (nim: string): string => `Listed at the marketplace for bidding (${nim} NIM). `
+export const listedForSaleLine = (nim: string): string => `For sale on the marketplace at ${nim} NIM. `
+export const listedForBiddingLine = (nim: string): string => `Up for auction on the marketplace, from ${nim} NIM. `
 export const checkNowLabel = (): string => 'Check now.'
 export const detailsLabel = (): string => 'Details'
 
@@ -1588,11 +1596,11 @@ export const buySheetTitle = (name: string): string => `Buy ${name}`
 export const bidSheetTitle = (name: string): string => `Bid on ${name}`
 export const connectToBuyLine = (name: string): string => `Connect your wallet to buy ${name}.`
 export const connectToBidLine = (name: string): string => `Connect your wallet to place a bid on ${name}.`
-export const listingLoadFailedLine = (name: string): string => `Couldn’t load details for ${name}. Try again.`
-export const marketFilterPlaceholder = (): string => 'Filter listings by name…'
-export const marketFilterAria = (): string => 'Filter listings by name'
+export const saleLoadFailedLine = (name: string): string => `Couldn’t load details for ${name}. Try again.`
+export const marketFilterPlaceholder = (): string => 'Filter by name…'
+export const marketFilterAria = (): string => 'Filter names for sale'
 export const MARKET_FILTER: Record<'all' | 'offers' | 'auctions', string> = { all: 'All', offers: 'Buy Now', auctions: 'Auctions' }
-export const marketNoMatchTitle = (): string => 'No matching listings'
+export const marketNoMatchTitle = (): string => 'No matching names'
 /** `filter` is the active pill's label, or null under "All". */
 export const marketNoMatchLine = (query: string, filter: string | null): string =>
   filter === null ? `No names matched “${query}”.` : `No names matched “${query}” under ${filter}.`

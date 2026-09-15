@@ -212,7 +212,7 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     const prepared = prepare({ action: 'cancel' }, both)
     expect(prepared.review.some((line) => line.includes('transfer'))).toBe(true)
     // The verb, not the noun: the "stays standing" line also says "offer".
-    expect(prepared.review.some((line) => line.startsWith('Withdraws'))).toBe(true)
+    expect(prepared.review.some((line) => line.startsWith('Takes it off sale'))).toBe(true)
   })
 
   // The offer's irrevocable window outlives the review: a `K` sent now clears
@@ -225,8 +225,8 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     const both = registered({ transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 }, offer: freshOffer })
     const prepared = prepare({ action: 'cancel' }, both)
     expect(prepared.review.some((line) => line.startsWith('Cancels the transfer'))).toBe(true)
-    expect(prepared.review.some((line) => line.startsWith('Withdraws'))).toBe(false)
-    expect(prepared.review.some((line) => line.includes('listing stays'))).toBe(true)
+    expect(prepared.review.some((line) => line.startsWith('Takes it off sale'))).toBe(false)
+    expect(prepared.review.some((line) => line.includes('sale stays'))).toBe(true)
   })
 
   // Kike, 2026-09-15: *"show on the Cancel Transfer section how much time is
@@ -288,7 +288,7 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
       })
       const prepared = prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '2' }, withBoth)
       expect(prepared.review.some((line) => line.includes('transfer'))).toBe(true)
-      expect(prepared.review.some((line) => line.includes('offer'))).toBe(true)
+      expect(prepared.review.some((line) => line.includes('sale'))).toBe(true)
       expect(prepared.review.some((line) => line.includes('Renew first'))).toBe(false)
       // Expiry at 2_000_000; 12 days from 1_000_000 lands past it — the message would forfeit, so the sheet refuses.
       expect(() => prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '12' })).toThrow(/Renew first/)

@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Every user-visible string in the Nimiq Names app, generated from
+  src/lib/wording.ts by src/lib/wording.catalog.test.ts.
+
+  Edit a sentence here to propose a change; it is applied to wording.ts,
+  which stays the source of truth. {name} is a value filled in at runtime.
+  A number in the text comes from a constant in @nimiqnames/core and moves
+  with the era, so translate around it rather than typing it in.
+-->
+<wording>
+  <group name="The site's own name">
+    <string id="SITE_NAME">Nimiq Names</string>
+  </group>
+  <group name="The masthead's nav">
+    <string id="menuLabel">Menu</string>
+    <string id="themeToggleLabel" params="dark">Switch to night mode</string>
+  </group>
+  <group name="Verification lines">
+    <string id="resolverUrlShown" params="url base">{url}</string>
+    <string id="resolverLatency" params="ms">2 ms</string>
+    <string id="hintLabel">More about this</string>
+    <string id="verifiedHint">Each resolver answered with a Merkle proof, and this app checked it against the resolver’s published checkpoint before showing the address.</string>
+    <string id="proofPendingLine">Proof pending. The name works now. Checkpoints are cut every ~12 min.</string>
+    <string id="delegatedLine" params="parent">Resolved by {parent}</string>
+    <string id="delegatedExplainer" params="parent host">{parent} has delegated its subdomains to {host}, and that delegation is verified on chain. The address above is the one that host answered with.</string>
+    <string id="targetChangedLine">Repointed since the last checkpoint. This address is newer than its proof.</string>
+  </group>
+  <group name="Warning tones (states doc §2)">
+    <string id="WARNING_TEXT.ANCHOR_NOT_CHECKED">Second-chain check not run.</string>
+    <string id="WARNING_TEXT.ANCHOR_QUORUM_NOT_MET">Anchor pending. Publishers post each checkpoint within hours.</string>
+    <string id="WARNING_TEXT.ANCHOR_STALE">Couldn’t confirm a recent anchor.</string>
+    <string id="WARNING_TEXT.ANCHOR_UNAVAILABLE">Couldn’t check the second-chain anchor.</string>
+    <string id="WARNING_TEXT.DELEGATE_HOST_UNPROVEN">The host came from the live record, not a proven one.</string>
+    <string id="WARNING_TEXT.DELEGATED_ANSWER">This address is the host’s word, with no proof behind it.</string>
+    <string id="WARNING_TEXT.DUPLICATE_RESOLVER">One resolver was listed twice and counted once.</string>
+    <string id="WARNING_TEXT.PROOF_PENDING">Proof pending. The name works now. Checkpoints are cut every ~12 min.</string>
+    <string id="WARNING_TEXT.QUORUM_BELOW_SPEC">One resolver is configured to answer.</string>
+    <string id="WARNING_TEXT.ROOT_HEIGHTS_DIFFER">Couldn’t compare resolver checkpoints this time.</string>
+    <string id="WARNING_TEXT.TARGET_CHANGED_SINCE_CHECKPOINT">Repointed since the last checkpoint. This address is newer than its proof.</string>
+  </group>
+  <group name="Halting failures (alarm tier) and availability failures">
+    <string id="alarmHeadline">Stop. Resolvers disagree</string>
+    <string id="alarmBody" params="code">Verification failed. No address is shown.</string>
+    <string id="unreachableLine">Couldn’t reach enough resolvers. Try again.</string>
+  </group>
+  <group name="Propagation (states doc §2, `QUORUM_LAGGING`)">
+    <string id="propagatingLine">A recent change is still reaching every resolver. It clears at the next macro block (&lt;1 min).</string>
+    <string id="propagatingRetryLine" params="retrying">Checking again…</string>
+  </group>
+  <group name="Delegates (never blame the subdomain)">
+    <string id="delegateFailedLine" params="parent">{parent}’s resolver did not answer. Only its owner can say whether the subdomain exists.</string>
+    <string id="parentNotDelegatingLine" params="parent">{parent} doesn’t delegate subdomains.</string>
+    <string id="subdomainNotRegistrableLine" params="parent">Subdomains aren’t registered on NNS. {parent}’s owner issues them.</string>
+    <string id="payThisLabel">Pay this address</string>
+    <string id="manageThisLabel">Manage this name</string>
+    <string id="messageSubdomainLabel">Message this address</string>
+    <string id="messageSubdomainNote" params="parent">Goes to the address above, which {parent}’s resolver gave. It may not be {parent}’s owner.</string>
+  </group>
+  <group name="Name states (states doc §1)">
+    <string id="availableLine">Available</string>
+    <string id="reservedLine">Reserved by the registry. Not open for registration.</string>
+    <string id="graceLine" params="untilDate">Expired and not available. The owner can renew until {untilDate}.</string>
+    <string id="graceEndsUnknownPhrase">its grace period ends</string>
+    <string id="expiresLine" params="whenDate">Expires {whenDate}.</string>
+    <string id="registeredUntilLine" params="whenDate">Registered until {whenDate}</string>
+    <string id="ownedUntilLine" params="whenDate">Yours until {whenDate}</string>
+    <string id="expiryUntilLine" params="whenDate">until {whenDate}</string>
+    <string id="justRegisteredLine">Just registered by someone else. Search again to see it.</string>
+    <string id="parentNotRegisteredLine" params="parent">{parent} isn’t registered, so nothing can answer for its subdomains.</string>
+    <string id="pendingTransferLine" params="newOwner when">Transferring to {newOwner} {when}.</string>
+    <string id="forSaleLine" params="priceNim">For sale at {priceNim} NIM</string>
+  </group>
+  <group name="Auctions (§6 `A`, r28)">
+    <string id="auctionLine" params="startingPriceNim endDate">Up for auction. Starting price {startingPriceNim} NIM, ends {endDate}.</string>
+    <string id="standingBidLine" params="bidNim bidder">Highest bid {bidNim} NIM from {bidder}.</string>
+    <string id="noBidsLine">No bids yet.</string>
+    <string id="minimumBidLine" params="nim">Next bid: at least {nim} NIM.</string>
+    <string id="bidAmountPlaceholder" params="minNim">Bid in NIM (at least {minNim})</string>
+    <string id="startingPriceLine" params="nim">Starting price {nim} NIM</string>
+    <string id="auctionEndsLine" params="whenDate">ends {whenDate}</string>
+    <string id="auctionOutlivesTermLine" params="expiryDate">The auction would end after the name expires ({expiryDate}), and only the current term can be sold. Renew first, or set an earlier end.</string>
+    <string id="bidRefundLine">A bid below the minimum is refunded, not accepted. So is yours, the moment a higher bid lands.</string>
+    <string id="bidCustodialWarning">The marketplace operator holds your bid until the auction ends.</string>
+    <string id="bidCustodialHint">It comes back the moment a higher bid lands, and again if the auction is cancelled. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
+    <string id="feeChangeLine" params="whenDate">Fees change {whenDate} (a scheduled governance update).</string>
+    <string id="renewDueLine" params="whenDate">Renew before {whenDate}</string>
+    <string id="graceBadge" params="untilDate">In grace, renew by {untilDate}</string>
+  </group>
+  <group name="Gate reasons (states doc §4; shown on disabled actions)">
+    <string id="GATE_REASON_TEXT.auction-open">Locked while the auction runs.</string>
+    <string id="GATE_REASON_TEXT.in-grace">In grace. Only renewal works until it ends.</string>
+    <string id="GATE_REASON_TEXT.no-auction">No open auction on this name.</string>
+    <string id="GATE_REASON_TEXT.no-offer">This name is not for sale.</string>
+    <string id="GATE_REASON_TEXT.no-record">This name isn’t registered.</string>
+    <string id="GATE_REASON_TEXT.no-viewer">Connect a wallet to act on names.</string>
+    <string id="GATE_REASON_TEXT.not-owner">Only the owner can do this.</string>
+    <string id="GATE_REASON_TEXT.nothing-to-cancel">Nothing is pending on this name.</string>
+    <string id="GATE_REASON_TEXT.offer-irrevocable">The sale is in its irrevocable window.</string>
+    <string id="GATE_REASON_TEXT.offer-open">This name is already for sale. Cancel that first.</string>
+    <string id="GATE_REASON_TEXT.reserved">Reserved names can’t be registered.</string>
+    <string id="GATE_REASON_TEXT.state-unknown">Couldn’t read this name’s record. Try again.</string>
+    <string id="GATE_REASON_TEXT.taken">This name is registered.</string>
+  </group>
+  <group name="Input validation (§4.1 in plain words, field-level)">
+    <string id="shortNameNoteLine">Names under 5 characters are reserved unless deliberately released.</string>
+  </group>
+  <group name="Buy (§8.5 #10)">
+    <string id="custodialWarning">The marketplace operator holds your payment until settlement.</string>
+    <string id="custodialHint">The name is yours as soon as your payment is final. That part is protocol; the money is not. If this purchase loses a race or hits a cancelled offer, the operator refunds you. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
+    <string id="marketCustodialLine">The marketplace operator holds payments and bids until settlement.</string>
+    <string id="marketCustodialHint">A name transfers on the chain the moment the payment is final. The money settles separately, through the operator: a purchase that loses a race or hits a cancelled offer is refunded, and so is a bid the moment it is outbid. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
+    <string id="soldByLine" params="seller">Sold by {seller}.</string>
+    <string id="sellerProceedsLine" params="netNim percent">You get {netNim} NIM if it sells, after the {percent} marketplace commission.</string>
+    <string id="auctionProceedsLine" params="minNetNim percent">You get at least {minNetNim} NIM, after the {percent} commission on the winning bid.</string>
+  </group>
+  <group name="Send flows (docs/app-ux.md §4 — one state machine, one vocabulary)">
+    <string id="currentTargetLine" params="target">Currently points to {target}.</string>
+    <string id="currentEvmLine" params="evm">Currently linked to {evm}.</string>
+    <string id="noEvmLine">No address linked yet.</string>
+    <string id="currentHostLine" params="host">{host} currently answers for subdomains.</string>
+    <string id="noHostLine">No subdomain host set.</string>
+    <string id="delegateSetLines" params="host name">{host} will answer for everything under {name}.</string>
+    <string id="delegateSetHint" params="host">The delegation is on chain, so anyone can verify you set it. The addresses under it come from {host} itself, which is why a client marks a subdomain differently.</string>
+    <string id="delegateClearedLines" params="name">No host will answer for subdomains under {name}.</string>
+    <string id="delegateClearedHint">Subdomains only ever resolve through the host, so with none set there is nothing left to answer them. The name itself resolves exactly as before.</string>
+    <string id="clearHostCheckLabel">Remove the current host</string>
+    <string id="clearHostLabel">Clear subdomain host</string>
+    <string id="hostPlaceholder" params="hasHost">New host, e.g. nns.example.com</string>
+    <string id="renewHint">The term extends from the current expiry, not from today, so renewing early costs nothing extra.</string>
+    <string id="targetHint">The wallet’s own screen shows this address as the recipient of the message, so it can be checked there too.</string>
+    <string id="evmHint">One address covers every EVM chain. The registry records what you declare, so check this one is yours.</string>
+    <string id="transferMovesLine" params="delay">Ownership moves to the address above in {delay}, unless you Cancel Transfer first.</string>
+    <string id="transferHint">A second transfer replaces this one and restarts the clock. The delay guards a mistyped address, not a stolen key.</string>
+    <string id="offerHint">Irrevocable for ~2.4 h, cancellable after, and it expires by itself in ~15 d.</string>
+    <string id="auctionHint" params="extension">Nothing can be withdrawn once open, and a bid in the last {extension} extends the end by {extension}. The highest bid wins and the name transfers at the close.</string>
+    <string id="bidHint" params="extension">A bid in the last {extension} extends the auction by {extension}. A bid below the minimum is refunded, not accepted. So is yours, the moment a higher bid lands.</string>
+    <string id="currentExpiryLine" params="approx">Currently expires {approx}.</string>
+    <string id="suggestedEvmLabel" params="evm">Use this wallet’s address: {evm}</string>
+    <string id="connectEvmLabel">Use my wallet’s USDC / USDT address…</string>
+    <string id="connectEvmFailedLine">The wallet offered no address. Paste one instead.</string>
+    <string id="ACTION_LABEL.auction">Put up for auction</string>
+    <string id="ACTION_LABEL.bid">Bid</string>
+    <string id="ACTION_LABEL.buy">Buy</string>
+    <string id="ACTION_LABEL.cancel">Cancel what’s pending</string>
+    <string id="ACTION_LABEL.delegate">Set subdomain host</string>
+    <string id="ACTION_LABEL.offer">Put up for sale</string>
+    <string id="ACTION_LABEL.register">Register</string>
+    <string id="ACTION_LABEL.renew">Renew</string>
+    <string id="ACTION_LABEL.setEvm">Link USDC / USDT address</string>
+    <string id="ACTION_LABEL.setTarget">Change where it points</string>
+    <string id="ACTION_LABEL.transfer">Transfer ownership</string>
+    <string id="registerPaysLine" params="nim term">Pays {nim} NIM to the registry for {term}.</string>
+    <string id="registerLifetimePaysLine" params="nim untilDate">Pays {nim} NIM to the registry. Yours until {untilDate}.</string>
+    <string id="newExpiryLine" params="approx">New expiry {approx}.</string>
+    <string id="termChoiceLabel" params="blocks">1 year</string>
+    <string id="lifetimeChoiceLabel">Lifetime</string>
+    <string id="termChoiceGroupLabel">Term</string>
+    <string id="choicePriceLine" params="nim">{nim} NIM</string>
+    <string id="referredByLine" params="ref rebate netOfBurn">Referred by {ref}. You pay the same.</string>
+    <string id="BURN_WORD">minus the registry’s burn</string>
+    <string id="REFERRER_STRIP.label">Referred by</string>
+    <string id="REFERRER_STRIP.note">Your price is unchanged</string>
+    <string id="REFERRER_STRIP.remove">Remove</string>
+    <string id="REFERRER_STRIP.removeLabel">Remove this referrer</string>
+    <string id="buyerRebateLine" params="percent netOfBurn">You get {percent} of the fee back after you register.</string>
+    <string id="referrerKeptLine" params="ref">You were already referred by {ref}, so that link was not used.</string>
+    <string id="referredBySelfLine" params="ref">{ref} is your own name, so no referral share is paid. The price is the same either way.</string>
+    <string id="giftRenewalLabel">Gift a renewal</string>
+    <string id="giftRenewalLine" params="owner">You don’t own this name. The term extends for {owner}.</string>
+  </group>
+  <group name="A field that takes an address or a name (`lib/addressField.ts`)">
+    <string id="addressOrNamePlaceholder">Address or name</string>
+    <string id="ownAddressTargetLine">That is your own address. Tick Point back at my address instead.</string>
+    <string id="lookingUpLine" params="query">Looking up {query}…</string>
+    <string id="filledFromNameLine" params="query">{query} points to this address.</string>
+    <string id="filledFromDelegateLine" params="query">{query} is answered by its host, which gave this address.</string>
+    <string id="lookupNoAddressLine" params="query">{query} isn’t registered, so it has no address.</string>
+    <string id="lookupInGraceLine" params="query">{query} is in grace and doesn’t resolve.</string>
+    <string id="lookupFailedLine" params="query">{query} doesn’t resolve to an address.</string>
+    <string id="lookupUnavailableLine" params="query">Couldn’t check {query} just now.</string>
+    <string id="notAnAddressLine">That is not a Nimiq address.</string>
+    <string id="sendSubmittingLine">Waiting for the wallet…</string>
+    <string id="sendConfirmingLine">Sent. Waiting for the next macro block to confirm it (&lt;1 min).</string>
+    <string id="sendConfirmedLine">Done.</string>
+    <string id="sendDeclinedLine">Nothing was sent.</string>
+    <string id="sendUnconfirmedLine">Not confirmed: it hasn’t appeared on chain. Check the name before sending again.</string>
+    <string id="sendSettlingLine">Confirmed on chain. The registry catches up at the next macro block (&lt;1 min).</string>
+    <string id="sendRejectedLine">On chain, but it did not execute. Nothing changed and the fee is spent.</string>
+    <string id="sendUncheckedLine">Sent, but the service didn’t answer, so this is unconfirmed. Check again later.</string>
+    <string id="sendNoRpcLine">No RPC endpoint is configured (VITE_NNS_RPC), so nothing can be broadcast.</string>
+    <string id="connectWalletLabel">Connect Wallet</string>
+    <string id="addAddressLabel">Add another address</string>
+    <string id="disconnectLabel">Disconnect</string>
+    <string id="payConnectLabel">Connect Nimiq Pay</string>
+    <string id="walletCheckingLine">Checking wallet…</string>
+    <string id="moreAddressesLabel" params="count">+2</string>
+  </group>
+  <group name="Buy → My names handoff (docs/app-ux.md §2)">
+    <string id="ownNameLine">You own this name.</string>
+    <string id="manageOwnNameLabel">Manage it</string>
+    <string id="backToNamesLabel">My Names</string>
+  </group>
+  <group name="Pay (docs/app-ux.md §4)">
+    <string id="payToLabel">Paying</string>
+    <string id="payFromLabel">From</string>
+    <string id="payAmountLabel">Amount in NIM</string>
+    <string id="payButtonLabel" params="nim">Pay {nim} NIM</string>
+    <string id="payMessageLabel">Message</string>
+    <string id="payMessagePlaceholder">What it’s for</string>
+    <string id="payMessageHint">A note for whoever receives this, like an invoice or an order number. It is written on the chain against both addresses: public, permanent, readable by anyone. Room for 64 bytes, which is 64 ordinary letters and fewer with accents or emoji.</string>
+    <string id="payMessageBudgetLine" params="used budget">2/2 bytes</string>
+    <string id="payMessageFromLinkLine">Came with the payment link.</string>
+    <string id="payMessageEditLabel">Edit</string>
+    <string id="overBudgetLine">Too long. A message travels in 64 bytes.</string>
+    <string id="PAY_MESSAGE_FAULT_TEXT.OVER_BUDGET">Too long. A message travels in 64 bytes.</string>
+    <string id="PAY_MESSAGE_FAULT_TEXT.RESERVED_PREFIX">A message can’t start with NNS1. That prefix is reserved for name messages.</string>
+    <string id="payUsdtNoMessageLine">A USDT payment carries no message. Pay in NIM to send one.</string>
+  </group>
+  <group name="The USDT · Polygon mode (§6 E consumes the record it wrote)">
+    <string id="payModeNimLabel">NIM</string>
+    <string id="payModeUsdtLabel">USDT</string>
+    <string id="payModeUsdtAria">USDT on Polygon</string>
+    <string id="payUsdtEmptyBody">Type a name to send USDT on Polygon to the address its owner linked.</string>
+    <string id="usdtNoLinkLine" params="name">{name} hasn’t linked a USDC / USDT address.</string>
+    <string id="usdtAmountLabel">Amount in USDT</string>
+    <string id="usdtButtonLabel" params="amount">Send {amount} USDT on Polygon</string>
+    <string id="usdtNoProviderLine">No EVM wallet answered. Open this page inside Nimiq Pay, or in a browser with an EVM wallet.</string>
+    <string id="usdtWrongChainLine">The wallet wouldn’t switch to Polygon. Nothing was sent.</string>
+    <string id="usdtShortBalanceLine" params="held asked">The wallet holds {held} USDT, not enough to send {asked}.</string>
+    <string id="usdtNoGasLine">The wallet has no POL for Polygon’s network fee. Nothing was sent.</string>
+    <string id="usdtAcceptedLine">The wallet accepted it. Track it on Polygonscan:</string>
+    <string id="usdtBalanceUnknownLine">Couldn’t read the USDT balance right now.</string>
+    <string id="payZeroLine">Enter an amount above zero.</string>
+    <string id="paySelfLine">This is your own address. Nimiq drops a payment to yourself, so nothing would arrive.</string>
+    <string id="buyAcknowledgeLabel">I understand a refund would come from the marketplace operator</string>
+    <string id="insufficientBalanceLine" params="needNim haveNim">Needs {needNim} NIM. Your wallet holds {haveNim} NIM.</string>
+  </group>
+  <group name="Pinning (§8.5; states doc §2 — mismatch is the alarm tier)">
+    <string id="pinFirstUseLine">First time you’ve used this name on this device.</string>
+    <string id="pinMismatchTitle">Stop. This name changed address</string>
+    <string id="pinMismatchBody" params="query sinceDate">When you last used {query} on this device ({sinceDate}), it pointed to a different address. The owner may have repointed it, or someone may be redirecting payments. Do not pay until you know which.</string>
+    <string id="pinPreviousLabel">Address you used before</string>
+    <string id="pinCurrentLabel">Address it points to now</string>
+    <string id="pinOverrideLabel">Use the new address anyway</string>
+    <string id="pinOverrideConfirmLabel">Yes, replace what this device remembers</string>
+  </group>
+  <group name="NC chat (docs/app-chat.md §5 — wording is part of the threat model)">
+    <string id="messageOwnerLabel">Message the owner</string>
+    <string id="chatPublicNotice">Messages are public, permanent, and attached to your address. Anyone can read them on chain, forever.</string>
+    <string id="chatOwnNameLine">This name is yours. A message to yourself can’t be sent.</string>
+    <string id="chatBudgetLine" params="used budget">2/2 bytes</string>
+    <string id="CHAT_ENCODE_TEXT.BAD_NAME">Not a valid name.</string>
+    <string id="CHAT_ENCODE_TEXT.CONTROL_CHARS">Plain text only. No control characters.</string>
+    <string id="CHAT_ENCODE_TEXT.EMPTY_MESSAGE">Write something first.</string>
+    <string id="CHAT_ENCODE_TEXT.OVER_BUDGET">Too long. A message travels in 64 bytes.</string>
+    <string id="inboxWindowLine" params="sinceDate">Messages since {sinceDate}.</string>
+    <string id="notYourNameLine">Not one of your names. The name in a message is only the sender’s claim.</string>
+    <string id="hiddenSendersLabel" params="count">Hidden (2)</string>
+    <string id="hideSenderAction">Hide sender</string>
+    <string id="unhideSenderAction">Unhide</string>
+    <string id="inboxNoWalletLine">Connect a wallet to read the messages sent to its address.</string>
+    <string id="inboxNotConfiguredLine">No RPC endpoint configured. Set VITE_NNS_RPC to the operator-run relay URL.</string>
+    <string id="inboxDownLine">The inbox service didn’t answer. Messages are on chain and will appear when it returns.</string>
+    <string id="inboxEmptyLine">When someone messages one of your names, it lands here.</string>
+    <string id="peerMoreNamesLine" params="more">+2 more</string>
+    <string id="peerNamesHint">Names above an address come from the registry, not from the message.</string>
+  </group>
+  <group name="Empty states (one title + body per screen; components add nothing)">
+    <string id="myNamesNoWalletTitle">No wallet connected</string>
+    <string id="myNamesNoWalletBody">Your names are listed by your wallet addresses.</string>
+    <string id="myNamesEmptyTitle">No names yet</string>
+    <string id="myNamesEmptyBody">Register a name in Buy. It points at your address from the moment it lands.</string>
+    <string id="myNamesEmptyAction">Find a name</string>
+    <string id="offersEmptyTitle">Nothing for sale</string>
+    <string id="offersEmptyBody">Names for sale and open auctions show here.</string>
+    <string id="inboxNoWalletTitle">No wallet connected</string>
+    <string id="inboxNotConfiguredTitle">Inbox not set up</string>
+    <string id="inboxEmptyTitle">No messages</string>
+  </group>
+  <group name="The burn record (§10.2 — burned, owed, and the gap between them)">
+    <string id="burnTitle">Fee burn</string>
+    <string id="burnBurnedLabel">Burned so far</string>
+    <string id="burnOwedLabel">Owed so far</string>
+    <string id="burnShortfallLine" params="nim">Behind by {nim} NIM, owed but not yet burned.</string>
+    <string id="burnSurplusLine" params="nim">Ahead by {nim} NIM, more burned than owed.</string>
+    <string id="burnEvenLine">Burned exactly what is owed.</string>
+    <string id="burnExplainer">20% of registry revenue is committed to be burned. The figures come from the public log, so anyone can check.</string>
+  </group>
+  <group name="The era notice (a compressed-tempo era)">
+    <string id="eraTag">Beta</string>
+    <string id="eraNoticeLine">Names and prices here are for testing.</string>
+    <string id="eraNoticeHint" params="blocks">This is a test era. Every clock runs short so a name's whole life fits a few days: a term is 1 year instead of a year, a lifetime about 100 years instead of 100 years, and prices are set for testing. Nothing registered here carries over. The registry starts again at launch.</string>
+  </group>
+  <group name="The landing page (a browser's front door; Pay opens on Buy)">
+    <string id="termPerk" params="blocks">One-year terms</string>
+  </group>
+  <group name="The redesign's chrome (2026-09-09, Bakar's PR #2)">
+    <string id="SCREEN_TITLE.buy">Find your name</string>
+    <string id="SCREEN_TITLE.inbox">Inbox</string>
+    <string id="SCREEN_TITLE.market">Marketplace</string>
+    <string id="SCREEN_TITLE.names">My Names</string>
+    <string id="SCREEN_TITLE.pay">Pay a Name</string>
+    <string id="SCREEN_SUB.inbox">On-chain, wallet-to-wallet decentralized messaging on Nimiq.</string>
+    <string id="SCREEN_SUB.market">Acquire registered NNS names or place bids on live auctions.</string>
+    <string id="SCREEN_SUB.names">Manage your on-chain identities, records, and sales</string>
+    <string id="SCREEN_SUB.pay">Send NIM or Polygon USDT directly to any verified NNS address.</string>
+    <string id="TRUST_CLAIM.antiSniping">Anti-Sniping Extension</string>
+    <string id="TRUST_CLAIM.decentralizedChat">Decentralized Chat</string>
+    <string id="TRUST_CLAIM.merkleVerified">Merkle Verified</string>
+    <string id="TRUST_CLAIM.onChain">100% On-Chain</string>
+    <string id="TRUST_CLAIM.onChainSettlement">On-Chain Settlement</string>
+    <string id="TRUST_CLAIM.publicAuditLog">Public Audit Log</string>
+    <string id="TRUST_CLAIM.selfCustody">Self-Custody</string>
+    <string id="TRUST_CLAIM.walletSigned">Wallet-Signed</string>
+    <string id="TRUST_CLAIM.zeroContracts">Zero Contracts</string>
+    <string id="TRUST_CLAIM.zeroIntermediaries">Zero Intermediaries</string>
+    <string id="tryLabel">Try:</string>
+    <string id="STATUS_TAG.alarm">Security Alarm</string>
+    <string id="STATUS_TAG.grace">In Grace</string>
+    <string id="STATUS_TAG.notRegistered">Not Registered</string>
+    <string id="STATUS_TAG.owned">You own this</string>
+    <string id="STATUS_TAG.parent">Parent Name</string>
+    <string id="STATUS_TAG.propagating">Propagating</string>
+    <string id="STATUS_TAG.registered">Registered</string>
+    <string id="STATUS_TAG.reserved">Reserved</string>
+    <string id="STATUS_TAG.subdomain">Subdomain</string>
+    <string id="STATUS_TAG.subdomainError">Subdomain Error</string>
+    <string id="STATUS_TAG.taken">Taken</string>
+    <string id="STATUS_TAG.unreachable">Unreachable</string>
+    <string id="registryHeading">Registry</string>
+    <string id="OWNER_GROUP_TITLE.market">Marketplace</string>
+    <string id="OWNER_GROUP_TITLE.ownership">Ownership &amp; Renewal</string>
+    <string id="OWNER_GROUP_TITLE.payments">Payment Links</string>
+    <string id="OWNER_GROUP_TITLE.records">Routing &amp; Records</string>
+    <string id="OWNER_GROUP_TITLE.referrals">Referrals</string>
+    <string id="ownerShareLine" params="percent">You get {percent}</string>
+    <string id="SHARE_TILE.hint">Earn on registrations you refer</string>
+    <string id="SHARE_TILE.title">Share Link</string>
+    <string id="shareCopiedLine">Link copied</string>
+    <string id="shareCopyFailedLine" params="link">Copy this link: {link}</string>
+    <string id="shareInGraceLine">A name in grace earns no referral share. Renew it first.</string>
+    <string id="referralsCountLine" params="count nim">2 referred · ≈{nim} NIM at today’s prices</string>
+    <string id="REQUEST_TILE.hint">A link that opens Pay, filled in</string>
+    <string id="REQUEST_TILE.title">Request Payment</string>
+    <string id="requestSheetTitle">Request a payment</string>
+    <string id="requestSheetIntro" params="name">A link to {name}’s Pay screen</string>
+    <string id="requestAmountLabel" params="asset">Amount in NIM</string>
+    <string id="requestAssetLabel">Paid in</string>
+    <string id="requestLinkLabel">Your link</string>
+    <string id="requestNoEvmLine">USDT needs an address linked to this name. Use the EVM Resolution action.</string>
+    <string id="copyLinkLabel">Copy link</string>
+    <string id="requestInGraceLine">Payments can’t reach a name in grace. Renew it first.</string>
+    <string id="shareHint" params="percent rebate netOfBurn">Anyone who registers through your link pays the same price. This name’s address receives {percent} of the fee, paid by the registry after each registration.</string>
+    <string id="offerActiveLine" params="nim">Active: {nim} NIM</string>
+    <string id="auctionStandingLine" params="nim">Standing bid: {nim} NIM</string>
+    <string id="auctionStartingLine" params="nim">Starting price: {nim} NIM</string>
+    <string id="connectWalletHint">Connect wallet</string>
+    <string id="offerStaysLine" params="nim blocksLeft">The {nim} NIM sale stays, locked for another ~1 min.</string>
+    <string id="listedForSaleLine" params="nim">For sale on the marketplace at {nim} NIM. </string>
+    <string id="listedForBiddingLine" params="nim">Up for auction on the marketplace, from {nim} NIM. </string>
+    <string id="checkNowLabel">Check now.</string>
+    <string id="detailsLabel">Details</string>
+    <string id="closeLabel">Close</string>
+    <string id="cancelLabel">Cancel</string>
+    <string id="sheetDismissLabel" params="action">Cancel</string>
+    <string id="clearLabel">Clear</string>
+    <string id="pasteLabel">Paste</string>
+    <string id="pasteEmptyLine">Nothing on the clipboard.</string>
+    <string id="pasteRefusedLine">This app can’t read the clipboard. Paste into the field instead.</string>
+    <string id="signsWithLabel">Signs with</string>
+    <string id="submittingLabel">Submitting…</string>
+    <string id="confirmingLabel">Confirming…</string>
+    <string id="toLabel">To:</string>
+    <string id="buyNowLabel">Buy Now</string>
+    <string id="placeBidLabel">Place Bid</string>
+    <string id="liveAuctionLabel">Live Auction</string>
+    <string id="fixedPriceLabel">Fixed Price</string>
+    <string id="startingPriceLabel">Starting Price</string>
+    <string id="standingBidLabel">Standing Bid</string>
+    <string id="soldByLabel">Sold by</string>
+    <string id="listedByLabel">Listed by</string>
+    <string id="buySheetTitle" params="name">Buy {name}</string>
+    <string id="bidSheetTitle" params="name">Bid on {name}</string>
+    <string id="connectToBuyLine" params="name">Connect your wallet to buy {name}.</string>
+    <string id="connectToBidLine" params="name">Connect your wallet to place a bid on {name}.</string>
+    <string id="saleLoadFailedLine" params="name">Couldn’t load details for {name}. Try again.</string>
+    <string id="marketFilterPlaceholder">Filter by name…</string>
+    <string id="marketFilterAria">Filter names for sale</string>
+    <string id="MARKET_FILTER.all">All</string>
+    <string id="MARKET_FILTER.auctions">Auctions</string>
+    <string id="MARKET_FILTER.offers">Buy Now</string>
+    <string id="marketNoMatchTitle">No matching names</string>
+    <string id="marketNoMatchLine" params="query filter">No names matched “{query}” under {filter}.</string>
+    <string id="balanceLabel">Balance:</string>
+    <string id="maxLabel" params="nim">MAX ({nim} NIM)</string>
+    <string id="resolveLabel">Resolve</string>
+    <string id="payNameAria">Name to pay</string>
+    <string id="payNamePlaceholder">name, or a link</string>
+    <string id="payIdleTitle">Pay any NNS name</string>
+    <string id="payNimEmptyBody">Type a name to send NIM to the address it points to.</string>
+    <string id="backToInboxLabel">Inbox</string>
+    <string id="backToInboxAria">Back to inbox</string>
+    <string id="copyAddressLabel">Copy full address</string>
+    <string id="copiedLabel">Copied</string>
+    <string id="subjectAboutLabel">about</string>
+    <string id="yesterdayLabel">Yesterday</string>
+  </group>
+</wording>

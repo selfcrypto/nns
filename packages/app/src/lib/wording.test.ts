@@ -51,6 +51,12 @@ import {
   eraNoticeLine,
   eraNoticeHint,
   verifiedByLine,
+  CHAT_ENCODE_TEXT,
+  PAY_MESSAGE_FAULT_TEXT,
+  offerHint,
+  overBudgetLine,
+  sendConfirmingLine,
+  sendSettlingLine,
 } from './wording'
 
 const LABS = { name: 'Example Labs', url: 'https://api.example.com', ms: 120 }
@@ -170,7 +176,7 @@ describe('a broken checker never reads as a negative result (decisions.md)', () 
     const { inboxDownLine } = await import('./wording')
     const line = inboxDownLine().toLowerCase()
     expect(line).toContain('inbox service')
-    expect(line).toContain('on-chain')
+    expect(line).toContain('on chain')
     expect(line).not.toContain('resolver')
   })
 
@@ -417,11 +423,11 @@ describe('a `K` is named by what it will clear (§6 `K`)', () => {
     }
   })
 
-  it('calls a transfer a transfer, and a listing a listing', () => {
+  it('calls a transfer a transfer, and a sale a sale', () => {
     expect(cancelTitle({ transfer: true, offer: false })).toBe('Cancel Transfer')
     expect(cancelHint({ transfer: true, offer: false }, { to: 'NQ12 … 9YRA', priceNim: null })).toBe('To NQ12 … 9YRA')
-    expect(cancelTitle({ transfer: false, offer: true })).toBe('Cancel Listing')
-    expect(cancelHint({ transfer: false, offer: true }, { to: null, priceNim: '450' })).toBe('Withdraw the 450 NIM offer')
+    expect(cancelTitle({ transfer: false, offer: true })).toBe('Cancel Sale')
+    expect(cancelHint({ transfer: false, offer: true }, { to: null, priceNim: '450' })).toBe('Take it off sale (450 NIM)')
     // Both, and the empty set an open auction leaves behind: neither is a listing alone.
     expect(cancelTitle({ transfer: true, offer: true })).toBe('Cancel Pending')
     expect(cancelTitle({ transfer: false, offer: false })).toBe('Cancel Pending')
@@ -435,9 +441,9 @@ describe('a `K` is named by what it will clear (§6 `K`)', () => {
     expect(sheetDismissLabel('renew')).toBe(cancelLabel())
   })
 
-  it('says how long an offer the `K` will not touch stays standing', () => {
+  it('says how long a sale the `K` will not touch stays standing', () => {
     expect(offerStaysLine('450', CONSTANTS.OFFER_IRREVOCABLE)).toBe(
-      `The 450 NIM listing stays, locked for another ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}.`,
+      `The 450 NIM sale stays, locked for another ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}.`,
     )
   })
 })
@@ -546,5 +552,52 @@ describe('the custodial disclosure keeps §8.5 #10 on the card', () => {
   // cannot be the buy variant — which is what it had been showing.
   it('the Market line covers bids as well as payments', () => {
     expect(marketCustodialLine()).toMatch(/payments and bids/)
+  })
+})
+
+/**
+ * Two defect classes Kike found on the live site rather than a test finding
+ * them (2026-09-15), pinned so they cannot come back a third time.
+ */
+describe('a duration in a string is read from its constant', () => {
+  // `offerHint` promised "~2.4 hours" and "~15 days" — `OFFER_IRREVOCABLE` and
+  // `OFFER_MAX_LIFETIME` at their mainnet values — on a site where they are
+  // 300 and 86,400 blocks. The assertion is the constant's rendering, never a
+  // spelling, or it is the same bug written twice.
+  it('the offer windows come from OFFER_IRREVOCABLE and OFFER_MAX_LIFETIME', () => {
+    const line = offerHint()
+    expect(line).toContain(blocksApprox(CONSTANTS.OFFER_IRREVOCABLE))
+    expect(line).toContain(blocksApprox(CONSTANTS.OFFER_MAX_LIFETIME))
+  })
+
+  it('a message budget comes from MAX_DATA_BYTES, and one sentence serves both surfaces', () => {
+    expect(overBudgetLine()).toContain(String(CONSTANTS.MAX_DATA_BYTES))
+    expect(PAY_MESSAGE_FAULT_TEXT.OVER_BUDGET).toBe(overBudgetLine())
+    expect(CHAT_ENCODE_TEXT.OVER_BUDGET).toBe(overBudgetLine())
+  })
+})
+
+/**
+ * Every wait in the app ends in the same place, because the indexer scans by
+ * batch. Quoting a different estimate on one card is the app disagreeing with
+ * itself: there were three — "(~1 min)", "within a minute or two" and "a few
+ * seconds" — and fixing the first two left the propagation card behind.
+ */
+describe('one clock', () => {
+  it('every waiting line names the next macro block and the same estimate', () => {
+    for (const line of [sendConfirmingLine(), sendSettlingLine(), propagatingLine()]) {
+      expect(line).toContain('the next macro block')
+      expect(line).toContain('(<1 min)')
+    }
+  })
+})
+
+/** Hyphenated before a noun, open after a verb. Four strings had it backwards. */
+describe('on chain / on-chain', () => {
+  it('never hyphenates after a verb or a comma', () => {
+    const source = readFileSync(new URL('./wording.ts', import.meta.url), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '')
+    expect(source.match(/(?:are|is|be|them|it|they|,)\s+on-chain/g) ?? []).toEqual([])
   })
 })

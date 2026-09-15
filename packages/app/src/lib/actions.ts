@@ -351,7 +351,7 @@ export function prepareAction(options: {
       if (pendingTransfer !== null) {
         lines.push(`Cancels the transfer to ${pendingTransfer.newOwner} (${blocksApprox(pendingTransfer.effectiveHeight - head)} left).`)
       }
-      if (cancelsOffer && pendingOffer !== null) lines.push(`Withdraws the ${lunaToNim(pendingOffer.price)} NIM offer.`)
+      if (cancelsOffer && pendingOffer !== null) lines.push(`Takes it off sale (was ${lunaToNim(pendingOffer.price)} NIM).`)
       if (!cancelsOffer && pendingOffer !== null) {
         lines.push(offerStaysLine(lunaToNim(pendingOffer.price), offerCancellableAt(pendingOffer.openedHeight) - head))
       }
@@ -382,7 +382,7 @@ export function prepareAction(options: {
         action: 'offer',
         request: asRequest(encodeOffer({ name, price, minPrice, sender })),
         review: [
-          `Lists ${name} at ${lunaToNim(price)} NIM.`,
+          `Puts ${name} up for sale at ${lunaToNim(price)} NIM.`,
           sellerProceedsLine(lunaToNim(price - commissionOn(price, commissionBp)), percentOf(Number(commissionBp))),
         ],
         reviewHint: offerHint(),
@@ -434,7 +434,7 @@ export function prepareAction(options: {
       const pendingTransfer = info.pending.transfer
       const pendingOffer = info.pending.offer
       if (pendingTransfer !== null) lines.push(`Cancels the pending transfer to ${pendingTransfer.newOwner}.`)
-      if (pendingOffer !== null) lines.push(`Withdraws the ${lunaToNim(pendingOffer.price)} NIM offer.`)
+      if (pendingOffer !== null) lines.push(`Takes it off sale (was ${lunaToNim(pendingOffer.price)} NIM).`)
       // §6 A (2026-09-03): an auction sells the current term — an end at or past expiry forfeits AUCTION_BEYOND_TERM, so refuse here.
       if (auctionOutlivesTerm(endHeight, record.expiry)) throw new ActionInputError(auctionOutlivesTermLine(when(record.expiry)))
       return {

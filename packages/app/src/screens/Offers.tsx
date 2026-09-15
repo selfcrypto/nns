@@ -39,7 +39,7 @@ import {
   expiryUntilLine,
   fixedPriceLabel,
   listedByLabel,
-  listingLoadFailedLine,
+  saleLoadFailedLine,
   liveAuctionLabel,
   marketFilterAria,
   marketFilterPlaceholder,
@@ -141,7 +141,7 @@ function MarketActionSheetWrapper({
   if (outcome.status === 'error' || outcome.value.kind !== 'resolved' || outcome.value.info === null) {
     return (
       <SheetShell title={title} onClose={onClose}>
-        <p className="field-error">{listingLoadFailedLine(name)}</p>
+        <p className="field-error">{saleLoadFailedLine(name)}</p>
       </SheetShell>
     )
   }
