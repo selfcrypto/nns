@@ -330,6 +330,15 @@ compose ──▶ review (in-app) ──▶ Pay sheet (wallet UI) ──▶ conf
   "Sent — confirming…" → "Done" with the effect named. Never "sent ✓" from
   anything the wallet returned.
 
+  **One waiting line, one look, on every surface that sends** (2026-09-15):
+  the action sheet, the chat composer and Pay all render `SendProgress` — a
+  spinner and the same sentence, naming the same clock, and the send button
+  spins while it waits. Two of the three used to show a still grey note beside
+  a button that said "Confirming…" with nothing moving, which reads as a
+  screen that has stopped rather than one that is waiting. The estimate is
+  the next macro block, and `sendSettlingLine` gives the same estimate in its
+  own words: two numbers for one batch is the app disagreeing with itself.
+
   **Running out of poll rounds is not a failure, and must never be phrased
   as one.** The API is served by a batch-scanning indexer, so a registry
   effect becomes visible up to a full batch behind the chain — measured

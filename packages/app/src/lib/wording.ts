@@ -810,15 +810,50 @@ export const giftRenewalLabel = (): string => 'Gift a renewal'
 export const giftRenewalLine = (owner: string): string =>
   `You don’t own this name. It stays ${owner}’s, and the term extends for them.`
 
+/* ── A field that takes an address or a name (`lib/addressField.ts`) ── */
+
+export const addressOrNamePlaceholder = (): string => 'Address or name'
+
+/** `S` on your own address: the checkbox above the field already does it, and `core`'s own refusal is a sentence about transactions. */
+export const ownAddressTargetLine = (): string => 'That is your own address. Tick Point back at my address instead.'
+
+export const lookingUpLine = (query: string): string => `Looking up ${query}…`
+
+/** After the field fills itself in: which name the address came from, and from whom. */
+export const filledFromNameLine = (query: string): string => `${query} points to this address.`
+
+/**
+ * The same, for a subdomain. The address is the host's answer rather than the
+ * chain's (§8.6), and a field that is about to write it into a record says so
+ * once, plainly. Not a warning: §8.5 #5 keeps alarm language for what is
+ * wrong, and nothing here is.
+ */
+export const filledFromDelegateLine = (query: string): string => `${query} is answered by its host, which gave this address.`
+
+export const lookupNoAddressLine = (query: string): string => `${query} isn’t registered, so it has no address.`
+
+export const lookupInGraceLine = (query: string): string => `${query} is in grace and doesn’t resolve.`
+
+export const lookupFailedLine = (query: string): string => `${query} doesn’t resolve to an address.`
+
+export const lookupUnavailableLine = (query: string): string => `Couldn’t check ${query} just now.`
+
+export const notAnAddressLine = (): string => 'That is not a Nimiq address.'
+
 export const sendSubmittingLine = (): string => 'Waiting for the wallet…'
 
 /**
  * What the confirm loop is actually waiting for, rather than a bare
  * "confirming…": the indexer scans by batch, so the effect becomes visible at
- * the API when the batch's macro block closes — measured in exact 60-block
- * steps (2026-08-21, `send.ts`'s `settling`).
+ * the API when the batch's macro block closes, in exact 60-block steps
+ * (2026-08-21, `send.ts`'s `settling`).
+ *
+ * **One clock, named once** (Kike, 2026-09-15: *"the waiting message isn't
+ * the same for every card using it"*). Every screen that waits says this, and
+ * `sendSettlingLine` gives the same estimate in its own words: two different
+ * numbers for one batch is the app disagreeing with itself.
  */
-export const sendConfirmingLine = (): string => 'Sent. Waiting for the block that confirms it (~1 min).'
+export const sendConfirmingLine = (): string => 'Sent. Waiting for the next macro block to confirm it (<1 min).'
 
 export const sendConfirmedLine = (): string => 'Done.'
 
@@ -845,7 +880,7 @@ export const sendUnconfirmedLine = (): string =>
  * chain. Says nothing went wrong, because nothing did.
  */
 export const sendSettlingLine = (): string =>
-  'Confirmed on chain. The registry will show it within a minute or two. Nothing more to send.'
+  'Confirmed on chain. The registry catches up at the next macro block (<1 min). Nothing more to send.'
 
 /**
  * In a block, and it did not execute. The one case where the transaction is

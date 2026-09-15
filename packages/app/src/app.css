@@ -1945,14 +1945,49 @@ li.note {
   gap: 8px;
 }
 
+/* Inside a button that is mid-send. `currentColor` rather than white: the
+   same rule has to read on the blue gradient (where the text is white) and on
+   the disabled grey send button of a sheet that is confirming (Kike,
+   2026-09-15, asking for the animation the sheet never had). */
 .btn-spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #ffffff;
+  border: 2px solid rgba(var(--tint-ink), 0.25);
+  border-top-color: currentColor;
   border-radius: 50%;
   animation: btnSpinnerRotate 0.6s linear infinite;
   display: inline-block;
+  flex: none;
+}
+
+/*
+ * One waiting line, one look, on every surface that sends: the action sheet,
+ * the chat composer and Pay. Pay's own tinted banner is what it takes after —
+ * the other two had a grey note beside a still button, which reads as a
+ * screen that has stopped rather than one that is waiting.
+ */
+.send-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  line-height: 1.4;
+  background: var(--nimiq-blue-tint);
+  border: 1px solid var(--nimiq-blue-border);
+  color: var(--nimiq-blue);
+}
+
+.send-status-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--nimiq-blue-border);
+  border-top-color: var(--nimiq-blue);
+  border-radius: 50%;
+  animation: btnSpinnerRotate 0.6s linear infinite;
+  flex: none;
 }
 
 @keyframes btnSpinnerRotate {
@@ -2124,6 +2159,17 @@ li.note {
 .sheet-current {
   margin: 0;
   font-size: 13.5px;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+/* Under a field that has just resolved a name into an address: which name it
+   came from, or that the lookup is still running. A statement about the box
+   above it, not a warning, so it wears the quiet ink and no colour. */
+.sheet-note {
+  margin: -2px 0 0;
+  font-size: 12.5px;
+  line-height: 1.45;
   color: var(--ink-soft);
   overflow-wrap: anywhere;
 }

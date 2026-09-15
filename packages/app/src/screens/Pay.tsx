@@ -86,10 +86,8 @@ import {
   usdtNoProviderLine,
   usdtWrongChainLine,
   sendConfirmedLine,
-  sendConfirmingLine,
   sendDeclinedLine,
   sendNoRpcLine,
-  sendSubmittingLine,
   sendRejectedLine,
   sendSettlingLine,
   sendUncheckedLine,
@@ -103,6 +101,7 @@ import { PasteButton } from '../components/PasteButton'
 import { PinCheck } from '../components/PinCheck'
 import { AddressRow, VerificationLine } from '../components/result'
 import { TrustBar } from '../components/TrustBar'
+import { SendProgress } from '../components/SendProgress'
 import { NameText, Spinner } from '../components/ui'
 import styles from './pay.module.css'
 
@@ -636,12 +635,9 @@ export function PayScreen({
                   </button>
                 )}
 
-                {usdtSending && (
-                  <div className={`${styles.statusBanner} ${styles.statusInfo}`}>
-                    <Spinner />
-                    <span>{sendSubmittingLine()}</span>
-                  </div>
-                )}
+                {/* The EVM wallet's own sheet is the confirmation here, so
+                    this waits for the wallet and never for a macro block. */}
+                {usdtSending && <SendProgress progress="submitting" />}
 
                 {usdtResult !== null && !usdtResult.ok && (
                   <div className={`${styles.statusBanner} ${styles.statusError}`}>
@@ -829,18 +825,7 @@ export function PayScreen({
                     </button>
                   ))}
 
-                {progress === 'submitting' && (
-                  <div className={`${styles.statusBanner} ${styles.statusInfo}`}>
-                    <Spinner />
-                    <span>{sendSubmittingLine()}</span>
-                  </div>
-                )}
-                {progress === 'confirming' && (
-                  <div className={`${styles.statusBanner} ${styles.statusInfo}`}>
-                    <Spinner />
-                    <span>{sendConfirmingLine()}</span>
-                  </div>
-                )}
+                <SendProgress progress={progress} />
 
                 {result !== null && (
                   <div

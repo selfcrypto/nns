@@ -11,7 +11,9 @@ import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
 import { cancellableNow, registrationFee, shortfallFor, type AppAction } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
+import { AddressInput } from './AddressInput'
 import { Hint } from './Hint'
+import { ButtonSpinner, SendProgress } from './SendProgress'
 import { NameText, Spinner } from './ui'
 import {
   clearHostCheckLabel,
@@ -38,12 +40,10 @@ import {
   standingBidLine,
   suggestedEvmLabel,
   sendConfirmedLine,
-  sendConfirmingLine,
   sendDeclinedLine,
   sendNoRpcLine,
   sendRejectedLine,
   sendSettlingLine,
-  sendSubmittingLine,
   closeLabel,
   confirmingLabel,
   signsWithLabel,
@@ -356,14 +356,7 @@ export function ActionSheet({
             <input type="checkbox" checked={resetTarget} onChange={(event) => setResetTarget(event.target.checked)} />
             Point back at my address
           </label>
-          {!resetTarget && (
-            <input
-              className="sheet-input nns-name"
-              placeholder="NQ… new target address"
-              value={target}
-              onChange={(event) => setTarget(event.target.value)}
-            />
-          )}
+          {!resetTarget && <AddressInput value={target} onChange={setTarget} />}
         </>
       )}
       {action === 'setEvm' && (
@@ -412,14 +405,9 @@ export function ActionSheet({
           )}
         </>
       )}
-      {action === 'transfer' && (
-        <input
-          className="sheet-input nns-name"
-          placeholder="NQ… new owner address"
-          value={newOwner}
-          onChange={(event) => setNewOwner(event.target.value)}
-        />
-      )}
+      {/* An address **or a name**: NNS refusing a name in its own fields was
+          the first thing a reader noticed (Kike, 2026-09-15). */}
+      {action === 'transfer' && <AddressInput value={newOwner} onChange={setNewOwner} />}
       {action === 'delegate' && (
         <>
           {info?.record?.host ? (
@@ -529,8 +517,7 @@ export function ActionSheet({
         </>
       )}
 
-      {progress === 'submitting' && <p className="note note-info">{sendSubmittingLine()}</p>}
-      {progress === 'confirming' && <p className="note note-info">{sendConfirmingLine()}</p>}
+      <SendProgress progress={progress} />
 
       {result !== null && (
         <p
@@ -555,7 +542,14 @@ export function ActionSheet({
 
       <div className={`sheet-actions-grid ${onClose ? 'has-cancel' : ''}`}>
         <button type="button" className="sheet-send" disabled={!ready} onClick={() => void send()}>
-          {progress === 'submitting' ? submittingLabel() : progress === 'confirming' ? confirmingLabel() : sendLabel}
+          {progress === 'idle' ? (
+            sendLabel
+          ) : (
+            <span className="btn-loading-content">
+              <ButtonSpinner />
+              {progress === 'submitting' ? submittingLabel() : confirmingLabel()}
+            </span>
+          )}
         </button>
 
         {onClose && (

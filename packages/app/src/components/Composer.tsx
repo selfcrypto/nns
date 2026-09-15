@@ -11,15 +11,14 @@ import {
   chatOwnNameLine,
   chatPublicNotice,
   sendConfirmedLine,
-  sendConfirmingLine,
   sendDeclinedLine,
   sendNoRpcLine,
-  sendSubmittingLine,
   sendRejectedLine,
   sendSettlingLine,
   sendUncheckedLine,
   sendUnconfirmedLine,
 } from '../lib/wording'
+import { SendProgress } from './SendProgress'
 import { NameText } from './ui'
 
 /**
@@ -129,8 +128,7 @@ export function Composer({
       </div>
       {failure !== null && failure !== 'EMPTY_MESSAGE' && <p className="field-error">{CHAT_ENCODE_TEXT[failure]}</p>}
 
-      {progress === 'submitting' && <p className="note note-info">{sendSubmittingLine()}</p>}
-      {progress === 'confirming' && <p className="note note-info">{sendConfirmingLine()}</p>}
+      <SendProgress progress={progress} />
       {result !== null && (
         <p
           className={

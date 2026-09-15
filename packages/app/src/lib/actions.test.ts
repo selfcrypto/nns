@@ -131,6 +131,14 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     expect(sameAddress(prepared.request.recipient, OTHER)).toBe(true)
   })
 
+  it('refuses a target that is the signer, in words about the name', () => {
+    // `S` carries the target as the recipient (§5.3), so this reaches core's
+    // "sender and recipient must differ" — a sentence about transactions, on
+    // a sheet about a name. Easy to arrive at since the field takes a name:
+    // typing a name of your own resolves straight to your own address.
+    expect(() => prepare({ action: 'setTarget', target: OWNER })).toThrow(/Point back at my address/)
+  })
+
   it('set EVM address routes to PROTOCOL_ADDRESS at dust, base64url in the payload (§6 E)', () => {
     const prepared = prepare({ action: 'setEvm', evm: '0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b' })
     expect(prepared.request.recipient).toBe(CONSTANTS.PROTOCOL_ADDRESS)

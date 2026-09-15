@@ -81,7 +81,7 @@ The wallet returning a transaction hash means the transaction was accepted for b
 
 The app checks all three before opening the wallet. If a transaction still does not appear, the app asks the chain directly and says one of:
 
-- **Confirmed on chain. The registry will show it within a minute or two.** It landed; the resolver is a minute or two behind. Nothing to do.
+- **Confirmed on chain. The registry catches up at the next macro block (<1 min).** It landed; the resolver reads by batch and is at most one macro block behind. Nothing to do.
 - **Included on chain but did not execute.** Nimiq puts failed transactions in blocks. The network fee is spent, nothing else happened, and the registry ignores it entirely.
 - **Not confirmed. It hasn't appeared on chain yet.** It may still arrive. Check the name before retrying: a retry signs a second transaction and pays a second fee.
 - **Sent to the wallet, but the service didn't answer.** The checker was unreachable, which says nothing about the send.

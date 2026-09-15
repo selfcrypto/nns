@@ -36,6 +36,7 @@ import {
   bidHint,
   evmHint,
   offerHint,
+  ownAddressTargetLine,
   renewHint,
   targetHint,
   transferHint,
@@ -244,6 +245,15 @@ export function prepareAction(options: {
     }
 
     case 'setTarget': {
+      // Typing your own address is what the checkbox is for, and since the
+      // field takes a name (2026-09-15) it is easy to arrive at by naming a
+      // name of your own. `S` carries the target as the **recipient** (§5.3),
+      // so this would otherwise reach `core` and come back as its internal
+      // "sender and recipient must differ", which is a sentence about
+      // transactions to someone reading about their name.
+      if (inputs.target !== 'reset' && tryParseAddress(inputs.target) !== null && sameAddress(inputs.target, signer)) {
+        throw new ActionInputError(ownAddressTargetLine())
+      }
       const target = inputs.target === 'reset' ? null : parseAddress(requireAddress(inputs.target, 'The new target'))
       const expected: string = target === null ? signer : target
       return {
