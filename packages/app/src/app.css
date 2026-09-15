@@ -1451,6 +1451,16 @@ li.note {
   flex: none;
 }
 
+/* The §10.4 reminder wears the tag rather than a line of its own: inside the
+   window the tag says "Renew before ≈ date", and says it in the grace colour
+   so the change is visible before the words are read. */
+.resolved-status-tag.is-due,
+.owner-status-tag.is-due {
+  color: var(--grace);
+  background: var(--grace-bg);
+  border-color: var(--grace-border);
+}
+
 .resolved-status-tag {
   display: inline-flex;
   align-items: center;

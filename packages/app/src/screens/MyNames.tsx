@@ -89,16 +89,21 @@ function Detail({
   // other surface shows — the redesign printed an exact en-US date here.
   const nowMs = Date.now()
   const info = outcome.status === 'done' && outcome.value.kind === 'resolved' ? outcome.value.info : null
+  //
+  // Grace only, since 2026-09-15: the card's own status tag says "Yours until
+  // ≈ date", or "Renew before ≈ date" inside the §10.4 window, so a second
+  // badge with the same date above it was the screen saying one thing twice
+  // — and it said "Renew before" whatever the urgency, which tells an owner
+  // with two years left to renew. Grace is the one state the tag cannot
+  // carry: the date that matters there is when the grace ends, not when the
+  // term did.
   const badge =
-    info === null || info.record === null
+    info === null || info.record === null || info.record.status !== 'GRACE'
       ? null
       : {
-          grace: info.record.status === 'GRACE',
-          due: renewalUrgency(info.record.expiry, info.height) === 'due',
-          text:
-            info.record.status === 'GRACE'
-              ? graceBadge(formatApproxDate(approxDate(info.record.expiry + CONSTANTS.GRACE_PERIOD, info.height, nowMs)))
-              : renewDueLine(formatApproxDate(approxDate(info.record.expiry, info.height, nowMs))),
+          grace: true,
+          due: false,
+          text: graceBadge(formatApproxDate(approxDate(info.record.expiry + CONSTANTS.GRACE_PERIOD, info.height, nowMs))),
         }
 
   return (

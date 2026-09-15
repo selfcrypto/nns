@@ -288,6 +288,18 @@ export const graceEndsUnknownPhrase = (): string => 'its grace period ends'
 /** Detail-card expiry (states doc §1 REGISTERED: "expiry as ≈ date"). */
 export const expiresLine = (whenDate: string): string => `Expires ${whenDate}.`
 
+/**
+ * The status tag, carrying the date the word depends on (Kike, 2026-09-15:
+ * *"Registered until Aug 11, 2028 would look much better and it saves a
+ * line"*). "Registered" and a separate *Expires* line said one thing in two
+ * places; the tag is where a reader looks for the state, and the state is
+ * "registered **until**". Inside the §10.4 window the tag becomes
+ * `renewDueLine` instead, so there is still exactly one of these on a card.
+ */
+export const registeredUntilLine = (whenDate: string): string => `Registered until ${whenDate}`
+
+export const ownedUntilLine = (whenDate: string): string => `Yours until ${whenDate}`
+
 /** List-row form of the same fact. */
 export const expiryUntilLine = (whenDate: string): string => `until ${whenDate}`
 
