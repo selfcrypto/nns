@@ -169,6 +169,20 @@
     <string id="giftRenewalLabel">Gift a renewal</string>
     <string id="giftRenewalLine" params="owner">You don’t own this name. The term extends for {owner}.</string>
   </group>
+  <group name="Refusals from the action builder (`lib/actions.ts`)">
+    <string id="noThousandsSeparatorLine" params="what">{what} is typed without thousands separators, like 12345 rather than 12,345.</string>
+    <string id="notANimAmountLine" params="what">{what} must be a NIM amount, like 450 or 1.5.</string>
+    <string id="notADurationLine">Duration must be a number of days, like 3 or 1.5.</string>
+    <string id="auctionTooShortLine" params="minimum">An auction runs at least {minimum}.</string>
+    <string id="notAnAddressForLine" params="what">{what} is not a Nimiq address.</string>
+    <string id="feesUnavailableLine">The current fees could not be loaded. Try again.</string>
+    <string id="alreadyOwnerLine">That is already the owning address.</string>
+    <string id="noHostTypedLine">Type a host, or tick Remove the current host.</string>
+    <string id="nothingToClearLine">No subdomain host is set, so there is nothing to clear.</string>
+    <string id="alreadyYoursLine">This name is already yours.</string>
+    <string id="ownAuctionLine">This is your own auction.</string>
+    <string id="bidBelowMinimumLine" params="nim">Bid must be at least {nim} NIM.</string>
+  </group>
   <group name="A field that takes an address or a name (`lib/addressField.ts`)">
     <string id="addressOrNamePlaceholder">Address or name</string>
     <string id="ownAddressTargetLine">That is your own address. Tick Point back at my address instead.</string>

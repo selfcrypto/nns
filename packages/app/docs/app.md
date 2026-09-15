@@ -117,7 +117,7 @@ Anyone who finds your name can write to you. A message is a tiny transaction to 
 - A message is rendered as **plain text**: no links, no formatting, no address detection. A message asking you to pay somewhere is just text, and the only action a message can offer is a reply.
 - The **names above a sender's address come from the registry**, not from the message. The name a message claims to be *about* is the sender's claim; if it is not one of yours, the app says so.
 - **Hide sender** silences an address on this device. Hidden conversations collapse into "Hidden (n)" rather than vanishing.
-- Messages fit in a 64-byte transaction, so they are short. The composer counts bytes.
+- Messages fit in {{n:MAX_DATA_BYTES}} bytes, so they are short. The composer counts bytes.
 - You cannot message your own name; the network would silently drop a transaction to yourself, so the app refuses first.
 - A message to a **subdomain** goes to the address the parent's host answered with, the only party the query designates, and the composer says that address may not be the parent's owner.
 

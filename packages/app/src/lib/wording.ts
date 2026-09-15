@@ -820,6 +820,40 @@ export const giftRenewalLabel = (): string => 'Gift a renewal'
 export const giftRenewalLine = (owner: string): string =>
   `You don’t own this name. The term extends for ${owner}.`
 
+/* ── Refusals from the action builder (`lib/actions.ts`) ──────────────────
+ *
+ * These lived as literals beside the code that threw them, which put fifteen
+ * user-visible sentences outside the catalog and outside the em-dash sweep —
+ * and let two of them drift from the gate reason for the same condition
+ * ("No open offer on this name" against "This name is not for sale").
+ * They end in a full stop, like every other sentence the app shows.
+ */
+
+export const noThousandsSeparatorLine = (what: string): string =>
+  `${what} is typed without thousands separators, like 12345 rather than 12,345.`
+
+export const notANimAmountLine = (what: string): string => `${what} must be a NIM amount, like 450 or 1.5.`
+
+export const notADurationLine = (): string => 'Duration must be a number of days, like 3 or 1.5.'
+
+export const auctionTooShortLine = (minimum: string): string => `An auction runs at least ${minimum}.`
+
+export const notAnAddressForLine = (what: string): string => `${what} is not a Nimiq address.`
+
+export const feesUnavailableLine = (): string => 'The current fees could not be loaded. Try again.'
+
+export const alreadyOwnerLine = (): string => 'That is already the owning address.'
+
+export const noHostTypedLine = (): string => `Type a host, or tick ${clearHostCheckLabel()}.`
+
+export const nothingToClearLine = (): string => 'No subdomain host is set, so there is nothing to clear.'
+
+export const alreadyYoursLine = (): string => 'This name is already yours.'
+
+export const ownAuctionLine = (): string => 'This is your own auction.'
+
+export const bidBelowMinimumLine = (nim: string): string => `Bid must be at least ${nim} NIM.`
+
 /* ── A field that takes an address or a name (`lib/addressField.ts`) ── */
 
 export const addressOrNamePlaceholder = (): string => 'Address or name'

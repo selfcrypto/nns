@@ -41,6 +41,19 @@ import {
   targetHint,
   transferHint,
   transferMovesLine,
+  GATE_REASON_TEXT,
+  alreadyOwnerLine,
+  alreadyYoursLine,
+  auctionTooShortLine,
+  bidBelowMinimumLine,
+  feesUnavailableLine,
+  noHostTypedLine,
+  noThousandsSeparatorLine,
+  notADurationLine,
+  notANimAmountLine,
+  notAnAddressForLine,
+  nothingToClearLine,
+  ownAuctionLine,
   delegateClearedHint,
   delegateClearedLines,
   delegateSetHint,
@@ -100,10 +113,10 @@ export const parseNimAmount = (text: string, what = 'Price'): bigint => {
   const trimmed = text.trim()
   // Refused rather than interpreted — `looksGrouped` carries the argument.
   if (looksGrouped(trimmed)) {
-    throw new ActionInputError(`${what} is typed without thousands separators, like 12345 rather than 12,345`)
+    throw new ActionInputError(noThousandsSeparatorLine(what))
   }
   const match = /^([0-9]+)(?:[.,]([0-9]{1,5}))?$/.exec(trimmed)
-  if (match === null || match[1] === undefined) throw new ActionInputError(`${what} must be a NIM amount, like 450 or 1.5`)
+  if (match === null || match[1] === undefined) throw new ActionInputError(notANimAmountLine(what))
   return BigInt(match[1]) * LUNA_PER_NIM + BigInt((match[2] ?? '').padEnd(5, '0'))
 }
 
@@ -120,18 +133,18 @@ const BLOCKS_PER_DAY = 86_400
  */
 export const parseAuctionDuration = (text: string): number => {
   const match = /^([0-9]+)(?:[.,]([0-9]{1,2}))?$/.exec(text.trim())
-  if (match === null || match[1] === undefined) throw new ActionInputError('Duration must be a number of days, like 3 or 1.5')
+  if (match === null || match[1] === undefined) throw new ActionInputError(notADurationLine())
   const hundredths = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'))
   const blocks = Math.round((hundredths * BLOCKS_PER_DAY) / 100)
   if (blocks < CONSTANTS.AUCTION_MIN_DURATION) {
-    throw new ActionInputError(`An auction runs at least ${blocksApprox(CONSTANTS.AUCTION_MIN_DURATION)}`)
+    throw new ActionInputError(auctionTooShortLine(blocksApprox(CONSTANTS.AUCTION_MIN_DURATION)))
   }
   return blocks
 }
 
 const requireAddress = (input: string, what: string): string => {
   const parsed = tryParseAddress(input)
-  if (parsed === null) throw new ActionInputError(`${what} is not a Nimiq address`)
+  if (parsed === null) throw new ActionInputError(notAnAddressForLine(what))
   // Spaced form: these strings reach review lines the user reads.
   return formatAddress(parsed)
 }
@@ -166,7 +179,7 @@ export function prepareAction(options: {
   const record = info?.record ?? null
 
   const needParams = (): ApiParams => {
-    if (params === null) throw new ActionInputError('The current fees could not be loaded. Try again.')
+    if (params === null) throw new ActionInputError(feesUnavailableLine())
     return params
   }
 
@@ -295,7 +308,7 @@ export function prepareAction(options: {
 
     case 'transfer': {
       const newOwner = requireAddress(inputs.newOwner, 'The new owner')
-      if (sameAddress(newOwner, signer)) throw new ActionInputError('That is already the owning address')
+      if (sameAddress(newOwner, signer)) throw new ActionInputError(alreadyOwnerLine())
       return {
         action: 'transfer',
         request: asRequest(encodeTransfer({ name, newOwner: parseAddress(newOwner), sender })),
@@ -313,14 +326,14 @@ export function prepareAction(options: {
       // nobody has filled in, not an instruction (2026-09-15).
       const clearing = inputs.host === 'clear'
       const host = clearing ? '' : inputs.host.trim()
-      if (!clearing && host === '') throw new ActionInputError('Type a host, or tick Remove the current host')
+      if (!clearing && host === '') throw new ActionInputError(noHostTypedLine())
       // Clearing a name that has no host is a `D` that changes nothing — a
       // paid transaction whose whole effect is to rewrite the record with the
       // value it already holds. A null record means the fetch failed, and
       // refusing a real clear on a network error is the worse mistake, so the
       // guard only fires on a record that answered.
       if (clearing && record !== null && record.host === '') {
-        throw new ActionInputError('No subdomain resolver is set, so there is nothing to clear')
+        throw new ActionInputError(nothingToClearLine())
       }
       return {
         action: 'delegate',
@@ -395,8 +408,8 @@ export function prepareAction(options: {
 
     case 'buy': {
       const offer = info?.pending.offer ?? null
-      if (offer === null) throw new ActionInputError('No open offer on this name')
-      if (record !== null && sameAddress(record.owner, signer)) throw new ActionInputError('This name is already yours')
+      if (offer === null) throw new ActionInputError(GATE_REASON_TEXT['no-offer'])
+      if (record !== null && sameAddress(record.owner, signer)) throw new ActionInputError(alreadyYoursLine())
       return {
         action: 'buy',
         request: asRequest(encodeBuy({ name, price: offer.price, sender })),
@@ -414,7 +427,7 @@ export function prepareAction(options: {
     }
 
     case 'auction': {
-      if (info === null || record === null) throw new ActionInputError('Couldn’t read this name’s record. Try again.')
+      if (info === null || record === null) throw new ActionInputError(GATE_REASON_TEXT['state-unknown'])
       const startingPrice = parseNimAmount(inputs.startingPriceNim, 'Starting price')
       const endHeight = auctionEndHeight(info.height, parseAuctionDuration(inputs.durationDays))
       const minPrice = needParams().minPrice
@@ -453,13 +466,13 @@ export function prepareAction(options: {
 
     case 'bid': {
       const auction = info?.pending.auction ?? null
-      if (info === null || auction === null) throw new ActionInputError('No open auction on this name')
+      if (info === null || auction === null) throw new ActionInputError(GATE_REASON_TEXT['no-auction'])
       if (viewers.some((address) => sameAddress(auction.seller, address))) {
-        throw new ActionInputError('This is your own auction')
+        throw new ActionInputError(ownAuctionLine())
       }
       const bid = parseNimAmount(inputs.bidNim, 'Bid')
       if (bid < auction.minimumBid) {
-        throw new ActionInputError(`Bid must be at least ${lunaToNim(auction.minimumBid)} NIM`)
+        throw new ActionInputError(bidBelowMinimumLine(lunaToNim(auction.minimumBid)))
       }
       const when = (height: number): string => formatApproxDate(approxDate(height, info.height, Date.now()))
       const extension = blocksApprox(CONSTANTS.AUCTION_EXTENSION)
