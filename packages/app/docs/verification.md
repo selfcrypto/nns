@@ -17,7 +17,7 @@ Either can appear under a fresh name, and neither is a problem.
 
 ## A subdomain
 
-A subdomain card is marked *Subdomain* and badged *Resolved by `parent`*. The parent is proven. The address is the parent owner's server's word ([Subdomains](subdomains)).
+A subdomain card is marked *Subdomain* and badged *Resolved by* the host that answered. The parent is proven. The address is the parent owner's server's word ([Subdomains](subdomains)).
 
 ## Red
 

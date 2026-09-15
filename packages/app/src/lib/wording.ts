@@ -178,7 +178,29 @@ export const verifiedHint = (): string =>
 export const proofPendingLine = (): string =>
   `Proof pending. The name works now. Checkpoints are cut every ${blocksApprox(CONSTANTS.CHECKPOINT_INTERVAL)}.`
 
-export const delegatedLine = (parent: string): string => `Resolved by ${parent}`
+/**
+ * The badge on a delegated answer: **the host that answered, not the parent
+ * name** (Kike, 2026-09-16: *"Imagine reading 'Resolved by binance' being
+ * that name registered by 3rd party person"*).
+ *
+ * A name is not its brand. `binance` is registrable by anybody who gets there
+ * first, so "Resolved by binance" reads as an endorsement by a company that
+ * may have nothing to do with it, on the one card where the address carries
+ * no proof. The host is the party that actually answered, it is a domain
+ * whose owner the reader can judge for themselves, and §8.6's request goes to
+ * it by name. `delegated.nimiqnames.com` says what happened; `nimiq` says who
+ * to trust, which is the claim this tier exists to withhold.
+ *
+ * The parent is still named, one tap away, by `delegatedExplainer`: it is
+ * what delegated, and the delegation is the proven half.
+ *
+ * `host` cannot be absent on a `DELEGATED` result (`resolve.ts` sets it with
+ * the answer), so the fallback is for the type and not for a case: it names
+ * the parent's host rather than the parent, which keeps the distinction even
+ * where the name is all there is.
+ */
+export const delegatedLine = (parent: string, host: string | null): string =>
+  host === null || host === '' ? `Resolved by ${parent}’s host` : `Resolved by ${host}`
 
 /**
  * What a subdomain card's `?` says (Kike, 2026-09-15: *"sounds scary when it
@@ -189,7 +211,7 @@ export const delegatedLine = (parent: string): string => `Resolved by ${parent}`
  * the address the host answered with, and the second sentence attributes it
  * without dressing it as a risk. §8.5 #6's distinction is carried by the
  * *Subdomain* tag and the "Resolved by" badge, which is where the spec puts
- * it, and §8.5 #5 asks for alarming language only where something is wrong.
+ * it (and the badge names the host, `delegatedLine`), and §8.5 #5 asks for alarming language only where something is wrong.
  */
 export const delegatedExplainer = (parent: string, host: string | null): string =>
   host === null

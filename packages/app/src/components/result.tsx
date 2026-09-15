@@ -164,13 +164,18 @@ export function VerificationLine({ result }: { result: ResolveResult }) {
           <span>{proofPendingLine()}</span>
         </p>
       )
-    case 'DELEGATED':
+    case 'DELEGATED': {
+      // The badge names the host and the hint names the parent: the host is
+      // who answered, the parent is who delegated, and only the second is
+      // proven.
+      const host = result.delegate?.host ?? null
       return (
         <p className="verify verify-delegated verify-head">
-          <Badge tone="delegated">{delegatedLine(result.name)}</Badge>
-          <Hint>{delegatedExplainer(result.name, result.delegate?.host ?? null)}</Hint>
+          <Badge tone="delegated">{delegatedLine(result.name, host)}</Badge>
+          <Hint>{delegatedExplainer(result.name, host)}</Hint>
         </p>
       )
+    }
   }
 }
 

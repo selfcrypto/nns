@@ -13,7 +13,7 @@ The parent is in the request, so one server can answer for several names, each w
 
 ## What is proven, and what is not
 
-NNS proves that `exchange` belongs to its owner and that the owner set **this host**. The address the host returns for `shop` is the owner's word alone: no signature, no proof. So every client shows a subdomain differently from a proven name. The app marks it *Subdomain* and badges it *Resolved by `exchange`*.
+NNS proves that `exchange` belongs to its owner and that the owner set **this host**. The address the host returns for `shop` is the owner's word alone: no signature, no proof. So every client shows a subdomain differently from a proven name. The app marks it *Subdomain* and badges it with the host that answered, *Resolved by `names.exchange.example`*, rather than with the name: a name is registrable by anybody, so a familiar word in that badge would read as a promise the answer does not carry.
 
 **Your server's security is your subdomains' security.** A compromised host serves whatever addresses the attacker likes, and NNS will not notice.
 

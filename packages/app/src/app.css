@@ -1268,6 +1268,22 @@ select:focus-visible {
   padding-left: 12px;
 }
 
+/* The delegated badge carries a **hostname** since 2026-09-16, which is
+   several times the length of the name it replaced, so it shrinks and wraps
+   inside itself rather than pushing the "?" onto a line of its own: measured
+   at 390px the pill wants 263px and the row has 268 before the hint's 30 and
+   the 7px gap. A host is never shortened — a truncated domain is a different
+   domain, and telling the reader which server answered is the whole point of
+   the badge. */
+.verify-delegated.verify-head {
+  flex-wrap: nowrap;
+}
+
+.verify-delegated .badge {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .verify-head .hint-btn {
   margin-left: 0;
 }
