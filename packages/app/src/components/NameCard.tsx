@@ -79,7 +79,7 @@ import {
   requestInGraceLine,
 } from '../lib/wording'
 import { ClockIcon } from './icons'
-import { AddressRow, Overlays, TitleName, VerificationLine, WarningNotes, tierOf } from './result'
+import { AnswerBlock, Overlays, QuorumReplies, TitleName, WarningNotes, tierOf } from './result'
 import { ActionSheet } from './ActionSheet'
 import { MessageModal } from './MessageModal'
 import { PaymentRequestSheet } from './PaymentRequestSheet'
@@ -762,16 +762,11 @@ export function NameCard({
               </div>
             </div>
             <PinCheck query={outcome.result.query} address={outcome.result.address} />
-            <div className="address-card-wrap">
-              <AddressRow address={outcome.result.address} full />
-            </div>
             {/* On every resolved card, Buy included: who verified, by name and
                 URL, or that a delegate answered — §8.5 #6 and app-states §5.
                 The redesign kept it for My names only, which left a verified
                 name and a delegate's word looking identical on the front door. */}
-            <div className="resolved-meta-section">
-              <VerificationLine result={outcome.result} />
-            </div>
+            <AnswerBlock result={outcome.result} />
             {outcome.info !== null && <Overlays info={outcome.info} nowMs={nowMs} hideMarketplace={actions === ACQUIRE_ACTIONS || !isOwner} />}
             <WarningNotes warnings={outcome.result.warnings} />
             {mine ? (
@@ -1064,10 +1059,7 @@ export function NameCard({
                     </span>
                   </div>
                 </div>
-                <div className="address-card-wrap">
-                  <AddressRow address={outcome.parent.address} full />
-                </div>
-                <VerificationLine result={outcome.parent} />
+                <AnswerBlock result={outcome.parent} />
               </div>
             </RailCard>
           )}
@@ -1090,7 +1082,12 @@ export function NameCard({
             <div className="reserved-info-box">
               <p className="reserved-text">{alarmBody(outcome.code)}</p>
             </div>
-            <p className="note note-info" style={{ marginTop: '12px' }}>{outcome.message}</p>
+            {/* Which party said what, open, because there is no answer on this
+                card to weigh it against (states doc §2). */}
+            <QuorumReplies replies={outcome.replies} tone="alarm" />
+            {/* The resolver's own message, quiet: the alarm is the headline
+                and the rows above are what a user can act on. */}
+            <p className="note">{outcome.message}</p>
           </div>
         </RailCard>
       )
@@ -1111,6 +1108,9 @@ export function NameCard({
             <div className="reserved-info-box">
               <p className="reserved-text">{unreachableLine()}</p>
             </div>
+            {/* Quiet, never alarm vocabulary: nobody disagreed, one party did
+                not answer, and the card says which (§5 rule 3). */}
+            <QuorumReplies replies={outcome.replies} tone="quiet" />
           </div>
         </RailCard>
       )
@@ -1137,6 +1137,7 @@ export function NameCard({
               <ClockIcon />
               <span>{propagatingRetryLine(retrying)}</span>
             </p>
+            <QuorumReplies replies={outcome.replies} tone="quiet" />
           </div>
         </RailCard>
       )

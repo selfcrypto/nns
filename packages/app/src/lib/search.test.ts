@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CONSTANTS } from '@nimiqnames/core'
-import { isShortName, parseSearchQuery, queryFault } from './search'
+import { QuorumError, type ResolverReply } from '@nimiqnames/resolver'
+import { isShortName, outcomeForError, parseSearchQuery, queryFault } from './search'
 
 /**
  * The one rule this file exists for: rule 6 is not the client's to apply.
@@ -103,5 +104,57 @@ describe('isShortName', () => {
   it('measures the parent of a dotted query — §4.4 labels floor at 1', () => {
     expect(isShortName('pay.nim')).toBe(true)
     expect(isShortName('p.nimiq')).toBe(false)
+  })
+})
+
+/**
+ * The replies are the difference between an alarm a user can act on and one
+ * they learn to dismiss (states doc §2: name the party, not only the
+ * verdict). `search()` dropped them for as long as they existed, which is
+ * silent — the card simply had nobody to name — so the pass-through is pinned
+ * here rather than left to a screenshot.
+ */
+describe('outcomeForError carries what each resolver said', () => {
+  const replies: readonly ResolverReply[] = [
+    { resolver: 'nimiqnames.com', answer: 'root 0xaa at 120' },
+    { resolver: 'nns.sonartech.pro', answer: 'root 0xbb at 120' },
+  ]
+
+  it('takes a disagreement to the alarm card with both parties', () => {
+    const outcome = outcomeForError(new QuorumError('QUORUM_DISAGREEMENT', 'they differ', replies), 'donald')
+    expect(outcome).toEqual({ kind: 'alarm', code: 'QUORUM_DISAGREEMENT', message: 'they differ', replies })
+  })
+
+  it('takes a root mismatch there too', () => {
+    const outcome = outcomeForError(new QuorumError('QUORUM_ROOT_MISMATCH', 'roots differ', replies), 'donald')
+    expect(outcome.kind).toBe('alarm')
+  })
+
+  it('takes an unmet quorum to the unreachable card, so the silent party is named', () => {
+    const silent: readonly ResolverReply[] = [{ resolver: 'nns.sonartech.pro', answer: 'unreachable: timeout' }]
+    expect(outcomeForError(new QuorumError('QUORUM_UNMET', 'only one answered', silent), 'donald')).toEqual({
+      kind: 'unreachable',
+      code: 'QUORUM_UNMET',
+      message: 'only one answered',
+      replies: silent,
+    })
+  })
+
+  it('takes a lagging quorum to the propagating card, which is depth and not alarm', () => {
+    expect(outcomeForError(new QuorumError('QUORUM_LAGGING', 'a block apart', replies), 'donald')).toEqual({
+      kind: 'propagating',
+      query: 'donald',
+      message: 'a block apart',
+      replies,
+    })
+  })
+
+  it('leaves a plain network failure with an empty list rather than an invented one', () => {
+    expect(outcomeForError(new Error('fetch failed'), 'donald')).toEqual({
+      kind: 'unreachable',
+      code: 'NETWORK',
+      message: 'fetch failed',
+      replies: [],
+    })
   })
 })

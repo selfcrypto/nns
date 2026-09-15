@@ -1,5 +1,5 @@
 import { useId, useState } from 'react'
-import type { ResolveResult, ResolveWarning } from '@nimiqnames/resolver'
+import type { ResolveResult, ResolveWarning, ResolverReply } from '@nimiqnames/resolver'
 import type { NameInfo } from '../lib/api'
 import { displayAddress, ellipsizeAddress, formatApproxDate, approxDate, lunaToNim } from '../lib/format'
 import {
@@ -54,9 +54,11 @@ function ProvenVerification({ result }: { result: ResolveResult }) {
   return (
     <div className="verify verify-proven">
       <p className="verify-head">
-        <CheckIcon />
         {resolvers.length === 0 ? (
-          line
+          <>
+            <CheckIcon />
+            {line}
+          </>
         ) : (
           <button
             type="button"
@@ -65,6 +67,7 @@ function ProvenVerification({ result }: { result: ResolveResult }) {
             aria-controls={listId}
             onClick={() => setOpen(!open)}
           >
+            <CheckIcon />
             {line}
             <ChevronIcon />
           </button>
@@ -72,18 +75,72 @@ function ProvenVerification({ result }: { result: ResolveResult }) {
         <Hint>{verifiedHint()}</Hint>
       </p>
       {open && (
-        <ul className="verify-resolvers" id={listId}>
+        <ul className="verify-parties" id={listId}>
           {resolvers.map((resolver) => (
             <li key={resolver.url}>
-              <span className="resolver-pill">{resolver.name}</span>{' '}
-              {/* No separator between the two: on a phone the endpoint drops to its
-                  own line, and a dash or dot then leads that line as debris. The
-                  pill's own background is the separation at every width. */}
-              <span className="resolver-url">{resolverUrlShown(resolver.url)}</span>
+              <span className="party-dot" aria-hidden="true" />
+              {/* Party above endpoint, not beside it: the two are near enough
+                  to duplicates (`nns.sonartech.pro` answers at
+                  `https://nns.sonartech.pro`) that a separator between them
+                  reads as repetition, and on a phone the URL takes the line
+                  either way. */}
+              <span className="party-name">{resolver.name}</span>
+              <span className="party-detail">{resolverUrlShown(resolver.url)}</span>
             </li>
           ))}
         </ul>
       )}
+    </div>
+  )
+}
+
+/**
+ * What each resolver said, on the cards that have no answer to show:
+ * `QUORUM_DISAGREEMENT`, `QUORUM_ROOT_MISMATCH`, `QUORUM_UNMET` and
+ * `QUORUM_LAGGING` (states doc §2 — name the party, never only the verdict).
+ *
+ * **Open, because the answer is missing.** The agreeing list is closed: it is
+ * evidence for a statement the user already has. Here the statement is that
+ * there is nothing to act on, and why is the only thing on the card worth
+ * reading, so a tap between the user and it is a tap too many.
+ *
+ * `answer` is the resolver package's own one-line summary and is rendered
+ * verbatim. Paraphrasing it would substitute the app's word for the party's,
+ * which is the one thing this list exists to stop.
+ */
+export function QuorumReplies({ replies, tone }: { replies: readonly ResolverReply[]; tone: 'alarm' | 'quiet' }) {
+  if (replies.length === 0) return null
+  return (
+    <ul className={`verify-parties verify-parties-${tone}`}>
+      {replies.map((reply, index) => (
+        <li key={`${reply.resolver}-${index}`}>
+          <span className="party-dot" aria-hidden="true" />
+          <span className="party-name">{reply.resolver}</span>
+          <span className="party-detail">{reply.answer}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/**
+ * The address and who vouched for it, as **one object with two compartments**
+ * (Kike, 2026-09-15: *"place them inside a bubble or a div, properly
+ * aligned"*). They were two siblings with three different left edges, and the
+ * verification read as a loose caption rather than as the provenance of the
+ * address above it.
+ *
+ * `--box-pad` is what lets the foot bleed to the box's edges without knowing
+ * which box it is in: Pay's recipient card sets its own and gets the same
+ * divider.
+ */
+export function AnswerBlock({ result }: { result: ResolveResult }) {
+  return (
+    <div className="answer-block">
+      <AddressRow address={result.address} full />
+      <div className="answer-foot">
+        <VerificationLine result={result} />
+      </div>
     </div>
   )
 }

@@ -159,7 +159,7 @@ describe('viewFor — which outcomes carry an actionable name', () => {
 
   it('nothing to act on where there is no name: a failed delegate, an alarm', () => {
     expect(viewFor({ kind: 'delegate-failed', query: 'rico.nns', code: 'DELEGATE_FAILED', parent: null })).toBeNull()
-    expect(viewFor({ kind: 'alarm', code: 'ANCHOR_MISMATCH', message: '' })).toBeNull()
+    expect(viewFor({ kind: 'alarm', code: 'ANCHOR_MISMATCH', message: '', replies: [] })).toBeNull()
   })
 })
 

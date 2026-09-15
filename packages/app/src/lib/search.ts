@@ -22,6 +22,7 @@ import {
   type AvailableResult,
   type DelegateErrorCode,
   type ResolveResult,
+  type ResolverReply,
 } from '@nimiqnames/resolver'
 import { getNameInfo, type NameInfo } from './api'
 import { apiBase, resolver } from './nns'
@@ -38,15 +39,30 @@ export type SearchOutcome =
   | { readonly kind: 'grace'; readonly name: string; readonly info: NameInfo | null }
   | { readonly kind: 'parent-state'; readonly parent: string; readonly code: 'NOT_FOUND' | 'IN_GRACE' }
   | { readonly kind: 'delegate-failed'; readonly query: string; readonly code: DelegateErrorCode; readonly parent: ResolveResult | null }
-  | { readonly kind: 'alarm'; readonly code: string; readonly message: string }
-  | { readonly kind: 'unreachable'; readonly code: string; readonly message: string }
+  /**
+   * A halting failure. `replies` is what each resolver said, and the card
+   * shows it: states doc §2 asks for the party as well as the verdict, and
+   * an alarm that names nobody is one a user learns to dismiss.
+   */
+  | { readonly kind: 'alarm'; readonly code: string; readonly message: string; readonly replies: readonly ResolverReply[] }
+  | {
+      readonly kind: 'unreachable'
+      readonly code: string
+      readonly message: string
+      readonly replies: readonly ResolverReply[]
+    }
   /**
    * The resolvers answered as of different heights and differ — the seconds
    * after a change lands, when one indexer has the block and another has not
    * (`QUORUM_LAGGING`). Not a disagreement: the screen says the change is
    * still propagating and asks again (`useRetryWhilePropagating`).
    */
-  | { readonly kind: 'propagating'; readonly query: string; readonly message: string }
+  | {
+      readonly kind: 'propagating'
+      readonly query: string
+      readonly message: string
+      readonly replies: readonly ResolverReply[]
+    }
 
 /**
  * §4.1 syntax for a typed query, with **rule 6 neutralised**. Reservation is
@@ -187,21 +203,40 @@ export async function search(rawQuery: string): Promise<SearchOutcome> {
       const availability = await resolver().available(plainName)
       return { kind: 'availability', name: plainName, availability, info: await infoOrNull(plainName) }
     }
-    if (error instanceof DelegateError) {
-      return { kind: 'delegate-failed', query, code: error.code as DelegateErrorCode, parent: error.parent }
-    }
-    if (error instanceof NameError) {
-      return { kind: 'invalid', fault: { kind: 'unspecified' } }
-    }
-    if (error instanceof ProofError || error instanceof AnchorError) {
-      return { kind: 'alarm', code: error.code, message: error.message }
-    }
-    if (error instanceof QuorumError) {
-      if (error.code === 'QUORUM_UNMET') return { kind: 'unreachable', code: error.code, message: error.message }
-      if (error.code === 'QUORUM_LAGGING') return { kind: 'propagating', query, message: error.message }
-      return { kind: 'alarm', code: error.code, message: error.message }
-    }
-    const message = error instanceof Error ? error.message : String(error)
-    return { kind: 'unreachable', code: 'NETWORK', message }
+    return outcomeForError(error, query)
   }
+}
+
+/**
+ * Every failure that needs no second request, as a pure function — which is
+ * what lets the `replies` pass-through be tested at all: this package's Vitest
+ * environment is `node`, and `search` itself needs the network. `LookupError`
+ * is the one case that is not here, because NOT_FOUND has to go and fetch the
+ * non-inclusion proof before it can say anything.
+ */
+export function outcomeForError(error: unknown, query: string): SearchOutcome {
+  if (error instanceof DelegateError) {
+    return { kind: 'delegate-failed', query, code: error.code as DelegateErrorCode, parent: error.parent }
+  }
+  if (error instanceof NameError) {
+    return { kind: 'invalid', fault: { kind: 'unspecified' } }
+  }
+  if (error instanceof ProofError || error instanceof AnchorError) {
+    return { kind: 'alarm', code: error.code, message: error.message, replies: [] }
+  }
+  if (error instanceof QuorumError) {
+    // The replies ride all three ways out. A quorum that was not met names the
+    // resolver that went silent and why; one that lagged names the heights;
+    // a disagreement names who said what, which is the whole of §8.5 #2's
+    // "do not silently prefer one".
+    if (error.code === 'QUORUM_UNMET') {
+      return { kind: 'unreachable', code: error.code, message: error.message, replies: error.replies }
+    }
+    if (error.code === 'QUORUM_LAGGING') {
+      return { kind: 'propagating', query, message: error.message, replies: error.replies }
+    }
+    return { kind: 'alarm', code: error.code, message: error.message, replies: error.replies }
+  }
+  const message = error instanceof Error ? error.message : String(error)
+  return { kind: 'unreachable', code: 'NETWORK', message, replies: [] }
 }

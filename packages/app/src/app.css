@@ -1013,8 +1013,36 @@ select:focus-visible {
 
 /* ── Verification lines, badges, notes ── */
 
+/*
+ * The answer and its provenance are one object with two compartments: the
+ * address on top, who vouched for it underneath, a hairline between them
+ * (Kike, 2026-09-15 — the two used to be siblings with three different left
+ * edges, and the verification read as a loose caption).
+ *
+ * `--box-pad` is declared by whichever box hosts the foot, so the divider can
+ * bleed to that box's edges without this rule knowing which box it is: Pay's
+ * recipient card sets its own and gets the same seam.
+ */
+.answer-block {
+  --box-pad: 14px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px var(--box-pad);
+}
+
+.answer-block .address-row {
+  margin: 0;
+}
+
+.answer-foot {
+  margin: 10px calc(var(--box-pad) * -1) 0;
+  padding: 10px var(--box-pad) 0;
+  border-top: 1px solid var(--line);
+}
+
 .verify {
-  margin: 10px 0 0;
+  margin: 0;
   font-size: 14px;
 }
 
@@ -1025,103 +1053,139 @@ select:focus-visible {
   gap: 7px;
 }
 
+/* The `?` goes to the row's right edge, clear of its own 40px tap halo — it
+   used to sit 6px from the toggle, so a thumb aimed at one could get the
+   other. */
+.verify-head .hint {
+  margin-left: auto;
+  padding-left: 12px;
+}
+
 .verify-head .hint-btn {
   margin-left: 0;
 }
 
 .verify-head .icon {
   margin-top: 1px;
+  flex: none;
 }
 
-.verify-proven {
+/* Green is spent once on the glyph, and once per agreeing party as a dot. It
+   used to be the icon, the headline and both pills, which made it the block's
+   colour rather than its signal — and on `.resolved-card-premium` the proof
+   rail is off, so this glyph is the tier. The words stay at full ink: states
+   doc §5 rule 1 forbids greying this line. */
+.verify-proven .icon {
   color: var(--proven);
-  font-weight: 600;
+}
+
+.verify-proven .party-dot {
+  background: var(--proven);
 }
 
 .verify-depth {
   color: var(--depth);
-  font-weight: 600;
 }
 
 .verify-delegated {
-  margin-top: 10px;
-}
-
-/* The proven line is a group now: headline plus the parties that agreed. */
-.verify>p {
   margin: 0;
 }
 
-/* The count line doubles as the disclosure for that evidence: it reads and
-   sits exactly as the plain line did, plus a chevron that flips when the list
-   is open. A quorum of eight would otherwise be most of the card. */
+.verify > p {
+  margin: 0;
+}
+
+/* The whole row is the disclosure: glyph, count and chevron in one control
+   that fills the foot, so a thumb anywhere left of the `?` opens the list. */
 .verify-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
   background: none;
   font: inherit;
-  color: inherit;
+  font-weight: 600;
+  color: var(--ink);
   text-align: left;
   cursor: pointer;
 }
 
-.verify-toggle .icon {
+.verify-toggle .icon:last-child {
   opacity: 0.6;
   transition: transform 140ms ease;
 }
 
-.verify-toggle[aria-expanded='true'] .icon {
+.verify-toggle[aria-expanded='true'] .icon:last-child {
   transform: rotate(180deg);
 }
 
-/* Name and API URL, one per agreeing resolver. Quieter than the headline —
-   the count is the statement, this is the evidence for it. A URL is one long
-   unbreakable token on a phone, hence `anywhere`. */
-.verify-resolvers {
+/*
+ * One party per row: a dot in the tier's colour, the configured name, then
+ * the endpoint — or, on a card with no answer, what that resolver said. Both
+ * lines hang off one indent, so they line up with each other and with the
+ * identicon above; the old list was a third left edge at 25px, under a
+ * headline at a fourth.
+ */
+.verify-parties {
   list-style: none;
-  margin: 4px 0 0 25px;
+  margin: 10px 0 0;
   padding: 0;
+}
+
+.verify-parties li {
+  display: grid;
+  /* The glyph column is the check icon's width and the gap is its gap, so a
+     party's name starts exactly under the count above it. */
+  grid-template-columns: 18px 1fr;
+  gap: 0 7px;
+  align-items: baseline;
+}
+
+.verify-parties li + li {
+  margin-top: 8px;
+}
+
+.party-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  justify-self: center;
+  align-self: center;
+}
+
+.party-name {
   font-size: 12.5px;
-  font-weight: 400;
-  color: var(--ink-soft);
-}
-
-.verify-resolvers li {
+  font-weight: 600;
+  color: var(--ink);
   overflow-wrap: anywhere;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 8px;
 }
 
-/* One resolver can take two lines on a phone, so the gap between entries has
-   to be wider than the one inside an entry. */
-.verify-resolvers li + li {
-  margin-top: 7px;
+/* The endpoint, or the resolver's own one-line summary on a card that has no
+   answer. Rendered verbatim: paraphrasing a party's words in the app's voice
+   is what this list exists to stop. A URL is one unbreakable token. */
+.party-detail {
+  grid-column: 2;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-faint);
+  overflow-wrap: anywhere;
 }
 
-.resolver-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: var(--proven-bg);
-  color: var(--proven);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  border: 1px solid rgba(14, 124, 91, 0.22);
-  line-height: 1.2;
+.verify-parties-alarm .party-dot {
+  background: var(--alarm);
 }
 
-.resolver-url {
-  color: var(--ink-soft);
+.verify-parties-alarm .party-name {
+  color: var(--alarm);
+}
+
+.verify-parties-quiet .party-dot {
+  background: var(--depth);
 }
 
 .verify-note {
@@ -1484,36 +1548,6 @@ li.note {
   background: var(--depth);
   box-shadow: 0 0 0 2px rgba(95, 106, 135, 0.2);
   flex: none;
-}
-
-.address-card-wrap {
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 10px 14px;
-}
-
-.address-card-wrap .address-row {
-  margin: 0;
-}
-
-.resolved-meta-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  text-align: left;
-}
-
-.resolved-meta-section .verify-sources {
-  text-align: left;
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: var(--ink-soft);
-}
-
-.resolved-meta-section .expiry-line {
-  margin: 4px 0 0;
-  text-align: left;
 }
 
 .resolved-actions-grid {
@@ -3889,10 +3923,6 @@ li.note {
    Buy card shows, so nobody pays for a name they have not seen verified. */
 .market-proof {
   padding: 4px 4px 12px;
-}
-
-.market-proof .resolved-meta-section {
-  margin-top: 10px;
 }
 
 /* The trust bar under every screen's panel (components/TrustBar.tsx). */

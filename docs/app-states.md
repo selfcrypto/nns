@@ -91,7 +91,7 @@ on-chain", which would be false about the address the user is about to pay.
 | `NameError` `NAME_INVALID` | Field-level, before any network call, with the §4.1 reason in plain words (§3 below) |
 | `LookupError` `NOT_FOUND` | The name has no record — offer the availability check / register path |
 | `LookupError` `IN_GRACE` | The GRACE wording of §1 |
-| `QuorumError` (`QUORUM_UNMET`, `QUORUM_LAGGING`, `QUORUM_DISAGREEMENT`, `QUORUM_ROOT_MISMATCH`) | **Alarm tier** for the disagreement forms — resolvers said different things **as of one height**; show which party said what (`.replies`) and do not answer. `QUORUM_UNMET` (too few answered) is an availability failure: "couldn't reach enough resolvers", retry, no alarm vocabulary. `QUORUM_LAGGING` (different answers **as of different heights** — the seconds after a change lands, when one resolver has the block and another has not) is **depth, never alarm**: the `propagating` card, "a recent change is still reaching every resolver", the screen asking again on its own every 3 s for up to a minute (`useRetryWhilePropagating`), then "search again in a moment". This is the expected state right after every registration (Kike, 2026-09-10, on the era's first live one) |
+| `QuorumError` (`QUORUM_UNMET`, `QUORUM_LAGGING`, `QUORUM_DISAGREEMENT`, `QUORUM_ROOT_MISMATCH`) | **Alarm tier** for the disagreement forms — resolvers said different things **as of one height**; show which party said what (`.replies`) and do not answer. `QUORUM_UNMET` (too few answered) is an availability failure: "couldn't reach enough resolvers", retry, no alarm vocabulary. `QUORUM_LAGGING` (different answers **as of different heights** — the seconds after a change lands, when one resolver has the block and another has not) is **depth, never alarm**: the `propagating` card, "a recent change is still reaching every resolver", the screen asking again on its own every 3 s for up to a minute (`useRetryWhilePropagating`), then "search again in a moment". This is the expected state right after every registration (Kike, 2026-09-10, on the era's first live one). `.replies` reached none of these cards until 2026-09-15 — `search()` kept the code and the message and dropped the parties, so an alarm could name nobody; `outcomeForError` carries them now and `search.test.ts` pins it |
 | `ProofError` | **Alarm tier.** A served proof did not hold. Do not show an address |
 | `AnchorError` (`CHECKPOINT_BINDING_INVALID`, `ANCHOR_MISMATCH`, `ANCHOR_DIVERGENCE`) | **Alarm tier.** Surface the conflict and stop resolving (§8.5 #7) |
 | `DocumentError` | A resolver served a malformed reply — an operator fault, worded as one. Retryable |
@@ -194,6 +194,14 @@ include this transaction", never "sent".
    resolvers a grown quorum has it is longer than the answer it supports.
    One tap is the whole cost, and the count — the statement a user acts on —
    is what stays on the card.
+
+   **Closed when an answer stands, open when there is none** (2026-09-15). On
+   a card that refuses to answer — a disagreement, an unmet quorum, a lagging
+   one — the same list is the only thing on the card worth reading, so it is
+   rendered open, and a tap between the user and it is a tap too many. The
+   line and its list live in the **bottom compartment of the block holding the
+   address**, on every screen that shows one, Pay included: they are the
+   provenance of that address, not a caption near it.
 2. **Never label a quorum-1 answer "unverified".** The proof verified; what
    is absent is corroboration by a second party, which is a different
    sentence. Alarm vocabulary spends down to zero the first time it is used

@@ -20,7 +20,7 @@ import { ActionSheet } from '../components/ActionSheet'
 import { BurnFigures } from '../components/BurnFigures'
 import { Hint } from '../components/Hint'
 import { PinCheck } from '../components/PinCheck'
-import { AddressRow, VerificationLine } from '../components/result'
+import { AnswerBlock } from '../components/result'
 import {
   MARKET_FILTER,
   SCREEN_SUB,
@@ -154,12 +154,7 @@ function MarketActionSheetWrapper({
     <>
       <div className="market-proof">
         <PinCheck query={result.query} address={result.address} />
-        <div className="address-card-wrap">
-          <AddressRow address={result.address} full />
-        </div>
-        <div className="resolved-meta-section">
-          <VerificationLine result={result} />
-        </div>
+        <AnswerBlock result={result} />
       </div>
       <ActionSheet
         action={action}

@@ -464,7 +464,11 @@
 }
 
 /* Recipient Info Card */
+/* `--box-pad` is what the global `.answer-foot` bleeds to (app.css): the
+   verification seam spans this card's own padding without app.css knowing
+   which box it is sitting in. */
 .recipientCard {
+  --box-pad: 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -472,6 +476,12 @@
   border: 1px solid rgba(var(--tint-ink), 0.05);
   border-radius: 14px;
   padding: 14px;
+}
+
+.recipientCard :global(.answer-foot) {
+  /* The card is a flex column with its own 10px gap, so the foot must not add
+     a second one. */
+  margin-top: 0;
 }
 
 .recipientHeader {
@@ -886,6 +896,7 @@
   }
 
   .recipientCard {
+    --box-pad: 10px;
     padding: 10px;
     border-radius: 12px;
   }

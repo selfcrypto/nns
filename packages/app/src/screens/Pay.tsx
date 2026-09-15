@@ -101,7 +101,7 @@ import { IdentityBar } from '../components/IdentityBar'
 import { NameCard } from '../components/NameCard'
 import { PasteButton } from '../components/PasteButton'
 import { PinCheck } from '../components/PinCheck'
-import { AddressRow } from '../components/result'
+import { AddressRow, VerificationLine } from '../components/result'
 import { TrustBar } from '../components/TrustBar'
 import { NameText, Spinner } from '../components/ui'
 import styles from './pay.module.css'
@@ -575,6 +575,11 @@ export function PayScreen({
                   <div className={styles.evmAddressBox}>
                     <p className={`pay-evm nns-name`} style={{ margin: 0 }}>{evm}</p>
                   </div>
+                  {/* The `E` record sits in the §8.1 leaf (r26), so the proof
+                      that covers the NIM address covers this one. */}
+                  <div className="answer-foot">
+                    <VerificationLine result={resolved} />
+                  </div>
                 </div>
 
                 <div className={styles.fieldLabel}>
@@ -695,6 +700,13 @@ export function PayScreen({
                   </div>
                   <PinCheck query={resolved.query} address={resolved.address} onBlocking={setPinBlocking} />
                   <AddressRow address={resolved.address} full />
+                  {/* Who verified the address about to be paid. Pay showed
+                      nothing of it until 2026-09-15, on the one screen where
+                      money actually moves (Kike). Same foot as the result
+                      card's, in this card's own padding. */}
+                  <div className="answer-foot">
+                    <VerificationLine result={resolved} />
+                  </div>
                 </div>
 
                 {addresses.length > 1 && (
