@@ -1169,8 +1169,8 @@ nothing, and the payer's app resolves and verifies the name exactly as if
 they had typed it.
 
 **Messaging an owner** is a convention the app implements, not protocol: a
-dust transaction to the **owner's** address carrying `NC1<name>|<text>`
-(≤ 64 bytes, never `NNS1`). `packages/chat` is the one parser;
+dust transaction to the **owner's** address carrying `NC1<text>`
+(≤ 64 bytes, never `NNS1`, never below `LAUNCH_HEIGHT`). `packages/chat` is the one parser;
 `docs/app-chat.md` is the spec. It is invisible to every indexer by design.
 
 ---

@@ -282,12 +282,10 @@
     <string id="chatPublicNotice">Messages are public, permanent, and attached to your address. Anyone can read them on chain, forever.</string>
     <string id="chatOwnNameLine">This name is yours. A message to yourself can’t be sent.</string>
     <string id="chatBudgetLine" params="used budget">2/2 bytes</string>
-    <string id="CHAT_ENCODE_TEXT.BAD_NAME">Not a valid name.</string>
     <string id="CHAT_ENCODE_TEXT.CONTROL_CHARS">Plain text only. No control characters.</string>
     <string id="CHAT_ENCODE_TEXT.EMPTY_MESSAGE">Write something first.</string>
     <string id="CHAT_ENCODE_TEXT.OVER_BUDGET">Too long. A message travels in 64 bytes.</string>
     <string id="inboxWindowLine" params="sinceDate">Messages since {sinceDate}.</string>
-    <string id="notYourNameLine">Not one of your names. The name in a message is only the sender’s claim.</string>
     <string id="hiddenSendersLabel" params="count">Hidden (2)</string>
     <string id="hideSenderAction">Hide sender</string>
     <string id="unhideSenderAction">Unhide</string>
@@ -435,7 +433,6 @@
     <string id="backToInboxAria">Back to inbox</string>
     <string id="copyAddressLabel">Copy full address</string>
     <string id="copiedLabel">Copied</string>
-    <string id="subjectAboutLabel">about</string>
     <string id="yesterdayLabel">Yesterday</string>
   </group>
 </wording>

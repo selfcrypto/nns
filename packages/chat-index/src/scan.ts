@@ -47,10 +47,8 @@ export function rowsFromBatch(
     if (!hasChatPrefix(tx.recipientData)) continue
     const data = (tx.recipientData ?? '').toLowerCase()
     const payload = parseChatPayload(data)
-    // A malformed NC1 payload is not a message. It is dropped rather than
-    // stored-and-marked: there is nothing to show a reader and no claim to
-    // preserve — unlike a well-formed message about a name that is not the
-    // recipient's, which is stored, shown, and marked by the client.
+    // A malformed NC1 payload is not a message: there is nothing to show a
+    // reader, so it is dropped rather than stored.
     if (payload === null) continue
     rows.push({
       txHash: tx.hash,
@@ -62,7 +60,6 @@ export function rowsFromBatch(
       // rows carry no proof — this is where attribution happens or nowhere.
       sender: attributedFrom(tx),
       recipient: tx.to,
-      name: payload.name,
       message: payload.message,
       recipientData: data,
     })

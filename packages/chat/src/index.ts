@@ -8,8 +8,8 @@
  * single-implementation rule was written to prevent.
  */
 
-export { CHAT_DUST_LUNA, CHAT_MAX_BYTES, CHAT_PREFIX, chatByteBudget, encodeChatPayload, messageBytes, parseChatPayload, validateChatSubject } from './format.js'
+export { CHAT_DUST_LUNA, CHAT_MAX_BYTES, CHAT_MIN_HEIGHT, CHAT_PREFIX, chatByteBudget, encodeChatPayload, messageBytes, parseChatPayload } from './format.js'
 export type { ChatEncodeFailure, ChatEncodeResult, ChatPayload } from './format.js'
 export { bytesToHex, hexToBytes } from './hex.js'
-export { PEER_NAMES_SHOWN, attributedFrom, chatConversations, chatMessages, peerIdentity, subjectBreaks } from './inbox.js'
-export type { ChatConversation, ChatMessage, ChatTx, PeerIdentity, PeerName, SubjectBreak } from './inbox.js'
+export { PEER_NAMES_SHOWN, attributedFrom, chatConversations, chatMessages, peerIdentity } from './inbox.js'
+export type { ChatConversation, ChatMessage, ChatTx, PeerIdentity, PeerName } from './inbox.js'

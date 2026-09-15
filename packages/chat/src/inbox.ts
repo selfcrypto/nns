@@ -5,7 +5,7 @@
  */
 
 import { SENDER_TYPE_HTLC, formatAddress, htlcAuthorizer } from '@nimiqnames/core'
-import { parseChatPayload } from './format.js'
+import { CHAT_MIN_HEIGHT, parseChatPayload } from './format.js'
 
 
 export interface ChatTx {
@@ -51,7 +51,6 @@ export interface ChatMessage {
   readonly hash: string
   readonly direction: 'in' | 'out'
   readonly peer: string
-  readonly name: string
   readonly message: string
   readonly timestamp: number
   readonly blockNumber: number
@@ -63,6 +62,11 @@ export function chatMessages(txs: readonly ChatTx[], myAddresses: readonly strin
   const seen = new Set<string>()
   for (const tx of txs) {
     if (!tx.executionResult) continue
+    // Nothing from before the registry this message talks about. An index may
+    // hold older rows — its scan floor is the operator's choice and its read
+    // endpoint does not filter — so the floor is applied here, where every
+    // reader passes (2026-09-15).
+    if (tx.blockNumber < CHAT_MIN_HEIGHT) continue
     if (seen.has(tx.hash)) continue // one tx appears in several addresses' histories
     seen.add(tx.hash)
     const payload = parseChatPayload(tx.recipientData)
@@ -75,7 +79,6 @@ export function chatMessages(txs: readonly ChatTx[], myAddresses: readonly strin
       hash: tx.hash,
       direction: incoming ? 'in' : 'out',
       peer: incoming ? from : tx.to,
-      name: payload.name,
       message: payload.message,
       timestamp: tx.timestamp,
       blockNumber: tx.blockNumber,
@@ -85,18 +88,10 @@ export function chatMessages(txs: readonly ChatTx[], myAddresses: readonly strin
 }
 
 export interface ChatConversation {
-  /**
-   * A conversation is **one per peer address**, not one per (peer, name).
-   * The name a message carries is its subject — which of the recipient's
-   * names it is about — and one person may write about several over time;
-   * keying on it made the same person two rows, which is not what a
-   * conversation is. The subject stays visible per message (`subjectBreaks`).
-   */
+  /** A conversation is **one per peer address**. There is nothing else to key on. */
   readonly peer: string
   readonly messages: readonly ChatMessage[]
   readonly lastTimestamp: number
-  /** The newest message's subject — what a reply puts on the wire. */
-  readonly lastName: string
 }
 
 export function chatConversations(messages: readonly ChatMessage[]): readonly ChatConversation[] {
@@ -113,30 +108,9 @@ export function chatConversations(messages: readonly ChatMessage[]): readonly Ch
         peer: thread[0]?.peer ?? '',
         messages: thread,
         lastTimestamp: last?.timestamp ?? 0,
-        lastName: last?.name ?? '',
       }
     })
     .sort((a, b) => b.lastTimestamp - a.lastTimestamp)
-}
-
-export interface SubjectBreak {
-  readonly message: ChatMessage
-  /** True on the first message and wherever the subject name changes. */
-  readonly showSubject: boolean
-}
-
-/**
- * Where to draw "about <name>" inside a conversation. Pure, so the rule is
- * tested rather than written into JSX: the subject is announced once, and
- * again only where it actually changes.
- */
-export function subjectBreaks(messages: readonly ChatMessage[]): readonly SubjectBreak[] {
-  let previous: string | null = null
-  return messages.map((message) => {
-    const showSubject = message.name !== previous
-    previous = message.name
-    return { message, showSubject }
-  })
 }
 
 // ── Who the peer is ─────────────────────────────────────────────────────────

@@ -24,22 +24,45 @@ format can move without a new prefix.
 ## 2. Wire format
 
 ```
-NC1<name>|<message>
+NC1<message>
 ```
 
 | Field | Rule |
 |---|---|
 | `NC1` | 3 ASCII bytes, exact |
-| `name` | The **subject** — the name the message is about, lowercase. §4.1 **syntax** (`validateNameSyntax`: awarded short names are registered and messageable), **or a `label.parent` query**: §4.4 syntax on the label, §4.1 on the parent. `validateChatSubject` is the one check |
-| `\|` | 1 byte, the same separator every NNS1 payload uses |
 | `message` | UTF-8, ≥ 1 byte, no C0 control characters |
 
 **Total ≤ 64 bytes, hard.** The network's cap is the measured silent-drop
 boundary: 65+ bytes returns a hash and never lands (docs/rpc-reference.md
-§4). The message budget is therefore `64 − 4 − len(name)` **bytes** — 55 for
-a 5-char name, 36 for a 24-char one, 11 for the longest dotted subject there
-is — and the composer counts UTF-8 bytes, not characters, because an emoji
-costs four.
+§4). The message budget is therefore a flat **61 bytes**, and the composer
+counts UTF-8 bytes, not characters, because an emoji costs four.
+
+**There is no subject field.** The payload carried `<name>|` until
+2026-09-15 — the name the sender said the message was about. It cost 4 +
+`len(name)` of the budget, leaving 57 bytes for a message about a 5-character
+name and **11** for the longest dotted subject, and it bought a name that
+could not be trusted on arrival. Kike: *"That var on the payload doesn't makes
+sense at all. Name should be retrieved (if any) by the app with on-chain data
+against the address that sent the message, and that's all."* What a name in
+this app means is settled by the registry, so the only names shown are the
+peer's, reverse-resolved from `/address/{addr}/names` (§5). Nothing is
+asserted on the wire, so nothing has to be disclaimed.
+
+**No message predates the registry it talks about.** `CHAT_MIN_HEIGHT` is
+`CONSTANTS.LAUNCH_HEIGHT`, and a transaction below it is not an NC message:
+`chatMessages` drops it, and an index configured to start below it is refused
+(`packages/chat-index/src/env.ts`). Without that floor the inbox showed
+threads from before the era, headed by names whose ownership had since moved —
+which is how `nns` appeared in a stranger's inbox (Kike, 2026-09-15). An
+operator may start an index **later** than the floor and says so in its
+declared window; the client clamps that window to the floor so it never
+promises blocks it drops.
+
+**The `NC1` prefix survived the change.** The digit is a version and a bump
+was the alternative; keeping it means a payload written in the old shape still
+parses, as the literal text `name|message` it now is. The height floor is what
+makes that harmless: such a payload can only reach a reader if it was sent in
+this era, before the change.
 
 Transaction fields:
 
@@ -77,15 +100,20 @@ carry every leaf field, so `@nimiqnames/resolver` can expose a verified owner
 without new protocol. Do that before chat ever grows anything more valuable
 than text.
 
-**A subdomain is the one subject with no owner.** §8.6 gives `label.parent` no
-record, so §3's owner does not exist for it and there is nothing to look up:
-the only party the query designates is the address the parent's delegate host
-answered with. A message about `rico.nns` therefore goes **there**, with
-`rico.nns` as the subject. The parent's owner is not a stand-in — they run the
-host, and the address they hand out may belong to anyone (Kike, 2026-08-28).
-Two things follow, and the app says both beside the composer: that address is
-the host's word and no proof covers it, and it is a *target*, so it may be a
-deposit address nobody reads.
+**A subdomain has no owner.** §8.6 gives `label.parent` no record, so §3's
+owner does not exist for it and there is nothing to look up: the only party the
+query designates is the address the parent's delegate host answered with. A
+message about `rico.nns` therefore goes **there**. The parent's owner is not a
+stand-in — they run the host, and the address they hand out may belong to
+anyone (Kike, 2026-08-28). Two things follow, and the app says both beside the
+composer: that address is the host's word and no proof covers it, and it is a
+*target*, so it may be a deposit address nobody reads.
+
+Since 2026-09-15 the payload carries no subject, so a message about
+`rico.nns` arrives as text at that address with no machine-readable note of
+which label it concerns. That is the accepted cost of the change: a sender who
+needs to say it writes it in the message, out of a budget that grew by the
+bytes the field used to take.
 
 **Messaging your own name is impossible, not forbidden**: sender = owner
 would be a self-transaction, which the network drops silently (§5.3). The
@@ -118,7 +146,8 @@ Inbox pipeline, entirely client-side:
 
 1. Fetch history for the Pay address: **one call, 500 transactions,
    descending**. There is no `startAt` paging loop — see the window note below.
-2. Keep `executionResult: true`, data starting `NC1`, well-formed payload.
+2. Keep `executionResult: true`, data starting `NC1`, well-formed payload, and
+   **at or above `CHAT_MIN_HEIGHT`** (§2).
 3. Attribute the sender: `from` is read through §7.2's **effective sender**
    (`attributedFrom` in `@nns/chat`, over core's parser) — the account,
    unless it is an HTLC whose proof names its authorizing key. Nimiq Pay
@@ -142,9 +171,10 @@ and a collapsed "other" bucket. Both were wrong in the same way: the test
 was filed under a spoofing warning, and the same person appeared once per name
 they were written about. The split was never a spam filter either: spam naming
 a name you do own always landed in the main list. So the doubt moved onto the
-single incoming message it is true of, the bucket became a real
-**hide-by-sender** list, and the subject name is announced inside the
-conversation — once, and again wherever it changes.
+single incoming message it was true of, and the bucket became a real
+**hide-by-sender** list. That per-message doubt is itself gone since
+2026-09-15: with no name on the wire there is nothing to doubt, and the
+hide-by-sender list is all that remains of the split.
 
 **The window is honest, and it is one page deep.** A node below its history
 horizon answers `[]` exactly like an empty history (the indexer's own trap, §2
@@ -186,8 +216,16 @@ honest best effort, exactly like its 500-transaction window.
 | **Everything is public, forever** | The composer says so before the first send, plainly: on-chain, unencrypted, permanent, attached to your address. Not fine print |
 | **Phishing text in a payments app** | Messages render as plain text, full stop. No linkification, no markdown, no address auto-detection. A message asking you to pay somewhere is just text — and the reply path is the only in-app action a message can offer |
 | **Spam at dust cost** | Client-side hide-by-sender: a device-local address list (`packages/app/src/lib/hidden.ts`), no global machinery. Hidden conversations collapse into a `Hidden (n)` disclosure rather than vanishing — a reader can always see what they silenced |
-| **Spoofed name field** | The payload's name is sender-asserted; the inbox verifies it against `/address/{addr}/names` and marks any incoming message naming a name this address does not own |
-| **Impersonation of the app's voice** | A message is never rendered with the app's own chrome, and the sender's **address is always shown** — identicon plus spaced form, in the list and in the header. Beside it the app shows the names that address **holds**, reverse-resolved from `/address/{addr}/names`. This row said the opposite until 2026-08-19, on the grounds that reverse resolution "presents an unverified claim as identity"; that conflated the payload's name field, which is a claim, with an owner → names lookup, which is a registry fact. Without it a recipient cannot tell who wrote to them at all. Only `REGISTERED` names are shown — a name in `GRACE` has stopped resolving |
+| **Impersonation of the app's voice** | A message is never rendered with the app's own chrome, and the sender's **address is always shown** — identicon plus spaced form, in the list and in the header. Beside it the app shows the names that address **holds**, reverse-resolved from `/address/{addr}/names`. This row said the opposite until 2026-08-19, on the grounds that reverse resolution "presents an unverified claim as identity"; that conflated the payload's name field, which was a claim, with an owner → names lookup, which is a registry fact. Without it a recipient cannot tell who wrote to them at all. Only `REGISTERED` names are shown — a name in `GRACE` has stopped resolving |
+
+**"Spoofed name field" was a row here until 2026-09-15.** The payload no longer
+has a name field, so the threat does not exist and neither does the marking it
+called for. That marking was the app's worst line: red, in the alarm palette,
+on a message that attacked nobody, two lines under a hint saying names on this
+screen come from the registry. Both statements were true — of two different
+names — and nothing on the screen distinguished them, so it read as the app
+contradicting itself (Kike: *"both estatements say the opposite"*). Deleting
+the field deleted the line.
 
 **Encryption is a v2 note, not a v1 gap to paper over.** NNS state holds
 only the owner's address — a hash of the key — so there is nothing to

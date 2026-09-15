@@ -16,7 +16,6 @@ const row = (over: Partial<ChatRow> = {}): ChatRow => ({
   timestamp: 1_700_000_000_000,
   sender: 'NQ42 5QRF L5AV J6K3 BQHQ FAE8 XXHR TS8Y 9YRA',
   recipient: 'NQ64 TY4R HYX0 2XL4 9J8T UD8K 6YLV M2KP KMBS',
-  name: 'codescrafter',
   message: 'hello',
   recipientData: '4e4331636f6465736372616674657232',
   ...over,

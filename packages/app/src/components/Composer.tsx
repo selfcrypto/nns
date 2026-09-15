@@ -62,9 +62,11 @@ export function Composer({
   const ownName = recipient !== null && sender !== null && sameAddress(recipient, sender)
   if (ownName) return <p className="note note-info">{chatOwnNameLine()}</p>
 
-  const budget = chatByteBudget(name)
+  // The budget no longer depends on what the message is about: the payload is
+  // the message (2026-09-15). `name` stays for the heading and the recipient.
+  const budget = chatByteBudget()
   const used = messageBytes(text)
-  const encoded = text === '' ? null : encodeChatPayload(name, text)
+  const encoded = text === '' ? null : encodeChatPayload(text)
   const failure = encoded !== null && !encoded.ok ? encoded.reason : null
 
   const canSend =

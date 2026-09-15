@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   CHAT_MAX_BYTES,
+  CHAT_MIN_HEIGHT,
   attributedFrom,
   chatByteBudget,
   chatConversations,
@@ -9,7 +10,6 @@ import {
   messageBytes,
   parseChatPayload,
   peerIdentity,
-  subjectBreaks,
   type ChatTx,
 } from './index.js'
 
@@ -30,92 +30,81 @@ const HTLC = 'NQ89 R3HN 70XQ 2E5A L4YS CV2Q UL5J 84TX 8L8H'
 const hex = (text: string): string =>
   [...new TextEncoder().encode(text)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 
+// In the era by default: `chatMessages` drops anything below CHAT_MIN_HEIGHT.
 const tx = (over: Partial<ChatTx>): ChatTx => ({
   hash: 'h1',
-  blockNumber: 100,
+  blockNumber: CHAT_MIN_HEIGHT,
   timestamp: 1_000,
   from: PEER,
   to: ME,
-  recipientData: hex('NC1example|hello'),
+  recipientData: hex('NC1hello'),
   executionResult: true,
   ...over,
 })
 
 describe('encode/parse roundtrip', () => {
   it('roundtrips a message', () => {
-    const encoded = encodeChatPayload('example', 'want to sell?')
+    const encoded = encodeChatPayload('want to sell?')
     expect(encoded.ok).toBe(true)
     if (encoded.ok) {
-      expect(parseChatPayload(encoded.dataHex)).toEqual({ name: 'example', message: 'want to sell?' })
+      expect(parseChatPayload(encoded.dataHex)).toEqual({ message: 'want to sell?' })
     }
   })
 
   it('the prefix is NC1 and never anything starting NNS1', () => {
-    const encoded = encodeChatPayload('example', 'hi')
+    const encoded = encodeChatPayload('hi')
     expect(encoded.ok && Buffer.from(encoded.dataHex, 'hex').toString().startsWith('NC1')).toBe(true)
     expect(encoded.ok && Buffer.from(encoded.dataHex, 'hex').toString().startsWith('NNS1')).toBe(false)
   })
 
   it('64 bytes exactly fits; 65 is refused — the network cap is a silent drop', () => {
-    const name = 'example'
-    const budget = chatByteBudget(name)
-    expect(budget).toBe(CHAT_MAX_BYTES - 3 - name.length - 1)
-    const atLimit = encodeChatPayload(name, 'a'.repeat(budget))
+    const budget = chatByteBudget()
+    expect(budget).toBe(CHAT_MAX_BYTES - 3)
+    const atLimit = encodeChatPayload('a'.repeat(budget))
     expect(atLimit.ok).toBe(true)
     if (atLimit.ok) expect(atLimit.dataHex.length / 2).toBe(64)
-    const over = encodeChatPayload(name, 'a'.repeat(budget + 1))
+    const over = encodeChatPayload('a'.repeat(budget + 1))
     expect(over).toEqual({ ok: false, reason: 'OVER_BUDGET' })
+  })
+
+  // The subject used to eat 4 + len(name): 57 bytes for a message about a
+  // 5-character name, 11 for the longest dotted one (Kike, 2026-09-15).
+  it('is the same budget whatever the message is about', () => {
+    expect(chatByteBudget()).toBe(61)
   })
 
   it('counts UTF-8 bytes, not characters', () => {
     expect(messageBytes('🙂')).toBe(4)
-    const budget = chatByteBudget('example')
-    const emojis = '🙂'.repeat(Math.floor(budget / 4) + 1)
-    expect(encodeChatPayload('example', emojis)).toEqual({ ok: false, reason: 'OVER_BUDGET' })
+    const emojis = '🙂'.repeat(Math.floor(chatByteBudget() / 4) + 1)
+    expect(encodeChatPayload(emojis)).toEqual({ ok: false, reason: 'OVER_BUDGET' })
   })
 
-  it('refuses control characters, empty messages, and bad names', () => {
-    expect(encodeChatPayload('example', 'a\nb')).toEqual({ ok: false, reason: 'CONTROL_CHARS' })
-    expect(encodeChatPayload('example', '')).toEqual({ ok: false, reason: 'EMPTY_MESSAGE' })
-    expect(encodeChatPayload('-bad-', 'hi')).toEqual({ ok: false, reason: 'BAD_NAME' })
+  it('refuses control characters and empty messages', () => {
+    expect(encodeChatPayload('a\nb')).toEqual({ ok: false, reason: 'CONTROL_CHARS' })
+    expect(encodeChatPayload('')).toEqual({ ok: false, reason: 'EMPTY_MESSAGE' })
   })
 
-  it('accepts an awarded short name — syntax, not the reserved floor', () => {
-    expect(encodeChatPayload('nq', 'hi').ok).toBe(true)
+  it('roundtrips a message and nothing else', () => {
+    const encoded = encodeChatPayload('is this free?')
+    expect(encoded.ok).toBe(true)
+    if (!encoded.ok) return
+    expect(parseChatPayload(encoded.dataHex)).toEqual({ message: 'is this free?' })
   })
 
   /**
-   * A subdomain has no owner and no record (§8.6) — the only party `rico.nns`
-   * designates is the address its parent's host answered with. So the subject
-   * has to be able to say `rico.nns`; naming the parent instead addressed
-   * whoever runs the host (Kike, 2026-08-28).
+   * The prefix was kept when the subject was dropped (Kike, 2026-09-15), so a
+   * payload written in the old three-field shape still parses — as the literal
+   * text it now is. `CHAT_MIN_HEIGHT` is what keeps that from mattering: every
+   * message older than this era is dropped before a reader sees it.
    */
-  it('accepts a dotted subject, and roundtrips it', () => {
-    const encoded = encodeChatPayload('rico.nns', 'is this free?')
-    expect(encoded.ok).toBe(true)
-    if (!encoded.ok) return
-    expect(parseChatPayload(encoded.dataHex)).toEqual({ name: 'rico.nns', message: 'is this free?' })
-  })
-
-  it('applies label rules to the label and name rules to the parent', () => {
-    // A label floors at 1 character and needs no letter (§4.4); the parent is
-    // a name and takes §4.1's syntax.
-    expect(encodeChatPayload('a.example', 'hi').ok).toBe(true)
-    expect(encodeChatPayload('-rico.nns', 'hi')).toEqual({ ok: false, reason: 'BAD_NAME' })
-    expect(encodeChatPayload('rico.-nns', 'hi')).toEqual({ ok: false, reason: 'BAD_NAME' })
-    expect(encodeChatPayload('a.b.c', 'hi')).toEqual({ ok: false, reason: 'BAD_NAME' })
-    expect(encodeChatPayload('rico.', 'hi')).toEqual({ ok: false, reason: 'BAD_NAME' })
-    expect(encodeChatPayload('.nns', 'hi')).toEqual({ ok: false, reason: 'BAD_NAME' })
-  })
-
-  it('the budget shrinks by the whole dotted subject', () => {
-    expect(chatByteBudget('rico.nns')).toBe(chatByteBudget('nns') - 5)
+  it('reads a pre-2026-09-15 payload as the message it now is', () => {
+    expect(parseChatPayload(hex('NC1nns|testing message'))).toEqual({ message: 'nns|testing message' })
   })
 
   it('parse refuses non-NC1 data, NNS1 payloads included', () => {
     expect(parseChatPayload(hex('NNS1Gexample'))).toBeNull()
     expect(parseChatPayload(hex('NC2example|hi'))).toBeNull()
-    expect(parseChatPayload(hex('NC1example'))).toBeNull()
+    expect(parseChatPayload(hex('NC1'))).toBeNull()
     expect(parseChatPayload('zz')).toBeNull()
     expect(parseChatPayload('')).toBeNull()
   })
@@ -125,7 +114,7 @@ describe('inbox derivation', () => {
   it('keeps only executed NC transactions touching me, in timestamp order', () => {
     const messages = chatMessages(
       [
-        tx({ hash: 'h2', timestamp: 3_000, from: ME, to: PEER, recipientData: hex('NC1example|reply') }),
+        tx({ hash: 'h2', timestamp: 3_000, from: ME, to: PEER, recipientData: hex('NC1reply') }),
         tx({ hash: 'h1', timestamp: 1_000 }),
         tx({ hash: 'h3', recipientData: hex('NNS1Gexample'), timestamp: 2_000 }),
         tx({ hash: 'h4', executionResult: false, timestamp: 2_500 }),
@@ -139,11 +128,11 @@ describe('inbox derivation', () => {
     expect(messages[1]?.peer).toBe(PEER)
   })
 
-  it('is one conversation per peer, whatever names the messages are about', () => {
+  it('is one conversation per peer', () => {
     const messages = chatMessages(
       [
-        tx({ hash: 'h1', timestamp: 1_000, recipientData: hex('NC1example|about example') }),
-        tx({ hash: 'h2', timestamp: 2_000, recipientData: hex('NC1other-name|about other') }),
+        tx({ hash: 'h1', timestamp: 1_000, recipientData: hex('NC1first') }),
+        tx({ hash: 'h2', timestamp: 2_000, recipientData: hex('NC1second') }),
       ],
       [ME],
     )
@@ -151,8 +140,22 @@ describe('inbox derivation', () => {
     expect(conversations).toHaveLength(1)
     expect(conversations[0]?.peer).toBe(PEER)
     expect(conversations[0]?.messages).toHaveLength(2)
-    // A reply continues the newest subject, not the one the thread opened on.
-    expect(conversations[0]?.lastName).toBe('other-name')
+  })
+
+  /**
+   * The inbox showed threads from before this era — about names that had since
+   * changed hands, so a conversation was headed by a name the address no
+   * longer held (Kike, 2026-09-15). No reader in the path applied a floor.
+   */
+  it('drops anything below CHAT_MIN_HEIGHT', () => {
+    const messages = chatMessages(
+      [
+        tx({ hash: 'old', timestamp: 1_000, blockNumber: CHAT_MIN_HEIGHT - 1, recipientData: hex('NC1before the era') }),
+        tx({ hash: 'new', timestamp: 2_000, blockNumber: CHAT_MIN_HEIGHT, recipientData: hex('NC1in the era') }),
+      ],
+      [ME],
+    )
+    expect(messages.map((message) => message.hash)).toEqual(['new'])
   })
 
   it('orders conversations newest first', () => {
@@ -160,23 +163,11 @@ describe('inbox derivation', () => {
     const messages = chatMessages(
       [
         tx({ hash: 'h1', timestamp: 1_000 }),
-        tx({ hash: 'h2', timestamp: 5_000, from: other, recipientData: hex('NC1example|later') }),
+        tx({ hash: 'h2', timestamp: 5_000, from: other, recipientData: hex('NC1later') }),
       ],
       [ME],
     )
     expect(chatConversations(messages).map((one) => one.peer)).toEqual([other, PEER])
-  })
-
-  it('announces the subject once, and again only when it changes', () => {
-    const messages = chatMessages(
-      [
-        tx({ hash: 'h1', timestamp: 1_000, recipientData: hex('NC1example|first') }),
-        tx({ hash: 'h2', timestamp: 2_000, recipientData: hex('NC1example|same subject') }),
-        tx({ hash: 'h3', timestamp: 3_000, recipientData: hex('NC1other-name|new subject') }),
-      ],
-      [ME],
-    )
-    expect(subjectBreaks(messages).map((entry) => entry.showSubject)).toEqual([true, false, true])
   })
 })
 

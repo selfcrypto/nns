@@ -1200,8 +1200,7 @@ export const chatOwnNameLine = (): string =>
 
 export const chatBudgetLine = payMessageBudgetLine
 
-export const CHAT_ENCODE_TEXT: Record<'BAD_NAME' | 'EMPTY_MESSAGE' | 'CONTROL_CHARS' | 'OVER_BUDGET', string> = {
-  BAD_NAME: 'Not a valid name.',
+export const CHAT_ENCODE_TEXT: Record<'EMPTY_MESSAGE' | 'CONTROL_CHARS' | 'OVER_BUDGET', string> = {
   EMPTY_MESSAGE: 'Write something first.',
   CONTROL_CHARS: 'Plain text only. No control characters.',
   OVER_BUDGET: overBudgetLine(),
@@ -1209,15 +1208,16 @@ export const CHAT_ENCODE_TEXT: Record<'BAD_NAME' | 'EMPTY_MESSAGE' | 'CONTROL_CH
 
 export const inboxWindowLine = (sinceDate: string): string => `Messages since ${sinceDate}.`
 
-/**
- * Said on an **incoming** message whose subject name is not one of yours.
- * It replaced a whole collapsed “Other messages” bucket, which applied the
- * same test to conversations you started yourself — filing your own outgoing
- * messages under a spoofing warning. The doubt is per message and only ever
- * about what someone else claimed.
+/*
+ * `notYourNameLine` was here: *"Not one of your names. The name in a message
+ * is only the sender's claim."* It is gone with the subject field it policed
+ * (2026-09-15). It was shown in the alarm palette on a message that attacked
+ * nobody, and two lines under a hint saying names on this screen come from the
+ * registry — two true statements about two different names, reading as a
+ * contradiction because nothing distinguished them. Kike: *"both estatements
+ * say the opposite"*, and then *"the red message must be removed because it
+ * won't make sense at all"*.
  */
-export const notYourNameLine = (): string =>
-  'Not one of your names. The name in a message is only the sender’s claim.'
 
 export const hiddenSendersLabel = (count: number): string => `Hidden (${count})`
 
@@ -1711,5 +1711,4 @@ export const backToInboxLabel = (): string => 'Inbox'
 export const backToInboxAria = (): string => 'Back to inbox'
 export const copyAddressLabel = (): string => 'Copy full address'
 export const copiedLabel = (): string => 'Copied'
-export const subjectAboutLabel = (): string => 'about'
 export const yesterdayLabel = (): string => 'Yesterday'

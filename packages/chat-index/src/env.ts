@@ -6,8 +6,15 @@
  * statement of how far back this index reaches, it must be a height the node
  * still holds, and it is reported to every reader as the window — a silent
  * default would turn "the operator chose this" into "nobody noticed".
+ *
+ * It may be **later** than `CHAT_MIN_HEIGHT` — an operator who started
+ * indexing last week says so — but never earlier. Below the launch height
+ * there is no registry for a message to be about, and every reader drops
+ * those rows anyway (`chatMessages`), so scanning for them buys nothing and
+ * declares a window the endpoint cannot honour.
  */
 
+import { CHAT_MIN_HEIGHT } from '@nns/chat'
 import { isLogLevel, type LogLevel } from './logger.js'
 
 export class EnvError extends Error {
@@ -51,6 +58,12 @@ export function loadSettings(env: EnvSource = process.env): ChatIndexSettings {
   const startHeight = Number(required(env, 'NNS_CHAT_START_HEIGHT'))
   if (!Number.isInteger(startHeight) || startHeight < 1) {
     throw new EnvError('NNS_CHAT_START_HEIGHT must be a positive integer block height')
+  }
+  if (startHeight < CHAT_MIN_HEIGHT) {
+    throw new EnvError(
+      `NNS_CHAT_START_HEIGHT must be at or above the launch height (${CHAT_MIN_HEIGHT}); ` +
+        'nothing below it is about a registered name, and every reader drops those messages',
+    )
   }
 
   return {

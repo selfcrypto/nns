@@ -14,7 +14,7 @@ const tx = (over: Partial<RpcTransaction> = {}): RpcTransaction => ({
   timestamp: 1_700_000_000_000,
   from: SENDER,
   to: RECIPIENT,
-  recipientData: hex('NC1codescrafter|hello'),
+  recipientData: hex('NC1hello'),
   networkId: 24,
   executionResult: true,
   ...over,
@@ -37,11 +37,10 @@ describe('discovery', () => {
       blockNumber: 1_000,
       sender: SENDER,
       recipient: RECIPIENT,
-      name: 'codescrafter',
       message: 'hello',
     })
     // The raw payload is kept so a reader re-parses rather than trusting us.
-    expect(rows[0]?.recipientData).toBe(hex('NC1codescrafter|hello'))
+    expect(rows[0]?.recipientData).toBe(hex('NC1hello'))
   })
 
   it('drops what is not an NC message, and never the NNS ones', () => {
@@ -53,15 +52,14 @@ describe('discovery', () => {
         tx({ hash: 'too-early', blockNumber: 10 }),
         tx({ hash: 'nns', recipientData: hex('NNS1Gexample') }),
         tx({ hash: 'reward', recipientData: undefined }),
-        tx({ hash: 'malformed', recipientData: hex('NC1no-separator') }),
-        tx({ hash: 'bad-name', recipientData: hex('NC1UPPER|hi') }),
+        tx({ hash: 'malformed', recipientData: hex('NC1') }),
         tx({ hash: 'keeper' }),
       ],
       24,
       100,
     )
     expect(batch.rows.map((row) => row.txHash)).toEqual(['keeper'])
-    expect(batch.returned).toBe(8)
+    expect(batch.returned).toBe(7)
   })
 
   it('reads an empty batch as empty rather than as an error', () => {

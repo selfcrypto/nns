@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  CHAT_MIN_HEIGHT,
   chatConversations,
   chatMessages,
   peerIdentity,
-  subjectBreaks,
   type ChatConversation,
   type ChatTx,
   type PeerName,
 } from '@nns/chat'
-import { getOwnedNames } from '../lib/api'
+import { getOwnedNames, getParams } from '../lib/api'
 import { chatEndpoint } from '../config'
 import { fetchChatIndex, type ChatIndexPage } from '../lib/chatIndex'
 import { hideSender, loadHiddenSenders, unhideSender } from '../lib/hidden'
@@ -36,10 +36,8 @@ import {
   inboxNotConfiguredLine,
   inboxNotConfiguredTitle,
   inboxWindowLine,
-  notYourNameLine,
   peerMoreNamesLine,
   peerNamesHint,
-  subjectAboutLabel,
   unhideSenderAction,
 } from '../lib/wording'
 import { Composer } from '../components/Composer'
@@ -116,7 +114,12 @@ export function InboxScreen({
     viewers.length === 0 || source === null
       ? null
       : async () => {
-          const [pages, ownedPages] = await Promise.all([
+          // `/params` is here only for the head, which turns a block height
+          // into the date the window line shows. It replaced one
+          // `getOwnedNames` per connected address: those were fetched to check
+          // a message's subject against the names you hold, and there is no
+          // subject any more (2026-09-15).
+          const [pages, params] = await Promise.all([
             Promise.all(
               viewers.map(async (address): Promise<ChatIndexPage> => {
                 if (index !== null) return fetchChatIndex(index, address)
@@ -125,24 +128,23 @@ export function InboxScreen({
                 return { ...(await fetchHistory(transport!, address)), startHeight: null }
               }),
             ),
-            Promise.all(viewers.map((address) => getOwnedNames(apiBase(), address))),
+            getParams(apiBase()),
           ])
           const txs: ChatTx[] = pages.flatMap((page) => [...page.txs])
           // The index states the window it was built with; a raw history pull
           // can only report the deepest row it happened to see.
-          const oldestBlock = pages.reduce<number | null>(
+          const claimed = pages.reduce<number | null>(
             (oldest, page) => {
               const claim = page.startHeight ?? page.oldestBlock
               return claim === null ? oldest : oldest === null ? claim : Math.min(oldest, claim)
             },
             null,
           )
-          return {
-            txs,
-            oldestBlock,
-            ownedNames: new Set(ownedPages.flatMap((page) => page.names.map((entry) => entry.name))),
-            height: ownedPages[0]?.height ?? 0,
-          }
+          // Never claim a window wider than what is shown: `chatMessages` drops
+          // everything below `CHAT_MIN_HEIGHT`, so an index whose scan began
+          // earlier does not entitle the line to promise those blocks.
+          const oldestBlock = claimed === null ? null : Math.max(claimed, CHAT_MIN_HEIGHT)
+          return { txs, oldestBlock, height: params.height }
         },
     [viewers.join(' '), transport === null, reloadNonce],
   )
@@ -150,7 +152,6 @@ export function InboxScreen({
   const [cachedData, setCachedData] = useState<{
     txs: ChatTx[]
     oldestBlock: number | null
-    ownedNames: Set<string>
     height: number
   } | null>(null)
 
@@ -184,7 +185,6 @@ export function InboxScreen({
   const namesFor = (address: string): readonly PeerName[] =>
     peerNames.status === 'done' ? (peerNames.value.get(address) ?? []) : []
 
-  const ownedNames = activeData !== null ? activeData.ownedNames : new Set<string>()
   const height = activeData !== null ? activeData.height : 0
   const oldestBlock = activeData !== null ? activeData.oldestBlock : null
 
@@ -258,7 +258,6 @@ export function InboxScreen({
               <ConversationView
                 conversation={selected}
                 names={namesFor(selected.peer)}
-                ownedNames={ownedNames}
                 wallet={wallet}
                 hidden={hidden.includes(selected.peer)}
                 onSent={handleMessageSent}
@@ -394,7 +393,6 @@ async function copyToClipboard(text: string): Promise<void> {
 function ConversationView({
   conversation,
   names,
-  ownedNames,
   wallet,
   hidden,
   onSent,
@@ -404,7 +402,6 @@ function ConversationView({
 }: {
   conversation: ChatConversation
   names: readonly PeerName[]
-  ownedNames: ReadonlySet<string>
   wallet: Wallet | null
   hidden: boolean
   onSent?: ((peer: string, currentCount: number) => void) | undefined
@@ -530,25 +527,12 @@ function ConversationView({
 
       {/* Message stream */}
       <div className={styles.bubblesArea}>
-        {subjectBreaks(conversation.messages).map(({ message, showSubject }) => (
+        {conversation.messages.map((message) => (
           <div key={message.hash} className={styles.bubbleGroup}>
-            {showSubject && (
-              <div className={styles.subjectDivider}>
-                <div className={styles.subjectLine} />
-                <div className={styles.subjectChip}>
-                  <span>{subjectAboutLabel()}</span> <NameText>{message.name}</NameText>
-                </div>
-                <div className={styles.subjectLine} />
-              </div>
-            )}
             <div className={message.direction === 'in' ? styles.bubbleIn : styles.bubbleOut}>
               <span>{message.message}</span>
               <span className={styles.bubbleTime}>{formatBubbleTimestamp(message.timestamp, nowMs)}</span>
             </div>
-            {/* Only an incoming message can be wrong about whose name it is. */}
-            {message.direction === 'in' && !ownedNames.has(message.name) && (
-              <p className={styles.bubbleWarning}>{notYourNameLine()}</p>
-            )}
           </div>
         ))}
         <div ref={bubblesEndRef} />
@@ -557,7 +541,7 @@ function ConversationView({
       {/* Clean reply composer */}
       <div className={styles.composerBox}>
         <Composer
-          name={conversation.lastName}
+          name=""
           recipient={conversation.peer}
           wallet={wallet}
           sender={wallet === null ? null : primaryAddress(wallet.identity)}

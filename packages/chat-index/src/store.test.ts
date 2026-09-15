@@ -30,7 +30,6 @@ const row = (over: Partial<ChatRow> = {}): ChatRow => ({
   timestamp: 1_700_000_000_000,
   sender: A,
   recipient: B,
-  name: 'codescrafter',
   message: 'hello',
   recipientData: '4e4331',
   ...over,
@@ -81,7 +80,7 @@ describe.skipIf(DB === undefined)('Store', () => {
 
   it('round-trips the payload and the parsed fields unchanged', async () => {
     const [message] = await store.messagesFor(B, 1, null)
-    expect(message).toMatchObject({ name: 'codescrafter', message: 'hello', recipientData: '4e4331' })
+    expect(message).toMatchObject({ message: 'hello', recipientData: '4e4331' })
     // Heights and millisecond timestamps come back as numbers, not strings.
     expect(typeof message?.blockNumber).toBe('number')
     expect(typeof message?.timestamp).toBe('number')

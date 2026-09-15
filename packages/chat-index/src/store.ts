@@ -69,7 +69,6 @@ export interface ChatRow {
   readonly timestamp: number
   readonly sender: string
   readonly recipient: string
-  readonly name: string
   readonly message: string
   readonly recipientData: string
 }
@@ -112,8 +111,8 @@ export class Store {
       for (const row of rows) {
         await client.query(
           `INSERT INTO chat_messages
-             (tx_hash, block_number, timestamp, sender, recipient, name, message, recipient_data)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             (tx_hash, block_number, timestamp, sender, recipient, message, recipient_data)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            ON CONFLICT (tx_hash) DO NOTHING`,
           [
             row.txHash,
@@ -121,7 +120,6 @@ export class Store {
             row.timestamp,
             row.sender,
             row.recipient,
-            row.name,
             row.message,
             row.recipientData,
           ],
@@ -156,11 +154,10 @@ export class Store {
       timestamp: number
       sender: string
       recipient: string
-      name: string
       message: string
       recipient_data: string
     }>(
-      `SELECT tx_hash, block_number, timestamp, sender, recipient, name, message, recipient_data
+      `SELECT tx_hash, block_number, timestamp, sender, recipient, message, recipient_data
          FROM chat_messages
         WHERE (sender = $1 OR recipient = $1)
           AND ($2::bigint IS NULL OR block_number < $2)
@@ -174,7 +171,6 @@ export class Store {
       timestamp: row.timestamp,
       sender: row.sender,
       recipient: row.recipient,
-      name: row.name,
       message: row.message,
       recipientData: row.recipient_data,
     }))
