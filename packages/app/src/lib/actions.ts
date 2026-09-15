@@ -68,7 +68,7 @@ export type ActionInputs =
   | { readonly action: 'setTarget'; readonly target: string | 'reset' }
   | { readonly action: 'setEvm'; readonly evm: string | 'clear' }
   | { readonly action: 'transfer'; readonly newOwner: string }
-  | { readonly action: 'delegate'; readonly host: string }
+  | { readonly action: 'delegate'; readonly host: string | 'clear' }
   | { readonly action: 'offer'; readonly priceNim: string }
   | { readonly action: 'auction'; readonly startingPriceNim: string; readonly durationDays: string }
   | { readonly action: 'bid'; readonly bidNim: string }
@@ -300,20 +300,24 @@ export function prepareAction(options: {
     }
 
     case 'delegate': {
-      const host = inputs.host.trim()
-      // An empty field on a name that has no host is a `D` that changes
-      // nothing — a paid transaction whose whole effect is to rewrite the
-      // record with the value it already holds. A null record means the fetch
-      // failed, and refusing a real clear on a network error is the worse
-      // mistake, so the guard only fires on a record that answered.
-      if (host === '' && record !== null && record.host === '') {
+      // `'clear'` is the checkbox, as it is for `E`: an empty field is a sheet
+      // nobody has filled in, not an instruction (2026-09-15).
+      const clearing = inputs.host === 'clear'
+      const host = clearing ? '' : inputs.host.trim()
+      if (!clearing && host === '') throw new ActionInputError('Type a host, or tick Remove the current host')
+      // Clearing a name that has no host is a `D` that changes nothing — a
+      // paid transaction whose whole effect is to rewrite the record with the
+      // value it already holds. A null record means the fetch failed, and
+      // refusing a real clear on a network error is the worse mistake, so the
+      // guard only fires on a record that answered.
+      if (clearing && record !== null && record.host === '') {
         throw new ActionInputError('No subdomain resolver is set, so there is nothing to clear')
       }
       return {
         action: 'delegate',
         request: asRequest(encodeDelegate({ name, host, sender })),
-        review: [...(host === '' ? delegateClearedLines(name) : delegateSetLines(host, name))],
-        reviewHint: host === '' ? delegateClearedHint() : delegateSetHint(host),
+        review: [...(clearing ? delegateClearedLines(name) : delegateSetLines(host, name))],
+        reviewHint: clearing ? delegateClearedHint() : delegateSetHint(host),
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null
           return rec !== null && rec.host === host

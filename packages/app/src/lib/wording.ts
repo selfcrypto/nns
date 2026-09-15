@@ -563,14 +563,21 @@ export const delegateClearedLines = (name: string): readonly string[] => [
 export const delegateClearedHint = (): string =>
   'Subdomains only ever resolve through the host, so with none set there is nothing left to answer them. The name itself resolves exactly as before.'
 
-/** The send button when the field is empty on a name that has a host: a `D` that clears. */
+/**
+ * Clearing is a checkbox, the way `S`'s "Point back at my address" and `E`'s
+ * "Remove the linked address" already were (Kike, 2026-09-15, pointing at the
+ * `S` sheet: *"show to where is delegated at the moment and a checkbox"*). An
+ * empty field meant a clear before that, which is indistinguishable from a
+ * sheet nobody has typed in yet.
+ */
+export const clearHostCheckLabel = (): string => 'Remove the current host'
+
 export const clearHostLabel = (): string => 'Clear subdomain resolver'
 
 /** The field, which must never echo the current host: a placeholder that
- *  repeats it reads as a filled box, and the review under it then looks like
- *  a contradiction (Kike, 2026-09-15). */
+ *  repeats it reads as a filled box (Kike, 2026-09-15). */
 export const hostPlaceholder = (hasHost: boolean): string =>
-  hasHost ? 'New host, or empty to clear' : 'Host, e.g. nns.example.com'
+  hasHost ? 'New host, e.g. nns.example.com' : 'Host, e.g. nns.example.com'
 
 /**
  * The rest of every review, one bubble per sheet (Kike, 2026-09-15: *"a

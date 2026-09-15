@@ -14,6 +14,7 @@ import type { Wallet } from '../lib/wallet'
 import { Hint } from './Hint'
 import { NameText, Spinner } from './ui'
 import {
+  clearHostCheckLabel,
   clearHostLabel,
   hostPlaceholder,
   sheetActionLabel,
@@ -145,6 +146,7 @@ export function ActionSheet({
   const [evmRequestFailed, setEvmRequestFailed] = useState(false)
   const [newOwner, setNewOwner] = useState('')
   const [host, setHost] = useState('')
+  const [clearHost, setClearHost] = useState(false)
   const [priceNim, setPriceNim] = useState('')
   const [startingPriceNim, setStartingPriceNim] = useState('')
   const [durationDays, setDurationDays] = useState('')
@@ -164,7 +166,7 @@ export function ActionSheet({
       case 'transfer':
         return { action, newOwner }
       case 'delegate':
-        return { action, host }
+        return { action, host: clearHost ? 'clear' : host }
       case 'offer':
         return { action, priceNim }
       case 'auction':
@@ -179,7 +181,8 @@ export function ActionSheet({
       case 'buy':
         return { action }
     }
-  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, priceNim, startingPriceNim, durationDays, bidNim, referredBy, lifetime])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- every input is listed
+  }, [action, target, resetTarget, clearEvm, evmInput, newOwner, host, clearHost, priceNim, startingPriceNim, durationDays, bidNim, referredBy, lifetime])
 
   const inputsTouched = (() => {
     switch (action) {
@@ -195,12 +198,12 @@ export function ActionSheet({
         return startingPriceNim.trim() !== '' && durationDays.trim() !== ''
       case 'bid':
         return bidNim.trim() !== ''
-      // An empty field is itself an input — a clear — but only on a name that
-      // has a host to clear. Without one the sheet opened previewing the
-      // clear's review on a name nothing was delegating, which is the review
-      // of a transaction with no effect.
+      // A clear is the checkbox, never an empty field: the field being empty
+      // is what a sheet looks like before it is used, and previewing a clear
+      // there read as a contradiction of the line above it (Kike,
+      // 2026-09-15). `S` and `E` already worked this way.
       case 'delegate':
-        return host.trim() !== '' || (info?.record?.host ?? '') !== ''
+        return clearHost || host.trim() !== ''
       default:
         return true
     }
@@ -240,7 +243,7 @@ export function ActionSheet({
   // The title names the sheet you opened; the button names what pressing it
   // does. An empty host field on a name that has one is a `D` that clears,
   // and a button reading "Set subdomain resolver" there is simply wrong.
-  const sendLabel = action === 'delegate' && host.trim() === '' && Boolean(info?.record?.host) ? clearHostLabel() : actionLabel
+  const sendLabel = action === 'delegate' && clearHost ? clearHostLabel() : actionLabel
 
   // Both `B`s: a buy and a bid hand money to the marketplace (§8.5 #10).
   const needsAcknowledge = action === 'buy' || action === 'bid'
@@ -381,7 +384,9 @@ export function ActionSheet({
                   this tap is. */}
               <input
                 className="sheet-input nns-name"
-                placeholder={info?.record?.evm ? `${info.record.evm} (current)` : '0x… EVM address'}
+                // Never the current address: a placeholder that repeats it
+                // reads as a filled field (Kike, 2026-09-15, on `D`).
+                placeholder={info?.record?.evm ? '0x… new EVM address' : '0x… EVM address'}
                 value={evmInput}
                 onChange={(event) => setEvmInput(event.target.value)}
               />
@@ -416,12 +421,22 @@ export function ActionSheet({
         />
       )}
       {action === 'delegate' && (
-        <input
-          className="sheet-input nns-name"
-          placeholder={hostPlaceholder(Boolean(info?.record?.host))}
-          value={host}
-          onChange={(event) => setHost(event.target.value)}
-        />
+        <>
+          {info?.record?.host ? (
+            <label className="sheet-check">
+              <input type="checkbox" checked={clearHost} onChange={(event) => setClearHost(event.target.checked)} />
+              {clearHostCheckLabel()}
+            </label>
+          ) : null}
+          {!clearHost && (
+            <input
+              className="sheet-input nns-name"
+              placeholder={hostPlaceholder(Boolean(info?.record?.host))}
+              value={host}
+              onChange={(event) => setHost(event.target.value)}
+            />
+          )}
+        </>
       )}
       {action === 'offer' && (
         <input

@@ -404,7 +404,7 @@ describe('delegate: the review names the mechanism, and a no-op `D` is refused',
   // NNS withdrawing a resolution it was performing. §8.6 gives a label no
   // record, so the host is the only thing that ever answered.
   it('clearing a host never implies an on-chain fallback', () => {
-    const prepared = prepare({ action: 'delegate', host: '' }, withHost('nns.example.com'))
+    const prepared = prepare({ action: 'delegate', host: 'clear' }, withHost('nns.example.com'))
     expect(prepared.review).toEqual(['No host will answer for subdomains under example.'])
     expect(prepared.reviewHint).toMatch(/only ever resolve through the host/)
     expect(prepared.review.join(' ')).not.toMatch(/stop resolving/)
@@ -413,19 +413,26 @@ describe('delegate: the review names the mechanism, and a no-op `D` is refused',
   // Both reviews are one sentence, because the sheet is a form and the bubble
   // beside it is where the second sentence went (Kike, 2026-09-15).
   it('says it in one sentence either way', () => {
-    for (const host of ['nns.example.com', '']) {
-      const prepared = prepare({ action: 'delegate', host }, withHost(host === '' ? 'nns.example.com' : ''))
+    for (const host of ['nns.example.com', 'clear']) {
+      const prepared = prepare({ action: 'delegate', host }, withHost(host === 'clear' ? 'nns.example.com' : ''))
       expect(prepared.review).toHaveLength(1)
       expect(prepared.review[0]!.split('. ')).toHaveLength(1)
     }
   })
 
-  it('refuses an empty host on a name that has none — the `D` would change nothing', () => {
-    expect(() => prepare({ action: 'delegate', host: '' }, withHost(''))).toThrow(ActionInputError)
+  it('refuses a clear on a name that has none — the `D` would change nothing', () => {
+    expect(() => prepare({ action: 'delegate', host: 'clear' }, withHost(''))).toThrow(ActionInputError)
+  })
+
+  // The sheet gates this too (the field is what `inputsTouched` watches), but
+  // an empty field is not an instruction and must never reach the builder as
+  // one: clearing is the checkbox, which sends `'clear'`.
+  it('refuses an empty field rather than reading it as a clear', () => {
+    expect(() => prepare({ action: 'delegate', host: '   ' }, withHost('nns.example.com'))).toThrow(ActionInputError)
   })
 
   it('still clears when the record could not be read, rather than refusing a real clear', () => {
-    expect(() => prepare({ action: 'delegate', host: '' }, null)).not.toThrow()
+    expect(() => prepare({ action: 'delegate', host: 'clear' }, null)).not.toThrow()
   })
 })
 
