@@ -379,7 +379,7 @@ select:focus-visible {
    missed.
 
    Out of flow it cannot push the corner, so the clearance is arithmetic rather
-   than a promise — which is what sets the breakpoint below, at 860 rather than
+   than a promise — which is what sets the breakpoint below, at 960 rather than
    768: measured at 769 a three-address wallet left 15px between the last link
    and the chip, and that is a near miss, not a margin. */
 .masthead-nav {
@@ -514,6 +514,100 @@ select:focus-visible {
   background: var(--depth-bg);
 }
 
+/* Contact on the wide row: a disclosure in the middle of the nav, so its panel
+   hangs from the button rather than from the masthead's right edge like the
+   phone menu's. `.nav-contact` is the only positioned thing in that row, which
+   is what `left: 50%` below is measured against. */
+.nav-contact {
+  position: relative;
+  display: inline-flex;
+}
+
+/* A link that happens to open a panel, so it takes the row's type exactly:
+   anything else would read as the one control among four labels. */
+.nav-contact-btn {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font: inherit;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.nav-contact-btn:hover,
+.nav-contact-btn[aria-expanded='true'] {
+  color: var(--ink);
+}
+
+.nav-contact-btn:focus-visible {
+  outline: 2px solid #F6851B;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* Down when closed, up when open — the panel it points at is below it. */
+.nav-contact-btn[aria-expanded='true'] .icon {
+  transform: rotate(180deg);
+}
+
+.nav-contact-btn .icon {
+  transition: transform 0.15s ease;
+}
+
+/* The phone menu's material and padding, re-anchored: centred under its own
+   button instead of pinned to the masthead's right edge. */
+.nav-contact-panel {
+  top: calc(100% + 10px);
+  right: auto;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 190px;
+}
+
+/* A channel with no address yet. Not a link, and it has to look like it is
+   not: the same row, at faint ink, with the reason where the external mark
+   would be. */
+.nav-soon,
+.masthead-menu-panel .nav-soon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  cursor: default;
+}
+
+.nav-soon-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  background: var(--depth-bg);
+  border-radius: 999px;
+  padding: 2px 7px;
+}
+
+/* The heading over Contact's rows in the phone panel, with the hairline that
+   separates them from the four destinations above. */
+.nav-section {
+  margin-top: 6px;
+  padding: 8px 10px 2px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
 /* `.identity-scrim` is named for its owner; these are its declarations under a
    name this one owns. */
 .nav-scrim {
@@ -542,19 +636,27 @@ select:focus-visible {
 }
 
 /*
- * Where the four labels stop fitting beside the corner, and the button takes
- * over. 860 rather than the 768 the rest of this file breaks at, because the
- * nav is centred on the viewport and therefore cannot push anything: the
- * clearance to the corner is arithmetic, and it has to hold for the widest
- * corner the identity draws. Measured at 769px with a three-address wallet —
- * a chip plus its "+1" badge — the gap was 15px, which is not a collision and
- * is not a margin either. At 860 the same case clears ~60.
+ * Where the labels stop fitting beside the corner, and the button takes over.
+ * Not the 768 the rest of this file breaks at, because the nav is centred on
+ * the viewport and therefore cannot push anything: the clearance to the
+ * corner is arithmetic, and it has to hold for the widest corner the identity
+ * draws. Measured with a three-address wallet — a chip plus its "+2" badge —
+ * at 769px the gap was 15px, which is not a collision and is not a margin
+ * either.
  *
- * The button is no loss on the way down: it holds the same four, costs 30px of
+ * **960 since 2026-09-16, up from 860, because Contact is a fifth door.** Same
+ * measurement, same three-address corner: the four labels are a 309px row that
+ * clears 26px at 862, and Contact with its chevron makes the row 400px — so
+ * the collision moves to ~900 and the same 26px of clearance to ~954. 960
+ * clears 29. The 100px is what a fifth label costs: the row is centred, so
+ * every pixel of label spends two of breakpoint, which is the reason to weigh
+ * a sixth rather than just adding it.
+ *
+ * The button is no loss on the way down: it holds the same rows, costs 30px of
  * width and no height, and height is the scarce one inside Nimiq Pay, where
  * the top reserve is 0 and the bottom is down ~120px before the tab bar.
  */
-@media (max-width: 860px) {
+@media (max-width: 960px) {
   .masthead-nav {
     display: none;
   }
@@ -577,7 +679,7 @@ select:focus-visible {
  * puts the real threshold at 396, 430 and 463. A 390px phone was therefore
  * clipping the wordmark to "Nimiq Na" whenever a wallet was connected.
  *
- * Like the 860 above it, the number is picked for the widest corner the
+ * Like the 960 above it, the number is picked for the widest corner the
  * identity can draw rather than the common one: a fixed breakpoint against a
  * variable neighbour is arithmetic, not a promise, and 430 "exactly fitting"
  * is a near miss. 480 clears 463 and is still below every tablet.

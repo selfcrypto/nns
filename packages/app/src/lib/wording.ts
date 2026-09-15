@@ -37,6 +37,13 @@ export const SITE_NAME = 'Nimiq Names'
 const REPO = 'https://github.com/selfcrypto/nns'
 
 /**
+ * The project's Telegram group, named once: the masthead's Contact door and
+ * the landing footer's Community column are the same link, and two copies is
+ * two links that drift.
+ */
+const TELEGRAM = 'https://t.me/nimiqnames'
+
+/**
  * The four doors in the masthead — `[label, href]` pairs, the same shape and
  * for the same reason as `LANDING.footer.columns`: a route is not normally a
  * string this file holds, but here the link *is* the content.
@@ -59,6 +66,32 @@ export const NAV: readonly (readonly [string, string])[] = [
   ['GitHub', REPO],
   ['Dashboard', '#/buy'],
 ] as const
+
+/**
+ * The fifth door, and the only one that opens onto people rather than
+ * documents, so it is a group and not a link: there is no contact *page* to
+ * point at, and three channels behind one word is what the masthead has room
+ * for (Kike, 2026-09-16).
+ *
+ * `null` is a channel that does not exist yet. It renders as a row that is
+ * plainly not pressable, with the reason beside it, rather than as `#` — the
+ * routes are the hash here (`lib/route.ts`), so `href="#"` would not be an
+ * inert link, it would throw the reader out of whatever screen they were on.
+ * A hidden row would say nothing at all, which is the same mistake the USDT
+ * tab was making before it was greyed instead.
+ *
+ * The Telegram group is **this project's**, `t.me/nimiqnames`, not Nimiq's —
+ * `LANDING.footer`'s Community column points at Nimiq's channels and one of
+ * them moved here for the same reason (2026-09-16).
+ */
+export const CONTACT_TITLE = 'Contact'
+export const CONTACT: readonly (readonly [string, string | null])[] = [
+  ['Telegram', TELEGRAM],
+  ['@RicoMaverick', 'https://t.me/ricomaverick'],
+  ['X', null],
+] as const
+/** Beside a channel that has no address yet. Lowercase: it is a note, not a badge. */
+export const contactSoonLabel = (): string => 'soon'
 
 /** The phone button that holds `NAV`, for screen readers — it draws as a glyph. */
 export const menuLabel = (): string => 'Menu'
@@ -1442,7 +1475,11 @@ export const LANDING = {
       // screens/Docs.tsx). A hash link stays inside the app; Home.tsx opens
       // only the absolute ones in a new tab.
       { title: 'Resources', links: [['Documentation', '#/docs/intro'], ['Developer docs', '#/docs/developers'], ['GitHub', REPO], ['Nimiq', 'https://nimiq.com']] },
-      { title: 'Community', links: [['X', 'https://x.com/nimiq'], ['Discord', 'https://discord.gg/nimiq'], ['Telegram', 'https://t.me/Nimiq']] },
+      // Telegram is **this project's** group (`CONTACT`, and the masthead's
+      // Contact door reads the same list), the other two are Nimiq's. Asked
+      // for directly (Kike, 2026-09-16): the reader who wants to reach the
+      // people running the registry should not land in the wallet's channel.
+      { title: 'Community', links: [['X', 'https://x.com/nimiq'], ['Discord', 'https://discord.gg/nimiq'], ['Telegram', TELEGRAM]] },
     ],
     copyright: (year: number): string => `© ${year} ${SITE_NAME} · MIT`,
   },

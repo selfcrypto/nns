@@ -13,6 +13,8 @@
     <string id="SITE_NAME">Nimiq Names</string>
   </group>
   <group name="The masthead's nav">
+    <string id="CONTACT_TITLE">Contact</string>
+    <string id="contactSoonLabel">soon</string>
     <string id="menuLabel">Menu</string>
     <string id="themeToggleLabel" params="dark">Switch to night mode</string>
   </group>
