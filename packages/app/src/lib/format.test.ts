@@ -5,6 +5,7 @@ import {
   displayAddress,
   ellipsizeAddress,
   formatApproxDate,
+  formatApproxIn,
   group,
   looksGrouped,
   lunaToNim,
@@ -33,6 +34,16 @@ describe('approx dates', () => {
 
   it('blocksApprox picks a sensible unit', () => {
     expect(blocksApprox(43_200)).toBe('~12 h')
+  })
+
+  // A timelock is a countdown. Rendered through `formatApproxDate` it came out
+  // as the day it already is, on mainnet's 12 h and on a tempo era's 10 min
+  // alike (Kike, 2026-09-15).
+  it('renders a pending effect as time left, and a due one as the next block', () => {
+    expect(formatApproxIn(600)).toBe('in ~10 min')
+    expect(formatApproxIn(43_200)).toBe('in ~12 h')
+    expect(formatApproxIn(0)).toBe('at the next block')
+    expect(formatApproxIn(-5)).toBe('at the next block')
     expect(blocksApprox(2_592_000)).toBe('~30 d')
     expect(blocksApprox(720)).toBe('~12 min')
   })

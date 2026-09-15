@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import type { ResolveResult, ResolveWarning, ResolverReply } from '@nimiqnames/resolver'
 import type { NameInfo } from '../lib/api'
-import { displayAddress, ellipsizeAddress, formatApproxDate, approxDate, lunaToNim } from '../lib/format'
+import { displayAddress, ellipsizeAddress, formatApproxDate, formatApproxIn, approxDate, lunaToNim } from '../lib/format'
 import {
   RENDERED_ELSEWHERE,
   WARNING_TEXT,
@@ -211,10 +211,7 @@ export function Overlays({
     <div className="overlays">
       {transfer !== null && (
         <p className="overlay overlay-transfer">
-          {pendingTransferLine(
-            ellipsizeAddress(transfer.newOwner),
-            formatApproxDate(approxDate(transfer.effectiveHeight, info.height, nowMs)),
-          )}
+          {pendingTransferLine(ellipsizeAddress(transfer.newOwner), formatApproxIn(transfer.effectiveHeight - info.height))}
         </p>
       )}
       {!hideMarketplace && offer !== null && <p className="overlay overlay-offer">{forSaleLine(lunaToNim(offer.price))}</p>}

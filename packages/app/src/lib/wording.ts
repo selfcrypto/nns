@@ -329,8 +329,8 @@ export const justRegisteredLine = (): string =>
 export const parentNotRegisteredLine = (parent: string): string =>
   `${parent} isn’t registered, so nothing can answer for its subdomains.`
 
-export const pendingTransferLine = (newOwner: string, whenDate: string): string =>
-  `Transferring to ${newOwner} ${whenDate}. The current owner stays in control until then.`
+export const pendingTransferLine = (newOwner: string, when: string): string =>
+  `Transferring to ${newOwner} ${when}.`
 
 export const forSaleLine = (priceNim: string): string => `For sale at ${priceNim} NIM`
 
@@ -540,11 +540,11 @@ export const soldByLine = (seller: string): string => `Sold by ${seller}.`
  * settlement will not honour.
  */
 export const sellerProceedsLine = (netNim: string, percent: string): string =>
-  `You receive ${netNim} NIM if it sells, after the marketplace’s ${percent} commission.`
+  `You get ${netNim} NIM if it sells, after the ${percent} marketplace commission.`
 
 /** The auction form: the starting price is a floor, so the proceeds are a minimum. */
 export const auctionProceedsLine = (minNetNim: string, percent: string): string =>
-  `You receive at least ${minNetNim} NIM if it sells, after the marketplace’s ${percent} commission on the winning bid.`
+  `You get at least ${minNetNim} NIM, after the ${percent} commission on the winning bid.`
 
 // ── Send flows (docs/app-ux.md §4 — one state machine, one vocabulary) ─────
 
@@ -585,7 +585,7 @@ export const delegateSetLines = (host: string, name: string): readonly string[] 
 ]
 
 export const delegateSetHint = (host: string): string =>
-  `The delegation is on chain, so anyone can verify you set it. The addresses under it come from ${host} itself, which is why a client shows a subdomain differently.`
+  `The delegation is on chain, so anyone can verify you set it. The addresses under it come from ${host} itself, which is why a client marks a subdomain differently.`
 
 export const delegateClearedLines = (name: string): readonly string[] => [
   `No host will answer for subdomains under ${name}.`,
@@ -625,7 +625,17 @@ export const targetHint = (): string =>
   'The wallet’s own screen shows this address as the recipient of the message, so it can be checked there too.'
 
 export const evmHint = (): string =>
-  'One address covers Polygon, Ethereum, Arbitrum, Base and every other EVM chain. The registry records what you declare, so check that this one is yours.'
+  'One address covers every EVM chain. The registry records what you declare, so check this one is yours.'
+
+/**
+ * One line, and the duration comes from `CONSTANTS.XFER_TIMELOCK` through
+ * `blocksApprox`. It read *"Ownership moves to NQ88 … after ~12 h. Until then
+ * the name stays under your control, and Cancel can stop it."* — a hardcoded
+ * delay that no tempo era has, above a field already showing that address, and
+ * a second sentence the bubble beside it already carries.
+ */
+export const transferMovesLine = (delay: string): string =>
+  `Ownership moves to the address above in ${delay}, unless you Cancel Transfer first.`
 
 export const transferHint = (): string =>
   'A second transfer replaces this one and restarts the clock. The delay guards a mistyped address, not a stolen key.'
@@ -634,7 +644,7 @@ export const offerHint = (): string =>
   'Irrevocable for ~2.4 hours, cancellable after, and it expires by itself in ~15 days.'
 
 export const auctionHint = (extension: string): string =>
-  `Neither the auction nor a bid can be withdrawn, and a bid in the last ${extension} extends the end by ${extension}. The highest bid wins, the name transfers at the close, and the proceeds arrive from the marketplace operator.`
+  `Nothing can be withdrawn once open, and a bid in the last ${extension} extends the end by ${extension}. The highest bid wins and the name transfers at the close.`
 
 export const bidHint = (extension: string): string =>
   `A bid in the last ${extension} extends the auction by ${extension}. ${bidRefundLine()}`
@@ -751,7 +761,7 @@ export function priceHint(fees: readonly { readonly upTo: number; readonly yearl
 export const referredByLine = (ref: string, rebate: string | null = null, netOfBurn = false): string =>
   rebate === null
     ? `Referred by ${ref}. You pay the same.`
-    : `Referred by ${ref}. ${rebate}${netOfBurn ? ` ${BURN_ASIDE}` : ''} of the fee comes back to you once the registration confirms.`
+    : `Referred by ${ref}. ${rebate}${netOfBurn ? ` ${BURN_ASIDE}` : ''} comes back to you once it confirms.`
 
 /**
  * The rates Kike publishes are the ones he decided — 5% and 5% — and the
@@ -808,7 +818,7 @@ export const giftRenewalLabel = (): string => 'Gift a renewal'
 
 /** The review line that makes the gift explicit before the wallet opens. */
 export const giftRenewalLine = (owner: string): string =>
-  `You don’t own this name. It stays ${owner}’s, and the term extends for them.`
+  `You don’t own this name. The term extends for ${owner}.`
 
 /* ── A field that takes an address or a name (`lib/addressField.ts`) ── */
 
@@ -871,7 +881,7 @@ export const sendDeclinedLine = (): string => 'Nothing was sent.'
  * flight, and a retry re-signs a different one and pays a second fee.
  */
 export const sendUnconfirmedLine = (): string =>
-  'Not confirmed. It hasn’t appeared on chain yet. Check the name before sending again.'
+  'Not confirmed: it hasn’t appeared on chain. Check the name before sending again.'
 
 /**
  * On chain and executed, with the effect not yet visible at the API. The
@@ -880,7 +890,7 @@ export const sendUnconfirmedLine = (): string =>
  * chain. Says nothing went wrong, because nothing did.
  */
 export const sendSettlingLine = (): string =>
-  'Confirmed on chain. The registry catches up at the next macro block (<1 min). Nothing more to send.'
+  'Confirmed on chain. The registry catches up at the next macro block (<1 min).'
 
 /**
  * In a block, and it did not execute. The one case where the transaction is
@@ -888,7 +898,7 @@ export const sendSettlingLine = (): string =>
  * either of the "check again" outcomes.
  */
 export const sendRejectedLine = (): string =>
-  'Included on chain but it did not execute. Nothing changed and the fee is spent. Check the name first.'
+  'On chain, but it did not execute. Nothing changed and the fee is spent.'
 
 /**
  * The checker was down, not the send — a broken checker never reads as a
@@ -896,7 +906,7 @@ export const sendRejectedLine = (): string =>
  * different transaction and can pay a second fee.
  */
 export const sendUncheckedLine = (): string =>
-  'Sent to the wallet. The service didn’t answer, so this could not be confirmed. Check again later.'
+  'Sent, but the service didn’t answer, so this is unconfirmed. Check again later.'
 
 export const sendNoRpcLine = (): string =>
   'No RPC endpoint is configured (VITE_NNS_RPC), so nothing can be broadcast.'
@@ -1508,10 +1518,14 @@ export const cancelTitle = (set: Cancellable): string =>
  *  empty set's is the unreachable one. */
 export const cancelHint = (
   set: Cancellable,
-  subject: { readonly to: string | null; readonly priceNim: string | null },
+  subject: { readonly to: string | null; readonly priceNim: string | null; readonly leftBlocks?: number | null },
 ): string => {
-  if (set.transfer && set.offer) return 'Transfer and listing'
-  if (set.transfer) return subject.to === null ? 'Stop the pending transfer' : `To ${subject.to}`
+  // How long is left to use it. A cancel window you have to guess at is the
+  // one number the tile owes you (Kike, 2026-09-15), and it is short by
+  // design — 10 min in a tempo era, 12 h on mainnet.
+  const left = subject.leftBlocks == null ? '' : `, ${blocksApprox(subject.leftBlocks)} left`
+  if (set.transfer && set.offer) return `Transfer and listing${left}`
+  if (set.transfer) return subject.to === null ? `Stop the pending transfer${left}` : `To ${subject.to}${left}`
   if (set.offer) return subject.priceNim === null ? 'Withdraw the listing' : `Withdraw the ${subject.priceNim} NIM offer`
   return 'Nothing to cancel'
 }
@@ -1523,7 +1537,7 @@ export const cancelHint = (
  * and the message lands later than this line is written.
  */
 export const offerStaysLine = (nim: string, blocksLeft: number): string =>
-  `The ${nim} NIM listing stays. It can’t be withdrawn for another ${blocksApprox(blocksLeft)}.`
+  `The ${nim} NIM listing stays, locked for another ${blocksApprox(blocksLeft)}.`
 
 // Buy's card: a name for sale or under auction hands off to Market.
 export const listedForSaleLine = (nim: string): string => `Listed at the marketplace for ${nim} NIM. `

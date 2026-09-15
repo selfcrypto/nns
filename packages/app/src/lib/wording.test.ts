@@ -437,7 +437,7 @@ describe('a `K` is named by what it will clear (§6 `K`)', () => {
 
   it('says how long an offer the `K` will not touch stays standing', () => {
     expect(offerStaysLine('450', CONSTANTS.OFFER_IRREVOCABLE)).toBe(
-      `The 450 NIM listing stays. It can’t be withdrawn for another ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}.`,
+      `The 450 NIM listing stays, locked for another ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}.`,
     )
   })
 })

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { CONSTANTS, LUNA_PER_NIM, parse, termFor } from '@nimiqnames/core'
 import { ActionInputError, parseAuctionDuration, parseNimAmount, prepareAction, type ActionInputs } from './actions'
 import type { ApiParams, NameInfo } from './api'
-import { formatApproxDate } from './format'
-import { termChoiceLabel } from './wording'
+import { blocksApprox, formatApproxDate } from './format'
+import { termChoiceLabel, transferMovesLine } from './wording'
 
 const OWNER = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
 const OTHER = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
@@ -162,6 +162,17 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     expect(() => prepare({ action: 'transfer', newOwner: OWNER })).toThrow(ActionInputError)
   })
 
+  // The delay was typed into the sentence as "~12 h". `XFER_TIMELOCK` is 600
+  // blocks in the tempo era both boxes run, so the one number the line existed
+  // to carry was wrong on every deployment we have (Kike, 2026-09-15).
+  it('the transfer review reads its delay from the constant, never from a typed string', () => {
+    const line = prepare({ action: 'transfer', newOwner: OTHER }).review.join(' ')
+    expect(line).toBe(transferMovesLine(blocksApprox(CONSTANTS.XFER_TIMELOCK)))
+    // One sentence, and not a second copy of the address the field shows.
+    expect(line.split('. ')).toHaveLength(1)
+    expect(line).not.toContain(OTHER)
+  })
+
   it('an offer parses NIM decimals to exact luna and carries dust value', () => {
     const prepared = prepare({ action: 'offer', priceNim: '450.5' })
     expect(prepared.request.value).toBe(CONSTANTS.DUST_VALUE)
@@ -216,6 +227,14 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     expect(prepared.review.some((line) => line.startsWith('Cancels the transfer'))).toBe(true)
     expect(prepared.review.some((line) => line.startsWith('Withdraws'))).toBe(false)
     expect(prepared.review.some((line) => line.includes('listing stays'))).toBe(true)
+  })
+
+  // Kike, 2026-09-15: *"show on the Cancel Transfer section how much time is
+  // remaining to cancel it since right now you can just guess it"*.
+  it('cancel says how long is left to use it', () => {
+    const pending = registered({ transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 } })
+    const prepared = prepare({ action: 'cancel' }, pending)
+    expect(prepared.review[0]).toContain(`(${blocksApprox(40_000)} left)`)
   })
 
   it('cancel confirms on the transfer alone when the offer was never in the set', async () => {
@@ -450,7 +469,7 @@ describe('the seller is told what they receive, at the rate /params served', () 
   // LISTING_FEE is 0, so nothing is paid at listing at all.
   it('the offer review names the amount and no longer mentions listing', () => {
     const review = prepare({ action: 'offer', priceNim: '1000' }).review.join(' ')
-    expect(review).toContain('You receive 975 NIM if it sells')
+    expect(review).toContain('You get 975 NIM if it sells')
     expect(review).toContain('2.5%')
     expect(review).not.toMatch(/not from listing/)
   })
@@ -470,7 +489,7 @@ describe('the seller is told what they receive, at the rate /params served', () 
       apiBase: 'http://api',
       nowMs: NOW,
     }).review.join(' ')
-    expect(review).toContain('You receive 990 NIM if it sells')
+    expect(review).toContain('You get 990 NIM if it sells')
     expect(review).toContain('1%')
   })
 

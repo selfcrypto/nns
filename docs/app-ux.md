@@ -380,6 +380,16 @@ was *"The registry records the address you declare — double-check it is
 yours"*, dash and all (Kike: *"a fucking shit ton of text here too to say the
 same over and over"*).
 
+**A duration on a review line is read from its constant, never typed**
+(2026-09-15). `X`'s line said *"after ~12 h"* — `XFER_TIMELOCK` at mainnet's
+43,200, hardcoded into the sentence — while every box we run is a tempo era
+where it is 600 blocks, ten minutes. The same reading applies to dates: a
+timelock rendered through `formatApproxDate` comes out as the day it already
+is, so `formatApproxIn` gives the ones measured in minutes or hours as time
+remaining. Where it matters the window is also a **countdown**: the Cancel
+tile and the `K` review say how long is left to use them, because a cancel
+window you have to guess at is the one number the sheet owes you.
+
 | Flow | Compose needs | Review must say | Effect that confirms it |
 |---|---|---|---|
 | `G` register | `/params.fees` figure (exact §10.5) for the chosen term — a year or a lifetime, side by side with their prices — availability with non-inclusion proof | Price and term; a lifetime as the ≈ date it reaches; race possibility; pending fee change if scheduled | `/name` shows the record, owner = me |

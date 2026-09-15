@@ -93,6 +93,20 @@ export function blocksApprox(blocks: number): string {
 }
 
 /**
+ * When something lands, as time remaining rather than as a calendar date.
+ *
+ * A date is the right rendering for an expiry a year out and the wrong one for
+ * a timelock. `XFER_TIMELOCK` is 43,200 blocks on mainnet and 600 in a tempo
+ * era; both came out of `formatApproxDate` as the day it already is, so the
+ * one number the line existed to carry was the one it did not say (Kike,
+ * 2026-09-15). Anything already due reads as the next block, because that is
+ * when the effect fires (§7.3).
+ */
+export function formatApproxIn(blocksLeft: number): string {
+  return blocksLeft <= 0 ? 'at the next block' : `in ${blocksApprox(blocksLeft)}`
+}
+
+/**
  * The conventional spaced form, whatever spelling arrived.
  *
  * Addresses reach the UI two ways and they do not agree: `@nimiqnames/resolver`

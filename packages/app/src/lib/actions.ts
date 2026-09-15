@@ -40,6 +40,7 @@ import {
   renewHint,
   targetHint,
   transferHint,
+  transferMovesLine,
   delegateClearedHint,
   delegateClearedLines,
   delegateSetHint,
@@ -283,7 +284,7 @@ export function prepareAction(options: {
         request: asRequest(encodeSetEvm({ name, evm, sender })),
         review: evm === null
           ? [`Removes the linked EVM address from ${name}.`]
-          : [`USDC / USDT sent to ${name} on any EVM chain can use ${evm}.`],
+          : [`USDC and USDT sent to ${name} on any EVM chain go to ${evm}.`],
         ...(evm === null ? {} : { reviewHint: evmHint() }),
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null
@@ -298,9 +299,7 @@ export function prepareAction(options: {
       return {
         action: 'transfer',
         request: asRequest(encodeTransfer({ name, newOwner: parseAddress(newOwner), sender })),
-        review: [
-          `Ownership moves to ${newOwner} after ~12 h. Until then the name stays under your control, and Cancel can stop it.`,
-        ],
+        review: [transferMovesLine(blocksApprox(CONSTANTS.XFER_TIMELOCK))],
         reviewHint: transferHint(),
         confirm: async () => {
           const pending = (await infoNow())?.pending.transfer ?? null
@@ -346,14 +345,19 @@ export function prepareAction(options: {
       // done its job read as unconfirmed.
       const { transfer: cancelsTransfer, offer: cancelsOffer } = cancellableNow(info, head)
       const lines: string[] = []
-      if (pendingTransfer !== null) lines.push(`Cancels the transfer to ${pendingTransfer.newOwner}.`)
+      // The window, not just the intent: a transfer's timelock is 10 min in a
+      // tempo era and 12 h on mainnet, and the sheet used to leave it to guess
+      // (Kike, 2026-09-15).
+      if (pendingTransfer !== null) {
+        lines.push(`Cancels the transfer to ${pendingTransfer.newOwner} (${blocksApprox(pendingTransfer.effectiveHeight - head)} left).`)
+      }
       if (cancelsOffer && pendingOffer !== null) lines.push(`Withdraws the ${lunaToNim(pendingOffer.price)} NIM offer.`)
       if (!cancelsOffer && pendingOffer !== null) {
         lines.push(offerStaysLine(lunaToNim(pendingOffer.price), offerCancellableAt(pendingOffer.openedHeight) - head))
       }
       // Only where "everything" is more than one thing — and never above a line
       // that says what the `K` will leave standing.
-      if (cancelsTransfer && cancelsOffer) lines.push('One cancel clears both, in one message.')
+      if (cancelsTransfer && cancelsOffer) lines.push('One cancel clears both.')
       return {
         action: 'cancel',
         request: asRequest(encodeCancel({ name, sender })),
@@ -397,7 +401,7 @@ export function prepareAction(options: {
         action: 'buy',
         request: asRequest(encodeBuy({ name, price: offer.price, sender })),
         review: [
-          `Buys ${name} for ${lunaToNim(offer.price)} NIM, paid to the marketplace escrow.`,
+          `Buys ${name} for ${lunaToNim(offer.price)} NIM, paid into the marketplace escrow.`,
           // The wallet sheet shows only the marketplace address (§5.3), so the
           // app is the one place the seller appears (docs/app-ux.md §5).
           soldByLine(offer.seller),
@@ -417,7 +421,7 @@ export function prepareAction(options: {
       const when = (height: number): string => formatApproxDate(approxDate(height, info.height, Date.now()))
       const extension = blocksApprox(CONSTANTS.AUCTION_EXTENSION)
       const lines = [
-        `Opens an auction on ${name} with a starting price of ${lunaToNim(startingPrice)} NIM, ending ${when(endHeight)}.`,
+        `Auctions ${name} from ${lunaToNim(startingPrice)} NIM, ending ${when(endHeight)}.`,
         // A minimum, not a figure: the starting price is the floor the first
         // bid must meet, and the winning bid can only be higher.
         auctionProceedsLine(
@@ -465,7 +469,7 @@ export function prepareAction(options: {
         // is open (§6 `A`). The client only shows which one it is sending.
         request: asRequest(encodeBuy({ name, price: bid, sender })),
         review: [
-          `Bids ${lunaToNim(bid)} NIM on ${name}, held by the marketplace escrow until the auction ends ${when(auction.endHeight)}.`,
+          `Bids ${lunaToNim(bid)} NIM on ${name}, held in escrow until it ends ${when(auction.endHeight)}.`,
           soldByLine(auction.seller),
         ],
         reviewHint: bidHint(extension),
