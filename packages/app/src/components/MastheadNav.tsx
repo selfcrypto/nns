@@ -30,7 +30,10 @@
  * inside a panel is a worse answer than a heading. Its own `open` state is
  * local: `MastheadMenu`'s is `App.tsx`'s only because the wallet panel hangs
  * in that same corner, and this one drops from the middle of the row where
- * nothing else does.
+ * nothing else does. It is also why `.masthead-nav` is centred with
+ * `margin: auto` rather than a transform: a transform there is a stacking
+ * context this panel cannot leave, and a containing block the scrim's
+ * `position: fixed` resolves against instead of the viewport.
  *
  * The button is its own pill beside the wallet chip, not welded to it: the chip
  * has four looks (the orange Connect pill, the "Checking wallet…" note, the
@@ -40,8 +43,28 @@
  */
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { closeLabel, CONTACT, CONTACT_TITLE, contactSoonLabel, NAV, menuLabel } from '../lib/wording'
 import { ChevronIcon, ExternalIcon, MenuIcon } from './icons'
+
+/**
+ * The tap-anywhere-else that closes either menu, **portalled to `<body>`**.
+ *
+ * `.masthead` carries `backdrop-filter`, and a filter is a containing block
+ * for fixed descendants as surely as a transform is. So a `position: fixed;
+ * inset: 0` scrim rendered inside the masthead covers the masthead — measured
+ * 1200 × 97 on a 1200 × 900 screen — and a click on the page below it reached
+ * nothing. The phone menu shipped that way on 2026-09-14 and nobody noticed,
+ * because Escape and a second tap on the button both close it too; Contact's
+ * panel is what made it visible (2026-09-16).
+ *
+ * `z-index: 99` is deliberately **under** the masthead's 100: the page closes
+ * the menu, and a nav link beside it still navigates instead of being eaten.
+ */
+function NavScrim({ onClose }: { onClose: () => void }) {
+  if (typeof document === 'undefined') return null
+  return createPortal(<button type="button" className="nav-scrim" aria-label={closeLabel()} onClick={onClose} />, document.body)
+}
 
 /**
  * The app's link rule, as `screens/Home.tsx` states it: a hash href stays in
@@ -99,7 +122,7 @@ function ContactMenu() {
 
   return (
     <div className="nav-contact">
-      {open && <button type="button" className="nav-scrim" aria-label={closeLabel()} onClick={() => setOpen(false)} />}
+      {open && <NavScrim onClose={() => setOpen(false)} />}
       <button
         type="button"
         className="nav-contact-btn"
@@ -150,7 +173,7 @@ export function MastheadMenu({ open, onToggle }: { open: boolean; onToggle: () =
   return (
     <div className="masthead-menu-wrap">
       {/* A tap anywhere else closes it, the same way the wallet panel does. */}
-      {open && <button type="button" className="nav-scrim" aria-label={closeLabel()} onClick={onToggle} />}
+      {open && <NavScrim onClose={onToggle} />}
       {/* A disclosure, not an ARIA menu: `aria-haspopup` would promise
           `role="menuitem"` children with arrow-key navigation, and these are
           ordinary links, most of which leave the app. `aria-expanded` alone

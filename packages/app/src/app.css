@@ -384,9 +384,19 @@ select:focus-visible {
    and the chip, and that is a near miss, not a margin. */
 .masthead-nav {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  /* Centred without a transform (`inset: 0` + `margin: auto` + `max-content`),
+     which matters for what hangs off it rather than for where it sits: a
+     transform is a containing block for fixed descendants and a stacking
+     context for everything inside. With one, Contact's panel could not rise
+     above the beta strip below the row — its `z-index: 30` was scoped to this
+     element, which is a single layer from the outside, so the strip's gold
+     `?` painted straight through the panel (2026-09-16) — and the panel's
+     scrim, `position: fixed; inset: 0`, covered this 400px row instead of the
+     viewport, so a click outside it did not close anything. */
+  inset: 0;
+  margin: auto;
+  width: max-content;
+  height: max-content;
   display: flex;
   align-items: center;
   gap: 20px;
@@ -609,11 +619,17 @@ select:focus-visible {
 }
 
 /* `.identity-scrim` is named for its owner; these are its declarations under a
-   name this one owns. */
+   name this one owns.
+
+   Rendered into `<body>` by `NavScrim`, never inside the masthead: `.masthead`
+   has a `backdrop-filter`, which is a containing block for fixed descendants,
+   so a scrim mounted there resolves `inset: 0` against the masthead and covers
+   ~97px of a 900px screen. 99 keeps it under the masthead's own 100, so it
+   closes the menu from the page without eating a click on the nav beside it. */
 .nav-scrim {
   position: fixed;
   inset: 0;
-  z-index: 20;
+  z-index: 99;
   appearance: none;
   border: none;
   padding: 0;
