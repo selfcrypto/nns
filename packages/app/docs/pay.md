@@ -35,6 +35,6 @@ https://nimiqnames.com/pay/donald?amount=25&message=INV-42
 
 The name is the recipient, `amount` and `message` fill the two fields, and `asset=usdt` asks for USDT instead of NIM. Pasted into a chat, the link draws a card that says who is being paid and how much. Opening it commits nothing: every field stays editable, and the message that came with the link is read-only until you tap **Edit**, so the payee's wording is not lost by accident. Nothing is sent until you press Pay.
 
-**A link you were sent can be pasted into the recipient field.** Tapping a link in a chat app opens your browser, not Nimiq Pay, so a payer already inside the mini app pastes it where a name goes and it applies whole. The field tells a link from a name by the `/pay/` or the `#` in it, neither of which a name can contain.
+**A link you were sent can be pasted into the recipient field.** Tapping a link in a chat app opens your browser, not Nimiq Pay. Inside the mini app, paste the link where the name goes and the fields fill in.
 
 **Owners build one from their name's card**, under the **Request Payment** tile in My Names ([My Names](my-names)).
