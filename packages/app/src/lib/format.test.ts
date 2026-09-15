@@ -6,6 +6,7 @@ import {
   ellipsizeAddress,
   formatApproxDate,
   formatApproxIn,
+  formatApproxWhen,
   group,
   looksGrouped,
   lunaToNim,
@@ -159,5 +160,30 @@ describe('splitAroundName', () => {
     const parts = splitAroundName(line, 'rico')
     expect(parts.map((part) => part.text).join('')).toBe(line)
     expect(marked(line, 'rico')).toBe(2)
+  })
+})
+
+/**
+ * A deadline inside two days is a clock time, not the date it already is.
+ * A tempo era runs auctions from one hour and a grace period of a day, and
+ * every one of those rendered as today's date (2026-09-15).
+ */
+describe('formatApproxWhen', () => {
+  const NOON = new Date(2026, 8, 15, 12, 0, 0).getTime()
+  const at = (h: number): Date => new Date(NOON + h * 3_600_000)
+
+  it('gives a clock time for today and tomorrow', () => {
+    expect(formatApproxWhen(at(1), NOON, 'en-GB')).toBe('≈ 13:00 today')
+    expect(formatApproxWhen(at(20), NOON, 'en-GB')).toMatch(/^≈ \d\d:\d\d tomorrow$/)
+  })
+
+  it('falls back to a date further out, where the date is the useful part', () => {
+    expect(formatApproxWhen(at(24 * 10), NOON, 'en-GB')).toMatch(/^≈ \w/)
+    expect(formatApproxWhen(at(24 * 10), NOON, 'en-GB')).not.toMatch(/today|tomorrow/)
+  })
+
+  // "Messages since" is the one past-facing use; a past instant keeps its date.
+  it('keeps a date for anything already past', () => {
+    expect(formatApproxWhen(at(-48), NOON, 'en-GB')).not.toMatch(/today|tomorrow/)
   })
 })

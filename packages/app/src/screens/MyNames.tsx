@@ -7,7 +7,7 @@
 import { useState, type ReactNode } from 'react'
 import { CONSTANTS } from '@nimiqnames/core'
 import { getOwnedNames, type OwnedName } from '../lib/api'
-import { approxDate, formatApproxDate } from '../lib/format'
+import { approxDate, formatApproxWhen } from '../lib/format'
 import { apiBase } from '../lib/nns'
 import { search } from '../lib/search'
 import { renewalUrgency, type AppAction } from '../lib/states'
@@ -103,7 +103,7 @@ function Detail({
       : {
           grace: true,
           due: false,
-          text: graceBadge(formatApproxDate(approxDate(info.record.expiry + CONSTANTS.GRACE_PERIOD, info.height, nowMs))),
+          text: graceBadge(formatApproxWhen(approxDate(info.record.expiry + CONSTANTS.GRACE_PERIOD, info.height, nowMs), nowMs)),
         }
 
   return (
@@ -281,8 +281,8 @@ export function MyNamesScreen({
         <ul className={styles.nameList}>
           {names.map((ownedName) => {
             const urgency = renewalUrgency(ownedName.expiry, height)
-            const expiryDate = formatApproxDate(approxDate(ownedName.expiry, height, nowMs))
-            const graceEnd = formatApproxDate(approxDate(ownedName.expiry + CONSTANTS.GRACE_PERIOD, height, nowMs))
+            const expiryDate = formatApproxWhen(approxDate(ownedName.expiry, height, nowMs), nowMs)
+            const graceEnd = formatApproxWhen(approxDate(ownedName.expiry + CONSTANTS.GRACE_PERIOD, height, nowMs), nowMs)
             return (
               <li key={ownedName.name} className={styles.nameItem}>
                 <button type="button" className={`name-row ${styles.nameRow}`} onClick={() => setSelected(ownedName.name)}>

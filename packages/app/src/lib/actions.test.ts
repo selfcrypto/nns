@@ -3,7 +3,7 @@ import { CONSTANTS, LUNA_PER_NIM, parse, termFor } from '@nimiqnames/core'
 import { ActionInputError, parseAuctionDuration, parseNimAmount, prepareAction, type ActionInputs } from './actions'
 import type { ApiParams, NameInfo } from './api'
 import { blocksApprox, formatApproxDate } from './format'
-import { termChoiceLabel, transferMovesLine } from './wording'
+import { PRICE_UNCHANGED, termChoiceLabel, transferMovesLine } from './wording'
 
 const OWNER = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
 const OTHER = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
@@ -49,7 +49,7 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     const parsed = parse(prepared.request.dataHex)
     expect(parsed.ok && parsed.message.type === 'G' && parsed.message.ref).toBe('ricomav')
     expect(prepared.request.value).toBe(200_000_000n) // the price is unchanged
-    expect(prepared.review.some((line) => line.startsWith('Referred by ricomav.') && line.includes('You pay the same'))).toBe(true)
+    expect(prepared.review.some((line) => line.startsWith('Referred by ricomav.') && line.includes(PRICE_UNCHANGED))).toBe(true)
     // The buyer's screen never says what the referrer earns (wording.ts).
     expect(prepared.review.some((line) => /owner earns/i.test(line))).toBe(false)
   })

@@ -10,7 +10,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getAuctions, getOffers, type ApiAuction, type ApiOffer } from '../lib/api'
-import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
+import { approxDate, ellipsizeAddress, formatApproxWhen, lunaToNim } from '../lib/format'
 import { apiBase } from '../lib/nns'
 import { search } from '../lib/search'
 import { connectInstead, nameView, signerFor } from '../lib/states'
@@ -257,7 +257,7 @@ function OfferCard({
           </div>
           <div className={styles.metaItem}>
             <span className={styles.metaIcon}><ClockIcon /></span>
-            <span>{expiryUntilLine(formatApproxDate(approxDate(offer.expiryHeight, height, nowMs)))}</span>
+            <span>{expiryUntilLine(formatApproxWhen(approxDate(offer.expiryHeight, height, nowMs), nowMs))}</span>
           </div>
         </div>
       </div>
@@ -340,7 +340,7 @@ function AuctionCard({
           </div>
           <div className={styles.metaItem}>
             <span className={styles.metaIcon}><ClockIcon /></span>
-            <span>{auctionEndsLine(formatApproxDate(approxDate(auction.endHeight, height, nowMs)))}</span>
+            <span>{auctionEndsLine(formatApproxWhen(approxDate(auction.endHeight, height, nowMs), nowMs))}</span>
           </div>
         </div>
       </div>

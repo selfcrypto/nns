@@ -3,11 +3,12 @@
  * these tests pin the ones a later edit would most plausibly break.
  */
 import { CONSTANTS } from '@nimiqnames/core'
-import { readFileSync } from 'node:fs'
+import { globSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 import { blocksApprox } from './format'
 import {
+  PRICE_UNCHANGED,
   ACTION_LABEL,
   cancelHint,
   cancelLabel,
@@ -305,7 +306,7 @@ describe('the referral lines (§10.7)', () => {
   it('with no rebate the review is the line it was before the rebate existed', () => {
     const line = referredByLine('ricomav')
     expect(line).toContain('ricomav')
-    expect(line).toContain('You pay the same')
+    expect(line).toContain(PRICE_UNCHANGED)
     expect(line).not.toMatch(/%/)
   })
 
@@ -502,11 +503,31 @@ describe('no em dash splits a sentence a user reads', () => {
     return out
   }
 
-  const FILES = ['./wording.ts', './actions.ts', './states.ts']
+  // Every source file in the app, not a list of three. The list was the bug:
+  // `lib/evm.ts` shipped *"Amount is typed without thousands separators —
+  // 12345, not 12,345"* to users for as long as the sweep has existed, because
+  // it was never one of the three files named here (2026-09-15). A string a
+  // user reads is a string anywhere, so the sweep walks the tree.
+  const SOURCES = globSync('**/*.{ts,tsx}', { cwd: new URL('..', import.meta.url) })
+    .filter((file) => !file.endsWith('.test.ts') && !file.endsWith('.test.tsx'))
+    .sort()
 
-  it.each(FILES)('holds for every string in %s', (file) => {
-    const strings = stringsIn(readFileSync(new URL(file, import.meta.url), 'utf8'))
-    expect(strings.filter((text) => text.includes('—'))).toEqual([])
+  it('covers the whole app, not a hand-kept list', () => {
+    expect(SOURCES.length).toBeGreaterThan(20)
+    expect(SOURCES).toContain('lib/evm.ts')
+  })
+
+  // The rule is that no em dash **splits a sentence**, not that the character
+  // is banned: `lib/chrome.ts` uses a bare "—" as the "no value" cell in a
+  // diagnostics readout, which is what an em dash is actually for. So the
+  // interpolations come out first, and what is left has to read as prose
+  // before it is judged.
+  const prose = (text: string): boolean => (text.match(/\$\{[^}]*\}/g) === null ? text : text.replace(/\$\{[^}]*\}/g, ' ')).match(/\p{L}/gu) !== null
+    && (text.replace(/\$\{[^}]*\}/g, ' ').match(/\p{L}/gu) ?? []).length >= 3
+
+  it.each(SOURCES)('holds for every string in %s', (file) => {
+    const strings = stringsIn(readFileSync(new URL(`../${file}`, import.meta.url), 'utf8'))
+    expect(strings.filter((text) => text.includes('—') && prose(text))).toEqual([])
   })
 
   it('reads strings and not comments', () => {
@@ -541,7 +562,7 @@ describe('the custodial disclosure keeps §8.5 #10 on the card', () => {
   })
 
   it('the hint carries the circumstances the line no longer states', () => {
-    expect(custodialHint()).toMatch(/loses a race or hits a cancelled offer/)
+    expect(custodialHint()).toMatch(/loses a race or hits a cancelled sale/)
     expect(bidCustodialHint()).toMatch(/higher bid lands/)
     for (const hint of [custodialHint(), bidCustodialHint(), marketCustodialHint()]) {
       expect(hint).toMatch(/a promise, not a protocol rule/)

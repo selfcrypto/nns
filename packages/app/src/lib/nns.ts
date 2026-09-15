@@ -58,7 +58,7 @@ export function apiBase(): string {
   const first = appConfig().resolvers[0]
   if (!first) {
     throw new ConfigParseError(
-      'No resolver endpoints configured. Set VITE_NNS_RESOLVERS — the shipped default list is empty until a public NNS API exists.',
+      'No resolver endpoints configured. Set VITE_NNS_RESOLVERS; the shipped default list is empty until a public NNS API exists.',
     )
   }
   return first.url

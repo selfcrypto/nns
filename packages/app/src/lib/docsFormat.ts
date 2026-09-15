@@ -41,7 +41,7 @@ export function parseDocIndex(markdown: string): readonly DocPage[] {
     const item = /^-\s+(.*)$/.exec(line.trim())
     if (item === null) continue
     const entry = /^([a-z0-9-]+):\s+(\S.*)$/.exec(item[1] ?? '')
-    if (entry === null) throw new Error(`docs/index.md: not a "slug: Title" entry — ${line.trim()}`)
+    if (entry === null) throw new Error(`docs/index.md: not a "slug: Title" entry: ${line.trim()}`)
     pages.push({ slug: entry[1] ?? '', title: (entry[2] ?? '').trim() })
   }
   if (pages.length === 0) throw new Error('docs/index.md lists no pages')

@@ -261,7 +261,7 @@ export const propagatingRetryLine = (retrying: boolean): string =>
 // ── Delegates (never blame the subdomain) ───────────────────────────────────
 
 export const delegateFailedLine = (parent: string): string =>
-  `${parent}’s resolver did not answer. Only its owner can say whether the subdomain exists.`
+  `${parent}’s host did not answer. Only its owner can say whether the subdomain exists.`
 
 export const parentNotDelegatingLine = (parent: string): string =>
   `${parent} doesn’t delegate subdomains.`
@@ -289,7 +289,7 @@ export const manageThisLabel = (): string => 'Manage this name'
 export const messageSubdomainLabel = (): string => 'Message this address'
 
 export const messageSubdomainNote = (parent: string): string =>
-  `Goes to the address above, which ${parent}’s resolver gave. It may not be ${parent}’s owner.`
+  `Goes to the address above, which ${parent}’s host gave. It may not be ${parent}’s owner.`
 
 // ── Name states (states doc §1) ─────────────────────────────────────────────
 
@@ -381,7 +381,7 @@ export const bidCustodialWarning = (): string =>
   'The marketplace operator holds your bid until the auction ends.'
 
 export const bidCustodialHint = (): string =>
-  'It comes back the moment a higher bid lands, and again if the auction is cancelled. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.'
+  `It comes back the moment a higher bid lands, and again if the auction is cancelled. ${SETTLEMENT_ASSURANCE}`
 
 export const feeChangeLine = (whenDate: string): string =>
   `Fees change ${whenDate} (a scheduled governance update).`
@@ -407,7 +407,7 @@ export const GATE_REASON_TEXT: Record<GateReason, string> = {
   // One short line, because it appears on up to four rows at once — the
   // auction's own facts are in the overlay above them.
   'auction-open': 'Locked while the auction runs.',
-  'no-auction': 'No open auction on this name.',
+  'no-auction': 'This name is not up for auction.',
   'state-unknown': 'Couldn’t read this name’s record. Try again.',
 }
 
@@ -505,11 +505,19 @@ export function queryFaultLine(fault: QueryFault): string {
  * warning, which is the failure this split is fixing — not a relaxation of
  * the rule.
  */
+/**
+ * The two sentences §8.5 #10 wants beside every custodial disclosure, written
+ * once. All three hints carried their own copy, which is how a shared fact
+ * becomes three facts that drift (2026-09-15).
+ */
+export const SETTLEMENT_ASSURANCE =
+  'The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.'
+
 export const custodialWarning = (): string =>
   'The marketplace operator holds your payment until settlement.'
 
 export const custodialHint = (): string =>
-  'The name is yours as soon as your payment is final. That part is protocol; the money is not. If this purchase loses a race or hits a cancelled offer, the operator refunds you. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.'
+  `The name is yours as soon as your payment is final. That part is protocol; the money is not. If this purchase loses a race or hits a cancelled sale, the operator refunds you. ${SETTLEMENT_ASSURANCE}`
 
 /**
  * The Market screen's own disclosure. The list holds offers **and** auctions,
@@ -520,7 +528,7 @@ export const marketCustodialLine = (): string =>
   'The marketplace operator holds payments and bids until settlement.'
 
 export const marketCustodialHint = (): string =>
-  'A name transfers on the chain the moment the payment is final. The money settles separately, through the operator: a purchase that loses a race or hits a cancelled offer is refunded, and so is a bid the moment it is outbid. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.'
+  `A name transfers on the chain the moment the payment is final. The money settles separately, through the operator: a purchase that loses a race or hits a cancelled sale is refunded, and so is a bid the moment it is outbid. ${SETTLEMENT_ASSURANCE}`
 
 /** app-ux §5: the sheet shows only the marketplace address, so the app says who is selling. */
 export const soldByLine = (seller: string): string => `Sold by ${seller}.`
@@ -669,7 +677,7 @@ export const ACTION_LABEL: Record<AppAction, string> = {
   setEvm: 'Link USDC / USDT address',
   transfer: 'Transfer ownership',
   delegate: 'Set subdomain host',
-  cancel: 'Cancel what’s pending',
+  cancel: 'Cancel Pending',
   renew: 'Renew',
   offer: 'Put up for sale',  /* the action; every status word is "sale" */
   buy: 'Buy',
@@ -760,7 +768,7 @@ export function priceHint(fees: readonly { readonly upTo: number; readonly yearl
  */
 export const referredByLine = (ref: string, rebate: string | null = null, netOfBurn = false): string =>
   rebate === null
-    ? `Referred by ${ref}. You pay the same.`
+    ? `Referred by ${ref}. ${PRICE_UNCHANGED}.`
     : `Referred by ${ref}. ${rebate}${netOfBurn ? ` ${BURN_ASIDE}` : ''} comes back to you once it confirms.`
 
 /**
@@ -782,9 +790,17 @@ const BURN_ASIDE = `(${BURN_WORD})`
  * The strip is where it is shown, on the landing page and on Buy, and the
  * remove control beside it is the correction.
  */
+/**
+ * One sentence for "a referral costs you nothing", because it was three:
+ * *"You pay the same."*, *"Your price is unchanged"* and *"The price is the
+ * same either way."* — the same fact, stated three ways within one flow
+ * (2026-09-15).
+ */
+export const PRICE_UNCHANGED = 'Your price is unchanged'
+
 export const REFERRER_STRIP = {
   label: 'Referred by',
-  note: 'Your price is unchanged',
+  note: PRICE_UNCHANGED,
   remove: 'Remove',
   removeLabel: 'Remove this referrer',
 } as const
@@ -812,7 +828,7 @@ export const referrerKeptLine = (ref: string): string => `You were already refer
  * and this says so rather than promising a share that will not be paid.
  */
 export const referredBySelfLine = (ref: string): string =>
-  `${ref} is your own name, so no referral share is paid. The price is the same either way.`
+  `${ref} is your own name, so no referral share is paid.`
 
 export const giftRenewalLabel = (): string => 'Gift a renewal'
 
@@ -853,6 +869,47 @@ export const alreadyYoursLine = (): string => 'This name is already yours.'
 export const ownAuctionLine = (): string => 'This is your own auction.'
 
 export const bidBelowMinimumLine = (nim: string): string => `Bid must be at least ${nim} NIM.`
+
+export const notAUsdtAmountLine = (): string => 'Amount must be a USDT amount, like 25 or 9.50.'
+
+/* ── Labels that were living in their components ──────────────────────────
+ *
+ * The catalog is only worth reading if it is complete, and these were not in
+ * it: the tab bar in `App.tsx`, the composer's two labels, the three sheet
+ * placeholders, and Pay's amount labels, which were a **second copy** of
+ * `payAmountLabel` and `usdtAmountLabel` written out again in the screen
+ * (2026-09-15).
+ */
+
+export const TAB_LABEL = {
+  home: 'Home',
+  // "Buy/Search" rather than "Buy": the tab is still named for the job, but the
+  // job people arrive with is looking a name up, and a tab called Buy reads as
+  // a shop you have to enter before you may ask a question.
+  buy: 'Buy/Search',
+  pay: 'Pay',
+  names: 'My Names',
+  inbox: 'Inbox',
+  market: 'Market',
+  docs: 'Docs',
+} as const
+
+export const showEveryAddressLabel = (): string => 'Show every address'
+
+export const composerToLabel = (): string => 'To the owner of '
+
+export const composerPlaceholder = (): string => 'A short message…'
+
+export const pricePlaceholder = (): string => 'Price in NIM'
+
+export const startingPricePlaceholder = (): string => 'Starting price in NIM'
+
+/**
+ * The floor is `AUCTION_MIN_DURATION`, not the number 1: it is a day on
+ * mainnet and an hour in a tempo era, and the placeholder read "(at least 1)"
+ * in both (2026-09-15, the same defect as the transfer delay).
+ */
+export const durationPlaceholder = (minimum: string): string => `Duration in days (at least ${minimum})`
 
 /* ── A field that takes an address or a name (`lib/addressField.ts`) ── */
 
@@ -999,7 +1056,7 @@ export const payMessageLabel = (): string => 'Message'
 export const payMessagePlaceholder = (): string => 'What it’s for'
 
 export const payMessageHint = (): string =>
-  `A note for whoever receives this, like an invoice or an order number. It is written on the chain against both addresses: public, permanent, readable by anyone. Room for ${CONSTANTS.MAX_DATA_BYTES} bytes, which is ${CONSTANTS.MAX_DATA_BYTES} ordinary letters and fewer with accents or emoji.`
+  `A note for whoever receives this, like an invoice or an order number. It is written on the chain against both addresses: public, permanent, readable by anyone. Room for ${CONSTANTS.MAX_DATA_BYTES} bytes, which is that many plain letters and fewer with accents or emoji.`
 
 export const payMessageBudgetLine = (used: number, budget: number): string => `${used}/${budget} bytes`
 
@@ -1141,7 +1198,7 @@ export const chatPublicNotice = (): string =>
 export const chatOwnNameLine = (): string =>
   'This name is yours. A message to yourself can’t be sent.'
 
-export const chatBudgetLine = (used: number, budget: number): string => `${used}/${budget} bytes`
+export const chatBudgetLine = payMessageBudgetLine
 
 export const CHAT_ENCODE_TEXT: Record<'BAD_NAME' | 'EMPTY_MESSAGE' | 'CONTROL_CHARS' | 'OVER_BUDGET', string> = {
   BAD_NAME: 'Not a valid name.',
@@ -1206,7 +1263,7 @@ export const myNamesEmptyBody = (): string =>
 /** The button under that line — the sentence names Buy, this goes there. */
 export const myNamesEmptyAction = (): string => 'Find a name'
 
-export const offersEmptyTitle = (): string => 'Nothing for sale'
+export const offersEmptyTitle = (): string => 'Nothing on the marketplace'
 
 export const offersEmptyBody = (): string => 'Names for sale and open auctions show here.'
 
@@ -1404,10 +1461,10 @@ export const SCREEN_TITLE: Record<AppScreen, string> = {
 }
 
 export const SCREEN_SUB: Record<Exclude<AppScreen, 'buy'>, string> = {
-  names: 'Manage your on-chain identities, records, and sales',
-  pay: 'Send NIM or Polygon USDT directly to any verified NNS address.',
-  inbox: 'On-chain, wallet-to-wallet decentralized messaging on Nimiq.',
-  market: 'Acquire registered NNS names or place bids on live auctions.',
+  names: 'Manage your on-chain identities, records and sales.',
+  pay: 'Send NIM or Polygon USDT to a name, and see where it resolves first.',
+  inbox: 'On-chain, wallet-to-wallet messaging, addressed to a name.',
+  market: 'Buy a registered name outright, or bid in a live auction.',
 }
 
 /** The claims a trust bar can carry. Every one is what the code does. */

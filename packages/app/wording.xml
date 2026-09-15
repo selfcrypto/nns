@@ -49,13 +49,13 @@
     <string id="propagatingRetryLine" params="retrying">Checking again…</string>
   </group>
   <group name="Delegates (never blame the subdomain)">
-    <string id="delegateFailedLine" params="parent">{parent}’s resolver did not answer. Only its owner can say whether the subdomain exists.</string>
+    <string id="delegateFailedLine" params="parent">{parent}’s host did not answer. Only its owner can say whether the subdomain exists.</string>
     <string id="parentNotDelegatingLine" params="parent">{parent} doesn’t delegate subdomains.</string>
     <string id="subdomainNotRegistrableLine" params="parent">Subdomains aren’t registered on NNS. {parent}’s owner issues them.</string>
     <string id="payThisLabel">Pay this address</string>
     <string id="manageThisLabel">Manage this name</string>
     <string id="messageSubdomainLabel">Message this address</string>
-    <string id="messageSubdomainNote" params="parent">Goes to the address above, which {parent}’s resolver gave. It may not be {parent}’s owner.</string>
+    <string id="messageSubdomainNote" params="parent">Goes to the address above, which {parent}’s host gave. It may not be {parent}’s owner.</string>
   </group>
   <group name="Name states (states doc §1)">
     <string id="availableLine">Available</string>
@@ -90,7 +90,7 @@
   <group name="Gate reasons (states doc §4; shown on disabled actions)">
     <string id="GATE_REASON_TEXT.auction-open">Locked while the auction runs.</string>
     <string id="GATE_REASON_TEXT.in-grace">In grace. Only renewal works until it ends.</string>
-    <string id="GATE_REASON_TEXT.no-auction">No open auction on this name.</string>
+    <string id="GATE_REASON_TEXT.no-auction">This name is not up for auction.</string>
     <string id="GATE_REASON_TEXT.no-offer">This name is not for sale.</string>
     <string id="GATE_REASON_TEXT.no-record">This name isn’t registered.</string>
     <string id="GATE_REASON_TEXT.no-viewer">Connect a wallet to act on names.</string>
@@ -106,10 +106,11 @@
     <string id="shortNameNoteLine">Names under 5 characters are reserved unless deliberately released.</string>
   </group>
   <group name="Buy (§8.5 #10)">
+    <string id="SETTLEMENT_ASSURANCE">The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
     <string id="custodialWarning">The marketplace operator holds your payment until settlement.</string>
-    <string id="custodialHint">The name is yours as soon as your payment is final. That part is protocol; the money is not. If this purchase loses a race or hits a cancelled offer, the operator refunds you. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
+    <string id="custodialHint">The name is yours as soon as your payment is final. That part is protocol; the money is not. If this purchase loses a race or hits a cancelled sale, the operator refunds you. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
     <string id="marketCustodialLine">The marketplace operator holds payments and bids until settlement.</string>
-    <string id="marketCustodialHint">A name transfers on the chain the moment the payment is final. The money settles separately, through the operator: a purchase that loses a race or hits a cancelled offer is refunded, and so is a bid the moment it is outbid. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
+    <string id="marketCustodialHint">A name transfers on the chain the moment the payment is final. The money settles separately, through the operator: a purchase that loses a race or hits a cancelled sale is refunded, and so is a bid the moment it is outbid. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
     <string id="soldByLine" params="seller">Sold by {seller}.</string>
     <string id="sellerProceedsLine" params="netNim percent">You get {netNim} NIM if it sells, after the {percent} marketplace commission.</string>
     <string id="auctionProceedsLine" params="minNetNim percent">You get at least {minNetNim} NIM, after the {percent} commission on the winning bid.</string>
@@ -142,7 +143,7 @@
     <string id="ACTION_LABEL.auction">Put up for auction</string>
     <string id="ACTION_LABEL.bid">Bid</string>
     <string id="ACTION_LABEL.buy">Buy</string>
-    <string id="ACTION_LABEL.cancel">Cancel what’s pending</string>
+    <string id="ACTION_LABEL.cancel">Cancel Pending</string>
     <string id="ACTION_LABEL.delegate">Set subdomain host</string>
     <string id="ACTION_LABEL.offer">Put up for sale</string>
     <string id="ACTION_LABEL.register">Register</string>
@@ -157,15 +158,16 @@
     <string id="lifetimeChoiceLabel">Lifetime</string>
     <string id="termChoiceGroupLabel">Term</string>
     <string id="choicePriceLine" params="nim">{nim} NIM</string>
-    <string id="referredByLine" params="ref rebate netOfBurn">Referred by {ref}. You pay the same.</string>
+    <string id="referredByLine" params="ref rebate netOfBurn">Referred by {ref}. Your price is unchanged.</string>
     <string id="BURN_WORD">minus the registry’s burn</string>
+    <string id="PRICE_UNCHANGED">Your price is unchanged</string>
     <string id="REFERRER_STRIP.label">Referred by</string>
     <string id="REFERRER_STRIP.note">Your price is unchanged</string>
     <string id="REFERRER_STRIP.remove">Remove</string>
     <string id="REFERRER_STRIP.removeLabel">Remove this referrer</string>
     <string id="buyerRebateLine" params="percent netOfBurn">You get {percent} of the fee back after you register.</string>
     <string id="referrerKeptLine" params="ref">You were already referred by {ref}, so that link was not used.</string>
-    <string id="referredBySelfLine" params="ref">{ref} is your own name, so no referral share is paid. The price is the same either way.</string>
+    <string id="referredBySelfLine" params="ref">{ref} is your own name, so no referral share is paid.</string>
     <string id="giftRenewalLabel">Gift a renewal</string>
     <string id="giftRenewalLine" params="owner">You don’t own this name. The term extends for {owner}.</string>
   </group>
@@ -182,6 +184,22 @@
     <string id="alreadyYoursLine">This name is already yours.</string>
     <string id="ownAuctionLine">This is your own auction.</string>
     <string id="bidBelowMinimumLine" params="nim">Bid must be at least {nim} NIM.</string>
+    <string id="notAUsdtAmountLine">Amount must be a USDT amount, like 25 or 9.50.</string>
+  </group>
+  <group name="Labels that were living in their components">
+    <string id="TAB_LABEL.buy">Buy/Search</string>
+    <string id="TAB_LABEL.docs">Docs</string>
+    <string id="TAB_LABEL.home">Home</string>
+    <string id="TAB_LABEL.inbox">Inbox</string>
+    <string id="TAB_LABEL.market">Market</string>
+    <string id="TAB_LABEL.names">My Names</string>
+    <string id="TAB_LABEL.pay">Pay</string>
+    <string id="showEveryAddressLabel">Show every address</string>
+    <string id="composerToLabel">To the owner of </string>
+    <string id="composerPlaceholder">A short message…</string>
+    <string id="pricePlaceholder">Price in NIM</string>
+    <string id="startingPricePlaceholder">Starting price in NIM</string>
+    <string id="durationPlaceholder" params="minimum">Duration in days (at least {minimum})</string>
   </group>
   <group name="A field that takes an address or a name (`lib/addressField.ts`)">
     <string id="addressOrNamePlaceholder">Address or name</string>
@@ -222,7 +240,7 @@
     <string id="payButtonLabel" params="nim">Pay {nim} NIM</string>
     <string id="payMessageLabel">Message</string>
     <string id="payMessagePlaceholder">What it’s for</string>
-    <string id="payMessageHint">A note for whoever receives this, like an invoice or an order number. It is written on the chain against both addresses: public, permanent, readable by anyone. Room for 64 bytes, which is 64 ordinary letters and fewer with accents or emoji.</string>
+    <string id="payMessageHint">A note for whoever receives this, like an invoice or an order number. It is written on the chain against both addresses: public, permanent, readable by anyone. Room for 64 bytes, which is that many plain letters and fewer with accents or emoji.</string>
     <string id="payMessageBudgetLine" params="used budget">2/2 bytes</string>
     <string id="payMessageFromLinkLine">Came with the payment link.</string>
     <string id="payMessageEditLabel">Edit</string>
@@ -286,7 +304,7 @@
     <string id="myNamesEmptyTitle">No names yet</string>
     <string id="myNamesEmptyBody">Register a name in Buy. It points at your address from the moment it lands.</string>
     <string id="myNamesEmptyAction">Find a name</string>
-    <string id="offersEmptyTitle">Nothing for sale</string>
+    <string id="offersEmptyTitle">Nothing on the marketplace</string>
     <string id="offersEmptyBody">Names for sale and open auctions show here.</string>
     <string id="inboxNoWalletTitle">No wallet connected</string>
     <string id="inboxNotConfiguredTitle">Inbox not set up</string>
@@ -315,10 +333,10 @@
     <string id="SCREEN_TITLE.market">Marketplace</string>
     <string id="SCREEN_TITLE.names">My Names</string>
     <string id="SCREEN_TITLE.pay">Pay a Name</string>
-    <string id="SCREEN_SUB.inbox">On-chain, wallet-to-wallet decentralized messaging on Nimiq.</string>
-    <string id="SCREEN_SUB.market">Acquire registered NNS names or place bids on live auctions.</string>
-    <string id="SCREEN_SUB.names">Manage your on-chain identities, records, and sales</string>
-    <string id="SCREEN_SUB.pay">Send NIM or Polygon USDT directly to any verified NNS address.</string>
+    <string id="SCREEN_SUB.inbox">On-chain, wallet-to-wallet messaging, addressed to a name.</string>
+    <string id="SCREEN_SUB.market">Buy a registered name outright, or bid in a live auction.</string>
+    <string id="SCREEN_SUB.names">Manage your on-chain identities, records and sales.</string>
+    <string id="SCREEN_SUB.pay">Send NIM or Polygon USDT to a name, and see where it resolves first.</string>
     <string id="TRUST_CLAIM.antiSniping">Anti-Sniping Extension</string>
     <string id="TRUST_CLAIM.decentralizedChat">Decentralized Chat</string>
     <string id="TRUST_CLAIM.merkleVerified">Merkle Verified</string>

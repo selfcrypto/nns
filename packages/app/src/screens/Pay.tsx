@@ -92,7 +92,7 @@ import {
   sendSettlingLine,
   sendUncheckedLine,
   sendUnconfirmedLine,
-  unreachableLine,
+  unreachableLine
 } from '../lib/wording'
 import { Hint } from '../components/Hint'
 import { IdentityBar } from '../components/IdentityBar'
@@ -602,7 +602,7 @@ export function PayScreen({
                       placeholder="10.00"
                       value={amount}
                       onChange={(event) => setAmount(event.target.value)}
-                      aria-label="Amount in USDT"
+                      aria-label={usdtAmountLabel()}
                     />
                     <span className={styles.currencyPill}>USDT</span>
                   </div>
@@ -750,7 +750,7 @@ export function PayScreen({
                       placeholder="0.00001"
                       value={amount}
                       onChange={(event) => setAmount(event.target.value)}
-                      aria-label="Amount in NIM"
+                      aria-label={payAmountLabel()}
                     />
                     <span className={styles.currencyPill}>NIM</span>
                   </div>

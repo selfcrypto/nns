@@ -6,7 +6,7 @@ import { detectWallet, type Wallet } from './lib/wallet'
 import { referralFromLocation, rememberReferral } from './lib/referral'
 import { applyTheme, loadTheme, saveTheme, systemPrefersDark, type Theme } from './lib/theme'
 import { BRAND_MARK as MARK } from './lib/brand'
-import { SITE_NAME } from './lib/wording'
+import { SITE_NAME, TAB_LABEL } from './lib/wording'
 import { IdentityBar } from './components/IdentityBar'
 import { EraNotice } from './components/EraNotice'
 import { MastheadLinks, MastheadMenu } from './components/MastheadNav'
@@ -25,18 +25,7 @@ import { PayScreen } from './screens/Pay'
  * the same thing the UI does. Discovery is Buy, management is My names — a name
  * you own is never handled from Buy (docs/app-ux.md §2).
  */
-const TAB_LABEL: Record<Tab, string> = {
-  home: 'Home',
-  // "Buy/Search" rather than "Buy": the tab is still named for the job, but the
-  // job people arrive with is looking a name up, and a tab called Buy reads as
-  // a shop you have to enter before you may ask a question.
-  buy: 'Buy/Search',
-  pay: 'Pay',
-  names: 'My Names',
-  inbox: 'Inbox',
-  market: 'Market',
-  docs: 'Docs',
-}
+
 
 const TAB_ICON: Record<NavTab, TabIconName> = {
   buy: 'search',

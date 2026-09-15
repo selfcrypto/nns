@@ -17,6 +17,8 @@ import {
   sendSettlingLine,
   sendUncheckedLine,
   sendUnconfirmedLine,
+  composerToLabel,
+  composerPlaceholder
 } from '../lib/wording'
 import { SendProgress } from './SendProgress'
 import { NameText } from './ui'
@@ -97,7 +99,7 @@ export function Composer({
     <div className="composer">
       {heading !== null && (
         <p className="composer-to">
-          {heading ?? 'To the owner of '}
+          {heading ?? composerToLabel()}
           {heading === undefined && <NameText>{name}</NameText>}
         </p>
       )}
@@ -107,7 +109,7 @@ export function Composer({
         maxLength={budget}
         value={text}
         onChange={(event) => setText(event.target.value)}
-        placeholder="A short message…"
+        placeholder={composerPlaceholder()}
         aria-label={`Message the owner of ${name}`}
       />
       <div className="composer-meta">

@@ -18,7 +18,7 @@ import { Hint } from './Hint'
 import { createPortal } from 'react-dom'
 import { CONSTANTS } from '@nimiqnames/core'
 import { primaryAddress } from '../lib/identity'
-import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
+import { approxDate, ellipsizeAddress, formatApproxWhen, lunaToNim } from '../lib/format'
 import type { SearchOutcome } from '../lib/search'
 import { actionGates, cancellableNow, cancelTileGroup, connectInstead, registrationFee, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
@@ -356,7 +356,7 @@ function Actions({
         case 'renew':
           return {
             title: OWNER_TILE.renew.title,
-            subtitle: record ? expiresLine(formatApproxDate(approxDate(record.expiry, height, Date.now()))) : OWNER_TILE.renew.hint,
+            subtitle: record ? expiresLine(formatApproxWhen(approxDate(record.expiry, height, Date.now()), Date.now())) : OWNER_TILE.renew.hint,
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
@@ -730,7 +730,7 @@ export function NameCard({
       // own line it spent a line to repeat a word (Kike, 2026-09-15).
       const expiryDate =
         record !== null && height !== null && record.status === 'REGISTERED'
-          ? formatApproxDate(approxDate(record.expiry, height, nowMs))
+          ? formatApproxWhen(approxDate(record.expiry, height, nowMs), nowMs)
           : null
       const renewDue = record !== null && height !== null && expiryDate !== null && renewalUrgency(record.expiry, height) === 'due'
 
@@ -928,7 +928,7 @@ export function NameCard({
       const height = outcome.info?.height ?? null
       const until =
         record !== null && height !== null
-          ? formatApproxDate(approxDate(record.expiry + CONSTANTS.GRACE_PERIOD, height, nowMs))
+          ? formatApproxWhen(approxDate(record.expiry + CONSTANTS.GRACE_PERIOD, height, nowMs), nowMs)
           : graceEndsUnknownPhrase()
       const isOwner = ownedByViewer(outcome, viewers)
       const mine = onManage !== null && isOwner

@@ -83,6 +83,32 @@ export function formatApproxDate(date: Date, locale?: string): string {
   return `≈ ${date.toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })}`
 }
 
+/**
+ * A deadline, in the unit that tells you something.
+ *
+ * A date is right for an expiry a year out and useless for one inside two
+ * days: a tempo era runs auctions from `AUCTION_MIN_DURATION` = 1 h and a
+ * grace period of a day, and every one of them came out of
+ * `formatApproxDate` as the date it already is (2026-09-15, the same defect
+ * as the transfer timelock one fold earlier).
+ *
+ * A **clock time** rather than "in ~45 min", because these are read through
+ * "until", "by" and "before" — *Yours until ≈ 14:32 today* is a sentence and
+ * *Yours until in ~45 min* is not. `formatApproxIn` stays the countdown form,
+ * for the places that ask how long is left rather than when it ends.
+ *
+ * Pure: the clock arrives as `nowMs`, the same one `approxDate` is given, so
+ * two renders of one screen cannot disagree.
+ */
+export function formatApproxWhen(date: Date, nowMs: number, locale?: string): string {
+  const now = new Date(nowMs)
+  const startOfDay = (d: Date): number => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const days = Math.round((startOfDay(date) - startOfDay(now)) / 86_400_000)
+  if (days < 0 || days > 1) return formatApproxDate(date, locale)
+  const time = date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
+  return `≈ ${time} ${days === 0 ? 'today' : 'tomorrow'}`
+}
+
 /** A block count as a rough duration: "~12 h", "~30 d". */
 export function blocksApprox(blocks: number): string {
   const days = blocks / 86_400

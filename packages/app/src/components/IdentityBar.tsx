@@ -34,6 +34,7 @@ import {
   moreAddressesLabel,
   payConnectLabel,
   walletCheckingLine,
+  showEveryAddressLabel
 } from '../lib/wording'
 import { Identicon } from './ui'
 
@@ -102,7 +103,7 @@ export function IdentityBar({
           // The set is the identity (`lib/identity.ts`); the primary is just
           // the one that fits. Everything else is one tap away rather than
           // invisible.
-          title={row.more > 0 ? 'Show every address' : undefined}
+          title={row.more > 0 ? showEveryAddressLabel() : undefined}
         >
           <Identicon address={row.primary} size={22} />
           <span className="identity-address nns-name">{ellipsizeAddress(row.primary)}</span>

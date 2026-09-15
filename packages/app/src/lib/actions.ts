@@ -28,7 +28,7 @@ import {
   termFor,
 } from '@nimiqnames/core'
 import { getNameInfo, type ApiParams, type NameInfo } from './api'
-import { approxDate, blocksApprox, ellipsizeAddress, formatApproxDate, looksGrouped, lunaToNim } from './format'
+import { approxDate, blocksApprox, ellipsizeAddress, formatApproxWhen, looksGrouped, lunaToNim } from './format'
 import {
   auctionOutlivesTermLine,
   auctionProceedsLine,
@@ -209,7 +209,7 @@ export function prepareAction(options: {
         ),
         review: [
           lifetime
-            ? registerLifetimePaysLine(lunaToNim(fee), formatApproxDate(approxDate(head + termFor(true), head, nowMs)))
+            ? registerLifetimePaysLine(lunaToNim(fee), formatApproxWhen(approxDate(head + termFor(true), head, nowMs), nowMs))
             : // The same spelling as the choice above it: the tab says "1 year",
               // and `blocksApprox` said "~365 d" one line below it.
               registerPaysLine(lunaToNim(fee), termChoiceLabel()),
@@ -244,7 +244,7 @@ export function prepareAction(options: {
           // and it moved behind the bubble with the rest of the second
           // sentences (Kike, 2026-09-15).
           ...(record !== null && info !== null
-            ? [newExpiryLine(formatApproxDate(approxDate(record.expiry + termFor(lifetime), info.height, nowMs)))]
+            ? [newExpiryLine(formatApproxWhen(approxDate(record.expiry + termFor(lifetime), info.height, nowMs), nowMs))]
             : []),
           // A gift: anyone may renew (§6 `N`), and the payer must see that the
           // name stays where it is before the wallet opens.
@@ -431,7 +431,7 @@ export function prepareAction(options: {
       const startingPrice = parseNimAmount(inputs.startingPriceNim, 'Starting price')
       const endHeight = auctionEndHeight(info.height, parseAuctionDuration(inputs.durationDays))
       const minPrice = needParams().minPrice
-      const when = (height: number): string => formatApproxDate(approxDate(height, info.height, Date.now()))
+      const when = (height: number): string => formatApproxWhen(approxDate(height, info.height, Date.now()), Date.now())
       const extension = blocksApprox(CONSTANTS.AUCTION_EXTENSION)
       const lines = [
         `Auctions ${name} from ${lunaToNim(startingPrice)} NIM, ending ${when(endHeight)}.`,
@@ -474,7 +474,7 @@ export function prepareAction(options: {
       if (bid < auction.minimumBid) {
         throw new ActionInputError(bidBelowMinimumLine(lunaToNim(auction.minimumBid)))
       }
-      const when = (height: number): string => formatApproxDate(approxDate(height, info.height, Date.now()))
+      const when = (height: number): string => formatApproxWhen(approxDate(height, info.height, Date.now()), Date.now())
       const extension = blocksApprox(CONSTANTS.AUCTION_EXTENSION)
       return {
         action: 'bid',

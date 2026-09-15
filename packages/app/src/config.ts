@@ -59,7 +59,7 @@ export function parseResolverList(raw: string | undefined): readonly ResolverEnd
   try {
     parsed = JSON.parse(raw)
   } catch {
-    throw new ConfigParseError('VITE_NNS_RESOLVERS is not valid JSON — expected [{"name": "...", "url": "https://..."}]')
+    throw new ConfigParseError('VITE_NNS_RESOLVERS is not valid JSON. Expected [{"name": "...", "url": "https://..."}]')
   }
   if (!Array.isArray(parsed)) {
     throw new ConfigParseError('VITE_NNS_RESOLVERS must be a JSON array of {name, url} entries')
@@ -70,7 +70,7 @@ export function parseResolverList(raw: string | undefined): readonly ResolverEnd
     }
     const { name, url } = entry as { name?: unknown; url?: unknown }
     if (typeof name !== 'string' || name.trim() === '') {
-      throw new ConfigParseError(`VITE_NNS_RESOLVERS[${index}].name must be a non-empty string — the name is what disagreement reports show, not decoration`)
+      throw new ConfigParseError(`VITE_NNS_RESOLVERS[${index}].name must be a non-empty string. The name is what disagreement reports show, not decoration.`)
     }
     if (typeof url !== 'string' || !isEndpointUrl(url)) {
       throw new ConfigParseError(`VITE_NNS_RESOLVERS[${index}].url must be ${URL_SHAPE}`)

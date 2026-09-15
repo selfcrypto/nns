@@ -17,6 +17,7 @@
 
 import { discoverEvmProvider } from './sdk'
 import { group, looksGrouped } from './format'
+import { noThousandsSeparatorLine, notAUsdtAmountLine } from './wording'
 
 /** The provider shape `discoverEvmProvider` answers with — re-declared here for the injectable parameter. */
 interface Eip1193Like {
@@ -54,11 +55,11 @@ export const parseUsdtAmount = (text: string): bigint => {
   // here, so a grouped amount has two honest readings (`format.ts`'s
   // `looksGrouped`). One screen, one rule — the Pay form takes both assets.
   if (looksGrouped(trimmed)) {
-    throw new EvmAmountError('Amount is typed without thousands separators — 12345, not 12,345')
+    throw new EvmAmountError(noThousandsSeparatorLine('Amount'))
   }
   const match = /^([0-9]+)(?:[.,]([0-9]{1,6}))?$/.exec(trimmed)
   if (match === null || match[1] === undefined) {
-    throw new EvmAmountError('Amount must be a USDT amount, like 25 or 9.50')
+    throw new EvmAmountError(notAUsdtAmountLine())
   }
   return BigInt(match[1]) * 1_000_000n + BigInt((match[2] ?? '').padEnd(6, '0'))
 }

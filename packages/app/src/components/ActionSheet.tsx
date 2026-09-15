@@ -5,7 +5,7 @@ import { getNameInfo, getParams, type NameInfo } from '../lib/api'
 import { clearReferral, isSelfReferral, storedReferral } from '../lib/referral'
 import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { apiBase } from '../lib/nns'
-import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim, splitAroundName } from '../lib/format'
+import { approxDate, blocksApprox, ellipsizeAddress, formatApproxWhen, lunaToNim, splitAroundName } from '../lib/format'
 import { discoverEvmProvider, probeHostEvmAddress, requestHostEvmAddress } from '../lib/sdk'
 import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
@@ -57,6 +57,9 @@ import {
   priceHint,
   termChoiceGroupLabel,
   termChoiceLabel,
+  pricePlaceholder,
+  startingPricePlaceholder,
+  durationPlaceholder
 } from '../lib/wording'
 
 /**
@@ -293,7 +296,7 @@ export function ActionSheet({
       case 'auction':
         return info === null
           ? null
-          : currentExpiryLine(formatApproxDate(approxDate(record.expiry, info.height, Date.now())))
+          : currentExpiryLine(formatApproxWhen(approxDate(record.expiry, info.height, Date.now()), Date.now()))
       case 'bid': {
         const auction = info?.pending.auction ?? null
         if (auction === null) return null
@@ -430,7 +433,7 @@ export function ActionSheet({
         <input
           className="sheet-input"
           inputMode="decimal"
-          placeholder="Price in NIM"
+          placeholder={pricePlaceholder()}
           value={priceNim}
           onChange={(event) => setPriceNim(event.target.value)}
         />
@@ -440,14 +443,14 @@ export function ActionSheet({
           <input
             className="sheet-input"
             inputMode="decimal"
-            placeholder="Starting price in NIM"
+            placeholder={startingPricePlaceholder()}
             value={startingPriceNim}
             onChange={(event) => setStartingPriceNim(event.target.value)}
           />
           <input
             className="sheet-input"
             inputMode="decimal"
-            placeholder="Duration in days (at least 1)"
+            placeholder={durationPlaceholder(blocksApprox(CONSTANTS.AUCTION_MIN_DURATION))}
             value={durationDays}
             onChange={(event) => setDurationDays(event.target.value)}
           />

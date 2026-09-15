@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import type { ResolveResult, ResolveWarning, ResolverReply } from '@nimiqnames/resolver'
 import type { NameInfo } from '../lib/api'
-import { displayAddress, ellipsizeAddress, formatApproxDate, formatApproxIn, approxDate, lunaToNim } from '../lib/format'
+import { displayAddress, ellipsizeAddress, formatApproxWhen, formatApproxIn, approxDate, lunaToNim } from '../lib/format'
 import {
   RENDERED_ELSEWHERE,
   WARNING_TEXT,
@@ -218,7 +218,7 @@ export function Overlays({
       {!hideMarketplace && auction !== null && (
         <p className="overlay overlay-auction">
           <span className="overlay-line">
-            {auctionLine(lunaToNim(auction.startingPrice), formatApproxDate(approxDate(auction.endHeight, info.height, nowMs)))}
+            {auctionLine(lunaToNim(auction.startingPrice), formatApproxWhen(approxDate(auction.endHeight, info.height, nowMs), nowMs))}
           </span>
           <span className="overlay-line">
             {auction.bidder === null ? noBidsLine() : standingBidLine(lunaToNim(auction.bid), ellipsizeAddress(auction.bidder))}{' '}
@@ -231,7 +231,7 @@ export function Overlays({
 }
 
 export function FeeChangeNote({ effectiveHeight, head, nowMs }: { effectiveHeight: number; head: number; nowMs: number }) {
-  return <p className="note note-info">{feeChangeLine(formatApproxDate(approxDate(effectiveHeight, head, nowMs)))}</p>
+  return <p className="note note-info">{feeChangeLine(formatApproxWhen(approxDate(effectiveHeight, head, nowMs), nowMs))}</p>
 }
 
 export function TitleName({ name }: { name: string }) {
