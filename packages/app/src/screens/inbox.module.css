@@ -436,6 +436,14 @@
   margin: 0;
 }
 
+/* A peer holding no live name has only this row, so the address is the
+   identity rather than a caption under one, and it is read at title weight. */
+.peerHeaderAddressOnly {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
 .copyAddressBtn {
   appearance: none;
   background: transparent;

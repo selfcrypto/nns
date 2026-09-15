@@ -331,7 +331,7 @@
     <string id="SCREEN_TITLE.market">Marketplace</string>
     <string id="SCREEN_TITLE.names">My Names</string>
     <string id="SCREEN_TITLE.pay">Pay a Name</string>
-    <string id="SCREEN_SUB.inbox">On-chain, wallet-to-wallet messaging, addressed to a name.</string>
+    <string id="SCREEN_SUB.inbox">On-chain, wallet-to-wallet messaging. Write to whoever owns a name.</string>
     <string id="SCREEN_SUB.market">Buy a registered name outright, or bid in a live auction.</string>
     <string id="SCREEN_SUB.names">Manage your on-chain identities, records and sales.</string>
     <string id="SCREEN_SUB.pay">Send NIM or Polygon USDT to a name, and see where it resolves first.</string>

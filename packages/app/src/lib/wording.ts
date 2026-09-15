@@ -1463,7 +1463,7 @@ export const SCREEN_TITLE: Record<AppScreen, string> = {
 export const SCREEN_SUB: Record<Exclude<AppScreen, 'buy'>, string> = {
   names: 'Manage your on-chain identities, records and sales.',
   pay: 'Send NIM or Polygon USDT to a name, and see where it resolves first.',
-  inbox: 'On-chain, wallet-to-wallet messaging, addressed to a name.',
+  inbox: 'On-chain, wallet-to-wallet messaging. Write to whoever owns a name.',
   market: 'Buy a registered name outright, or bid in a live auction.',
 }
 

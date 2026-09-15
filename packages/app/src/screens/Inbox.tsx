@@ -412,6 +412,7 @@ function ConversationView({
   const [copied, setCopied] = useState(false)
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const bubblesEndRef = useRef<HTMLDivElement | null>(null)
+  const hasPeerNames = peerIdentity(names).shown.length > 0
 
   const handleCopyAddress = useCallback(() => {
     if (!conversation.peer) return
@@ -459,12 +460,19 @@ function ConversationView({
             <Identicon address={conversation.peer} size={36} />
           </div>
           <div className={styles.peerHeaderMain}>
-            <div className={styles.peerHeaderTitle}>
-              <PeerTitle address={conversation.peer} names={names} />
-              <Hint>{peerNamesHint()}</Hint>
-            </div>
+            {/* A peer holding no live name has nothing to put on the top line,
+                and printing the address there left it on screen twice — once
+                ellipsized as a title and once in the row below. The hint is
+                gone with it: "names above an address" describes nothing when
+                there are none (2026-09-15). */}
+            {hasPeerNames && (
+              <div className={styles.peerHeaderTitle}>
+                <PeerTitle address={conversation.peer} names={names} />
+                <Hint>{peerNamesHint()}</Hint>
+              </div>
+            )}
             <div className={styles.peerAddressRow}>
-              <span className={styles.peerHeaderAddress}>
+              <span className={hasPeerNames ? styles.peerHeaderAddress : `${styles.peerHeaderAddress} ${styles.peerHeaderAddressOnly}`}>
                 {ellipsizeAddress(conversation.peer)}
               </span>
               <button
