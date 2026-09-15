@@ -38,6 +38,7 @@ unknown key or an unknown format.
 | `{{dur:TERM_LENGTH}}` | blocks → approximate duration at ~1 block/s, no `~` of its own (a page that wants one writes it: "every ~{{dur:CHECKPOINT_INTERVAL}}") | `1 year` |
 | `{{blocks:TERM_LENGTH}}` | the block count | `31,536,000 blocks` |
 | `{{sec:ANCHOR_STALENESS_LIMIT_SEC}}` | seconds → duration | `48 hours` |
+| `{{dur:RENEW_WINDOW}}` | how long before expiry the renewal reminder starts, `GRACE_PERIOD × 2`, derived from `states.ts` rather than `CONSTANTS` because it is the app's rule, not a §3 figure | `60 days` |
 | `{{pct:BURN_SHARE_BP}}` | basis points → percent | `20%` |
 | `{{n:MAX_NAME_LEN}}` | plain integer | `24` |
 | `{{addr:TREASURY_ADDRESS}}` | friendly address, grouped in fours | `NQ28 TKBF …` |
@@ -46,12 +47,17 @@ unknown key or an unknown format.
 | `{{referral:default}}` | the default row's referrer rate as a percentage | `4%` |
 | `{{referral:rebate}}` | the default row's buyer rebate as a percentage; throws where the row pays none | `4%` |
 
-Two figures are typed on purpose, because they are not constants: the
-renewal reminder's **60 days** (`GRACE_PERIOD × 2`, §10.4; the app derives
-it in `states.ts`) and the **64-byte** transaction data limit, which is a
-measured Nimiq property (`MAX_DATA_BYTES` mirrors it). `MIN_PRICE` has no
-constant, being `FEE_BASE` in effect at the message's height, so the prose
-says "the base price in effect" and cites `{{nim:FEE_BASE}}` as today's.
+One figure is typed on purpose: the **64-byte** transaction data limit, a
+measured Nimiq property rather than an NNS constant (`MAX_DATA_BYTES` mirrors
+it). `MIN_PRICE` has no constant, being `FEE_BASE` in effect at the message's
+height, so the prose says "the base price in effect" and cites
+`{{nim:FEE_BASE}}` as today's.
+
+The renewal reminder's window was typed here until 2026-09-16, as "60 days".
+It is `GRACE_PERIOD × 2`, and a compressed era cuts `GRACE_PERIOD` to a day,
+so the live build said 60 days about a window that was two. Anything a
+constant moves gets a placeholder, including the ones derived from a
+constant.
 
 ## Wording rules that bind these pages
 

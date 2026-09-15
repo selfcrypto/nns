@@ -24,6 +24,7 @@ import { CONSTANTS, feeFor, LAUNCH_PRICES, LUNA_PER_NIM } from '@nimiqnames/core
 // that drift.
 import { displayAddress, group } from './format'
 import { headlineBp, percentOf, rebatePercent, REFERRAL_RATES, referralHeadlineBp } from './referralRates'
+import { RENEW_WINDOW } from './states'
 
 export interface DocPage {
   readonly slug: string
@@ -248,6 +249,10 @@ function render(placeholder: string, format: string, key: string): string {
     case 'pct':
       return percentOf(Number(bigintConstant(placeholder, key)))
     case 'dur':
+      // The one derived duration: the renewal reminder's window is the app's
+      // own rule (`states.ts`), not a §3 constant, and typing it left "60
+      // days" in three pages that a compressed era renders false.
+      if (key === 'RENEW_WINDOW') return durationFromBlocks(RENEW_WINDOW)
       return durationFromBlocks(numberConstant(placeholder, key))
     case 'sec':
       return durationFromSeconds(numberConstant(placeholder, key))

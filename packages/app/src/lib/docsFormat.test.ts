@@ -98,6 +98,13 @@ describe('fillPlaceholders', () => {
     )
   })
 
+  it('derives the renewal reminder window from GRACE_PERIOD, not a typed 60 days', () => {
+    // The one placeholder whose key is not a CONSTANTS entry. It was typed as
+    // "60 days" in three pages, which a compressed era (GRACE_PERIOD a day)
+    // rendered false on the live build.
+    expect(fillPlaceholders('{{dur:RENEW_WINDOW}}')).toBe(durationFromBlocks(2 * CONSTANTS.GRACE_PERIOD))
+  })
+
   it('prices a name by its band, from core', () => {
     // 7 and 11 are the same band, and a lifetime is LIFETIME_MULTIPLIER of it.
     expect(fillPlaceholders('{{fee:7}}')).toBe(fillPlaceholders('{{fee:11}}'))

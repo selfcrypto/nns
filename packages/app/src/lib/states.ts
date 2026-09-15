@@ -268,10 +268,17 @@ export function signerFor(action: AppAction, view: NameView, viewers: readonly s
 
 export type RenewalUrgency = 'none' | 'due' | 'grace'
 
-/** §10.4: the reminder fires from `GRACE_PERIOD × 2` (60 days) before expiry. */
+/**
+ * §10.4: how long before expiry the renewal reminder starts, `GRACE_PERIOD ×
+ * 2` — 60 days on the mainnet constants, and a couple of days on a compressed
+ * era. Exported because the docs quote the figure (`{{dur:RENEW_WINDOW}}`) and
+ * a typed "60 days" there is wrong on every era but one.
+ */
+export const RENEW_WINDOW: number = 2 * CONSTANTS.GRACE_PERIOD
+
 export function renewalUrgency(expiry: number, head: number): RenewalUrgency {
   if (head >= expiry) return 'grace'
-  if (head >= expiry - 2 * CONSTANTS.GRACE_PERIOD) return 'due'
+  if (head >= expiry - RENEW_WINDOW) return 'due'
   return 'none'
 }
 

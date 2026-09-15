@@ -22,7 +22,7 @@ Yes. Anyone can renew any name. The app calls it **Gift a renewal**, and the nam
 {{n:LIFETIME_TERMS}} years for the price of {{n:LIFETIME_MULTIPLIER}}. The app shows the date it reaches. [Prices](prices).
 
 **What happens when my name expires?**
-It enters a {{dur:GRACE_PERIOD}} grace period: it stops resolving, nobody else can register it, and a renewal brings it back. After grace it is available to anyone. The app reminds you from 60 days before. [Prices](prices).
+It enters a {{dur:GRACE_PERIOD}} grace period: it stops resolving, nobody else can register it, and a renewal brings it back. After grace it is available to anyone. The app reminds you from {{dur:RENEW_WINDOW}} before. [Prices](prices).
 
 **Is the marketplace custodial?**
 Between your payment and its settlement, yes. The operator holds the money and pays the seller, or refunds you, in a separate transaction. The name itself moves the moment your payment is final. [Market](market).

@@ -11,7 +11,7 @@ These values will change in a final freeze before launch. They are shown through
 | **The launch height** | {{height:LAUNCH_HEIGHT}}, the block the demo's indexers start from | A future block chosen at the freeze. Nothing registered on the demo is carried over |
 | **The four role addresses** | The demo's ([Constants](constants)) | Regenerated at the freeze |
 | **The reserved-name list** | A short test list | A curated list of about a thousand names, applied before the freeze. It cannot be corrected afterwards ([Rules and reserved names](names)) |
-| **Resolver quorum** | 2, both run by one operator on two machines | Still 2 on day one. Independence needs a third resolver run by somebody else ([How you know the answer is right](trust)) |
+| **Resolver quorum** | {{n:RESOLVER_QUORUM}}, both run by one operator on two machines | Still {{n:RESOLVER_QUORUM}} on day one. Independence needs a third resolver run by somebody else ([How you know the answer is right](trust)) |
 | **Anchor publishers** | None listed. The app says "Second-chain check not run." | The contract deployed on Polygon PoS and at least one listed publisher |
 
 Names registered on the demo are demo names. The demo registry is discarded at the freeze.

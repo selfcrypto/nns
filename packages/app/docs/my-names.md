@@ -1,6 +1,6 @@
 # My Names
 
-Your names, soonest expiry first. The status tag says until when, and from 60 days before expiry it reads "Renew before ≈ date". Tap a name to open it.
+Your names, soonest expiry first. The status tag says until when, and from {{dur:RENEW_WINDOW}} before expiry it reads "Renew before ≈ date". Tap a name to open it.
 
 The card shows where the name points, its expiry, anything pending, and the owner's actions as tiles. A tile that is not possible right now stays visible and says why ("Locked while the auction runs.", "In grace. Only renewal works until it ends."). Every tile opens a sheet that shows the current value, takes your input, and says what will change before the wallet opens.
 
