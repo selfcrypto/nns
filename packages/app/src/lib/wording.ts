@@ -88,14 +88,6 @@ export function verifiedByLine(quorum: QuorumReport): string {
 }
 
 /**
- * One agreeing resolver: the party, then the endpoint that answered. The name
- * is chosen by whoever wrote the config, so it identifies nothing on its own —
- * the URL is the half a user can go and check.
- */
-export const resolverIdentityLine = (resolver: { readonly name: string; readonly url: string }): string =>
-  `${resolver.name} · ${resolverUrlShown(resolver.url)}`
-
-/**
  * The URL as a user can go and check it: absolute. The configured value may
  * be a same-origin path (`/api`, `config.ts`), which is right for `fetch` and
  * wrong on a card — "NIMIQNAMES.COM — /api" reads as a path that is not the
@@ -110,6 +102,33 @@ export function resolverUrlShown(url: string, base: string = globalThis.document
     return url
   }
 }
+
+/**
+ * One agreeing party, as one line (Kike, 2026-09-15: *"I see both lines for
+ * each resolver redundant and it say the same"*).
+ *
+ * The endpoint is the line, because it is the half a user can go and check
+ * and the one a same-origin config would otherwise hide (the 2026-09-10
+ * absolute-URL decision). The configured **name is kept only when the URL
+ * does not already carry it** — `nimiqnames.com` above
+ * `https://api.nimiqnames.com` was the same fact twice, while a party called
+ * *Example Labs* answering at `api.example.com` is two facts and gets both.
+ */
+export function resolverParty(
+  resolver: { readonly name: string; readonly url: string },
+  base?: string,
+): { readonly primary: string; readonly secondary: string | null } {
+  const url = resolverUrlShown(resolver.url, base)
+  const named = resolver.name !== '' && url.toLowerCase().includes(resolver.name.toLowerCase())
+  return named ? { primary: url, secondary: null } : { primary: resolver.name, secondary: url }
+}
+
+/**
+ * What a party's round trip cost. Whole milliseconds, because the number is
+ * read rather than computed with, and a resolver is never called slow in
+ * words: the figure is the whole claim.
+ */
+export const resolverLatency = (ms: number): string => `${Math.round(ms)} ms`
 
 /** The "?" beside a line — what a screen reader calls it. */
 export const hintLabel = (): string => 'More about this'

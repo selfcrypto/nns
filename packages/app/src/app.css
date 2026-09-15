@@ -1039,6 +1039,11 @@ select:focus-visible {
   margin: 10px calc(var(--box-pad) * -1) 0;
   padding: 10px var(--box-pad) 0;
   border-top: 1px solid var(--line);
+  /* Pay centres the text inside its panel, and a centred list of resolvers
+     with the dots left where they were is the one thing this block must never
+     look like (Kike, 2026-09-15). The foot sets its own alignment everywhere
+     rather than depending on what it is dropped into. */
+  text-align: left;
 }
 
 .verify {
@@ -1124,11 +1129,13 @@ select:focus-visible {
 }
 
 /*
- * One party per row: a dot in the tier's colour, the configured name, then
- * the endpoint — or, on a card with no answer, what that resolver said. Both
- * lines hang off one indent, so they line up with each other and with the
- * identicon above; the old list was a third left edge at 25px, under a
- * headline at a fourth.
+ * One party per row: a dot in the tier's colour, the endpoint, and what the
+ * round trip cost — or, on a card with no answer, what that resolver said.
+ * It was two lines saying one thing (`nimiqnames.com` over
+ * `https://api.nimiqnames.com`); the name now joins only where it adds a
+ * fact (`resolverParty`). Everything hangs off one indent, so a row lines up
+ * with the count above it; the old list was a third left edge at 25px, under
+ * a headline at a fourth.
  */
 .verify-parties {
   list-style: none;
@@ -1139,9 +1146,10 @@ select:focus-visible {
 .verify-parties li {
   display: grid;
   /* The glyph column is the check icon's width and the gap is its gap, so a
-     party's name starts exactly under the count above it. */
-  grid-template-columns: 18px 1fr;
-  gap: 0 7px;
+     party's name starts exactly under the count above it. The third column is
+     the timing, and collapses to nothing on a list that has none. */
+  grid-template-columns: 18px 1fr auto;
+  gap: 0 8px;
   align-items: baseline;
 }
 
@@ -1168,8 +1176,16 @@ select:focus-visible {
 /* The endpoint, or the resolver's own one-line summary on a card that has no
    answer. Rendered verbatim: paraphrasing a party's words in the app's voice
    is what this list exists to stop. A URL is one unbreakable token. */
+.party-ms {
+  justify-self: end;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
 .party-detail {
-  grid-column: 2;
+  grid-column: 2 / -1;
   font-size: 12px;
   line-height: 1.45;
   color: var(--ink-faint);

@@ -41,7 +41,8 @@ import {
   queryFaultLine,
   propagatingLine,
   propagatingRetryLine,
-  resolverIdentityLine,
+  resolverLatency,
+  resolverParty,
   resolverUrlShown,
   shortNameNoteLine,
   STATUS_TAG,
@@ -52,8 +53,8 @@ import {
   verifiedByLine,
 } from './wording'
 
-const LABS = { name: 'Example Labs', url: 'https://api.example.com' }
-const OURS = { name: 'Ours', url: 'https://nns.ours.example' }
+const LABS = { name: 'Example Labs', url: 'https://api.example.com', ms: 120 }
+const OURS = { name: 'Ours', url: 'https://nns.ours.example', ms: 88 }
 
 describe('"Verified by N resolvers" (resolver README decision, 2026-08-14)', () => {
   it('is the count, singular at 1', () => {
@@ -70,10 +71,31 @@ describe('"Verified by N resolvers" (resolver README decision, 2026-08-14)', () 
   })
 
   // The count names nobody, which is the whole complaint at N = 2 (Kike,
-  // 2026-08-28). The party is the name; the URL is the half a user can check.
-  it('names every agreeing resolver by name and API URL', () => {
-    expect(resolverIdentityLine(LABS)).toBe('Example Labs · https://api.example.com')
-    expect(resolverIdentityLine(OURS)).toContain('https://nns.ours.example')
+  // 2026-08-28). The party is the name; the URL is the half a user can check,
+  // and since 2026-09-15 the row is one line rather than both said twice.
+  it('names a party whose URL does not already name it', () => {
+    expect(resolverParty(LABS)).toEqual({ primary: 'Example Labs', secondary: 'https://api.example.com' })
+  })
+
+  it('drops the name when the URL carries it, rather than saying it twice', () => {
+    expect(resolverParty({ name: 'nimiqnames.com', url: 'https://api.nimiqnames.com' })).toEqual({
+      primary: 'https://api.nimiqnames.com',
+      secondary: null,
+    })
+    expect(resolverParty({ name: 'nns.sonartech.pro', url: 'https://nns.sonartech.pro' })).toEqual({
+      primary: 'https://nns.sonartech.pro',
+      secondary: null,
+    })
+  })
+
+  it('resolves a same-origin endpoint before deciding, so /api is never the whole line', () => {
+    const party = resolverParty({ name: 'nimiqnames.com', url: '/api' }, 'https://nimiqnames.com/')
+    expect(party).toEqual({ primary: 'https://nimiqnames.com/api', secondary: null })
+  })
+
+  it('states the round trip as whole milliseconds and nothing else', () => {
+    expect(resolverLatency(123.4)).toBe('123 ms')
+    expect(resolverLatency(0)).toBe('0 ms')
   })
 
   // A same-origin `/api` is right for fetch and wrong on the card: shown

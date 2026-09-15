@@ -89,6 +89,9 @@ describe('resolve', () => {
     // Name **and** URL: at N > 1 a count names nobody, and the URL is the half
     // a user can go and check (Kike, 2026-08-28).
     expect(result.quorum).toMatchObject({ required: 2, queried: 2, agreed: 2, resolvers: [A, B] })
+    // Each party carries what its round trip cost, so a client can list the
+    // parties *and* how they performed. It is display only: no check reads it.
+    expect(result.quorum.resolvers.map((r) => Number.isInteger(r.ms))).toEqual([true, true])
     expect(result.checkpoint?.height).toBe(CHECKPOINT_HEIGHT)
   })
 

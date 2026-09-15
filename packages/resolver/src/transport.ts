@@ -41,10 +41,21 @@ export interface FetchedOk {
   readonly ok: true
   readonly status: number
   readonly body: unknown
+  /**
+   * How long this party took to answer, in whole milliseconds, measured
+   * around the request and its body. It is a property of the round trip and
+   * not of the answer, so nothing in verification may read it: a slow
+   * resolver is not a wrong one. It exists because a client showing which
+   * parties agreed can say how each one performed, which is the difference
+   * between a list of names and a list a user can judge.
+   */
+  readonly ms: number
 }
 
 /** What came back, with the transport's own failures folded into one shape. */
-export type Fetched = FetchedOk | { readonly ok: false; readonly status: number | null; readonly reason: string }
+export type Fetched =
+  | FetchedOk
+  | { readonly ok: false; readonly status: number | null; readonly reason: string; readonly ms: number }
 
 const DEFAULT_TIMEOUT_MS = 5_000
 
@@ -68,17 +79,23 @@ export async function getJson(
   url: string,
   timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<Fetched> {
+  // `Date.now`, not `performance.now`: this is reported to a person in whole
+  // milliseconds, every runtime has it, and the clock's resolution is far
+  // below anything a network round trip can be confused by.
+  const started = Date.now()
+  const since = () => Date.now() - started
+
   let response: HttpResponse
   try {
     response = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs) })
   } catch (error) {
-    return { ok: false, status: null, reason: error instanceof Error ? error.message : 'request failed' }
+    return { ok: false, status: null, reason: error instanceof Error ? error.message : 'request failed', ms: since() }
   }
 
   try {
-    return { ok: true, status: response.status, body: await response.json() }
+    return { ok: true, status: response.status, body: await response.json(), ms: since() }
   } catch {
-    return { ok: false, status: response.status, reason: 'response body is not JSON' }
+    return { ok: false, status: response.status, reason: 'response body is not JSON', ms: since() }
   }
 }
 

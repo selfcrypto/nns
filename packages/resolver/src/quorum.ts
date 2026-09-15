@@ -58,6 +58,8 @@ export interface Observation {
 export interface Witness<O extends Observation> {
   readonly endpoint: ResolverEndpoint
   readonly observation: O
+  /** What this party's round trip cost, in whole milliseconds (`getJson`). */
+  readonly ms: number
 }
 
 export interface Agreement<O extends Observation> {
@@ -135,7 +137,7 @@ export async function agree<O extends Observation>(
       silent.push({ resolver: endpoint.name, answer: interpretation.reason })
       continue
     }
-    witnesses.push({ endpoint, observation: interpretation.observation })
+    witnesses.push({ endpoint, observation: interpretation.observation, ms: reply.ms })
   }
 
   const replies = (): ResolverReply[] => [

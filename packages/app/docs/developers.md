@@ -71,7 +71,7 @@ A `QuorumError` or `AnchorError` in front of a user is the rare event this desig
 
 ### The two lines your UI owes the user
 
-**"Verified by N resolvers"**, with each agreeing resolver's name and URL listed under it. `N` is `result.quorum.agreed`, singular at 1, never hidden or greyed. Do not label a healthy answer "unverified" because the count is small: the proof verified, and alarm vocabulary spent on a healthy answer is worthless the day a real divergence arrives wearing the same word. Reserve red for the halting errors above.
+**"Verified by N resolvers"**, with each agreeing resolver listed under it on one line: the endpoint it answered at, the configured name where the URL does not already carry it, and the round trip in milliseconds (`quorum.resolvers` carries `{ name, url, ms }`). `N` is `result.quorum.agreed`, singular at 1, never hidden or greyed. Do not label a healthy answer "unverified" because the count is small: the proof verified, and alarm vocabulary spent on a healthy answer is worthless the day a real divergence arrives wearing the same word. Reserve red for the halting errors above.
 
 **Render names in a face that separates `0`/`o`, `1`/`l` and `rn`/`m`**, and show the Nimiq identicon of `result.address` beside any address a user might pay. The stylesheet ships with the package:
 

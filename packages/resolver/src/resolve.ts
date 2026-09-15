@@ -77,12 +77,21 @@ export interface QuorumReport {
   readonly queried: number
   readonly agreed: number
   /**
-   * The resolvers whose answers were verified and agreed — **name and URL**,
-   * as configured. The name is how a party is spoken about; the URL is the
-   * only half a user can go and check, and at N > 1 a bare count names nobody
-   * at all. A client shows both (README, "Telling the user").
+   * The resolvers whose answers were verified and agreed — name and URL as
+   * configured, plus what each round trip cost. The name is how a party is
+   * spoken about; the URL is the only half a user can go and check, and at
+   * N > 1 a bare count names nobody at all (README, "Telling the user").
+   *
+   * `ms` is the round trip, not a property of the answer: **nothing in
+   * verification reads it**, because a slow resolver is not a wrong one. It
+   * is here so a client listing the parties can also say how each performed.
    */
-  readonly resolvers: readonly ResolverEndpoint[]
+  readonly resolvers: readonly AgreeingResolver[]
+}
+
+/** One agreeing party, as a client shows it: who, where, and how long it took. */
+export interface AgreeingResolver extends ResolverEndpoint {
+  readonly ms: number
 }
 
 export interface ResolveResult {
@@ -285,7 +294,7 @@ export class NnsResolver {
       required: this.#policy.required,
       queried: agreement.queried,
       agreed: agreement.witnesses.length,
-      resolvers: agreement.witnesses.map(({ endpoint }) => ({ name: endpoint.name, url: endpoint.url })),
+      resolvers: agreement.witnesses.map(({ endpoint, ms }) => ({ name: endpoint.name, url: endpoint.url, ms })),
     }
   }
 

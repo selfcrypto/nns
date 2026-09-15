@@ -15,7 +15,8 @@ import {
   noBidsLine,
   pendingTransferLine,
   proofPendingLine,
-  resolverUrlShown,
+  resolverLatency,
+  resolverParty,
   standingBidLine,
   verifiedByLine,
   verifiedHint,
@@ -76,18 +77,20 @@ function ProvenVerification({ result }: { result: ResolveResult }) {
       </p>
       {open && (
         <ul className="verify-parties" id={listId}>
-          {resolvers.map((resolver) => (
-            <li key={resolver.url}>
-              <span className="party-dot" aria-hidden="true" />
-              {/* Party above endpoint, not beside it: the two are near enough
-                  to duplicates (`nns.sonartech.pro` answers at
-                  `https://nns.sonartech.pro`) that a separator between them
-                  reads as repetition, and on a phone the URL takes the line
-                  either way. */}
-              <span className="party-name">{resolver.name}</span>
-              <span className="party-detail">{resolverUrlShown(resolver.url)}</span>
-            </li>
-          ))}
+          {resolvers.map((resolver) => {
+            const party = resolverParty(resolver)
+            return (
+              <li key={resolver.url}>
+                <span className="party-dot" aria-hidden="true" />
+                {/* One line per party: the endpoint, and what it cost to ask
+                    it. The configured name only joins when the URL does not
+                    already carry it — `resolverParty` holds that rule. */}
+                <span className="party-name">{party.primary}</span>
+                <span className="party-ms">{resolverLatency(resolver.ms)}</span>
+                {party.secondary !== null && <span className="party-detail">{party.secondary}</span>}
+              </li>
+            )
+          })}
         </ul>
       )}
     </div>

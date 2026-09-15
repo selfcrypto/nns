@@ -383,18 +383,30 @@ One neutral line, always present on a successful resolution, with the parties
 that agreed listed under it:
 
 > **Verified by 2 resolvers**
-> Example Labs — https://nns.example.org
-> Second Operator — https://nns.other.example
+> https://nns.example.org        48 ms
+> https://nns.other.example     189 ms
 
 `N` is `result.quorum.agreed`. Singular at 1. There is no variant of this line
 that is hidden, greyed, or apologetic — hiding the count while it is 1 hides the
 one number worth knowing, and showing nothing reads as "fine".
 
-**Name every resolver that agreed, by name and by API URL.** The count says how
-many parties an answer rests on and nothing about which, so at `N` = 2 a user
-who wants to check one has nowhere to go; and the `name` is a label the host app
-chose, which identifies a party only to whoever wrote the config. `quorum.resolvers`
-therefore carries the endpoint — `{ name, url }` — and the client shows both.
+**Reach every resolver that agreed.** The count says how many parties an answer
+rests on and nothing about which, so at `N` = 2 a user who wants to check one
+has nowhere to go; and the `name` is a label the host app chose, which
+identifies a party only to whoever wrote the config. `quorum.resolvers` carries
+`{ name, url, ms }` for each of them.
+
+**One line each, and the name only when the URL does not already carry it**
+(2026-09-15). A config that names a party after its host — `nimiqnames.com`
+answering at `https://api.nimiqnames.com` — printed the same fact twice, which
+is what a reader sees as noise rather than as evidence. The endpoint is the
+half that can be checked, so it is the line; a party called *Example Labs*
+answering at `api.example.com` is two facts and keeps both.
+
+`ms` is the round trip that party cost, measured in `getJson` around the
+request and its body. **Nothing in verification reads it** — a slow resolver is
+not a wrong one — and it is there so a list of parties is also something a user
+can judge.
 
 The list may sit behind a **disclosure on the count line, closed by default**,
 and on a phone it should: a quorum of eight is longer than the answer it

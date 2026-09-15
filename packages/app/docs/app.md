@@ -29,7 +29,7 @@ Type a name, or `label.name`. The search runs by itself a second after you stop 
 | **Not a valid name** | The rule it broke, in red, before any request leaves your device | Fix the name |
 | **Just registered by someone** | "Just registered by someone else. Search again to see it." | Search again |
 
-Every registered card carries the **verification line**: "Verified by N resolvers". Tap it to see each resolver's name and URL. Tap the "?" beside it for what that means, or read [How you know the answer is right](trust).
+Every registered card carries the **verification line**: "Verified by N resolvers". Tap it to see each one, by the endpoint that answered and how long it took. Tap the "?" beside it for what that means, or read [How you know the answer is right](trust).
 
 **A subdomain card is honest about its two halves.** The parent (`kike`) is proven. The address for `shop` is the parent owner's server's word, and the card says so. If that server does not answer, the card shows the parent still verified and says "`kike`'s resolver did not answer", never that the subdomain does not exist, because only its owner can know that.
 

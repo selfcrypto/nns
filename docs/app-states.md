@@ -182,12 +182,20 @@ include this transaction", never "sent".
 
 1. **"Verified by N resolvers"** — one neutral line, always present on a
    successful proven resolution, with **every agreeing resolver reachable
-   from it by name and API URL** (`result.quorum.resolvers`, which carries the
-   endpoint). `N` is `result.quorum.agreed`; singular at 1. The line itself is
+   from it** (`result.quorum.resolvers`, which carries `{ name, url, ms }`).
+   `N` is `result.quorum.agreed`; singular at 1. The line itself is
    never hidden, greyed or apologetic. The count says how many parties the
    answer rests on and nothing about which, and a configured `name` identifies
    a party only to whoever wrote the config — the URL is the half a user can
    go and check (Kike, 2026-08-28, on adding a second resolver).
+
+   **One line per party, and the name only when the URL does not already
+   carry it** (Kike, 2026-09-15: *"I see both lines for each resolver
+   redundant and it say the same"*). A config that names a party after its
+   host printed one fact twice, so the endpoint is the line — absolute, per
+   the 2026-09-10 decision — and a party whose name is not in its URL keeps
+   both. Beside it, **the round trip in whole milliseconds**: it is display
+   only, never read by any check, because a slow resolver is not a wrong one.
 
    The list sits **behind a disclosure on that line, closed by default**
    (Kike, 2026-09-11): it is evidence for the count, and at the six or eight

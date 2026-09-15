@@ -108,7 +108,7 @@ const resolveResult = (over: Partial<ResolveResult> = {}): ResolveResult => ({
   checkpoint: null,
   height: 1_000_000,
   delegate: null,
-  quorum: { required: 1, queried: 1, agreed: 1, resolvers: [{ name: 'op', url: 'https://api.example.com' }] },
+  quorum: { required: 1, queried: 1, agreed: 1, resolvers: [{ name: 'op', url: 'https://api.example.com', ms: 12 }] },
   anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' },
   warnings: [],
   ...over,
@@ -146,13 +146,13 @@ describe('viewFor — which outcomes carry an actionable name', () => {
     expect(
       viewFor({
         ...base,
-        availability: { name: 'example', available: true, reason: null, verification: 'PROVEN', checkpoint: null, height: 1, quorum: { required: 1, queried: 1, agreed: 1, resolvers: [{ name: 'op', url: 'https://api.example.com' }] }, anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' }, warnings: [] },
+        availability: { name: 'example', available: true, reason: null, verification: 'PROVEN', checkpoint: null, height: 1, quorum: { required: 1, queried: 1, agreed: 1, resolvers: [{ name: 'op', url: 'https://api.example.com', ms: 12 }] }, anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' }, warnings: [] },
       })?.kind,
     ).toBe('available')
     expect(
       viewFor({
         ...base,
-        availability: { name: 'example', available: false, reason: 'RESERVED', verification: 'PROVEN', checkpoint: null, height: 1, quorum: { required: 1, queried: 1, agreed: 1, resolvers: [{ name: 'op', url: 'https://api.example.com' }] }, anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' }, warnings: [] },
+        availability: { name: 'example', available: false, reason: 'RESERVED', verification: 'PROVEN', checkpoint: null, height: 1, quorum: { required: 1, queried: 1, agreed: 1, resolvers: [{ name: 'op', url: 'https://api.example.com', ms: 12 }] }, anchor: { status: 'not-checked', detail: '', check: null, reason: 'NOT_CONFIGURED' }, warnings: [] },
       }),
     ).toBeNull()
   })

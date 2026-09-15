@@ -15,6 +15,7 @@ export {
   NnsResolver,
   createResolver,
   resolve,
+  type AgreeingResolver,
   type AvailableResult,
   type QuorumReport,
   type ResolveResult,
