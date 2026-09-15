@@ -929,22 +929,28 @@ select:focus-visible {
   }
 
   .address-copy:hover {
-    background: rgba(var(--tint-ink), 0.05);
-    border-color: var(--line);
+    background: rgba(var(--tint-blue), 0.06);
+    border-color: var(--nimiq-blue-border);
   }
 
   .address-copy:hover .address-copy-mark {
+    color: var(--nimiq-blue);
     opacity: 1;
   }
 }
 
+/* Blue, not the proven green (Kike, 2026-09-16: *"looks awful mainly in dark
+   mode"*). Green is spent on the verification glyph a compartment below, and
+   a copy is not a proof — it is the app's interactive blue, the same one the
+   Inbox's copy button and the expiry line already take, and the one colour
+   with a tint and a border struck for both palettes. */
 .address-copy.is-ok {
-  background: var(--proven-bg);
-  border-color: var(--proven-bg);
+  background: var(--nimiq-blue-tint);
+  border-color: var(--nimiq-blue-border);
 }
 
 .address-copy.is-ok .address-copy-mark {
-  color: var(--proven);
+  color: var(--nimiq-blue);
   opacity: 1;
 }
 
