@@ -8,7 +8,7 @@ A name is what you type instead of an address. The rules are few, each has a rea
 2. **Only `a` to `z`, `0` to `9` and `-`.** Lowercase only. `Kike` is not a name and the protocol never turns it into `kike`. The app lowercases what you type before it asks, so you can type either.
 3. **At least one letter.** `12345` is not a name.
 4. **No hyphen at the start or the end, and never two in a row.** `my-name` yes. `-myname`, `myname-` and `my--name` no.
-5. **Digits only at the ends, never between letters.** `web3`, `bitcoin7` and `21kike` are fine. `n1m1q`, `g00gle` and `b1tc0in` are not. Impersonating a name means substituting a character inside it, and this rule removes that whole class without a lookup table. A name also cannot start or end with `0` or `1`, which closes `nimiq0` against `nimiqo` and `1kike` against `lkike`.
+5. **Digits only at the ends, never between letters.** `web3`, `bitcoin7` and `21kike` are fine. `n1m1q`, `nim1qpay`, `g00gle` and `b1tc0in` are not. Impersonating a name means swapping a letter inside it for a digit that looks like one, and this rule removes that whole class without a lookup table. At the ends, `0` and `1` are barred as well, which closes `sud0` against `sudo` and `1ayer` against `layer`.
 6. **Not reserved.** See below.
 
 Dots are not part of a name. `shop.kike` is a query about a subdomain, not a name of its own ([Subdomains](subdomains)).
