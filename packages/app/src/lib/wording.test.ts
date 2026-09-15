@@ -431,25 +431,58 @@ describe('a `K` is named by what it will clear (§6 `K`)', () => {
  * anyone using the app.
  */
 describe('no em dash splits a sentence a user reads', () => {
-  const visibleLines = (): readonly string[] => {
-    const source = readFileSync(new URL('./wording.ts', import.meta.url), 'utf8').split('\n')
+  // Every string literal in the source, comments excluded, found by walking
+  // the characters rather than the lines: the first version read `wording.ts`
+  // line by line and so covered neither a trailing `// comment` nor the
+  // review lines in `actions.ts`, which is where Kike found three of them on
+  // one sheet (2026-09-15). What a user reads is a string, so strings are what
+  // this reads.
+  const stringsIn = (source: string): readonly string[] => {
     const out: string[] = []
-    let inBlockComment = false
-    for (const line of source) {
-      const text = line.trim()
-      if (text.startsWith('/*')) inBlockComment = true
-      if (inBlockComment) {
-        if (text.includes('*/')) inBlockComment = false
+    let i = 0
+    let current: { quote: string; text: string } | null = null
+    while (i < source.length) {
+      const char = source[i]!
+      if (current !== null) {
+        if (char === '\\') {
+          current.text += source.slice(i, i + 2)
+          i += 2
+          continue
+        }
+        if (char === current.quote) {
+          out.push(current.text)
+          current = null
+        } else current.text += char
+        i += 1
         continue
       }
-      if (text.startsWith('//') || text.startsWith('*')) continue
-      out.push(line)
+      if (char === '/' && source[i + 1] === '/') {
+        i = source.indexOf('\n', i)
+        if (i === -1) break
+        continue
+      }
+      if (char === '/' && source[i + 1] === '*') {
+        const close = source.indexOf('*/', i + 2)
+        i = close === -1 ? source.length : close + 2
+        continue
+      }
+      if (char === "'" || char === '"' || char === '`') {
+        current = { quote: char, text: '' }
+      }
+      i += 1
     }
     return out
   }
 
-  it('holds for every string in the file', () => {
-    expect(visibleLines().filter((line) => line.includes('—'))).toEqual([])
+  const FILES = ['./wording.ts', './actions.ts', './states.ts']
+
+  it.each(FILES)('holds for every string in %s', (file) => {
+    const strings = stringsIn(readFileSync(new URL(file, import.meta.url), 'utf8'))
+    expect(strings.filter((text) => text.includes('—'))).toEqual([])
+  })
+
+  it('reads strings and not comments', () => {
+    expect(stringsIn(`const a = 'kept' // a — comment\nconst b = \`also — kept\``)).toEqual(['kept', 'also — kept'])
   })
 })
 

@@ -20,14 +20,14 @@
  * folded, and by a disclosure of its own (result.tsx), not by a hint: it is
  * evidence, and evidence is read on demand.
  *
- * `glyph="i"` is the one variant, and it is not a second `?`. The `?` explains
- * a line; the `(i)` marks the one place the protocol hands custody of money to
- * a person, which is a disclosure rather than an explanation — and the Market
- * screen had already drawn that circle by hand. The visible custodial line and
- * its acknowledgement still sit on the card beside it, so §8.5 #10's "show"
- * and "require explicit confirmation" are unaffected; what the bubble carries
- * is when the refund arises. If it ever lands on a third kind of line it has
- * become a second `?` and should be merged back.
+ * `glyph="i"` is the one variant, and it is not a second `?`. The difference
+ * is positional, so no line has to be judged: the `?` explains a line on a
+ * card, and the blue `(i)` is the **action sheet's** bubble, on the custody
+ * disclosure (§8.5 #10) and on the review. A sheet is where a person commits
+ * to something, and its lines are already down to the amount, the address and
+ * the date, with every rule behind that one bubble. What the spec requires to
+ * be visible stays visible in both: the custodial line and its checkbox are
+ * beside the `(i)`, not behind it.
  */
 
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'

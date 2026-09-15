@@ -104,7 +104,7 @@ export function VerificationLine({ result }: { result: ResolveResult }) {
       return (
         <p className="verify verify-delegated verify-head">
           <Badge tone="delegated">{delegatedLine(result.name)}</Badge>
-          <Hint>{delegatedExplainer(result.name)}</Hint>
+          <Hint>{delegatedExplainer(result.name, result.delegate?.host ?? null)}</Hint>
         </p>
       )
   }

@@ -1742,6 +1742,15 @@ li.note {
   line-height: 1.5;
 }
 
+/* The name a sheet line is about: the name face (§4.3) and a weight, so the
+   subject of the sentence is visible at a glance. Not a colour: gold is the
+   one next action, and the rail's four each mean one thing. */
+.review .line-name,
+.sheet-current .line-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+
 .review .review-signer,
 .available-card-premium .review .review-signer {
   display: flex;

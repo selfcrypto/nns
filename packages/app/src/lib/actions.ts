@@ -32,8 +32,16 @@ import { approxDate, blocksApprox, ellipsizeAddress, formatApproxDate, looksGrou
 import {
   auctionOutlivesTermLine,
   auctionProceedsLine,
-  bidRefundLine,
+  auctionHint,
+  bidHint,
+  evmHint,
+  offerHint,
+  renewHint,
+  targetHint,
+  transferHint,
+  delegateClearedHint,
   delegateClearedLines,
+  delegateSetHint,
   delegateSetLines,
   giftRenewalLine,
   newExpiryLine,
@@ -70,6 +78,8 @@ export interface PreparedAction {
   readonly request: SubmitRequest
   /** Lines the review screen adds to the generic ones (docs/app-ux.md §5). */
   readonly review: readonly string[]
+  /** The why beside the last review line, behind the sheet's `(i)` bubble. */
+  readonly reviewHint?: string
   /** True when the effect is visible at the API — the only confirmation there is. */
   readonly confirm: () => Promise<boolean>
 }
@@ -88,7 +98,7 @@ export const parseNimAmount = (text: string, what = 'Price'): bigint => {
   const trimmed = text.trim()
   // Refused rather than interpreted — `looksGrouped` carries the argument.
   if (looksGrouped(trimmed)) {
-    throw new ActionInputError(`${what} is typed without thousands separators — 12345, not 12,345`)
+    throw new ActionInputError(`${what} is typed without thousands separators, like 12345 rather than 12,345`)
   }
   const match = /^([0-9]+)(?:[.,]([0-9]{1,5}))?$/.exec(trimmed)
   if (match === null || match[1] === undefined) throw new ActionInputError(`${what} must be a NIM amount, like 450 or 1.5`)
@@ -154,7 +164,7 @@ export function prepareAction(options: {
   const record = info?.record ?? null
 
   const needParams = (): ApiParams => {
-    if (params === null) throw new ActionInputError('The current fees could not be loaded — try again')
+    if (params === null) throw new ActionInputError('The current fees could not be loaded. Try again.')
     return params
   }
 
@@ -213,9 +223,11 @@ export function prepareAction(options: {
         request: asRequest(encodeRenew({ name, fee, sender, ...(lifetime ? { lifetime } : {}) })),
         review: [
           `Pays ${lunaToNim(fee)} NIM.`,
-          'Extends from the current expiry, not from today — renewing early costs nothing extra.',
           // Where the clock lands, as a date: for a lifetime the only honest
-          // rendering of a hundred terms, and for a term the same line.
+          // rendering of a hundred terms, and for a term the same line. That
+          // it extends from the expiry rather than from today is the *why*,
+          // and it moved behind the bubble with the rest of the second
+          // sentences (Kike, 2026-09-15).
           ...(record !== null && info !== null
             ? [newExpiryLine(formatApproxDate(approxDate(record.expiry + termFor(lifetime), info.height, nowMs)))]
             : []),
@@ -223,6 +235,7 @@ export function prepareAction(options: {
           // name stays where it is before the wallet opens.
           ...(record !== null && !ownedByViewer(record.owner) ? [giftRenewalLine(ellipsizeAddress(record.owner))] : []),
         ],
+        reviewHint: renewHint(),
         confirm: async () => {
           const now = await infoNow()
           return (now?.record?.expiry ?? 0) > baseline
@@ -236,10 +249,8 @@ export function prepareAction(options: {
       return {
         action: 'setTarget',
         request: asRequest(encodeSetTarget({ name, target, sender })),
-        review: [
-          `Payments to ${name} will go to ${expected}.`,
-          'Check the address on the wallet screen — it is the recipient of this transaction.',
-        ],
+        review: [`Payments to ${name} will go to ${expected}.`],
+        reviewHint: targetHint(),
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null
           return rec !== null && sameAddress(rec.target, expected)
@@ -254,7 +265,7 @@ export function prepareAction(options: {
       const evm = inputs.evm === 'clear' ? null : tryParseEvmAddress(inputs.evm)
       if (inputs.evm !== 'clear' && evm === null) {
         throw new ActionInputError(
-          'Not an EVM address — 0x followed by 40 hex characters, with its checksum intact if mixed-case',
+          'Not an EVM address. It is 0x followed by 40 hex characters, with its checksum intact if mixed-case.',
         )
       }
       return {
@@ -262,11 +273,8 @@ export function prepareAction(options: {
         request: asRequest(encodeSetEvm({ name, evm, sender })),
         review: evm === null
           ? [`Removes the linked EVM address from ${name}.`]
-          : [
-              `USDC / USDT sent to ${name} on any EVM chain can use ${evm}.`,
-              'One address covers Polygon, Ethereum, Arbitrum, Base and every other EVM chain.',
-              'The registry records the address you declare — double-check it is yours.',
-            ],
+          : [`USDC / USDT sent to ${name} on any EVM chain can use ${evm}.`],
+        ...(evm === null ? {} : { reviewHint: evmHint() }),
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null
           return rec !== null && rec.evm === (evm ?? '')
@@ -282,8 +290,8 @@ export function prepareAction(options: {
         request: asRequest(encodeTransfer({ name, newOwner: parseAddress(newOwner), sender })),
         review: [
           `Ownership moves to ${newOwner} after ~12 h. Until then the name stays under your control, and Cancel can stop it.`,
-          'A second transfer replaces this one and restarts the clock. The delay guards a mistyped address — it is not protection against a stolen key.',
         ],
+        reviewHint: transferHint(),
         confirm: async () => {
           const pending = (await infoNow())?.pending.transfer ?? null
           return pending !== null && sameAddress(pending.newOwner, newOwner)
@@ -305,6 +313,7 @@ export function prepareAction(options: {
         action: 'delegate',
         request: asRequest(encodeDelegate({ name, host, sender })),
         review: [...(host === '' ? delegateClearedLines(name) : delegateSetLines(host, name))],
+        reviewHint: host === '' ? delegateClearedHint() : delegateSetHint(host),
         confirm: async () => {
           const rec = (await infoNow())?.record ?? null
           return rec !== null && rec.host === host
@@ -356,9 +365,9 @@ export function prepareAction(options: {
         request: asRequest(encodeOffer({ name, price, minPrice, sender })),
         review: [
           `Lists ${name} at ${lunaToNim(price)} NIM.`,
-          'Irrevocable for ~2.4 hours, cancellable after, expires by itself in ~15 days.',
           sellerProceedsLine(lunaToNim(price - commissionOn(price, commissionBp)), percentOf(Number(commissionBp))),
         ],
+        reviewHint: offerHint(),
         confirm: async () => {
           const pending = (await infoNow())?.pending.offer ?? null
           return pending !== null && pending.price === price
@@ -387,7 +396,7 @@ export function prepareAction(options: {
     }
 
     case 'auction': {
-      if (info === null || record === null) throw new ActionInputError('Couldn’t read this name’s record — try again')
+      if (info === null || record === null) throw new ActionInputError('Couldn’t read this name’s record. Try again.')
       const startingPrice = parseNimAmount(inputs.startingPriceNim, 'Starting price')
       const endHeight = auctionEndHeight(info.height, parseAuctionDuration(inputs.durationDays))
       const minPrice = needParams().minPrice
@@ -395,8 +404,6 @@ export function prepareAction(options: {
       const extension = blocksApprox(CONSTANTS.AUCTION_EXTENSION)
       const lines = [
         `Opens an auction on ${name} with a starting price of ${lunaToNim(startingPrice)} NIM, ending ${when(endHeight)}.`,
-        `Neither the auction nor a bid can be withdrawn — it runs to the end, and a bid in the last ${extension} extends it by ${extension}.`,
-        'The highest bid wins and the name transfers at the end; the proceeds arrive from the marketplace operator.',
         // A minimum, not a figure: the starting price is the floor the first
         // bid must meet, and the winning bid can only be higher.
         auctionProceedsLine(
@@ -418,6 +425,7 @@ export function prepareAction(options: {
         // increment rule rounds to zero at a token starting price.
         request: asRequest(encodeAuction({ name, startingPrice, endHeight, minPrice, sender })),
         review: lines,
+        reviewHint: auctionHint(extension),
         confirm: async () => {
           const pending = (await infoNow())?.pending.auction ?? null
           return pending !== null && pending.startingPrice === startingPrice
@@ -444,10 +452,9 @@ export function prepareAction(options: {
         request: asRequest(encodeBuy({ name, price: bid, sender })),
         review: [
           `Bids ${lunaToNim(bid)} NIM on ${name}, held by the marketplace escrow until the auction ends ${when(auction.endHeight)}.`,
-          `A bid in the last ${extension} extends the auction by ${extension}.`,
-          bidRefundLine(),
           soldByLine(auction.seller),
         ],
+        reviewHint: bidHint(extension),
         confirm: async () => {
           const now = (await infoNow())?.pending.auction ?? null
           return now !== null && now.bidder !== null && ownedByViewer(now.bidder) && now.bid === bid

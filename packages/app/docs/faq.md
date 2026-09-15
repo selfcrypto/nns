@@ -49,7 +49,7 @@ Two ways, and they are different. To keep the name but pay into a new wallet, ch
 Nothing on NNS. The parent's owner runs a small server with a JSON file of labels and addresses, and hands out as many as they like. Nothing about a subdomain is stored on chain, and nothing about it is proven. [Subdomains](subdomains).
 
 **What does the "?" next to a line do?**
-It explains the line. What must be visible is on the card; the reason is one tap away. A blue **(i)** is the same control in the one place money changes hands without the protocol holding it: the marketplace's custody of a payment or a bid. The fact is always on the card, and a purchase still asks you to acknowledge it. The bubble carries when a refund arises.
+It explains the line. What must be visible is on the card; the reason is one tap away. A blue **(i)** is the same control inside a sheet you are about to send from: the review there is the amount, the address and the date, and the rules behind them are in the bubble. What a purchase must show you stays on the screen, and it still asks you to acknowledge it.
 
 **Is there a dark mode?**
 Yes, on the app. The sun/moon button in the top corner switches it, and the choice is remembered on the device. Before you press it the app follows whatever the device itself is set to. The landing page stays light: its photographs were shot for a white page.

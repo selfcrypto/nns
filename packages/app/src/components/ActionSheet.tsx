@@ -5,15 +5,17 @@ import { getNameInfo, getParams, type NameInfo } from '../lib/api'
 import { clearReferral, isSelfReferral, storedReferral } from '../lib/referral'
 import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { apiBase } from '../lib/nns'
-import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim } from '../lib/format'
+import { approxDate, ellipsizeAddress, formatApproxDate, lunaToNim, splitAroundName } from '../lib/format'
 import { discoverEvmProvider, probeHostEvmAddress, requestHostEvmAddress } from '../lib/sdk'
 import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
 import { cancellableNow, registrationFee, shortfallFor, type AppAction } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import { Hint } from './Hint'
-import { Spinner } from './ui'
+import { NameText, Spinner } from './ui'
 import {
+  clearHostLabel,
+  hostPlaceholder,
   sheetActionLabel,
   sheetDismissLabel,
   bidCustodialHint,
@@ -55,6 +57,30 @@ import {
   termChoiceGroupLabel,
   termChoiceLabel,
 } from '../lib/wording'
+
+/**
+ * A sheet sentence with the name it is about set in the name face and in
+ * bold. Two reasons, and either alone would be enough: §4.3 wants a name
+ * rendered confusable-safe *wherever it is shown*, and a sentence in the body
+ * font quietly exempted itself from that; and a review whose subject is a
+ * name should point at it (Kike, 2026-09-15, on a clear whose review named
+ * `ricomaverick` in running text: *"it needs something"*).
+ */
+function ReviewLine({ line, name }: { line: string; name: string }) {
+  return (
+    <>
+      {splitAroundName(line, name).map((part, index) =>
+        part.isName ? (
+          <strong className="line-name" key={index}>
+            <NameText>{part.text}</NameText>
+          </strong>
+        ) : (
+          <span key={index}>{part.text}</span>
+        ),
+      )}
+    </>
+  )
+}
 
 /**
  * One sheet for all ten flows (docs/app-ux.md §4–§5): inputs → in-app
@@ -211,6 +237,10 @@ export function ActionSheet({
   // Header and submit button carry the same label — for a `K`, the one the
   // cancellable set gives it, so the sheet cannot promise more than it clears.
   const actionLabel = sheetActionLabel(action, cancellableNow(info, info?.height ?? 0))
+  // The title names the sheet you opened; the button names what pressing it
+  // does. An empty host field on a name that has one is a `D` that clears,
+  // and a button reading "Set subdomain resolver" there is simply wrong.
+  const sendLabel = action === 'delegate' && host.trim() === '' && Boolean(info?.record?.host) ? clearHostLabel() : actionLabel
 
   // Both `B`s: a buy and a bid hand money to the marketplace (§8.5 #10).
   const needsAcknowledge = action === 'buy' || action === 'bid'
@@ -288,7 +318,11 @@ export function ActionSheet({
           </button>
         </div>
       )}
-      {currentLine !== null && <p className="sheet-current">{currentLine}</p>}
+      {currentLine !== null && (
+        <p className="sheet-current">
+          <ReviewLine line={currentLine} name={name} />
+        </p>
+      )}
 
       {(action === 'register' || action === 'renew') && params !== null && (
         // Two segments, each a label over its price — the price read straight
@@ -384,7 +418,7 @@ export function ActionSheet({
       {action === 'delegate' && (
         <input
           className="sheet-input nns-name"
-          placeholder={info?.record?.host ? `${info.record.host} (empty clears it)` : 'delegate host, e.g. nns.example.com'}
+          placeholder={hostPlaceholder(Boolean(info?.record?.host))}
           value={host}
           onChange={(event) => setHost(event.target.value)}
         />
@@ -442,8 +476,15 @@ export function ActionSheet({
 
       {prepared?.ok === true && (
         <ul className="review">
-          {prepared.value.review.map((line) => (
-            <li key={line}>{line}</li>
+          {prepared.value.review.map((line, index) => (
+            <li key={line}>
+              <ReviewLine line={line} name={name} />
+              {/* The why, one gesture away, on the line it belongs to: the
+                  review says the fact in a sentence and stops. */}
+              {prepared.value.reviewHint !== undefined && index === prepared.value.review.length - 1 && (
+                <Hint glyph="i">{prepared.value.reviewHint}</Hint>
+              )}
+            </li>
           ))}
           <li className="review-signer">
             <span>{signsWithLabel()}</span>
@@ -499,7 +540,7 @@ export function ActionSheet({
 
       <div className={`sheet-actions-grid ${onClose ? 'has-cancel' : ''}`}>
         <button type="button" className="sheet-send" disabled={!ready} onClick={() => void send()}>
-          {progress === 'submitting' ? submittingLabel() : progress === 'confirming' ? confirmingLabel() : actionLabel}
+          {progress === 'submitting' ? submittingLabel() : progress === 'confirming' ? confirmingLabel() : sendLabel}
         </button>
 
         {onClose && (

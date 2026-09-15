@@ -116,3 +116,47 @@ export function ellipsizeAddress(address: string): string {
   if (parts.length !== 9) return address
   return `${parts[0]} ${parts[1]} … ${parts[8]}`
 }
+
+/**
+ * A sentence, cut into the runs that are the name and the runs that are not.
+ *
+ * Review lines arrive as plain strings so `actions.ts` stays free of markup,
+ * but the name inside them is still a name: §4.3 wants it in the
+ * confusable-safe face wherever it is shown, and a sheet that asks "clear the
+ * host for ricomaverick?" should point at the word it means (Kike,
+ * 2026-09-15). A match counts only when neither neighbour is a character a
+ * name or a hostname can contain, so `rico` is not marked inside
+ * `ricomaverick` or inside `rico.example.com`.
+ */
+export function splitAroundName(line: string, name: string): readonly { readonly text: string; readonly isName: boolean }[] {
+  if (name === '') return [{ text: line, isName: false }]
+  const parts: { text: string; isName: boolean }[] = []
+  let kept = 0
+  let from = 0
+  for (;;) {
+    const at = line.indexOf(name, from)
+    if (at === -1) break
+    from = at + name.length
+    if (joins(line, at - 1, -1) || joins(line, from, 1)) continue
+    if (at > kept) parts.push({ text: line.slice(kept, at), isName: false })
+    parts.push({ text: name, isName: true })
+    kept = from
+  }
+  if (kept < line.length) parts.push({ text: line.slice(kept), isName: false })
+  return parts
+}
+
+/**
+ * Whether the character at `index` continues a name or a hostname rather than
+ * ending one. A dot only continues one when a label follows it in the reading
+ * direction — otherwise every name at the end of a sentence would look like
+ * the head of a hostname and go unmarked.
+ */
+function joins(line: string, index: number, direction: 1 | -1): boolean {
+  const char = line[index]
+  if (char === undefined) return false
+  if (/[A-Za-z0-9-]/.test(char)) return true
+  if (char !== '.') return false
+  const next = line[index + direction]
+  return next !== undefined && /[A-Za-z0-9]/.test(next)
+}

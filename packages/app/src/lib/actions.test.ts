@@ -276,10 +276,15 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
       expect(() => prepare({ action: 'bid', bidNim: '999.99999' }, underAuction, OTHER)).toThrow(/at least 1,000 NIM/)
     })
 
-    it('the bid review names the seller and the refund reading of WRONG_PRICE', () => {
+    // The seller is on the review: the wallet's sheet shows the marketplace
+    // address and nothing else, so this is the only place the bidder sees who
+    // they are bidding against. The refund reading of `WRONG_PRICE` is a rule
+    // rather than a change, so it moved into the bubble (2026-09-15).
+    it('the bid review names the seller, and the hint carries the refund reading of WRONG_PRICE', () => {
       const prepared = prepare({ action: 'bid', bidNim: '1000' }, underAuction, OTHER)
       expect(prepared.review.some((line) => line.includes(OWNER))).toBe(true)
-      expect(prepared.review.some((line) => line.includes('refunded'))).toBe(true)
+      expect(prepared.review.join(' ')).not.toContain('refunded')
+      expect(prepared.reviewHint).toContain('refunded')
     })
 
     it('bidding on your own auction is refused, and there is nothing to bid on without one', () => {
@@ -385,20 +390,34 @@ describe('delegate: the review names the mechanism, and a no-op `D` is refused',
     return { ...info, record: { ...info.record!, host } }
   }
 
-  it('setting a host says the host answers, and that its word is not proven', () => {
-    const review = prepare({ action: 'delegate', host: 'nns.example.com' }, withHost('')).review
-    expect(review.join(' ')).toContain('nns.example.com will answer for everything under example')
-    expect(review.join(' ')).toMatch(/not proven/)
+  it('setting a host says the host answers, and keeps the trust caveat in the hint', () => {
+    const prepared = prepare({ action: 'delegate', host: 'nns.example.com' }, withHost(''))
+    expect(prepared.review).toEqual(['nns.example.com will answer for everything under example.'])
+    // Who the addresses come from is the caveat; the delegation itself is on
+    // chain, and the hint says that first (Kike, 2026-09-15: the old line
+    // "sounds scary when it shouldn't").
+    expect(prepared.reviewHint).toMatch(/come from nns\.example\.com/)
+    expect(prepared.reviewHint).toMatch(/on chain/)
   })
 
   // The old line was "Subdomains under example stop resolving", which reads as
   // NNS withdrawing a resolution it was performing. §8.6 gives a label no
   // record, so the host is the only thing that ever answered.
   it('clearing a host never implies an on-chain fallback', () => {
-    const review = prepare({ action: 'delegate', host: '' }, withHost('nns.example.com')).review
-    expect(review.join(' ')).toContain('No host will answer for subdomains under example')
-    expect(review.join(' ')).toMatch(/only ever resolve through the host/)
-    expect(review.join(' ')).not.toMatch(/stop resolving/)
+    const prepared = prepare({ action: 'delegate', host: '' }, withHost('nns.example.com'))
+    expect(prepared.review).toEqual(['No host will answer for subdomains under example.'])
+    expect(prepared.reviewHint).toMatch(/only ever resolve through the host/)
+    expect(prepared.review.join(' ')).not.toMatch(/stop resolving/)
+  })
+
+  // Both reviews are one sentence, because the sheet is a form and the bubble
+  // beside it is where the second sentence went (Kike, 2026-09-15).
+  it('says it in one sentence either way', () => {
+    for (const host of ['nns.example.com', '']) {
+      const prepared = prepare({ action: 'delegate', host }, withHost(host === '' ? 'nns.example.com' : ''))
+      expect(prepared.review).toHaveLength(1)
+      expect(prepared.review[0]!.split('. ')).toHaveLength(1)
+    }
   })
 
   it('refuses an empty host on a name that has none — the `D` would change nothing', () => {

@@ -360,6 +360,17 @@ on the ~1 block/s clock (for `A`, because the end has to fall before it), a
 bid the standing bid and the minimum next one. Before any input, from the record — the review lines below
 still describe the *new* state once inputs are typed.
 
+**A review line is what changes if the button is pressed** (2026-09-15): the
+amount, the address, the date, what the send voids. The rules that read the
+same on every send — early renewal extending from the expiry, the auction's
+no-withdrawal, the chains an EVM address covers — are behind the sheet's
+`(i)`, one bubble per sheet, as `PreparedAction.reviewHint`. Everything this
+column asks for is still on the sheet; the column no longer says which half it
+is on. Three sheets had grown to three lines saying one thing, and `E`'s third
+was *"The registry records the address you declare — double-check it is
+yours"*, dash and all (Kike: *"a fucking shit ton of text here too to say the
+same over and over"*).
+
 | Flow | Compose needs | Review must say | Effect that confirms it |
 |---|---|---|---|
 | `G` register | `/params.fees` figure (exact §10.5) for the chosen term — a year or a lifetime, side by side with their prices — availability with non-inclusion proof | Price and term; a lifetime as the ≈ date it reaches; race possibility; pending fee change if scheduled | `/name` shows the record, owner = me |

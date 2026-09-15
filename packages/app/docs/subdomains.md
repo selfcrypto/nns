@@ -15,7 +15,7 @@ The parent is in the request, so one server can answer for every name that point
 
 NNS proves two things: that `exchange` belongs to a particular owner, and that its owner designated **this host**. Both come out of the checkpoint through an ordinary proof.
 
-The address the host returns for `shop` is the owner's word and nothing else's. No signature, no proof, no protocol recourse past the dot. That boundary is deliberate: an exchange already controls the deposit addresses it names, and having the registry ratify each one would cost a fee per subdomain and a log that never stops growing. So every client shows a delegated answer differently from a proven one: the app marks it *Subdomain* and says "The address is `exchange`'s word, with no proof behind it."
+The address the host returns for `shop` is the owner's word and nothing else's. No signature, no proof, no protocol recourse past the dot. That boundary is deliberate: an exchange already controls the deposit addresses it names, and having the registry ratify each one would cost a fee per subdomain and a log that never stops growing. So every client shows a delegated answer differently from a proven one: the app marks it *Subdomain*, badges it *Resolved by `exchange`*, and says behind the "?" that the delegation is verified on chain and the address is the one the host answered with.
 
 **The consequence for a host operator: your server's security is your subdomains' security.** A compromised host serves whatever addresses the attacker likes, and no part of NNS will notice. A signed-response format is fixed for a future version that requires it.
 

@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { approxDate, blocksApprox, displayAddress, ellipsizeAddress, formatApproxDate, group, looksGrouped, lunaToNim, lunaToNimInput } from './format'
+import {
+  approxDate,
+  blocksApprox,
+  displayAddress,
+  ellipsizeAddress,
+  formatApproxDate,
+  group,
+  looksGrouped,
+  lunaToNim,
+  lunaToNimInput,
+  splitAroundName,
+} from './format'
 import { parseNimAmount } from './actions'
 
 describe('lunaToNim', () => {
@@ -112,5 +123,30 @@ describe('looksGrouped', () => {
     for (const plain of ['450', '1.5', '1,5', '0.00001', '12.345', '18765.84304', '', 'abc']) {
       expect(looksGrouped(plain), plain).toBe(false)
     }
+  })
+})
+
+describe('splitAroundName', () => {
+  const marked = (line: string, name: string) =>
+    splitAroundName(line, name)
+      .filter((part) => part.isName)
+      .length
+
+  it('marks the name and leaves the rest of the sentence alone', () => {
+    const parts = splitAroundName('No host will answer for subdomains under rico.', 'rico')
+    expect(parts.map((part) => part.text).join('')).toBe('No host will answer for subdomains under rico.')
+    expect(parts.filter((part) => part.isName)).toEqual([{ text: 'rico', isName: true }])
+  })
+
+  it('never marks the name inside a longer name or a hostname', () => {
+    expect(marked('ricomaverick keeps its host.', 'rico')).toBe(0)
+    expect(marked('rico.example.com will answer for everything under maverick.', 'rico')).toBe(0)
+  })
+
+  it('marks every standalone occurrence, and rejoins to the original', () => {
+    const line = 'nns.example.com will answer for everything under rico, and rico keeps its own address.'
+    const parts = splitAroundName(line, 'rico')
+    expect(parts.map((part) => part.text).join('')).toBe(line)
+    expect(marked(line, 'rico')).toBe(2)
   })
 })

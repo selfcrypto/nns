@@ -128,8 +128,21 @@ export const proofPendingLine = (): string =>
 
 export const delegatedLine = (parent: string): string => `Resolved by ${parent}`
 
-export const delegatedExplainer = (parent: string): string =>
-  `${parent} is verified and delegates this resolver. The address is ${parent}’s word, with no proof behind it.`
+/**
+ * What a subdomain card's `?` says (Kike, 2026-09-15: *"sounds scary when it
+ * shouldn't"*). The old line led with what is missing, and read as a warning
+ * about a name whose owner had done nothing wrong. The delegation is a `D`
+ * record in the leaf, covered by the same proof as the parent, so *it* is
+ * verified on chain and saying so is not a bold claim. What is not proven is
+ * the address the host answered with, and the second sentence attributes it
+ * without dressing it as a risk. §8.5 #6's distinction is carried by the
+ * *Subdomain* tag and the "Resolved by" badge, which is where the spec puts
+ * it, and §8.5 #5 asks for alarming language only where something is wrong.
+ */
+export const delegatedExplainer = (parent: string, host: string | null): string =>
+  host === null
+    ? `${parent} has delegated its subdomains to a host of its own, and that delegation is verified on chain. The address above is the one that host answered with.`
+    : `${parent} has delegated its subdomains to ${host}, and that delegation is verified on chain. The address above is the one that host answered with.`
 
 export const targetChangedLine = (): string =>
   'Repointed since the last checkpoint. This address is newer than its proof.'
@@ -527,18 +540,66 @@ export const noHostLine = (): string => 'No subdomain resolver set.'
  * which reads as NNS taking away something it was doing — and NNS never
  * resolved a subdomain at all. §8.6 gives a label no record and no owner: the
  * host is the whole mechanism, so clearing it is not a downgrade to on-chain
- * resolution, it is the end of the only resolution there was. The second line
- * says that, because a review that only states the loss invites the reader to
- * assume a fallback.
+ * resolution, it is the end of the only resolution there was.
+ *
+ * One sentence each, and the rest behind the bubble (Kike, 2026-09-15: *"the
+ * second sentence can be removed since it says nothing new … have short and
+ * clear feedback and when more is needed use a (i) bubble"*). What the two
+ * second sentences carried — that the host's answers are its own word, and
+ * that nothing resolves a subdomain without one — is the *why* beside a fact
+ * the reader already has, which is what a hint is for.
  */
 export const delegateSetLines = (host: string, name: string): readonly string[] => [
-  `${host} will answer for everything under ${name}. Its answers are the host’s word, not proven.`,
+  `${host} will answer for everything under ${name}.`,
 ]
+
+export const delegateSetHint = (host: string): string =>
+  `The delegation is on chain, so anyone can verify you set it. The addresses under it come from ${host} itself, which is why a client shows a subdomain differently.`
 
 export const delegateClearedLines = (name: string): readonly string[] => [
   `No host will answer for subdomains under ${name}.`,
-  'Subdomains only ever resolve through the host. With none set, nothing resolves them.',
 ]
+
+export const delegateClearedHint = (): string =>
+  'Subdomains only ever resolve through the host, so with none set there is nothing left to answer them. The name itself resolves exactly as before.'
+
+/** The send button when the field is empty on a name that has a host: a `D` that clears. */
+export const clearHostLabel = (): string => 'Clear subdomain resolver'
+
+/** The field, which must never echo the current host: a placeholder that
+ *  repeats it reads as a filled box, and the review under it then looks like
+ *  a contradiction (Kike, 2026-09-15). */
+export const hostPlaceholder = (hasHost: boolean): string =>
+  hasHost ? 'New host, or empty to clear' : 'Host, e.g. nns.example.com'
+
+/**
+ * The rest of every review, one bubble per sheet (Kike, 2026-09-15: *"a
+ * fucking shit ton of text here too to say the same over and over"*, on an `E`
+ * review whose three lines were the address, the chains it covers and a
+ * reminder to check it). The review keeps what changes if you press the
+ * button: the amount, the address, the date, what gets voided. The rule
+ * behind it, which is the same on every send, is here.
+ */
+export const renewHint = (): string =>
+  'The term extends from the current expiry, not from today, so renewing early costs nothing extra.'
+
+export const targetHint = (): string =>
+  'The wallet’s own screen shows this address as the recipient of the message, so it can be checked there too.'
+
+export const evmHint = (): string =>
+  'One address covers Polygon, Ethereum, Arbitrum, Base and every other EVM chain. The registry records what you declare, so check that this one is yours.'
+
+export const transferHint = (): string =>
+  'A second transfer replaces this one and restarts the clock. The delay guards a mistyped address, not a stolen key.'
+
+export const offerHint = (): string =>
+  'Irrevocable for ~2.4 hours, cancellable after, and it expires by itself in ~15 days.'
+
+export const auctionHint = (extension: string): string =>
+  `Neither the auction nor a bid can be withdrawn, and a bid in the last ${extension} extends the end by ${extension}. The highest bid wins, the name transfers at the close, and the proceeds arrive from the marketplace operator.`
+
+export const bidHint = (extension: string): string =>
+  `A bid in the last ${extension} extends the auction by ${extension}. ${bidRefundLine()}`
 
 export const currentExpiryLine = (approx: string): string => `Currently expires ${approx}.`
 
