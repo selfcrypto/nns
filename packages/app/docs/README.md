@@ -1,23 +1,32 @@
 # packages/app/docs: the docs section's content
 
 One Markdown file per page of the in-app documentation (`#/docs/<slug>`).
-`index.md` fixes the sidebar order and each page's title. The order is also
-the previous/next chain, so it is the one place a page is added, renamed or
-moved. This directory is **content only**: the formatter is
-`src/lib/docsFormat.ts`, the build step `plugins/docs.ts` (it serves
+`index.md` fixes the structure: a `## Section` heading opens a section of the
+sidebar and each `- slug: Title` under it is a page, in order. The flat order
+is also the previous/next chain, so the file is the one place a page is
+added, renamed or moved. This directory is **content only**: the formatter
+is `src/lib/docsFormat.ts`, the build step `plugins/docs.ts` (it serves
 `virtual:docs`), and the screen `src/screens/Docs.tsx`.
 
-Four things fail the build rather than reaching a reader: an unknown
-placeholder key or format, a page listed here with no file, a `.md` file no
-`index.md` entry lists (it would be unreachable), and a cross-link to a slug
-that is not a page. Cross-links are written as the bare slug,
-`[Prices](prices)`, and become `#/docs/prices`.
+Every `##` heading in a page is a subsection: the build gives it an id from
+its text (`## Expiry and grace` → `expiry-and-grace`), the sidebar lists it
+under the page while that page is open, and `#/docs/prices/expiry-and-grace`
+lands on it. Renaming a heading moves its route, so a link to one from
+another page is `[grace](prices/expiry-and-grace)` and breaks the build the
+day the heading changes, the same way a link to a missing page does.
+
+Five things fail the build rather than reaching a reader: an unknown
+placeholder key or format, a page listed in `index.md` with no file, a `.md`
+file no `index.md` entry lists (it would be unreachable), a page listed
+before any `## Section` heading, and a cross-link to a slug that is not a
+page. Cross-links are written as the bare slug, `[Prices](prices)`, and
+become `#/docs/prices`.
 
 ## Placeholders: a number from `CONSTANTS` is never typed
 
 Every figure that is a protocol constant is written as a placeholder and
-filled at build time from `@nimiqnames/core`'s `CONSTANTS`, so the second launch
-freeze cannot leave a stale number in the docs. The build fails on an
+filled at build time from `@nimiqnames/core`'s `CONSTANTS`, so the second
+launch freeze cannot leave a stale number in the docs. The build fails on an
 unknown key or an unknown format.
 
 | Placeholder | Renders as | Example |
@@ -60,7 +69,14 @@ applies here too:
 - The Market's custody is said plainly: the operator holds the money between
   a payment and its settlement. Not "escrow".
 - Heights are shown as approximate durations or `≈` dates, never as block
-  numbers, except in the reference table.
+  numbers, except in the constants table.
+- **One word per thing, the app's word.** A fixed-price listing is a
+  **sale** (the protocol's `O` and the verdict tokens keep "offer", in code
+  face, where they name the message). The §8.6 delegate is a **host**, never
+  a resolver, which is a different thing. A tab, a tile and a group are named
+  exactly as `wording.ts` spells them (**My Names**, **Subdomain Host**,
+  **Routing & Records**), and a line the app says is quoted verbatim.
+  `docsPages.test.ts` pins the quotes it can.
 
 What is provisional before launch is said once, on the Status page, not on
 every page. Nothing operator-private (box addresses, hostnames, tunnels) and
@@ -72,10 +88,12 @@ Second person, short declaratives, the reason beside each rule. Help-centre
 clarity with the README's habit of saying why. No marketing adjectives; the
 trust bars already carry the claims.
 
-**No em dash splits a sentence.** A full stop, a comma, a colon, or brackets
-where brackets earn it, and `none` or `n/a` where a table cell has no value.
-The rule is the app's (`src/lib/wording.ts`, 2026-09-14) and these pages are
-read in the same session as the screens, so one voice or neither. It is pinned
-by `docsPages.test.ts`, which fails on a `—` in any file here. The dash was
-never the problem on its own: it licenses a second clause restating the first,
-and taking it away forces the sentence to end.
+**No em dash splits a sentence, and no semicolon joins two.** A full stop,
+a comma, a colon, or brackets where brackets earn it, and `none` or `n/a`
+where a table cell has no value. The rule is the app's (`src/lib/wording.ts`,
+2026-09-14) and these pages are read in the same session as the screens, so
+one voice or neither. It is pinned by `docsPages.test.ts`, which fails on a
+`—` in any file here. The dash was never the problem on its own: it licenses
+a second clause restating the first, and taking it away forces the sentence
+to end. A fact is said once, on the page it belongs to, and linked from the
+others.

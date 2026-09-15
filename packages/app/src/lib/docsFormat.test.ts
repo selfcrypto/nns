@@ -10,6 +10,8 @@ import {
   feesTable,
   fillPlaceholders,
   formatNim,
+  groupDocPages,
+  headingId,
   LONG_BAND_FROM,
   parseDocIndex,
   referralRatesTable,
@@ -17,20 +19,49 @@ import {
 import { headlineBp, percentOf, REFERRAL_RATES } from './referralRates'
 
 describe('parseDocIndex', () => {
-  it('keeps the file order, which is the sidebar and the prev/next chain', () => {
-    const index = parseDocIndex('# Documentation\n\nThe sidebar.\n\n- intro: What NNS is\n- prices: Prices, terms and expiry\n')
+  it('keeps the file order, which is the prev/next chain, and the section each page sits under', () => {
+    const index = parseDocIndex(
+      '# Documentation\n\nThe sidebar.\n\n## Introduction\n- intro: What NNS is\n\n## Names\n- prices: Prices, terms and expiry\n',
+    )
     expect(index).toEqual([
-      { slug: 'intro', title: 'What NNS is' },
-      { slug: 'prices', title: 'Prices, terms and expiry' },
+      { slug: 'intro', title: 'What NNS is', section: 'Introduction' },
+      { slug: 'prices', title: 'Prices, terms and expiry', section: 'Names' },
     ])
   })
 
   it('refuses an entry that is not "slug: Title"', () => {
-    expect(() => parseDocIndex('- intro — What NNS is\n')).toThrow(/slug: Title/)
+    expect(() => parseDocIndex('## A\n- intro — What NNS is\n')).toThrow(/slug: Title/)
+  })
+
+  it('refuses a page listed before any section, which the sidebar has nowhere to put', () => {
+    expect(() => parseDocIndex('- intro: What NNS is\n')).toThrow(/before any "## Section"/)
   })
 
   it('refuses an index with no pages, which would render an empty section', () => {
-    expect(() => parseDocIndex('# Documentation\n')).toThrow(/no pages/)
+    expect(() => parseDocIndex('# Documentation\n## A\n')).toThrow(/no pages/)
+  })
+})
+
+describe('groupDocPages', () => {
+  it('groups consecutive pages by section, in first-seen order', () => {
+    const pages = [
+      { slug: 'a', title: 'A', section: 'One' },
+      { slug: 'b', title: 'B', section: 'One' },
+      { slug: 'c', title: 'C', section: 'Two' },
+    ]
+    expect(groupDocPages(pages)).toEqual([
+      { title: 'One', pages: [pages[0], pages[1]] },
+      { title: 'Two', pages: [pages[2]] },
+    ])
+  })
+})
+
+describe('headingId', () => {
+  it('is the heading text as a route segment', () => {
+    expect(headingId('Expiry and grace')).toBe('expiry-and-grace')
+    expect(headingId('"It never confirmed"')).toBe('it-never-confirmed')
+    expect(headingId('What `verification` means')).toBe('what-verification-means')
+    expect(headingId('The "?" and the "(i)"')).toBe('the-and-the-i')
   })
 })
 

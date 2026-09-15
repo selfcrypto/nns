@@ -79,11 +79,11 @@
     <string id="bidAmountPlaceholder" params="minNim">Bid in NIM (at least {minNim})</string>
     <string id="startingPriceLine" params="nim">Starting price {nim} NIM</string>
     <string id="auctionEndsLine" params="whenDate">ends {whenDate}</string>
-    <string id="auctionOutlivesTermLine" params="expiryDate">The auction would end after the name expires ({expiryDate}), and only the current term can be sold. Renew first, or set an earlier end.</string>
+    <string id="auctionOutlivesTermLine" params="expiryDate">The auction would end after the name expires ({expiryDate}). Renew first, or set an earlier end.</string>
     <string id="bidRefundLine">A bid below the minimum is refunded, not accepted. So is yours, the moment a higher bid lands.</string>
     <string id="bidCustodialWarning">The marketplace operator holds your bid until the auction ends.</string>
     <string id="bidCustodialHint">It comes back the moment a higher bid lands, and again if the auction is cancelled. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
-    <string id="feeChangeLine" params="whenDate">Fees change {whenDate} (a scheduled governance update).</string>
+    <string id="feeChangeLine" params="whenDate">Fees change {whenDate}.</string>
     <string id="renewDueLine" params="whenDate">Renew before {whenDate}</string>
     <string id="graceBadge" params="untilDate">In grace, renew by {untilDate}</string>
   </group>
@@ -108,7 +108,7 @@
   <group name="Buy (§8.5 #10)">
     <string id="SETTLEMENT_ASSURANCE">The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
     <string id="custodialWarning">The marketplace operator holds your payment until settlement.</string>
-    <string id="custodialHint">The name is yours as soon as your payment is final. That part is protocol; the money is not. If this purchase loses a race or hits a cancelled sale, the operator refunds you. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
+    <string id="custodialHint">The name is yours as soon as your payment is final. That part is protocol. The money is not: if this purchase loses a race or hits a cancelled sale, the operator refunds you. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
     <string id="marketCustodialLine">The marketplace operator holds payments and bids until settlement.</string>
     <string id="marketCustodialHint">A name transfers on the chain the moment the payment is final. The money settles separately, through the operator: a purchase that loses a race or hits a cancelled sale is refunded, and so is a bid the moment it is outbid. The public log shows what is owed and what has been paid, so a shortfall can’t be hidden. It is still a promise, not a protocol rule.</string>
     <string id="soldByLine" params="seller">Sold by {seller}.</string>
@@ -122,9 +122,9 @@
     <string id="currentHostLine" params="host">{host} currently answers for subdomains.</string>
     <string id="noHostLine">No subdomain host set.</string>
     <string id="delegateSetLines" params="host name">{host} will answer for everything under {name}.</string>
-    <string id="delegateSetHint" params="host">The delegation is on chain, so anyone can verify you set it. The addresses under it come from {host} itself, which is why a client marks a subdomain differently.</string>
+    <string id="delegateSetHint" params="host">The delegation is on chain, so anyone can verify you set it. The addresses under it come from {host} itself.</string>
     <string id="delegateClearedLines" params="name">No host will answer for subdomains under {name}.</string>
-    <string id="delegateClearedHint">Subdomains only ever resolve through the host, so with none set there is nothing left to answer them. The name itself resolves exactly as before.</string>
+    <string id="delegateClearedHint">Subdomains resolve only through the host. The name itself resolves as before.</string>
     <string id="clearHostCheckLabel">Remove the current host</string>
     <string id="clearHostLabel">Clear subdomain host</string>
     <string id="hostPlaceholder" params="hasHost">New host, e.g. nns.example.com</string>
@@ -379,7 +379,7 @@
     <string id="requestAmountLabel" params="asset">Amount in NIM</string>
     <string id="requestAssetLabel">Paid in</string>
     <string id="requestLinkLabel">Your link</string>
-    <string id="requestNoEvmLine">USDT needs an address linked to this name. Use the EVM Resolution action.</string>
+    <string id="requestNoEvmLine">USDT needs an address linked to this name. Use the EVM Resolution tile.</string>
     <string id="copyLinkLabel">Copy link</string>
     <string id="requestInGraceLine">Payments can’t reach a name in grace. Renew it first.</string>
     <string id="shareHint" params="percent rebate netOfBurn">Anyone who registers through your link pays the same price. This name’s address receives {percent} of the fee, paid by the registry after each registration.</string>

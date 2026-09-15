@@ -363,7 +363,7 @@ export const auctionEndsLine = (whenDate: string): string => `ends ${whenDate}`
  * sent, because the owner's fix — renew first — is only available before.
  */
 export const auctionOutlivesTermLine = (expiryDate: string): string =>
-  `The auction would end after the name expires (${expiryDate}), and only the current term can be sold. Renew first, or set an earlier end.`
+  `The auction would end after the name expires (${expiryDate}). Renew first, or set an earlier end.`
 
 /**
  * The bid reading of `WRONG_PRICE`, and of being outbid: neither is a
@@ -384,7 +384,7 @@ export const bidCustodialHint = (): string =>
   `It comes back the moment a higher bid lands, and again if the auction is cancelled. ${SETTLEMENT_ASSURANCE}`
 
 export const feeChangeLine = (whenDate: string): string =>
-  `Fees change ${whenDate} (a scheduled governance update).`
+  `Fees change ${whenDate}.`
 
 export const renewDueLine = (whenDate: string): string => `Renew before ${whenDate}`
 
@@ -517,7 +517,7 @@ export const custodialWarning = (): string =>
   'The marketplace operator holds your payment until settlement.'
 
 export const custodialHint = (): string =>
-  `The name is yours as soon as your payment is final. That part is protocol; the money is not. If this purchase loses a race or hits a cancelled sale, the operator refunds you. ${SETTLEMENT_ASSURANCE}`
+  `The name is yours as soon as your payment is final. That part is protocol. The money is not: if this purchase loses a race or hits a cancelled sale, the operator refunds you. ${SETTLEMENT_ASSURANCE}`
 
 /**
  * The Market screen's own disclosure. The list holds offers **and** auctions,
@@ -593,14 +593,14 @@ export const delegateSetLines = (host: string, name: string): readonly string[] 
 ]
 
 export const delegateSetHint = (host: string): string =>
-  `The delegation is on chain, so anyone can verify you set it. The addresses under it come from ${host} itself, which is why a client marks a subdomain differently.`
+  `The delegation is on chain, so anyone can verify you set it. The addresses under it come from ${host} itself.`
 
 export const delegateClearedLines = (name: string): readonly string[] => [
   `No host will answer for subdomains under ${name}.`,
 ]
 
 export const delegateClearedHint = (): string =>
-  'Subdomains only ever resolve through the host, so with none set there is nothing left to answer them. The name itself resolves exactly as before.'
+  'Subdomains resolve only through the host. The name itself resolves as before.'
 
 /**
  * Clearing is a checkbox, the way `S`'s "Point back at my address" and `E`'s
@@ -1568,10 +1568,10 @@ export const requestLinkLabel = (): string => 'Your link'
 /**
  * Why the USDT tab is greyed. Shown rather than hiding the option: a hidden
  * choice says nothing, and the thing it needs is one owner action away —
- * `OWNER_ACTION_TILE.setEvm`, named here so the line points somewhere.
+ * `OWNER_TILE.setEvm`, read here so the line cannot drift from the tile.
  */
 export const requestNoEvmLine = (): string =>
-  'USDT needs an address linked to this name. Use the EVM Resolution action.'
+  `USDT needs an address linked to this name. Use the ${OWNER_TILE.setEvm.title} tile.`
 export const copyLinkLabel = (): string => 'Copy link'
 /**
   * A name in grace does not resolve (§7.3), so a link to it has nothing to send

@@ -1,5 +1,6 @@
-/* The documentation screen. Phone first: the page list is a strip that
-   scrolls sideways above the article, and becomes a column beside it when
+/* The documentation screen. Phone first: the menu is a disclosure above the
+   article that opens into the whole tree (sections, pages, and the current
+   page's subsections), and becomes a sticky column beside the article when
    there is room for one. Nothing here is a card — a doc is a page, not an
    answer — three surfaces. */
 
@@ -8,38 +9,137 @@
   padding: 4px 16px 32px;
 }
 
-/* ── The page list ── */
+/* ── The menu ── */
 
-.pages {
+.side {
+  margin-bottom: 14px;
+}
+
+.menuToggle {
   display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 10px;
-  margin-bottom: 6px;
-  scrollbar-width: none;
-}
-
-.pages::-webkit-scrollbar {
-  display: none;
-}
-
-.page {
-  flex: none;
-  padding: 7px 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-field);
   background: var(--card);
-  color: var(--ink-soft);
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menuCrumb {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
   white-space: nowrap;
 }
 
+.menuSection {
+  flex: none;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.menuTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* A chevron drawn from a border, so no icon joins the set for one button. */
+.chevron {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin: 0 4px 3px 0;
+  border-right: 2px solid var(--ink-soft);
+  border-bottom: 2px solid var(--ink-soft);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.chevronOpen {
+  transform: rotate(225deg);
+  margin-bottom: -3px;
+}
+
+.tree {
+  display: none;
+  margin-top: 8px;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+.treeOpen {
+  display: block;
+}
+
+.section + .section {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.sectionTitle {
+  padding: 4px 10px 2px;
+  color: var(--ink-faint);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pages,
+.headings {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.page {
+  display: block;
+  padding: 6px 10px;
+  border-radius: var(--radius-field);
+  color: var(--ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 .pageActive {
-  border-color: var(--nimiq-blue-border);
   background: var(--nimiq-blue-tint);
   color: var(--nimiq-blue-dark);
+}
+
+.headings {
+  margin: 2px 0 6px 10px;
+  padding-left: 8px;
+  border-left: 2px solid var(--line);
+}
+
+.heading {
+  display: block;
+  padding: 4px 8px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.headingActive {
+  color: var(--nimiq-blue-dark);
+  font-weight: 600;
 }
 
 /* ── The page ── */
@@ -48,6 +148,16 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
+  min-width: 0;
+}
+
+.crumb {
+  margin: 4px 0 -12px;
+  color: var(--ink-faint);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .article {
@@ -75,6 +185,12 @@
 .article h3 {
   margin: 22px 0 8px;
   font-size: 16px;
+}
+
+/* A subsection route scrolls its heading into view under a sticky masthead. */
+.article h2,
+.article h3 {
+  scroll-margin-top: calc(var(--masthead-h, 56px) + 12px);
 }
 
 .article p,
@@ -212,32 +328,40 @@
 @media (min-width: 900px) {
   .docs {
     display: grid;
-    grid-template-columns: 220px minmax(0, 720px);
-    gap: 36px;
+    grid-template-columns: 240px minmax(0, 720px);
+    gap: 40px;
     justify-content: center;
     padding: 12px 24px 48px;
   }
 
-  .pages {
+  .side {
     position: sticky;
-    top: 16px;
+    top: calc(var(--masthead-h, 56px) + 12px);
     align-self: start;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    overflow: visible;
-    padding: 0;
+    max-height: calc(100vh - var(--masthead-h, 56px) - 24px);
     margin: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .menuToggle {
+    display: none;
+  }
+
+  .tree {
+    display: block;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+  }
+
+  .section + .section {
+    margin-top: 14px;
+    padding-top: 12px;
   }
 
   .page {
-    border: none;
-    border-radius: var(--radius-field);
-    background: none;
-    padding: 7px 10px;
-  }
-
-  .pageActive {
-    background: var(--nimiq-blue-tint);
+    font-size: 13.5px;
   }
 }

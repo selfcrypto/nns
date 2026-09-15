@@ -28,24 +28,63 @@ import { headlineBp, percentOf, rebatePercent, REFERRAL_RATES, referralHeadlineB
 export interface DocPage {
   readonly slug: string
   readonly title: string
+  /** The `## Section` the page is listed under: the sidebar's grouping. */
+  readonly section: string
 }
 
 /**
- * `index.md`'s list, in order: one `- slug: Title` per page. The sidebar is
- * that order, and prev/next is that order — so the file is the single place a
- * page is added, renamed or moved.
+ * `index.md`'s list, in order: a `## Section` heading opens a section and
+ * each `- slug: Title` under it is a page. The sidebar is that structure,
+ * and prev/next is the flat order, so the file is the single place a page is
+ * added, renamed or moved. A page listed before any section is an error: the
+ * sidebar has nowhere to put it.
  */
 export function parseDocIndex(markdown: string): readonly DocPage[] {
   const pages: DocPage[] = []
+  let section: string | null = null
   for (const line of markdown.split('\n')) {
+    const heading = /^##\s+(\S.*)$/.exec(line.trim())
+    if (heading !== null) {
+      section = (heading[1] ?? '').trim()
+      continue
+    }
     const item = /^-\s+(.*)$/.exec(line.trim())
     if (item === null) continue
     const entry = /^([a-z0-9-]+):\s+(\S.*)$/.exec(item[1] ?? '')
     if (entry === null) throw new Error(`docs/index.md: not a "slug: Title" entry: ${line.trim()}`)
-    pages.push({ slug: entry[1] ?? '', title: (entry[2] ?? '').trim() })
+    if (section === null) throw new Error(`docs/index.md: "${entry[1]}" is listed before any "## Section" heading`)
+    pages.push({ slug: entry[1] ?? '', title: (entry[2] ?? '').trim(), section })
   }
   if (pages.length === 0) throw new Error('docs/index.md lists no pages')
   return pages
+}
+
+/**
+ * The sidebar's grouping of the flat list: sections in first-seen order, each
+ * with its pages in file order.
+ */
+export function groupDocPages<T extends DocPage>(pages: readonly T[]): readonly { readonly title: string; readonly pages: readonly T[] }[] {
+  const out: { title: string; pages: T[] }[] = []
+  for (const page of pages) {
+    const last = out[out.length - 1]
+    if (last !== undefined && last.title === page.section) last.pages.push(page)
+    else out.push({ title: page.section, pages: [page] })
+  }
+  return out
+}
+
+/**
+ * A heading's anchor: the text lowercased, anything that is not a letter or a
+ * digit collapsed to one hyphen. `#/docs/prices/expiry-and-grace` is the
+ * route to a subsection, so the id has to be stable across rebuilds and
+ * legible in a link, which a hash of the text would not be.
+ */
+export function headingId(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[\x60*_]/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 /** Thousands separators, without asking the platform for a locale. */

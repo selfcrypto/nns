@@ -1,36 +1,55 @@
 /**
- * The documentation, `#/docs/<slug>`.
+ * The documentation, `#/docs/<slug>` and `#/docs/<slug>/<heading>`.
  *
  * The pages are `packages/app/docs/*.md`, already HTML by the time this
  * renders: `plugins/docs.ts` fills the `{{format:KEY}}` placeholders from
- * `CONSTANTS` and converts the Markdown at build time, so nothing here parses
- * anything and no Markdown library reaches the bundle.
+ * `CONSTANTS`, converts the Markdown at build time and gives every `##` an
+ * id, so nothing here parses anything and no Markdown library reaches the
+ * bundle.
  *
- * The order in `index.md` is the whole navigation: the page list, and the
- * previous/next pair at the foot. Cross-links inside a page are ordinary
- * `#/docs/<slug>` anchors — the hash is the route, so `App.tsx`'s
+ * `index.md` is the whole navigation: its `## Section` headings group the
+ * sidebar, its flat order is the previous/next pair at the foot, and the
+ * page being read lists its own `##` headings under itself as subsection
+ * links. The sidebar is a column beside the article where there is room for
+ * one and a disclosure above it on a phone, where a strip of twenty page
+ * titles would be unreadable. Cross-links inside a page are ordinary
+ * `#/docs/<slug>` anchors: the hash is the route, so `App.tsx`'s
  * `hashchange` listener is all the handling they need.
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 
 import { DOC_PAGES } from 'virtual:docs'
 
+import { groupDocPages } from '../lib/docsFormat'
 import styles from './docs.module.css'
 
-export function DocsScreen({ slug }: { readonly slug: string | null }) {
+const SECTIONS = groupDocPages(DOC_PAGES)
+
+/** `slug/heading` → the two halves; a bare slug has no heading. */
+function splitParam(param: string | null): { readonly slug: string | null; readonly heading: string | null } {
+  if (param === null) return { slug: null, heading: null }
+  const slash = param.indexOf('/')
+  if (slash === -1) return { slug: param, heading: null }
+  return { slug: param.slice(0, slash), heading: param.slice(slash + 1) || null }
+}
+
+export function DocsScreen({ slug: param }: { readonly slug: string | null }) {
+  const { slug, heading } = splitParam(param)
   const current = slug === null ? DOC_PAGES[0] : DOC_PAGES.find((page) => page.slug === slug)
-  const active = useRef<HTMLAnchorElement | null>(null)
+  const [open, setOpen] = useState(false)
 
   // A page is a page: arriving at one from another must start at its top,
-  // which a hash change inside the same screen does not do by itself. On a
-  // phone the page list is a strip that scrolls sideways, so the page being
-  // read has to be brought into it — otherwise the tenth page shows the first
-  // three titles and no sign of where the reader is.
+  // which a hash change inside the same screen does not do by itself. A
+  // subsection route lands on its heading instead; the heading's own
+  // `scroll-margin-top` keeps it clear of the sticky masthead. Either way the
+  // phone menu closes, since the tap that got here was made inside it.
   useEffect(() => {
-    window.scrollTo({ top: 0 })
-    active.current?.scrollIntoView({ block: 'nearest', inline: 'center' })
-  }, [slug])
+    setOpen(false)
+    const target = heading === null ? null : document.getElementById(`doc-${heading}`)
+    if (target === null) window.scrollTo({ top: 0 })
+    else target.scrollIntoView({ block: 'start' })
+  }, [slug, heading])
 
   const index = current === undefined ? -1 : DOC_PAGES.indexOf(current)
   const previous = index > 0 ? DOC_PAGES[index - 1] : undefined
@@ -38,30 +57,75 @@ export function DocsScreen({ slug }: { readonly slug: string | null }) {
 
   return (
     <div className={styles.docs}>
-      <nav className={styles.pages} aria-label="Documentation">
-        {DOC_PAGES.map((page) => (
-          <a
-            key={page.slug}
-            ref={page.slug === current?.slug ? active : null}
-            href={`#/docs/${page.slug}`}
-            className={page.slug === current?.slug ? `${styles.page} ${styles.pageActive}` : styles.page}
-            aria-current={page.slug === current?.slug ? 'page' : undefined}
-          >
-            {page.title}
-          </a>
-        ))}
-      </nav>
+      <aside className={styles.side}>
+        <button
+          type="button"
+          className={styles.menuToggle}
+          aria-expanded={open}
+          aria-controls="docs-tree"
+          onClick={() => setOpen((value) => !value)}
+        >
+          <span className={styles.menuCrumb}>
+            {current === undefined ? 'Documentation' : (
+              <>
+                <span className={styles.menuSection}>{current.section}</span>
+                <span className={styles.menuTitle}>{current.title}</span>
+              </>
+            )}
+          </span>
+          <span className={open ? `${styles.chevron} ${styles.chevronOpen}` : styles.chevron} aria-hidden="true" />
+        </button>
+
+        <nav id="docs-tree" className={open ? `${styles.tree} ${styles.treeOpen}` : styles.tree} aria-label="Documentation">
+          {SECTIONS.map((section) => (
+            <div key={section.title} className={styles.section}>
+              <div className={styles.sectionTitle}>{section.title}</div>
+              <ul className={styles.pages}>
+                {section.pages.map((page) => {
+                  const active = page.slug === current?.slug
+                  return (
+                    <li key={page.slug}>
+                      <a
+                        href={`#/docs/${page.slug}`}
+                        className={active ? `${styles.page} ${styles.pageActive}` : styles.page}
+                        aria-current={active ? 'page' : undefined}
+                      >
+                        {page.title}
+                      </a>
+                      {active && page.headings.length > 0 && (
+                        <ul className={styles.headings}>
+                          {page.headings.map((entry) => (
+                            <li key={entry.id}>
+                              <a
+                                href={`#/docs/${page.slug}/${entry.id}`}
+                                className={entry.id === heading ? `${styles.heading} ${styles.headingActive}` : styles.heading}
+                              >
+                                {entry.text}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          ))}
+        </nav>
+      </aside>
 
       {current === undefined ? (
         <article className={styles.article}>
           <h1>No such page</h1>
           <p>
-            The documentation has no page called “{slug}”. Everything there is is in the list above — start at{' '}
+            The documentation has no page called “{slug}”. Every page is in the menu. Start at{' '}
             <a href={`#/docs/${DOC_PAGES[0]?.slug ?? ''}`}>{DOC_PAGES[0]?.title ?? 'the beginning'}</a>.
           </p>
         </article>
       ) : (
         <div className={styles.body}>
+          <p className={styles.crumb}>{current.section}</p>
           {/* Build output, from this repository's own Markdown: there is no
               user content on this screen and nothing at runtime to sanitise. */}
           <article className={styles.article} dangerouslySetInnerHTML={{ __html: current.html }} />

@@ -1,17 +1,39 @@
 # Documentation
 
-The sidebar, in order. `slug: Title`.
+The sidebar. A `## Section` heading opens a section and each `- slug: Title`
+under it is a page, in order. The flat order is also the previous/next chain.
 
+## Introduction
 - intro: What NNS is
-- names: Names and reserved names
-- prices: Prices, terms and expiry
-- referrals: Referrals
-- app: Using the app
-- fails: When a transaction is refused
-- subdomains: Subdomains and delegation
-- trust: How you know the answer is right
-- developers: Integrating NNS
-- operators: Running your own
-- reference: Constants, messages and glossary
-- status: Pre-launch status
+- getting-started: Getting started
 - faq: Questions
+
+## Names
+- names: Rules and reserved names
+- prices: Prices, terms and expiry
+- subdomains: Subdomains
+
+## Using the app
+- buy: Buy
+- pay: Pay
+- my-names: My Names
+- inbox: Inbox
+- market: Market
+- referrals: Referrals
+- fails: Refused transactions
+
+## Trust
+- trust: How you know the answer is right
+- verification: The verification line
+
+## Developers
+- developers: Integrating NNS
+- api: The HTTP API
+- wire-format: The wire format
+- operators: Running your own
+
+## Reference
+- constants: Constants
+- messages: Messages and verdicts
+- glossary: Glossary
+- status: Pre-launch status

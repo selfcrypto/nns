@@ -25,7 +25,7 @@ import { fileURLToPath } from 'node:url'
 import { Marked, type Tokens } from 'marked'
 import type { Plugin } from 'vite'
 
-import { fillPlaceholders, parseDocIndex } from '../src/lib/docsFormat'
+import { fillPlaceholders, headingId, parseDocIndex } from '../src/lib/docsFormat'
 
 const VIRTUAL_ID = 'virtual:docs'
 const RESOLVED_ID = '\0virtual:docs'
@@ -35,9 +35,31 @@ const DOCS_DIR = fileURLToPath(new URL('../docs', import.meta.url))
 /** `index.md` fixes the order; `README.md` documents the directory for whoever edits it. */
 const NOT_A_PAGE = new Set(['index.md', 'README.md'])
 
-function renderer(slugs: ReadonlySet<string>): Marked {
+interface Heading {
+  readonly id: string
+  readonly text: string
+}
+
+/**
+ * The Markdown converter for one page. `headings` fills as the page renders:
+ * every `##` gets an `id` so `#/docs/<slug>/<id>` can land on it, and the
+ * screen lists those ids under the page in the sidebar. A repeated heading
+ * gets a numbered id rather than a duplicate, which two anchors would be.
+ */
+function renderer(slugs: ReadonlySet<string>, headings: Heading[]): Marked {
+  const seen = new Set<string>()
   return new Marked({
     renderer: {
+      heading(token: Tokens.Heading): string {
+        const text = this.parser.parseInline(token.tokens)
+        if (token.depth === 1) return `<h1>${text}</h1>\n`
+        const base = headingId(token.text)
+        let id = base
+        for (let n = 2; seen.has(id); n += 1) id = `${base}-${n}`
+        seen.add(id)
+        if (token.depth === 2) headings.push({ id, text: token.text.replace(/[\x60*_]/g, '') })
+        return `<h${token.depth} id="doc-${id}">${text}</h${token.depth}>\n`
+      },
       /**
        * Every cross-link in these pages is a bare slug (`[Prices](prices)`),
        * because the pages are the app's own and the app's routes are the
@@ -62,6 +84,8 @@ function renderer(slugs: ReadonlySet<string>): Marked {
 interface BuiltPage {
   readonly slug: string
   readonly title: string
+  readonly section: string
+  readonly headings: readonly Heading[]
   readonly html: string
 }
 
@@ -73,16 +97,16 @@ export function buildDocs(): readonly BuiltPage[] {
     .filter((file) => file.endsWith('.md') && !NOT_A_PAGE.has(file) && !slugs.has(file.slice(0, -3)))
   if (orphans.length > 0) throw new Error(`docs: ${orphans.join(', ')} — not listed in index.md, so unreachable`)
 
-  const md = renderer(slugs)
   return index.map((page) => {
     const source = readFileSync(join(DOCS_DIR, `${page.slug}.md`), 'utf8')
-    const html = md.parse(fillPlaceholders(source), { async: false })
+    const headings: Heading[] = []
+    const html = renderer(slugs, headings).parse(fillPlaceholders(source), { async: false })
     // A phone cannot fit the reference tables, and a table is the one block
     // that must scroll sideways on its own rather than widen the page. The
     // wrapper is an element, not a class, because the screen's CSS module
     // would hash a class the build step wrote.
     const wrapped = html.replace(/<table>/g, '<figure><table>').replace(/<\/table>/g, '</table></figure>')
-    return { slug: page.slug, title: page.title, html: wrapped }
+    return { slug: page.slug, title: page.title, section: page.section, headings, html: wrapped }
   })
 }
 

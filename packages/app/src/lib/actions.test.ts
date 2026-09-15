@@ -433,7 +433,7 @@ describe('delegate: the review names the mechanism, and a no-op `D` is refused',
   it('clearing a host never implies an on-chain fallback', () => {
     const prepared = prepare({ action: 'delegate', host: 'clear' }, withHost('nns.example.com'))
     expect(prepared.review).toEqual(['No host will answer for subdomains under example.'])
-    expect(prepared.reviewHint).toMatch(/only ever resolve through the host/)
+    expect(prepared.reviewHint).toMatch(/resolve only through the host/)
     expect(prepared.review.join(' ')).not.toMatch(/stop resolving/)
   })
 
