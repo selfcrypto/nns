@@ -45,21 +45,26 @@ import { NodeDot } from './icons'
 import { Identicon } from './ui'
 
 /**
- * The node light, in the panel where there is room for the sentence.
+ * The node readout, at the top of the panel.
+ *
+ * A **bubble, not a line**, and tinted away from the two action bubbles under
+ * it: those are things to press, this is a thing to read, and the panel should
+ * not need a label to say which is which (Kike, 2026-09-16). It carries the
+ * chain-data face the app already uses for names and addresses (`nns-name`,
+ * §4.3), because that is what this is — an instrument reading, in the voice
+ * the app already reserves for the chain.
  *
  * Three states, never two: a request that never came back says nothing about
- * the node, so it reads as "could not reach" rather than as a red light. The
- * collapsed control gets the dot alone, since the corner has room for the
- * address and nothing else.
+ * the node, so it reads as unreachable rather than as a red light.
  */
 function NodeLine({ consensus }: { consensus: Consensus }) {
   const state = consensus === true ? 'ok' : consensus === false ? 'syncing' : 'unknown'
   const line =
     consensus === true ? consensusOkLine() : consensus === false ? consensusSyncingLine() : consensusUnknownLine()
   return (
-    <p className={`identity-node node-${state}`}>
+    <p className={`identity-node node-${state}`} role="status">
       <NodeDot />
-      {line}
+      <span className="nns-name">{line}</span>
     </p>
   )
 }
@@ -174,8 +179,11 @@ export function IdentityBar({
               {addAddressLabel()}
             </button>
           )}
+          {/* The one destructive control in the panel, and the only red in the
+              app's chrome. It is last, and it looks unlike the row above it,
+              so the two are not two taps of the same weight. */}
           {top && disconnect !== null && (
-            <button type="button" className="connect connect-quiet identity-add" onClick={disconnect}>
+            <button type="button" className="connect connect-quiet identity-add identity-danger" onClick={disconnect}>
               {disconnectLabel()}
             </button>
           )}
