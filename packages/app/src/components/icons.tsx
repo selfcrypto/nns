@@ -10,9 +10,7 @@
  * and the sun and moon on the night-mode switch, which is the one control in
  * the chrome whose whole label is its picture — and two for the copy control
  * on a resolved address, which is a picture because the row it sits in is
- * already a full address and has no room for a word until it is pressed, and
- * the node light in the masthead, which is a dot because the corner it sits in
- * has room for the address and nothing else.
+ * already a full address and has no room for a word until it is pressed.
  * Nothing else earns a pictogram: the proof rail and the identicon already carry the meanings that
  * matter, and a glyph beside every sentence would spend the reader's
  * attention on decoration.
@@ -177,19 +175,5 @@ export function SunIcon() {
       <circle cx="12" cy="12" r="4.2" />
       <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" />
     </Glyph>
-  )
-}
-
-/**
- * The node light beside the address in the masthead. A filled dot, not a
- * glyph: it sits next to a 22px identicon and an ellipsized address, where
- * anything with internal detail becomes a smudge. Colour carries the state
- * and the button's label says it in words for anything that cannot see it.
- */
-export function NodeDot() {
-  return (
-    <svg className="icon node-dot" width={8} height={8} viewBox="0 0 8 8" aria-hidden focusable="false">
-      <circle cx="4" cy="4" r="4" fill="currentColor" />
-    </svg>
   )
 }

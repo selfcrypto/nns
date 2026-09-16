@@ -1419,27 +1419,6 @@ export const eraNoticeHint = (blocks: number = CONSTANTS.TERM_LENGTH): string =>
   `a lifetime about ${periodApprox(blocks * CONSTANTS.LIFETIME_TERMS)} instead of ${CONSTANTS.LIFETIME_TERMS} years, and prices are set for testing. ` +
   `Nothing registered here carries over. The registry starts again at launch.`
 
-// ── The node light (in the identity panel) ─────────────────────────────────
-
-/**
- * The identity panel's readout on the node behind the app, asked once per load
- * (`lib/consensus.ts`). A label and a value, because that is what it is: a
- * reading, not a sentence about one. It said *"Connected. The node has
- * consensus."* for one build, which is the same fact twice (Kike, 2026-09-16:
- * *"Consensus: Established is more than enough"*).
- *
- * Three states and no fourth. Unreachable is not a node answering "no".
- */
-export const consensusOkLine = (): string => 'Consensus: Established'
-
-export const consensusSyncingLine = (): string => 'Consensus: Syncing'
-
-/** The ask never came back, which is a reading about us, not about the chain. */
-export const consensusUnknownLine = (): string => 'Node: Unreachable'
-
-/** The collapsed control's label for the dot beside the address. */
-export const consensusIconLabel = (): string => 'Consensus established'
-
 // ── The landing page (a browser's front door; Pay opens on Buy) ─────────────
 
 /**

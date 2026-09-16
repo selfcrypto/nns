@@ -325,12 +325,6 @@
     <string id="eraNoticeLine">Names and prices here are for testing.</string>
     <string id="eraNoticeHint" params="blocks">This is a test era. Every clock runs short so a name's whole life fits a few days: a term is 1 year instead of a year, a lifetime about 100 years instead of 100 years, and prices are set for testing. Nothing registered here carries over. The registry starts again at launch.</string>
   </group>
-  <group name="The node light (in the identity panel)">
-    <string id="consensusOkLine">Consensus: Established</string>
-    <string id="consensusSyncingLine">Consensus: Syncing</string>
-    <string id="consensusUnknownLine">Node: Unreachable</string>
-    <string id="consensusIconLabel">Consensus established</string>
-  </group>
   <group name="The landing page (a browser's front door; Pay opens on Buy)">
     <string id="termPerk" params="blocks">One-year terms</string>
   </group>

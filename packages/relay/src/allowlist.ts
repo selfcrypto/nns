@@ -17,7 +17,6 @@ export const ALLOWED_METHODS = [
   'getBlockNumber',
   'getTransactionByHash',
   'getTransactionsByAddress',
-  'isConsensusEstablished',
   'sendRawTransaction',
 ] as const
 
@@ -97,22 +96,6 @@ export function screen(bodyText: string): Screened {
     case 'getBlockNumber': {
       if (params.length !== 0) return refusal(id, -32602, 'getBlockNumber takes no params')
       return accepted(id, 'getBlockNumber', [])
-    }
-    /**
-     * Added 2026-09-16 so the app can say whether the node behind this relay
-     * has consensus, rather than inferring it from a height that a node
-     * without consensus still answers.
-     *
-     * It takes nothing and returns a boolean: there is no parameter to clamp
-     * and nothing here that is not already implied by every other method on
-     * this list answering at all. The app asks **once per load**, never on an
-     * interval — a per-client poll against one node behind one credential is
-     * what the chain-height strip got wrong on this same day, and the read
-     * budget is not the protection to lean on for that.
-     */
-    case 'isConsensusEstablished': {
-      if (params.length !== 0) return refusal(id, -32602, 'isConsensusEstablished takes no params')
-      return accepted(id, 'isConsensusEstablished', [])
     }
 
     case 'getTransactionByHash': {

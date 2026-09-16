@@ -1126,64 +1126,6 @@ select:focus-visible {
   color: var(--grace);
 }
 
-/* ── The node light: a dot in the corner, a sentence in the panel ──
-   Green only when the node said yes. The other two states never reach the
-   collapsed control at all: an unlit corner is the honest reading of "we
-   have not heard back", and a grey dot there is furniture. */
-
-.identity-light {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 2px;
-}
-
-/* A bubble, and deliberately not the shape of the buttons beneath it: those
-   are pressable and this is not, which the eye should get before the words.
-   Tint and dot and text colour are three signals for one fact, so it has no
-   border. */
-.identity-node {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  /* Shorter than the buttons under it, and further from them than they are
-     from each other: the two pressable things group, and the readout sits
-     apart from the pair. */
-  margin: 0 0 14px;
-  padding: 7px 12px;
-  border-radius: 9px;
-  background: var(--proven-bg);
-  font-size: 12.5px;
-  color: var(--proven);
-}
-
-/* The §4.3 chain-data face, the same one the address above it is set in: this
-   is a reading off the chain, not a sentence about one. */
-.identity-node .nns-name {
-  font-weight: 600;
-}
-
-.identity-node.node-syncing {
-  background: rgba(var(--tint-ink), 0.04);
-  color: var(--grace);
-}
-
-.identity-node.node-unknown {
-  background: rgba(var(--tint-ink), 0.04);
-  color: var(--ink-faint);
-}
-
-/* The collapsed corner's dot. The panel's bubble sets its own colour, so this
-   is only the green one beside the address. */
-.identity-light.node-ok {
-  color: var(--proven);
-}
-
-/* The dot takes the colour of the row it is in, so the three states are one
-   declaration each above rather than three rules here. */
-.node-dot {
-  flex: none;
-}
-
 /* ── The hint: "?" beside a line, its explanation on hover or tap ── */
 
 .hint {
@@ -2794,10 +2736,44 @@ li.note {
   font-size: 12px;
 }
 
+.identity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
 
+.identity-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--proven);
+}
 
+.identity-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--proven);
+  box-shadow: 0 0 0 2px var(--proven-bg);
+}
 
+.identity-header-address {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  font-family: inherit;
+}
 
+.identity-address-copy-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
 
 .identity-copy-btn {
   background: transparent;
@@ -2878,21 +2854,6 @@ li.note {
 
 .identity-top .identity-add:hover {
   background: var(--depth-bg);
-}
-
-/* Destructive, and the only red in the chrome. Tinted rather than filled: a
-   solid red block in a dropdown reads as an error that has already happened
-   rather than an action available. */
-.identity-top .identity-danger {
-  background: var(--alarm-tint);
-  border-color: var(--alarm-border);
-  color: var(--alarm);
-}
-
-.identity-top .identity-danger:hover {
-  background: var(--alarm);
-  border-color: var(--alarm);
-  color: var(--card);
 }
 
 .identity-btn-icon {

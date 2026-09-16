@@ -26,48 +26,17 @@
 
 import { identityRow } from '../lib/states'
 import { ellipsizeAddress } from '../lib/format'
-import { useConsensus, type Consensus } from '../lib/consensus'
 import type { Wallet } from '../lib/wallet'
 import {
   addAddressLabel,
   connectWalletLabel,
-  consensusIconLabel,
-  consensusOkLine,
-  consensusSyncingLine,
-  consensusUnknownLine,
   disconnectLabel,
   moreAddressesLabel,
   payConnectLabel,
   walletCheckingLine,
   showEveryAddressLabel
 } from '../lib/wording'
-import { NodeDot } from './icons'
 import { Identicon } from './ui'
-
-/**
- * The node readout, at the top of the panel.
- *
- * A **bubble, not a line**, and tinted away from the two action bubbles under
- * it: those are things to press, this is a thing to read, and the panel should
- * not need a label to say which is which (Kike, 2026-09-16). It carries the
- * chain-data face the app already uses for names and addresses (`nns-name`,
- * §4.3), because that is what this is — an instrument reading, in the voice
- * the app already reserves for the chain.
- *
- * Three states, never two: a request that never came back says nothing about
- * the node, so it reads as unreachable rather than as a red light.
- */
-function NodeLine({ consensus }: { consensus: Consensus }) {
-  const state = consensus === true ? 'ok' : consensus === false ? 'syncing' : 'unknown'
-  const line =
-    consensus === true ? consensusOkLine() : consensus === false ? consensusSyncingLine() : consensusUnknownLine()
-  return (
-    <p className={`identity-node node-${state}`} role="status">
-      <NodeDot />
-      <span className="nns-name">{line}</span>
-    </p>
-  )
-}
 
 export type IdentityPlacement = 'top' | 'bottom' | 'empty'
 
@@ -87,7 +56,6 @@ export function IdentityBar({
   placement?: IdentityPlacement
 }) {
   const row = identityRow(wallet)
-  const consensus = useConsensus()
   const top = placement === 'top'
   const bar = `identity-bar identity-${placement}`
 
@@ -139,14 +107,6 @@ export function IdentityBar({
         >
           <Identicon address={row.primary} size={22} />
           <span className="identity-address nns-name">{ellipsizeAddress(row.primary)}</span>
-          {/* Collapsed: the dot only, and only once the node has actually
-              answered. An unlit corner is the honest state for "we have not
-              heard back", and a grey dot there would just be furniture. */}
-          {consensus === true && (
-            <span className="identity-light node-ok" title={consensusIconLabel()} aria-label={consensusIconLabel()}>
-              <NodeDot />
-            </span>
-          )}
           {row.more > 0 && <span className="identity-more">{moreAddressesLabel(row.more)}</span>}
         </button>
         {/* Bottom only: Disconnect stays on the collapsed row — it is the
@@ -163,7 +123,6 @@ export function IdentityBar({
       </div>
       {expanded && hasPanel && (
         <div className="identity-expanded">
-          <NodeLine consensus={consensus} />
           {row.more > 0 && (
             <ul className="identity-list">
               {addresses.map((address) => (
@@ -179,11 +138,8 @@ export function IdentityBar({
               {addAddressLabel()}
             </button>
           )}
-          {/* The one destructive control in the panel, and the only red in the
-              app's chrome. It is last, and it looks unlike the row above it,
-              so the two are not two taps of the same weight. */}
           {top && disconnect !== null && (
-            <button type="button" className="connect connect-quiet identity-add identity-danger" onClick={disconnect}>
+            <button type="button" className="connect connect-quiet identity-add" onClick={disconnect}>
               {disconnectLabel()}
             </button>
           )}
