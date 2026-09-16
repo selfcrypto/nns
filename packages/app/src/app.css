@@ -1126,6 +1126,46 @@ select:focus-visible {
   color: var(--grace);
 }
 
+/* ── The node light: a dot in the corner, a sentence in the panel ──
+   Green only when the node said yes. The other two states never reach the
+   collapsed control at all: an unlit corner is the honest reading of "we
+   have not heard back", and a grey dot there is furniture. */
+
+.identity-light {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+}
+
+.identity-node {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 8px;
+  padding: 0 2px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.node-ok {
+  color: var(--proven);
+}
+
+.node-syncing {
+  color: var(--grace);
+}
+
+.node-unknown {
+  color: var(--ink-faint);
+}
+
+/* The dot takes the colour of the row it is in, so the three states are one
+   declaration each above rather than three rules here. */
+.node-dot {
+  flex: none;
+}
+
 /* ── The hint: "?" beside a line, its explanation on hover or tap ── */
 
 .hint {

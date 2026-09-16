@@ -43,6 +43,12 @@ describe('the boundary', () => {
 })
 
 describe('per-method params', () => {
+  it('isConsensusEstablished takes nothing', () => {
+    expect(screen(rpc('isConsensusEstablished')).ok).toBe(true)
+    expect(screen(rpc('isConsensusEstablished', [])).ok).toBe(true)
+    expect(errorCode(screen(rpc('isConsensusEstablished', ['x'])))).toBe(-32602)
+  })
+
   it('getBlockNumber takes nothing', () => {
     expect(screen(rpc('getBlockNumber')).ok).toBe(true)
     expect(errorCode(screen(rpc('getBlockNumber', ['x'])))).toBe(-32602)
