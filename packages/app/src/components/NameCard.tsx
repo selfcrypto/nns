@@ -21,7 +21,7 @@ import { CONSTANTS } from '@nimiqnames/core'
 import { primaryAddress } from '../lib/identity'
 import { approxDate, ellipsizeAddress, formatApproxWhen, lunaToNim } from '../lib/format'
 import type { SearchOutcome } from '../lib/search'
-import { actionGates, cancellableNow, cancelTileGroup, connectInstead, registrationFee, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
+import { actionGates, cancellable, cancelTileGroup, connectInstead, registrationFee, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import { IdentityBar } from './IdentityBar'
 import {
@@ -29,7 +29,7 @@ import {
   OWNER_GROUP_TITLE,
   OWNER_TILE,
   SHARE_TILE,
-  gateReasonLine,
+  GATE_REASON_TEXT,
   ownerShareLine,
   referralsCountLine,
   shareCopiedLine,
@@ -284,8 +284,8 @@ function Actions({
 
     // What a `K` would actually clear, and therefore what the tile is called and
     // where it sits (§6 `K`: one `K` clears the whole set at once).
-    const cancellable = cancellableNow(info, height)
-    const cancelInOwnership = cancelTileGroup(cancellable) === 'ownership'
+    const clears = cancellable(info)
+    const cancelInOwnership = cancelTileGroup(clears) === 'ownership'
     // The headline the owner is shown, on the group title and in its hint.
     const sharePercent = percentOf(referralHeadlineBp(name, height) ?? 0)
 
@@ -400,12 +400,11 @@ function Actions({
           }
         case 'cancel':
           return {
-            title: cancelTitle(cancellable),
-            subtitle: cancelHint(cancellable, {
+            title: cancelTitle(clears),
+            subtitle: cancelHint(clears, {
               to: info?.pending.transfer ? ellipsizeAddress(info.pending.transfer.newOwner) : null,
-              priceNim: cancellable.offer && info?.pending.offer ? lunaToNim(info.pending.offer.price) : null,
-              leftBlocks:
-                cancellable.transfer && info?.pending.transfer ? info.pending.transfer.effectiveHeight - info.height : null,
+              priceNim: clears === 'sale' && info?.pending.offer ? lunaToNim(info.pending.offer.price) : null,
+              leftBlocks: clears === 'transfer' && info?.pending.transfer ? info.pending.transfer.effectiveHeight - info.height : null,
             }),
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -459,7 +458,7 @@ function Actions({
                         <span className="owner-action-name">{meta.title}</span>
                         <span className="owner-action-meta">
                           {!usable && gate.reason !== null
-                            ? gateReasonLine(gate.reason, gate.blocksLeft)
+                            ? GATE_REASON_TEXT[gate.reason]
                             : !usable && offerConnect
                               ? connectWalletHint()
                               : meta.subtitle}
@@ -599,7 +598,7 @@ function Actions({
                     placement="empty"
                   />
                 ) : (
-                  <span className="action-state">{gateReasonLine(gate.reason ?? 'no-viewer', gate.blocksLeft)}</span>
+                  <span className="action-state">{GATE_REASON_TEXT[gate.reason ?? 'no-viewer']}</span>
                 )}
               </div>
             )}

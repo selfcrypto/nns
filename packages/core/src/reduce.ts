@@ -124,6 +124,7 @@ export type ForfeitReason =
   | 'BELOW_MIN_PRICE'
   | 'AUCTION_OPEN'
   | 'OFFER_OPEN'
+  | 'TRANSFER_PENDING'
   | 'AUCTION_BEYOND_TERM'
 
 /**
@@ -225,6 +226,23 @@ function owe(draft: Draft, item: Obligation): void {
 // ── §7.3 dependent-state resets ─────────────────────────────────────────────
 
 /**
+ * §7.3: a name has at most one pending operation — a transfer, a sale or an
+ * auction — and `X`, `O` and `A` all refuse while any of the three stands,
+ * with the token naming what does. The way to change it is a `K` (an auction
+ * excepted: bids are money, so it runs to its close). Nothing voids, replaces
+ * or supersedes anything: r28's "latest statement of intent wins" and the
+ * first r30 cut's one-directional void were two exceptions to one rule, and
+ * the r30 fold of 2026-09-16 removed both. Only one map can hold the name,
+ * so the order here is unobservable and pinned for the §7.4 table alone.
+ */
+function pendingOn(state: NnsState, name: string): 'AUCTION_OPEN' | 'OFFER_OPEN' | 'TRANSFER_PENDING' | null {
+  if (state.auctions.has(name)) return 'AUCTION_OPEN'
+  if (state.offers.has(name)) return 'OFFER_OPEN'
+  if (state.transfers.has(name)) return 'TRANSFER_PENDING'
+  return null
+}
+
+/**
  * §7.3: on a transfer taking effect (`X` after its timelock, `B`, or an
  * auction closing), owner and target both become the new owner, the EVM
  * address and the delegate host are cleared, open offers are cancelled, and
@@ -234,9 +252,9 @@ function owe(draft: Draft, item: Obligation): void {
  * keep receiving funds sent to the name, and the old owner's EVM key must
  * not keep answering for it — and the new owner reconfigures explicitly.
  *
- * An open auction is exclusive with `X` and `O` (§6 `A`), so a transfer never
- * finds one to cancel except the close that is itself performing the
- * transfer, which reads the auction before calling this.
+ * Nothing can stand beside a pending `X` (`pendingOn`), so the deletes below
+ * are the slate-wiping this comment describes on the `B` and close paths, and
+ * no-ops on the timelock path.
  */
 function applyTransfer(draft: Draft, name: string, newOwner: Address): void {
   const record = draft.names.get(name)
@@ -753,25 +771,11 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       if (record === undefined || record.status !== 'REGISTERED') return keep(forfeit('NAME_NOT_REGISTERED'))
 
       if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
-      // §6 `A`: an open auction is exclusive — bidders have committed money
-      // against the window, so the owner cannot move the name out from under
-      // them by another route.
-      if (state.auctions.has(message.name)) return keep(forfeit('AUCTION_OPEN'))
-      // §6 `X` (r30): an open offer is exclusive too, and for the opposite
-      // reason — nobody has committed money, but anybody may. A listing is a
-      // standing invitation to strangers, so a transfer beside it puts the
-      // name's destination in the hands of whoever sends a `B` first: the
-      // buyer wins instantly and the timelock the owner was relying on never
-      // runs. Refused rather than resolved, because the two are equally
-      // plausible readings of what the owner wanted and only she can say.
-      // The way out is a `K`, which is where the asymmetry with `O` below
-      // comes from: the listing is the public half and must be withdrawn
-      // deliberately.
-      if (state.offers.has(message.name)) return keep(forfeit('OFFER_OPEN'))
+      const busy = pendingOn(state, message.name)
+      if (busy !== null) return keep(forfeit(busy))
 
       const effectiveHeight = tx.blockNumber + CONSTANTS.XFER_TIMELOCK
 
-      // A second X supersedes the first and restarts the timelock.
       const draft = draftOf(state)
       draft.transfers.set(message.name, {
         name: message.name,
@@ -803,17 +807,17 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
 
       if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
 
-      // §6 K vetoes "a pending X, or an O past OFFER_IRREVOCABLE — all
-      // effective on inclusion". Read as: cancel everything currently
-      // cancellable.
+      // §6 `K`: a pending `X` or an open `O`, at any height — an auction is
+      // the one pending thing a `K` cannot touch, because a bid is money
+      // committed against the window. No cancel delay on either side since
+      // the r30 fold: a `B` pays the marketplace and moves the name only if
+      // the sale is still open when it lands, so a cancel racing a buyer
+      // costs the buyer a refund wait and never money, and a delay bought
+      // nothing — the argument §6 `K` already made for r6's `CANCEL_DELAY`.
       const draft = draftOf(state)
       let cancelled = false
       if (draft.transfers.delete(message.name)) cancelled = true
-      const offer = draft.offers.get(message.name)
-      if (offer !== undefined && tx.blockNumber >= offer.openedHeight + CONSTANTS.OFFER_IRREVOCABLE) {
-        draft.offers.delete(message.name)
-        cancelled = true
-      }
+      if (draft.offers.delete(message.name)) cancelled = true
       if (!cancelled) return keep(forfeit('NOTHING_TO_CANCEL'))
       draft.nextDueHeight = computeNextDue(draft)
       return { state: freeze(draft), verdict: ok() }
@@ -850,10 +854,8 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       const record = state.names.get(message.name)
       if (record === undefined || record.status !== 'REGISTERED') return keep(forfeit('NAME_NOT_REGISTERED'))
       if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
-      // §6 `A`: exclusive while open, for the same reason as `X` above — and
-      // because a `B` is a bid exactly when an auction is open, so an offer
-      // beside one would make the same payload mean two things.
-      if (state.auctions.has(message.name)) return keep(forfeit('AUCTION_OPEN'))
+      const busy = pendingOn(state, message.name)
+      if (busy !== null) return keep(forfeit(busy))
 
       // §6 `O`: the price MUST be ≥ MIN_PRICE, which is FEE_BASE **at this
       // message's height** — a governed value, so it is read from the active
@@ -872,17 +874,6 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
 
       const expiryHeight = tx.blockNumber + CONSTANTS.OFFER_MAX_LIFETIME
       const draft = draftOf(state)
-      // §6 `O` (r30): listing voids the owner's own pending `X`, the rule an
-      // `A` already applies to both and a later `O` or `X` to its predecessor
-      // — the latest statement of intent wins. The reverse direction forfeits
-      // (`X` above) rather than voiding, and the asymmetry is the point: a
-      // pending transfer is private, nobody can act on it, and it yields to a
-      // newer statement; a listing is public, a stranger may be mid-`B`
-      // against it, and it comes down only by an explicit `K`. Without this
-      // the exclusion would be half a rule — list, then transfer is refused,
-      // but transfer, then list rebuilds the same contradiction.
-      draft.transfers.delete(message.name)
-      // A later O replaces the standing one and restarts its irrevocability.
       draft.offers.set(message.name, {
         name: message.name,
         seller: tx.sender,
@@ -890,10 +881,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
         openedHeight: tx.blockNumber,
         expiryHeight,
       })
-      // Recomputed rather than `schedule`d: the bound only ever tightens, and
-      // the transfer just voided may be exactly what it was pointing at — the
-      // same reason `K` and `A` recompute (`nextDueHeight is only ever a lower
-      // bound`). The new offer's own expiry is in the draft, so this covers it.
+      // Covers the offer's own expiry: it is in the draft already.
       draft.nextDueHeight = computeNextDue(draft)
       return { state: freeze(draft), verdict: ok() }
     }
@@ -1013,7 +1001,8 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
         if (!addressEquals(tx.sender, CONSTANTS.ADMIN_ADDRESS)) return keep(forfeit('NOT_ADMIN'))
         seller = CONSTANTS.TREASURY_ADDRESS
       }
-      if (state.auctions.has(message.name)) return keep(forfeit('AUCTION_OPEN'))
+      const busy = pendingOn(state, message.name)
+      if (busy !== null) return keep(forfeit(busy))
       // Payload after state and authority, as for `O`: the floor first —
       // it is what keeps the increment rule from rounding to zero — then the
       // window, measured from the landing block like `P`'s notice.
@@ -1029,12 +1018,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // firing ahead of the close when the two are due at one height.
       if (record !== undefined && message.endHeight >= record.expiry) return keep(forfeit('AUCTION_BEYOND_TERM'))
 
-      // Opening voids the owner's own pending X and open O: the auction is
-      // the latest statement of intent, the rule a later O or X already
-      // applies to its predecessor. Nothing is owed — neither holds money.
       const draft = draftOf(state)
-      draft.transfers.delete(message.name)
-      draft.offers.delete(message.name)
       draft.auctions.set(message.name, {
         name: message.name,
         seller,

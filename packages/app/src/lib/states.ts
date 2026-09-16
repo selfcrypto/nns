@@ -114,10 +114,11 @@ export type GateReason =
   | 'no-viewer'
   | 'not-owner'
   | 'nothing-to-cancel'
-  | 'offer-irrevocable'
+  /** One pending thing per name (§7.3, r30): `X`, `O` and `A` all close on whichever of the three stands. */
   | 'offer-open'
+  | 'transfer-pending'
   | 'no-offer'
-  /** §6 `A` exclusivity: `O`, `X`, a second `A` forfeit `AUCTION_OPEN`; `K` cannot cancel it. */
+  /** The third: and the one a `K` cannot lift, so it stays closed for the cancel tile too. */
   | 'auction-open'
   | 'no-auction'
   /** The name resolved, but `/name` did not answer — no record to act on. */
@@ -126,19 +127,10 @@ export type GateReason =
 export interface Gate {
   readonly enabled: boolean
   readonly reason: GateReason | null
-  /**
-   * Blocks until this refusal lifts by itself, `null` when it never does.
-   * `not-owner` and `no-record` are answers; `offer-irrevocable` is a wait,
-   * and a wait the user can only guess at is the one number the tile owes
-   * them (Kike, 2026-09-15, on the transfer's cancel tile; again 2026-09-16
-   * on this one, where a tempo era's 300 blocks made it acute).
-   */
-  readonly blocksLeft: number | null
 }
 
-const open: Gate = { enabled: true, reason: null, blocksLeft: null }
-const closed = (reason: GateReason, blocksLeft: number | null = null): Gate =>
-  ({ enabled: false, reason, blocksLeft })
+const open: Gate = { enabled: true, reason: null }
+const closed = (reason: GateReason): Gate => ({ enabled: false, reason })
 
 export function sameAddress(a: string, b: string): boolean {
   const left = tryParseAddress(a)
@@ -190,11 +182,24 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
   }
 
   /**
-   * An open auction is exclusive (§6 `A`): opening it voided the owner's
-   * pending `X` and open `O`, and until the close `O`, `X` and a second `A`
-   * forfeit `AUCTION_OPEN` while `K` cannot cancel it — bids are commitments.
+   * One pending thing per name (§7.3, r30): a transfer, a sale or an auction,
+   * and `X`, `O` and `A` all forfeit while any of the three stands. The tile
+   * closes on whichever it is; the way out is the cancel tile, except for an
+   * auction, which runs to its close.
    */
-  const unlessAuction = (gate: Gate): Gate => (gate.enabled && info?.pending.auction ? closed('auction-open') : gate)
+  const busy = (): GateReason | null => {
+    const pending = info?.pending
+    if (pending?.auction) return 'auction-open'
+    if (pending?.offer) return 'offer-open'
+    if (pending?.transfer) return 'transfer-pending'
+    return null
+  }
+  const opener = (): Gate => {
+    const base = ownerGate()
+    if (!base.enabled) return base
+    const reason = busy()
+    return reason === null ? open : closed(reason)
+  }
 
   const cancel = (): Gate => {
     const base = ownerGate()
@@ -203,58 +208,27 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
       // grace refusal is `nothing-to-cancel`, not `in-grace`.
       return view.kind === 'grace' ? closed('nothing-to-cancel') : base
     }
-    const pending = info?.pending
-    // Nothing else can be pending beside it, and it is not cancellable: say
-    // which of the two that is, rather than "nothing is pending".
-    if (pending?.auction) return closed('auction-open')
-    if (pending?.transfer) return open
-    if (pending?.offer) {
-      const cancellableAt = offerCancellableAt(pending.offer.openedHeight)
-      return head >= cancellableAt ? open : closed('offer-irrevocable', cancellableAt - head)
+    // The one pending thing a `K` cannot clear: say which, rather than
+    // "nothing is pending". A transfer or a sale clears at any height.
+    switch (busy()) {
+      case 'auction-open':
+        return closed('auction-open')
+      case null:
+        return closed('nothing-to-cancel')
+      default:
+        return open
     }
-    return closed('nothing-to-cancel')
-  }
-
-  /**
-   * §6 `X` (r30): an open offer is exclusive with a transfer, so the tile is
-   * shut while the name is listed and the refusal names the way out — which is
-   * a `K`, and a `K` cannot withdraw an offer inside `OFFER_IRREVOCABLE` (§6
-   * `O`). Saying "cancel that first" there would be advice the protocol
-   * refuses to take, so inside the window the tile shows the wait instead,
-   * exactly as `cancel()` does.
-   *
-   * Only this direction is gated. An `O` on a name with a pending `X` is a
-   * lawful message that voids the transfer, so the Sell tile stays open and
-   * says so in its own review lines.
-   */
-  const transfer = (): Gate => {
-    const base = unlessAuction(ownerGate())
-    if (!base.enabled) return base
-    const pendingOffer = info?.pending.offer
-    if (!pendingOffer) return open
-    const cancellableAt = offerCancellableAt(pendingOffer.openedHeight)
-    return head >= cancellableAt ? closed('offer-open') : closed('offer-irrevocable', cancellableAt - head)
   }
 
   const renew = (): Gate =>
     // Anyone may renew, in term or in grace (§6 `N`); the record must exist.
     view.kind === 'registered' || view.kind === 'grace' ? open : closed('no-record')
 
-  const offer = (): Gate => {
-    const base = unlessAuction(ownerGate())
-    if (!base.enabled) return base
-    return info?.pending.offer ? closed('offer-open') : open
-  }
-
   const buy = (): Gate => {
     const pendingOffer = info?.pending.offer
     if (!pendingOffer) return closed('no-offer')
     return head < pendingOffer.expiryHeight ? open : closed('no-offer')
   }
-
-  // Legal with a pending `X` or an open `O` — opening voids both, the rule a
-  // later `O` or `X` already applies to its predecessor (§6 `A`).
-  const auction = (): Gate => unlessAuction(ownerGate())
 
   const bid = (): Gate => {
     const pendingAuction = info?.pending.auction
@@ -269,13 +243,13 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
     register: register(),
     setTarget: ownerGate(),
     setEvm: ownerGate(),
-    transfer: transfer(),
+    transfer: opener(),
     delegate: ownerGate(),
     cancel: cancel(),
     renew: renew(),
-    offer: offer(),
+    offer: opener(),
     buy: buy(),
-    auction: auction(),
+    auction: opener(),
     bid: bid(),
   }
 }
@@ -313,35 +287,22 @@ export function renewalUrgency(expiry: number, head: number): RenewalUrgency {
   return 'none'
 }
 
-/** First height a `K` can withdraw this offer (half-open: cancellable **at** this height). */
-export const offerCancellableAt = (openedHeight: number): number =>
-  openedHeight + CONSTANTS.OFFER_IRREVOCABLE
-
 export const offerExpiresAt = (openedHeight: number): number =>
   openedHeight + CONSTANTS.OFFER_MAX_LIFETIME
 
 /**
- * What a `K` sent now would actually clear (§6 `K`): a pending `X`, and an
- * offer at or past `OFFER_IRREVOCABLE` — never an auction, whatever else is
- * pending. One `K` clears the whole set in one message.
- *
- * This is **not** "what is pending". An offer inside its irrevocable window
- * stands through the `K`, and a tile, a review line or a confirmation that
- * counts it promises something the reducer will not do: with a transfer and a
- * fresh offer both pending the gate opens on the transfer, so the case is
- * reachable by anyone who lists a name and then transfers it.
+ * What a `K` sent now would clear (§6 `K`): the name's one pending thing, or
+ * nothing — an auction is pending and never cancellable, and since r30 nothing
+ * else can stand beside it or beside anything. One reading, shared by the
+ * tile, the sheet's label, its review and the confirm poll.
  */
-export interface Cancellable {
-  readonly transfer: boolean
-  readonly offer: boolean
-}
+export type Cancellable = 'transfer' | 'sale' | null
 
-export const cancellableNow = (info: NameInfo | null, head: number): Cancellable => {
-  const offer = info?.pending.offer ?? null
-  return {
-    transfer: (info?.pending.transfer ?? null) !== null,
-    offer: offer !== null && head >= offerCancellableAt(offer.openedHeight),
-  }
+export const cancellable = (info: NameInfo | null): Cancellable => {
+  const pending = info?.pending
+  if (pending?.transfer) return 'transfer'
+  if (pending?.offer) return 'sale'
+  return null
 }
 
 /**
@@ -353,8 +314,7 @@ export const cancellableNow = (info: NameInfo | null, head: number): Cancellable
  * Here rather than inline in the component for the reason packages/app's
  * rule: a branch a component decides for itself is an untested one.
  */
-export const cancelTileGroup = (set: Cancellable): 'ownership' | 'market' =>
-  set.transfer && !set.offer ? 'ownership' : 'market'
+export const cancelTileGroup = (set: Cancellable): 'ownership' | 'market' => (set === 'transfer' ? 'ownership' : 'market')
 
 /**
  * Blocks the Auction sheet adds between the head it planned against and the

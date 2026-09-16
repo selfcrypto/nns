@@ -204,29 +204,20 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     expect(() => prepare({ action: 'buy' }, withOffer, OWNER)).toThrow(ActionInputError)
   })
 
-  it('cancel review names everything the one K clears', () => {
-    const both = registered({
-      transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 },
-      offer: { name: 'example', seller: OWNER, price: 45_050_000n, openedHeight: 1, expiryHeight: 2_000_000 },
-    })
-    const prepared = prepare({ action: 'cancel' }, both)
-    expect(prepared.review.some((line) => line.includes('transfer'))).toBe(true)
-    // The verb, not the noun: the "stays standing" line also says "offer".
-    expect(prepared.review.some((line) => line.startsWith('Takes it off sale'))).toBe(true)
+  it('cancel review names the one thing the K clears: a transfer', () => {
+    const pending = registered({ transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 } })
+    const prepared = prepare({ action: 'cancel' }, pending)
+    expect(prepared.review).toHaveLength(1)
+    expect(prepared.review[0]).toMatch(/^Cancels the transfer/)
   })
 
-  // The offer's irrevocable window outlives the review: a `K` sent now clears
-  // the transfer and leaves the listing (§6 `O`). Promising the withdrawal made
-  // the review a lie and the confirm poll unsatisfiable, so a `K` that had done
-  // exactly what it could reported back as unconfirmed.
-  const freshOffer = { name: 'example', seller: OWNER, price: 45_050_000n, openedHeight: 995_000, expiryHeight: 2_000_000 }
-
-  it('cancel review does not promise a withdrawal the irrevocable window forbids', () => {
-    const both = registered({ transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 }, offer: freshOffer })
-    const prepared = prepare({ action: 'cancel' }, both)
-    expect(prepared.review.some((line) => line.startsWith('Cancels the transfer'))).toBe(true)
-    expect(prepared.review.some((line) => line.startsWith('Takes it off sale'))).toBe(false)
-    expect(prepared.review.some((line) => line.includes('sale stays'))).toBe(true)
+  it('cancel review names the one thing the K clears: a sale, at any height (r30 fold)', () => {
+    // No irrevocable window any more: a `K` sent the block after listing withdraws it.
+    const fresh = registered({ offer: { name: 'example', seller: OWNER, price: 45_050_000n, openedHeight: 999_999, expiryHeight: 2_000_000 } })
+    const prepared = prepare({ action: 'cancel' }, fresh)
+    expect(prepared.review).toHaveLength(1)
+    // The verb, not the noun: the app calls a listing a sale.
+    expect(prepared.review[0]).toMatch(/^Takes it off sale/)
   })
 
   // Kike, 2026-09-15: *"show on the Cancel Transfer section how much time is
@@ -237,19 +228,21 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     expect(prepared.review[0]).toContain(`(${blocksApprox(40_000)} left)`)
   })
 
-  it('cancel confirms on the transfer alone when the offer was never in the set', async () => {
-    const both = registered({ transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 }, offer: freshOffer })
-    const prepared = prepare({ action: 'cancel' }, both)
-    // What the API shows after the `K` lands: the transfer gone, the offer
-    // standing. Serialised as the API serialises it — luna as a string.
-    const after = {
-      ...both,
-      pending: { transfer: null, auction: null, offer: { ...freshOffer, price: freshOffer.price.toString() } },
-    }
+  it('cancel confirms on the thing it cleared', async () => {
+    const offer = { name: 'example', seller: OWNER, price: 45_050_000n, openedHeight: 995_000, expiryHeight: 2_000_000 }
+    const listed = registered({ offer })
+    const prepared = prepare({ action: 'cancel' }, listed)
+    const withOffer = { ...listed, pending: { transfer: null, auction: null, offer: { ...offer, price: offer.price.toString() } } }
+    const cleared = { ...listed, pending: { transfer: null, auction: null, offer: null } }
     const original = globalThis.fetch
-    globalThis.fetch = (() =>
-      Promise.resolve(new Response(JSON.stringify(after), { headers: { 'content-type': 'application/json' } }))) as typeof fetch
+    const serve = (body: unknown) => {
+      globalThis.fetch = (() =>
+        Promise.resolve(new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } }))) as typeof fetch
+    }
     try {
+      serve(withOffer)
+      expect(await prepared.confirm()).toBe(false)
+      serve(cleared)
       expect(await prepared.confirm()).toBe(true)
     } finally {
       globalThis.fetch = original

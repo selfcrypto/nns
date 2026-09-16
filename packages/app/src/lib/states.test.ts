@@ -8,11 +8,10 @@ import type { SearchOutcome } from './search'
 import {
   actionGates,
   cancelTileGroup,
-  cancellableNow,
+  cancellable,
   connectInstead,
   identityRow,
   nameView,
-  offerCancellableAt,
   feeRowFor,
   registrationFee,
   shortfallFor,
@@ -77,14 +76,12 @@ describe('nameView (app-states.md §1)', () => {
     expect(actionGates({ view: nameView('example', null, 'registered'), viewers: [OWNER], head: 0 }).register).toEqual({
       enabled: false,
       reason: 'taken',
-      // A refusal that never lifts carries no countdown.
-      blocksLeft: null,
     })
   })
 
   it('a registered name with no record in hand refuses owner actions as unknown, not as unregistered', () => {
     const gates = actionGates({ view: nameView('example', null, 'registered'), viewers: [OWNER], head: 0 })
-    expect(gates.setTarget).toEqual({ enabled: false, reason: 'state-unknown', blocksLeft: null })
+    expect(gates.setTarget).toEqual({ enabled: false, reason: 'state-unknown' })
     expect(gates.transfer.reason).toBe('state-unknown')
   })
 
@@ -203,7 +200,7 @@ describe('actionGates (app-states.md §4)', () => {
     expect(actionGates({ view: nameView('a', null, 'available'), viewers: [OWNER], head: 0 }).renew.reason).toBe('no-record')
   })
 
-  it('K: the offer is cancellable at exactly openedHeight + OFFER_IRREVOCABLE, not a block before', () => {
+  it('K: a sale is cancellable at once — there is no window (r30 fold)', () => {
     const opened = 1_000_000
     const withOffer = registered({
       pending: {
@@ -212,39 +209,21 @@ describe('actionGates (app-states.md §4)', () => {
         auction: null,
       },
     })
-    const boundary = offerCancellableAt(opened)
-    expect(boundary).toBe(opened + CONSTANTS.OFFER_IRREVOCABLE)
-
-    const before = actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: boundary - 1 })
-    expect(before.cancel.enabled).toBe(false)
-    expect(before.cancel.reason).toBe('offer-irrevocable')
-    // The wait, so the tile can say it rather than leave the owner guessing.
-    expect(before.cancel.blocksLeft).toBe(1)
-
-    const midway = actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: opened })
-    expect(midway.cancel.blocksLeft).toBe(CONSTANTS.OFFER_IRREVOCABLE)
-
-    const at = actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: boundary })
-    expect(at.cancel.enabled).toBe(true)
-    // An open gate has nothing to count down to.
-    expect(at.cancel.blocksLeft).toBeNull()
+    expect(actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: opened }).cancel.enabled).toBe(true)
+    expect(actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: opened + 1 }).cancel.enabled).toBe(true)
+    expect(cancellable(withOffer)).toBe('sale')
   })
 
-  it('K is legal on a pending transfer even while the offer beside it is irrevocable', () => {
-    const opened = 995_000
-    const both = registered({
+  it('K on a name under auction is auction-open, not nothing-to-cancel', () => {
+    const underAuction = registered({
       pending: {
-        transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 },
-        offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: opened, expiryHeight: opened + CONSTANTS.OFFER_MAX_LIFETIME },
-        auction: null,
+        transfer: null,
+        offer: null,
+        auction: { name: 'a', seller: OWNER, startingPrice: 1n, endHeight: 1_100_000, bidder: null, bid: 0n, minimumBid: 1n },
       },
     })
-    const head = 1_000_000
-    expect(head).toBeLessThan(offerCancellableAt(opened))
-    const gates = actionGates({ view: nameView('a', both, 'available'), viewers: [OWNER], head })
-    expect(gates.cancel.enabled).toBe(true)
-    // …and the `K` clears only the transfer: the offer is not in the set.
-    expect(cancellableNow(both, head)).toEqual({ transfer: true, offer: false })
+    expect(actionGates({ view: nameView('a', underAuction, 'available'), viewers: [OWNER], head: 0 }).cancel.reason).toBe('auction-open')
+    expect(cancellable(underAuction)).toBeNull()
   })
 
   it('K in grace is nothing-to-cancel — grace entry already cleared the cancellable set', () => {
@@ -281,18 +260,10 @@ describe('actionGates (app-states.md §4)', () => {
     const auction = { name: 'a', seller: OWNER, startingPrice: 100_000n, endHeight: 1_100_000, bidder: null, bid: 0n, minimumBid: 100_000n }
     const underAuction = registered({ pending: { transfer: null, offer: null, auction } })
 
-    it('A needs the owner and no open auction; a pending X or an open O does not block it — opening voids them', () => {
+    it('A needs the owner and nothing pending', () => {
       expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OWNER], head: 0 }).auction.enabled).toBe(true)
       expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OTHER], head: 0 }).auction.reason).toBe('not-owner')
       expect(actionGates({ view: nameView('a', underAuction, 'available'), viewers: [OWNER], head: 0 }).auction.reason).toBe('auction-open')
-      const withBoth = registered({
-        pending: {
-          transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 },
-          offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: 1, expiryHeight: 2_000_000 },
-          auction: null,
-        },
-      })
-      expect(actionGates({ view: nameView('a', withBoth, 'available'), viewers: [OWNER], head: 0 }).auction.enabled).toBe(true)
     })
 
     it('O, X and K close on auction-open; S, E, D, N stay open', () => {
@@ -321,57 +292,47 @@ describe('actionGates (app-states.md §4)', () => {
     })
   })
 
-  describe('an open offer is exclusive with a transfer (§6 `X`, r30)', () => {
-    const OPENED = 1_000_000
-    const listed = registered({
-      pending: {
-        transfer: null,
-        offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: OPENED, expiryHeight: 3_000_000 },
-        auction: null,
-      },
-    })
-    const gatesAt = (head: number, viewer = OWNER) =>
-      actionGates({ view: nameView('a', listed, 'available'), viewers: [viewer], head })
+  describe('one pending thing per name (§7.3, r30)', () => {
+    // A transfer, a sale or an auction: the three opener tiles close on
+    // whichever stands, with the reason naming it, and the cancel tile is the
+    // way out for two of the three.
+    const HEAD = 1_000_000
+    const transfer = { newOwner: OTHER, effectiveHeight: HEAD + 40_000 }
+    const offer = { name: 'a', seller: OWNER, price: 100_000n, openedHeight: HEAD, expiryHeight: HEAD + CONSTANTS.OFFER_MAX_LIFETIME }
+    const auction = { name: 'a', seller: OWNER, startingPrice: 1n, endHeight: HEAD + 100_000, bidder: null, bid: 0n, minimumBid: 1n }
+    const standing = [
+      { kind: 'transfer', info: registered({ pending: { transfer, offer: null, auction: null } }), reason: 'transfer-pending', cancels: 'transfer' },
+      { kind: 'sale', info: registered({ pending: { transfer: null, offer, auction: null } }), reason: 'offer-open', cancels: 'sale' },
+      { kind: 'auction', info: registered({ pending: { transfer: null, offer: null, auction } }), reason: 'auction-open', cancels: null },
+    ] as const
+    const openers = ['transfer', 'offer', 'auction'] as const
 
-    it('closes the transfer tile while the name is listed', () => {
-      expect(gatesAt(OPENED + CONSTANTS.OFFER_IRREVOCABLE).transfer.enabled).toBe(false)
-      expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OWNER], head: OPENED }).transfer.enabled).toBe(true)
-    })
-
-    it('says take it off sale once a K could, and shows the wait before that', () => {
-      // Inside `OFFER_IRREVOCABLE` a `K` cannot lift the offer either, so
-      // "cancel that first" would be advice the protocol refuses to take.
-      const inside = gatesAt(OPENED + 1).transfer
-      expect(inside.reason).toBe('offer-irrevocable')
-      expect(inside.blocksLeft).toBe(CONSTANTS.OFFER_IRREVOCABLE - 1)
-
-      const after = gatesAt(OPENED + CONSTANTS.OFFER_IRREVOCABLE).transfer
-      expect(after.reason).toBe('offer-open')
-      expect(after.blocksLeft).toBeNull()
-    })
-
-    it('boundary: the window is half-open, cancellable at OPENED + OFFER_IRREVOCABLE', () => {
-      expect(gatesAt(offerCancellableAt(OPENED) - 1).transfer.reason).toBe('offer-irrevocable')
-      expect(gatesAt(offerCancellableAt(OPENED)).transfer.reason).toBe('offer-open')
-    })
-
-    it('an auction still wins the refusal, and a stranger is told they are a stranger', () => {
-      const underBoth = registered({
-        pending: {
-          transfer: null,
-          offer: null,
-          auction: { name: 'a', seller: OWNER, startingPrice: 1n, endHeight: 3_000_000, bidder: null, bid: 0n, minimumBid: 1n },
-        },
+    for (const stands of standing) {
+      it(`with a ${stands.kind} pending, Transfer, Sell and Auction all close on ${stands.reason}`, () => {
+        const gates = actionGates({ view: nameView('a', stands.info, 'available'), viewers: [OWNER], head: HEAD + 1 })
+        for (const tile of openers) expect(gates[tile], tile).toEqual({ enabled: false, reason: stands.reason })
+        // The owner keeps the record: `S`, `E`, `D` and `N` are unaffected.
+        expect(gates.setTarget.enabled).toBe(true)
+        expect(gates.renew.enabled).toBe(true)
       })
-      expect(actionGates({ view: nameView('a', underBoth, 'available'), viewers: [OWNER], head: OPENED }).transfer.reason).toBe('auction-open')
-      expect(gatesAt(OPENED + 1, OTHER).transfer.reason).toBe('not-owner')
-    })
 
-    it('leaves Sell open on a name with a pending transfer: the O voids it (§6 `O`, r30)', () => {
-      const transferring = registered({
-        pending: { transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 }, offer: null, auction: null },
+      it(`with a ${stands.kind} pending, a stranger is told they are a stranger`, () => {
+        const gates = actionGates({ view: nameView('a', stands.info, 'available'), viewers: [OTHER], head: HEAD + 1 })
+        for (const tile of openers) expect(gates[tile].reason, tile).toBe('not-owner')
       })
-      expect(actionGates({ view: nameView('a', transferring, 'available'), viewers: [OWNER], head: OPENED }).offer.enabled).toBe(true)
+
+      it(`with a ${stands.kind} pending, the cancel tile ${stands.cancels === null ? 'is closed on auction-open' : `clears the ${stands.cancels}`}`, () => {
+        const gates = actionGates({ view: nameView('a', stands.info, 'available'), viewers: [OWNER], head: HEAD + 1 })
+        expect(gates.cancel.enabled).toBe(stands.cancels !== null)
+        expect(cancellable(stands.info)).toBe(stands.cancels)
+      })
+    }
+
+    it('with nothing pending, all three open and the cancel tile has nothing to cancel', () => {
+      const gates = actionGates({ view: nameView('a', registered(), 'available'), viewers: [OWNER], head: HEAD })
+      for (const tile of openers) expect(gates[tile].enabled, tile).toBe(true)
+      expect(gates.cancel.reason).toBe('nothing-to-cancel')
+      expect(cancellable(registered())).toBeNull()
     })
   })
 
@@ -544,7 +505,7 @@ describe('connectInstead', () => {
   })
 })
 
-describe('the cancellable set (§6 `K`)', () => {
+describe('the cancellable thing (§6 `K`)', () => {
   const opened = 1_000_000
   const offer = {
     name: 'example',
@@ -554,10 +515,9 @@ describe('the cancellable set (§6 `K`)', () => {
     expiryHeight: opened + CONSTANTS.OFFER_MAX_LIFETIME,
   }
   const transfer = { newOwner: OTHER, effectiveHeight: 1_040_000 }
-  const boundary = offerCancellableAt(opened)
 
-  it('is empty when nothing is pending, and never counts an auction', () => {
-    expect(cancellableNow(registered(), opened)).toEqual({ transfer: false, offer: false })
+  it('is nothing when nothing is pending, and never an auction', () => {
+    expect(cancellable(registered())).toBeNull()
     const underAuction = registered({
       pending: {
         transfer: null,
@@ -565,23 +525,20 @@ describe('the cancellable set (§6 `K`)', () => {
         auction: { name: 'example', seller: OWNER, startingPrice: 1n, endHeight: 1_100_000, bidder: null, bid: 0n, minimumBid: 1n },
       },
     })
-    // The one thing a `K` can never clear — and with it open, nothing else is
-    // pending to clear either (§6 `A` voided both when it opened).
-    expect(cancellableNow(underAuction, opened)).toEqual({ transfer: false, offer: false })
+    // The one thing a `K` can never clear — and nothing else can be pending beside it.
+    expect(cancellable(underAuction)).toBeNull()
   })
 
-  it('counts an offer only from openedHeight + OFFER_IRREVOCABLE, and the transfer at any height', () => {
-    const both = registered({ pending: { transfer, offer, auction: null } })
-    expect(cancellableNow(both, boundary - 1)).toEqual({ transfer: true, offer: false })
-    expect(cancellableNow(both, boundary)).toEqual({ transfer: true, offer: true })
+  it('is the transfer or the sale, whatever the height', () => {
+    expect(cancellable(registered({ pending: { transfer, offer: null, auction: null } }))).toBe('transfer')
+    expect(cancellable(registered({ pending: { transfer: null, offer, auction: null } }))).toBe('sale')
   })
 
-  it('puts the tile beside what it acts on: ownership for a transfer alone, marketplace otherwise', () => {
-    expect(cancelTileGroup({ transfer: true, offer: false })).toBe('ownership')
-    expect(cancelTileGroup({ transfer: true, offer: true })).toBe('market')
-    expect(cancelTileGroup({ transfer: false, offer: true })).toBe('market')
+  it('puts the tile beside what it acts on: ownership for a transfer, marketplace otherwise', () => {
+    expect(cancelTileGroup('transfer')).toBe('ownership')
+    expect(cancelTileGroup('sale')).toBe('market')
     // Auction open: disabled, and it belongs beside the auction it is about.
-    expect(cancelTileGroup({ transfer: false, offer: false })).toBe('market')
+    expect(cancelTileGroup(null)).toBe('market')
   })
 })
 

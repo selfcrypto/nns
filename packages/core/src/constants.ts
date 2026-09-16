@@ -246,8 +246,6 @@ export const CONSTANTS = Object.freeze({
   TERM_LENGTH: 31_536_000,
   /** Resolution off, renewal still allowed. ~30 d. */
   GRACE_PERIOD: 2_592_000,
-  /** Seller cannot cancel an `O` before this. ~2.4 h. */
-  OFFER_IRREVOCABLE: 8_640,
   /** Then the offer auto-expires. ~15 d. */
   OFFER_MAX_LIFETIME: 1_296_000,
 

@@ -60,7 +60,6 @@ import {
   delegateSetLines,
   giftRenewalLine,
   newExpiryLine,
-  offerStaysLine,
   referredByLine,
   registerLifetimePaysLine,
   registerPaysLine,
@@ -71,7 +70,7 @@ import {
 import { isReferralName } from './referral'
 import { percentOf } from './referralRates'
 import { rateIsNetOfBurn, rebatePercent } from './referralRates'
-import { auctionEndHeight, auctionOutlivesTerm, cancellableNow, offerCancellableAt, sameAddress, registrationFee } from './states'
+import { auctionEndHeight, auctionOutlivesTerm, cancellable, sameAddress, registrationFee } from './states'
 import type { AppAction } from './states'
 import type { SubmitRequest } from './wallet'
 
@@ -351,26 +350,16 @@ export function prepareAction(options: {
       const head = info?.height ?? 0
       const pendingTransfer = info?.pending.transfer ?? null
       const pendingOffer = info?.pending.offer ?? null
-      // What the `K` will actually clear — never what is merely pending. An
-      // offer inside `OFFER_IRREVOCABLE` survives it (§6 `O`), so counting it
-      // promised a withdrawal the reducer refuses and then waited for an effect
-      // that could not arrive: the confirm poll never passed and a `K` that had
-      // done its job read as unconfirmed.
-      const { transfer: cancelsTransfer, offer: cancelsOffer } = cancellableNow(info, head)
+      // The name's one pending thing (§7.3, r30), which is what the `K` clears.
+      const clears = cancellable(info)
       const lines: string[] = []
       // The window, not just the intent: a transfer's timelock is 10 min in a
       // tempo era and 12 h on mainnet, and the sheet used to leave it to guess
       // (Kike, 2026-09-15).
-      if (pendingTransfer !== null) {
+      if (clears === 'transfer' && pendingTransfer !== null) {
         lines.push(`Cancels the transfer to ${pendingTransfer.newOwner} (${blocksApprox(pendingTransfer.effectiveHeight - head)} left).`)
       }
-      if (cancelsOffer && pendingOffer !== null) lines.push(`Takes it off sale (was ${lunaToNim(pendingOffer.price)} NIM).`)
-      if (!cancelsOffer && pendingOffer !== null) {
-        lines.push(offerStaysLine(lunaToNim(pendingOffer.price), offerCancellableAt(pendingOffer.openedHeight) - head))
-      }
-      // Only where "everything" is more than one thing — and never above a line
-      // that says what the `K` will leave standing.
-      if (cancelsTransfer && cancelsOffer) lines.push('One cancel clears both.')
+      if (clears === 'sale' && pendingOffer !== null) lines.push(`Takes it off sale (was ${lunaToNim(pendingOffer.price)} NIM).`)
       return {
         action: 'cancel',
         request: asRequest(encodeCancel({ name, sender })),
@@ -378,7 +367,7 @@ export function prepareAction(options: {
         confirm: async () => {
           const now = await infoNow()
           if (now === null) return false
-          return (!cancelsTransfer || now.pending.transfer === null) && (!cancelsOffer || now.pending.offer === null)
+          return clears === 'transfer' ? now.pending.transfer === null : clears === 'sale' ? now.pending.offer === null : true
         },
       }
     }

@@ -147,10 +147,6 @@ describe('CONSTANTS — §3', () => {
     expect(CONSTANTS.GRACE_PERIOD * 2).toBeLessThan(CONSTANTS.TERM_LENGTH)
   })
 
-  it('lets an offer be cancelled well before it auto-expires (§6 O)', () => {
-    expect(CONSTANTS.OFFER_IRREVOCABLE).toBeLessThan(CONSTANTS.OFFER_MAX_LIFETIME)
-  })
-
   it('keeps the anti-sniping extension inside the shortest auction (§6 A, r28)', () => {
     // A late bid moves the end to `bid + AUCTION_EXTENSION`; an extension at
     // or past AUCTION_MIN_DURATION would let one bid define a longer window
@@ -208,7 +204,6 @@ describe('CONSTANTS — §3', () => {
       XFER_TIMELOCK: 43_200,
       TERM_LENGTH: 31_536_000,
       GRACE_PERIOD: 2_592_000,
-      OFFER_IRREVOCABLE: 8_640,
       OFFER_MAX_LIFETIME: 1_296_000,
       AUCTION_MIN_INCREMENT_BP: 500n,
       AUCTION_MIN_DURATION: 86_400,

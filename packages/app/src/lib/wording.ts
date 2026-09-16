@@ -456,8 +456,9 @@ export const GATE_REASON_TEXT: Record<GateReason, string> = {
   'no-viewer': 'Connect a wallet to act on names.',
   'not-owner': 'Only the owner can do this.',
   'nothing-to-cancel': 'Nothing is pending on this name.',
-  'offer-irrevocable': `A new sale can’t be cancelled for its first ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}.`,
+  // One pending thing per name (§7.3, r30): three tiles close on each of these.
   'offer-open': 'This name is already for sale. Cancel that first.',
+  'transfer-pending': 'A transfer is pending. Cancel that first.',
   'no-offer': 'This name is not for sale.',
   // One short line, because it appears on up to four rows at once — the
   // auction's own facts are in the overlay above them.
@@ -465,22 +466,6 @@ export const GATE_REASON_TEXT: Record<GateReason, string> = {
   'no-auction': 'This name is not up for auction.',
   'state-unknown': 'Couldn’t read this name’s record. Try again.',
 }
-
-/**
- * A disabled action's line — the refusal, and **when it lifts** where it lifts
- * on its own.
- *
- * `GATE_REASON_TEXT` alone states a rule; a user staring at a greyed tile wants
- * the wait. *"The sale is in its irrevocable window"* was true, unactionable
- * and jargon: §6 `O`'s lock is 300 blocks in a tempo era and 8,640 on mainnet,
- * so the same sentence covers two minutes and two and a half hours and never
- * says which (Kike, 2026-09-16). The remaining blocks come off the gate, so the
- * number is the live one rather than the window's length.
- */
-export const gateReasonLine = (reason: GateReason, blocksLeft: number | null): string =>
-  reason === 'offer-irrevocable' && blocksLeft !== null && blocksLeft > 0
-    ? `You can take this off sale ${formatApproxIn(blocksLeft)}.`
-    : GATE_REASON_TEXT[reason]
 
 // ── Input validation (§4.1 in plain words, field-level) ────────────────────
 
@@ -717,10 +702,10 @@ export const transferMovesLine = (delay: string): string =>
   `Ownership moves to the address above in ${delay}, unless you Cancel Transfer first.`
 
 export const transferHint = (): string =>
-  'A second transfer replaces this one and restarts the clock. The delay guards a mistyped address, not a stolen key.'
+  'You can cancel it any time before it lands. The delay guards a mistyped address, not a stolen key.'
 
 export const offerHint = (): string =>
-  `Irrevocable for ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}, cancellable after, and it expires by itself in ${blocksApprox(CONSTANTS.OFFER_MAX_LIFETIME)}.`
+  `You can take it off sale any time, and it expires by itself in ${blocksApprox(CONSTANTS.OFFER_MAX_LIFETIME)}.`
 
 export const auctionHint = (extension: string): string =>
   `Nothing can be withdrawn once open, and a bid in the last ${extension} extends the end by ${extension}. The highest bid wins and the name transfers at the close.`
@@ -1683,18 +1668,18 @@ export const auctionStartingLine = (nim: string): string => `Starting price: ${n
 export const connectWalletHint = (): string => 'Connect wallet'
 
 /**
- * A `K` is named by what it will actually clear (`states.cancellableNow`) —
+ * A `K` is named by what it will actually clear (`states.cancellable`) —
  * the tile, the sheet's header and its submit button all use this one title.
  *
  * It read **"Cancel Listing / Cancel active auction"** for a pending transfer,
  * which is two false statements: there is no listing, and an auction is the one
- * thing a `K` can never touch (§6 `A` — bids are commitments). The empty set is
- * a real case, not a fallback — an open auction voided the transfer and the
- * offer and leaves the tile on screen, disabled, showing its gate reason in
- * place of the hint — so it must not name a listing either.
+ * thing a `K` can never touch (§6 `A` — bids are commitments). Nothing is a
+ * real case, not a fallback — an open auction leaves the tile on screen,
+ * disabled, showing its gate reason in place of the hint — so it must not name
+ * a listing either.
  */
 export const cancelTitle = (set: Cancellable): string =>
-  set.transfer && set.offer ? 'Cancel Pending' : set.transfer ? 'Cancel Transfer' : set.offer ? 'Cancel Sale' : 'Cancel Pending'
+  set === 'transfer' ? 'Cancel Transfer' : set === 'sale' ? 'Cancel Sale' : 'Cancel Pending'
 
 /** The line under that title. Rendered only where the gate is open, so the
  *  empty set's is the unreachable one. */
@@ -1706,20 +1691,10 @@ export const cancelHint = (
   // one number the tile owes you (Kike, 2026-09-15), and it is short by
   // design — 10 min in a tempo era, 12 h on mainnet.
   const left = subject.leftBlocks == null ? '' : `, ${blocksApprox(subject.leftBlocks)} left`
-  if (set.transfer && set.offer) return `Transfer and sale${left}`
-  if (set.transfer) return subject.to === null ? `Stop the pending transfer${left}` : `To ${subject.to}${left}`
-  if (set.offer) return subject.priceNim === null ? 'Take it off sale' : `Take it off sale (${subject.priceNim} NIM)`
+  if (set === 'transfer') return subject.to === null ? `Stop the pending transfer${left}` : `To ${subject.to}${left}`
+  if (set === 'sale') return subject.priceNim === null ? 'Take it off sale' : `Take it off sale (${subject.priceNim} NIM)`
   return 'Nothing to cancel'
 }
-
-/**
- * A `K` withdraws an offer only from `openedHeight + OFFER_IRREVOCABLE` (§6
- * `O`), so one sent inside that window vetoes the transfer and leaves the
- * listing standing. Said as time remaining, not as a date: the window is hours,
- * and the message lands later than this line is written.
- */
-export const offerStaysLine = (nim: string, blocksLeft: number): string =>
-  `The ${nim} NIM sale stays, locked for another ${blocksApprox(blocksLeft)}.`
 
 // Buy's card: a name for sale or under auction hands off to Market.
 export const listedForSaleLine = (nim: string): string => `For sale on the marketplace at ${nim} NIM. `

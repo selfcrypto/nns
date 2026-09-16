@@ -9,7 +9,7 @@ import { approxDate, blocksApprox, ellipsizeAddress, formatApproxWhen, lunaToNim
 import { discoverEvmProvider, probeHostEvmAddress, requestHostEvmAddress } from '../lib/sdk'
 import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
-import { cancellableNow, registrationFee, shortfallFor, type AppAction } from '../lib/states'
+import { cancellable, registrationFee, shortfallFor, type AppAction } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import { AddressInput } from './AddressInput'
 import { Hint } from './Hint'
@@ -242,7 +242,7 @@ export function ActionSheet({
 
   // Header and submit button carry the same label — for a `K`, the one the
   // cancellable set gives it, so the sheet cannot promise more than it clears.
-  const actionLabel = sheetActionLabel(action, cancellableNow(info, info?.height ?? 0))
+  const actionLabel = sheetActionLabel(action, cancellable(info))
   // The title names the sheet you opened; the button names what pressing it
   // does. An empty host field on a name that has one is a `D` that clears,
   // and a button reading "Set subdomain resolver" there is simply wrong.

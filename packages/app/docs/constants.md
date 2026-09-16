@@ -43,7 +43,6 @@ Blocks, at roughly one per second.
 | `TERM_LENGTH` | {{blocks:TERM_LENGTH}} | {{dur:TERM_LENGTH}} | A registration term |
 | `GRACE_PERIOD` | {{blocks:GRACE_PERIOD}} | {{dur:GRACE_PERIOD}} | After expiry: renewable, not resolving, not registrable |
 | `XFER_TIMELOCK` | {{blocks:XFER_TIMELOCK}} | {{dur:XFER_TIMELOCK}} | A transfer waits this long and can be cancelled meanwhile |
-| `OFFER_IRREVOCABLE` | {{blocks:OFFER_IRREVOCABLE}} | {{dur:OFFER_IRREVOCABLE}} | A seller cannot cancel a new sale before this |
 | `OFFER_MAX_LIFETIME` | {{blocks:OFFER_MAX_LIFETIME}} | {{dur:OFFER_MAX_LIFETIME}} | Then the sale expires by itself |
 | `AUCTION_MIN_DURATION` | {{blocks:AUCTION_MIN_DURATION}} | {{dur:AUCTION_MIN_DURATION}} | Shortest auction |
 | `AUCTION_EXTENSION` | {{blocks:AUCTION_EXTENSION}} | {{dur:AUCTION_EXTENSION}} | A late bid moves the end to at least this far out |

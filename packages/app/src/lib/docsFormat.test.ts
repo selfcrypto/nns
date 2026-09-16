@@ -139,7 +139,6 @@ describe('durations', () => {
     expect(durationFromBlocks(CONSTANTS.GRACE_PERIOD)).toBe('30 days')
     expect(durationFromBlocks(CONSTANTS.XFER_TIMELOCK)).toBe('12 hours')
     expect(durationFromBlocks(CONSTANTS.AUCTION_EXTENSION)).toBe('10 minutes')
-    expect(durationFromBlocks(CONSTANTS.OFFER_IRREVOCABLE)).toBe('2.4 hours')
   })
 
   it('says hours below three days, because a staleness budget is compared against a cadence', () => {

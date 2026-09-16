@@ -15,12 +15,10 @@ import {
   buyNowLabel,
   cancelTitle,
   forSaleLabel,
-  gateReasonLine,
   liveAuctionLabel,
   MARKET_FILTER,
   placeBidLabel,
   GATE_REASON_TEXT,
-  offerStaysLine,
   sheetActionLabel,
   sheetDismissLabel,
   buyerRebateLine,
@@ -414,12 +412,7 @@ describe('the era notice is derived from the term, never a deploy flag', () => {
 })
 
 describe('a `K` is named by what it will clear (§6 `K`)', () => {
-  const sets = [
-    { transfer: true, offer: true },
-    { transfer: true, offer: false },
-    { transfer: false, offer: true },
-    { transfer: false, offer: false },
-  ] as const
+  const sets = ['transfer', 'sale', null] as const
 
   it('never says "auction" — the one thing a `K` can never cancel', () => {
     // The bug: a pending transfer's tile read "Cancel Listing / Cancel active
@@ -432,13 +425,13 @@ describe('a `K` is named by what it will clear (§6 `K`)', () => {
   })
 
   it('calls a transfer a transfer, and a sale a sale', () => {
-    expect(cancelTitle({ transfer: true, offer: false })).toBe('Cancel Transfer')
-    expect(cancelHint({ transfer: true, offer: false }, { to: 'NQ12 … 9YRA', priceNim: null })).toBe('To NQ12 … 9YRA')
-    expect(cancelTitle({ transfer: false, offer: true })).toBe('Cancel Sale')
-    expect(cancelHint({ transfer: false, offer: true }, { to: null, priceNim: '450' })).toBe('Take it off sale (450 NIM)')
-    // Both, and the empty set an open auction leaves behind: neither is a listing alone.
-    expect(cancelTitle({ transfer: true, offer: true })).toBe('Cancel Pending')
-    expect(cancelTitle({ transfer: false, offer: false })).toBe('Cancel Pending')
+    expect(cancelTitle('transfer')).toBe('Cancel Transfer')
+    expect(cancelHint('transfer', { to: 'NQ12 … 9YRA', priceNim: null })).toBe('To NQ12 … 9YRA')
+    expect(cancelTitle('sale')).toBe('Cancel Sale')
+    expect(cancelHint('sale', { to: null, priceNim: '450' })).toBe('Take it off sale (450 NIM)')
+    // Nothing pending — an open auction leaves the tile disabled with its gate reason — is not a listing.
+    expect(cancelTitle(null)).toBe('Cancel Pending')
+    expect(cancelHint(null, { to: null, priceNim: null })).toBe('Nothing to cancel')
   })
 
   it('a listing names its kind and its action with different words', () => {
@@ -450,31 +443,15 @@ describe('a `K` is named by what it will clear (§6 `K`)', () => {
     expect(MARKET_FILTER.offers).toBe(forSaleLabel())
   })
 
-  it('a refusal that lifts on its own says when, in the live era', () => {
-    // Never a spelling: `~2 min` is right in a tempo era and wrong on mainnet,
-    // and pinning either is the hardcoded-duration bug written into a test.
-    expect(gateReasonLine('offer-irrevocable', 121)).toBe(`You can take this off sale in ${blocksApprox(121)}.`)
-    // No jargon: the owner is told what to do and when, not what §6 calls it.
-    expect(gateReasonLine('offer-irrevocable', 121)).not.toMatch(/irrevocable/i)
-    // A refusal that never lifts is stated, not counted down.
-    expect(gateReasonLine('not-owner', null)).toBe(GATE_REASON_TEXT['not-owner'])
-    // The fallback states the rule from the constant, so it is right per era too.
-    expect(GATE_REASON_TEXT['offer-irrevocable']).toContain(blocksApprox(CONSTANTS.OFFER_IRREVOCABLE))
-  })
-
   it('names the sheet with the same words as the tile, and its dismiss with different ones', () => {
-    expect(sheetActionLabel('cancel', { transfer: true, offer: false })).toBe(cancelTitle({ transfer: true, offer: false }))
-    expect(sheetActionLabel('renew', { transfer: false, offer: false })).toBe(ACTION_LABEL.renew)
+    expect(sheetActionLabel('cancel', 'transfer')).toBe(cancelTitle('transfer'))
+    expect(sheetActionLabel('cancel', 'sale')).toBe('Cancel Sale')
+    expect(sheetActionLabel('renew', null)).toBe(ACTION_LABEL.renew)
     // Two buttons reading "Cancel" and meaning opposite things is what shipped.
     expect(sheetDismissLabel('cancel')).not.toBe(cancelLabel())
     expect(sheetDismissLabel('renew')).toBe(cancelLabel())
   })
 
-  it('says how long a sale the `K` will not touch stays standing', () => {
-    expect(offerStaysLine('450', CONSTANTS.OFFER_IRREVOCABLE)).toBe(
-      `The 450 NIM sale stays, locked for another ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}.`,
-    )
-  })
 })
 
 /**
@@ -609,13 +586,11 @@ describe('the custodial disclosure keeps §8.5 #10 on the card', () => {
  * them (2026-09-15), pinned so they cannot come back a third time.
  */
 describe('a duration in a string is read from its constant', () => {
-  // `offerHint` promised "~2.4 hours" and "~15 days" — `OFFER_IRREVOCABLE` and
-  // `OFFER_MAX_LIFETIME` at their mainnet values — on a site where they are
-  // 300 and 86,400 blocks. The assertion is the constant's rendering, never a
-  // spelling, or it is the same bug written twice.
-  it('the offer windows come from OFFER_IRREVOCABLE and OFFER_MAX_LIFETIME', () => {
+  // `offerHint` promised "~15 days" — `OFFER_MAX_LIFETIME` at its mainnet
+  // value — on a site where it is 86,400 blocks. The assertion is the
+  // constant's rendering, never a spelling, or it is the same bug written twice.
+  it('the offer lifetime comes from OFFER_MAX_LIFETIME', () => {
     const line = offerHint()
-    expect(line).toContain(blocksApprox(CONSTANTS.OFFER_IRREVOCABLE))
     expect(line).toContain(blocksApprox(CONSTANTS.OFFER_MAX_LIFETIME))
   })
 

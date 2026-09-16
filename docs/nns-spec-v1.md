@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 29**
+**Protocol specification, v1 draft — revision 30**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -312,7 +312,6 @@ NIM figures assume ~$0.0005/NIM.
 | `XFER_TIMELOCK` | 43,200 blocks (~12 h) | Window in which the owner can cancel their own pending `X` with a `K` (§6). Guards a mistyped recipient, not a thief (§2) |
 | `TERM_LENGTH` | 31,536,000 blocks (~1 y) | See §10.4. A *length*: the term is `[registration, registration + TERM_LENGTH)` and the name is in `GRACE` at `expiry` (§7.3) |
 | `GRACE_PERIOD` | 2,592,000 blocks (~30 d) | Resolution off, renewal still allowed. Also a length: `[expiry, expiry + GRACE_PERIOD)`, `AVAILABLE` at the end (§7.3) |
-| `OFFER_IRREVOCABLE` | 8,640 blocks (~2.4 h) | Seller cannot cancel |
 | `OFFER_MAX_LIFETIME` | 1,296,000 blocks (~15 d) | Then auto-expires |
 | `CHECKPOINT_INTERVAL` | 720 blocks (~12 min) | Root recomputed and published |
 | `RESOLVER_QUORUM` | 2 | Independent resolvers a client must agree before acting (§8.5) |
@@ -813,35 +812,14 @@ NNS1X<name>
 
 - **To:** the new owner, value `DUST_VALUE`
 - Sender must be the current owner
-- Forfeits `AUCTION_OPEN` while an auction is open on the name (§6 `A`)
-- Forfeits `OFFER_OPEN` while an offer is open on the name (§6 `O`, r30),
-  checked after the auction row
+- Forfeits `AUCTION_OPEN`, `OFFER_OPEN` or `TRANSFER_PENDING` while the name
+  already has a pending operation — one pending thing per name (§7.3, r30),
+  checked after the owner and before nothing: it is `X`'s last row
 
 Takes effect at `height + XFER_TIMELOCK`. Until then the name still resolves
-as before and the current owner retains control. A second `X` supersedes the
-first and restarts the timelock; an `A` for the name voids it (§6 `A`), and so
-does an `O` (§6 `O`, r30). On taking effect the transfer resets the name's
-dependent state (§7.3).
-
-**Why an open offer refuses the transfer** (r30). Before it did, the two could
-stand together, and the name's destination then belonged to whoever acted
-first: a `B` arriving during the timelock moved the name to the buyer *at
-once* (§6 `B`), voiding the transfer with no log line of its own and no notice
-to the intended recipient, while the same `B` a block after the timelock
-matured was merely refunded. Both orderings are deterministic and neither
-loses money — every implementation agrees on the outcome, which is why this
-was a design fault rather than a divergence — but the owner authorised two
-destinations for one name and a stranger's timing chose between them. The two
-readings are equally plausible and only the owner can say which she meant, so
-the protocol refuses instead of resolving: she cancels the listing with a `K`
-and sends the `X` again.
-
-The exclusion is **not symmetric**, and §6 `O`'s converse rule is why: an `O`
-on a name with a pending `X` succeeds and voids the transfer. A pending
-transfer is private — nobody but the owner and the recipient knows it exists,
-and nobody can act on it — so it yields to a newer statement of intent, as it
-already does to an `A` and to a second `X`. A listing is public and a stranger
-may be mid-`B` against it, so it comes down only when the owner takes it down.
+as before and the current owner retains control; the owner can cancel it with
+a `K` (§6 `K`) and send another. On taking effect the transfer resets the
+name's dependent state (§7.3).
 
 **What the timelock is for.** `XFER_TIMELOCK` is the window in which **the
 owner can cancel their own pending transfer** with a `K` (§6 `K`) — a
@@ -898,16 +876,19 @@ NNS1K<name>
 - **To:** `PROTOCOL_ADDRESS`, value `DUST_VALUE`
 - Sender must be the current owner
 
-Vetoes a pending `X`, or withdraws an `O` past `OFFER_IRREVOCABLE` —
-all effective on inclusion, and **a single `K` cancels everything currently
-cancellable** on the name. An open auction is not cancellable (§6 `A`) —
-bidders have committed money against the window — so a `K` on a name whose
-only pending item is an auction finds nothing. A `K` with nothing to cancel
-forfeits with `NOTHING_TO_CANCEL`: the value at stake is `DUST_VALUE`, and
-the log then records why the message had no effect instead of a misleading
-`OK`. The r6 `CANCEL_DELAY` is gone: with escrowed
-settlement (§6 `B`), a cancellation racing an incoming `B` costs the buyer a
-refund wait rather than their money, so the delay no longer bought anything.
+Vetoes a pending `X`, or withdraws an `O`, at any height — effective on
+inclusion. A name has one pending thing at a time (§7.3), so a `K` is the
+way to change it: cancel, then send the replacement. An open auction is not
+cancellable (§6 `A`) — bidders have committed money against the window — so
+a `K` on a name whose only pending item is an auction finds nothing. A `K`
+with nothing to cancel forfeits with `NOTHING_TO_CANCEL`: the value at stake
+is `DUST_VALUE`, and the log then records why the message had no effect
+instead of a misleading `OK`. There is no cancel delay on either side. The
+r6 `CANCEL_DELAY` went first and `OFFER_IRREVOCABLE` followed it in r30, on
+the same argument: with escrowed settlement (§6 `B`) a `B` pays the
+marketplace and moves the name only if the sale is still open when it lands,
+so a cancellation racing an incoming `B` costs the buyer a refund wait rather
+than their money, and a delay on the seller bought nobody anything.
 
 ### `N` — Renew
 
@@ -971,22 +952,13 @@ NNS1O<name>|<price_in_luna>
   point: the floor is set by what a name costs, not by what arithmetic
   tolerates
 - Sender must be the current owner
-- Forfeits `AUCTION_OPEN` while an auction is open on the name (§6 `A`),
-  checked after the owner and before the price
+- Forfeits `AUCTION_OPEN`, `OFFER_OPEN` or `TRANSFER_PENDING` while the name
+  already has a pending operation — one pending thing per name (§7.3, r30),
+  checked after the owner and before the price. A second `O` is refused like
+  any other: a reprice is a `K` and a fresh listing
 
-Irrevocable for `OFFER_IRREVOCABLE` blocks, then cancellable via `K`,
-auto-expiring at `OFFER_MAX_LIFETIME`. An `A` for the name voids it (§6 `A`).
-
-**An `O` voids a pending `X`** (r30), the rule an `A` already applies to both
-and a later `O` or `X` applies to its predecessor: the latest statement of
-intent wins. This is the converse of §6 `X`'s `OFFER_OPEN`, and it is a void
-rather than a forfeit for the reason given there — a pending transfer is
-private and nobody can act on it, so nothing is taken from anyone by
-superseding it. Without this half the exclusion would be one-directional and
-therefore no exclusion at all: *list, then transfer* would be refused while
-*transfer, then list* rebuilt exactly the state the refusal exists to prevent.
-Voiding a transfer here earns no log line of its own and owes nothing —
-neither an `X` nor an `O` holds money.
+Cancellable via `K` at any height (§6 `K`), auto-expiring at
+`OFFER_MAX_LIFETIME`.
 
 ### `B` — Buy
 
@@ -1143,17 +1115,19 @@ NNS1A<name>|<starting_price>|<end_height>
 
 **Check order, after §5.3 routing:** name state (`NAME_NOT_REGISTERED` for a
 grace name, `NAME_NOT_FOUND` for a name nobody could auction), then the
-sender (`NOT_OWNER` / `NOT_ADMIN`), then `AUCTION_OPEN`, then the starting price
-floor, then the window's length, then its end against the term — state,
-authority, pending status, payload, as `O`'s order already runs (§7.4).
+sender (`NOT_OWNER` / `NOT_ADMIN`), then the pending-state rows
+(`AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING` — one pending thing per
+name, §7.3), then the starting price floor, then the window's length, then
+its end against the term — state, authority, pending status, payload, as
+`O`'s order already runs (§7.4).
 
-**Opening voids the owner's own pending `X` and open `O`.** The auction is
-the latest statement of intent, which is the rule a later `O` or `X` already
-applies to its predecessor; neither holds anyone's money, so nothing is owed.
-From then until the close the auction is **exclusive**: `O`, `X` and a second
-`A` for the name forfeit `AUCTION_OPEN`, and `K` cannot cancel it — bidders
-have committed money against a window they were told in advance, and the
-owner set the starting price. `S`, `E`, `D` and `N` are unaffected.
+**Nothing opens over an auction, and an auction opens over nothing.** A name
+with a pending transfer or an open offer refuses the `A` (§7.3); the owner
+clears it with a `K` first. From the opening until the close the auction is
+the name's one pending thing: `O`, `X` and a second `A` forfeit
+`AUCTION_OPEN`, and `K` cannot cancel it — bidders have committed money
+against a window they were told in advance, and the owner set the starting
+price. `S`, `E`, `D` and `N` are unaffected.
 
 **Bids are `B`s.** A `B` to `MARKETPLACE_ADDRESS` whose name has an open
 auction is a bid, and its `value` is the bid. State decides which kind of
@@ -1623,6 +1597,23 @@ A `U` therefore competes with the transactions in its own block on the ordinary
 §7.2 ordering rather than preceding all of them — see §6 `U`, "Ordering inside
 the landing block", for what a same-block `G` sees from either side of it.
 
+**One pending thing per name** (r30). A name holds at most one pending
+operation — a transfer (`X` inside its timelock), a sale (an open `O`) or an
+auction (an open `A`) — and `X`, `O` and `A` all forfeit while any of the
+three stands, with the token naming what does: `AUCTION_OPEN`, `OFFER_OPEN`
+or `TRANSFER_PENDING`. Only one can ever hold the name, so the order of the
+three rows is unobservable and fixed in §7.4 for the record alone. Nothing
+voids, replaces or supersedes anything: the owner changes what is pending
+with a `K` (§6 `K`), which clears a transfer or a sale at any height and
+never an auction, and then sends the new message. The three are three ways
+of giving the name away, and two of them standing at once put the name's
+destination in the hands of whoever acted first — before r30 a `B` landing
+inside a transfer's timelock took the name at once and voided the transfer
+with no log line and no notice to its recipient, deterministically in every
+ordering and still not what the owner decided. Refusing is the whole rule; a
+reducer that resolves the collision instead, whichever way, is choosing for
+her.
+
 **Dependent-state resets.** When a transfer takes effect (`X` after its
 timelock, `B`, or an auction closing): `owner` and `target` both become the
 new owner, the EVM address and the delegate host are cleared, open offers are
@@ -1794,10 +1785,11 @@ against a message of a listed type.
 | `NAME_NOT_RESERVED` | `U` (release) | Name is absent from `RESERVED_NAMES`, or a `U` for it has already fired. Since r22 this is also what a second release for the same name earns: the first one fired on landing, so there is nothing pending to collide with |
 | `NAME_NOT_AVAILABLE` | `U` (award) | Name is `REGISTERED` or in `GRACE` — somebody holds it, and §10.6 lets no `U` touch a held name. A reserved-and-unreleased name and a plain `AVAILABLE` one both pass (2026-09-11) |
 | `GOVERNANCE_BOUND_VIOLATED` | `P` | A §10.6 bound exceeded, measured against the **active** prices |
-| `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no `O` past `OFFER_IRREVOCABLE` |
+| `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no open `O`. An open auction is pending and not cancellable (§6 `A`), so a `K` beside one lands here |
 | `BELOW_MIN_PRICE` | `O` `A` | Price, or starting price, below `MIN_PRICE`, which is `FEE_BASE` at this message's height |
-| `AUCTION_OPEN` | `O` `X` `A` | An auction is open on the name (§6 `A`): the owner cannot list, transfer, or auction it again until the close. Checked after the owner row and before any payload row |
-| `OFFER_OPEN` | `X` | An offer is open on the name (§6 `X`, r30): a listing is a standing invitation to strangers, so a transfer beside it lets whoever sends a `B` first decide where the name goes. Checked after `AUCTION_OPEN`, which it can never co-occur with — an auction and an offer never coexist (§6 `A`). `O` is **not** in the Types column: the converse case voids the pending `X` and earns `OK` (§6 `O`) |
+| `AUCTION_OPEN` | `O` `X` `A` | An auction is open on the name — one pending thing per name (§7.3): the owner cannot list, transfer, or auction it again until the close, and `K` cannot end it. Checked after the owner row and before any payload row |
+| `OFFER_OPEN` | `O` `X` `A` | An offer is open on the name — one pending thing per name (§7.3): a listing is a standing invitation to strangers, so a transfer or an auction beside it would let whoever sends a `B` first decide where the name goes, and a second `O` would reprice under a buyer. The way out is a `K`. Checked with `AUCTION_OPEN`, which it can never co-occur with |
+| `TRANSFER_PENDING` | `O` `X` `A` | A transfer is pending on the name — one pending thing per name (§7.3): the owner has already said where the name goes, and a sale, an auction or a second transfer would say somewhere else. The way out is a `K`, which lands at once. Checked with the two rows above, which it can never co-occur with |
 | `AUCTION_BEYOND_TERM` | `A` | The owner's `end_height` is at or past the name's `expiry` (§6 `A`): an auction sells the current term. The last payload row, after the window's length |
 | `BELOW_REFUND_FLOOR` | `G` `N` `O` `B` | A message that would otherwise be refundable, carrying less than `REFUND_FLOOR`. The only token that crosses columns |
 
@@ -1854,13 +1846,13 @@ each type runs its rows in this order:
 | `S` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
 | `E` | `NAME_NOT_REGISTERED`, `NOT_OWNER` |
 | `D` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `INVALID_HOST` |
-| `X` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN` |
+| `X` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING` |
 | `K` | `NAME_NOT_FOUND`, `NOT_OWNER`, `NOTHING_TO_CANCEL` |
 | `N` | `NAME_NOT_FOUND`, `INSUFFICIENT_VALUE` |
-| `O` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE` |
+| `O` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE` |
 | `B` | `OFFER_NOT_OPEN`, `WRONG_PRICE` — with an auction open, the bid path has only `WRONG_PRICE` (§6 `A`) |
 | `M`, `F` | `WRONG_SENDER` |
-| `A` | `NAME_NOT_REGISTERED` / `NAME_NOT_FOUND` (which auction this is), `NOT_OWNER` / `NOT_ADMIN`, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM` — state, authority, pending status, payload (§6 `A`) |
+| `A` | `NAME_NOT_REGISTERED` / `NAME_NOT_FOUND` (which auction this is), `NOT_OWNER` / `NOT_ADMIN`, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM` — state, authority, pending status, payload (§6 `A`) |
 | `P` | `NOT_ADMIN`, `INSUFFICIENT_NOTICE`, `GOVERNANCE_BOUND_VIOLATED` |
 | `U` | `NOT_ADMIN`, `INVALID_RECIPIENT`, `INVALID_NAME`, then `NAME_NOT_RESERVED` (release) or `NAME_NOT_AVAILABLE` (award) — the recipient chose which |
 

@@ -452,10 +452,10 @@ describe('X — transfer ownership (§6, §7.3)', () => {
   })
 
   it('resets dependent state on taking effect (§7.3)', () => {
-    // No offer in the slate since r30: an `X` on a listed name forfeits and an
-    // `O` voids a pending one, so a transfer can never mature over an open
-    // offer. `applyTransfer` still clears offers — the `B` path and the auction
-    // close both reach it — and those are where that reset is exercised.
+    // No offer in the slate since r30: a name has one pending thing at a time,
+    // so a transfer can never mature over an open offer. `applyTransfer` still
+    // clears offers — the `B` path and the auction close both reach it — and
+    // those are where that reset is exercised.
     step(encodeDelegate({ name: 'kikename', host: 'a.com' }), { sender: ALICE })
     expect(lookup(state, 'kikename')?.host).toBe('a.com')
 
@@ -467,14 +467,24 @@ describe('X — transfer ownership (§6, §7.3)', () => {
     expect(state.transfers.has('kikename')).toBe(false)
   })
 
-  it('lets a second X supersede the first and restart the timelock', () => {
+  it('refuses a second X while one is pending — a K first, then the corrected one (r30)', () => {
+    // Through the first r30 cut a second `X` superseded the first. Now a
+    // pending transfer is one of the three things nothing stacks on, its own
+    // kind included: the fix for a mistyped recipient is a `K`, which lands at
+    // once, and then the corrected `X`.
     step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: ALICE, at: LAUNCH })
-    step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 100 })
+    expect(step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 100 }).verdict).toEqual({
+      kind: 'FORFEIT',
+      reason: 'TRANSFER_PENDING',
+    })
+    expect(state.transfers.get('kikename')?.newOwner).toBe(BOB)
+
+    expect(step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: LAUNCH + 101 }).verdict.kind).toBe('OK')
+    expect(step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 102 }).verdict.kind).toBe('OK')
 
     state = advanceTo(state, LAUNCH + CONSTANTS.XFER_TIMELOCK)
     expect(lookup(state, 'kikename')?.owner).toBe(ALICE)
-
-    state = advanceTo(state, LAUNCH + 100 + CONSTANTS.XFER_TIMELOCK)
+    state = advanceTo(state, LAUNCH + 102 + CONSTANTS.XFER_TIMELOCK)
     expect(lookup(state, 'kikename')?.owner).toBe(CAROL)
   })
 
@@ -500,80 +510,121 @@ describe('X — transfer ownership (§6, §7.3)', () => {
     })
   })
 
-  describe('an open offer is exclusive with a transfer (§6 X, r30)', () => {
-    const list = (at: number) => step(encodeOffer({ name: 'kikename', price: FLOOR, minPrice: FLOOR }), { sender: ALICE, at })
+  describe('one pending thing per name (§7.3, r30)', () => {
+    // A transfer, a sale or an auction — a name holds at most one, and every
+    // opener refuses while any of the three stands, with the token naming
+    // what does. There is no void, no replacement and no supersession left:
+    // the way to change what is pending is a `K`, and the only pending thing a
+    // `K` cannot clear is an auction, because bids are money.
+    const END = LAUNCH + 10 + CONSTANTS.AUCTION_MIN_DURATION
+    const openers = {
+      X: () => encodeTransfer({ name: 'kikename', newOwner: BOB }),
+      O: () => encodeOffer({ name: 'kikename', price: FLOOR, minPrice: FLOOR }),
+      A: () => encodeAuction({ name: 'kikename', startingPrice: FLOOR, endHeight: END, minPrice: FLOOR }),
+    } as const
+    type Opener = keyof typeof openers
+    const standing = [
+      { kind: 'transfer', open: 'X', token: 'TRANSFER_PENDING', cancellable: true },
+      { kind: 'sale', open: 'O', token: 'OFFER_OPEN', cancellable: true },
+      { kind: 'auction', open: 'A', token: 'AUCTION_OPEN', cancellable: false },
+    ] as const
+    const pending = () => ({
+      transfer: state.transfers.get('kikename'),
+      offer: state.offers.get('kikename'),
+      auction: state.auctions.get('kikename'),
+    })
+    const pendingCount = () => Object.values(pending()).filter((v) => v !== undefined).length
 
-    it('forfeits OFFER_OPEN, leaving the listing exactly as it was', () => {
-      list(LAUNCH + 1)
-      const before = state.offers.get('kikename')
-      expect(step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: ALICE, at: LAUNCH + 2 }).verdict).toEqual({
-        kind: 'FORFEIT',
-        reason: 'OFFER_OPEN',
+    for (const stands of standing) {
+      for (const type of Object.keys(openers) as Opener[]) {
+        it(`with a ${stands.kind} pending, ${type} forfeits ${stands.token} and changes nothing`, () => {
+          expect(step(openers[stands.open](), { sender: ALICE, at: LAUNCH + 1 }).verdict.kind).toBe('OK')
+          const before = pending()
+          expect(step(openers[type](), { sender: ALICE, at: LAUNCH + 2 }).verdict).toEqual({
+            kind: 'FORFEIT',
+            reason: stands.token,
+          })
+          expect(pending()).toEqual(before)
+          expect(pendingCount()).toBe(1)
+        })
+
+        it(`with a ${stands.kind} pending, a stranger's ${type} is told NOT_OWNER first`, () => {
+          step(openers[stands.open](), { sender: ALICE, at: LAUNCH + 1 })
+          expect(step(openers[type](), { sender: CAROL, at: LAUNCH + 2 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'NOT_OWNER' })
+        })
+      }
+
+      it(`a K on a pending ${stands.kind} at the very next height: ${stands.cancellable ? 'clears it, and every opener works again' : 'finds nothing to cancel'}`, () => {
+        step(openers[stands.open](), { sender: ALICE, at: LAUNCH + 1 })
+        const cancel = step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: LAUNCH + 2 })
+        if (!stands.cancellable) {
+          expect(cancel.verdict).toEqual({ kind: 'FORFEIT', reason: 'NOTHING_TO_CANCEL' })
+          expect(pendingCount()).toBe(1)
+          return
+        }
+        expect(cancel.verdict.kind).toBe('OK')
+        expect(pendingCount()).toBe(0)
+        // The bound is re-derived on the cancel, never left at what was cleared.
+        expect(state.nextDueHeight).toBe(LAUNCH + CONSTANTS.TERM_LENGTH)
+        for (const type of Object.keys(openers) as Opener[]) {
+          const fresh = initialState()
+          state = fresh
+          registerToAlice()
+          step(openers[stands.open](), { sender: ALICE, at: LAUNCH + 1 })
+          step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: LAUNCH + 2 })
+          expect(step(openers[type](), { sender: ALICE, at: LAUNCH + 3 }).verdict.kind, `${type} after K`).toBe('OK')
+        }
       })
-      expect(state.transfers.has('kikename')).toBe(false)
-      expect(state.offers.get('kikename')).toEqual(before)
-    })
-
-    it('lets the transfer through once a K has taken the name off sale', () => {
-      list(LAUNCH + 1)
-      const at = LAUNCH + 1 + CONSTANTS.OFFER_IRREVOCABLE
-      expect(step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at }).verdict.kind).toBe('OK')
-      expect(step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: ALICE, at: at + 1 }).verdict.kind).toBe('OK')
-      state = advanceTo(state, at + 1 + CONSTANTS.XFER_TIMELOCK)
-      expect(lookup(state, 'kikename')?.owner).toBe(BOB)
-    })
-
-    it('tells a stranger they are a stranger first — NOT_OWNER beats OFFER_OPEN', () => {
-      list(LAUNCH + 1)
-      expect(step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: BOB, at: LAUNCH + 2 }).verdict).toEqual({
-        kind: 'FORFEIT',
-        reason: 'NOT_OWNER',
-      })
-    })
+    }
 
     it('an expired offer is no offer: the X lands once OFFER_MAX_LIFETIME is past', () => {
       // The offer goes on its own, with no `K` and no log line (§7.6), so the
       // gate must read the live set rather than "was this name ever listed".
-      list(LAUNCH + 1)
+      step(openers.O(), { sender: ALICE, at: LAUNCH + 1 })
       const gone = LAUNCH + 1 + CONSTANTS.OFFER_MAX_LIFETIME
       state = advanceTo(state, gone)
-      expect(step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: ALICE, at: gone }).verdict.kind).toBe('OK')
+      expect(step(openers.X(), { sender: ALICE, at: gone }).verdict.kind).toBe('OK')
     })
 
-    it('converse: an O voids a pending X, and that X never matures', () => {
-      step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 1 })
-      const wouldMature = LAUNCH + 1 + CONSTANTS.XFER_TIMELOCK
-      expect(list(LAUNCH + 2).verdict.kind).toBe('OK')
-      expect(state.transfers.has('kikename')).toBe(false)
+    it('a cancelled transfer never matures, and a cancelled sale never sells', () => {
+      step(openers.X(), { sender: ALICE, at: LAUNCH + 1 })
+      step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: LAUNCH + 2 })
+      state = advanceTo(state, LAUNCH + 1 + CONSTANTS.XFER_TIMELOCK + 1)
+      expect(lookup(state, 'kikename')?.owner).toBe(ALICE)
 
-      state = advanceTo(state, wouldMature + 1)
+      step(openers.O(), { sender: ALICE, at: state.height + 1 })
+      step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: state.height + 1 })
+      expect(step(encodeBuy({ name: 'kikename', price: FLOOR }), { sender: BOB, at: state.height + 1 }).verdict).toMatchObject({
+        kind: 'REFUND',
+        reason: 'OFFER_NOT_OPEN',
+      })
       expect(lookup(state, 'kikename')?.owner).toBe(ALICE)
     })
 
-    it('converse: the voided X does not leave nextDueHeight pointing at a ghost', () => {
-      step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 1 })
-      expect(state.nextDueHeight).toBe(LAUNCH + 1 + CONSTANTS.XFER_TIMELOCK)
-      list(LAUNCH + 2)
-      // Re-derived on the void, not left at the transfer's maturity: the next
-      // thing actually due is the offer's own expiry.
-      expect(state.nextDueHeight).toBe(LAUNCH + 2 + CONSTANTS.OFFER_MAX_LIFETIME)
-    })
-
-    it('no order of O and X leaves the two standing together', () => {
-      // The whole point of the rule, asserted as a property rather than as two
-      // separate outcomes: whichever way round the owner sends them, the name
-      // ends with at most one of the pair.
-      const bothStanding = () => state.offers.has('kikename') && state.transfers.has('kikename')
-
-      list(LAUNCH + 1)
-      step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: ALICE, at: LAUNCH + 2 })
-      expect(bothStanding()).toBe(false)
-
-      state = initialState()
-      registerToAlice()
-      step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: ALICE, at: LAUNCH + 1 })
-      list(LAUNCH + 2)
-      expect(bothStanding()).toBe(false)
+    it('no sequence of X, O, A and K ever leaves two things pending', () => {
+      // The rule as a property: every sequence of five owner messages from a
+      // fresh registration, 4^5 of them, exhaustively. Each lands in its own
+      // block, so an auction's window (measured from the landing block) and a
+      // transfer's timelock never interfere with the count.
+      const letters = ['X', 'O', 'A', 'K'] as const
+      const send = (letter: (typeof letters)[number], at: number) =>
+        letter === 'K'
+          ? step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at })
+          : step(openers[letter](), { sender: ALICE, at })
+      let sequences = 0
+      for (let code = 0; code < 4 ** 5; code += 1) {
+        state = initialState()
+        registerToAlice()
+        let rest = code
+        for (let i = 0; i < 5; i += 1) {
+          const letter = letters[rest % 4]!
+          rest = Math.floor(rest / 4)
+          send(letter, LAUNCH + 1 + i)
+          expect(pendingCount(), `sequence ${code} after step ${i}`).toBeLessThanOrEqual(1)
+        }
+        sequences += 1
+      }
+      expect(sequences).toBe(1024)
     })
   })
 })
@@ -604,16 +655,19 @@ describe('K — cancel (§6)', () => {
     expect(lookup(state, 'kikename')?.owner).toBe(BOB)
   })
 
-  it('cannot withdraw an offer inside OFFER_IRREVOCABLE, and can after', () => {
+  it('withdraws an offer at the very next height — there is no cancel delay (r30 fold)', () => {
+    // `OFFER_IRREVOCABLE` was r6's `CANCEL_DELAY` on the seller's side, and
+    // the same argument removed it: a `B` pays the marketplace and moves the
+    // name only if the sale is open when it lands, so a cancel racing a buyer
+    // costs the buyer a refund wait and never money. A `K` that arrives first
+    // wins; a `B` that arrives first wins; neither can hurt the other.
     step(encodeOffer({ name: 'kikename', price: FLOOR, minPrice: FLOOR }), { sender: ALICE, at: LAUNCH })
-    expect(step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: LAUNCH + 1 }).verdict).toEqual({
-      kind: 'FORFEIT',
-      reason: 'NOTHING_TO_CANCEL',
-    })
-
-    const at = LAUNCH + CONSTANTS.OFFER_IRREVOCABLE
-    expect(step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at }).verdict.kind).toBe('OK')
+    expect(step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: LAUNCH + 1 }).verdict.kind).toBe('OK')
     expect(state.offers.has('kikename')).toBe(false)
+    expect(step(encodeBuy({ name: 'kikename', price: FLOOR }), { sender: BOB, at: LAUNCH + 1, txIndex: 1 }).verdict).toMatchObject({
+      kind: 'REFUND',
+      reason: 'OFFER_NOT_OPEN',
+    })
   })
 })
 
@@ -761,15 +815,17 @@ describe('ordering of effects that come due at the same height', () => {
 })
 
 describe('nextDueHeight is only ever a lower bound', () => {
-  it('recomputes rather than skipping when a superseded X leaves it stale', () => {
+  it('recomputes rather than skipping when the bound is stale', () => {
+    // No message leaves the bound stale any more — every handler that removes
+    // something recomputes it, and nothing supersedes anything since the r30
+    // fold — so the staleness is planted by hand, at where a superseded `X`
+    // once left it. The contract under test is the scan's, not a handler's:
+    // a too-low bound costs a scan that finds nothing and tightens, never a
+    // skipped effect.
     registerToAlice()
-    step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: ALICE, at: LAUNCH })
-    // Supersede with a later X. The bound still points at the first one's
-    // maturity, which is now earlier than anything that will actually fire.
     step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 1_000 })
-
     const stale = LAUNCH + CONSTANTS.XFER_TIMELOCK
-    expect(state.nextDueHeight).toBe(stale)
+    state = Object.freeze({ ...state, nextDueHeight: stale })
 
     state = advanceTo(state, stale)
     expect(lookup(state, 'kikename')?.owner).toBe(ALICE)
@@ -975,6 +1031,8 @@ describe('MIN_PRICE — the floor on an O price (§3, §6 O)', () => {
     )
 
     expect(step(offerAt(FLOOR), { sender: ALICE, at: effective - 1 }).verdict.kind).toBe('OK')
+    // Cleared before the next listing: one pending thing per name (r30).
+    expect(step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: effective - 1, txIndex: 1 }).verdict.kind).toBe('OK')
     expect(step(offerAt(FLOOR), { sender: ALICE, at: effective }).verdict).toEqual({
       kind: 'FORFEIT',
       reason: 'BELOW_MIN_PRICE',
@@ -1483,29 +1541,26 @@ describe('A — auction (§6, r28)', () => {
       expect(step(auctionOf(), { sender: ALICE, at: LAUNCH + 3 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_OPEN' })
     })
 
-    // Two tests rather than one since r30: an offer and a pending `X` can no
-    // longer stand together, so a single name cannot present the auction with
-    // both to void. Written apart on purpose — the one-name version still
-    // passed after r30, because the `O` had already voided the `X` before the
-    // `A` arrived, and a test that goes green without touching its subject is
-    // worse than no test.
-    it('voids the owner’s own pending X — the latest statement of intent wins', () => {
+    it('refuses to open over a pending X or an open O — a K first (r30 fold)', () => {
+      // r28 had the auction void both, as "the latest statement of intent".
+      // Since the r30 fold nothing voids anything: the owner clears what is
+      // pending with a `K` and then opens. The pending thing is untouched by
+      // the refusal, and the transfer still matures on its own clock.
       registerToAlice()
       step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 1 })
-      expect(state.transfers.has('kikename')).toBe(true)
-      expect(step(auctionOf(), { sender: ALICE, at: LAUNCH + 3 }).verdict.kind).toBe('OK')
-      expect(state.transfers.has('kikename')).toBe(false)
-      // And the voided X never matures.
+      expect(step(auctionOf(), { sender: ALICE, at: LAUNCH + 2 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'TRANSFER_PENDING' })
+      expect(state.transfers.get('kikename')?.newOwner).toBe(CAROL)
+      expect(state.auctions.has('kikename')).toBe(false)
+
+      step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: LAUNCH + 3 })
+      step(encodeOffer({ name: 'kikename', price: STARTING_PRICE, minPrice: FLOOR }), { sender: ALICE, at: LAUNCH + 4 })
+      expect(step(auctionOf(), { sender: ALICE, at: LAUNCH + 5 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'OFFER_OPEN' })
+      expect(state.offers.has('kikename')).toBe(true)
+
+      step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: LAUNCH + 6 })
+      expect(step(auctionOf(), { sender: ALICE, at: LAUNCH + 7 }).verdict.kind).toBe('OK')
       state = advanceTo(state, LAUNCH + 1 + CONSTANTS.XFER_TIMELOCK)
       expect(lookup(state, 'kikename')?.owner).toEqual(ALICE)
-    })
-
-    it('voids the owner’s own open O', () => {
-      registerToAlice()
-      step(encodeOffer({ name: 'kikename', price: STARTING_PRICE, minPrice: FLOOR }), { sender: ALICE, at: LAUNCH + 2 })
-      expect(state.offers.has('kikename')).toBe(true)
-      expect(step(auctionOf(), { sender: ALICE, at: LAUNCH + 3 }).verdict.kind).toBe('OK')
-      expect(state.offers.has('kikename')).toBe(false)
     })
 
     it('is exclusive while open: O and X forfeit AUCTION_OPEN, K finds nothing to cancel', () => {

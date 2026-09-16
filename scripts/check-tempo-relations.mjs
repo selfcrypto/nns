@@ -238,12 +238,6 @@ check(
   `${C.XFER_TIMELOCK} < ${C.TERM_LENGTH}`,
 )
 check(
-  'offer-window-ordering',
-  'OFFER_IRREVOCABLE < OFFER_MAX_LIFETIME (§6 O)',
-  C.OFFER_IRREVOCABLE < C.OFFER_MAX_LIFETIME,
-  `${C.OFFER_IRREVOCABLE} < ${C.OFFER_MAX_LIFETIME}`,
-)
-check(
   'windows-fit-inside-term',
   'OFFER_MAX_LIFETIME and GOVERNANCE_DELAY sit inside a term, so a name outlives what is measured against it',
   C.OFFER_MAX_LIFETIME < C.TERM_LENGTH && C.GOVERNANCE_DELAY < C.TERM_LENGTH,
@@ -341,7 +335,6 @@ for (const key of [
   'GRACE_PERIOD',
   'XFER_TIMELOCK',
   'GOVERNANCE_DELAY',
-  'OFFER_IRREVOCABLE',
   'OFFER_MAX_LIFETIME',
   'AUCTION_MIN_DURATION',
   'AUCTION_EXTENSION',

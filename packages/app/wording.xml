@@ -98,11 +98,11 @@
     <string id="GATE_REASON_TEXT.no-viewer">Connect a wallet to act on names.</string>
     <string id="GATE_REASON_TEXT.not-owner">Only the owner can do this.</string>
     <string id="GATE_REASON_TEXT.nothing-to-cancel">Nothing is pending on this name.</string>
-    <string id="GATE_REASON_TEXT.offer-irrevocable">A new sale can’t be cancelled for its first ~2.4 h.</string>
     <string id="GATE_REASON_TEXT.offer-open">This name is already for sale. Cancel that first.</string>
     <string id="GATE_REASON_TEXT.reserved">Reserved names can’t be registered.</string>
     <string id="GATE_REASON_TEXT.state-unknown">Couldn’t read this name’s record. Try again.</string>
     <string id="GATE_REASON_TEXT.taken">This name is registered.</string>
+    <string id="GATE_REASON_TEXT.transfer-pending">A transfer is pending. Cancel that first.</string>
   </group>
   <group name="Input validation (§4.1 in plain words, field-level)">
     <string id="shortNameNoteLine">Names under 5 characters are reserved unless deliberately released.</string>
@@ -134,8 +134,8 @@
     <string id="targetHint">The wallet’s own screen shows this address as the recipient of the message, so it can be checked there too.</string>
     <string id="evmHint">One address covers every EVM chain. The registry records what you declare, so check this one is yours.</string>
     <string id="transferMovesLine" params="delay">Ownership moves to the address above in {delay}, unless you Cancel Transfer first.</string>
-    <string id="transferHint">A second transfer replaces this one and restarts the clock. The delay guards a mistyped address, not a stolen key.</string>
-    <string id="offerHint">Irrevocable for ~2.4 h, cancellable after, and it expires by itself in ~15 d.</string>
+    <string id="transferHint">You can cancel it any time before it lands. The delay guards a mistyped address, not a stolen key.</string>
+    <string id="offerHint">You can take it off sale any time, and it expires by itself in ~15 d.</string>
     <string id="auctionHint" params="extension">Nothing can be withdrawn once open, and a bid in the last {extension} extends the end by {extension}. The highest bid wins and the name transfers at the close.</string>
     <string id="bidHint" params="extension">A bid in the last {extension} extends the auction by {extension}. A bid below the minimum is refunded, not accepted. So is yours, the moment a higher bid lands.</string>
     <string id="currentExpiryLine" params="approx">Currently expires {approx}.</string>
@@ -389,7 +389,7 @@
     <string id="auctionStandingLine" params="nim">Standing bid: {nim} NIM</string>
     <string id="auctionStartingLine" params="nim">Starting price: {nim} NIM</string>
     <string id="connectWalletHint">Connect wallet</string>
-    <string id="offerStaysLine" params="nim blocksLeft">The {nim} NIM sale stays, locked for another ~1 min.</string>
+    <string id="cancelTitle" params="set">Cancel Pending</string>
     <string id="listedForSaleLine" params="nim">For sale on the marketplace at {nim} NIM. </string>
     <string id="listedForBiddingLine" params="nim">Up for auction on the marketplace, from {nim} NIM. </string>
     <string id="checkNowLabel">Check now.</string>
