@@ -42,7 +42,7 @@ import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { primaryAddress } from '../lib/identity'
 import { search } from '../lib/search'
 import { performSend, type SendPhase, type SendResult } from '../lib/send'
-import { connectInstead, sameAddress, type AppAction } from '../lib/states'
+import { connectInstead, mostHeld, sameAddress, type AppAction } from '../lib/states'
 import { useAsync } from '../lib/useAsync'
 import { useRetryWhilePropagating } from '../lib/useRetryWhilePropagating'
 import { useDebounced } from '../lib/useDebounced'
@@ -244,9 +244,15 @@ export function PayScreen({
   const evmPrompted = useRef(false)
   const balanceSeed = `${mode}:${sender ?? ''}:${evmAccount ?? ''}:${result?.status ?? ''}:${usdtTries}`
 
-  // Two numbers: the set's total, which the badge shows, and the chosen
-  // sender's own, which is all MAX may offer — a transaction spends one
-  // account, and the redesign's MAX filled in the sum across the set.
+  // Two numbers: the set's total, which the badge shows, and what one
+  // transaction can spend, which is all MAX may offer — the redesign's MAX
+  // filled in the sum across the set. Which account that is depends on who
+  // picks the signer (wallet.ts header): the Hub signs with the chosen
+  // sender, so MAX is its own balance; Pay picks for itself and spends from
+  // whichever account holds the NIM, which on the Remote wallet is the HTLC
+  // contract the identity drops — so there MAX is the most any one account
+  // of the raw set holds, `shortfallFor`'s rule. Reading the sender's own
+  // balance on Pay showed 1.6 NIM under a badge of 8,470 (2026-09-17).
   const nimBalance = useAsync(async (): Promise<{ readonly total: bigint; readonly mine: bigint | null } | null> => {
     if (mode !== 'nim' || wallet === null || sender === null) return null
     const transport = defaultTransport()
@@ -256,7 +262,10 @@ export function PayScreen({
     const balances = await Promise.all(pool.map((address) => fetchNimBalance(transport, address)))
     const known = balances.slice(0, targets.length).filter((balance): balance is bigint => balance !== null)
     if (known.length === 0) return null
-    const mine = balances[pool.findIndex((address) => sameAddress(address, sender))] ?? null
+    const mine =
+      wallet.identity.kind === 'pay'
+        ? mostHeld(balances.slice(0, targets.length))
+        : (balances[pool.findIndex((address) => sameAddress(address, sender))] ?? null)
     return { total: known.reduce((sum, balance) => sum + balance, 0n), mine }
   }, [balanceSeed])
 

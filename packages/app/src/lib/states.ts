@@ -395,10 +395,24 @@ export interface Shortfall {
  * before the wallet ever opens.
  */
 export function shortfallFor(owed: bigint | null, balances: readonly (bigint | null)[]): Shortfall | null {
-  if (owed === null || balances.length === 0) return null
-  if (balances.some((balance) => balance === null)) return null
-  const held = balances.reduce((most: bigint, balance) => (balance !== null && balance > most ? balance : most), 0n)
-  return held < owed ? { owed, held } : null
+  if (owed === null) return null
+  const held = mostHeld(balances)
+  return held !== null && held < owed ? { owed, held } : null
+}
+
+/**
+ * The most any one account of the set holds — what a wallet that picks its
+ * own signer can put in a single transaction. `shortfallFor`'s reading rule,
+ * shared with Pay's MAX: the Remote wallet keeps the NIM in the HTLC contract
+ * the identity drops, so the chosen sender's own balance there is dust while
+ * the badge, summed over the raw set, shows the real number (Kike,
+ * 2026-09-17: 8,470 NIM in the badge, MAX 1.6). `null` on an empty or
+ * incomplete reading, for the same reason `shortfallFor` refuses nothing on
+ * one.
+ */
+export function mostHeld(balances: readonly (bigint | null)[]): bigint | null {
+  if (balances.length === 0 || balances.some((balance) => balance === null)) return null
+  return balances.reduce((most: bigint, balance) => (balance !== null && balance > most ? balance : most), 0n)
 }
 
 // ── The identity row (docs/app-ux.md §1) ────────────────────────────────────

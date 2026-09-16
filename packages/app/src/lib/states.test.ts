@@ -14,6 +14,7 @@ import {
   nameView,
   feeRowFor,
   registrationFee,
+  mostHeld,
   shortfallFor,
   renewalUrgency,
   sameAddress,
@@ -578,5 +579,21 @@ describe('shortfallFor', () => {
 
   it('has no opinion before the action is prepared', () => {
     expect(shortfallFor(null, [0n])).toBeNull()
+  })
+})
+
+describe('mostHeld', () => {
+  /**
+   * Pay's MAX on the Remote wallet: the identity's own account holds dust and
+   * the HTLC contract in the raw set holds the balance the wallet signs from.
+   */
+  it('is the largest single balance of the set, never the sum', () => {
+    expect(mostHeld([160_004n, 846_866_646_000n])).toBe(846_866_646_000n)
+    expect(mostHeld([5n])).toBe(5n)
+  })
+
+  it('is unknown on an empty or incomplete reading', () => {
+    expect(mostHeld([])).toBeNull()
+    expect(mostHeld([1n, null])).toBeNull()
   })
 })
