@@ -321,6 +321,60 @@ describe('actionGates (app-states.md §4)', () => {
     })
   })
 
+  describe('an open offer is exclusive with a transfer (§6 `X`, r30)', () => {
+    const OPENED = 1_000_000
+    const listed = registered({
+      pending: {
+        transfer: null,
+        offer: { name: 'a', seller: OWNER, price: 100_000n, openedHeight: OPENED, expiryHeight: 3_000_000 },
+        auction: null,
+      },
+    })
+    const gatesAt = (head: number, viewer = OWNER) =>
+      actionGates({ view: nameView('a', listed, 'available'), viewers: [viewer], head })
+
+    it('closes the transfer tile while the name is listed', () => {
+      expect(gatesAt(OPENED + CONSTANTS.OFFER_IRREVOCABLE).transfer.enabled).toBe(false)
+      expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OWNER], head: OPENED }).transfer.enabled).toBe(true)
+    })
+
+    it('says take it off sale once a K could, and shows the wait before that', () => {
+      // Inside `OFFER_IRREVOCABLE` a `K` cannot lift the offer either, so
+      // "cancel that first" would be advice the protocol refuses to take.
+      const inside = gatesAt(OPENED + 1).transfer
+      expect(inside.reason).toBe('offer-irrevocable')
+      expect(inside.blocksLeft).toBe(CONSTANTS.OFFER_IRREVOCABLE - 1)
+
+      const after = gatesAt(OPENED + CONSTANTS.OFFER_IRREVOCABLE).transfer
+      expect(after.reason).toBe('offer-open')
+      expect(after.blocksLeft).toBeNull()
+    })
+
+    it('boundary: the window is half-open, cancellable at OPENED + OFFER_IRREVOCABLE', () => {
+      expect(gatesAt(offerCancellableAt(OPENED) - 1).transfer.reason).toBe('offer-irrevocable')
+      expect(gatesAt(offerCancellableAt(OPENED)).transfer.reason).toBe('offer-open')
+    })
+
+    it('an auction still wins the refusal, and a stranger is told they are a stranger', () => {
+      const underBoth = registered({
+        pending: {
+          transfer: null,
+          offer: null,
+          auction: { name: 'a', seller: OWNER, startingPrice: 1n, endHeight: 3_000_000, bidder: null, bid: 0n, minimumBid: 1n },
+        },
+      })
+      expect(actionGates({ view: nameView('a', underBoth, 'available'), viewers: [OWNER], head: OPENED }).transfer.reason).toBe('auction-open')
+      expect(gatesAt(OPENED + 1, OTHER).transfer.reason).toBe('not-owner')
+    })
+
+    it('leaves Sell open on a name with a pending transfer: the O voids it (§6 `O`, r30)', () => {
+      const transferring = registered({
+        pending: { transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 }, offer: null, auction: null },
+      })
+      expect(actionGates({ view: nameView('a', transferring, 'available'), viewers: [OWNER], head: OPENED }).offer.enabled).toBe(true)
+    })
+  })
+
   it('no wallet identity closes the owner actions with no-viewer, not not-owner', () => {
     const gates = actionGates({ view: nameView('a', registered(), 'available'), viewers: [], head: 0 })
     expect(gates.setTarget.reason).toBe('no-viewer')

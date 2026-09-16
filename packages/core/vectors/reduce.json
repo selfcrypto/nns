@@ -989,7 +989,7 @@
     },
     {
       "id": "a_winning_B_resets_the_dependent_state",
-      "note": "§7.3's dependent-state resets, on the B path — §2 names O + B as the thief's route, which makes this the reset that matters most. The name goes into the sale carrying the full slate: a delegate host, a pending X to CAROL, and the offer itself. The winning B must clear all three in its own block — in particular the host, or the seller keeps directing every subdomain of a name they no longer own, two OK messages deep and unprovable from outside (§8.6 answers carry no proof). The advance past the voided X's maturity is the second half: void means it never fires, not that it fires into a map that forgot it — an implementation clearing the entry but not the schedule hands the name to CAROL at 58885920 with no message and no verdict. The buyer inherits the current expiry unchanged.",
+      "note": "§7.3's dependent-state resets, on the B path — §2 names O + B as the thief's route, which makes this the reset that matters most. The name goes into the sale carrying a delegate host and a pending X to CAROL, and the O that lists it voids that X in the same block (§6 O, r30): since r30 an offer and a pending transfer cannot stand together, so the slate the winning B clears is the host, the target and the offer. The advance past the voided X's maturity is the second half, and it is what r30 moved rather than removed: void means it never fires, not that it fires into a map that forgot it — an implementation clearing the entry but not the schedule hands the name to CAROL at 58885920 with no message and no verdict, and now does it to BOB's name rather than to ALICE's. The buyer inherits the current expiry unchanged.",
       "steps": [
         {
           "tx": {
@@ -1054,10 +1054,7 @@
               }
             },
             "transfers": {
-              "kikename": {
-                "newOwner": "CAROL",
-                "effectiveHeight": 58885920
-              }
+              "kikename": null
             },
             "offers": {
               "kikename": {
@@ -2607,7 +2604,7 @@
     },
     {
       "id": "auction_is_exclusive_and_voids_what_it_replaces",
-      "note": "Opening voids the owner's own pending `X` and open `O` — the auction is the latest statement of intent, the rule a later `O` or `X` already applies to its predecessor — and the voided `X` never matures. While the auction is open `O`, `X` and a second `A` forfeit AUCTION_OPEN and `K` finds nothing to cancel (bids are commitments); `S` still works. A `B` is a bid exactly because an auction is open — exclusivity is what makes the same payload mean one thing.",
+      "note": "Opening voids the owner's own pending `X` and open `O` — the auction is the latest statement of intent, the rule a later `O` or `X` already applies to its predecessor. Two names because since r30 one name cannot carry both at once (§6 `X`): `kikename` goes in with a pending transfer, `othername` with a listing, and each `A` voids what it found. The voided `X` never matures. While the auction is open `O`, `X` and a second `A` forfeit AUCTION_OPEN and `K` finds nothing to cancel (bids are commitments); `S` still works. A `B` is a bid exactly because an auction is open — exclusivity is what makes the same payload mean one thing.",
       "steps": [
         {
           "tx": {
@@ -2617,6 +2614,19 @@
             "recipient": "TREASURY",
             "value": "200000000",
             "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gothername"
           },
           "verdict": {
             "kind": "OK"
@@ -2642,7 +2652,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|100000000"
+            "text": "NNS1Oothername|100000000"
           },
           "verdict": {
             "kind": "OK"
@@ -2652,11 +2662,12 @@
           "check": {
             "transfers": {
               "kikename": {
-                "newOwner": "CAROL"
+                "newOwner": "CAROL",
+                "effectiveHeight": 58885921
               }
             },
             "offers": {
-              "kikename": {
+              "othername": {
                 "seller": "ALICE"
               }
             }
@@ -2676,15 +2687,31 @@
           }
         },
         {
+          "tx": {
+            "blockNumber": 58842723,
+            "txIndex": 1,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Aothername|100000000|58929200"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
           "check": {
             "transfers": {
               "kikename": null
             },
             "offers": {
-              "kikename": null
+              "othername": null
             },
             "auctions": {
               "kikename": {
+                "seller": "ALICE"
+              },
+              "othername": {
                 "seller": "ALICE"
               }
             }
@@ -2787,7 +2814,7 @@
         "resolves": {
           "kikename": "CAROL"
         },
-        "logLines": 9
+        "logLines": 11
       }
     },
     {
@@ -6778,6 +6805,38 @@
           "verdict": {
             "kind": "FORFEIT",
             "reason": "AUCTION_OPEN"
+          },
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Xkikename"
+          }
+        }
+      },
+      {
+        "id": "X_not_owner_beats_offer_open",
+        "setup": "offer_open_at_1_nim",
+        "pinnedBy": "§7.4 check-order table (r30) — `X`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`",
+        "note": "Authority before the name's pending status, as the `AUCTION_OPEN` pair above has it: a stranger is refused as a stranger, the owner is refused because the name is listed and a `B` would decide where it goes. `AUCTION_OPEN` and `OFFER_OPEN` are never both satisfiable — an auction and an offer cannot coexist (§6 `A`) — so there is no pair case between them; each is pinned against `NOT_OWNER` instead.",
+        "tx": {
+          "blockNumber": 58842721,
+          "txIndex": 0,
+          "sender": "BOB",
+          "recipient": "CAROL",
+          "value": "1",
+          "text": "NNS1Xkikename"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "NOT_OWNER"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "OFFER_OPEN"
           },
           "tx": {
             "blockNumber": 58842721,

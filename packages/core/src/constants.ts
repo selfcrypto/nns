@@ -61,7 +61,7 @@ export const CONSTANTS = Object.freeze({
    * about the §8.1 commitment's shape alone. Bump it in the same commit that
    * folds a revision.
    */
-  SPEC_REVISION: 29,
+  SPEC_REVISION: 30,
 
   // ── Wire format (§5.1, §5.2) ──────────────────────────────────────────────
   /** Prefix of every NNS message. 4 ASCII bytes. */

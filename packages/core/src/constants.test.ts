@@ -173,7 +173,7 @@ describe('CONSTANTS — §3', () => {
     expect(values).toStrictEqual({
       // Not a §3 value: the revision these rules claim to be, pinned here so
       // a fold that moves a rule and forgets the number fails on the way out.
-      SPEC_REVISION: 29,
+      SPEC_REVISION: 30,
       PROTOCOL_ID: 'NNS1',
       MAX_DATA_BYTES: 64,
       MAX_DELEGATE_MESSAGE_BYTES: 58,

@@ -640,7 +640,7 @@ describe('vectors/reduce.json', () => {
         G: 5, // §7.4's fixed five-check order, four adjacent pairs plus grace
         S: 1,
         E: 2, // r26: recipient before state (pinned), state before sender (free, like S)
-        X: 2, // r28: NOT_OWNER before AUCTION_OPEN
+        X: 3, // r28: NOT_OWNER before AUCTION_OPEN; r30: and before OFFER_OPEN
         D: 3,
         K: 3,
         N: 2,
@@ -668,11 +668,14 @@ describe('vectors/reduce.json', () => {
       // `A`'s own order, one each for the `AUCTION_OPEN` row in `O` and `X`.
       // 2026-09-11 widened `U` awards past the reserved set: the award's last
       // row is `NAME_NOT_AVAILABLE`, and one pinned row orders it behind the
-      // name syntax as the release's twin does.
+      // name syntax as the release's twin does. r30 made an open offer
+      // exclusive with a transfer, adding one row for `X`'s `OFFER_OPEN` —
+      // pinned against `NOT_OWNER` rather than against `AUCTION_OPEN`, which
+      // it can never co-occur with.
       const cases = section.cases as any[]
       const pinned = cases.filter((c) => c.pinnedBy !== null)
       const free = cases.filter((c) => c.pinnedBy === null)
-      expect(pinned).toHaveLength(25)
+      expect(pinned).toHaveLength(26)
       expect(free).toHaveLength(19)
       for (const testCase of cases) {
         expect(typeof testCase.note, `${testCase.id} needs a note`).toBe('string')

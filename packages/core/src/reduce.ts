@@ -123,6 +123,7 @@ export type ForfeitReason =
   | 'BELOW_REFUND_FLOOR'
   | 'BELOW_MIN_PRICE'
   | 'AUCTION_OPEN'
+  | 'OFFER_OPEN'
   | 'AUCTION_BEYOND_TERM'
 
 /**
@@ -756,6 +757,17 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // against the window, so the owner cannot move the name out from under
       // them by another route.
       if (state.auctions.has(message.name)) return keep(forfeit('AUCTION_OPEN'))
+      // §6 `X` (r30): an open offer is exclusive too, and for the opposite
+      // reason — nobody has committed money, but anybody may. A listing is a
+      // standing invitation to strangers, so a transfer beside it puts the
+      // name's destination in the hands of whoever sends a `B` first: the
+      // buyer wins instantly and the timelock the owner was relying on never
+      // runs. Refused rather than resolved, because the two are equally
+      // plausible readings of what the owner wanted and only she can say.
+      // The way out is a `K`, which is where the asymmetry with `O` below
+      // comes from: the listing is the public half and must be withdrawn
+      // deliberately.
+      if (state.offers.has(message.name)) return keep(forfeit('OFFER_OPEN'))
 
       const effectiveHeight = tx.blockNumber + CONSTANTS.XFER_TIMELOCK
 
@@ -860,6 +872,16 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
 
       const expiryHeight = tx.blockNumber + CONSTANTS.OFFER_MAX_LIFETIME
       const draft = draftOf(state)
+      // §6 `O` (r30): listing voids the owner's own pending `X`, the rule an
+      // `A` already applies to both and a later `O` or `X` to its predecessor
+      // — the latest statement of intent wins. The reverse direction forfeits
+      // (`X` above) rather than voiding, and the asymmetry is the point: a
+      // pending transfer is private, nobody can act on it, and it yields to a
+      // newer statement; a listing is public, a stranger may be mid-`B`
+      // against it, and it comes down only by an explicit `K`. Without this
+      // the exclusion would be half a rule — list, then transfer is refused,
+      // but transfer, then list rebuilds the same contradiction.
+      draft.transfers.delete(message.name)
       // A later O replaces the standing one and restarts its irrevocability.
       draft.offers.set(message.name, {
         name: message.name,
@@ -868,7 +890,11 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
         openedHeight: tx.blockNumber,
         expiryHeight,
       })
-      schedule(draft, expiryHeight)
+      // Recomputed rather than `schedule`d: the bound only ever tightens, and
+      // the transfer just voided may be exactly what it was pointing at — the
+      // same reason `K` and `A` recompute (`nextDueHeight is only ever a lower
+      // bound`). The new offer's own expiry is in the draft, so this covers it.
+      draft.nextDueHeight = computeNextDue(draft)
       return { state: freeze(draft), verdict: ok() }
     }
 

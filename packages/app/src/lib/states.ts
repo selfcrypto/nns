@@ -215,6 +215,27 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
     return closed('nothing-to-cancel')
   }
 
+  /**
+   * §6 `X` (r30): an open offer is exclusive with a transfer, so the tile is
+   * shut while the name is listed and the refusal names the way out — which is
+   * a `K`, and a `K` cannot withdraw an offer inside `OFFER_IRREVOCABLE` (§6
+   * `O`). Saying "cancel that first" there would be advice the protocol
+   * refuses to take, so inside the window the tile shows the wait instead,
+   * exactly as `cancel()` does.
+   *
+   * Only this direction is gated. An `O` on a name with a pending `X` is a
+   * lawful message that voids the transfer, so the Sell tile stays open and
+   * says so in its own review lines.
+   */
+  const transfer = (): Gate => {
+    const base = unlessAuction(ownerGate())
+    if (!base.enabled) return base
+    const pendingOffer = info?.pending.offer
+    if (!pendingOffer) return open
+    const cancellableAt = offerCancellableAt(pendingOffer.openedHeight)
+    return head >= cancellableAt ? closed('offer-open') : closed('offer-irrevocable', cancellableAt - head)
+  }
+
   const renew = (): Gate =>
     // Anyone may renew, in term or in grace (§6 `N`); the record must exist.
     view.kind === 'registered' || view.kind === 'grace' ? open : closed('no-record')
@@ -248,7 +269,7 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
     register: register(),
     setTarget: ownerGate(),
     setEvm: ownerGate(),
-    transfer: unlessAuction(ownerGate()),
+    transfer: transfer(),
     delegate: ownerGate(),
     cancel: cancel(),
     renew: renew(),
