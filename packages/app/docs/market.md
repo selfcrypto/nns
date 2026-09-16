@@ -1,6 +1,6 @@
 # Market
 
-Every name for sale and every running auction, in one list. Filter by name, or by *Buy Now* and *Auctions*. Each listing shows the name, the price or the standing bid, the seller, and when it ends. Tapping one opens the name's card, with its address and verification line, above the form.
+Every name for sale and every running auction, in one list. Filter by name, or by *Buy Now* and *Auctions*. Each listing shows the name, the price or the standing bid, the seller, and when it ends. Tapping one opens the purchase form under the listing.
 
 ## Buying at a fixed price
 

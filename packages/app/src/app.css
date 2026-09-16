@@ -4201,10 +4201,6 @@ li.note {
 
 /* Market: the name's proof above the buy/bid sheet — the same three lines the
    Buy card shows, so nobody pays for a name they have not seen verified. */
-.market-proof {
-  padding: 4px 4px 12px;
-}
-
 /* The trust bar under every screen's panel (components/TrustBar.tsx). */
 /* The paste button inside a search field (`components/PasteButton.tsx`).
    Global, like `.trust-*` below: one button sits in three fields that each

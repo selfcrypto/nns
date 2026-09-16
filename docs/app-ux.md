@@ -210,11 +210,15 @@ since r28, auction rows (name with an *Auction* badge, the standing bid or
 the starting price, "No bids yet" or the highest bid, the minimum next bid, seller,
 "ends ≈ date") in one list — a buyer is looking for a name, not a mechanism.
 *Buy* or *Bid* opens the `B` sheet (§5) under the listing — never both,
-because state decides which a `B` is — with the name's proof above it: the
-address and the verification line, so nobody pays for a name they have not
-seen verified. **Not the pin check** — §8.5 guards a payment to a resolved
-address, and a `B` pays the marketplace escrow (decisions.md, "The pin check
-belongs on a payment to a resolved address, not on a purchase"). The
+because state decides which a `B` is. **Nothing sits above the form**: the
+resolve still runs and still gates the sale — a quorum that disagrees comes
+back as `alarm` and the sheet refuses to open — but it gets no address row and
+no badge, because what it proves is the name's *target* and the listing's
+question is who owns it (decisions.md, "A verification badge belongs on the
+answer it verifies"). The §8.5 pin check left the same day, for its own
+reason: a `B` pays the marketplace escrow, not a resolved address
+(decisions.md, "The pin check belongs on a payment to a resolved address, not
+on a purchase"). The
 custodial disclosure rides on the listing as well, and the §10.2 burn
 figures (`components/BurnFigures.tsx`) sit under it — Market is the app
 path's home for them, from when Pay never opened the landing page. It does

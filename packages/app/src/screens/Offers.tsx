@@ -2,14 +2,22 @@
  * **Market** — every name for sale: open offers (`O`) and open auctions
  * (`A`, r28) in one list, a buyer looking for a name rather than a mechanism.
  * *Buy* or *Bid* opens the sheet under the listing — never both, because
- * state decides which a `B` is (§6 `A`) — with the name's proof above it: the
- * address and the verification line the Buy card shows, so nobody pays for a
- * name they have not seen verified. **No pin check**: a `B` pays the
- * marketplace escrow, not the resolved address, so §8.5's guard has nothing to
- * guard here and pinning the seller's target would be a lie about a name that
- * is changing hands (decisions.md, "The pin check belongs on a payment to a
- * resolved address, not on a purchase"). Each list renders dates off
- * its own height, because the two endpoints answer from different blocks.
+ * state decides which a `B` is (§6 `A`).
+ *
+ * **The sheet shows no resolved address and no verification badge**, and the
+ * resolve still runs: `search()` gates the sale, because a quorum that does
+ * not agree comes back as `alarm` and the sheet refuses to open a form. What
+ * it proves is the name's *target* — the address the seller points the name
+ * at, which the buyer overwrites the moment they own it — and the leaf's
+ * `owner` is not in the agreement key, so the badge never spoke to the one
+ * question a buyer has: does the seller own this. Rendering it beside
+ * *Sold by* printed one address twice, that being the ordinary case of an
+ * owner pointing a name at themself (Kike, 2026-09-16; decisions.md, "A
+ * verification badge belongs on the answer it verifies"). The §8.5 pin check
+ * left for its own reasons the same day.
+ *
+ * Each list renders dates off its own height, because the two endpoints
+ * answer from different blocks.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -23,7 +31,6 @@ import type { Wallet } from '../lib/wallet'
 import { ActionSheet } from '../components/ActionSheet'
 import { BurnFigures } from '../components/BurnFigures'
 import { Hint } from '../components/Hint'
-import { AnswerBlock } from '../components/result'
 import {
   MARKET_FILTER,
   SCREEN_SUB,
@@ -149,26 +156,21 @@ function MarketActionSheetWrapper({
     )
   }
 
-  const { result, info } = outcome.value
+  const { info } = outcome.value
   const viewers = wallet.identity.addresses
   const signer = signerFor(action, nameView(name, info, 'registered'), viewers) ?? viewers[0] ?? ''
 
   return (
-    <>
-      <div className="market-proof">
-        <AnswerBlock result={result} />
-      </div>
-      <ActionSheet
-        action={action}
-        name={name}
-        info={info}
-        signer={signer}
-        viewers={viewers}
-        wallet={wallet}
-        onChanged={onChanged}
-        onClose={onClose}
-      />
-    </>
+    <ActionSheet
+      action={action}
+      name={name}
+      info={info}
+      signer={signer}
+      viewers={viewers}
+      wallet={wallet}
+      onChanged={onChanged}
+      onClose={onClose}
+    />
   )
 }
 
