@@ -1,3 +1,4 @@
+import { globSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { checkAndPin, memoryPinStore, overridePin, type PinStore } from './pinning'
 
@@ -55,5 +56,30 @@ describe('checkAndPin (app-states.md §2)', () => {
       put: () => Promise.reject(new Error('quota')),
     }
     expect(await checkAndPin(readOnly, 'example', A, 1_000)).toEqual({ kind: 'first-use' })
+  })
+})
+
+/**
+ * §8.5's pin answers one question — is this the address this name pointed to
+ * the last time I paid it — and `checkAndPin` *writes*, so rendering it
+ * anywhere else does not merely say something irrelevant, it pins a mapping
+ * the user never used. The Market sheet carried it until 2026-09-16, where a
+ * `B` pays the marketplace escrow: the note read "first time you've used this
+ * name on this device" to somebody buying the name, and the pin it left on the
+ * seller's address turned the buyer's own first repoint into the alarm tier.
+ * There are no component tests here (vitest is `node`, `src/**\/*.test.ts`), so
+ * the guard is on the import graph.
+ */
+describe('PinCheck is mounted only where a payment goes to the resolved address', () => {
+  const ALLOWED = ['components/NameCard.tsx', 'components/PinCheck.tsx', 'screens/Pay.tsx']
+
+  it('has exactly the expected importers', () => {
+    const root = new URL('..', import.meta.url)
+    const importers = globSync('**/*.{ts,tsx}', { cwd: root })
+      .filter((file) => !file.includes('.test.'))
+      .filter((file) => /\bPinCheck\b/.test(readFileSync(new URL(file, root), 'utf8')))
+      .map((file) => file.replaceAll('\\', '/'))
+      .sort()
+    expect(importers).toEqual(ALLOWED)
   })
 })

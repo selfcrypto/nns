@@ -3,8 +3,12 @@
  * (`A`, r28) in one list, a buyer looking for a name rather than a mechanism.
  * *Buy* or *Bid* opens the sheet under the listing — never both, because
  * state decides which a `B` is (§6 `A`) — with the name's proof above it: the
- * same address, verification line and pin check the Buy card shows, so nobody
- * pays for a name they have not seen verified. Each list renders dates off
+ * address and the verification line the Buy card shows, so nobody pays for a
+ * name they have not seen verified. **No pin check**: a `B` pays the
+ * marketplace escrow, not the resolved address, so §8.5's guard has nothing to
+ * guard here and pinning the seller's target would be a lie about a name that
+ * is changing hands (decisions.md, "The pin check belongs on a payment to a
+ * resolved address, not on a purchase"). Each list renders dates off
  * its own height, because the two endpoints answer from different blocks.
  */
 
@@ -19,7 +23,6 @@ import type { Wallet } from '../lib/wallet'
 import { ActionSheet } from '../components/ActionSheet'
 import { BurnFigures } from '../components/BurnFigures'
 import { Hint } from '../components/Hint'
-import { PinCheck } from '../components/PinCheck'
 import { AnswerBlock } from '../components/result'
 import {
   MARKET_FILTER,
@@ -153,7 +156,6 @@ function MarketActionSheetWrapper({
   return (
     <>
       <div className="market-proof">
-        <PinCheck query={result.query} address={result.address} />
         <AnswerBlock result={result} />
       </div>
       <ActionSheet

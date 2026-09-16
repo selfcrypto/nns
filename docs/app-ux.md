@@ -211,8 +211,10 @@ the starting price, "No bids yet" or the highest bid, the minimum next bid, sell
 "ends ≈ date") in one list — a buyer is looking for a name, not a mechanism.
 *Buy* or *Bid* opens the `B` sheet (§5) under the listing — never both,
 because state decides which a `B` is — with the name's proof above it: the
-address, the verification line and the pin check, the same three the Buy
-card shows, so nobody pays for a name they have not seen verified. The
+address and the verification line, so nobody pays for a name they have not
+seen verified. **Not the pin check** — §8.5 guards a payment to a resolved
+address, and a `B` pays the marketplace escrow (decisions.md, "The pin check
+belongs on a payment to a resolved address, not on a purchase"). The
 custodial disclosure rides on the listing as well, and the §10.2 burn
 figures (`components/BurnFigures.tsx`) sit under it — Market is the app
 path's home for them, from when Pay never opened the landing page. It does
