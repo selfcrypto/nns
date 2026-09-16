@@ -65,7 +65,7 @@ It is the base layer of the resolver stack, not a deployment choice.
 
 **The relay belongs to whoever hosts the app.** It exists because a browser
 cannot call an authenticated node with no CORS headers: it holds the node's
-credential and forwards five allowlisted methods. No partner needs it, and
+credential and forwards six allowlisted methods. No partner needs it, and
 bundling it would hand them a credential-holding proxy they have no use for.
 Nothing a partner can run holds a key of any kind.
 
