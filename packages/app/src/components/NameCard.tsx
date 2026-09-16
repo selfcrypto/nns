@@ -26,10 +26,10 @@ import type { Wallet } from '../lib/wallet'
 import { IdentityBar } from './IdentityBar'
 import {
   ACTION_LABEL,
-  GATE_REASON_TEXT,
   OWNER_GROUP_TITLE,
   OWNER_TILE,
   SHARE_TILE,
+  gateReasonLine,
   ownerShareLine,
   referralsCountLine,
   shareCopiedLine,
@@ -459,7 +459,7 @@ function Actions({
                         <span className="owner-action-name">{meta.title}</span>
                         <span className="owner-action-meta">
                           {!usable && gate.reason !== null
-                            ? GATE_REASON_TEXT[gate.reason]
+                            ? gateReasonLine(gate.reason, gate.blocksLeft)
                             : !usable && offerConnect
                               ? connectWalletHint()
                               : meta.subtitle}
@@ -599,7 +599,7 @@ function Actions({
                     placement="empty"
                   />
                 ) : (
-                  <span className="action-state">{gate.reason !== null ? GATE_REASON_TEXT[gate.reason] : GATE_REASON_TEXT['no-viewer']}</span>
+                  <span className="action-state">{gateReasonLine(gate.reason ?? 'no-viewer', gate.blocksLeft)}</span>
                 )}
               </div>
             )}

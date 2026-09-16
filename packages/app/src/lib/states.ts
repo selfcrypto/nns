@@ -126,10 +126,19 @@ export type GateReason =
 export interface Gate {
   readonly enabled: boolean
   readonly reason: GateReason | null
+  /**
+   * Blocks until this refusal lifts by itself, `null` when it never does.
+   * `not-owner` and `no-record` are answers; `offer-irrevocable` is a wait,
+   * and a wait the user can only guess at is the one number the tile owes
+   * them (Kike, 2026-09-15, on the transfer's cancel tile; again 2026-09-16
+   * on this one, where a tempo era's 300 blocks made it acute).
+   */
+  readonly blocksLeft: number | null
 }
 
-const open: Gate = { enabled: true, reason: null }
-const closed = (reason: GateReason): Gate => ({ enabled: false, reason })
+const open: Gate = { enabled: true, reason: null, blocksLeft: null }
+const closed = (reason: GateReason, blocksLeft: number | null = null): Gate =>
+  ({ enabled: false, reason, blocksLeft })
 
 export function sameAddress(a: string, b: string): boolean {
   const left = tryParseAddress(a)
@@ -200,7 +209,8 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
     if (pending?.auction) return closed('auction-open')
     if (pending?.transfer) return open
     if (pending?.offer) {
-      return head >= offerCancellableAt(pending.offer.openedHeight) ? open : closed('offer-irrevocable')
+      const cancellableAt = offerCancellableAt(pending.offer.openedHeight)
+      return head >= cancellableAt ? open : closed('offer-irrevocable', cancellableAt - head)
     }
     return closed('nothing-to-cancel')
   }

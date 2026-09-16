@@ -77,12 +77,14 @@ describe('nameView (app-states.md §1)', () => {
     expect(actionGates({ view: nameView('example', null, 'registered'), viewers: [OWNER], head: 0 }).register).toEqual({
       enabled: false,
       reason: 'taken',
+      // A refusal that never lifts carries no countdown.
+      blocksLeft: null,
     })
   })
 
   it('a registered name with no record in hand refuses owner actions as unknown, not as unregistered', () => {
     const gates = actionGates({ view: nameView('example', null, 'registered'), viewers: [OWNER], head: 0 })
-    expect(gates.setTarget).toEqual({ enabled: false, reason: 'state-unknown' })
+    expect(gates.setTarget).toEqual({ enabled: false, reason: 'state-unknown', blocksLeft: null })
     expect(gates.transfer.reason).toBe('state-unknown')
   })
 
@@ -216,9 +218,16 @@ describe('actionGates (app-states.md §4)', () => {
     const before = actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: boundary - 1 })
     expect(before.cancel.enabled).toBe(false)
     expect(before.cancel.reason).toBe('offer-irrevocable')
+    // The wait, so the tile can say it rather than leave the owner guessing.
+    expect(before.cancel.blocksLeft).toBe(1)
+
+    const midway = actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: opened })
+    expect(midway.cancel.blocksLeft).toBe(CONSTANTS.OFFER_IRREVOCABLE)
 
     const at = actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: boundary })
     expect(at.cancel.enabled).toBe(true)
+    // An open gate has nothing to count down to.
+    expect(at.cancel.blocksLeft).toBeNull()
   })
 
   it('K is legal on a pending transfer even while the offer beside it is irrevocable', () => {

@@ -98,7 +98,7 @@
     <string id="GATE_REASON_TEXT.no-viewer">Connect a wallet to act on names.</string>
     <string id="GATE_REASON_TEXT.not-owner">Only the owner can do this.</string>
     <string id="GATE_REASON_TEXT.nothing-to-cancel">Nothing is pending on this name.</string>
-    <string id="GATE_REASON_TEXT.offer-irrevocable">The sale is in its irrevocable window.</string>
+    <string id="GATE_REASON_TEXT.offer-irrevocable">A new sale can’t be cancelled for its first ~2.4 h.</string>
     <string id="GATE_REASON_TEXT.offer-open">This name is already for sale. Cancel that first.</string>
     <string id="GATE_REASON_TEXT.reserved">Reserved names can’t be registered.</string>
     <string id="GATE_REASON_TEXT.state-unknown">Couldn’t read this name’s record. Try again.</string>
@@ -405,6 +405,7 @@
     <string id="submittingLabel">Submitting…</string>
     <string id="confirmingLabel">Confirming…</string>
     <string id="toLabel">To:</string>
+    <string id="forSaleLabel">For Sale</string>
     <string id="buyNowLabel">Buy Now</string>
     <string id="placeBidLabel">Place Bid</string>
     <string id="liveAuctionLabel">Live Auction</string>
@@ -422,7 +423,7 @@
     <string id="marketFilterAria">Filter names for sale</string>
     <string id="MARKET_FILTER.all">All</string>
     <string id="MARKET_FILTER.auctions">Auctions</string>
-    <string id="MARKET_FILTER.offers">Buy Now</string>
+    <string id="MARKET_FILTER.offers">For Sale</string>
     <string id="marketNoMatchTitle">No matching names</string>
     <string id="marketNoMatchLine" params="query filter">No names matched “{query}” under {filter}.</string>
     <string id="balanceLabel">Balance:</string>

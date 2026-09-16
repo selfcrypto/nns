@@ -209,6 +209,12 @@ revocation to wrap.
 since r28, auction rows (name with an *Auction* badge, the standing bid or
 the starting price, "No bids yet" or the highest bid, the minimum next bid, seller,
 "ends ≈ date") in one list — a buyer is looking for a name, not a mechanism.
+**A row's pill names its kind and its button names the action** — *For Sale* /
+*Buy Now*, *Live Auction* / *Place Bid* — because both halves of the offer row
+read "Buy Now" until 2026-09-16 (Kike: *"those repeated Buy Now doing the same
+are weird"*), which also put a `<button>` inside a `div[role="button"]` doing
+the same thing; the wrapper is a pointer convenience now and the button is the
+control.
 *Buy* or *Bid* opens the `B` sheet (§5) under the listing — never both,
 because state decides which a `B` is. **Nothing sits above the form**: the
 resolve still runs and still gates the sale — a quorum that disagrees comes

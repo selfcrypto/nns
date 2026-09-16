@@ -16,7 +16,7 @@ import type { AppAction, Cancellable, GateReason } from './states'
 import type { QueryFault } from './search'
 import type { PayMessageFault } from './payRequest'
 import { CONSTANTS, type LabelInvalidReason, type NameInvalidReason } from '@nimiqnames/core'
-import { blocksApprox, lunaToNim } from './format'
+import { blocksApprox, formatApproxIn, lunaToNim } from './format'
 
 // ── The site's own name ─────────────────────────────────────────────────────
 
@@ -456,7 +456,7 @@ export const GATE_REASON_TEXT: Record<GateReason, string> = {
   'no-viewer': 'Connect a wallet to act on names.',
   'not-owner': 'Only the owner can do this.',
   'nothing-to-cancel': 'Nothing is pending on this name.',
-  'offer-irrevocable': 'The sale is in its irrevocable window.',
+  'offer-irrevocable': `A new sale can’t be cancelled for its first ${blocksApprox(CONSTANTS.OFFER_IRREVOCABLE)}.`,
   'offer-open': 'This name is already for sale. Cancel that first.',
   'no-offer': 'This name is not for sale.',
   // One short line, because it appears on up to four rows at once — the
@@ -465,6 +465,22 @@ export const GATE_REASON_TEXT: Record<GateReason, string> = {
   'no-auction': 'This name is not up for auction.',
   'state-unknown': 'Couldn’t read this name’s record. Try again.',
 }
+
+/**
+ * A disabled action's line — the refusal, and **when it lifts** where it lifts
+ * on its own.
+ *
+ * `GATE_REASON_TEXT` alone states a rule; a user staring at a greyed tile wants
+ * the wait. *"The sale is in its irrevocable window"* was true, unactionable
+ * and jargon: §6 `O`'s lock is 300 blocks in a tempo era and 8,640 on mainnet,
+ * so the same sentence covers two minutes and two and a half hours and never
+ * says which (Kike, 2026-09-16). The remaining blocks come off the gate, so the
+ * number is the live one rather than the window's length.
+ */
+export const gateReasonLine = (reason: GateReason, blocksLeft: number | null): string =>
+  reason === 'offer-irrevocable' && blocksLeft !== null && blocksLeft > 0
+    ? `You can take this off sale ${formatApproxIn(blocksLeft)}.`
+    : GATE_REASON_TEXT[reason]
 
 // ── Input validation (§4.1 in plain words, field-level) ────────────────────
 
@@ -1742,6 +1758,16 @@ export const confirmingLabel = (): string => 'Confirming…'
 export const toLabel = (): string => 'To:'
 
 // Market.
+/**
+ * A listing's **kind**, beside the name; `buyNowLabel` is the **action**, on
+ * the button. The two were both "Buy Now", which printed one phrase twice on
+ * every offer card while the auction card beside it read *Live Auction* /
+ * *Place Bid* and did not (Kike, 2026-09-16). "For Sale" is the word the rest
+ * of the app already uses for a fixed-price listing — `Cancel Sale`, *take it
+ * off sale*, *This name is not for sale* — so the pill, the filter tab and
+ * every sentence elsewhere now agree.
+ */
+export const forSaleLabel = (): string => 'For Sale'
 export const buyNowLabel = (): string => 'Buy Now'
 export const placeBidLabel = (): string => 'Place Bid'
 export const liveAuctionLabel = (): string => 'Live Auction'
@@ -1757,7 +1783,7 @@ export const connectToBidLine = (name: string): string => `Connect your wallet t
 export const saleLoadFailedLine = (name: string): string => `Couldn’t load details for ${name}. Try again.`
 export const marketFilterPlaceholder = (): string => 'Filter by name…'
 export const marketFilterAria = (): string => 'Filter names for sale'
-export const MARKET_FILTER: Record<'all' | 'offers' | 'auctions', string> = { all: 'All', offers: 'Buy Now', auctions: 'Auctions' }
+export const MARKET_FILTER: Record<'all' | 'offers' | 'auctions', string> = { all: 'All', offers: forSaleLabel(), auctions: 'Auctions' }
 export const marketNoMatchTitle = (): string => 'No matching names'
 /** `filter` is the active pill's label, or null under "All". */
 export const marketNoMatchLine = (query: string, filter: string | null): string =>

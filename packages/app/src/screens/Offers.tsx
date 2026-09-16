@@ -48,6 +48,7 @@ import {
   marketCustodialLine,
   expiryUntilLine,
   fixedPriceLabel,
+  forSaleLabel,
   listedByLabel,
   saleLoadFailedLine,
   liveAuctionLabel,
@@ -217,7 +218,9 @@ function OfferCard({
 
   return (
     <li ref={cardRef} className={`${styles.marketCard} ${isOpen ? styles.marketCardOpen : ''}`}>
-      <div className={styles.cardTrigger} onClick={onToggle} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onToggle() }}>
+      {/* Pointer convenience only: the button below is the control, and a
+          <button> inside a div[role="button"] is a nested one. */}
+      <div className={styles.cardTrigger} onClick={onToggle}>
         <div className={styles.cardHeader}>
           <div className={styles.cardNameArea}>
             <Identicon address={offer.seller} size={28} />
@@ -227,7 +230,7 @@ function OfferCard({
           </div>
           <span className={styles.tagSale}>
             <span className={styles.statusDot} aria-hidden="true" />
-            {buyNowLabel()}
+            {forSaleLabel()}
           </span>
         </div>
 
@@ -297,7 +300,9 @@ function AuctionCard({
 
   return (
     <li ref={cardRef} className={`${styles.marketCard} ${isOpen ? styles.marketCardOpen : ''}`}>
-      <div className={styles.cardTrigger} onClick={onToggle} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onToggle() }}>
+      {/* Pointer convenience only: the button below is the control, and a
+          <button> inside a div[role="button"] is a nested one. */}
+      <div className={styles.cardTrigger} onClick={onToggle}>
         <div className={styles.cardHeader}>
           <div className={styles.cardNameArea}>
             <Identicon address={auction.seller} size={28} />

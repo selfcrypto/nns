@@ -12,7 +12,14 @@ import {
   ACTION_LABEL,
   cancelHint,
   cancelLabel,
+  buyNowLabel,
   cancelTitle,
+  forSaleLabel,
+  gateReasonLine,
+  liveAuctionLabel,
+  MARKET_FILTER,
+  placeBidLabel,
+  GATE_REASON_TEXT,
   offerStaysLine,
   sheetActionLabel,
   sheetDismissLabel,
@@ -432,6 +439,27 @@ describe('a `K` is named by what it will clear (§6 `K`)', () => {
     // Both, and the empty set an open auction leaves behind: neither is a listing alone.
     expect(cancelTitle({ transfer: true, offer: true })).toBe('Cancel Pending')
     expect(cancelTitle({ transfer: false, offer: false })).toBe('Cancel Pending')
+  })
+
+  it('a listing names its kind and its action with different words', () => {
+    // One card carries both. They were both "Buy Now", so an offer card said
+    // it twice while the auction card beside it read Live Auction / Place Bid.
+    expect(forSaleLabel()).not.toBe(buyNowLabel())
+    expect(liveAuctionLabel()).not.toBe(placeBidLabel())
+    // The filter tab names the kind it filters to, not the action it leads to.
+    expect(MARKET_FILTER.offers).toBe(forSaleLabel())
+  })
+
+  it('a refusal that lifts on its own says when, in the live era', () => {
+    // Never a spelling: `~2 min` is right in a tempo era and wrong on mainnet,
+    // and pinning either is the hardcoded-duration bug written into a test.
+    expect(gateReasonLine('offer-irrevocable', 121)).toBe(`You can take this off sale in ${blocksApprox(121)}.`)
+    // No jargon: the owner is told what to do and when, not what §6 calls it.
+    expect(gateReasonLine('offer-irrevocable', 121)).not.toMatch(/irrevocable/i)
+    // A refusal that never lifts is stated, not counted down.
+    expect(gateReasonLine('not-owner', null)).toBe(GATE_REASON_TEXT['not-owner'])
+    // The fallback states the rule from the constant, so it is right per era too.
+    expect(GATE_REASON_TEXT['offer-irrevocable']).toContain(blocksApprox(CONSTANTS.OFFER_IRREVOCABLE))
   })
 
   it('names the sheet with the same words as the tile, and its dismiss with different ones', () => {
