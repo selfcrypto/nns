@@ -1419,38 +1419,6 @@ export const eraNoticeHint = (blocks: number = CONSTANTS.TERM_LENGTH): string =>
   `a lifetime about ${periodApprox(blocks * CONSTANTS.LIFETIME_TERMS)} instead of ${CONSTANTS.LIFETIME_TERMS} years, and prices are set for testing. ` +
   `Nothing registered here carries over. The registry starts again at launch.`
 
-// ── The chain readout (the same strip, on mainnet too) ─────────────────────
-
-/**
- * The chain's height. "Height", not "Current block": a block is the thing,
- * the height is the number, and the strip is showing the number (Kike,
- * 2026-09-16).
- */
-export const chainHeightLabel = (): string => 'Height'
-
-/** The height the registry has verified — always at or behind the chain's. */
-export const registryHeightLabel = (): string => 'Registry'
-
-/**
- * Behind the readout's "?": what the two numbers are and why they differ.
- *
- * The gap is the whole point of showing them. A person who has just sent a
- * registration is watching a spinner for up to a minute, and this is the
- * sentence that makes that minute legible instead of suspicious — the wait
- * is a property of how the chain finalises, not of anything going wrong.
- *
- * The batch size is not typed here. It is derived from the gap the strip is
- * already rendering, so this sentence cannot drift from what is on screen.
- */
-export const chainReadoutHint = (): string =>
-  'The chain’s height, and the height the registry has checked. ' +
-  'The registry only counts blocks the network has finalised, which happens once a batch. ' +
-  'It trails the head, catches up in one jump, and a name appears the moment it does.'
-
-/** The lag, in blocks, as a line. Plural handled; zero is its own sentence. */
-export const registryLagLine = (blocks: number): string =>
-  blocks === 0 ? 'up to date' : `${blocks} ${blocks === 1 ? 'block' : 'blocks'} behind`
-
 // ── The landing page (a browser's front door; Pay opens on Buy) ─────────────
 
 /**
