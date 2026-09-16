@@ -212,9 +212,9 @@ the starting price, "No bids yet" or the highest bid, the minimum next bid, sell
 **A row's pill names its kind and its button names the action** — *For Sale* /
 *Buy Now*, *Live Auction* / *Place Bid* — because both halves of the offer row
 read "Buy Now" until 2026-09-16 (Kike: *"those repeated Buy Now doing the same
-are weird"*), which also put a `<button>` inside a `div[role="button"]` doing
-the same thing; the wrapper is a pointer convenience now and the button is the
-control.
+are weird"*). **A card has one control, the CTA**: the face carried the
+`onClick` too, which made the status pill pressable and gave every card two
+ways to do one thing. It is a plain `div` now, so the pill is a tag.
 *Buy* or *Bid* opens the `B` sheet (§5) under the listing — never both,
 because state decides which a `B` is. **Nothing sits above the form**: the
 resolve still runs and still gates the sale — a quorum that disagrees comes

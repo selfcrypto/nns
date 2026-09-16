@@ -218,9 +218,8 @@ function OfferCard({
 
   return (
     <li ref={cardRef} className={`${styles.marketCard} ${isOpen ? styles.marketCardOpen : ''}`}>
-      {/* Pointer convenience only: the button below is the control, and a
-          <button> inside a div[role="button"] is a nested one. */}
-      <div className={styles.cardTrigger} onClick={onToggle}>
+      {/* Not a control. One card, one button — see the CTA below. */}
+      <div className={styles.cardBody}>
         <div className={styles.cardHeader}>
           <div className={styles.cardNameArea}>
             <Identicon address={offer.seller} size={28} />
@@ -245,10 +244,7 @@ function OfferCard({
           <button
             type="button"
             className={`${styles.cardActionBtn} ${isOpen ? styles.cardActionBtnOpen : ''}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggle()
-            }}
+            onClick={onToggle}
           >
             {isOpen ? closeLabel() : buyNowLabel()}
             {!isOpen && <ArrowRightIcon />}
@@ -300,9 +296,8 @@ function AuctionCard({
 
   return (
     <li ref={cardRef} className={`${styles.marketCard} ${isOpen ? styles.marketCardOpen : ''}`}>
-      {/* Pointer convenience only: the button below is the control, and a
-          <button> inside a div[role="button"] is a nested one. */}
-      <div className={styles.cardTrigger} onClick={onToggle}>
+      {/* Not a control. One card, one button — see the CTA below. */}
+      <div className={styles.cardBody}>
         <div className={styles.cardHeader}>
           <div className={styles.cardNameArea}>
             <Identicon address={auction.seller} size={28} />
@@ -330,10 +325,7 @@ function AuctionCard({
           <button
             type="button"
             className={`${styles.cardActionBtn} ${isOpen ? styles.cardActionBtnOpen : ''}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggle()
-            }}
+            onClick={onToggle}
           >
             {isOpen ? closeLabel() : placeBidLabel()}
             {!isOpen && <ArrowRightIcon />}

@@ -327,24 +327,19 @@
 }
 
 /* Card Main Button/Trigger */
-.cardTrigger {
-  appearance: none;
-  background: transparent;
-  border: none;
+/*
+ * The card's face. **Not a control**: it carried `onClick` and `cursor:
+ * pointer` until 2026-09-16, which made the status pill inside it pressable
+ * and gave every card two ways to do one thing (Kike: "both buttons still do
+ * the same"). The CTA below is the only control on a card.
+ */
+.cardBody {
   width: 100%;
   padding: 18px 20px;
-  cursor: pointer;
-  font: inherit;
-  color: inherit;
-  text-align: left;
   display: flex;
   flex-direction: column;
   gap: 14px;
   transition: background 0.15s ease;
-}
-
-.cardTrigger:hover {
-  background: rgba(var(--tint-ink), 0.01);
 }
 
 /* Card Header: Name + Badge */
