@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { CONSTANTS, LUNA_PER_NIM, parse, termFor } from '@nimiqnames/core'
 import { ActionInputError, parseAuctionDuration, parseNimAmount, prepareAction, type ActionInputs } from './actions'
 import type { ApiParams, NameInfo } from './api'
-import { blocksApprox, formatApproxDate } from './format'
-import { PRICE_UNCHANGED, termChoiceLabel, transferMovesLine } from './wording'
+import { blocksApprox, formatApproxDate, lunaToNim } from './format'
+import { PRICE_UNCHANGED, offerRepricesLine, termChoiceLabel, transferMovesLine, transferReplacesLine } from './wording'
 
 const OWNER = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
 const OTHER = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
@@ -202,6 +202,18 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
       offer: { name: 'example', seller: OWNER, price: 45_050_000n, openedHeight: 1, expiryHeight: 2_000_000 },
     })
     expect(() => prepare({ action: 'buy' }, withOffer, OWNER)).toThrow(ActionInputError)
+  })
+
+  it('a transfer on a transferring name says what it replaces (§7.3)', () => {
+    const pending = registered({ transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 } })
+    const prepared = prepare({ action: 'transfer', newOwner: 'NQ19 KSMT HHEJ TYNF J1GK 40NK LHSL C5P7 P24M' }, pending)
+    expect(prepared.review[0]).toBe(transferReplacesLine(OTHER, blocksApprox(CONSTANTS.XFER_TIMELOCK)))
+  })
+
+  it('a listing on a listed name says it reprices (§7.3)', () => {
+    const listed = registered({ offer: { name: 'example', seller: OWNER, price: 45_050_000n, openedHeight: 1, expiryHeight: 2_000_000 } })
+    const prepared = prepare({ action: 'offer', priceNim: '500' }, listed)
+    expect(prepared.review[0]).toBe(offerRepricesLine('example', lunaToNim(45_050_000n), '500'))
   })
 
   it('cancel review names the one thing the K clears: a transfer', () => {

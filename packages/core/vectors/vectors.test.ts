@@ -640,11 +640,11 @@ describe('vectors/reduce.json', () => {
         G: 5, // §7.4's fixed five-check order, four adjacent pairs plus grace
         S: 1,
         E: 2, // r26: recipient before state (pinned), state before sender (free, like S)
-        X: 4, // r28: NOT_OWNER before AUCTION_OPEN; r30: and before OFFER_OPEN and TRANSFER_PENDING
+        X: 3, // r28: NOT_OWNER before AUCTION_OPEN; r30: and before OFFER_OPEN (a second X replaces, so no TRANSFER_PENDING row)
         D: 3,
         K: 3,
         N: 2,
-        O: 5, // r28: NOT_OWNER before AUCTION_OPEN; r30: and before OFFER_OPEN and TRANSFER_PENDING
+        O: 4, // r28: NOT_OWNER before AUCTION_OPEN; r30: and before TRANSFER_PENDING (a second O replaces, so no OFFER_OPEN row)
         B: 3,
         A: 8, // r28: routing, name state, sender, AUCTION_OPEN, floor, notice, term (2026-09-03) — the version forfeit is gone; r30: OFFER_OPEN and TRANSFER_PENDING beside AUCTION_OPEN
         P: 3,
@@ -669,14 +669,15 @@ describe('vectors/reduce.json', () => {
       // 2026-09-11 widened `U` awards past the reserved set: the award's last
       // row is `NAME_NOT_AVAILABLE`, and one pinned row orders it behind the
       // name syntax as the release's twin does. r30 made the three pending
-      // states exclusive with every opener — one pending thing per name —
-      // which is nine (type × standing state) rows, each pinned against
-      // `NOT_OWNER` rather than against its siblings, which it can never
-      // co-occur with: three were r28's, six are r30's.
+      // states exclusive with every opener of another kind — one pending
+      // thing per name, the same kind replacing it — which is seven
+      // (type × standing state) rows, each pinned against `NOT_OWNER` rather
+      // than against its siblings, which it can never co-occur with: three
+      // were r28's, four are r30's.
       const cases = section.cases as any[]
       const pinned = cases.filter((c) => c.pinnedBy !== null)
       const free = cases.filter((c) => c.pinnedBy === null)
-      expect(pinned).toHaveLength(31)
+      expect(pinned).toHaveLength(29)
       expect(free).toHaveLength(19)
       for (const testCase of cases) {
         expect(typeof testCase.note, `${testCase.id} needs a note`).toBe('string')

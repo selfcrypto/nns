@@ -231,7 +231,7 @@ describe('actionGates (app-states.md §4)', () => {
     expect(gates.cancel.reason).toBe('nothing-to-cancel')
   })
 
-  it('O needs the owner and no open offer; a second O is offer-open, not a send', () => {
+  it('O needs the owner; on a listed name it stays open, because a second O reprices (§7.3)', () => {
     const withOffer = registered({
       pending: {
         transfer: null,
@@ -240,7 +240,8 @@ describe('actionGates (app-states.md §4)', () => {
       },
     })
     expect(actionGates({ view: nameView('a', registered(), 'available'), viewers: [OWNER], head: 0 }).offer.enabled).toBe(true)
-    expect(actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: 0 }).offer.reason).toBe('offer-open')
+    expect(actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OWNER], head: 0 }).offer.enabled).toBe(true)
+    expect(actionGates({ view: nameView('a', withOffer, 'available'), viewers: [OTHER], head: 0 }).offer.reason).toBe('not-owner')
   })
 
   it('B needs an open, unexpired offer', () => {
@@ -308,15 +309,19 @@ describe('actionGates (app-states.md §4)', () => {
     const openers = ['transfer', 'offer', 'auction'] as const
 
     for (const stands of standing) {
-      it(`with a ${stands.kind} pending, Transfer, Sell and Auction all close on ${stands.reason}`, () => {
+      it(`with a ${stands.kind} pending, the other kinds close on ${stands.reason} and the same kind stays open to replace it`, () => {
         const gates = actionGates({ view: nameView('a', stands.info, 'available'), viewers: [OWNER], head: HEAD + 1 })
-        for (const tile of openers) expect(gates[tile], tile).toEqual({ enabled: false, reason: stands.reason })
+        const own: (typeof openers)[number] | null = stands.kind === 'transfer' ? 'transfer' : stands.kind === 'sale' ? 'offer' : null
+        for (const tile of openers) {
+          if (tile === own) expect(gates[tile], tile).toEqual({ enabled: true, reason: null })
+          else expect(gates[tile], tile).toEqual({ enabled: false, reason: stands.reason })
+        }
         // The owner keeps the record: `S`, `E`, `D` and `N` are unaffected.
         expect(gates.setTarget.enabled).toBe(true)
         expect(gates.renew.enabled).toBe(true)
       })
 
-      it(`with a ${stands.kind} pending, a stranger is told they are a stranger`, () => {
+      it(`with a ${stands.kind} pending, a stranger is told they are a stranger, own kind included`, () => {
         const gates = actionGates({ view: nameView('a', stands.info, 'available'), viewers: [OTHER], head: HEAD + 1 })
         for (const tile of openers) expect(gates[tile].reason, tile).toBe('not-owner')
       })

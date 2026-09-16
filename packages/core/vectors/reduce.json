@@ -1602,7 +1602,7 @@
     },
     {
       "id": "MIN_PRICE_moves_with_a_P_that_changes_FEE_BASE",
-      "note": "MIN_PRICE is defined as FEE_BASE, not as a luna amount, so a P that moves FEE_BASE moves the floor with it at its effective height. An implementation reading the launch constant instead of the active params passes every other vector here and diverges from this one. The `K` between the two listings is r30's one-pending-thing rule: a second `O` no longer reprices, so the first is withdrawn before the floor is probed again.",
+      "note": "MIN_PRICE is defined as FEE_BASE, not as a luna amount, so a P that moves FEE_BASE moves the floor with it at its effective height. An implementation reading the launch constant instead of the active params passes every other vector here and diverges from this one.",
       "steps": [
         {
           "tx": {
@@ -1638,19 +1638,6 @@
             "recipient": "TREASURY",
             "value": "1",
             "text": "NNS1Okikename|40000000"
-          },
-          "verdict": {
-            "kind": "OK"
-          }
-        },
-        {
-          "tx": {
-            "blockNumber": 58929119,
-            "txIndex": 1,
-            "sender": "ALICE",
-            "recipient": "PROTOCOL",
-            "value": "1",
-            "text": "NNS1Kkikename"
           },
           "verdict": {
             "kind": "OK"
@@ -2578,7 +2565,7 @@
     },
     {
       "id": "nothing_stacks_on_a_name",
-      "note": "§7.3 (r30): a name holds one pending thing — a transfer, a sale or an auction — and every opener refuses while any of the three stands, with the token naming what does. `kikename` goes in with a pending transfer, `othername` with a listing; the `A` over each forfeits and changes nothing, and the transfer still matures on its own clock. A `K` clears the transfer and the listing at once (no delay on either — `OFFER_IRREVOCABLE` left with this fold), after which the auctions open. While an auction is open `O`, `X` and a second `A` forfeit AUCTION_OPEN and `K` finds nothing to cancel (bids are commitments); `S` still works. A `B` is a bid exactly because an auction is open — exclusivity is what makes the same payload mean one thing.",
+      "note": "§7.3 (r30): a name holds one pending thing — a transfer, a sale or an auction — and a message of a different kind refuses while one stands, with the token naming what does (the same kind replaces it — see `the_same_kind_replaces_what_is_pending`). `kikename` goes in with a pending transfer, `othername` with a listing; the `A` over each forfeits and changes nothing, and the transfer still matures on its own clock. A `K` clears the transfer and the listing at once (no delay on either — `OFFER_IRREVOCABLE` left with this fold), after which the auctions open. While an auction is open `O`, `X` and a second `A` forfeit AUCTION_OPEN and `K` finds nothing to cancel (bids are commitments); `S` still works. A `B` is a bid exactly because an auction is open — exclusivity is what makes the same payload mean one thing.",
       "steps": [
         {
           "tx": {
@@ -2868,6 +2855,155 @@
           "kikename": "CAROL"
         },
         "logLines": 15
+      }
+    },
+    {
+      "id": "the_same_kind_replaces_what_is_pending",
+      "note": "§7.3 (r30): the same kind restates the intent and replaces it. A second `O` reprices — one pending offer, at the new price, with a fresh lifetime — and a `B` carrying the old price is refunded WRONG_PRICE, the ordinary exact-price rule. A second `X` retargets and restarts the timelock: the first never matures, the second does, on its own clock, and an implementation that keeps the first one's schedule hands the name to BOB at 58885921. Neither replacement earns a log line beyond its own `OK` and neither owes anything. An auction is the one kind never replaced (`nothing_stacks_on_a_name`, the second `A`).",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 58842720,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "200000000",
+            "text": "NNS1Gkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842721,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Okikename|100000000"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842722,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "TREASURY",
+            "value": "1",
+            "text": "NNS1Okikename|200000000"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "offers": {
+              "kikename": {
+                "seller": "ALICE",
+                "price": "200000000",
+                "openedHeight": 58842722
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842723,
+            "txIndex": 0,
+            "sender": "BOB",
+            "recipient": "MARKETPLACE",
+            "value": "100000000",
+            "text": "NNS1Bkikename"
+          },
+          "verdict": {
+            "kind": "REFUND",
+            "reason": "WRONG_PRICE"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842724,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Kkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842725,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Xkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 58842726,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Xkikename"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "transfers": {
+              "kikename": {
+                "newOwner": "CAROL",
+                "effectiveHeight": 58885926
+              }
+            },
+            "offers": {
+              "kikename": null
+            }
+          }
+        },
+        {
+          "advanceTo": 58885925
+        },
+        {
+          "check": {
+            "names": {
+              "kikename": {
+                "owner": "ALICE"
+              }
+            }
+          }
+        },
+        {
+          "advanceTo": 58885926
+        }
+      ],
+      "expect": {
+        "names": {
+          "kikename": {
+            "owner": "CAROL",
+            "target": "CAROL"
+          }
+        },
+        "resolves": {
+          "kikename": "CAROL"
+        },
+        "logLines": 7
       }
     },
     {
@@ -6830,7 +6966,7 @@
       {
         "id": "O_not_owner_beats_auction_open",
         "setup": "auction_open_at_1000_nim",
-        "pinnedBy": "§7.4 check-order table (r30) — `O`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE`",
+        "pinnedBy": "§7.4 check-order table (r30) — `O`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE`",
         "note": "The AUCTION_OPEN row sits after authority and before the price, in `O` as in `A`.",
         "tx": {
           "blockNumber": 58842721,
@@ -6862,7 +6998,7 @@
       {
         "id": "X_not_owner_beats_auction_open",
         "setup": "auction_open_at_1000_nim",
-        "pinnedBy": "§7.4 check-order table (r30) — `X`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`",
+        "pinnedBy": "§7.4 check-order table (r30) — `X`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`",
         "note": "Same shape for the transfer: a stranger is refused as a stranger, the owner is refused because bidders have committed money against the window.",
         "tx": {
           "blockNumber": 58842721,
@@ -6894,8 +7030,8 @@
       {
         "id": "X_not_owner_beats_offer_open",
         "setup": "offer_open_at_1_nim",
-        "pinnedBy": "§7.4 check-order table (r30) — `X`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`",
-        "note": "One pending thing per name (§7.3, r30): the pending-state rows sit after authority and before any payload row, for every opener alike. A stranger is refused as a stranger; the owner is told what already stands on the name and that a `K` is the way to change it. Only one of the three rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `X` over a listing — the case Kike found on the beta on 2026-09-16, a `B` deciding where a name in transit went.",
+        "pinnedBy": "§7.4 check-order table (r30) — `X`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`",
+        "note": "One pending thing per name (§7.3, r30): a message of a different kind is refused after the authority rows and before any payload row, with the token naming what stands; the same kind replaces it. A stranger is refused as a stranger; the owner is told what already stands and that a `K` is the way across kinds. Only one of the pending-state rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `X` over a listing — the case Kike found on the beta on 2026-09-16, a `B` deciding where a name in transit went.",
         "tx": {
           "blockNumber": 58842721,
           "txIndex": 0,
@@ -6920,78 +7056,14 @@
             "recipient": "CAROL",
             "value": "1",
             "text": "NNS1Xkikename"
-          }
-        }
-      },
-      {
-        "id": "X_not_owner_beats_transfer_pending",
-        "setup": "transfer_pending_to_carol",
-        "pinnedBy": "§7.4 check-order table (r30) — `X`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`",
-        "note": "One pending thing per name (§7.3, r30): the pending-state rows sit after authority and before any payload row, for every opener alike. A stranger is refused as a stranger; the owner is told what already stands on the name and that a `K` is the way to change it. Only one of the three rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here a second `X`: through the first r30 cut it superseded the first, and now it is refused like any other opener.",
-        "tx": {
-          "blockNumber": 58842721,
-          "txIndex": 0,
-          "sender": "BOB",
-          "recipient": "CAROL",
-          "value": "1",
-          "text": "NNS1Xkikename"
-        },
-        "verdict": {
-          "kind": "FORFEIT",
-          "reason": "NOT_OWNER"
-        },
-        "insteadOf": {
-          "verdict": {
-            "kind": "FORFEIT",
-            "reason": "TRANSFER_PENDING"
-          },
-          "tx": {
-            "blockNumber": 58842721,
-            "txIndex": 0,
-            "sender": "ALICE",
-            "recipient": "CAROL",
-            "value": "1",
-            "text": "NNS1Xkikename"
-          }
-        }
-      },
-      {
-        "id": "O_not_owner_beats_offer_open",
-        "setup": "offer_open_at_1_nim",
-        "pinnedBy": "§7.4 check-order table (r30) — `O`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE`",
-        "note": "One pending thing per name (§7.3, r30): the pending-state rows sit after authority and before any payload row, for every opener alike. A stranger is refused as a stranger; the owner is told what already stands on the name and that a `K` is the way to change it. Only one of the three rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here a second `O`: a reprice was a replacement through the first r30 cut (decisions.md, 2026-08-14 OPEN 1) and is now a `K` and a fresh listing.",
-        "tx": {
-          "blockNumber": 58842721,
-          "txIndex": 0,
-          "sender": "BOB",
-          "recipient": "TREASURY",
-          "value": "1",
-          "text": "NNS1Okikename|40000000"
-        },
-        "verdict": {
-          "kind": "FORFEIT",
-          "reason": "NOT_OWNER"
-        },
-        "insteadOf": {
-          "verdict": {
-            "kind": "FORFEIT",
-            "reason": "OFFER_OPEN"
-          },
-          "tx": {
-            "blockNumber": 58842721,
-            "txIndex": 0,
-            "sender": "ALICE",
-            "recipient": "TREASURY",
-            "value": "1",
-            "text": "NNS1Okikename|40000000"
           }
         }
       },
       {
         "id": "O_not_owner_beats_transfer_pending",
         "setup": "transfer_pending_to_carol",
-        "pinnedBy": "§7.4 check-order table (r30) — `O`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE`",
-        "note": "One pending thing per name (§7.3, r30): the pending-state rows sit after authority and before any payload row, for every opener alike. A stranger is refused as a stranger; the owner is told what already stands on the name and that a `K` is the way to change it. Only one of the three rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `O` over a pending transfer, which the first r30 cut let through as a void of the transfer.",
+        "pinnedBy": "§7.4 check-order table (r30) — `O`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE`",
+        "note": "One pending thing per name (§7.3, r30): a message of a different kind is refused after the authority rows and before any payload row, with the token naming what stands; the same kind replaces it. A stranger is refused as a stranger; the owner is told what already stands and that a `K` is the way across kinds. Only one of the pending-state rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `O` over a pending transfer, which the first r30 cut let through as a void of the transfer.",
         "tx": {
           "blockNumber": 58842721,
           "txIndex": 0,
@@ -7023,7 +7095,7 @@
         "id": "A_not_owner_beats_offer_open",
         "setup": "offer_open_at_1_nim",
         "pinnedBy": "§7.4 check-order table (r30) — `A`: name state, sender, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM`",
-        "note": "One pending thing per name (§7.3, r30): the pending-state rows sit after authority and before any payload row, for every opener alike. A stranger is refused as a stranger; the owner is told what already stands on the name and that a `K` is the way to change it. Only one of the three rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `A` over a listing, which r28 let through as a void of the offer.",
+        "note": "One pending thing per name (§7.3, r30): a message of a different kind is refused after the authority rows and before any payload row, with the token naming what stands; the same kind replaces it. A stranger is refused as a stranger; the owner is told what already stands and that a `K` is the way across kinds. Only one of the pending-state rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `A` over a listing, which r28 let through as a void of the offer.",
         "tx": {
           "blockNumber": 58842721,
           "txIndex": 0,
@@ -7055,7 +7127,7 @@
         "id": "A_not_owner_beats_transfer_pending",
         "setup": "transfer_pending_to_carol",
         "pinnedBy": "§7.4 check-order table (r30) — `A`: name state, sender, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM`",
-        "note": "One pending thing per name (§7.3, r30): the pending-state rows sit after authority and before any payload row, for every opener alike. A stranger is refused as a stranger; the owner is told what already stands on the name and that a `K` is the way to change it. Only one of the three rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `A` over a pending transfer, which r28 let through as a void of the transfer.",
+        "note": "One pending thing per name (§7.3, r30): a message of a different kind is refused after the authority rows and before any payload row, with the token naming what stands; the same kind replaces it. A stranger is refused as a stranger; the owner is told what already stands and that a `K` is the way across kinds. Only one of the pending-state rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `A` over a pending transfer, which r28 let through as a void of the transfer.",
         "tx": {
           "blockNumber": 58842721,
           "txIndex": 0,

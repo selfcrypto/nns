@@ -134,8 +134,10 @@
     <string id="targetHint">The wallet’s own screen shows this address as the recipient of the message, so it can be checked there too.</string>
     <string id="evmHint">One address covers every EVM chain. The registry records what you declare, so check this one is yours.</string>
     <string id="transferMovesLine" params="delay">Ownership moves to the address above in {delay}, unless you Cancel Transfer first.</string>
-    <string id="transferHint">You can cancel it any time before it lands. The delay guards a mistyped address, not a stolen key.</string>
-    <string id="offerHint">You can take it off sale any time, and it expires by itself in ~15 d.</string>
+    <string id="transferHint">You can cancel it or change the recipient any time before it lands. The delay guards a mistyped address, not a stolen key.</string>
+    <string id="transferReplacesLine" params="oldTo delay">Replaces the pending transfer to {oldTo}. The new one lands in {delay}.</string>
+    <string id="offerRepricesLine" params="name oldNim newNim">Changes the price of {name} from {oldNim} NIM to {newNim} NIM.</string>
+    <string id="offerHint">You can change the price or take it off sale any time, and it expires by itself in ~15 d.</string>
     <string id="auctionHint" params="extension">Nothing can be withdrawn once open, and a bid in the last {extension} extends the end by {extension}. The highest bid wins and the name transfers at the close.</string>
     <string id="bidHint" params="extension">A bid in the last {extension} extends the auction by {extension}. A bid below the minimum is refunded, not accepted. So is yours, the moment a higher bid lands.</string>
     <string id="currentExpiryLine" params="approx">Currently expires {approx}.</string>
@@ -385,7 +387,10 @@
     <string id="copyLinkLabel">Copy link</string>
     <string id="requestInGraceLine">Payments can’t reach a name in grace. Renew it first.</string>
     <string id="shareHint" params="percent rebate netOfBurn">Anyone who registers through your link pays the same price. This name’s address receives {percent} of the fee, paid by the registry after each registration.</string>
-    <string id="offerActiveLine" params="nim">Active: {nim} NIM</string>
+    <string id="OWNER_TILE_REPLACING.offer">Change Price</string>
+    <string id="OWNER_TILE_REPLACING.transfer">Change Recipient</string>
+    <string id="transferPendingLine" params="to blocksLeft">To {to}, lands in ~1 min</string>
+    <string id="offerActiveLine" params="nim">Listed at {nim} NIM</string>
     <string id="auctionStandingLine" params="nim">Standing bid: {nim} NIM</string>
     <string id="auctionStartingLine" params="nim">Starting price: {nim} NIM</string>
     <string id="connectWalletHint">Connect wallet</string>

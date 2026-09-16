@@ -40,6 +40,8 @@ import {
   renewHint,
   targetHint,
   transferHint,
+  transferReplacesLine,
+  offerRepricesLine,
   transferMovesLine,
   GATE_REASON_TEXT,
   alreadyOwnerLine,
@@ -308,10 +310,17 @@ export function prepareAction(options: {
     case 'transfer': {
       const newOwner = requireAddress(inputs.newOwner, 'The new owner')
       if (sameAddress(newOwner, signer)) throw new ActionInputError(alreadyOwnerLine())
+      const replaced = info?.pending.transfer ?? null
       return {
         action: 'transfer',
         request: asRequest(encodeTransfer({ name, newOwner: parseAddress(newOwner), sender })),
-        review: [transferMovesLine(blocksApprox(CONSTANTS.XFER_TIMELOCK))],
+        // A second X replaces the pending one and restarts the clock (§7.3):
+        // the review names what it replaces, not only where it goes.
+        review: [
+          replaced === null
+            ? transferMovesLine(blocksApprox(CONSTANTS.XFER_TIMELOCK))
+            : transferReplacesLine(replaced.newOwner, blocksApprox(CONSTANTS.XFER_TIMELOCK)),
+        ],
         reviewHint: transferHint(),
         confirm: async () => {
           const pending = (await infoNow())?.pending.transfer ?? null
@@ -380,11 +389,14 @@ export function prepareAction(options: {
       // `CONSTANTS.COMMISSION_RATE` here would survive a `P` as a wrong number
       // on screen (§10.6).
       const commissionBp = needParams().prices.commissionBp
+      const repriced = info?.pending.offer ?? null
       return {
         action: 'offer',
         request: asRequest(encodeOffer({ name, price, minPrice, sender })),
         review: [
-          `Puts ${name} up for sale at ${lunaToNim(price)} NIM.`,
+          repriced === null
+            ? `Puts ${name} up for sale at ${lunaToNim(price)} NIM.`
+            : offerRepricesLine(name, lunaToNim(repriced.price), lunaToNim(price)),
           sellerProceedsLine(lunaToNim(price - commissionOn(price, commissionBp)), percentOf(Number(commissionBp))),
         ],
         reviewHint: offerHint(),

@@ -63,6 +63,8 @@ import {
   messageSubdomainLabel,
   messageSubdomainNote,
   offerActiveLine,
+  OWNER_TILE_REPLACING,
+  transferPendingLine,
   ownNameLine,
   parentNotDelegatingLine,
   parentNotRegisteredLine,
@@ -358,8 +360,12 @@ function Actions({
           }
         case 'transfer':
           return {
-            title: OWNER_TILE.transfer.title,
-            subtitle: OWNER_TILE.transfer.hint,
+            // A transferring name: the same kind replaces (§7.3), so the tile
+            // is the retarget and says so, with the recipient it would replace.
+            title: info?.pending.transfer ? OWNER_TILE_REPLACING.transfer : OWNER_TILE.transfer.title,
+            subtitle: info?.pending.transfer
+              ? transferPendingLine(ellipsizeAddress(info.pending.transfer.newOwner), info.pending.transfer.effectiveHeight - info.height)
+              : OWNER_TILE.transfer.hint,
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M17 2.1l4 4-4 4" />
@@ -371,7 +377,7 @@ function Actions({
           }
         case 'offer':
           return {
-            title: OWNER_TILE.offer.title,
+            title: info?.pending.offer ? OWNER_TILE_REPLACING.offer : OWNER_TILE.offer.title,
             subtitle: info?.pending.offer ? offerActiveLine(lunaToNim(info.pending.offer.price)) : OWNER_TILE.offer.hint,
             icon: (
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

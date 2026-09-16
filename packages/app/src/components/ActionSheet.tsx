@@ -5,7 +5,7 @@ import { getNameInfo, getParams, type NameInfo } from '../lib/api'
 import { clearReferral, isSelfReferral, storedReferral } from '../lib/referral'
 import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { apiBase } from '../lib/nns'
-import { approxDate, blocksApprox, ellipsizeAddress, formatApproxWhen, lunaToNim, splitAroundName } from '../lib/format'
+import { approxDate, blocksApprox, ellipsizeAddress, formatApproxWhen, lunaToNim, lunaToNimInput, splitAroundName } from '../lib/format'
 import { discoverEvmProvider, probeHostEvmAddress, requestHostEvmAddress } from '../lib/sdk'
 import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
@@ -147,10 +147,12 @@ export function ActionSheet({
   // is discovered per open — it is injected asynchronously in some hosts.
   const canRequestEvm = useMemo(() => action === 'setEvm' && discoverEvmProvider() !== null, [action])
   const [evmRequestFailed, setEvmRequestFailed] = useState(false)
-  const [newOwner, setNewOwner] = useState('')
+  // Prefilled with what a second message would replace (§7.3): the pending
+  // recipient, the listed price. The input form, never the grouped one.
+  const [newOwner, setNewOwner] = useState(() => info?.pending.transfer?.newOwner ?? '')
   const [host, setHost] = useState('')
   const [clearHost, setClearHost] = useState(false)
-  const [priceNim, setPriceNim] = useState('')
+  const [priceNim, setPriceNim] = useState(() => (info?.pending.offer ? lunaToNimInput(info.pending.offer.price) : ''))
   const [startingPriceNim, setStartingPriceNim] = useState('')
   const [durationDays, setDurationDays] = useState('')
   const [bidNim, setBidNim] = useState('')

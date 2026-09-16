@@ -702,10 +702,14 @@ export const transferMovesLine = (delay: string): string =>
   `Ownership moves to the address above in ${delay}, unless you Cancel Transfer first.`
 
 export const transferHint = (): string =>
-  'You can cancel it any time before it lands. The delay guards a mistyped address, not a stolen key.'
+  'You can cancel it or change the recipient any time before it lands. The delay guards a mistyped address, not a stolen key.'
+export const transferReplacesLine = (oldTo: string, delay: string): string =>
+  `Replaces the pending transfer to ${oldTo}. The new one lands in ${delay}.`
+export const offerRepricesLine = (name: string, oldNim: string, newNim: string): string =>
+  `Changes the price of ${name} from ${oldNim} NIM to ${newNim} NIM.`
 
 export const offerHint = (): string =>
-  `You can take it off sale any time, and it expires by itself in ${blocksApprox(CONSTANTS.OFFER_MAX_LIFETIME)}.`
+  `You can change the price or take it off sale any time, and it expires by itself in ${blocksApprox(CONSTANTS.OFFER_MAX_LIFETIME)}.`
 
 export const auctionHint = (extension: string): string =>
   `Nothing can be withdrawn once open, and a bid in the last ${extension} extends the end by ${extension}. The highest bid wins and the name transfers at the close.`
@@ -1662,7 +1666,17 @@ export const OWNER_TILE: Record<
   offer: { title: 'Sell (Fixed Price)', hint: 'List for direct buy-now' },
   auction: { title: 'Start Auction', hint: 'Timed public bidding' },
 }
-export const offerActiveLine = (nim: string): string => `Active: ${nim} NIM`
+/**
+ * The same tile on a name whose pending thing is the tile's own kind (§7.3:
+ * the same kind replaces): the title says what pressing it now does, and the
+ * hint carries the current value the sheet will prefill.
+ */
+export const OWNER_TILE_REPLACING = {
+  transfer: 'Change Recipient',
+  offer: 'Change Price',
+} as const
+export const transferPendingLine = (to: string, blocksLeft: number): string => `To ${to}, lands in ${blocksApprox(blocksLeft)}`
+export const offerActiveLine = (nim: string): string => `Listed at ${nim} NIM`
 export const auctionStandingLine = (nim: string): string => `Standing bid: ${nim} NIM`
 export const auctionStartingLine = (nim: string): string => `Starting price: ${nim} NIM`
 export const connectWalletHint = (): string => 'Connect wallet'
@@ -1712,7 +1726,13 @@ export const cancelLabel = (): string => 'Cancel'
  * name from the cancellable set; every other action has a fixed one.
  */
 export const sheetActionLabel = (action: AppAction, set: Cancellable): string =>
-  action === 'cancel' ? cancelTitle(set) : ACTION_LABEL[action]
+  action === 'cancel'
+    ? cancelTitle(set)
+    : action === 'transfer' && set === 'transfer'
+      ? OWNER_TILE_REPLACING.transfer
+      : action === 'offer' && set === 'sale'
+        ? OWNER_TILE_REPLACING.offer
+        : ACTION_LABEL[action]
 
 /**
  * The sheet's dismiss button. "Cancel" means "never mind" everywhere — except

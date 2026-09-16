@@ -182,10 +182,12 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
   }
 
   /**
-   * One pending thing per name (§7.3, r30): a transfer, a sale or an auction,
-   * and `X`, `O` and `A` all forfeit while any of the three stands. The tile
-   * closes on whichever it is; the way out is the cancel tile, except for an
-   * auction, which runs to its close.
+   * One pending thing per name (§7.3, r30): a transfer, a sale or an auction.
+   * A message of another kind forfeits while one stands, so the tile closes
+   * on whichever it is; the same kind replaces it, so Transfer stays open on
+   * a transferring name (a retarget) and Sell on a listed one (a reprice).
+   * The way across kinds is the cancel tile, except for an auction, which
+   * runs to its close.
    */
   const busy = (): GateReason | null => {
     const pending = info?.pending
@@ -194,11 +196,11 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
     if (pending?.transfer) return 'transfer-pending'
     return null
   }
-  const opener = (): Gate => {
+  const opener = (ownKind: GateReason | null = null): Gate => {
     const base = ownerGate()
     if (!base.enabled) return base
     const reason = busy()
-    return reason === null ? open : closed(reason)
+    return reason === null || reason === ownKind ? open : closed(reason)
   }
 
   const cancel = (): Gate => {
@@ -243,11 +245,11 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
     register: register(),
     setTarget: ownerGate(),
     setEvm: ownerGate(),
-    transfer: opener(),
+    transfer: opener('transfer-pending'),
     delegate: ownerGate(),
     cancel: cancel(),
     renew: renew(),
-    offer: opener(),
+    offer: opener('offer-open'),
     buy: buy(),
     auction: opener(),
     bid: bid(),

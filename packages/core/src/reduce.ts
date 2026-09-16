@@ -227,13 +227,15 @@ function owe(draft: Draft, item: Obligation): void {
 
 /**
  * §7.3: a name has at most one pending operation — a transfer, a sale or an
- * auction — and `X`, `O` and `A` all refuse while any of the three stands,
- * with the token naming what does. The way to change it is a `K` (an auction
- * excepted: bids are money, so it runs to its close). Nothing voids, replaces
- * or supersedes anything: r28's "latest statement of intent wins" and the
- * first r30 cut's one-directional void were two exceptions to one rule, and
- * the r30 fold of 2026-09-16 removed both. Only one map can hold the name,
- * so the order here is unobservable and pinned for the §7.4 table alone.
+ * auction. A message of a *different* kind refuses while one stands, with
+ * the token naming what does; a message of the *same* kind replaces it (a
+ * second `X` retargets and restarts the timelock, a second `O` reprices),
+ * unless it holds bids — an auction is never replaced, and a second `A`
+ * forfeits `AUCTION_OPEN` like everything else. `K` clears a transfer or a
+ * sale at any height. Nothing of one kind ever voids another: r28's `A`
+ * voiding `O` and `X`, and the first r30 cut's `O` voiding `X`, are gone.
+ * Only one map can hold the name, so the order here is unobservable and
+ * pinned for the §7.4 table alone.
  */
 function pendingOn(state: NnsState, name: string): 'AUCTION_OPEN' | 'OFFER_OPEN' | 'TRANSFER_PENDING' | null {
   if (state.auctions.has(name)) return 'AUCTION_OPEN'
@@ -772,17 +774,22 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
 
       if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
       const busy = pendingOn(state, message.name)
-      if (busy !== null) return keep(forfeit(busy))
+      if (busy !== null && busy !== 'TRANSFER_PENDING') return keep(forfeit(busy))
 
       const effectiveHeight = tx.blockNumber + CONSTANTS.XFER_TIMELOCK
 
+      // A second X replaces the first and restarts the timelock (§7.3): the
+      // owner restating where the name goes, and the one way to fix a
+      // mistyped recipient without a round trip through `K`.
       const draft = draftOf(state)
       draft.transfers.set(message.name, {
         name: message.name,
         newOwner: tx.recipient,
         effectiveHeight,
       })
-      schedule(draft, effectiveHeight)
+      // Recomputed, not `schedule`d: the replaced transfer's maturity may be
+      // exactly what the bound pointed at, and it is earlier than the new one.
+      draft.nextDueHeight = computeNextDue(draft)
       return { state: freeze(draft), verdict: ok() }
     }
 
@@ -855,7 +862,7 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       if (record === undefined || record.status !== 'REGISTERED') return keep(forfeit('NAME_NOT_REGISTERED'))
       if (!addressEquals(record.owner, tx.sender)) return keep(forfeit('NOT_OWNER'))
       const busy = pendingOn(state, message.name)
-      if (busy !== null) return keep(forfeit(busy))
+      if (busy !== null && busy !== 'OFFER_OPEN') return keep(forfeit(busy))
 
       // §6 `O`: the price MUST be ≥ MIN_PRICE, which is FEE_BASE **at this
       // message's height** — a governed value, so it is read from the active
@@ -873,6 +880,8 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       }
 
       const expiryHeight = tx.blockNumber + CONSTANTS.OFFER_MAX_LIFETIME
+      // A later O replaces the standing one (§7.3): a reprice, with a fresh
+      // lifetime. A `B` at the old price in flight is refunded WRONG_PRICE.
       const draft = draftOf(state)
       draft.offers.set(message.name, {
         name: message.name,

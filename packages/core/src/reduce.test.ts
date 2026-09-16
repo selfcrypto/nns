@@ -467,24 +467,19 @@ describe('X — transfer ownership (§6, §7.3)', () => {
     expect(state.transfers.has('kikename')).toBe(false)
   })
 
-  it('refuses a second X while one is pending — a K first, then the corrected one (r30)', () => {
-    // Through the first r30 cut a second `X` superseded the first. Now a
-    // pending transfer is one of the three things nothing stacks on, its own
-    // kind included: the fix for a mistyped recipient is a `K`, which lands at
-    // once, and then the corrected `X`.
+  it('lets a second X replace the first and restart the timelock (§7.3)', () => {
+    // The same kind restates the intent: the one way to fix a mistyped
+    // recipient without a `K`. The first never matures; the second does, on
+    // its own clock; and the bound is re-derived rather than left at the
+    // replaced one's maturity.
     step(encodeTransfer({ name: 'kikename', newOwner: BOB }), { sender: ALICE, at: LAUNCH })
-    expect(step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 100 }).verdict).toEqual({
-      kind: 'FORFEIT',
-      reason: 'TRANSFER_PENDING',
-    })
-    expect(state.transfers.get('kikename')?.newOwner).toBe(BOB)
-
-    expect(step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: LAUNCH + 101 }).verdict.kind).toBe('OK')
-    expect(step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 102 }).verdict.kind).toBe('OK')
+    expect(step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 100 }).verdict.kind).toBe('OK')
+    expect(state.transfers.get('kikename')?.newOwner).toBe(CAROL)
+    expect(state.nextDueHeight).toBe(LAUNCH + 100 + CONSTANTS.XFER_TIMELOCK)
 
     state = advanceTo(state, LAUNCH + CONSTANTS.XFER_TIMELOCK)
     expect(lookup(state, 'kikename')?.owner).toBe(ALICE)
-    state = advanceTo(state, LAUNCH + 102 + CONSTANTS.XFER_TIMELOCK)
+    state = advanceTo(state, LAUNCH + 100 + CONSTANTS.XFER_TIMELOCK)
     expect(lookup(state, 'kikename')?.owner).toBe(CAROL)
   })
 
@@ -511,11 +506,12 @@ describe('X — transfer ownership (§6, §7.3)', () => {
   })
 
   describe('one pending thing per name (§7.3, r30)', () => {
-    // A transfer, a sale or an auction — a name holds at most one, and every
-    // opener refuses while any of the three stands, with the token naming
-    // what does. There is no void, no replacement and no supersession left:
-    // the way to change what is pending is a `K`, and the only pending thing a
-    // `K` cannot clear is an auction, because bids are money.
+    // A transfer, a sale or an auction — a name holds at most one. A message
+    // of a different kind refuses while one stands, with the token naming
+    // what does; the same kind replaces it (a retarget, a reprice), except an
+    // auction, which holds bids and is never replaced. Nothing of one kind
+    // ever voids another; the way across kinds is a `K`, and the only pending
+    // thing a `K` cannot clear is an auction.
     const END = LAUNCH + 10 + CONSTANTS.AUCTION_MIN_DURATION
     const openers = {
       X: () => encodeTransfer({ name: 'kikename', newOwner: BOB }),
@@ -537,16 +533,25 @@ describe('X — transfer ownership (§6, §7.3)', () => {
 
     for (const stands of standing) {
       for (const type of Object.keys(openers) as Opener[]) {
-        it(`with a ${stands.kind} pending, ${type} forfeits ${stands.token} and changes nothing`, () => {
-          expect(step(openers[stands.open](), { sender: ALICE, at: LAUNCH + 1 }).verdict.kind).toBe('OK')
-          const before = pending()
-          expect(step(openers[type](), { sender: ALICE, at: LAUNCH + 2 }).verdict).toEqual({
-            kind: 'FORFEIT',
-            reason: stands.token,
-          })
-          expect(pending()).toEqual(before)
-          expect(pendingCount()).toBe(1)
-        })
+        const replaces = type === stands.open && stands.cancellable
+        it(
+          replaces
+            ? `with a ${stands.kind} pending, a second ${type} replaces it`
+            : `with a ${stands.kind} pending, ${type} forfeits ${stands.token} and changes nothing`,
+          () => {
+            expect(step(openers[stands.open](), { sender: ALICE, at: LAUNCH + 1 }).verdict.kind).toBe('OK')
+            const before = pending()
+            const result = step(openers[type](), { sender: ALICE, at: LAUNCH + 2 })
+            if (replaces) {
+              expect(result.verdict.kind).toBe('OK')
+              expect(pending()).not.toEqual(before)
+            } else {
+              expect(result.verdict).toEqual({ kind: 'FORFEIT', reason: stands.token })
+              expect(pending()).toEqual(before)
+            }
+            expect(pendingCount()).toBe(1)
+          },
+        )
 
         it(`with a ${stands.kind} pending, a stranger's ${type} is told NOT_OWNER first`, () => {
           step(openers[stands.open](), { sender: ALICE, at: LAUNCH + 1 })
@@ -1031,8 +1036,6 @@ describe('MIN_PRICE — the floor on an O price (§3, §6 O)', () => {
     )
 
     expect(step(offerAt(FLOOR), { sender: ALICE, at: effective - 1 }).verdict.kind).toBe('OK')
-    // Cleared before the next listing: one pending thing per name (r30).
-    expect(step(encodeCancel({ name: 'kikename' }), { sender: ALICE, at: effective - 1, txIndex: 1 }).verdict.kind).toBe('OK')
     expect(step(offerAt(FLOOR), { sender: ALICE, at: effective }).verdict).toEqual({
       kind: 'FORFEIT',
       reason: 'BELOW_MIN_PRICE',
@@ -1543,8 +1546,8 @@ describe('A — auction (§6, r28)', () => {
 
     it('refuses to open over a pending X or an open O — a K first (r30 fold)', () => {
       // r28 had the auction void both, as "the latest statement of intent".
-      // Since the r30 fold nothing voids anything: the owner clears what is
-      // pending with a `K` and then opens. The pending thing is untouched by
+      // Since the r30 fold nothing of one kind voids another: the owner
+      // clears what is pending with a `K` and then opens. The pending thing is untouched by
       // the refusal, and the transfer still matures on its own clock.
       registerToAlice()
       step(encodeTransfer({ name: 'kikename', newOwner: CAROL }), { sender: ALICE, at: LAUNCH + 1 })

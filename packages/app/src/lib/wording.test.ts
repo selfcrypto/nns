@@ -14,6 +14,7 @@ import {
   cancelLabel,
   buyNowLabel,
   cancelTitle,
+  OWNER_TILE_REPLACING,
   forSaleLabel,
   liveAuctionLabel,
   MARKET_FILTER,
@@ -447,6 +448,11 @@ describe('a `K` is named by what it will clear (§6 `K`)', () => {
     expect(sheetActionLabel('cancel', 'transfer')).toBe(cancelTitle('transfer'))
     expect(sheetActionLabel('cancel', 'sale')).toBe('Cancel Sale')
     expect(sheetActionLabel('renew', null)).toBe(ACTION_LABEL.renew)
+    // The same kind replaces (§7.3): the sheet says so, and only for its own kind.
+    expect(sheetActionLabel('transfer', 'transfer')).toBe(OWNER_TILE_REPLACING.transfer)
+    expect(sheetActionLabel('offer', 'sale')).toBe(OWNER_TILE_REPLACING.offer)
+    expect(sheetActionLabel('transfer', 'sale')).toBe(ACTION_LABEL.transfer)
+    expect(sheetActionLabel('offer', null)).toBe(ACTION_LABEL.offer)
     // Two buttons reading "Cancel" and meaning opposite things is what shipped.
     expect(sheetDismissLabel('cancel')).not.toBe(cancelLabel())
     expect(sheetDismissLabel('renew')).toBe(cancelLabel())
