@@ -29,15 +29,25 @@ import { apiBase } from './nns'
 import { getParams } from './api'
 import { defaultTransport } from './history'
 
-/** The chain's block time, and so the fastest the head can change. */
-const HEAD_INTERVAL_MS = 1_000
-
 /**
- * The registry moves once a batch, so asking every second would be five
- * wasted calls in six. Slow enough to be cheap, fast enough that the jump
- * lands on screen while a person is still looking at it.
+ * **The relay's read budget is what sets this, not the block time.**
+ *
+ * `relay/src/server.ts` gives each client IP a bucket of capacity 30
+ * refilling at 60 a minute: one token per second, sustained. This strip
+ * polled the head every 1,000 ms, which spends that entire allowance on
+ * chrome and leaves nothing for the app's real reads. What that looks like
+ * is not a slow strip, it is a **send that cannot go out**: a Hub transfer
+ * needs `getBlockNumber` for its validity height and then
+ * `sendRawTransaction`, and both came back 429 with the bucket pinned at
+ * zero (Kike, 2026-09-16, mid demo prep, on a name he was transferring). Two
+ * tabs made it two tokens a second against a one-a-second refill.
+ *
+ * Ten seconds is 6 reads a minute, a tenth of the refill, so the strip is
+ * never the reason something else is refused. The head is a number that
+ * moves on its own and nobody is reading it to the second; a send that
+ * fails is the only thing here anyone would actually notice.
  */
-const REGISTRY_INTERVAL_MS = 5_000
+const CHAIN_INTERVAL_MS = 10_000
 
 /**
  * A height, or null for anything that is not one. The RPC answers a number;
@@ -94,16 +104,39 @@ function usePolled<T>(read: () => Promise<T | null>, intervalMs: number): T | nu
   return value
 }
 
-/** The chain's head, or null until the first answer (and forever without an RPC). */
-export function useChainHeight(): number | null {
-  return usePolled(async () => {
-    const transport = defaultTransport()
-    if (transport === null) return null
-    return parseHeight(await transport('getBlockNumber', []))
-  }, HEAD_INTERVAL_MS)
+export interface ChainStatus {
+  /** The chain's head, or null until the first answer (and forever without an RPC). */
+  readonly head: number | null
+  /** The height the registry has verified: the last finalised macro block it scanned. */
+  readonly registry: number | null
 }
 
-/** The height the registry has verified — the last finalised macro block it scanned. */
-export function useRegistryHeight(): number | null {
-  return usePolled(async () => parseHeight((await getParams(apiBase())).height), REGISTRY_INTERVAL_MS)
+/**
+ * Both heights, read in one tick.
+ *
+ * Together rather than on two schedules, because the strip subtracts them.
+ * Sampled apart, the fresher number walks away from the stale one and the
+ * gap becomes a statement about this file's polling rather than about the
+ * chain: a registry read 5 s after a 15 s-old head can even overtake it,
+ * which `registryLag` would clamp to "up to date" while the registry was
+ * genuinely a batch behind.
+ */
+export function useChainStatus(): ChainStatus {
+  const status = usePolled<ChainStatus>(async () => {
+    const transport = defaultTransport()
+    const [head, registry] = await Promise.all([
+      transport === null
+        ? Promise.resolve(null)
+        : transport('getBlockNumber', []).then(parseHeight, () => null),
+      getParams(apiBase()).then(
+        (params) => parseHeight(params.height),
+        () => null,
+      ),
+    ])
+    // One endpoint answering is worth rendering; neither is not, and
+    // returning null keeps the last good pair on screen.
+    return head === null && registry === null ? null : { head, registry }
+  }, CHAIN_INTERVAL_MS)
+
+  return status ?? { head: null, registry: null }
 }

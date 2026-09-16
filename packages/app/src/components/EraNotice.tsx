@@ -20,7 +20,7 @@
 
 import { Hint } from './Hint'
 import { ChainIcon, LayersIcon } from './icons'
-import { registryLag, useChainHeight, useRegistryHeight } from '../lib/chain'
+import { registryLag, useChainStatus } from '../lib/chain'
 import {
   chainHeightLabel,
   chainReadoutHint,
@@ -35,8 +35,7 @@ import {
 const groups = (height: number): string => height.toLocaleString('en-US')
 
 export function EraNotice() {
-  const head = useChainHeight()
-  const registry = useRegistryHeight()
+  const { head, registry } = useChainStatus()
   const era = isCompressedEra()
   const lag = registryLag(head, registry)
 

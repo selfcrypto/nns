@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import { parseHeight, registryLag } from './chain'
 import { registryLagLine } from './wording'
 
@@ -54,5 +55,28 @@ describe('registryLagLine', () => {
   /** Caught up is not "0 blocks behind": the number is noise once it is zero. */
   it('says caught up rather than counting zero', () => {
     expect(registryLagLine(0)).toBe('up to date')
+  })
+})
+
+/**
+ * The strip is chrome, and chrome must not spend the relay's read budget.
+ *
+ * `relay/src/server.ts` gives each client IP capacity 30 refilling 60 a
+ * minute. A one-second poll consumed the whole refill and 429'd the next
+ * send: a Hub transfer needs `getBlockNumber` and then `sendRawTransaction`,
+ * and neither could get a token. The interval is a shipped constant rather
+ * than a preference, so it gets a test.
+ */
+describe('the poll interval fits the relay budget', () => {
+  const RELAY_READ_REFILL_PER_MINUTE = 60
+
+  it('spends at most a tenth of the sustained read refill', () => {
+    const source = readFileSync(new URL('./chain.ts', import.meta.url), 'utf8')
+    const declared = /const CHAIN_INTERVAL_MS = ([\d_]+)/.exec(source)?.[1]
+    expect(declared).toBeDefined()
+
+    const intervalMs = Number((declared as string).replaceAll('_', ''))
+    const readsPerMinute = 60_000 / intervalMs
+    expect(readsPerMinute).toBeLessThanOrEqual(RELAY_READ_REFILL_PER_MINUTE / 10)
   })
 })
