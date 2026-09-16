@@ -10,7 +10,9 @@
  * and the sun and moon on the night-mode switch, which is the one control in
  * the chrome whose whole label is its picture — and two for the copy control
  * on a resolved address, which is a picture because the row it sits in is
- * already a full address and has no room for a word until it is pressed.
+ * already a full address and has no room for a word until it is pressed — and
+ * two for the masthead's chain readout, where a phone has room for two long
+ * numbers or for their labels, but not for both.
  * Nothing else earns a pictogram: the proof rail and the identicon already carry the meanings that
  * matter, and a glyph beside every sentence would spend the reader's
  * attention on decoration.
@@ -174,6 +176,33 @@ export function SunIcon() {
     <Glyph size={18}>
       <circle cx="12" cy="12" r="4.2" />
       <path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.2 5.2l1.4 1.4M17.4 17.4l1.4 1.4M18.8 5.2l-1.4 1.4M6.6 17.4l-1.4 1.4" />
+    </Glyph>
+  )
+}
+
+/**
+ * The chain's height, in the masthead strip. Two links: the chain is the one
+ * thing in this app that is not a metaphor, so the glyph is literal.
+ */
+export function ChainIcon() {
+  return (
+    <Glyph size={15}>
+      <path d="M10 13.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1" />
+      <path d="M14 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1" />
+    </Glyph>
+  )
+}
+
+/**
+ * The registry's height, beside the chain's. Stacked layers, because what the
+ * registry has is the blocks it has folded in — and it is always a subset of
+ * the chain's, which is exactly what the strip is showing.
+ */
+export function LayersIcon() {
+  return (
+    <Glyph size={15}>
+      <path d="M12 3.5l8 4.5-8 4.5-8-4.5 8-4.5z" />
+      <path d="M4 13l8 4.5 8-4.5" />
     </Glyph>
   )
 }

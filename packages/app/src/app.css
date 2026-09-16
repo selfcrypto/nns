@@ -1126,6 +1126,64 @@ select:focus-visible {
   color: var(--grace);
 }
 
+/* ── The chain readout in that strip: two heights and the gap ──
+   Rendered on mainnet too, where the strip has no era half and this is the
+   whole bar. It keeps the strip's type size and drops to the muted ink, so
+   the numbers read as instrumentation rather than as a notice. */
+
+/* No colour of its own: inside a real era strip it takes the amber the strip
+   is already speaking in, and inside a chain-only one the neutral below. */
+.chain-readout {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Mainnet, and after the beta wording comes off: the strip is instrumentation
+   rather than a notice, so it drops to chrome. */
+.era-notice.is-chain-only {
+  background: rgba(var(--tint-ink), 0.03);
+  border-top-color: var(--line);
+  color: var(--ink-faint);
+}
+
+.era-notice.is-chain-only .hint-btn {
+  border-color: var(--ink-faint);
+  color: var(--ink-faint);
+}
+
+.chain-figure {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* The head changes every second. Proportional digits would resize the number
+   on most ticks and shove everything beside it, so the figures are tabular
+   and the element holds its width. */
+.chain-height {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.chain-lag {
+  opacity: 0.75;
+}
+
+.chain-lag::before {
+  content: '\00b7';
+  margin-right: 5px;
+}
+
+/* On a phone the era half already fills the row; the readout wraps under it
+   rather than squeezing both onto one line. */
+@media (max-width: 420px) {
+  .chain-readout {
+    flex-basis: 100%;
+    justify-content: center;
+  }
+}
+
 /* ── The hint: "?" beside a line, its explanation on hover or tap ── */
 
 .hint {
