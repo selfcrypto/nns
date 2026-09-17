@@ -36,6 +36,11 @@
 //                         dropped before every run and after the last one
 //   --env <path>          base environment (default packages/indexer/.env)
 //   --admin-database <n>  maintenance database for CREATE/DROP (default postgres)
+//   --prefetch <list>     NNS_SCAN_PREFETCH per run, comma-separated and
+//                         cycled. `--prefetch 1,16` replays the same window of
+//                         chain serially and with sixteen fetches in flight;
+//                         the comparison is then what says the window moved no
+//                         byte. Default: whatever the environment sets
 //   --out <dir>           where run logs and checkpoint dumps land
 //                         (default /tmp/nns-determinism-<timestamp>)
 //   --timeout <seconds>   per-run ceiling before the harness gives up (default 3600)
@@ -83,6 +88,7 @@ const { values: opts } = parseArgs({
     env: { type: 'string', default: 'packages/indexer/.env' },
     'admin-database': { type: 'string', default: 'postgres' },
     out: { type: 'string' },
+    prefetch: { type: 'string' },
     timeout: { type: 'string', default: '3600' },
     keep: { type: 'boolean', default: false },
     'no-build': { type: 'boolean', default: false },
@@ -102,6 +108,18 @@ const integer = (raw, flag, min) => {
 
 const runs = integer(opts.runs, 'runs', 2)
 const timeoutMs = integer(opts.timeout, 'timeout', 1) * 1000
+
+// `--prefetch 1,16`: one `NNS_SCAN_PREFETCH` per run, cycled if there are more
+// runs than windows. The window decides how many batch fetches are in flight
+// and nothing else — applies stay in strict order — so two runs at different
+// windows must agree on every digest, and that is the acceptance test for the
+// window rather than a benchmark of it. Unset leaves the environment's value,
+// which is the honest default: a plain determinism run tests what is deployed.
+const prefetches =
+  opts.prefetch === undefined
+    ? null
+    : opts.prefetch.split(',').map((raw) => integer(raw.trim(), 'prefetch', 1))
+if (prefetches !== null && prefetches.length === 0) fail('--prefetch needs at least one window')
 
 // ── Environment ──────────────────────────────────────────────────────────────
 
@@ -267,11 +285,17 @@ async function replay(index) {
   const logPath = join(outDir, `run-${index}.log`)
   await recreateDatabase()
 
+  const prefetch = prefetches === null ? null : prefetches[(index - 1) % prefetches.length]
   const started = Date.now()
   const fd = openSync(logPath, 'w')
   const child = spawn(process.execPath, ['dist/main.js'], {
     cwd: join(repo, 'packages/indexer'),
-    env: { ...process.env, ...baseEnv, NNS_DATABASE_URL: runUrl },
+    env: {
+      ...process.env,
+      ...baseEnv,
+      NNS_DATABASE_URL: runUrl,
+      ...(prefetch === null ? {} : { NNS_SCAN_PREFETCH: String(prefetch) }),
+    },
     stdio: ['ignore', fd, fd],
   })
   closeSync(fd)
@@ -329,6 +353,7 @@ async function replay(index) {
     const cursor = await pool.query('SELECT scanned_through FROM "cursor"')
     return {
       index,
+      prefetch,
       seconds: (Date.now() - started) / 1000,
       logPath,
       checkpoints: checkpoints.rows,
@@ -350,7 +375,8 @@ async function replay(index) {
   writeFileSync(join(outDir, `run-${index}.checkpoints`), dump === '' ? '' : `${dump}\n`)
 
   process.stdout.write(
-    `run ${index}: ${run.checkpoints.length} checkpoints, ${run.logRows} log rows, ` +
+    `run ${index}${prefetch === null ? '' : ` (prefetch ${prefetch})`}: ` +
+      `${run.checkpoints.length} checkpoints, ${run.logRows} log rows, ` +
       `stopped at ${run.stoppedAt?.toLocaleString()}, ${seconds.toFixed(0)}s, sha256 ${run.digest.slice(0, 8)}…\n`,
   )
   return run

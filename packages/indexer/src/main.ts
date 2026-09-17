@@ -56,6 +56,7 @@ async function main(): Promise<void> {
     networkId: settings.networkId,
     launchHeight: CONSTANTS.LAUNCH_HEIGHT,
     pollIntervalMs: settings.pollIntervalMs,
+    scanPrefetch: settings.scanPrefetch,
     startMode: settings.startMode,
   })
 
@@ -146,6 +147,7 @@ async function main(): Promise<void> {
       networkId: settings.networkId,
       launchHeight: CONSTANTS.LAUNCH_HEIGHT,
       pollIntervalMs: settings.pollIntervalMs,
+      prefetch: settings.scanPrefetch,
       ...(cursor === null ? {} : { startBatch: cursor.nextBatch }),
       onBatchComplete: async ({ batch, macroBlock, candidates }) => {
         const before = state
@@ -197,6 +199,7 @@ async function main(): Promise<void> {
               networkId: settings.networkId,
               launchHeight: CONSTANTS.LAUNCH_HEIGHT,
               pollIntervalMs: settings.pollIntervalMs,
+              prefetch: settings.scanPrefetch,
               throughHeight: verification.bootstrapHeight,
             },
             controller.signal,

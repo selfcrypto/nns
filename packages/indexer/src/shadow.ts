@@ -66,6 +66,13 @@ export interface VerifyOptions {
   readonly networkId: number
   readonly launchHeight: number
   readonly pollIntervalMs: number
+  /**
+   * The tail's prefetch window, inherited. The sweep is the replay that
+   * benefits most from it: it is a full re-derivation from `LAUNCH_HEIGHT` of a
+   * range the chain finalised long ago, so every one of its fetches can be in
+   * flight early.
+   */
+  readonly prefetch?: number
   /** The height the bootstrap asserted through — the sweep's last block. */
   readonly throughHeight: number
   /** Injectable for tests. */
@@ -107,6 +114,7 @@ export async function verifyFromChain(options: VerifyOptions, signal: AbortSigna
     networkId: options.networkId,
     launchHeight,
     pollIntervalMs: options.pollIntervalMs,
+    ...(options.prefetch === undefined ? {} : { prefetch: options.prefetch }),
     stopAfterBatch,
     onBatchComplete: async ({ macroBlock, candidates }) => {
       const result = pipeline.applyBatch(state, candidates, macroBlock)

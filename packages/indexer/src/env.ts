@@ -36,6 +36,23 @@ export interface IndexerSettings {
   readonly networkId: number
   /** Idle wait once the scan has caught up to the last finalised macro block. */
   readonly pollIntervalMs: number
+  /**
+   * Batch fetches in flight at once (`NNS_SCAN_PREFETCH`). `1` is the serial
+   * loop this indexer ran until 2026-09-16.
+   *
+   * A backfill is round trips, not reduction — so this is the one setting that
+   * changes how long a rebuild takes, and it changes no byte of what a rebuild
+   * produces: batches are applied in strict order whatever the window.
+   *
+   * **Measured**, from the service box over the tunnel and from the LAN
+   * (`docs/rpc-reference.md` §1.1): 502 batches/min serial → 7,878 at 16 →
+   * 12,948 at 32, against 43,000 serial on the LAN. The default is 16 rather
+   * than the fastest window because past it the fetch stops being the
+   * bottleneck: the LAN's full-indexer rate of ~7,300 batches/min is 1.4 ms of
+   * fetch and ~7 ms of reduce-and-commit, so a wider window buys held memory
+   * and node connections rather than throughput.
+   */
+  readonly scanPrefetch: number
   /** How often the `indexer.progress` heartbeat may repeat. */
   readonly progressIntervalMs: number
   readonly logLevel: LogLevel
@@ -286,6 +303,7 @@ export function loadSettings(env: EnvSource = process.env): IndexerSettings {
     rpcAttempts: integer(env, 'NNS_RPC_ATTEMPTS', 4, 1),
     networkId,
     pollIntervalMs: integer(env, 'NNS_POLL_INTERVAL_MS', 15_000, 100),
+    scanPrefetch: integer(env, 'NNS_SCAN_PREFETCH', 16, 1),
     progressIntervalMs: integer(env, 'NNS_PROGRESS_INTERVAL_MS', 60_000, 1_000),
     logLevel: level,
     databaseUrl: required(env, 'NNS_DATABASE_URL'),

@@ -550,3 +550,157 @@ describe('run', () => {
   })
 })
 
+
+describe('the prefetch window', () => {
+  /** Drain every pending microtask — the fetches start behind calibration. */
+  const flush = (): Promise<void> => new Promise((resolve) => setImmediate(resolve))
+
+  /**
+   * A node that records the order of fetches and of applies, and holds every
+   * fetch open until released — so "what was in flight while batch n was being
+   * applied" is observable rather than inferred from timing.
+   */
+  function instrumented(head: number, prefetch: number, held: readonly number[]) {
+    const node = fakeNode({ head, blocks: {} })
+    const { logger } = collectingLogger()
+    const events: string[] = []
+    const gates = new Map<number, () => void>()
+    const s = new Scanner({
+      rpc: {
+        ...node.rpc,
+        getTransactionsByBatchNumber: async (batch: number) => {
+          events.push(`fetch:${batch}`)
+          if (held.includes(batch)) await new Promise<void>((resolve) => gates.set(batch, resolve))
+          return []
+        },
+      },
+      logger,
+      networkId: 24,
+      launchHeight: 1,
+      pollIntervalMs: 1,
+      prefetch,
+      onBatchComplete: ({ batch }) => {
+        events.push(`apply:${batch}`)
+      },
+    })
+    return { scanner: s, events, release: (batch: number) => gates.get(batch)?.() }
+  }
+
+  it('keeps the window full while applying in order', async () => {
+    const { scanner: s, events, release } = instrumented(360, 3, [1, 2, 3])
+    const tick = s.tick()
+    // Three in flight before the first apply, which is the whole point: the
+    // serial loop would have fetched batch 1 and stopped there.
+    await flush()
+    expect(events).toEqual(['fetch:1', 'fetch:2', 'fetch:3'])
+
+    // Releasing out of order changes nothing: batch 2 is applied after 1
+    // whatever order the node answers in.
+    release(2)
+    release(3)
+    await flush()
+    expect(events.filter((event) => event.startsWith('apply:'))).toEqual([])
+
+    release(1)
+    await tick
+    expect(events.filter((event) => event.startsWith('apply:'))).toEqual([
+      'apply:1',
+      'apply:2',
+      'apply:3',
+      'apply:4',
+      'apply:5',
+    ])
+    expect(s.nextBatch).toBe(6)
+  })
+
+  it('refills as it drains, never more than the window in flight', async () => {
+    const { scanner: s, events, release } = instrumented(360, 2, [1, 2])
+    const tick = s.tick()
+    await flush()
+    expect(events).toEqual(['fetch:1', 'fetch:2'])
+    release(1)
+    await flush()
+    // Batch 1 applied, so batch 3 was requested — and batch 4 was not.
+    expect(events).toEqual(['fetch:1', 'fetch:2', 'apply:1', 'fetch:3'])
+    release(2)
+    await tick
+    expect(s.nextBatch).toBe(6)
+  })
+
+  it('a window of 1 is the serial loop, call for call', async () => {
+    const node = fakeNode({ head: 360, blocks: {} })
+    const { logger } = collectingLogger()
+    const order: string[] = []
+    const s = new Scanner({
+      rpc: {
+        ...node.rpc,
+        getTransactionsByBatchNumber: async (batch: number) => {
+          order.push(`fetch:${batch}`)
+          return []
+        },
+      },
+      logger,
+      networkId: 24,
+      launchHeight: 1,
+      pollIntervalMs: 1,
+      prefetch: 1,
+      onBatchComplete: ({ batch }) => {
+        order.push(`apply:${batch}`)
+      },
+    })
+    await s.tick()
+    expect(order).toEqual([
+      'fetch:1', 'apply:1',
+      'fetch:2', 'apply:2',
+      'fetch:3', 'apply:3',
+      'fetch:4', 'apply:4',
+      'fetch:5', 'apply:5',
+    ])
+  })
+
+  it('raises a failed fetch at its own batch, and the cursor stops there', async () => {
+    const node = fakeNode({ head: 360, blocks: {} })
+    const { logger } = collectingLogger()
+    const applied: number[] = []
+    const s = new Scanner({
+      rpc: {
+        ...node.rpc,
+        getTransactionsByBatchNumber: async (batch: number) => {
+          if (batch >= 3) throw new RpcTransportError(`batch ${batch}: request failed`)
+          return []
+        },
+      },
+      logger,
+      networkId: 24,
+      launchHeight: 1,
+      pollIntervalMs: 1,
+      prefetch: 5,
+      onBatchComplete: ({ batch }) => {
+        applied.push(batch)
+      },
+    })
+    // Batches 3, 4 and 5 all fail while in flight; the one that surfaces is
+    // the one the cursor reached, and the two behind it are dropped with the
+    // window rather than racing each other to the process's rejection handler.
+    await expect(s.tick()).rejects.toThrow(/batch 3: request failed/)
+    expect(applied).toEqual([1, 2])
+    expect(s.nextBatch).toBe(3)
+  })
+
+  it('does not fetch past the finalised target', async () => {
+    const node = fakeNode({ head: 180, blocks: {} })
+    const { logger } = collectingLogger()
+    const s = new Scanner({
+      rpc: node.rpc,
+      logger,
+      networkId: 24,
+      launchHeight: 1,
+      pollIntervalMs: 1,
+      prefetch: 16,
+    })
+    await s.tick()
+    // Finality is batch 2; a window of 16 must not read into the batch the
+    // chain has not closed.
+    expect(node.calls.batches).toEqual([1, 2])
+  })
+})

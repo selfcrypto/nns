@@ -14,6 +14,18 @@
  *
  * This is the chain-facing half: nothing is persisted, and the reducer is not
  * wired. Surviving transactions are handed to `onCandidate` and logged.
+ *
+ * ## Fetches are concurrent, applies are not
+ *
+ * A replay's cost is round trips: measured 2026-09-16, one batch fetch at a
+ * time runs at 502/min over the tunnel and 43,548/min on the LAN, and the
+ * overwhelming majority of those batches carry no NNS message at all. So
+ * `prefetch` batches may be in flight at once — 7,878/min at a window of 16
+ * over the same tunnel — but they are *consumed* in
+ * strict ascending order, one `onBatchComplete` at a time, because that
+ * callback commits a batch and moves the cursor with it. Nothing about the
+ * derived bytes depends on the window: the node answers a batch identically
+ * whatever else is in flight, and a window of `1` is the serial loop.
  */
 
 import { CONSTANTS, rankMessages } from '@nimiqnames/core'
@@ -103,6 +115,13 @@ export interface CompletedBatch {
   readonly summary: BatchSummary
 }
 
+/**
+ * A batch fetch that has settled, either way. See {@link Scanner.fetchBatch}.
+ */
+type Fetched =
+  | { readonly ok: true; readonly batch: number; readonly transactions: readonly RpcTransaction[] }
+  | { readonly ok: false; readonly batch: number; readonly error: unknown }
+
 export interface ScannerOptions {
   rpc: ScanRpc
   logger: Logger
@@ -117,6 +136,18 @@ export interface ScannerOptions {
    * commit state and cursor together.
    */
   onBatchComplete?: (batch: CompletedBatch) => void | Promise<void>
+  /**
+   * How many batch fetches may be in flight at once. `1` is the serial loop.
+   *
+   * The scan's cost is round trips, not reduction: 502 batches/min serial over
+   * the tunnel against 7,878 at a window of 16 (`docs/rpc-reference.md` §3),
+   * and almost every batch of it is empty. The fetch order is free —
+   * the node answers a batch the same whatever else is in flight — but the
+   * **apply** order is not, and this window changes only the first. Batches are
+   * consumed strictly in ascending order, one commit each, exactly as they were
+   * when each fetch immediately preceded its own apply.
+   */
+  prefetch?: number
   /** Resume point, from a stored cursor. Overrides the `LAUNCH_HEIGHT` start. */
   startBatch?: number
   /**
@@ -141,6 +172,7 @@ export class Scanner {
   private readonly pollIntervalMs: number
   private readonly onCandidate: ((candidate: NnsCandidate) => void | Promise<void>) | undefined
   private readonly onBatchComplete: ((batch: CompletedBatch) => void | Promise<void>) | undefined
+  private readonly prefetch: number
   private readonly startBatchOverride: number | undefined
   private readonly stopAfterBatch: number | undefined
   private readonly sleep: (ms: number, signal?: AbortSignal) => Promise<void>
@@ -173,6 +205,11 @@ export class Scanner {
     this.pollIntervalMs = options.pollIntervalMs
     this.onCandidate = options.onCandidate
     this.onBatchComplete = options.onBatchComplete
+    // Clamped rather than validated: `env.ts` refuses a window below 1 with a
+    // message that names the variable, and a Scanner built in code with a
+    // nonsense window should behave like the serial loop, not throw from a
+    // constructor.
+    this.prefetch = Math.max(1, Math.trunc(options.prefetch ?? 1))
     this.startBatchOverride = options.startBatch
     this.stopAfterBatch = options.stopAfterBatch
     this.sleep = options.sleep ?? delay
@@ -226,13 +263,45 @@ export class Scanner {
       batches: target - cursor + 1,
     })
 
+    // The prefetch window. Fetches run ahead; applies do not — `consumeBatch`
+    // is called for `cursor`, then `cursor + 1`, one commit each, and the
+    // cursor only ever advances past a batch whose `onBatchComplete` returned.
+    const window: Promise<Fetched>[] = []
+    let requested = cursor
+    const fill = (): void => {
+      while (window.length < this.prefetch && requested <= target) {
+        window.push(this.fetchBatch(requested))
+        requested += 1
+      }
+    }
+    fill()
+
     let scanned = 0
     while (cursor <= target) {
       if (signal?.aborted === true) break
-      await this.scanBatch(cursor)
+      // `shift` is undefined only for a window of zero, which the constructor
+      // clamps away; the fallback keeps that impossible case serial rather
+      // than silent.
+      const fetched = await (window.shift() ?? this.fetchBatch(cursor))
+      // Held as a value and thrown here rather than propagating from the fetch
+      // itself: the window may hold several failures at once, and the one that
+      // matters is the one at the cursor. The rest are dropped with the window
+      // when this tick unwinds, and the next tick re-requests them. A fetch
+      // whose batch is never reached is wasted, never lost.
+      if (!fetched.ok) throw fetched.error
+      // The window is in lockstep with the cursor by construction; this says
+      // so out loud, because a concurrency bug that reordered applies would
+      // otherwise surface as a wrong root a long way from here.
+      if (fetched.batch !== cursor) {
+        throw new ScanError(
+          `the prefetch window handed batch ${fetched.batch} to the apply at batch ${cursor}`,
+        )
+      }
+      await this.consumeBatch(cursor, fetched.transactions)
       cursor += 1
       this.cursor = cursor
       scanned += 1
+      fill()
     }
     return scanned
   }
@@ -323,8 +392,34 @@ export class Scanner {
 
   /** Fetch one batch, rank per §5.2, apply §7.5's discovery filters, emit. */
   async scanBatch(batch: number): Promise<readonly NnsCandidate[]> {
+    // Calibrated first, as it was when this method held the fetch inline: a
+    // caller outside `tick` — a test, mostly — should see the same call order.
+    await this.calibrated()
+    return await this.consumeBatch(batch, await this.rpc.getTransactionsByBatchNumber(batch))
+  }
+
+  /**
+   * One batch's fetch, settled rather than rejected.
+   *
+   * A window holds promises for batches the loop has not reached yet, and a
+   * rejection sitting in one of those is an unhandled rejection the moment the
+   * tick unwinds for another reason. So the failure is carried as a value and
+   * raised by {@link tick} when the cursor arrives at it — which is also the
+   * only point at which it means anything.
+   */
+  private fetchBatch(batch: number): Promise<Fetched> {
+    return this.rpc.getTransactionsByBatchNumber(batch).then(
+      (transactions): Fetched => ({ ok: true, batch, transactions }),
+      (error: unknown): Fetched => ({ ok: false, batch, error }),
+    )
+  }
+
+  /** Everything after the fetch: rank per §5.2, filter per §7.5, emit. */
+  private async consumeBatch(
+    batch: number,
+    returned: readonly RpcTransaction[],
+  ): Promise<readonly NnsCandidate[]> {
     const geometry = await this.calibrated()
-    const returned = await this.rpc.getTransactionsByBatchNumber(batch)
 
     for (const tx of returned) {
       // If the method took a block number rather than a batch number we would
