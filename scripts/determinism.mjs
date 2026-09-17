@@ -41,6 +41,14 @@
 //                         chain serially and with sixteen fetches in flight;
 //                         the comparison is then what says the window moved no
 //                         byte. Default: whatever the environment sets
+//   --from-log <rev>      after every run but the first reaches the target,
+//                         rebuild that database from its own §8.2 log
+//                         (`rebuild-main.js --log-preserving <rev>`) before
+//                         reading its checkpoints. Run 1 is then a scratch
+//                         replay of the chain and run 2 is the same replay put
+//                         through a rules rebuild, so the comparison below is
+//                         what says a log rebuild derives the same bytes as
+//                         the chain does — `tasks/14` D2's "done when"
 //   --out <dir>           where run logs and checkpoint dumps land
 //                         (default /tmp/nns-determinism-<timestamp>)
 //   --timeout <seconds>   per-run ceiling before the harness gives up (default 3600)
@@ -89,6 +97,7 @@ const { values: opts } = parseArgs({
     'admin-database': { type: 'string', default: 'postgres' },
     out: { type: 'string' },
     prefetch: { type: 'string' },
+    'from-log': { type: 'string' },
     timeout: { type: 'string', default: '3600' },
     keep: { type: 'boolean', default: false },
     'no-build': { type: 'boolean', default: false },
@@ -120,6 +129,9 @@ const prefetches =
     ? null
     : opts.prefetch.split(',').map((raw) => integer(raw.trim(), 'prefetch', 1))
 if (prefetches !== null && prefetches.length === 0) fail('--prefetch needs at least one window')
+
+const fromLog = opts['from-log'] === undefined ? null : integer(opts['from-log'], 'from-log', 1)
+if (fromLog !== null && runs < 2) fail('--from-log needs at least two runs: one to rebuild, one to compare against')
 
 // ── Environment ──────────────────────────────────────────────────────────────
 
@@ -341,6 +353,8 @@ async function replay(index) {
       while (exit === null) await sleep(200)
     }
 
+    if (fromLog !== null && index > 1) await rebuildFromOwnLog(index, logPath)
+
     const checkpoints = await pool.query(
       `SELECT height, ${COLUMNS.slice(0, -1)
         .map((column) => `encode(${column},'hex') AS ${column}`)
@@ -380,6 +394,33 @@ async function replay(index) {
       `stopped at ${run.stoppedAt?.toLocaleString()}, ${seconds.toFixed(0)}s, sha256 ${run.digest.slice(0, 8)}…\n`,
   )
   return run
+}
+
+/**
+ * Put this run's database through a rules rebuild before it is read.
+ *
+ * The indexer has already stopped, so nothing is writing: the rebuild replaces
+ * every derived row from the `log` table the scan just wrote, and the
+ * comparison that follows is between a chain replay and a log replay of the
+ * same window. Its output joins the run's log, so a refusal is readable where
+ * everything else about that run is.
+ */
+async function rebuildFromOwnLog(index, logPath) {
+  const started = Date.now()
+  const fd = openSync(logPath, 'a')
+  const child = spawn(process.execPath, ['dist/rebuild-main.js', '--log-preserving', String(fromLog)], {
+    cwd: join(repo, 'packages/indexer'),
+    env: { ...process.env, ...baseEnv, NNS_DATABASE_URL: runUrl },
+    stdio: ['ignore', fd, fd],
+  })
+  closeSync(fd)
+  const code = await new Promise((resolve) => child.on('exit', resolve))
+  if (code !== 0) {
+    throw new Error(`run ${index}: the log rebuild exited ${code}\n  log: ${logPath}\n${tail(logPath)}`)
+  }
+  process.stdout.write(
+    `run ${index}: rebuilt from its own log at revision ${fromLog} in ${((Date.now() - started) / 1000).toFixed(1)}s\n`,
+  )
 }
 
 function tail(path, lines = 12) {

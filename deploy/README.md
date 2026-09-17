@@ -192,8 +192,30 @@ The exception is the one thing you supply rather than derive — each role's
 - **The node was resynced.** If its retention no longer covers `LAUNCH_HEIGHT`,
   the indexer refuses to start. Fix the node, not the height.
 
-The procedure, in your role's directory — build first, so a broken image
-surfaces before anything stops:
+**For the first case, take the log path when the revision allows it.** A
+revision whose note in `docs/history/revisions.md` says **log-preserving** —
+one that leaves which messages are logged, the canonical order (§5.2) and the
+attributed sender (§7.2) alone, and moves only verdicts and the state behind
+them — can be applied by replaying the log this database already holds, which
+is the same input in a shorter form. Seconds rather than a resync, in one
+transaction, and the registry answers throughout:
+
+```
+docker compose build
+docker compose stop indexer
+docker compose run --rm --no-deps indexer node dist/rebuild-main.js --log-preserving 30
+docker compose up -d
+```
+
+The revision is typed out because it is a declaration, and the indexer refuses
+it if it is not the one the image implements — or if the replay does not
+reproduce the stored log line for line. Nothing is dropped. A background
+re-derivation from the chain confirms the range afterwards when
+`NNS_START_MODE=hybrid`, and `/params.verification.rebuilt` says until then
+that it has not.
+
+**Otherwise, from the chain.** In your role's directory — build first, so a
+broken image surfaces before anything stops:
 
 ```
 docker compose build
