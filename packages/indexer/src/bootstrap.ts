@@ -70,10 +70,10 @@ import {
   type NnsState,
 } from '@nimiqnames/core'
 
-import { BLOCKS_PER_BATCH, calibrate, type ChainGeometry } from './chain.js'
-import { CheckpointBuilder, COMMITMENT_LAYOUT, hex, logLineFromRow } from './checkpoint.js'
+import { calibrate } from './chain.js'
+import { COMMITMENT_LAYOUT, hex } from './checkpoint.js'
 import type { Logger } from './logger.js'
-import { Pipeline, type BatchResult } from './pipeline.js'
+import { macroStops, replaySegments } from './replay.js'
 import { nameRows } from './rows.js'
 import type { NnsCandidate, ScanRpc } from './scan.js'
 import type { LogSource } from './peer.js'
@@ -82,17 +82,6 @@ import type { Store, Verification } from './store.js'
 export class BootstrapError extends Error {
   override readonly name = 'BootstrapError'
 }
-
-/**
- * Checkpoint boundaries per persisted segment.
- *
- * The replay holds one `NnsState` per boundary crossed inside a single
- * `applyBatch` call — that is how §8.1 commits the state *at* the boundary
- * rather than at the end of the batch — so the segment length is a memory
- * bound, not a throughput knob. Thirty-two keeps a year of mainnet to a dozen
- * commits while never holding more than thirty-two registries at once.
- */
-const SEGMENT_BOUNDARIES = 32
 
 export interface BootstrapOptions {
   readonly store: Store
@@ -125,12 +114,6 @@ export interface BootstrapResult {
   readonly names: number
   /** The §8.1 commitment reproduced at `checkpointHeight`, bare lowercase hex. */
   readonly commitment: string
-}
-
-/** One stop of the replay: a height to land on, and the batch that follows it. */
-interface Stop {
-  readonly throughHeight: number
-  readonly nextBatch: number
 }
 
 /**
@@ -175,7 +158,7 @@ export async function bootstrap(options: BootstrapOptions): Promise<BootstrapRes
   const candidates = readLog(source.lines, config, launchHeight, height)
 
   // ── Pass 1: verify, writing nothing ──────────────────────────────────────
-  const verified = await replay({
+  const verified = await replaySegments({
     candidates,
     stops: [...macroStops(launchBatch, checkpointBatch - 1, geometry), { throughHeight: height, nextBatch: checkpointBatch }],
     sourceLines: source.lines,
@@ -214,9 +197,13 @@ export async function bootstrap(options: BootstrapOptions): Promise<BootstrapRes
     bootstrapSource: sourceUrl,
     bootstrapLogHash: hex(derived.logHash),
     shadowThrough: null,
+    // A bootstrap is not a rules rebuild: these rows were never derived under
+    // another revision's rules, they were never derived from the chain at all.
+    rebuiltRevision: null,
+    rebuiltThrough: null,
   }
   let first = true
-  const persisted = await replay({
+  const persisted = await replaySegments({
     candidates,
     stops: macroStops(launchBatch, checkpointBatch - 1, geometry),
     sourceLines: source.lines,
@@ -323,91 +310,6 @@ function readLog(
     })
   })
   return candidates
-}
-
-/** One macro-block stop per segment, covering `[fromBatch, toBatch]`. */
-function macroStops(fromBatch: number, toBatch: number, geometry: ChainGeometry): readonly Stop[] {
-  const perSegment = Math.max(
-    1,
-    Math.ceil((SEGMENT_BOUNDARIES * CONSTANTS.CHECKPOINT_INTERVAL) / BLOCKS_PER_BATCH),
-  )
-  const stops: Stop[] = []
-  for (let batch = fromBatch; batch <= toBatch; batch += perSegment) {
-    const last = Math.min(batch + perSegment - 1, toBatch)
-    stops.push({ throughHeight: geometry.macroBlockOf(last), nextBatch: last + 1 })
-  }
-  return stops
-}
-
-interface ReplayStep {
-  readonly stop: Stop
-  readonly before: NnsState
-  readonly result: BatchResult
-  readonly checkpoints: readonly Checkpoint[]
-}
-
-interface ReplayOutcome {
-  readonly state: NnsState
-  readonly lastCheckpoint: Checkpoint | undefined
-  /** How many log lines the replay produced. */
-  readonly consumed: number
-}
-
-/**
- * Run the candidates through `Pipeline` and `CheckpointBuilder`, stopping at
- * each of `stops` in turn.
- *
- * Every produced line is compared byte for byte against the served one at the
- * same position. The §8.1 commitment check at the end subsumes this — a
- * fabricated verdict changes the log hash and therefore the commitment — but it
- * reports *that* something is wrong, where this reports *which line*, and on a
- * disagreement between two implementations that is most of the answer.
- */
-async function replay(options: {
-  readonly candidates: readonly NnsCandidate[]
-  readonly stops: readonly Stop[]
-  readonly sourceLines: readonly string[]
-  readonly config: NnsConfig
-  readonly logger: Logger
-  readonly onStep?: (step: ReplayStep) => Promise<void>
-}): Promise<ReplayOutcome> {
-  const pipeline = new Pipeline(options.config, options.logger)
-  const builder = new CheckpointBuilder({ logger: options.logger })
-
-  let state: NnsState = initialState()
-  let lastCheckpoint: Checkpoint | undefined
-  let consumed = 0
-  let next = 0
-
-  for (const stop of options.stops) {
-    const slice: NnsCandidate[] = []
-    while (next < options.candidates.length) {
-      const candidate = options.candidates[next] as NnsCandidate
-      if (candidate.blockNumber > stop.throughHeight) break
-      slice.push(candidate)
-      next += 1
-    }
-
-    const result = pipeline.applyBatch(state, slice, stop.throughHeight)
-    for (const row of result.logRows) {
-      const produced = logLineFromRow(row)
-      const served = options.sourceLines[consumed]
-      if (produced !== served) {
-        throw new BootstrapError(
-          `replaying the served log did not reproduce line ${consumed}:\n  served:  ${served ?? '(none)'}\n  replay:  ${produced}`,
-        )
-      }
-      consumed += 1
-    }
-    const checkpoints = builder.buildForBatch(result)
-    lastCheckpoint = checkpoints[checkpoints.length - 1] ?? lastCheckpoint
-    // `before` is this segment's entry state, exactly as the scan loop passes
-    // the batch's: `diffState` against `initialState()` on the first segment
-    // emits every row, which is what a fresh database needs.
-    await options.onStep?.({ stop, before: state, result, checkpoints })
-    state = result.state
-  }
-  return { state, lastCheckpoint, consumed }
 }
 
 /**

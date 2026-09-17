@@ -117,6 +117,24 @@ export interface VerificationSnapshot {
     /** How far a background re-derivation has reached, or `null` if none runs. */
     readonly verifiedThrough: number | null
   } | null
+  /**
+   * A rules rebuild that replayed the indexer's own §8.2 log rather than the
+   * chain (indexer migration `013`), and which a background re-derivation has
+   * not yet confirmed. `null` for everything else, including a rebuilt range
+   * the sweep has since agreed with.
+   *
+   * The distinction from `bootstrap` is what is unproven. A bootstrap's range
+   * was never derived from the chain here; a rebuilt range was, under the
+   * revision before `revision` — what is outstanding is only whether that
+   * revision left the log alone, which is what the operator declared and what
+   * the sweep checks.
+   */
+  readonly rebuilt: {
+    /** The `SPEC_REVISION` the rebuild ran under. */
+    readonly revision: number
+    /** The highest height it replayed through. */
+    readonly through: number
+  } | null
 }
 
 /** A stored §8.1 checkpoint row, digests as bare lowercase hex. */
@@ -518,7 +536,8 @@ export class PgQueries implements Queries {
            FROM pending WHERE kind = 'GOVERNANCE'`,
       )
       const verification = await client.query(
-        `SELECT verified_from, bootstrap_height, bootstrap_source, shadow_through
+        `SELECT verified_from, bootstrap_height, bootstrap_source, shadow_through,
+                rebuilt_revision, rebuilt_through
            FROM verification WHERE id`,
       )
       // #snapshot has already proven the params row exists.
@@ -735,11 +754,19 @@ export class PgQueries implements Queries {
  * information, which is the opposite of what it is.
  */
 function verificationOf(row: Row | undefined): VerificationSnapshot {
-  if (row === undefined) return { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null }
+  if (row === undefined) {
+    return { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null, rebuilt: null }
+  }
   const height = row['bootstrap_height']
   const source = row['bootstrap_source']
+  const revision = row['rebuilt_revision']
+  const through = row['rebuilt_through']
   return {
     verifiedFrom: toHeight(row['verified_from'], 'verified_from'),
+    rebuilt:
+      revision === null || revision === undefined || through === null || through === undefined
+        ? null
+        : { revision: Number(revision), through: toHeight(through, 'rebuilt_through') },
     bootstrap:
       height === null || height === undefined || typeof source !== 'string'
         ? null

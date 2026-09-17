@@ -185,7 +185,7 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
         pending: { feeBase: 80_000_000n, commissionBp: 300n, effectiveHeight: 58_243_200 },
         // No `verification` row: this database was replayed from the chain,
         // which is what an absent row means and the strongest answer there is.
-        verification: { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null },
+        verification: { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null, rebuilt: null },
       },
     })
   })
@@ -205,6 +205,28 @@ describe.skipIf(URL === undefined)('PgQueries', () => {
           source: 'https://peer.example.com',
           verifiedThrough: HEIGHT - 100_000,
         },
+        rebuilt: null,
+      })
+    } finally {
+      await pool.query('DELETE FROM verification')
+    }
+  })
+
+  it('discloses a rules rebuild, and it is not a bootstrap (migration 013)', async () => {
+    // The two say different things. A bootstrap's range was never derived from
+    // the chain here; a rebuilt range was, under the revision before this one,
+    // and what is outstanding is only whether that revision left the log alone.
+    await pool.query(
+      `INSERT INTO verification (id, verified_from, rebuilt_revision, rebuilt_through, rebuilt_at)
+       VALUES (TRUE, $1, $2, $3, now())`,
+      [CONSTANTS.LAUNCH_HEIGHT, 30, HEIGHT - 60],
+    )
+    try {
+      const params = await queries.params()
+      expect(params.value.verification).toEqual({
+        verifiedFrom: CONSTANTS.LAUNCH_HEIGHT,
+        bootstrap: null,
+        rebuilt: { revision: 30, through: HEIGHT - 60 },
       })
     } finally {
       await pool.query('DELETE FROM verification')

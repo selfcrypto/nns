@@ -89,7 +89,7 @@ const PARAMS = {
   lastGovernanceHeight: null,
   pending: null,
   // The ordinary answer: replayed from LAUNCH_HEIGHT, nothing downloaded.
-  verification: { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null },
+  verification: { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null, rebuilt: null },
 }
 
 /** Every method rejects unless the test stubs it, so a route that reaches for
@@ -448,7 +448,7 @@ describe('/params', () => {
         listingFee: '0',
         lastGovernanceHeight: null,
         pendingGovernance: null,
-        verification: { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null },
+        verification: { verifiedFrom: CONSTANTS.LAUNCH_HEIGHT, bootstrap: null, rebuilt: null },
         height: HEIGHT,
       },
     })
@@ -464,6 +464,7 @@ describe('/params', () => {
           source: 'https://peer.example.com',
           verifiedThrough: CONSTANTS.LAUNCH_HEIGHT + 100_000,
         },
+        rebuilt: null,
       },
     }
     const handle = routes({ params: () => Promise.resolve(snap(seeded)) })

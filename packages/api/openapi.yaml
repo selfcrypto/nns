@@ -352,8 +352,13 @@ paths:
                       is strong but cannot see a message omitted from the log.
                       verifiedThrough reports a background re-derivation in
                       progress; when it completes, verifiedFrom drops to
-                      LAUNCH_HEIGHT.
-                    required: [verifiedFrom, bootstrap]
+                      LAUNCH_HEIGHT. rebuilt reports a rules rebuild that
+                      replayed this indexer's own log instead of the chain:
+                      that range was derived from the chain, under the revision
+                      before the one named, and what a background re-derivation
+                      has yet to confirm is only that the revision left the log
+                      alone. It too becomes null when the sweep agrees.
+                    required: [verifiedFrom, bootstrap, rebuilt]
                     properties:
                       verifiedFrom: { $ref: '#/components/schemas/Height' }
                       bootstrap:
@@ -365,6 +370,14 @@ paths:
                               source: { type: string, format: uri }
                               verifiedThrough:
                                 oneOf: [{ $ref: '#/components/schemas/Height' }, { type: 'null' }]
+                          - type: 'null'
+                      rebuilt:
+                        oneOf:
+                          - type: object
+                            required: [revision, through]
+                            properties:
+                              revision: { type: integer, minimum: 1 }
+                              through: { $ref: '#/components/schemas/Height' }
                           - type: 'null'
                   height: { $ref: '#/components/schemas/Height' }
         '503': { $ref: '#/components/responses/NotSynced' }

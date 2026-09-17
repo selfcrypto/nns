@@ -55,6 +55,18 @@ export interface Verification {
   bootstrapLogHash: string | null
   /** How far `hybrid`'s background re-derivation has reached, or `null`. */
   shadowThrough: number | null
+  /**
+   * The `SPEC_REVISION` a log rebuild ran under, and the height it replayed
+   * through (migration `013`). `null` for a database never rebuilt from its
+   * own log, and `null` again once the sweep has re-derived that range from
+   * the chain and agreed with it.
+   *
+   * Not folded into `verifiedFrom`: over a rebuilt range the log's membership
+   * *was* derived from the chain, under the previous revision's rules. Moving
+   * `verifiedFrom` would under-claim that; saying nothing would over-claim it.
+   */
+  rebuiltRevision: number | null
+  rebuiltThrough: number | null
 }
 
 const NAME_COLUMNS = ['name', 'owner', 'target', 'evm', 'expiry', 'status', 'host'] as const
@@ -165,6 +177,54 @@ export interface CommitInput {
   verification?: Verification
 }
 
+/** One replayed segment, as {@link Store.rebuildFromLog} writes it. */
+export interface RebuildSegment {
+  /** The segment's entry state. `initialState()` on the first, so the diff emits every row. */
+  readonly before: NnsState
+  readonly after: NnsState
+  readonly logRows: readonly LogRow[]
+  readonly checkpoints: readonly Checkpoint[]
+  readonly snapshot?: { readonly height: number; readonly names: readonly NameRow[] }
+}
+
+export interface RebuildInput {
+  /** `CONSTANTS.SPEC_REVISION`, as declared by `--log-preserving`. */
+  readonly revision: number
+  /** The height the replay covers — the cursor's `scanned_through`. */
+  readonly through: number
+  /**
+   * The row this database already had, carried through unchanged. A rebuild
+   * says nothing new about where the state came from; it only adds what it
+   * did to it.
+   */
+  readonly verification: Verification
+  /** Drives the replay, calling `segment` once per segment, in order. */
+  readonly replay: (segment: (segment: RebuildSegment) => Promise<void>) => Promise<void>
+}
+
+export interface RebuildOutcome {
+  /** Log lines the replay produced — equal to the stored count, or it threw. */
+  readonly lines: number
+  /** How many of them came back with a different §7.4 token. */
+  readonly verdictsRewritten: number
+}
+
+/**
+ * Every table whose rows a rules rebuild re-derives.
+ *
+ * `log` is absent because it is the **input**, and `cursor` because where the
+ * scan had got to is not a derived fact about the rules.
+ */
+const DERIVED_TABLES = [
+  'checkpoint_names',
+  'checkpoints',
+  'settlements',
+  'pending',
+  'unreserved',
+  'names',
+  'params',
+] as const
+
 /** A checkpoint as stored, hex-encoded. `BYTEA` comes back as a `Buffer`. */
 export interface StoredCheckpoint {
   height: number
@@ -216,10 +276,17 @@ export class Store {
   /**
    * The stored cursor, or `null` for a database that has never run.
    *
+   * @param options `acrossLayouts` skips the §8.1 layout refusal — for
+   *   {@link rebuildFromLog}, which is about to replace every checkpoint in
+   *   the table and is the documented way out of the state that refusal
+   *   describes. The **config fingerprint** check is not optional even there:
+   *   a moved `LAUNCH_HEIGHT` or a new reserved name changes which messages
+   *   belong in the log, and a rebuild replaying the log it already holds
+   *   cannot discover that.
    * @throws {StoreError} if the stored config fingerprint disagrees with ours,
    *   or if a stored checkpoint was written at another §8.1 layout.
    */
-  async loadCursor(): Promise<Cursor | null> {
+  async loadCursor(options: { acrossLayouts?: boolean } = {}): Promise<Cursor | null> {
     const result = await this.pool.query<{
       next_batch: number
       scanned_through: number
@@ -233,17 +300,15 @@ export class Store {
     // Since 2026-09-11 it refuses here, where the fingerprint does — a
     // database at another layout is the output of a different function, and
     // the only correct continuation is none (migration 012).
-    const foreign = await this.pool.query<{ layout: number; height: number }>(
-      'SELECT layout, height FROM checkpoints WHERE layout <> $1 ORDER BY height DESC LIMIT 1',
-      [COMMITMENT_LAYOUT],
-    )
-    const stale = foreign.rows[0]
+    const stale = options.acrossLayouts === true ? undefined : await this.foreignLayout()
     if (stale !== undefined) {
       throw new StoreError(
         `this database holds checkpoints at §8.1 layout ${stale.layout} (latest at height ${stale.height}); ` +
           `this build derives layout ${COMMITMENT_LAYOUT}. No stored root is reproducible under the current ` +
           'rules, so continuing would stack two commitment functions in one table. ' +
-          'Rebuild from empty: drop this database and bring the role back up (deploy/README.md).',
+          'Rebuild: `nns-vps rebuild <role> --from-log` replays this database\'s own §8.2 log under the new ' +
+          'rules and keeps the registry up, if the revision is log-preserving; otherwise drop the database ' +
+          'and bring the role back up (deploy/README.md).',
       )
     }
     if (row.config_fingerprint !== this.fingerprint) {
@@ -276,8 +341,11 @@ export class Store {
       bootstrap_source: string | null
       bootstrap_log_hash: Buffer | null
       shadow_through: number | null
+      rebuilt_revision: number | null
+      rebuilt_through: number | null
     }>(
-      `SELECT verified_from, bootstrap_height, bootstrap_source, bootstrap_log_hash, shadow_through
+      `SELECT verified_from, bootstrap_height, bootstrap_source, bootstrap_log_hash, shadow_through,
+              rebuilt_revision, rebuilt_through
          FROM verification WHERE id`,
     )
     const row = result.rows[0]
@@ -288,6 +356,8 @@ export class Store {
       bootstrapSource: row.bootstrap_source,
       bootstrapLogHash: row.bootstrap_log_hash?.toString('hex') ?? null,
       shadowThrough: row.shadow_through,
+      rebuiltRevision: row.rebuilt_revision,
+      rebuiltThrough: row.rebuilt_through,
     }
   }
 
@@ -317,7 +387,11 @@ export class Store {
    */
   async completeVerification(launchHeight: number): Promise<void> {
     await this.pool.query(
-      'UPDATE verification SET verified_from = $1, shadow_through = $2, updated_at = now() WHERE id',
+      `UPDATE verification
+          SET verified_from = $1, shadow_through = $2,
+              rebuilt_revision = NULL, rebuilt_through = NULL, rebuilt_at = NULL,
+              updated_at = now()
+        WHERE id`,
       [launchHeight, launchHeight],
     )
     this.logger.info('verify.complete', { verifiedFrom: launchHeight })
@@ -391,6 +465,15 @@ export class Store {
     }
   }
 
+  /** The newest checkpoint written at some other §8.1 layout, if there is one. */
+  private async foreignLayout(): Promise<{ layout: number; height: number } | undefined> {
+    const result = await this.pool.query<{ layout: number; height: number }>(
+      'SELECT layout, height FROM checkpoints WHERE layout <> $1 ORDER BY height DESC LIMIT 1',
+      [COMMITMENT_LAYOUT],
+    )
+    return result.rows[0]
+  }
+
   /** The highest checkpoint written, or `null` for a database with none. */
   async latestCheckpoint(): Promise<StoredCheckpoint | null> {
     const result = await this.pool.query<CheckpointDbRow>(
@@ -428,6 +511,75 @@ export class Store {
                updated_at = now()`,
         [input.nextBatch, input.scannedThrough, this.fingerprint],
       )
+    })
+  }
+
+  /**
+   * Replace every derived row from a replay of this database's own `log`, in
+   * **one transaction** (`tasks/14` D2, migration `013`).
+   *
+   * Three properties, and each is a choice:
+   *
+   * - **`DELETE`, never `TRUNCATE`.** `TRUNCATE` takes an `ACCESS EXCLUSIVE`
+   *   lock, which blocks the API's reads until this commits; `DELETE` takes a
+   *   row lock and readers keep their snapshot. That is the whole reason the
+   *   registry stays up through a rebuild where today it goes down for the
+   *   length of a resync.
+   * - **One transaction for the whole rebuild**, so a reader sees the state
+   *   before it or the state after it and never a half-replayed registry. The
+   *   memory bound is the replay's, not this method's: segments arrive one at
+   *   a time and are written as they come.
+   * - **The cursor is not touched.** The rebuild re-derives what the scan
+   *   already discovered; where the scan had got to is unchanged by that, and
+   *   rewriting it would restart a tail that has no reason to move.
+   *
+   * The `log` itself is **rewritten, not replaced**: its verdict column is the
+   * only thing a rules rebuild can change, so every produced line is matched
+   * against the stored one at the same `(block_height, tx_index)` and only the
+   * token moves. A produced line with no stored counterpart, a stored line the
+   * replay never produced, or a difference in any other field means the
+   * revision was **not** log-preserving after all — the declaration was wrong,
+   * and the transaction rolls back naming the line. That check is what makes
+   * `--log-preserving` an assertion rather than a promise.
+   */
+  async rebuildFromLog(input: RebuildInput): Promise<RebuildOutcome> {
+    return await withTransaction(this.pool, async (client) => {
+      const stored = await readLogIndex(client)
+      const storedLines = stored.size
+
+      // Derived tables only. `log` is rewritten in place below and `cursor`
+      // is left exactly as it was.
+      for (const table of DERIVED_TABLES) await client.query(`DELETE FROM ${table}`)
+
+      let rewritten = 0
+      let produced = 0
+      await input.replay(async (segment) => {
+        const diff = diffState(segment.before, segment.after)
+        if (diff.hasRowChanges) await this.writeDiff(client, diff)
+        await this.writeParams(client, diff.params)
+        rewritten += await rewriteLogVerdicts(client, segment.logRows, stored)
+        produced += segment.logRows.length
+        await this.writeCheckpoints(client, segment.checkpoints)
+        if (segment.snapshot !== undefined) await this.writeSnapshot(client, segment.snapshot)
+      })
+
+      // Whatever is left in the index is a line this replay did not produce.
+      const orphan = stored.keys().next()
+      if (orphan.done !== true) {
+        throw new StoreError(
+          `the replay did not reproduce the log line at ${orphan.value} (${stored.size} of ${storedLines} ` +
+            'unreproduced). A rules rebuild replays the log it already holds, so every stored line must come ' +
+            'back out of it — this revision changes which messages are logged and is therefore not ' +
+            'log-preserving. Nothing has been written; rebuild from the chain.',
+        )
+      }
+
+      await writeVerification(client, {
+        ...input.verification,
+        rebuiltRevision: input.revision,
+        rebuiltThrough: input.through,
+      })
+      return { lines: produced, verdictsRewritten: rewritten }
     })
   }
 
@@ -571,6 +723,100 @@ export class Store {
 }
 
 /**
+ * The stored log, as `(block_height:tx_index) → line`, split at its verdict.
+ *
+ * The log is small by design (§8.2: under 15 MB at 100,000 messages), which is
+ * a property of the protocol's incentives rather than of this query — so it is
+ * read in the same keyset-paginated chunks {@link Store.streamLogRows} uses,
+ * and held as two strings per line rather than as a row object.
+ */
+async function readLogIndex(client: PoolClient): Promise<Map<string, StoredLine>> {
+  const index = new Map<string, StoredLine>()
+  let after: readonly [number, number] = [-1, -1]
+  for (;;) {
+    const page = await client.query<LogRow>(
+      `SELECT ${LOG_COLUMNS.join(', ')} FROM log
+       WHERE (block_height, tx_index) > ($1::bigint, $2::int)
+       ORDER BY block_height, tx_index
+       LIMIT 10000`,
+      [after[0], after[1]],
+    )
+    for (const row of page.rows) {
+      index.set(`${row.block_height}:${row.tx_index}`, {
+        fields: `${row.tx_hash} ${row.sender} ${row.recipient} ${row.value} ${row.data}`,
+        verdict: row.verdict,
+      })
+    }
+    const last = page.rows[page.rows.length - 1]
+    if (last === undefined || page.rows.length < 10_000) return index
+    after = [last.block_height, last.tx_index]
+  }
+}
+
+interface StoredLine {
+  /** Everything a rules rebuild must **not** move: §8.2's line minus its token. */
+  readonly fields: string
+  readonly verdict: string
+}
+
+/**
+ * Move the verdicts a rules rebuild changed, and refuse everything else.
+ *
+ * Each produced line must match a stored one at the same canonical position in
+ * every field but the token. Matched lines leave the index; what remains when
+ * the replay ends is a line the replay never produced, which
+ * {@link Store.rebuildFromLog} reports.
+ *
+ * @returns how many verdicts moved.
+ */
+async function rewriteLogVerdicts(
+  client: PoolClient,
+  rows: readonly LogRow[],
+  stored: Map<string, StoredLine>,
+): Promise<number> {
+  const heights: number[] = []
+  const indexes: number[] = []
+  const verdicts: string[] = []
+  for (const row of rows) {
+    const key = `${row.block_height}:${row.tx_index}`
+    const was = stored.get(key)
+    if (was === undefined) {
+      // Not reachable from a rules change: the candidates *are* the stored
+      // lines, one produced line each at its own key, so a key with no stored
+      // counterpart means the replay invented a position. Kept as the
+      // invariant it is, because the alternative to noticing is a log whose
+      // §8.2 hash nothing can reproduce.
+      throw new StoreError(
+        `the replay produced a log line at ${key}, which is not a position in the log it was replaying. ` +
+          'The candidates come from the stored lines, so this is a defect in the replay, not a rules change.',
+      )
+    }
+    const fields = `${row.tx_hash} ${row.sender} ${row.recipient} ${row.value} ${row.data}`
+    if (fields !== was.fields) {
+      throw new StoreError(
+        `the replay rewrote a stored field of the log line at ${key}:\n  stored: ${was.fields}\n  replay: ${fields}\n` +
+          'Only the §7.4 token may move in a rules rebuild. A canonical form, an attributed sender (§7.2) or a ' +
+          'rank (§5.2) that moves needs the chain, not this log. Nothing has been written.',
+      )
+    }
+    stored.delete(key)
+    if (was.verdict === row.verdict) continue
+    heights.push(row.block_height)
+    indexes.push(row.tx_index)
+    verdicts.push(row.verdict)
+  }
+  if (heights.length === 0) return 0
+  await client.query(
+    `UPDATE log SET verdict = moved.verdict
+       FROM (SELECT * FROM unnest($1::bigint[], $2::int[], $3::text[]))
+            AS moved(block_height, tx_index, verdict)
+      WHERE log.block_height = moved.block_height AND log.tx_index = moved.tx_index`,
+    [heights, indexes, verdicts],
+  )
+  return heights.length
+}
+
+/**
  * Upsert the single `verification` row (migration 009).
  *
  * A free function rather than a method because it runs inside
@@ -580,14 +826,18 @@ export class Store {
 async function writeVerification(client: PoolClient, verification: Verification): Promise<void> {
   await client.query(
     `INSERT INTO verification
-       (id, verified_from, bootstrap_height, bootstrap_source, bootstrap_log_hash, shadow_through, updated_at)
-     VALUES (TRUE, $1, $2, $3, $4, $5, now())
+       (id, verified_from, bootstrap_height, bootstrap_source, bootstrap_log_hash, shadow_through,
+        rebuilt_revision, rebuilt_through, rebuilt_at, updated_at)
+     VALUES (TRUE, $1, $2, $3, $4, $5, $6, $7, CASE WHEN $6::int IS NULL THEN NULL ELSE now() END, now())
      ON CONFLICT (id) DO UPDATE
        SET verified_from = EXCLUDED.verified_from,
            bootstrap_height = EXCLUDED.bootstrap_height,
            bootstrap_source = EXCLUDED.bootstrap_source,
            bootstrap_log_hash = EXCLUDED.bootstrap_log_hash,
            shadow_through = EXCLUDED.shadow_through,
+           rebuilt_revision = EXCLUDED.rebuilt_revision,
+           rebuilt_through = EXCLUDED.rebuilt_through,
+           rebuilt_at = EXCLUDED.rebuilt_at,
            updated_at = now()`,
     [
       verification.verifiedFrom,
@@ -595,6 +845,8 @@ async function writeVerification(client: PoolClient, verification: Verification)
       verification.bootstrapSource,
       verification.bootstrapLogHash === null ? null : Buffer.from(verification.bootstrapLogHash, 'hex'),
       verification.shadowThrough,
+      verification.rebuiltRevision,
+      verification.rebuiltThrough,
     ],
   )
 }

@@ -118,6 +118,9 @@ export {
   configFingerprint,
   type CommitInput,
   type Cursor,
+  type RebuildInput,
+  type RebuildOutcome,
+  type RebuildSegment,
   type StoredCheckpoint,
   type Verification,
 } from './store.js'
@@ -130,6 +133,25 @@ export {
 } from './anchored.js'
 
 export { BootstrapError, bootstrap, type BootstrapOptions, type BootstrapResult } from './bootstrap.js'
+
+export {
+  ReplayError,
+  SEGMENT_BOUNDARIES,
+  macroStops,
+  replaySegments,
+  type ReplayOptions,
+  type ReplayOutcome,
+  type ReplayStep,
+  type Stop,
+} from './replay.js'
+
+export {
+  RebuildError,
+  geometryFromCursor,
+  rebuildFromLog,
+  type RebuildOptions,
+  type RebuildResult,
+} from './rebuild.js'
 
 export { VerificationError, verifyFromChain, type VerifyOptions } from './shadow.js'
 

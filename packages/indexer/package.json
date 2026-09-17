@@ -21,7 +21,8 @@
     "test": "vitest run",
     "start": "node --env-file=.env dist/main.js",
     "dev": "pnpm --filter @nns/indexer... build && node --env-file=.env dist/main.js",
-    "migrate": "node --env-file=.env dist/migrate.js"
+    "migrate": "node --env-file=.env dist/migrate.js",
+    "rebuild": "node --env-file=.env dist/rebuild-main.js"
   },
   "dependencies": {
     "@nimiqnames/anchor": "workspace:*",

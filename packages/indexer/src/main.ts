@@ -28,7 +28,7 @@ import { Scanner } from './scan.js'
 import { verifyFromChain } from './shadow.js'
 import { anchoredSource } from './anchored.js'
 import { httpFetcher, peerSource, type LogSource } from './peer.js'
-import { Store } from './store.js'
+import { Store, type Verification } from './store.js'
 
 async function main(): Promise<void> {
   // A long-running daemon must not die because whatever was reading its
@@ -185,11 +185,17 @@ async function main(): Promise<void> {
     // mode that describes what this indexer is doing rather than what it did
     // once.
     let verificationFailure: unknown
+    // Two things the sweep can be asked to confirm, and they are different
+    // claims. A **bootstrap** replayed somebody else's log, so the range below
+    // `verifiedFrom` has never been derived from the chain here at all. A
+    // **log rebuild** (migration 013) re-derived verdicts from this database's
+    // own log under a revision declared log-preserving; its membership did come
+    // from the chain, under the previous revision's rules, and what the sweep
+    // adds is that the declaration was true. Either way it is the same replay,
+    // and `completeVerification` clears both.
+    const unconfirmed = sweepThrough(verification)
     const sweep =
-      settings.startMode === 'hybrid' &&
-      verification !== null &&
-      verification.bootstrapHeight !== null &&
-      verification.verifiedFrom > CONSTANTS.LAUNCH_HEIGHT
+      settings.startMode === 'hybrid' && unconfirmed !== null
         ? verifyFromChain(
             {
               rpc,
@@ -200,7 +206,7 @@ async function main(): Promise<void> {
               launchHeight: CONSTANTS.LAUNCH_HEIGHT,
               pollIntervalMs: settings.pollIntervalMs,
               prefetch: settings.scanPrefetch,
-              throughHeight: verification.bootstrapHeight,
+              throughHeight: unconfirmed,
             },
             controller.signal,
           ).catch((error: unknown) => {
@@ -221,6 +227,27 @@ async function main(): Promise<void> {
   } finally {
     await pool.end()
   }
+}
+
+/**
+ * The height `hybrid`'s sweep must re-derive to, or `null` when there is
+ * nothing outstanding.
+ *
+ * A bootstrapped range counts only while `verifiedFrom` is still above
+ * `LAUNCH_HEIGHT` — the sweep moves it down when it agrees — and a rebuilt
+ * range only while `rebuiltThrough` is set, which the same call clears.
+ */
+function sweepThrough(verification: Verification | null): number | null {
+  if (verification === null) return null
+  const bootstrapped =
+    verification.bootstrapHeight !== null && verification.verifiedFrom > CONSTANTS.LAUNCH_HEIGHT
+      ? verification.bootstrapHeight
+      : null
+  const rebuilt = verification.rebuiltThrough
+  if (bootstrapped === null) return rebuilt
+  if (rebuilt === null) return bootstrapped
+  // Both outstanding: one sweep, to the higher of the two.
+  return Math.max(bootstrapped, rebuilt)
 }
 
 /**
