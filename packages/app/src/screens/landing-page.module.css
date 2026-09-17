@@ -262,7 +262,11 @@
   box-shadow: 0 4px 12px rgba(246, 133, 27, 0.2);
 }
 
-:global(.frame.is-home .masthead .identity-top .identity-address) {
+/* The collapsed pill only. The same class draws the addresses in the dropdown
+   under it, and that panel is white glass — white on white is why the list went
+   invisible the moment a second address existed. Unscoped, those rows fall back
+   to the ink `.identity-add` beside them already uses. */
+:global(.frame.is-home .masthead .identity-top .identity-who .identity-address) {
   color: rgba(255, 255, 255, 0.9);
 }
 
