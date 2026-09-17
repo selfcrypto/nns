@@ -38,10 +38,14 @@ start a fresh database — the chain is the source, so it costs only a re-scan.
 Pick a height at or below the first chat traffic you care about. Earlier costs
 one node call per batch of empty history and buys nothing.
 
-## Put it behind TLS, on its own hostname
+## Put it behind TLS
 
-A browser calls this endpoint directly, so it needs a public HTTPS name — the
-same shape as the delegate's. With Caddy:
+A browser calls this endpoint directly, so it needs a public HTTPS path. With
+[`../edge`](../edge/) it already has one: the app's vhost proxies `/chat/` to
+this service's loopback port, so build the app with `VITE_NNS_CHAT=/chat` and
+nothing else changes — no fourth hostname, no fourth certificate. Behind any
+other terminator, either add the same path under the app's origin or give it
+a hostname of its own, the same shape as the delegate's. With Caddy:
 
 ```
 chat.example.com {
@@ -49,7 +53,8 @@ chat.example.com {
 }
 ```
 
-Then build the app with `VITE_NNS_CHAT=https://chat.example.com` (see
+Then build the app with `VITE_NNS_CHAT=https://chat.example.com` (or the
+same-origin `/chat`; see
 [`packages/app/.env.example`](../../packages/app/.env.example)). CORS is already open on
 every response: the app is independently hostable by design, so an origin
 allowlist would break the copies §2.2 exists to permit.

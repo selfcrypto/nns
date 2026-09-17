@@ -86,6 +86,22 @@ http {
         # transactions at 1 KB and any body at 16 KB, and the API takes none.
         client_max_body_size 32k;
 
+        # The NC chat index (deploy/chat), when this box runs one: served
+        # under the app's own origin so the Inbox needs no fourth hostname
+        # and no fourth certificate — build the app with VITE_NNS_CHAT=/chat.
+        # It is a separate compose project on loopback, which is why it is
+        # proxied here (host networking) and not from web's nginx, which
+        # cannot see it. Not running it makes this a 502 nobody calls: the
+        # app only asks when VITE_NNS_CHAT is set.
+        location /chat/ {
+            proxy_pass http://127.0.0.1:8637/;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_read_timeout 30s;
+        }
+
         location / {
             proxy_pass http://127.0.0.1:8080;
             proxy_http_version 1.1;
