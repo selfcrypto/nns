@@ -171,6 +171,8 @@ describe.skipIf(URL_ === undefined)('rebuildFromLog', () => {
     expect(result.names).toBe(state.names.size)
     expect(result.through).toBe(GEOMETRY.macroBlockOf(LAST_BATCH))
     expect(result.nextBatch).toBe(LAST_BATCH + 1)
+    expect(result.checkpoints.total).toBeGreaterThan(0)
+    expect(result.checkpoints).toMatchObject({ moved: 0, firstMoved: null })
 
     const after = await derived(pool)
     // Every table, including `log` and `cursor` — the rebuild rewrites the
@@ -192,6 +194,23 @@ describe.skipIf(URL_ === undefined)('rebuildFromLog', () => {
       target,
     ])
     expect(row.rows[0]?.verdict).toBe('OK')
+    // The token moved; the state it was derived from did not, so no root did.
+    // The two are reported separately because they are different questions.
+    expect(result.checkpoints).toMatchObject({ moved: 0, firstMoved: null })
+  })
+
+  it('reports the first checkpoint whose root the rules moved', async () => {
+    await seed()
+    // A root this replay will not reproduce, at the third boundary: what a
+    // rules change looks like from the checkpoint table's side.
+    const heights = await pool.query<{ height: number }>('SELECT height FROM checkpoints ORDER BY height')
+    const third = Number(heights.rows[2]?.height)
+    expect(Number.isInteger(third)).toBe(true)
+    await pool.query('UPDATE checkpoints SET commitment = sha256(commitment) WHERE height = $1', [third])
+
+    const result = await rebuild()
+
+    expect(result.checkpoints).toEqual({ total: heights.rows.length, moved: 1, firstMoved: third })
   })
 
   it('refuses when a stored line is not reproduced, and writes nothing', async () => {

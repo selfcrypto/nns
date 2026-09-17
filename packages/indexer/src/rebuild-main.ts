@@ -100,6 +100,11 @@ async function main(): Promise<void> {
       `rebuilt ${result.lines} log lines through ${result.through.toLocaleString()} at revision ${revision}: ` +
         `${result.verdictsRewritten} verdicts moved, ${result.names} names, ` +
         `commitment ${result.commitment ?? '(none)'}\n` +
+        (result.checkpoints.firstMoved === null
+          ? `no checkpoint moved (${result.checkpoints.total} re-derived identical)\n`
+          : `checkpoints moved from height ${result.checkpoints.firstMoved.toLocaleString()} ` +
+            `(${result.checkpoints.moved} of ${result.checkpoints.total}) — check it against the last anchored root ` +
+            'before anything publishes\n') +
         `the tail resumes at batch ${result.nextBatch}; hybrid's sweep re-derives the range from the chain\n`,
     )
   } finally {

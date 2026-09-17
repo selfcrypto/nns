@@ -207,6 +207,20 @@ export interface RebuildOutcome {
   readonly lines: number
   /** How many of them came back with a different §7.4 token. */
   readonly verdictsRewritten: number
+  /**
+   * What the rebuild did to the §8.1 checkpoints. A moved verdict moves every
+   * root from its boundary on, and the first such height is the one number an
+   * operator needs before anchoring: whether a root already published is now
+   * contradicted (`packages/anchor`).
+   */
+  readonly checkpoints: {
+    /** Checkpoints the replay produced — the same heights the table held. */
+    readonly total: number
+    /** Of those, how many have a commitment the table did not hold before. */
+    readonly moved: number
+    /** The lowest such height, or `null` when every root came back the same. */
+    readonly firstMoved: number | null
+  }
 }
 
 /**
@@ -546,6 +560,9 @@ export class Store {
     return await withTransaction(this.pool, async (client) => {
       const stored = await readLogIndex(client)
       const storedLines = stored.size
+      // The roots this database held, read before they go: the only way to say
+      // afterwards from which height the rules moved them.
+      const previousRoots = await readCheckpointRoots(client)
 
       // Derived tables only. `log` is rewritten in place below and `cursor`
       // is left exactly as it was.
@@ -553,12 +570,22 @@ export class Store {
 
       let rewritten = 0
       let produced = 0
+      let checkpoints = 0
+      let moved = 0
+      let firstMoved: number | null = null
       await input.replay(async (segment) => {
         const diff = diffState(segment.before, segment.after)
         if (diff.hasRowChanges) await this.writeDiff(client, diff)
         await this.writeParams(client, diff.params)
         rewritten += await rewriteLogVerdicts(client, segment.logRows, stored)
         produced += segment.logRows.length
+        for (const record of segment.checkpoints) {
+          checkpoints += 1
+          if (previousRoots.get(record.height) === hex(record.commitment)) continue
+          moved += 1
+          // Segments arrive in ascending order, so the first seen is the lowest.
+          firstMoved ??= record.height
+        }
         await this.writeCheckpoints(client, segment.checkpoints)
         if (segment.snapshot !== undefined) await this.writeSnapshot(client, segment.snapshot)
       })
@@ -579,7 +606,11 @@ export class Store {
         rebuiltRevision: input.revision,
         rebuiltThrough: input.through,
       })
-      return { lines: produced, verdictsRewritten: rewritten }
+      return {
+        lines: produced,
+        verdictsRewritten: rewritten,
+        checkpoints: { total: checkpoints, moved, firstMoved },
+      }
     })
   }
 
@@ -730,6 +761,14 @@ export class Store {
  * read in the same keyset-paginated chunks {@link Store.streamLogRows} uses,
  * and held as two strings per line rather than as a row object.
  */
+/** Every stored checkpoint's commitment by height, bare hex. */
+async function readCheckpointRoots(client: PoolClient): Promise<Map<number, string>> {
+  const result = await client.query<{ height: number; commitment: Buffer }>(
+    'SELECT height, commitment FROM checkpoints',
+  )
+  return new Map(result.rows.map((row) => [Number(row.height), row.commitment.toString('hex')]))
+}
+
 async function readLogIndex(client: PoolClient): Promise<Map<string, StoredLine>> {
   const index = new Map<string, StoredLine>()
   let after: readonly [number, number] = [-1, -1]

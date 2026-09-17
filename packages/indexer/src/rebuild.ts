@@ -83,6 +83,11 @@ export interface RebuildResult {
   readonly names: number
   /** The §8.1 commitment at the last boundary the replay crossed, bare hex. */
   readonly commitment: string | null
+  /**
+   * Which checkpoints the new rules moved — `firstMoved` is the height to
+   * check against the last anchored root before anything is published.
+   */
+  readonly checkpoints: { readonly total: number; readonly moved: number; readonly firstMoved: number | null }
 }
 
 /**
@@ -193,6 +198,7 @@ export async function rebuildFromLog(options: RebuildOptions): Promise<RebuildRe
     verdictsRewritten: outcome.verdictsRewritten,
     names,
     commitment,
+    checkpoints: outcome.checkpoints,
   })
 
   return {
@@ -202,6 +208,7 @@ export async function rebuildFromLog(options: RebuildOptions): Promise<RebuildRe
     verdictsRewritten: outcome.verdictsRewritten,
     names,
     commitment,
+    checkpoints: outcome.checkpoints,
   }
 }
 
