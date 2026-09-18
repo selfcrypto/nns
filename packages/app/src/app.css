@@ -2660,6 +2660,50 @@ li.note {
   min-width: 0;
 }
 
+/* A row of the switch: the whole row is the target, and the acting address
+   carries the check. */
+.identity-pick {
+  appearance: none;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.identity-pick:hover:not([disabled]):not([aria-current]) {
+  background: var(--depth-bg);
+}
+
+.identity-pick[aria-current] {
+  cursor: default;
+}
+
+.identity-pick[disabled] {
+  cursor: default;
+}
+
+.identity-pick:focus-visible {
+  outline: 2px solid var(--nimiq-blue);
+  outline-offset: 1px;
+}
+
+.identity-pick-mark {
+  flex: none;
+  margin-left: auto;
+  color: var(--nimiq-blue);
+}
+
 .identity-add {
   align-self: flex-start;
   font-size: 13px;
@@ -4084,8 +4128,7 @@ li.note {
   color: var(--ink-soft);
 }
 
-.pay-input:not([class*="amountInput"]),
-.pay-select:not([class*="paySelect"]) {
+.pay-input:not([class*="amountInput"]) {
   appearance: none;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-field);
@@ -4099,18 +4142,12 @@ li.note {
   box-sizing: border-box;
 }
 
-.pay-select:not([class*="paySelect"]) {
-  font-size: 14px;
-}
-
 .pay-input::placeholder {
   color: var(--ink-faint);
 }
 
 .pay-input:not([class*="amountInput"]):focus,
-.pay-input:not([class*="amountInput"]):focus-visible,
-.pay-select:not([class*="paySelect"]):focus,
-.pay-select:not([class*="paySelect"]):focus-visible {
+.pay-input:not([class*="amountInput"]):focus-visible {
   outline: none;
   border-color: var(--nimiq-blue);
   box-shadow: 0 0 0 3px var(--nimiq-blue-glow);

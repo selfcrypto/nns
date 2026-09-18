@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clearHubAddresses, loadHubAddresses, saveHubAddresses, withAddress, type StorageLike } from './identity'
+import { actingAs, clearHubAddresses, loadHubAddresses, primaryAddress, saveHubAddresses, withActive, withAddress, type StorageLike } from './identity'
 
 const A = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
 const B = 'NQ34 248H 248H 248H 248H 248H 248H 248H 248H'
@@ -58,5 +58,34 @@ describe('disconnect (so a different address can be chosen)', () => {
     clearHubAddresses(storage)
     saveHubAddresses(storage, withAddress(loadHubAddresses(storage), B))
     expect(loadHubAddresses(storage)).toEqual([B])
+  })
+})
+
+describe('the acting address', () => {
+  it('is the first, alone — never the set', () => {
+    const identity = { kind: 'hub' as const, addresses: [A, B] }
+    expect(primaryAddress(identity)).toBe(A)
+    expect(actingAs(identity)).toEqual([A])
+    expect(actingAs({ kind: 'none', addresses: [] })).toEqual([])
+  })
+
+  it('picking moves an address to the front and keeps the rest in order', () => {
+    const C = withAddress([A, B], 'NQ82 ALHC H1LK HFYF X67T TNS3 YXVM PYR6 JAFP')
+    const third = C[2] as string
+    expect(withActive(C, third)).toEqual([third, A, B])
+    expect(withActive(C, B.toLowerCase())).toEqual([B, A, third])
+  })
+
+  it('picking the acting address, an unknown one or garbage changes nothing', () => {
+    const set = [A, B]
+    expect(withActive(set, A)).toBe(set)
+    expect(withActive(set, 'NQ82 ALHC H1LK HFYF X67T TNS3 YXVM PYR6 JAFP')).toBe(set)
+    expect(withActive(set, 'not an address')).toBe(set)
+  })
+
+  it('the pick survives a reload as the saved order', () => {
+    const storage = memoryStorage()
+    saveHubAddresses(storage, withActive([A, B], B))
+    expect(primaryAddress({ kind: 'hub', addresses: loadHubAddresses(storage) })).toBe(B)
   })
 })

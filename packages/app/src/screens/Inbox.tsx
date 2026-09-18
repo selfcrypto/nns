@@ -13,7 +13,7 @@ import { chatEndpoint, explorerTxUrl } from '../config'
 import { fetchChatIndex, type ChatIndexPage } from '../lib/chatIndex'
 import { hideSender, loadHiddenSenders, unhideSender } from '../lib/hidden'
 import { defaultTransport, fetchHistory } from '../lib/history'
-import { primaryAddress } from '../lib/identity'
+import { actingAs, primaryAddress } from '../lib/identity'
 import { formatBubbleTimestamp, formatThreadDate } from '../lib/dates'
 import { approxDate, displayAddress, ellipsizeAddress, formatApproxDate, isTxHash } from '../lib/format'
 import { writeClipboard } from '../lib/clipboard'
@@ -64,7 +64,7 @@ export function InboxScreen({
   /** For the no-wallet card's own copy of the identity control. */
   onConnect: (() => void) | null
 }) {
-  const viewers = wallet?.identity.addresses ?? []
+  const viewers = wallet === null ? [] : actingAs(wallet.identity)
   const transport = defaultTransport()
   // The index when an operator runs one, the chain when nobody does. Both
   // answer the same shape, and both hand back payloads this app parses itself.

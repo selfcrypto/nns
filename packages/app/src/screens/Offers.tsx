@@ -23,6 +23,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { getAuctions, getOffers, type ApiAuction, type ApiOffer } from '../lib/api'
 import { approxDate, ellipsizeAddress, formatApproxWhen, lunaToNim } from '../lib/format'
+import { actingAs } from '../lib/identity'
 import { apiBase } from '../lib/nns'
 import { search } from '../lib/search'
 import { connectInstead, nameView, signerFor } from '../lib/states'
@@ -158,7 +159,7 @@ function MarketActionSheetWrapper({
   }
 
   const { info } = outcome.value
-  const viewers = wallet.identity.addresses
+  const viewers = actingAs(wallet.identity)
   const signer = signerFor(action, nameView(name, info, 'registered'), viewers) ?? viewers[0] ?? ''
 
   return (

@@ -239,7 +239,6 @@
   </group>
   <group name="Pay (docs/app-ux.md §4)">
     <string id="payToLabel">Paying</string>
-    <string id="payFromLabel">From</string>
     <string id="payAmountLabel">Amount in NIM</string>
     <string id="payButtonLabel" params="nim">Pay {nim} NIM</string>
     <string id="payMessageLabel">Message</string>

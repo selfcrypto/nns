@@ -18,7 +18,7 @@ import { useAsync } from '../lib/useAsync'
 import { Hint } from './Hint'
 import { createPortal } from 'react-dom'
 import { CONSTANTS } from '@nimiqnames/core'
-import { primaryAddress } from '../lib/identity'
+import { actingAs, primaryAddress } from '../lib/identity'
 import { approxDate, ellipsizeAddress, formatApproxWhen, lunaToNim } from '../lib/format'
 import type { SearchOutcome } from '../lib/search'
 import { actionGates, cancellable, cancelTileGroup, connectInstead, registrationFee, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
@@ -226,7 +226,7 @@ function Actions({
 }) {
   const [open, setOpen] = useState<AppAction | null>(null)
   const { name, info } = view
-  const viewers = wallet?.identity.addresses ?? []
+  const viewers = wallet === null ? [] : actingAs(wallet.identity)
   const gates = actionGates({ view, viewers, head: info?.height ?? 0 })
   // No address yet, so the row's job is to offer the wallet, not to explain a
   // gate. `wallet === null` is detection in flight and was never this state
@@ -696,7 +696,7 @@ export function NameCard({
 }) {
   const [messageOpen, setMessageOpen] = useState(false)
   const sender = wallet === null ? null : primaryAddress(wallet.identity)
-  const viewers = wallet?.identity.addresses ?? []
+  const viewers = wallet === null ? [] : actingAs(wallet.identity)
 
   const wrap = (tier: RailTier, content: React.ReactNode) =>
     seamless ? <>{content}</> : <RailCard tier={tier}>{content}</RailCard>

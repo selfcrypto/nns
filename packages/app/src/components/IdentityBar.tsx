@@ -8,7 +8,11 @@
  * `placement` is where it sits, not a second control. `bottom` is the row above
  * the tab bar; `top` is the wallet connector in the masthead's right corner,
  * where the collapsed control is the address alone and everything else — the
- * rest of the set, Add another address, Disconnect — hangs under it. The corner
+ * connected addresses, Add another address, Disconnect — hangs under it.
+ *
+ * It is also the **switch**: the app acts as one address (`lib/identity.ts`),
+ * and tapping another in the list makes that one the acting address. The
+ * list looked like a switch and switched nothing until 2026-09-18. The corner
  * has room for one control, and the address is the one that has to be legible.
  * `empty` is inside My names' and the Inbox's "No wallet connected" card, which
  * exists only in the state this bar draws as a single Connect button: the card
@@ -44,6 +48,7 @@ export function IdentityBar({
   wallet,
   onConnect,
   onDisconnect,
+  onPick = null,
   expanded,
   onToggle,
   placement = 'bottom',
@@ -51,6 +56,8 @@ export function IdentityBar({
   wallet: Wallet | null
   onConnect: (() => void) | null
   onDisconnect: (() => void) | null
+  /** Make an address the acting one. Null where there is no list to pick from. */
+  onPick?: ((address: string) => void) | null
   expanded: boolean
   onToggle: () => void
   placement?: IdentityPlacement
@@ -100,9 +107,8 @@ export function IdentityBar({
           onClick={onToggle}
           aria-expanded={expanded}
           disabled={!hasPanel}
-          // The set is the identity (`lib/identity.ts`); the primary is just
-          // the one that fits. Everything else is one tap away rather than
-          // invisible.
+          // The acting address. The others are one tap away, in the panel,
+          // and picking one there makes it this.
           title={row.more > 0 ? showEveryAddressLabel() : undefined}
         >
           <Identicon address={row.primary} size={22} />
@@ -125,12 +131,28 @@ export function IdentityBar({
         <div className="identity-expanded">
           {row.more > 0 && (
             <ul className="identity-list">
-              {addresses.map((address) => (
-                <li key={address}>
-                  <Identicon address={address} size={18} />
-                  <span className="identity-address nns-name">{ellipsizeAddress(address)}</span>
-                </li>
-              ))}
+              {addresses.map((address) => {
+                const acting = address === row.primary
+                return (
+                  <li key={address}>
+                    <button
+                      type="button"
+                      className="identity-pick"
+                      aria-current={acting ? 'true' : undefined}
+                      disabled={onPick === null}
+                      onClick={() => onPick?.(address)}
+                    >
+                      <Identicon address={address} size={18} />
+                      <span className="identity-address nns-name">{ellipsizeAddress(address)}</span>
+                      {acting && (
+                        <svg className="identity-pick-mark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
           )}
           {add !== null && (

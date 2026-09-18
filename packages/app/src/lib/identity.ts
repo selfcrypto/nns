@@ -1,8 +1,14 @@
 /**
- * Identity is a **set of addresses** (the recorded two-adapter intent, now
- * live): Nimiq Pay supplies a set of one with no connect step; Nimiq Hub
- * grows the set one `chooseAddress` at a time. "My names" is the union
- * across the set, and every owner action knows which address signs.
+ * Identity is **one acting address, picked from the addresses connected on
+ * this device**. Nimiq Pay supplies its set with no connect step; Nimiq Hub
+ * grows it one `chooseAddress` at a time. The first address is the one the
+ * app acts as — the corner shows it, My names lists its names, and every send
+ * asks it to sign — and picking another moves that one to the front.
+ *
+ * It was the union until 2026-09-18: My names across the set, owner actions
+ * signed by whichever member owned the name, anyone-actions by the first, and
+ * a separate From picker on Pay. Four rules for one question — who am I —
+ * and the list in the corner looked like a switch and switched nothing (Kike).
  */
 
 import { formatAddress, tryParseAddress } from '@nimiqnames/core'
@@ -28,8 +34,25 @@ export function withAddress(addresses: readonly string[], input: string): readon
   return [...addresses, canonical]
 }
 
+/** The address the app acts as: the one picked, kept first. */
 export function primaryAddress(identity: Identity): string | null {
   return identity.addresses[0] ?? null
+}
+
+/**
+ * The acting address as the list the ownership and signer helpers take —
+ * never more than one entry, so a name another connected address owns reads
+ * as somebody else's until that address is picked.
+ */
+export function actingAs(identity: Identity): readonly string[] {
+  return identity.addresses.slice(0, 1)
+}
+
+/** The set with `input` moved to the front — picked. Unchanged if it is not in the set. */
+export function withActive(addresses: readonly string[], input: string): readonly string[] {
+  const canonical = canonicalAddress(input)
+  if (canonical === null || addresses[0] === canonical || !addresses.includes(canonical)) return addresses
+  return [canonical, ...addresses.filter((address) => address !== canonical)]
 }
 
 // ── Hub set persistence (per device, like the pins; best-effort) ───────────
@@ -39,6 +62,8 @@ export interface StorageLike {
   setItem(key: string, value: string): void
 }
 
+// Saved in order, so the picked address — the first — survives a reload with
+// no key of its own.
 const HUB_KEY = 'nns.hub.addresses'
 
 export function loadHubAddresses(storage: StorageLike): readonly string[] {

@@ -3,6 +3,7 @@ import type { StorageLike } from './identity'
 
 const connectWallet = vi.fn()
 const isHostedWebView = vi.fn()
+const hubChooseAddress = vi.fn()
 
 vi.mock('./sdk', () => ({
   connectWallet: () => connectWallet(),
@@ -10,10 +11,12 @@ vi.mock('./sdk', () => ({
   paySendTransaction: vi.fn(),
 }))
 vi.mock('./chrome', () => ({ isHostedWebView: () => isHostedWebView() }))
+vi.mock('./hub', () => ({ hubChooseAddress: () => hubChooseAddress(), hubSignTransaction: vi.fn() }))
 
 const { detectWallet } = await import('./wallet')
 
 const ADDRESS = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
+const OTHER = 'NQ82 ALHC H1LK HFYF X67T TNS3 YXVM PYR6 JAFP'
 
 function memoryStore(): StorageLike {
   const map = new Map<string, string>()
@@ -102,5 +105,46 @@ describe('the Pay adapter can be disconnected and reconnected', () => {
       null,
     )
     expect(outcome).toMatchObject({ ok: false, reason: 'failed' })
+  })
+})
+
+describe('picking the acting address', () => {
+  beforeEach(() => {
+    connectWallet.mockReset()
+    isHostedWebView.mockReset()
+    hubChooseAddress.mockReset()
+  })
+
+  it('on the Hub, moves the pick to the front and keeps it across a reload', async () => {
+    const store = memoryStore()
+    store.setItem('nns.hub.addresses', JSON.stringify([ADDRESS, OTHER]))
+    connectWallet.mockResolvedValue(null)
+    isHostedWebView.mockReturnValue(false)
+
+    const wallet = await detectWallet(store, '')
+    expect(wallet.pick?.(OTHER)).toEqual({ kind: 'hub', addresses: [OTHER, ADDRESS] })
+    expect(wallet.identity.addresses).toEqual([OTHER, ADDRESS])
+    expect((await detectWallet(store, '')).identity.addresses).toEqual([OTHER, ADDRESS])
+  })
+
+  it('on the Hub, an address just added becomes the acting one', async () => {
+    const store = memoryStore()
+    store.setItem('nns.hub.addresses', JSON.stringify([ADDRESS]))
+    connectWallet.mockResolvedValue(null)
+    isHostedWebView.mockReturnValue(false)
+    hubChooseAddress.mockResolvedValue(OTHER)
+
+    const wallet = await detectWallet(store, '')
+    expect(await wallet.connect?.()).toEqual({ kind: 'hub', addresses: [OTHER, ADDRESS] })
+
+    // Choosing one already in the set picks it rather than adding it twice.
+    hubChooseAddress.mockResolvedValue(ADDRESS)
+    expect(await wallet.connect?.()).toEqual({ kind: 'hub', addresses: [ADDRESS, OTHER] })
+  })
+
+  it('on Pay, there is nothing to pick — the host chooses the signer', async () => {
+    connectWallet.mockResolvedValue({ addresses: [ADDRESS], provider: {} })
+    isHostedWebView.mockReturnValue(true)
+    expect((await detectWallet(memoryStore(), '')).pick).toBeNull()
   })
 })

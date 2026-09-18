@@ -26,6 +26,7 @@ import {
   loadPayDismissed,
   savePayDismissed,
   saveHubAddresses,
+  withActive,
   withAddress,
   type Identity,
   type StorageLike,
@@ -62,6 +63,12 @@ export interface Wallet {
    * Pay's own WebView.
    */
   readonly disconnect: (() => Identity) | null
+  /**
+   * Hub: make one of the connected addresses the acting one, and keep it
+   * picked across a reload. Null on Pay: the host hands over one address and
+   * chooses the signer itself, so there is nothing to pick between.
+   */
+  readonly pick: ((address: string) => Identity) | null
   /**
    * The addresses whose balances add up to what this wallet can spend —
    * distinct from `identity` on the Pay path, on purpose. Identity drops
@@ -174,6 +181,8 @@ async function payWallet(session: WalletSession | null, storage: StorageLike): P
       return { kind: 'pay', addresses }
     },
 
+    pick: null,
+
     // No transport: the wallet signs and broadcasts in one call, so a Pay
     // send works with no RPC endpoint configured. The confirm loop above
     // still needs one for the chat flows, and asks for it itself.
@@ -218,9 +227,17 @@ function hubWallet(storage: StorageLike, search: string): Wallet {
     connect: async () => {
       const chosen = await hubChooseAddress()
       if (chosen !== null) {
-        addresses = withAddress(addresses, chosen)
+        // An address just added is the one the user means to use next.
+        addresses = withActive(withAddress(addresses, chosen), chosen)
         saveHubAddresses(storage, addresses)
       }
+      return identity()
+    },
+
+    // The saved list's order is the pick: first is acting.
+    pick: (address) => {
+      addresses = withActive(addresses, address)
+      saveHubAddresses(storage, addresses)
       return identity()
     },
 

@@ -254,6 +254,18 @@ export function App() {
           setIdentityNonce((value) => value + 1)
         }
 
+  // Switching who the app acts as: an open name's owner actions belonged to
+  // the address before, so My names goes back to the list, as on disconnect.
+  const pick =
+    wallet?.pick == null
+      ? null
+      : (address: string) => {
+          wallet.pick?.(address)
+          if (tab === 'names') replace({ tab: 'names', param: null }, true)
+          setIdentityOpen(false)
+          setIdentityNonce((value) => value + 1)
+        }
+
   return (
     <div className={`frame is-${tab}`}>
       {/*
@@ -302,6 +314,7 @@ export function App() {
               wallet={wallet}
               onConnect={connect}
               onDisconnect={disconnect}
+              onPick={pick}
               expanded={identityOpen}
               onToggle={() => {
                 setMenuOpen(false)
@@ -341,8 +354,9 @@ export function App() {
             onConnect={connect}
           />
         )}
+        {/* Keyed by the acting address: a pick starts the list over. */}
         {tab === 'names' && (
-          <MyNamesScreen wallet={wallet} manage={route.param} onManageHandled={() => replace({ tab: 'names', param: null }, true)} onConnect={connect} />
+          <MyNamesScreen key={wallet?.identity.addresses[0] ?? ''} wallet={wallet} manage={route.param} onManageHandled={() => replace({ tab: 'names', param: null }, true)} onConnect={connect} />
         )}
         {tab === 'docs' && <DocsScreen slug={route.param} />}
         {tab === 'inbox' && <InboxScreen wallet={wallet} onConnect={connect} />}

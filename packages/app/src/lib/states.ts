@@ -261,7 +261,8 @@ export function actionGates({ view, viewers, head }: GateContext): Record<AppAct
  * actions must be signed by the owning address — the protocol checks the
  * sender — so the answer is the record's owner when the set holds it.
  * Anyone-actions (`G`, `N`, `B` as a buy or a bid, an NC message) sign with
- * the set's primary address.
+ * the set's primary address. Every screen passes `actingAs` — the one picked
+ * address — so both answers are that address or nothing (`lib/identity.ts`).
  */
 export function signerFor(action: AppAction, view: NameView, viewers: readonly string[]): string | null {
   const anyone = action === 'register' || action === 'renew' || action === 'buy' || action === 'bid'

@@ -1100,8 +1100,6 @@ export const backToNamesLabel = (): string => 'My Names'
 
 export const payToLabel = (): string => 'Paying'
 
-export const payFromLabel = (): string => 'From'
-
 export const payAmountLabel = (): string => 'Amount in NIM'
 
 export const payButtonLabel = (nim: string | null): string => (nim === null ? 'Pay' : `Pay ${nim} NIM`)

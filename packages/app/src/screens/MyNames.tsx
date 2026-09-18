@@ -7,6 +7,7 @@
 import { useState, type ReactNode } from 'react'
 import { CONSTANTS } from '@nimiqnames/core'
 import { getOwnedNames, type OwnedName } from '../lib/api'
+import { primaryAddress } from '../lib/identity'
 import { approxDate, formatApproxWhen } from '../lib/format'
 import { apiBase } from '../lib/nns'
 import { search } from '../lib/search'
@@ -55,13 +56,11 @@ function NamesShell({ children }: { children: ReactNode }) {
   )
 }
 
-/** "My names" is the union across the identity set (a name belongs to exactly one owner, so no dedupe). */
-async function unionOwned(viewers: readonly string[]): Promise<{ names: readonly OwnedName[]; height: number }> {
-  const pages = await Promise.all(viewers.map((address) => getOwnedNames(apiBase(), address)))
-  const names = pages
-    .flatMap((page) => page.names)
-    .sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0))
-  return { names, height: pages[0]?.height ?? 0 }
+/** The acting address's names, alphabetical. Another connected address's names show once it is picked. */
+async function ownedBy(address: string): Promise<{ names: readonly OwnedName[]; height: number }> {
+  const page = await getOwnedNames(apiBase(), address)
+  const names = [...page.names].sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0))
+  return { names, height: page.height }
 }
 
 /** The selected name's card, fed exactly as Buy feeds it — one card, two screens. */
@@ -187,8 +186,8 @@ export function MyNamesScreen({
 }) {
   const [selected, setSelected] = useState<string | null>(null)
   const [listNonce, setListNonce] = useState(0)
-  const viewers = wallet?.identity.addresses ?? []
-  const owned = useAsync(viewers.length === 0 ? null : () => unionOwned(viewers), [viewers.join(' '), listNonce])
+  const me = wallet === null ? null : primaryAddress(wallet.identity)
+  const owned = useAsync(me === null ? null : () => ownedBy(me), [me, listNonce])
 
   const open = manage ?? selected
   if (open !== null) {
@@ -205,7 +204,7 @@ export function MyNamesScreen({
     )
   }
 
-  if (viewers.length === 0) {
+  if (me === null) {
     return (
       <NamesShell>
         <div className={styles.emptyCard}>

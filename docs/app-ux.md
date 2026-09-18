@@ -161,8 +161,15 @@ missing wallet turns a tile into *connect*.
 
 Identity does **not** live on this screen. It is one control
 (`components/IdentityBar.tsx`), on every tab, in the masthead's right corner:
-the acting address with its identicon, and — tapping it — the rest of the set,
-*Add another address* on the Hub, and **Disconnect**. It was in the masthead
+the acting address with its identicon, and — tapping it — every connected
+address, *Add another address* on the Hub, and **Disconnect**. Tapping another
+address makes it the acting one, and the app is that address everywhere: the
+names My names lists, the owner actions a card offers, the sender of every
+send, Pay's included. One address, picked, since 2026-09-18 — before it the
+app acted as the whole set under four rules (the union on My names, the
+owning member for owner actions, the first for everything else, a From picker
+on Pay), and the list here looked like a switch and switched nothing (Kike).
+On Pay there is one address and the host picks the signer, so nothing to pick. It was in the masthead
 and at the foot of this screen at once, which is two copies of one control, and
 that is what stopped; where the surviving copy sits is its `placement` prop.
 It spent one build above the tab bar, on the argument that the top strip was

@@ -55,7 +55,6 @@ import {
   maxLabel,
   payAmountLabel,
   payButtonLabel,
-  payFromLabel,
   payMessageBudgetLine,
   payMessageEditLabel,
   payMessageFromLinkLine,
@@ -157,7 +156,6 @@ export function PayScreen({
   const [mode, setMode] = useState<'nim' | 'usdt'>(request.asset ?? 'nim')
   const [usdtSending, setUsdtSending] = useState(false)
   const [usdtResult, setUsdtResult] = useState<EvmSendOutcome | null>(null)
-  const [chosenSender, setChosenSender] = useState<string | null>(null)
   const [pinBlocking, setPinBlocking] = useState(false)
   /** Why a paste did nothing, on the one screen with no other note line. */
   const [pasteNote, setPasteNote] = useState<string | null>(null)
@@ -200,8 +198,9 @@ export function PayScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the URL follows the query, not the callback identity
   }, [query])
 
-  const addresses = wallet?.identity.addresses ?? []
-  const sender = chosenSender ?? (wallet === null ? null : primaryAddress(wallet.identity))
+  // The acting address, picked in the corner — the one control that says
+  // who you are. This screen had its own From picker until 2026-09-18.
+  const sender = wallet === null ? null : primaryAddress(wallet.identity)
   /** No address to sign with: the form ends in the connect control, not in a
    *  dead Pay button (states.ts, `connectInstead`). */
   const offerConnect = connectInstead(wallet, onConnect != null)
@@ -713,30 +712,6 @@ export function PayScreen({
                     <VerificationLine result={resolved} />
                   </div>
                 </div>
-
-                {addresses.length > 1 && (
-                  <label className={styles.fieldLabel}>
-                    <span>{payFromLabel()}</span>
-                    <div className={styles.selectWrap}>
-                      <select
-                        className={`pay-select nns-name ${styles.paySelect}`}
-                        value={sender ?? ''}
-                        onChange={(event) => setChosenSender(event.target.value)}
-                      >
-                        {addresses.map((address) => (
-                          <option key={address} value={address}>
-                            {address}
-                          </option>
-                        ))}
-                      </select>
-                      <div className={styles.selectChevron}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="6 9 12 15 18 9" />
-                        </svg>
-                      </div>
-                    </div>
-                  </label>
-                )}
 
                 <div className={styles.fieldLabel}>
                   <div className={styles.amountHeader}>

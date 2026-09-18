@@ -15,6 +15,7 @@ const walletThat = (outcome: SubmitOutcome): Wallet => ({
   identity: { kind: 'hub', addresses: [REQUEST.sender] },
   connect: null,
   disconnect: null,
+  pick: null,
   submit: () => Promise.resolve(outcome),
 })
 

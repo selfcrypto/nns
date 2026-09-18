@@ -536,42 +536,6 @@
   width: 100%;
 }
 
-.selectWrap {
-  position: relative;
-  width: 100%;
-}
-
-.paySelect {
-  appearance: none;
-  width: 100%;
-  background: var(--card);
-  border: 1px solid rgba(var(--tint-ink), 0.12);
-  border-radius: 12px;
-  padding: 10px 36px 10px 12px;
-  font-size: 13.5px;
-  color: var(--ink);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: inherit;
-  box-sizing: border-box;
-}
-
-.paySelect:focus,
-.paySelect:focus-visible {
-  outline: none;
-  border-color: var(--nimiq-blue);
-  box-shadow: 0 0 0 3px var(--nimiq-blue-glow);
-}
-
-.selectChevron {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  color: var(--ink-faint);
-}
-
 /* Amount Input Group */
 .amountHeader {
   display: flex;
