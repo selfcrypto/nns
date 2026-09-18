@@ -277,6 +277,9 @@ select:focus-visible {
  * beta strip under it (`components/EraNotice.tsx`). The strip is part of the
  * chrome because the landing page pulls its hero up behind the masthead, and
  * anything between the two is drawn over. `z-index` covers both rows.
+ *
+ * Solid, not frosted: under glass the page's text ghosted through the nav and
+ * the strip, and read as overlap rather than as a surface (Kike, 2026-09-18).
  */
 .masthead {
   padding: 0;
@@ -285,16 +288,13 @@ select:focus-visible {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(var(--tint-glass), 0.75);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: var(--card);
   border-bottom: 1px solid rgba(233, 178, 19, 0.15); /* Nimiq Orange Hint */
   box-shadow: 0 4px 30px rgba(var(--tint-ink), 0.03);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .masthead.is-scrolled {
-  background: rgba(var(--tint-glass), 0.9);
   border-bottom: 1px solid rgba(233, 178, 19, 0.3);
   box-shadow: 0 8px 32px rgba(233, 178, 19, 0.1);
 }
@@ -621,10 +621,11 @@ select:focus-visible {
 /* `.identity-scrim` is named for its owner; these are its declarations under a
    name this one owns.
 
-   Rendered into `<body>` by `NavScrim`, never inside the masthead: `.masthead`
-   has a `backdrop-filter`, which is a containing block for fixed descendants,
-   so a scrim mounted there resolves `inset: 0` against the masthead and covers
-   ~97px of a 900px screen. 99 keeps it under the masthead's own 100, so it
+   Rendered into `<body>` by `NavScrim`, never inside the masthead: the
+   masthead had a `backdrop-filter` until it went solid, which is a containing
+   block for fixed descendants, so a scrim mounted there resolved `inset: 0`
+   against the masthead and covered ~97px of a 900px screen. Keep it in
+   `<body>` so the chrome's styling can change again without breaking it. 99 keeps it under the masthead's own 100, so it
    closes the menu from the page without eating a click on the nav beside it. */
 .nav-scrim {
   position: fixed;
@@ -749,9 +750,9 @@ select:focus-visible {
   display: flex;
   z-index: 2;
   padding: 8px 6px;
-  background: rgba(var(--tint-glass), 0.85);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  /* Solid for the masthead's reason: under glass the page's cards read
+     through the pill as clutter (Kike, 2026-09-18). */
+  background: var(--card);
   border-radius: 24px;
   border: 1px solid rgba(var(--tint-ink), 0.06);
   box-shadow: 0 8px 30px rgba(var(--tint-ink), 0.08), 0 2px 10px rgba(var(--tint-ink), 0.04);
@@ -1093,14 +1094,11 @@ select:focus-visible {
    that reaches up behind the chrome. A top hairline, not a bottom one: the
    masthead already draws the line under itself.
 
-   The tint is `--grace-bg` as a *wash* rather than the token itself: the
-   masthead is frosted glass — translucent white over a blur — and an opaque
-   row welded under it made the bar two different materials, with the page
-   ghosting through the top half and stopping dead at the strip (Kike,
-   2026-09-13). Over white, rgba(218, 166, 0, 0.15) composites to #f8efd8,
-   so the strip keeps its colour and gains the glass; and because it tints
-   the masthead's own background rather than replacing it, the scrolled
-   state carries the strip with it for free. */
+   The tint is a *wash* over the masthead's own background rather than a
+   token of its own, so the two rows are one material whatever that
+   background is. The masthead is solid `--card` since 2026-09-18, so the
+   strip is solid too: over white, rgba(218, 166, 0, 0.15) composites to
+   #f8efd8. */
 .era-notice {
   display: flex;
   align-items: center;
