@@ -1,6 +1,7 @@
 # `RESERVED_NAMES` — the launch list
 
-**Applied 2026-09-18: 22,449 names in 46 categories** (`tasks/25`). The list
+**Applied 2026-09-18: 22,449 names in 46 categories** (`tasks/25`); the
+Nimiq team's Telegram handles joined 2026-09-19 — **22,475 names in 47**. The list
 lives in `packages/core/reserved-names/`, one JSON file per category, each
 naming its tier and its source; `pnpm gen:reserved` flattens them into
 `src/reserved-names.ts`, the constant that ships. This file is the policy —
@@ -35,10 +36,10 @@ Tiers are operator policy, not protocol — the constant is a flat set.
 | Tier | Disposition | Names |
 |---|---|---|
 | **HOLD** | Never released as a routine; a `U` here is a decision | 1,514 |
-| **AWARD** | `U` to the rightful party on a verified request; never auctioned | 20,718 |
+| **AWARD** | `U` to the rightful party on a verified request; never auctioned | 20,744 |
 | **AUCTION** | Sold via `A`, proceeds to the treasury | 1,560 |
 
-(Counts are per category and overlap; the deduplicated total is 22,449.)
+(Counts are per category and overlap; the deduplicated total is 22,475.)
 
 ## Categories
 
@@ -54,6 +55,7 @@ Tiers are operator policy, not protocol — the constant is a flat set.
 | AWARD | `companies-global`, `consumer`, `tech-products`, `ai`, `platforms`, `big-tech` | Index constituents and big private companies, consumer brands, products, AI labs | 3,493 |
 | AWARD | `finance`, `banks-payments`, `media`, `telecom-travel`, `gaming`, `sports-orgs` | Industry brands and every club and franchise in the major leagues | 4,343 + 804 |
 | AWARD | `intl-orgs`, `universities`, `parties` | Institutions | 718 |
+| AWARD | `nimiq-team` | The team's Telegram handles, gifted by `U` — the one deliberate exception to the personal-names rule (`martin`, `stefan`, `micha`) | 26 |
 | AUCTION | `countries`, `cities`, `crypto-vocabulary`, `premium-generics` | Places and generics | 1,560 |
 
 Each file's `source` says what it was built from and whether that was a live
@@ -72,9 +74,9 @@ suffixes (`bershkafashion`, `calm-app`) and legal forms (`dowinc`).
 ## Not on the list
 
 - **Personal names** — above.
-- **Nimiq team members** — 27 people, 50 entries, from public sources, held
-  in `tasks/25-nimiq-team-PENDING.json` for Kike's confirm pass. A public
-  source lets a name be listed; it does not decide who counts.
+- **Nimiq team members' legal names and GitHub handles** — the team is
+  reserved by the Telegram handles it uses daily (`nimiq-team`), Kike's list,
+  2026-09-19; the 27-person public-source draft was dropped.
 - **Slurs** — an open question for Kike: reserving one puts it in a public
   file; the alternative is §8.5's interface layer hiding it.
 - **Blanket variants** (`elonmusk-official`) — they multiply without end, and

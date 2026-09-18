@@ -94,7 +94,7 @@ describe('configFingerprint', () => {
     // replaces the four battery addresses at the launch freeze. This digest
     // moving means "rebuild, do not resume" — recompute it and update the pin
     // alongside either edit.
-    expect(BASELINE).toBe('69f09a262a942b52affee4f50031a3a16dc07b4f16e2f10cc3c4aee6d20ae148')
+    expect(BASELINE).toBe('0a27c2e138f34908251f44026c1f5f1915ccaea0a92aa40479808bd6a5111ac4')
     // Order is not protocol (§4.1 is exact-match membership), which is what the
     // `.sort()` in the payload buys: resorting the constant leaves this digest
     // alone, and only an added, removed or edited entry moves it.
