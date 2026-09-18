@@ -14,6 +14,7 @@
  */
 
 export { CONSTANTS, LUNA_PER_NIM, feeMultiplier } from './constants.js'
+export { RESERVED_NAMES } from './reserved-names.js'
 
 // §5.2's canonical order (r27): the hash rank, derived from the batch response alone.
 export { OrderingError, rankMessages, type OrderInput, type Ranked } from './ordering.js'
@@ -64,6 +65,7 @@ export {
   isValidName,
   isValidRef,
   parseQuery,
+  parseQuerySyntax,
   validateHost,
   validateLabel,
   validateName,

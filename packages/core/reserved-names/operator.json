@@ -1,0 +1,24 @@
+{
+  "tier": "HOLD",
+  "title": "Operator",
+  "source": "Hand-curated launch draft, docs/reserved-names.md, 2026-09-07",
+  "names": [
+    "delegated",
+    "nns-admin",
+    "nns-official",
+    "nns-protocol",
+    "nns-support",
+    "nns-team",
+    "nnsadmin",
+    "nnsnames",
+    "nnsofficial",
+    "nnsprotocol",
+    "nnssupport",
+    "nnsteam",
+    "self-crypto",
+    "selfcrypto",
+    "sonar",
+    "sonar-tech",
+    "sonartech"
+  ]
+}

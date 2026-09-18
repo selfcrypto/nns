@@ -2,7 +2,7 @@
  * Name rules — spec §4.
  *
  * Independent of {@link ./config.ts | NnsConfig}: rule 6's published list is
- * `CONSTANTS.RESERVED_NAMES`, frozen at the launch freeze, so this module sits
+ * `RESERVED_NAMES`, frozen at the launch freeze, so this module sits
  * at the bottom of the dependency order and can be tested with nothing else
  * present. The only thing it still takes from outside is `unreserved` — which
  * names a fired `U` has released — because that is chain state, not config.
@@ -13,6 +13,7 @@
  */
 
 import { CONSTANTS } from './constants.js'
+import { RESERVED_NAMES } from './reserved-names.js'
 
 /**
  * Stable reason codes. These appear in conformance vectors, so an independent
@@ -39,11 +40,12 @@ const no = (reason: NameInvalidReason): NameValidation => Object.freeze({ ok: fa
 const EMPTY_RESERVED: ReadonlySet<string> = new Set()
 
 /**
- * The published half of `RESERVED_NAMES`, as a set, built once. The constant
- * is an array so it reads as a reviewable list; every lookup goes through
- * here, so membership never costs a scan.
+ * The published half of `RESERVED_NAMES`, as a set, built on first use. The
+ * constant is an array so it reads as a reviewable list; every lookup goes
+ * through here, so membership never costs a scan. Lazy so that a bundle which
+ * never asks — the app validates syntax only — does not build or carry it.
  */
-const LISTED_RESERVED: ReadonlySet<string> = new Set<string>(CONSTANTS.RESERVED_NAMES)
+let listedReserved: ReadonlySet<string> | undefined
 
 const isDigit = (ch: string): boolean => ch >= '0' && ch <= '9'
 const isLetter = (ch: string): boolean => ch >= 'a' && ch <= 'z'
@@ -109,7 +111,7 @@ export const isShortReserved = (name: string): boolean =>
   name.length >= 1 && name.length < CONSTANTS.MIN_NAME_LEN && checkRules2to5(name).ok
 
 /** §4.1's other membership route: an entry on the published list, exact match. */
-export const isListedReserved = (name: string): boolean => LISTED_RESERVED.has(name)
+export const isListedReserved = (name: string): boolean => (listedReserved ??= new Set(RESERVED_NAMES)).has(name)
 
 /**
  * §4.1 rule 6 membership by either route — the published list or the by-rule
@@ -163,7 +165,7 @@ export function validateNameSyntax(name: string): NameValidation {
  * short name is reserved *by rule*, and rule 1's floor binds only while a
  * name is still reserved — released by a fired `U`, it is a normal name.
  *
- * Rule 6 reads `CONSTANTS.RESERVED_NAMES` and takes no list parameter: the
+ * Rule 6 reads `RESERVED_NAMES` and takes no list parameter: the
  * list is a consensus input, and a caller able to supply a different one is a
  * caller able to derive a different root.
  *
@@ -302,11 +304,24 @@ export type QueryParse =
  * delegate host is state, and belongs to the resolver.
  */
 export function parseQuery(query: string, unreserved?: ReadonlySet<string>): QueryParse {
+  return splitQuery(query, (name) => validateName(name, unreserved))
+}
+
+/**
+ * {@link parseQuery} without rule 6: rules 1–5 on the name, §4.4 on the label.
+ * For a caller whose subject may legitimately be reserved and whose server
+ * answers that — a search field. It is its own function rather than
+ * `parseQuery` with rule 6 filtered out so that a bundle using it never
+ * reaches `RESERVED_NAMES`.
+ */
+export const parseQuerySyntax = (query: string): QueryParse => splitQuery(query, validateNameSyntax)
+
+function splitQuery(query: string, checkName: (name: string) => NameValidation): QueryParse {
   const dots = query.split('.').length - 1
   if (dots > 1) return { ok: false, reason: 'TOO_MANY_DOTS', detail: null }
 
   if (dots === 0) {
-    const check = validateName(query, unreserved)
+    const check = checkName(query)
     return check.ok
       ? { ok: true, query: { kind: 'name', name: query } }
       : { ok: false, reason: 'BAD_NAME', detail: check.reason }
@@ -319,7 +334,7 @@ export function parseQuery(query: string, unreserved?: ReadonlySet<string>): Que
   const labelCheck = validateLabel(label)
   if (!labelCheck.ok) return { ok: false, reason: 'BAD_LABEL', detail: labelCheck.reason }
 
-  const parentCheck = validateName(parent, unreserved)
+  const parentCheck = checkName(parent)
   if (!parentCheck.ok) return { ok: false, reason: 'BAD_NAME', detail: parentCheck.reason }
 
   return { ok: true, query: { kind: 'dotted', label, parent } }

@@ -73,7 +73,7 @@ if (statSync(source).mtimeMs > builtAt) {
 
 // LUNA_PER_NIM is a sibling export, not a CONSTANTS member — reading it off C
 // yields undefined and every NIM figure prints NaN.
-const { CONSTANTS: C, LUNA_PER_NIM, LAUNCH_PRICES, feeFor, validateNameSyntax } = await import(join(repo, 'packages/core/dist/index.js'))
+const { CONSTANTS: C, RESERVED_NAMES, LUNA_PER_NIM, LAUNCH_PRICES, feeFor, validateNameSyntax } = await import(join(repo, 'packages/core/dist/index.js'))
 
 // ── Checks ──────────────────────────────────────────────────────────────────
 
@@ -92,8 +92,8 @@ check('constants-frozen', 'CONSTANTS is frozen', Object.isFrozen(C), `Object.isF
 check(
   'reserved-names-frozen',
   'RESERVED_NAMES is frozen (Object.freeze is shallow)',
-  Object.isFrozen(C.RESERVED_NAMES),
-  `Object.isFrozen → ${Object.isFrozen(C.RESERVED_NAMES)}`,
+  Object.isFrozen(RESERVED_NAMES),
+  `Object.isFrozen → ${Object.isFrozen(RESERVED_NAMES)}`,
 )
 check(
   'no-retired-constants',
@@ -306,21 +306,21 @@ check(
 // RESERVED_NAMES (§4.1) — a list the tempo branch appends throwaways to, which
 // is exactly when an entry that reserves nothing gets added.
 {
-  const invalid = C.RESERVED_NAMES.filter((name) => validateNameSyntax(name).ok !== true)
-  const short = C.RESERVED_NAMES.filter((name) => name.length < C.MIN_NAME_LEN)
-  const uncased = C.RESERVED_NAMES.filter((name) => name !== name.toLowerCase())
+  const invalid = RESERVED_NAMES.filter((name) => validateNameSyntax(name).ok !== true)
+  const short = RESERVED_NAMES.filter((name) => name.length < C.MIN_NAME_LEN)
+  const uncased = RESERVED_NAMES.filter((name) => name !== name.toLowerCase())
   check(
     'reserved-names-registrable',
     'every published entry is a name a G could actually carry — otherwise it reserves nothing at all (§4.1 never normalises)',
     invalid.length === 0 && short.length === 0 && uncased.length === 0,
-    `${C.RESERVED_NAMES.length} entries; invalid syntax: ${invalid.length ? invalid.join(', ') : 'none'}; ` +
+    `${RESERVED_NAMES.length} entries; invalid syntax: ${invalid.length ? invalid.join(', ') : 'none'}; ` +
       `under MIN_NAME_LEN: ${short.length ? short.join(', ') : 'none'}; not lowercase: ${uncased.length ? uncased.join(', ') : 'none'}`,
   )
   check(
     'reserved-names-no-duplicates',
     'no duplicate entries — membership is a set',
-    new Set(C.RESERVED_NAMES).size === C.RESERVED_NAMES.length,
-    `${new Set(C.RESERVED_NAMES).size} unique of ${C.RESERVED_NAMES.length}`,
+    new Set(RESERVED_NAMES).size === RESERVED_NAMES.length,
+    `${new Set(RESERVED_NAMES).size} unique of ${RESERVED_NAMES.length}`,
   )
 }
 

@@ -453,7 +453,7 @@ function requireName(name: string): string {
 export function encodeRegister(
   params: { name: string; ref?: string | undefined; fee: bigint; lifetime?: boolean | undefined } & SenderOption,
 ): BuiltTransaction {
-  // Reservation is deliberately NOT checked here. `CONSTANTS.RESERVED_NAMES`
+  // Reservation is deliberately NOT checked here. `RESERVED_NAMES`
   // is the static published list, but whether a name is *registrable* is chain
   // state: a fired `U` release makes it AVAILABLE (§7.3) — short names
   // included, since §4.1's floor lifts with the release — and the builder

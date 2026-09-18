@@ -33,7 +33,6 @@
  */
 
 import { parseAddress } from './address.js'
-import { RESERVED_NAMES } from './reserved-names.js'
 
 /** 1 NIM in luna. */
 export const LUNA_PER_NIM = 100_000n
@@ -86,35 +85,10 @@ export const CONSTANTS = Object.freeze({
   MAX_LABEL_LEN: 24,
   /** Delegate resolver host, §6 `D`. */
   MAX_HOST_LEN: 30,
-  /**
-   * §4.1 rule 6, the **published half** of `RESERVED_NAMES`.
-   *
-   * Authored in `reserved-names.json` and compiled into `reserved-names.ts` by
-   * `scripts/gen-reserved-names.ts` — the JSON is a reviewable diff, the
-   * generated module is what ships, and **nothing reads the JSON at runtime**: a
-   * list loaded from disk is a list two operators can hold different copies of.
-   *
-   * 1–4 character names are the other half and appear here nowhere: since r18
-   * they are members *by rule* (length plus rules 2–5, `isShortReserved`), never
-   * materialised into the ~1.7M entries that route would need.
-   *
-   * Stored sorted so a reviewer can read it, **not** because order means
-   * anything — this is a set, and `constants.test.ts` pins it order-insensitively
-   * so that resorting it is never a protocol change.
-   *
-   * **This list is not final.** It is battery-grade: enough to exercise the
-   * `G`/`U`/award paths against real entries, not enough to launch behind.
-   * Completing it is a blocking pre-launch step,
-   * and it is free only until `LAUNCH_HEIGHT`.
-   *
-   * The asymmetry that governs edits: a name left off is registrable by anyone
-   * the block after `LAUNCH_HEIGHT` and no rule takes it back — **under-reserving
-   * is permanent**. A name reserved by mistake is released, or awarded to the
-   * right party, with one `U` (§6 `U`) — **over-reserving is reversible**.
-   * *Adding* an entry is out of scope for governance (§10.6) and so is free only
-   * until `LAUNCH_HEIGHT`; after it, an addition is a spec revision.
-   */
-  RESERVED_NAMES,
+  // §4.1 rule 6's published half, `RESERVED_NAMES`, is a constant too but not
+  // a member here: it is exported on its own from `reserved-names.ts`, so a
+  // client that reads `CONSTANTS` for a fee or a length does not ship twenty
+  // thousand names it never looks up. Every value above is a few bytes.
   /**
    * Referrer on a registration, §6 `G` — a registered name, so it equals
    * `MAX_NAME_LEN`. `G` at its largest is 56 bytes with the lifetime field

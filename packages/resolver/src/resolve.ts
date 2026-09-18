@@ -10,14 +10,14 @@
  * gets to decide on its own — see the `quorum` option.
  *
  * The division of labour, kept to the same contract as `packages/api`: every
- * protocol rule is `@nimiqnames/core`'s. §4.1 and §4.4 name syntax is `parseQuery`,
+ * protocol rule is `@nimiqnames/core`'s. §4.1 and §4.4 name syntax is `parseQuerySyntax`,
  * §8.1 leaf encoding is `leafHash`, §8.1 recombination is `verifyProof`, §8.1
  * ordering is `compareNames`. What this file adds is transport, quorum policy
  * and the reconciliation of two clocks — none of which are protocol rules,
  * and none of which are restated anywhere in core.
  */
 
-import { CONSTANTS, parseQuery, type Address, type NameRecord } from '@nimiqnames/core'
+import { CONSTANTS, parseQuerySyntax, type Address, type NameRecord } from '@nimiqnames/core'
 
 import {
   ANCHORS_NOT_CONFIGURED,
@@ -332,14 +332,12 @@ export class NnsResolver {
    * @throws {DelegateError} a dotted query whose parent delegates nowhere, or whose host failed
    */
   async resolve(query: string): Promise<ResolveResult> {
-    // §4.1/§4.4 syntax is core's, not this package's. Reservation is
-    // neutralised: a reserved name awarded by a `U` (§6 `U`) is registered and
-    // resolves like any other, which is the same reasoning that keeps rule 6
-    // out of the API's /resolve. The candidate goes in as `unreserved`, which
-    // covers both membership routes — the published list and r18's by-rule
-    // short names — in one move.
-    const dot = query.indexOf('.')
-    const parsed = parseQuery(query, new Set([dot < 0 ? query : query.slice(dot + 1)]))
+    // §4.1/§4.4 syntax is core's, not this package's. Rule 6 is left out: a
+    // reserved name awarded by a `U` (§6 `U`) is registered and resolves like
+    // any other, which is the same reasoning that keeps rule 6 out of the
+    // API's /resolve — and leaving it out keeps `RESERVED_NAMES` out of every
+    // bundle that embeds this package.
+    const parsed = parseQuerySyntax(query)
     if (!parsed.ok) {
       throw new NameError('NAME_INVALID', `${query} is not a name or a dotted query: ${parsed.reason}`)
     }
@@ -412,9 +410,9 @@ export class NnsResolver {
    */
   async available(name: string): Promise<AvailableResult> {
     // Reservation is the serving resolver's answer (`RESERVED`, below), not
-    // a structural failure — so the by-rule short reservation (§4.1, r18) is
-    // neutralised here exactly as in resolve().
-    const parsed = parseQuery(name, new Set([name]))
+    // a structural failure — so rule 6, the by-rule short reservation (§4.1,
+    // r18) included, is left out here exactly as in resolve().
+    const parsed = parseQuerySyntax(name)
     if (!parsed.ok || parsed.query.kind !== 'name') {
       // §4.4 labels are never protocol state and never registrable, so a
       // dotted query has no availability to report.

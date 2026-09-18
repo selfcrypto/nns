@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CONSTANTS } from '@nimiqnames/core'
+import { CONSTANTS, RESERVED_NAMES } from '@nimiqnames/core'
 import { QuorumError, type ResolverReply } from '@nimiqnames/resolver'
 import { isShortName, outcomeForError, parseSearchQuery, queryFault } from './search'
 
@@ -10,7 +10,7 @@ import { isShortName, outcomeForError, parseSearchQuery, queryFault } from './se
  */
 describe('parseSearchQuery', () => {
   it('accepts a listed reserved name — release is chain state the browser cannot see', () => {
-    expect(CONSTANTS.RESERVED_NAMES).toContain('nimiq')
+    expect(RESERVED_NAMES).toContain('nimiq')
     const parsed = parseSearchQuery('nimiq')
     expect(parsed).toEqual({ ok: true, query: { kind: 'name', name: 'nimiq' } })
   })
@@ -96,7 +96,7 @@ describe('isShortName', () => {
     expect(isShortName('nimi')).toBe(true)
     // Listed in RESERVED_NAMES, and still not short: reading the list here is
     // exactly the mistake this predicate exists to avoid.
-    expect(CONSTANTS.RESERVED_NAMES).toContain('nimiq')
+    expect(RESERVED_NAMES).toContain('nimiq')
     expect(isShortName('nimiq')).toBe(false)
     expect(isShortName('')).toBe(false)
   })

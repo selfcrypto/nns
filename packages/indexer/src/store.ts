@@ -9,7 +9,7 @@
 
 import { createHash } from 'node:crypto'
 
-import { CONSTANTS, initialState, type Checkpoint, type NnsConfig, type NnsState } from '@nimiqnames/core'
+import { CONSTANTS, RESERVED_NAMES, initialState, type Checkpoint, type NnsConfig, type NnsState } from '@nimiqnames/core'
 import type { Pool, PoolClient } from 'pg'
 
 import { checkpointRow, COMMITMENT_LAYOUT, hex, type CheckpointRow } from './checkpoint.js'
@@ -142,7 +142,7 @@ export function configFingerprint(config: NnsConfig): string {
     admin: CONSTANTS.ADMIN_ADDRESS,
     marketplace: CONSTANTS.MARKETPLACE_ADDRESS,
     listingFee: CONSTANTS.LISTING_FEE.toString(10),
-    reservedNames: [...CONSTANTS.RESERVED_NAMES].sort(),
+    reservedNames: [...RESERVED_NAMES].sort(),
   })
   return createHash('sha256').update(payload).digest('hex')
 }

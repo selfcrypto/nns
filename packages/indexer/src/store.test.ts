@@ -23,6 +23,7 @@
 import {
   checkpoint,
   CONSTANTS,
+  RESERVED_NAMES,
   defineConfig,
   initialState,
   logHash,
@@ -93,11 +94,11 @@ describe('configFingerprint', () => {
     // replaces the four battery addresses at the launch freeze. This digest
     // moving means "rebuild, do not resume" — recompute it and update the pin
     // alongside either edit.
-    expect(BASELINE).toBe('8111f0c068d3fe5f7427b948ae7e89c1c05143ac3a544769d97ad8f9d624897b')
+    expect(BASELINE).toBe('69f09a262a942b52affee4f50031a3a16dc07b4f16e2f10cc3c4aee6d20ae148')
     // Order is not protocol (§4.1 is exact-match membership), which is what the
     // `.sort()` in the payload buys: resorting the constant leaves this digest
     // alone, and only an added, removed or edited entry moves it.
-    expect([...CONSTANTS.RESERVED_NAMES].sort()).toEqual([...CONSTANTS.RESERVED_NAMES])
+    expect([...RESERVED_NAMES].sort()).toEqual([...RESERVED_NAMES])
   })
 })
 

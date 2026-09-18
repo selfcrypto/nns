@@ -6,7 +6,7 @@
 
 import {
   CONSTANTS,
-  parseQuery,
+  parseQuerySyntax,
   validateNameShape,
   type LabelInvalidReason,
   type NameInvalidReason,
@@ -65,23 +65,19 @@ export type SearchOutcome =
     }
 
 /**
- * §4.1 syntax for a typed query, with **rule 6 neutralised**. Reservation is
- * chain state, not a property of the string: a name released by a `U` (§6
- * `U`) — and since r18 an awarded short name — is an ordinary name that must
- * be searchable, resolvable and registrable. A browser cannot know
- * `state.unreserved`, so this does what the API's `/resolve` and
- * `@nimiqnames/resolver` both do: pass the candidate itself (the parent, for a
- * dotted query) as `unreserved`, which covers both membership routes in one
- * move. Whether the name is *still* held is the server's answer, and arrives
- * as `available.reason === 'RESERVED'`.
+ * §4.1 syntax for a typed query, **without rule 6**. Reservation is chain
+ * state, not a property of the string: a name released by a `U` (§6 `U`) —
+ * and since r18 an awarded short name — is an ordinary name that must be
+ * searchable, resolvable and registrable. A browser cannot know
+ * `state.unreserved`, so it asks rules 1–5 alone (`parseQuerySyntax`), which
+ * also keeps the twenty-thousand-name list out of the bundle. Whether the
+ * name is *still* held is the server's answer, and arrives as
+ * `available.reason === 'RESERVED'`.
  *
  * Rules 1–5 stay client-side, `TOO_SHORT` included: a short name failing
  * rules 2–5 is on neither membership route, so nothing can ever release it.
  */
-export function parseSearchQuery(query: string): QueryParse {
-  const dot = query.indexOf('.')
-  return parseQuery(query, new Set([dot < 0 ? query : query.slice(dot + 1)]))
-}
+export const parseSearchQuery = (query: string): QueryParse => parseQuerySyntax(query)
 
 /**
  * Is the name part shorter than `MIN_NAME_LEN`? **Length alone**, and

@@ -1,7 +1,13 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { parseAddress } from './address.js'
 import { CONSTANTS, LUNA_PER_NIM, feeMultiplier } from './constants.js'
+import { RESERVED_NAMES } from './reserved-names.js'
 import { validateNameSyntax } from './name.js'
+
+/** §4.1 rule 6's published half, pinned: see 'equals the published RESERVED_NAMES list'. */
+const PUBLISHED_COUNT = 22449
+const PUBLISHED_SHA256 = '7f1ced00dfd6123150d4b3bbfbbfbfa336e14763ddcb24544033d57ba5598fb0'
 
 describe('CONSTANTS — §3', () => {
   it('is frozen, so nothing downstream can edit a protocol rule at runtime', () => {
@@ -163,9 +169,9 @@ describe('CONSTANTS — §3', () => {
     // this is the test that
     // fails CI if such an edit ever reaches master. It also covers
     // CHECKPOINT_INTERVAL, which no conformance vector exercises.
-    // RESERVED_NAMES is pinned separately, as a set: it is the one entry whose
-    // *order* must not be protocol (see below).
-    const { RESERVED_NAMES: _reserved, ...values } = CONSTANTS
+    // RESERVED_NAMES is not a member (it is its own export, so a bundle can
+    // drop it) and is pinned separately below, as a set.
+    const values = CONSTANTS
     expect(values).toStrictEqual({
       // Not a §3 value: the revision these rules claim to be, pinned here so
       // a fold that moves a rule and forgets the number fails on the way out.
@@ -248,143 +254,18 @@ describe('CONSTANTS — §3', () => {
   })
 
   it('equals the published RESERVED_NAMES list, as a set — order is not protocol (§4.1)', () => {
-    // The same inline-literal pin as above, with one difference that is the
-    // whole point: it compares **sets**. Rule 6 is exact-match membership, so
-    // resorting the constant — or inserting an entry in the middle rather than
-    // at the end — must never be a protocol change or a red CI run. Length is
-    // asserted against the literal too, which is what catches a duplicate that
-    // set comparison alone would swallow.
-    const published = [
-      'abn-amro', 'abnamro', 'about', 'abuse', 'account', 'accounts', 'activision', 'adidas', 'admin',
-      'administrator', 'admins', 'adobe', 'adult', 'adyen', 'agency', 'airbnb', 'airdrop', 'airdrops',
-      'albatross', 'alchemy', 'alchemypay', 'alert', 'alerts', 'algorand', 'alibaba', 'aliexpress', 'alipay',
-      'alpha', 'alphabet', 'amazon', 'amazon-pay', 'amazonaws', 'amazonpay', 'american-express',
-      'americanexpress', 'amina', 'anchor', 'android', 'anonymous', 'anthropic', 'apple', 'apple-pay',
-      'applepay', 'aptos', 'arbitrum', 'arch-linux', 'archlinux', 'arculus', 'argent', 'arkham', 'arweave',
-      'ascendex', 'asset', 'assets', 'atomic-wallet', 'atomicwallet', 'auction', 'auctions', 'audit',
-      'authentic', 'avalanche', 'azure', 'backpack', 'balancer', 'banco-de-espana', 'bancodeespana',
-      'bancolombia', 'bancor', 'bank-of-america', 'bank-of-england', 'banking', 'bankinter', 'bankless',
-      'bankofamerica', 'bankofengland', 'banks', 'banorte', 'banxa', 'barclays', 'bcvault', 'betting',
-      'billing', 'binance', 'binance-coin', 'binancecoin', 'binancewallet', 'bingx', 'bitbox', 'bitbucket',
-      'bitbuy', 'bitcoin', 'bitcoin-cash', 'bitcoin-foundation', 'bitcoin-magazine', 'bitcoin-suisse',
-      'bitcoin-wallet', 'bitcoincash', 'bitcoinfoundation', 'bitcoinmagazine', 'bitcoins', 'bitcoinsuisse',
-      'bitcoinwallet', 'bitfinex', 'bitget', 'bitgetwallet', 'bithumb', 'bitkeep', 'bitkey', 'bitkub',
-      'bitmart', 'bitmex', 'bitpanda', 'bitpay', 'bitrefill', 'bitrue', 'bitso', 'bitstamp', 'bitvavo',
-      'bizum', 'blackrock', 'blast', 'blizzard', 'blockchain', 'blockchair', 'blockstream',
-      'blockstreamgreen', 'bloomberg', 'bluewallet', 'bnb-chain', 'bnbchain', 'bnp-paribas', 'bnpparibas',
-      'bonds', 'bonfida', 'booking', 'borrow', 'bounty', 'bradesco', 'bravewallet', 'bridge', 'btcmarkets',
-      'btcpay', 'btcpayserver', 'bug-bounty', 'bugbounty', 'bundesbank', 'burn-address', 'burnaddress',
-      'business', 'buterin', 'bybit', 'caixa', 'caixabank', 'cake-wallet', 'cakewallet', 'callback',
-      'capital', 'capital-one', 'capitalone', 'cardano', 'cash-app', 'cashapp', 'casino', 'celestia',
-      'cex-io', 'cexio', 'chainalysis', 'chainlink', 'chainstack', 'changelly', 'changelog', 'changenow',
-      'chase', 'chatgpt', 'checkout', 'checkpoint', 'checkpoints', 'chime', 'chrome', 'circle', 'cisco',
-      'citibank', 'citigroup', 'claude', 'cloud', 'cloudflare', 'coca-cola', 'cocacola', 'coinbase',
-      'coinbase-wallet', 'coinbasewallet', 'coincorner', 'coindcx', 'coindesk', 'coinex', 'coingate',
-      'coingecko', 'coinify', 'coinjar', 'coinlist', 'coinmarketcap', 'coinomi', 'coinone', 'coinpaprika',
-      'coinpayments', 'coins', 'coinspot', 'cointelegraph', 'coldcard', 'commerzbank', 'commission',
-      'company', 'compliance', 'compound', 'consensus', 'consensys', 'contact', 'contacts', 'coredev',
-      'cosmos', 'cowswap', 'credit', 'credit-suisse', 'creditagricole', 'creditsuisse', 'crypto',
-      'crypto-com', 'crypto-wallet', 'cryptocom', 'cryptocurrencies', 'cryptocurrency', 'cryptowallet',
-      'curvefinance', 'customer', 'customer-service', 'customer-support', 'customers', 'customerservice',
-      'customersupport', 'cypherock', 'danskebank', 'dashboard', 'dating', 'dcent', 'debian', 'decrypt',
-      'deepmind', 'default', 'defillama', 'degen', 'delegate', 'delegated', 'delegates', 'deribit',
-      'deutsche-bank', 'deutschebank', 'dev-team', 'developer', 'developers', 'devnet', 'devteam',
-      'dexscreener', 'dextools', 'dfinity', 'diamond', 'digifinex', 'digital', 'digitalocean', 'diners-club',
-      'dinersclub', 'discord', 'discover', 'disney', 'docker', 'dogecoin', 'donotreply', 'download',
-      'downloads', 'dropbox', 'duneanalytics', 'edgewallet', 'el-corte-ingles', 'elcorteingles', 'electrum',
-      'ellipal', 'elliptic', 'email', 'energy', 'engineering', 'enkrypt', 'ens-domains', 'ensdomains',
-      'enterprise', 'epic-games', 'epicgames', 'escrow', 'ethena', 'ether', 'ethereum', 'ethereum-classic',
-      'ethereum-foundation', 'ethereumclassic', 'ethereumfoundation', 'etherscan', 'etoro',
-      'europeancentralbank', 'europol', 'events', 'everyone', 'example', 'exchange', 'exodus', 'exolix',
-      'expedia', 'expired', 'expiry', 'explore', 'explorer', 'facebook', 'fantom', 'farcaster', 'farming',
-      'fashion', 'fast-spot', 'fastspot', 'faucet', 'favicon', 'federal-reserve', 'federalreserve',
-      'fidelity', 'filebase', 'filecoin', 'finance', 'financial', 'firefox', 'fixedfloat', 'floki', 'forbes',
-      'forex', 'fortnite', 'foundation', 'founder', 'founders', 'funds', 'futures', 'games', 'gaming',
-      'gate-io', 'gateio', 'gemini', 'genesis', 'genuine', 'giropay', 'github', 'gitlab', 'glassnode',
-      'global', 'gmail', 'gnosis', 'gnosis-safe', 'gnosissafe', 'gobierno', 'godex', 'goldman-sachs',
-      'goldmansachs', 'google', 'google-pay', 'googlepay', 'governance', 'government', 'grace',
-      'graphprotocol', 'graphql', 'greenwallet', 'guarda', 'guest', 'hacienda', 'handshake',
-      'hardware-wallet', 'hardwarewallet', 'health', 'hedera', 'hello', 'helpdesk', 'heroku', 'hetzner',
-      'hitbtc', 'hodl-hodl', 'hodlhodl', 'hostmaster', 'hotel', 'hotels', 'hotmail', 'huobi', 'hyperliquid',
-      'icloud', 'ideal', 'images', 'imtoken', 'inbox', 'income', 'index', 'indexer', 'inditex', 'infura',
-      'ing-direct', 'ingdirect', 'injective', 'instagram', 'install', 'insurance', 'intel', 'internet',
-      'internetcomputer', 'interpol', 'intesasanpaolo', 'invest', 'investing', 'investment', 'investments',
-      'investor', 'invoice', 'invoices', 'iphone', 'javascript', 'jp-morgan', 'jpmorgan', 'juliusbaer',
-      'jupiter', 'kadena', 'kaspa', 'keplr', 'keyguard', 'keystone', 'klarna', 'kraken', 'kubernetes',
-      'kucoin', 'kusama', 'kyber', 'kyberswap', 'lambo', 'latoken', 'lbank', 'leather', 'ledger',
-      'ledger-live', 'ledgerlive', 'legal', 'lending', 'lensprotocol', 'letsexchange', 'lidofinance',
-      'lightning', 'lightning-network', 'lightningnetwork', 'lightspark', 'linea', 'linkedin', 'linux',
-      'litecoin', 'litepaper', 'livecoinwatch', 'lloyds', 'loans', 'localbitcoins', 'localhost', 'login',
-      'logout', 'lottery', 'macbook', 'magic-eden', 'magiceden', 'mainnet', 'maintainer', 'makerdao',
-      'manifest', 'mantle', 'market', 'marketplace', 'marvel', 'master', 'mastercard', 'mathwallet',
-      'mcdonalds', 'media', 'memes', 'mempool', 'mempool-space', 'mempoolspace', 'mercado-pago', 'mercadona',
-      'mercadopago', 'mercuryo', 'merkle', 'messari', 'metamask', 'metaplatforms', 'metaverse', 'metrics',
-      'microsoft', 'minecraft', 'miner', 'miners', 'mining', 'mobile', 'mobilepay', 'moderator',
-      'moderators', 'monero', 'monerujo', 'money', 'moneygram', 'monitor', 'monzo', 'moonpay', 'moralis',
-      'morgan-stanley', 'morganstanley', 'mortgage', 'movistar', 'mozilla', 'music', 'muunwallet',
-      'my-wallet', 'mycrypto', 'myetherwallet', 'mywallet', 'nakamoto', 'namecoin', 'names', 'nansen',
-      'natwest', 'neteller', 'netflix', 'netlify', 'network', 'ngrave', 'nimig', 'nimigpay', 'nimiq',
-      'nimiq-app', 'nimiq-chat', 'nimiq-foundation', 'nimiq-hub', 'nimiq-labs', 'nimiq-names',
-      'nimiq-network', 'nimiq-oasis', 'nimiq-official', 'nimiq-pay', 'nimiq-safe', 'nimiq-support',
-      'nimiq-team', 'nimiq-wallet', 'nimiq-watch', 'nimiqadmin', 'nimiqapp', 'nimiqbank', 'nimiqblog',
-      'nimiqcard', 'nimiqcash', 'nimiqchat', 'nimiqcoin', 'nimiqcommunity', 'nimiqdao', 'nimiqdev',
-      'nimiqdevs', 'nimiqexplorer', 'nimiqforum', 'nimiqfoundation', 'nimiqfund', 'nimiqhelp', 'nimiqhub',
-      'nimiqkeyguard', 'nimiqlabs', 'nimiqminer', 'nimiqmining', 'nimiqmobile', 'nimiqname', 'nimiqnames',
-      'nimiqnetwork', 'nimiqnews', 'nimiqoasis', 'nimiqofficial', 'nimiqpay', 'nimiqpayments', 'nimiqpays',
-      'nimiqpool', 'nimiqq', 'nimiqs', 'nimiqsafe', 'nimiqshop', 'nimiqstake', 'nimiqstaking', 'nimiqstore',
-      'nimiqsupport', 'nimiqswap', 'nimiqteam', 'nimiqtoken', 'nimiqvalidator', 'nimiqwallet', 'nimiqwatch',
-      'nimiqx', 'nintendo', 'nirniq', 'nirniqhub', 'nirniqnames', 'nirniqpay', 'nirniqwallet', 'nns-admin',
-      'nns-official', 'nns-protocol', 'nns-support', 'nns-team', 'nnsadmin', 'nnsnames', 'nnsofficial',
-      'nnsprotocol', 'nnssupport', 'nnsteam', 'no-reply', 'nobody', 'nodejs', 'nodes', 'nordea', 'noreply',
-      'notification', 'notifications', 'notion', 'nowpayments', 'npmjs', 'nubank', 'nunchuk', 'nvidia',
-      'nytimes', 'oasis', 'oauth', 'offer', 'offers', 'official', 'officials', 'okcoin', 'okxwallet',
-      'oneinch', 'online', 'onramper', 'openai', 'openbank', 'opennode', 'opensea', 'operations', 'operator',
-      'optimism', 'options', 'oracle', 'ordinals', 'original', 'osmosis', 'outlook', 'owner', 'owners',
-      'pancakeswap', 'params', 'paraswap', 'password', 'paxful', 'paxos', 'payment', 'payments', 'paynimiq',
-      'payoneer', 'paypal', 'paysafe', 'paysafecard', 'pending', 'pepecoin', 'pepsi', 'phantom', 'phemex',
-      'phone', 'photo', 'pinata', 'pinterest', 'playstation', 'podcast', 'pokemon', 'poker', 'police',
-      'policy', 'polkadot', 'poloniex', 'polygon', 'postfinance', 'postmaster', 'press', 'price', 'prices',
-      'privacy', 'private', 'probit', 'profile', 'profiles', 'profit', 'profits', 'proof', 'proofs',
-      'property', 'protocol', 'protocol-labs', 'protocollabs', 'proton', 'protonmail', 'public', 'python',
-      'quicknode', 'quorum', 'rabby', 'rabobank', 'raiffeisen', 'rainbow', 'rainbowwallet', 'rampnetwork',
-      'rarible', 'raydium', 'real-estate', 'realestate', 'red-cross', 'redcross', 'reddit', 'refund',
-      'refunds', 'register', 'registrar', 'registration', 'registry', 'relay', 'release', 'releases',
-      'remitly', 'reserve', 'reserved', 'resolve', 'resolver', 'resolvers', 'reuters', 'revolut',
-      'riotgames', 'ripple', 'riverfinancial', 'roadmap', 'robinhood', 'roblox', 'robosats', 'robots',
-      'runes', 'rustlang', 'sabadell', 'safepal', 'safewallet', 'sales', 'salesforce', 'samourai', 'sample',
-      'samsung', 'samsung-pay', 'samsungpay', 'santander', 'sardine', 'satoshi', 'satoshi-nakamoto',
-      'satoshinakamoto', 'savings', 'scotiabank', 'scroll', 'search', 'secure', 'security', 'self-crypto',
-      'selfcrypto', 'service', 'services', 'settings', 'settlement', 'shakepay', 'shares', 'shiba',
-      'shiba-inu', 'shibainu', 'shopify', 'shopping', 'sideshift', 'signal', 'signin', 'signup', 'silver',
-      'simpleswap', 'simplex', 'sitemap', 'skrill', 'slack', 'smart-contract', 'smartcontract',
-      'smartcontracts', 'snapchat', 'social', 'societegenerale', 'sofort', 'solana', 'solflare', 'sonar',
-      'sonar-tech', 'sonartech', 'sonic', 'space-id', 'spaceid', 'spacex', 'sparrow', 'sparrowwallet',
-      'specs', 'sportsbook', 'spotify', 'square', 'stackoverflow', 'stacks', 'staff', 'stake', 'stakers',
-      'staking', 'starbucks', 'starknet', 'starkware', 'starling', 'starlink', 'startup', 'static', 'status',
-      'stealthex', 'steam', 'stellar', 'stock', 'stocks', 'store', 'stream', 'streaming', 'strike', 'stripe',
-      'studio', 'superrare', 'superuser', 'support', 'sushiswap', 'swanbitcoin', 'swaps', 'swapzone',
-      'swedbank', 'swift', 'swish', 'swisscom', 'swissquote', 'swyftx', 'sygnum', 'sysadmin', 'system',
-      't-mobile', 'tangem', 'taproot', 'td-bank', 'tdbank', 'telefonica', 'telegram', 'terms', 'tesla',
-      'testing', 'testnet', 'tether', 'tezos', 'the-block', 'the-graph', 'theblock', 'thegraph', 'thorchain',
-      'thorswap', 'tickets', 'tiktok', 'tmobile', 'token', 'tokenpocket', 'tokens', 'toncoin', 'trade',
-      'trader', 'trading', 'tradingview', 'transak', 'transfer', 'transferwise', 'travel', 'treasury',
-      'trezor', 'trezor-suite', 'trezorsuite', 'tronix', 'truist', 'trust-wallet', 'trusted', 'trustwallet',
-      'tutanota', 'twint', 'twitch', 'twitter', 'typescript', 'ubisoft', 'ubuntu', 'unchained', 'undefined',
-      'unicef', 'unicredit', 'unionpay', 'unisat', 'uniswap', 'uniswapwallet', 'united-nations',
-      'unitednations', 'unknown', 'unreserve', 'unreserved', 'unstoppable', 'unstoppable-domains',
-      'unstoppabledomains', 'upbit', 'update', 'updates', 'us-bank', 'usbank', 'usd-coin', 'usdcoin',
-      'utrust', 'validator', 'validators', 'value', 'valve', 'vanguard', 'vault', 'vaults', 'venmo',
-      'venture', 'ventures', 'vercel', 'verification', 'verified', 'verify', 'verizon', 'video', 'vipps',
-      'vitalik', 'vitalikbuterin', 'vodafone', 'wallet', 'walletconnect', 'wallets', 'walmart', 'warnerbros',
-      'warpcast', 'wasabi', 'wazirx', 'wealth', 'webhook', 'webhooks', 'webmaster', 'webull', 'wechat',
-      'wechat-pay', 'wechatpay', 'welcome', 'wells-fargo', 'wellsfargo', 'western-union', 'westernunion',
-      'whale', 'whales', 'whatsapp', 'whitebit', 'whitepaper', 'wikimedia', 'wikipedia', 'windows', 'world',
-      'world-bank', 'worldbank', 'worldchain', 'worldcoin', 'xdefi', 'xverse', 'yahoo', 'yield', 'youtube',
-      'zcash', 'zebpay', 'zengo', 'zksync',
-    ]
-    expect(new Set(CONSTANTS.RESERVED_NAMES)).toEqual(new Set(published))
-    expect(CONSTANTS.RESERVED_NAMES).toHaveLength(published.length)
-    expect(published).toHaveLength(1001)
+    // The same hand-moved pin as above, in the form a ten-thousand-name list
+    // can carry: the count and the sha256 of the sorted, newline-joined set.
+    // An inline copy of every name would be the third copy of the list in the
+    // repo (the category files, the generated module, the test) for no extra
+    // strength — any change still turns this red, and the literal still has
+    // to be moved by hand. Sorting first is what keeps it a *set* pin:
+    // resorting the constant must never be a protocol change or a red run.
+    // The count is what catches a duplicate that the set digest would swallow.
+    const sorted = [...new Set(RESERVED_NAMES)].sort()
+    expect(RESERVED_NAMES).toHaveLength(PUBLISHED_COUNT)
+    expect(sorted).toHaveLength(PUBLISHED_COUNT)
+    expect(createHash('sha256').update(sorted.join('\n')).digest('hex')).toBe(PUBLISHED_SHA256)
   })
 
   it('holds no duplicate entry — membership is a set (§4.1 rule 6)', () => {
@@ -392,7 +273,7 @@ describe('CONSTANTS — §3', () => {
     // comparison alone swallows, and behind that pin this never ran on a tempo
     // branch — which is exactly the branch that appends throwaway entries to
     // the list.
-    expect(new Set(CONSTANTS.RESERVED_NAMES).size).toBe(CONSTANTS.RESERVED_NAMES.length)
+    expect(new Set(RESERVED_NAMES).size).toBe(RESERVED_NAMES.length)
   })
 
   it('keeps every published entry registrable, so no entry reserves nothing', () => {
@@ -400,7 +281,7 @@ describe('CONSTANTS — §3', () => {
     // the wrong place — silently reserves nothing at all: the name it looks
     // like stays registrable and nobody finds out until it is taken. §4.1
     // never normalises, so this is exact.
-    for (const name of CONSTANTS.RESERVED_NAMES) {
+    for (const name of RESERVED_NAMES) {
       expect(validateNameSyntax(name), name).toEqual({ ok: true })
       expect(name.length, name).toBeGreaterThanOrEqual(CONSTANTS.MIN_NAME_LEN)
       expect(name, name).toBe(name.toLowerCase())
@@ -411,12 +292,12 @@ describe('CONSTANTS — §3', () => {
     // 1–4 character names are members by rule (§4.1, r18) and are deliberately
     // not materialised. An entry here would be either redundant or, worse,
     // read as the list being the only route.
-    expect(CONSTANTS.RESERVED_NAMES.filter((name) => name.length < CONSTANTS.MIN_NAME_LEN)).toEqual([])
+    expect(RESERVED_NAMES.filter((name) => name.length < CONSTANTS.MIN_NAME_LEN)).toEqual([])
   })
 
   it('freezes the list itself, not just the object holding it', () => {
     // Object.freeze is shallow; a frozen CONSTANTS with a live array is a
     // consensus input any caller could push onto.
-    expect(Object.isFrozen(CONSTANTS.RESERVED_NAMES)).toBe(true)
+    expect(Object.isFrozen(RESERVED_NAMES)).toBe(true)
   })
 })

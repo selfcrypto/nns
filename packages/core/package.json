@@ -40,6 +40,7 @@
     "dist",
     "vectors"
   ],
+  "sideEffects": false,
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "gen:reserved": "node scripts/gen-reserved-names.ts",
