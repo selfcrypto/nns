@@ -43,6 +43,9 @@ const REPO = 'https://github.com/selfcrypto/nns'
  */
 const TELEGRAM = 'https://t.me/nimiqnames'
 
+/** The project's X account, checked 2026-09-18: "Nimiq Names", website nimiqnames.com. */
+const X = 'https://x.com/nimiqnames'
+
 /**
  * The four doors in the masthead — `[label, href]` pairs, the same shape and
  * for the same reason as `LANDING.footer.columns`: a route is not normally a
@@ -88,7 +91,7 @@ export const CONTACT_TITLE = 'Contact'
 export const CONTACT: readonly (readonly [string, string | null])[] = [
   ['Telegram', TELEGRAM],
   ['@RicoMaverick', 'https://t.me/ricomaverick'],
-  ['X', null],
+  ['X', X],
 ] as const
 /** Beside a channel that has no address yet. Lowercase: it is a note, not a badge. */
 export const contactSoonLabel = (): string => 'soon'
