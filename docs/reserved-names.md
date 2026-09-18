@@ -1,7 +1,8 @@
 # `RESERVED_NAMES` — the launch list
 
 **Applied 2026-09-18: 22,449 names in 46 categories** (`tasks/25`); the
-Nimiq team's Telegram handles joined 2026-09-19 — **22,475 names in 47**. The list
+Nimiq team's Telegram handles and a sports pass (club nicknames, 2024–26
+stars) joined 2026-09-19 — **22,635 names in 47**. The list
 lives in `packages/core/reserved-names/`, one JSON file per category, each
 naming its tier and its source; `pnpm gen:reserved` flattens them into
 `src/reserved-names.ts`, the constant that ships. This file is the policy —
@@ -22,7 +23,8 @@ famous bears them: people are the paying customers, and someone registering
 their own name gets it at the normal fee in one transaction. A famous *full*
 name has one rightful holder and is reserved (`elonmusk`, `elon-musk`,
 `cz-binance`); a bare mononym only when it is not also an ordinary name
-(`messi`, `shakira`, `obama` in; `gerrard`, `neville`, `hazard` out). The
+(`messi`, `shakira`, `obama` in; `gerrard`, `neville`, `hazard` out). `ronaldo` is in on the same test (Kike,
+2026-09-19): a first name elsewhere, one footballer's to anyone searching it. The
 filter was a merged list of ~1,100 common first names and surnames across 14
 countries plus a hand pass over every bare entry in the people categories.
 Brands that happen to be names (`ferrari`, `mercedes`, `alexa`, `claude`)
@@ -36,10 +38,10 @@ Tiers are operator policy, not protocol — the constant is a flat set.
 | Tier | Disposition | Names |
 |---|---|---|
 | **HOLD** | Never released as a routine; a `U` here is a decision | 1,514 |
-| **AWARD** | `U` to the rightful party on a verified request; never auctioned | 20,744 |
+| **AWARD** | `U` to the rightful party on a verified request; never auctioned | 20,904 |
 | **AUCTION** | Sold via `A`, proceeds to the treasury | 1,560 |
 
-(Counts are per category and overlap; the deduplicated total is 22,475.)
+(Counts are per category and overlap; the deduplicated total is 22,635.)
 
 ## Categories
 
@@ -50,10 +52,10 @@ Tiers are operator policy, not protocol — the constant is a flat set.
 | HOLD | `operator`, `protocol-vocabulary`, `roles`, `app-routes` | The 2026-09-07 draft's sections, unchanged | 217 |
 | HOLD | `government` | Offices, parliaments, ministries, tax agencies, regulators, central banks, police, militaries | 424 |
 | HOLD | `scam-bait` | Drainer and phishing vocabulary (`giveaway`, `presale`, `wallet-recovery`) | 221 |
-| AWARD | `people-*` (10 files) | Politics, business, crypto figures, creators, football, basketball, US sports, other sports, music, film and TV, icons; religious leaders all speculative | 6,947 + 180 |
+| AWARD | `people-*` (10 files) | Politics, business, crypto figures, creators, football, basketball, US sports, other sports, music, film and TV, icons; religious leaders all speculative | 7,066 + 184 |
 | AWARD | `crypto-*` (7 files) | Exchanges, DEXes, chains, tokens, protocols, infra, wallets | 4,573 |
 | AWARD | `companies-global`, `consumer`, `tech-products`, `ai`, `platforms`, `big-tech` | Index constituents and big private companies, consumer brands, products, AI labs | 3,493 |
-| AWARD | `finance`, `banks-payments`, `media`, `telecom-travel`, `gaming`, `sports-orgs` | Industry brands and every club and franchise in the major leagues | 4,343 + 804 |
+| AWARD | `finance`, `banks-payments`, `media`, `telecom-travel`, `gaming`, `sports-orgs` | Industry brands and every club and franchise in the major leagues, and the fan nicknames (`barca`, `juve`, `gooners`) | 4,377 + 807 |
 | AWARD | `intl-orgs`, `universities`, `parties` | Institutions | 718 |
 | AWARD | `nimiq-team` | The team's Telegram handles, gifted by `U` — the one deliberate exception to the personal-names rule (`martin`, `stefan`, `micha`) | 26 |
 | AUCTION | `countries`, `cities`, `crypto-vocabulary`, `premium-generics` | Places and generics | 1,560 |

@@ -6,8 +6,8 @@ import { RESERVED_NAMES } from './reserved-names.js'
 import { validateNameSyntax } from './name.js'
 
 /** §4.1 rule 6's published half, pinned: see 'equals the published RESERVED_NAMES list'. */
-const PUBLISHED_COUNT = 22475
-const PUBLISHED_SHA256 = 'f43011d2e5a785f879d32391769ea61df0684fc42c1147a75a752762080b7bb4'
+const PUBLISHED_COUNT = 22635
+const PUBLISHED_SHA256 = 'd2491e6f3576e8ad403c4bcb813d41e652fa8c46d0a602df6ab2e2a90fd5a921'
 
 describe('CONSTANTS — §3', () => {
   it('is frozen, so nothing downstream can edit a protocol rule at runtime', () => {
