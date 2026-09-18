@@ -354,12 +354,14 @@ export function App() {
             onConnect={connect}
           />
         )}
-        {/* Keyed by the acting address: a pick starts the list over. */}
+        {/* My names and the Inbox are keyed by the acting address: a pick
+            starts them over, rather than leaving a name or a conversation of
+            the address before open. */}
         {tab === 'names' && (
           <MyNamesScreen key={wallet?.identity.addresses[0] ?? ''} wallet={wallet} manage={route.param} onManageHandled={() => replace({ tab: 'names', param: null }, true)} onConnect={connect} />
         )}
         {tab === 'docs' && <DocsScreen slug={route.param} />}
-        {tab === 'inbox' && <InboxScreen wallet={wallet} onConnect={connect} />}
+        {tab === 'inbox' && <InboxScreen key={wallet?.identity.addresses[0] ?? ''} wallet={wallet} onConnect={connect} />}
         {tab === 'market' && (
           <OffersScreen
             wallet={wallet}

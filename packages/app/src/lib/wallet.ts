@@ -78,7 +78,10 @@ export interface Wallet {
    * NIM — so a balance summed over the identity read ~0 on a funded wallet
    * (Kike, 2026-08-23). Pay exposes no balance method of its own; the sum
    * over the **raw** `listAccounts()` set, contract included, is the number
-   * the wallet itself shows. Hub: same as the identity.
+   * the wallet itself shows. Hub: the acting address alone — it is the one
+   * that signs, so it is the one that pays. Summed over every saved address,
+   * the Pay tab's balance and the sheets' shortfall check ignored a switch
+   * (Kike, 2026-09-18).
    */
   readonly balanceAddresses: readonly string[]
   readonly submit: (request: SubmitRequest, transport: HistoryTransport | null) => Promise<SubmitOutcome>
@@ -219,9 +222,9 @@ function hubWallet(storage: StorageLike, search: string): Wallet {
       return identity()
     },
 
-    // Hub addresses are ordinary accounts: identity and balance agree.
+    // Hub addresses are ordinary accounts, and only the acting one signs.
     get balanceAddresses() {
-      return addresses
+      return addresses.slice(0, 1)
     },
 
     connect: async () => {

@@ -243,7 +243,8 @@ export function PayScreen({
   const evmPrompted = useRef(false)
   const balanceSeed = `${mode}:${sender ?? ''}:${evmAccount ?? ''}:${result?.status ?? ''}:${usdtTries}`
 
-  // Two numbers: the set's total, which the badge shows, and what one
+  // Two numbers: the wallet's total, which the badge shows — the acting
+  // address's on the Hub, Pay's raw set on Pay — and what one
   // transaction can spend, which is all MAX may offer — the redesign's MAX
   // filled in the sum across the set. Which account that is depends on who
   // picks the signer (wallet.ts header): the Hub signs with the chosen

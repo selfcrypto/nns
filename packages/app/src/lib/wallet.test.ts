@@ -127,6 +127,18 @@ describe('picking the acting address', () => {
     expect((await detectWallet(store, '')).identity.addresses).toEqual([OTHER, ADDRESS])
   })
 
+  it('on the Hub, the balance is the acting address alone, and follows a pick', async () => {
+    const store = memoryStore()
+    store.setItem('nns.hub.addresses', JSON.stringify([ADDRESS, OTHER]))
+    connectWallet.mockResolvedValue(null)
+    isHostedWebView.mockReturnValue(false)
+
+    const wallet = await detectWallet(store, '')
+    expect(wallet.balanceAddresses).toEqual([ADDRESS])
+    wallet.pick?.(OTHER)
+    expect(wallet.balanceAddresses).toEqual([OTHER])
+  })
+
   it('on the Hub, an address just added becomes the acting one', async () => {
     const store = memoryStore()
     store.setItem('nns.hub.addresses', JSON.stringify([ADDRESS]))
