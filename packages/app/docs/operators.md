@@ -60,7 +60,16 @@ There is nothing to back up. Every byte in Postgres derives from the chain, and 
 
 Two cases require a rebuild rather than a resume:
 
-- **A protocol revision changed the rules or the constants.** Release notes say when this applies.
+- **A protocol revision changed the rules or the constants.** Release notes say when this applies, and whether the revision is *log-preserving*. Most are: they change verdicts but not which transactions are logged, so the indexer replays its own log in seconds, with no node and the API up throughout:
+
+  ```bash
+  git pull && docker compose build
+  docker compose stop indexer
+  docker compose run --rm --no-deps indexer node dist/rebuild-main.js --log-preserving <revision>
+  docker compose up -d
+  ```
+
+  If the rebuild refuses, the database is unchanged. Do not start the new image over it: rows derived under the old rules resume silently wrong. A revision that is not log-preserving needs the full replay from the chain, `down -v` then `up`.
 - **The node was resynced** and no longer covers `LAUNCH_HEIGHT`. The indexer refuses to start. Fix the node.
 
 ## Run an anchor publisher

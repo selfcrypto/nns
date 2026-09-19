@@ -1,6 +1,6 @@
 # Messages and verdicts
 
-The fourteen messages, and the 28 words that can end a log line. Payloads and routing are on [The wire format](wire-format).
+The fourteen messages, and the 30 words that can end a log line. Payloads and routing are on [The wire format](wire-format).
 
 ## Messages
 
@@ -10,18 +10,20 @@ The fourteen messages, and the 28 words that can end a log line. Payloads and ro
 | `N` | Renew | anyone | Extends the expiry by a term, or by a lifetime |
 | `S` | Set target | owner | Changes where the name pays |
 | `E` | Set EVM address | owner | Binds one EVM address. Empty clears |
-| `X` | Transfer | owner | New owner after the timelock. Cancellable meanwhile |
+| `X` | Transfer | owner | New owner after the timelock. Cancellable meanwhile, and a second one replaces it |
 | `D` | Set subdomain host | owner | Enables `label.name` via that host. Empty clears |
-| `K` | Cancel | owner | Cancels a pending transfer and a cancellable sale |
-| `O` | Offer | owner | Puts the name up for sale at a fixed price |
+| `K` | Cancel | owner | Cancels the pending transfer or sale, at any time |
+| `O` | Offer | owner | Puts the name up for sale at a fixed price. A second one changes the price |
 | `B` | Buy, or bid | anyone | Buys an open sale, or bids in an open auction |
 | `A` | Auction | owner, or admin for a reserved name | Opens a timed auction |
-| `M` | Settlement | marketplace or treasury | Pays a proceeds, commission or refund obligation |
+| `M` | Settlement | marketplace or treasury | Pays a seller's proceeds, a refund or a referral payout |
 | `P` | Governance | admin | Schedules a new base price and commission |
 | `U` | Unreserve | admin | Releases a reserved name, or awards any name nobody holds |
 | `F` | Burn attestation | treasury | Records a burn-share transfer in the log |
 
 There is no recovery message. A lost owner key is a lost name.
+
+**One pending thing per name.** A name holds at most one transfer, sale or auction at a time. A message of the same kind replaces the pending one, except a second auction. A message of another kind is refused with the token naming what is pending. To switch, cancel first. An auction cannot be cancelled.
 
 ## Verdicts
 
@@ -61,6 +63,8 @@ There is no recovery message. A lost owner key is a lost name.
 | `NOTHING_TO_CANCEL` | A cancel with nothing cancellable |
 | `BELOW_MIN_PRICE` | A sale or starting price below the base price |
 | `AUCTION_OPEN` | A sale, transfer or auction while an auction runs |
+| `OFFER_OPEN` | A transfer or auction while the name is for sale |
+| `TRANSFER_PENDING` | A sale or auction while a transfer is pending |
 | `AUCTION_BEYOND_TERM` | An owner's auction ending at or past the name's expiry |
 | `BELOW_REFUND_FLOOR` | Would have been refunded, but the amount is below the floor |
 

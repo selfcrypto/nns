@@ -36,7 +36,7 @@ Red means the string can never be a name. Grey means it is a real name with a ru
 Two kinds of name are held back by the registry.
 
 - **Every name of 1 to 4 characters.** `okx`, `visa`, `web3` and `bank` are all held without anyone listing them.
-- **A curated list.** `nimiq` and Nimiq's own products, exchanges, wallets, chains, payment networks, banks, big brands, and the words a scammer would want (`admin`, `support`, `official`). The list is fixed at launch and can only shrink afterwards.
+- **A curated list** of about 22,600 names. `nimiq` and Nimiq's own products, exchanges, wallets, chains, payment networks, banks, big brands, famous people and sports clubs by their full names, and the words a scammer would want (`admin`, `support`, `official`). The list is fixed at launch and can only shrink afterwards.
 
 A reserved name is not lost. The administrator can do one of three things with it.
 
@@ -48,7 +48,7 @@ A reserved name is not lost. The administrator can do one of three things with i
 
 The list errs on the side of reserving. A name left off it is anyone's the moment the registry opens, and no rule can take it back. A name reserved by mistake is released with one message.
 
-First names are **not** reserved. The product is `kike` instead of an address, and the person called David should not have to outbid a squatter for `david`.
+First names and surnames are **not** reserved. The product is `kike` instead of an address, and the person called David should not have to outbid a squatter for `david`. Two exceptions: the Telegram handles of the Nimiq team, kept for them, and a handful of one-word names only one star answers to, like `ronaldo`.
 
 ## How names are shown
 

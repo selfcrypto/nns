@@ -16,7 +16,7 @@ import {
   parseDocIndex,
   referralRatesTable,
 } from './docsFormat'
-import { headlineBp, percentOf, REFERRAL_RATES } from './referralRates'
+import { headlineBp, percentOf, rateFor, REFERRAL_RATES } from './referralRates'
 
 describe('parseDocIndex', () => {
   it('keeps the file order, which is the prev/next chain, and the section each page sits under', () => {
@@ -156,50 +156,28 @@ describe('the generated tables', () => {
     expect(table).toContain(`| ${LONG_BAND_FROM}–${CONSTANTS.MAX_NAME_LEN} | 1× | ${formatNim(CONSTANTS.FEE_BASE)} |`)
   })
 
-  it('publishes the rate table settlement pays from, defaults named as such', () => {
+  it('publishes the rates settlement pays today, the default named as such', () => {
     const table = referralRatesTable()
-    expect(table).toContain('| *default* |')
-    expect(table).toContain('| launch |')
-    expect(table).toContain(defaultReferralRate())
+    expect(table).toContain('| Referrer | To the referrer | Back to the buyer |')
+    expect(table).toContain(`| *default* | ${defaultReferralRate()}`)
+    expect(table).toContain(`| ${defaultReferralRebate()}`)
   })
 
-  // Both payouts, or a reader cannot check a payment they hold no rate for.
-  // A row that pays no rebate prints "none", not a blank: "the policy did not
-  // exist then" and "the policy pays zero" are different claims, and an empty
-  // cell reads as neither. It was an em dash until the 2026-09-14 wording pass
-  // took the character out of everything a reader sees.
-  it('gives the rate table a column for the buyer’s rebate, and says none where a row pays none', () => {
+  // The file is append-only: superseded rows and a testing era's throwaway
+  // partners stay in it, and printed whole they read as rates nobody pays.
+  it('prints one row per referrer, at the rate in effect now, and no operator notes', () => {
     const table = referralRatesTable()
-    expect(table).toContain('| Referrer | To the referrer | Back to the buyer | From height | Note |')
-    const rebate = defaultReferralRebate()
-    expect(rebate).not.toBeNull()
-    expect(table).toContain(`| ${rebate}† |`)
-    expect(table).toContain('| none |')
-    // The `note` column is the JSON's prose, printed straight onto the page,
-    // so the pages' em-dash rule (docsPages.test.ts) has to reach it there.
-    expect(table).not.toContain('—')
-    // Every row renders; the header, the separator, the blank line and the
-    // footnote are the extra four.
-    expect(table.split('\n')).toHaveLength(REFERRAL_RATES.rows.length + 4)
+    const refs = new Set(REFERRAL_RATES.rows.map((row) => row.ref))
+    expect(table.split('\n').filter((l) => l.startsWith('| ') && !l.startsWith('| Referrer'))).toHaveLength(refs.size)
+    for (const row of REFERRAL_RATES.rows) if (row.note) expect(table).not.toContain(row.note)
+    expect(table).not.toContain('launch')
   })
 
-  // The published rates are the ones Kike decided — 5% and 5% — and the table
-  // settlement pays from holds those net of the §10.2 burn. The docs state
-  // the headline and mark it, per row: a blanket caption would restate the
-  // pre-2026-09-12 default, which paid its 10% flat and carried no burn.
-  it('states the headline rate and daggers the rows the burn comes out of', () => {
-    const table = referralRatesTable()
-    const net = REFERRAL_RATES.rows.filter((row) => row.netOfBurn)
-    expect(net.length).toBeGreaterThan(0)
-    for (const row of net) {
-      expect(headlineBp(row.bp, row)).toBe(Math.round((Number(row.bp) * 10_000) / (10_000 - Number(CONSTANTS.BURN_SHARE_BP))))
-      expect(table).toContain(`| ${percentOf(headlineBp(row.bp, row))}† |`)
-    }
-    for (const row of REFERRAL_RATES.rows.filter((r) => !r.netOfBurn)) {
-      expect(headlineBp(row.bp, row)).toBe(Number(row.bp))
-      expect(table).toContain(`| ${percentOf(Number(row.bp))} |`)
-    }
-    expect(table).toContain('† Before the registry')
+  it('states the headline rate and daggers a rate the burn comes out of', () => {
+    const row = rateFor(REFERRAL_RATES, '', Number.MAX_SAFE_INTEGER)
+    expect(row?.netOfBurn).toBe(true)
+    expect(referralRatesTable()).toContain(`| ${percentOf(headlineBp(row!.bp, row))}† |`)
+    expect(referralRatesTable()).toContain('† Before the registry')
   })
 
   // A headline that cannot be turned back into what the payer sends is a
@@ -210,6 +188,10 @@ describe('the generated tables', () => {
       const back = row.netOfBurn ? (headlineBp(row.bp, row) * (10_000 - burn)) / 10_000 : headlineBp(row.bp, row)
       expect(back).toBe(Number(row.bp))
     }
+  })
+
+  it('{{referral:paid}} is the default headline with the burn taken out', () => {
+    expect(fillPlaceholders('{{referral:default}} {{referral:paid}}')).toBe('5% 4%')
   })
 
   it('{{referral:rebate}} fills from the same row as {{referral:default}}', () => {

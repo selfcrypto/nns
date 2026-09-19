@@ -51,6 +51,8 @@ The value stays where it was sent. Every row here is checkable before sending.
 | The name is not registered, or is in grace | `NAME_NOT_REGISTERED` |
 | Sent by someone other than the owner | `NOT_OWNER` |
 | A sale, transfer or second auction while an auction runs | `AUCTION_OPEN` |
+| A transfer or auction while the name is for sale. Cancel the sale first | `OFFER_OPEN` |
+| A sale or auction while a transfer is pending. Cancel the transfer first | `TRANSFER_PENDING` |
 | A sale or auction priced below the base registration price | `BELOW_MIN_PRICE` |
 | A subdomain host that is too long, has a scheme, or a bad character | `INVALID_HOST` |
 | An auction ending sooner than {{dur:AUCTION_MIN_DURATION}} out | `INSUFFICIENT_NOTICE` |
@@ -83,4 +85,4 @@ The app checks all three before opening the wallet. If a transaction still does 
 
 ## Reading the log yourself
 
-Every line of the public log ends with `OK` or one of the reasons above, beside the block, the transaction hash, the sender, the recipient and the value. `/log/decoded` on any resolver's API renders the data field as text. The vocabulary is exactly 28 words: `OK`, 23 forfeit reasons and 4 refund reasons ([Messages and verdicts](messages)).
+Every line of the public log ends with `OK` or one of the reasons above, beside the block, the transaction hash, the sender, the recipient and the value. `/log/decoded` on any resolver's API renders the data field as text. The vocabulary is exactly 30 words: `OK`, 25 forfeit reasons and 4 refund reasons ([Messages and verdicts](messages)).

@@ -1,6 +1,6 @@
 # Pre-launch status
 
-NNS has not launched. Every package is built, the wire format has been verified against Nimiq mainnet, and a public demo runs on today's values. What remains before a mainnet launch is deployment and one irreversible input, the reserved-name list.
+NNS has not launched. Every package is built, the wire format has been verified against Nimiq mainnet, and a public demo runs on today's values. What remains before a mainnet launch is deployment and the final freeze of the values below.
 
 ## What is provisional
 
@@ -10,7 +10,7 @@ These values will change in a final freeze before launch. They are shown through
 |---|---|---|
 | **The launch height** | {{height:LAUNCH_HEIGHT}}, the block the demo's indexers start from | A future block chosen at the freeze. Nothing registered on the demo is carried over |
 | **The four role addresses** | The demo's ([Constants](constants)) | Regenerated at the freeze |
-| **The reserved-name list** | A short test list | A curated list of about a thousand names, applied before the freeze. It cannot be corrected afterwards ([Rules and reserved names](names)) |
+| **The reserved-name list** | About 22,600 names | Final at the freeze. After launch a name can be released but never added ([Rules and reserved names](names)) |
 | **Resolver quorum** | {{n:RESOLVER_QUORUM}}, both run by one operator on two machines | Still {{n:RESOLVER_QUORUM}} on day one. Independence needs a third resolver run by somebody else ([How you know the answer is right](trust)) |
 | **Anchor publishers** | None listed. The app says "Second-chain check not run." | The contract deployed on Polygon PoS and at least one listed publisher |
 

@@ -131,7 +131,21 @@ Two cases where a rebuild is not optional but required:
 - **The spec revision changes the rules or the constants.** Roots derived under
   the old rules are not comparable with roots derived under the new ones, and
   `configFingerprint` covers configuration, not rules — so nothing refuses the
-  resume for you. Release notes say when this applies.
+  resume for you. Release notes say when this applies, and whether the
+  revision is **log-preserving**: one that moves verdicts but not what is
+  logged rebuilds from this database's own §8.2 log in seconds, no node, the
+  API serving the old rows until the single transaction commits:
+
+  ```bash
+  git pull && docker compose build
+  docker compose stop indexer
+  docker compose run --rm --no-deps indexer node dist/rebuild-main.js --log-preserving <revision>
+  docker compose up -d
+  ```
+
+  A refusal writes nothing; do not start the new image over that database.
+  A revision that is not log-preserving is `down -v` and a replay from the
+  chain.
 - **The node was resynced.** If its retention no longer covers `LAUNCH_HEIGHT`,
   the indexer will refuse to start, which is the guard above doing its job on a
   database that is already correct. Fix the node, not the height.

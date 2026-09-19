@@ -1,6 +1,6 @@
 # Referrals
 
-Share your name's link. Whoever registers through it gets {{referral:rebate}} of the fee back, and your name's address receives {{referral:default}} of it.
+Share your name's link. Whoever registers through it gets {{referral:rebate}} of the fee back, and your name earns at least {{referral:default}} of it.
 
 ## The link
 
@@ -10,31 +10,27 @@ Inside Nimiq Pay there is no address bar, so a link can also be pasted into the 
 
 A name in grace has no working link. Renew first.
 
-## What is paid
+## Rates
 
-Both payouts are a share of the fee the registration paid, so a short name earns more than a long one and a lifetime registration earns on the lifetime fee. The registry pays them after the registration, each as its own transaction: the share to the address your name points at, the rebate to whoever registered.
-
-The buyer pays the full price and gets the rebate back afterwards. A registration cannot cost less than its fee.
-
-A referral is earned once, at registration. Renewals carry no referrer and pay nothing.
-
-## The rate table
-
-Rates are published here and nowhere else. A partner's rate is a row in the same table.
+A buyer who registers through a link always gets {{referral:rebate}} of the fee back. The name whose link it was gets at least {{referral:default}}: that is the floor for everyone, and an exchange, a wallet or a community that brings in registrations at volume can agree a higher rate with us. An agreed rate gets its own row here. The buyer's {{referral:rebate}} is the same whoever the referrer is.
 
 {{referral:rates}}
 
-A rate changes by adding a row with the height it applies from. Rows are never edited, so every payout ever made can be recomputed from this table and the public log.
+Both are a share of the fee the registration paid, so a short name earns more than a long one and a lifetime registration earns on the lifetime fee. {{pct:BURN_SHARE_BP}} of everything the registry takes in is burned, and a payout carries its share of that, so a {{referral:default}} rate arrives as {{referral:paid}} of the fee.
 
-The rates are before the registry's burn. {{pct:BURN_SHARE_BP}} of everything the registry takes in is burned, and a payout carries its share of that, so each arrives {{pct:BURN_SHARE_BP}} smaller than the rate says.
+## How it is paid
+
+The registry pays after the registration, each as its own transaction: the referrer's share to the address the name points at, the rebate to whoever registered. The buyer pays the full price and gets the rebate back afterwards. A registration cannot cost less than its fee.
+
+A referral is earned once, at registration. Renewals carry no referrer and pay nothing.
+
+**Your own link does not pay you.** If the address registering already owns the referring name, both payouts are zero. The app drops such a link and says so.
 
 ## What a referral cannot do
 
 The `ref` field on a registration has no effect on the registration. A wrong or unknown referrer is ignored and the name registers normally. Nothing about ownership, price or resolution depends on it.
 
-The payouts are a policy of the registry, not a rule of the protocol. Anyone can check them: the log records every referred registration and every payout.
-
-**Your own link does not pay you.** If the address registering already owns the referring name, both payouts are zero. The app drops such a link and says so.
+The payouts are a policy of the registry, not a rule of the protocol. Anyone can check them: the log records every referred registration and every payout, and every rate ever set, with the height it applies from, is in `packages/settlement/referral-rates.json` in the repository. A rate changes by adding a row, never by editing one, so every past payout can be recomputed.
 
 ## In the app
 

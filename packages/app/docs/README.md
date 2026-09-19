@@ -43,9 +43,10 @@ unknown key or an unknown format.
 | `{{n:MAX_NAME_LEN}}` | plain integer | `24` |
 | `{{addr:TREASURY_ADDRESS}}` | friendly address, grouped in fours | `NQ28 TKBF …` |
 | `{{height:LAUNCH_HEIGHT}}` | grouped integer | `58,842,720` |
-| `{{referral:rates}}` | `packages/settlement/referral-rates.json` as a Markdown table: referrer (or *default*), the referrer's rate, the buyer's rebate (or *none*), from height (or *launch* for 0), note | a table |
-| `{{referral:default}}` | the default row's referrer rate as a percentage | `4%` |
-| `{{referral:rebate}}` | the default row's buyer rebate as a percentage; throws where the row pays none | `4%` |
+| `{{referral:rates}}` | the rates in effect today from `packages/settlement/referral-rates.json`, one row per referrer (the default, then each named partner): the referrer's headline rate, the buyer's rebate (or *none*), a dagger and footnote where the burn comes out. Superseded rows and the file's notes stay out | a table |
+| `{{referral:default}}` | the default referrer rate as published, before the burn | `5%` |
+| `{{referral:paid}}` | the same rate as the payer sends it, burn taken out | `4%` |
+| `{{referral:rebate}}` | the default buyer rebate as published; throws where none is paid | `5%` |
 
 One figure is typed on purpose: the **64-byte** transaction data limit, a
 measured Nimiq property rather than an NNS constant (`MAX_DATA_BYTES` mirrors

@@ -19,7 +19,7 @@ Both open on the landing page. Its search box takes you into Buy, **My names** o
 
 ## Your wallet
 
-Your acting address sits in the top corner with its identicon. Tap it to see your other addresses, add one, or disconnect. Inside Nimiq Pay, disconnecting only stops this app using your addresses.
+The app acts as one address at a time, shown in the top corner with its identicon. My Names lists that address's names, and every send is signed by it. Tap it to switch to another of your addresses, add one, or disconnect. Inside Nimiq Pay the wallet picks the address, and disconnecting only stops this app using it.
 
 A screen that needs a wallet you have not connected shows the same connect button in place.
 

@@ -24,7 +24,7 @@ import { CONSTANTS } from '@nimiqnames/core'
 import table from '../../../settlement/referral-rates.json'
 import { parseRateTable, rateFor, rebateRowFor, type RateRow, type RateTable } from '../../../settlement/src/rate-table'
 
-export { parseRateTable, shareAmount, type RateRow, type RateTable } from '../../../settlement/src/rate-table'
+export { parseRateTable, rateFor, rebateRowFor, shareAmount, type RateRow, type RateTable } from '../../../settlement/src/rate-table'
 
 /** The committed table. A malformed file fails the build, as it fails the issuer's startup. */
 export const REFERRAL_RATES: RateTable = parseRateTable(table)

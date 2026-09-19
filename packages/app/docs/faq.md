@@ -13,7 +13,7 @@ One resolver answered with a Merkle proof and your device checked it. The number
 No. A lost or stolen owner key is a lost name, as in ENS. Keep the key safe. [How you know the answer is right](trust).
 
 **Why can't I register `nimiq`, or a three-letter name?**
-Both are reserved: every name of 1 to 4 characters, and a list of brands, products, exchanges and impersonation words. [Rules and reserved names](names).
+Both are reserved: every name of 1 to 4 characters, and a list of brands, products, exchanges, famous people, sports clubs and impersonation words. [Rules and reserved names](names).
 
 **Can I renew a name I don't own?**
 Yes. Anyone can renew any name. The app calls it **Gift a renewal**, and the name stays the owner's. [Buy](buy).
@@ -34,7 +34,7 @@ The mini app sends USDT as a plain Polygon token transfer, and Polygon charges i
 Yes. The **Request Payment** tile on your name's card builds one. [Pay](pay).
 
 **Can I earn anything for bringing people in?**
-Yes. Whoever registers through your name's share link gets {{referral:rebate}} of the fee back, and your name's address receives {{referral:default}}. [Referrals](referrals).
+Yes. Whoever registers through your name's share link gets {{referral:rebate}} of the fee back, and your name earns at least {{referral:default}}. Partners bringing volume can agree a higher rate. [Referrals](referrals).
 
 **Are messages private?**
 No. An Inbox message is a transaction, readable by anyone on chain forever. So is the message on a payment. [Inbox](inbox).
