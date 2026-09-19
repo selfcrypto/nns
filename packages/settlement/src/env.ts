@@ -36,7 +36,11 @@ export interface ReconcilerSettings {
   readonly config: NnsConfig
   /** API root, no trailing slash — the party being audited. */
   readonly apiUrl: string
-  /** The §10.7 rate table — `NNS_REFERRAL_RATES`, or the committed `referral-rates.json`. */
+  /**
+   * The §10.7 rate table — `NNS_REFERRAL_RATES`, or the committed
+   * `referral-rates.json` — plus the private partner rows in
+   * `NNS_REFERRAL_PARTNERS` when set.
+   */
   readonly rates: RateTable
 }
 
@@ -164,7 +168,7 @@ export function loadSettings(env: EnvSource = process.env): ReconcilerSettings {
 
   let rates: RateTable
   try {
-    rates = readRateTable(read(env, 'NNS_REFERRAL_RATES') ?? DEFAULT_RATES_PATH)
+    rates = readRateTable(read(env, 'NNS_REFERRAL_RATES') ?? DEFAULT_RATES_PATH, read(env, 'NNS_REFERRAL_PARTNERS') ?? null)
   } catch (cause) {
     throw new EnvError(cause instanceof Error ? cause.message : String(cause))
   }

@@ -1,3 +1,7 @@
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
 import { describe, expect, it } from 'vitest'
 
 import { testAddress } from './test-fixtures.js'
@@ -26,6 +30,21 @@ describe('loadSettings', () => {
   it('reads the committed §10.7 rate table by default, and a named one on request', () => {
     expect(loadSettings(BASE).rates.rows.some((row) => row.ref === null)).toBe(true)
     expect(() => loadSettings({ ...BASE, NNS_REFERRAL_RATES: '/nowhere/rates.json' })).toThrow(/cannot read the rate table/)
+  })
+
+  // Agreed partner rates live in a file on the box, never in the repository.
+  it('appends named rows from NNS_REFERRAL_PARTNERS, and refuses a default row there', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'nns-partners-'))
+    const good = join(dir, 'good.json')
+    writeFileSync(good, JSON.stringify({ rates: [{ ref: 'partnername', bp: 800, rebateBp: 400, selfBp: 0, netOfBurn: true, fromHeight: 0 }] }))
+    const rows = loadSettings({ ...BASE, NNS_REFERRAL_PARTNERS: good }).rates.rows
+    expect(rows.find((row) => row.ref === 'partnername')?.bp).toBe(800n)
+    expect(rows.some((row) => row.ref === null)).toBe(true)
+
+    const bad = join(dir, 'bad.json')
+    writeFileSync(bad, JSON.stringify({ rates: [{ ref: null, bp: 9000, fromHeight: 0 }] }))
+    expect(() => loadSettings({ ...BASE, NNS_REFERRAL_PARTNERS: bad })).toThrow(/named rows only/)
+    expect(() => loadSettings({ ...BASE, NNS_REFERRAL_PARTNERS: join(dir, 'missing.json') })).toThrow(/cannot read the partner rate file/)
   })
 
   it('requires the API URL, and requires it to be one', () => {
