@@ -34,7 +34,7 @@ The mini app sends USDT as a plain Polygon token transfer, and Polygon charges i
 Yes. The **Request Payment** tile on your name's card builds one. [Pay](pay).
 
 **Can I earn anything for bringing people in?**
-Yes. Whoever registers through your name's share link gets {{referral:rebate}} of the fee back, and your name earns at least {{referral:default}}. Partners bringing volume can agree a higher rate. [Referrals](referrals).
+Yes. Whoever registers through your name's share link gets {{referral:rebate}} of the fee back, and your name earns at least {{referral:default}}. Partners bringing volume can agree a higher rate with us through **Contact** at the top of the app. [Referrals](referrals).
 
 **Are messages private?**
 No. An Inbox message is a transaction, readable by anyone on chain forever. So is the message on a payment. [Inbox](inbox).

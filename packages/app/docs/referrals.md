@@ -12,11 +12,11 @@ A name in grace has no working link. Renew first.
 
 ## Rates
 
-A buyer who registers through a link always gets {{referral:rebate}} of the fee back. The name whose link it was gets at least {{referral:default}}: that is the floor for everyone, and an exchange, a wallet or a community that brings in registrations at volume can agree a higher rate with us. An agreed rate gets its own row here. The buyer's {{referral:rebate}} is the same whoever the referrer is.
-
-{{referral:rates}}
+A buyer who registers through a link always gets {{referral:rebate}} of the fee back. The name whose link it was gets at least {{referral:default}}.
 
 Both are a share of the fee the registration paid, so a short name earns more than a long one and a lifetime registration earns on the lifetime fee. {{pct:BURN_SHARE_BP}} of everything the registry takes in is burned, and a payout carries its share of that, so a {{referral:default}} rate arrives as {{referral:paid}} of the fee.
+
+**Partners.** An exchange, a wallet or a community that brings in registrations at volume can agree a higher rate with us. Get in touch through **Contact** at the top of the app.
 
 ## How it is paid
 
@@ -30,7 +30,7 @@ A referral is earned once, at registration. Renewals carry no referrer and pay n
 
 The `ref` field on a registration has no effect on the registration. A wrong or unknown referrer is ignored and the name registers normally. Nothing about ownership, price or resolution depends on it.
 
-The payouts are a policy of the registry, not a rule of the protocol. Anyone can check them: the log records every referred registration and every payout, and every rate ever set, with the height it applies from, is in `packages/settlement/referral-rates.json` in the repository. A rate changes by adding a row, never by editing one, so every past payout can be recomputed.
+The payouts are a policy of the registry, not a rule of the protocol. Anyone can check them: the public log records every referred registration and every payout.
 
 ## In the app
 

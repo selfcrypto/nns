@@ -23,7 +23,7 @@ import { CONSTANTS, feeFor, LAUNCH_PRICES, LUNA_PER_NIM } from '@nimiqnames/core
 // amounts group the same way, and two implementations of a separator is two
 // that drift.
 import { displayAddress, group } from './format'
-import { headlineBp, percentOf, rateFor, rebatePercent, rebateRowFor, REFERRAL_RATES, referralHeadlineBp, referralRateBp } from './referralRates'
+import { percentOf, rebatePercent, referralHeadlineBp, referralRateBp } from './referralRates'
 import { RENEW_WINDOW } from './states'
 
 export interface DocPage {
@@ -187,42 +187,6 @@ export function feesTable(): string {
   return ['| Name length | Multiple of the base | A year | A lifetime |', '|---|---|---|---|', ...rows].join('\n')
 }
 
-/**
- * The rates in effect today, from `packages/settlement/referral-rates.json`:
- * the default and every named partner, each at the row the payer would use
- * for a registration now. Both payouts, because a reader cannot check a
- * payment they cannot see the rate for.
- *
- * Only today's rows. The file is append-only, so it also holds every
- * superseded row and, on a testing era, rows for throwaway names; printed
- * whole it read as a changelog of numbers nobody pays. The history stays in
- * the file, which the page names for anyone recomputing a past payout. The
- * JSON's `note` is operator prose and never reaches the page.
- *
- * Every rate is the **headline** (5%, the figure that was published); a rate
- * held net of the burn gets a dagger and one footnote.
- */
-export function referralRatesTable(): string {
-  const now = Number.MAX_SAFE_INTEGER
-  const partners = [...new Set(REFERRAL_RATES.rows.flatMap((row) => (row.ref === null ? [] : [row.ref])))].sort()
-  let footnoted = false
-  const line = (label: string, ref: string): string | null => {
-    const row = rateFor(REFERRAL_RATES, ref, now)
-    if (row === null || (ref !== '' && row.ref === null)) return null
-    const rebateRow = rebateRowFor(REFERRAL_RATES, ref, now)
-    const mark = (net: boolean): string => (net ? ((footnoted = true), '†') : '')
-    const share = `${percentOf(headlineBp(row.bp, row))}${mark(row.netOfBurn)}`
-    const rebateBp = rebateRow?.rebateBp ?? 0n
-    const rebate = rebateBp === 0n ? 'none' : `${percentOf(headlineBp(rebateBp, rebateRow))}${mark(rebateRow?.netOfBurn === true)}`
-    return `| ${label} | ${share} | ${rebate} |`
-  }
-  const rows = [line('*default*', ''), ...partners.map((ref) => line(`\`${ref}\``, ref))].filter((row) => row !== null)
-  if (rows.length === 0) throw new Error('referral-rates.json has no default row')
-  const table = ['| Referrer | To the referrer | Back to the buyer |', '|---|---|---|', ...rows].join('\n')
-  if (!footnoted) return table
-  return `${table}\n\n† Before the registry's burn, which takes ${percentOf(Number(CONSTANTS.BURN_SHARE_BP))} of the payout on its way out.`
-}
-
 /** The rate a referrer with no row of their own earns, today — the headline, as published. */
 export function defaultReferralRate(): string {
   const bp = referralHeadlineBp('', Number.MAX_SAFE_INTEGER)
@@ -287,7 +251,6 @@ function render(placeholder: string, format: string, key: string): string {
       if (key === 'table') return feesTable()
       throw new Error(`${placeholder}: the only fees placeholder is {{fees:table}}`)
     case 'referral':
-      if (key === 'rates') return referralRatesTable()
       if (key === 'default') return defaultReferralRate()
       if (key === 'paid') return defaultReferralPaid()
       if (key === 'rebate') {
@@ -295,7 +258,7 @@ function render(placeholder: string, format: string, key: string): string {
         if (rebate === null) throw new Error(`${placeholder}: the default row pays no rebate`)
         return rebate
       }
-      throw new Error(`${placeholder}: the referral placeholders are {{referral:rates}}, {{referral:default}}, {{referral:paid}} and {{referral:rebate}}`)
+      throw new Error(`${placeholder}: the referral placeholders are {{referral:default}}, {{referral:paid}} and {{referral:rebate}}`)
     default:
       throw new Error(`${placeholder}: unknown format "${format}"`)
   }

@@ -14,9 +14,8 @@ import {
   headingId,
   LONG_BAND_FROM,
   parseDocIndex,
-  referralRatesTable,
 } from './docsFormat'
-import { headlineBp, percentOf, rateFor, REFERRAL_RATES } from './referralRates'
+import { headlineBp, REFERRAL_RATES } from './referralRates'
 
 describe('parseDocIndex', () => {
   it('keeps the file order, which is the prev/next chain, and the section each page sits under', () => {
@@ -118,7 +117,7 @@ describe('fillPlaceholders', () => {
 
   it('refuses a table placeholder it does not have', () => {
     expect(() => fillPlaceholders('{{fees:bands}}')).toThrow(/{{fees:table}}/)
-    expect(() => fillPlaceholders('{{referral:table}}')).toThrow(/{{referral:rates}}/)
+    expect(() => fillPlaceholders('{{referral:table}}')).toThrow(/{{referral:default}}/)
   })
 })
 
@@ -156,28 +155,10 @@ describe('the generated tables', () => {
     expect(table).toContain(`| ${LONG_BAND_FROM}–${CONSTANTS.MAX_NAME_LEN} | 1× | ${formatNim(CONSTANTS.FEE_BASE)} |`)
   })
 
-  it('publishes the rates settlement pays today, the default named as such', () => {
-    const table = referralRatesTable()
-    expect(table).toContain('| Referrer | To the referrer | Back to the buyer |')
-    expect(table).toContain(`| *default* | ${defaultReferralRate()}`)
-    expect(table).toContain(`| ${defaultReferralRebate()}`)
-  })
-
-  // The file is append-only: superseded rows and a testing era's throwaway
-  // partners stay in it, and printed whole they read as rates nobody pays.
-  it('prints one row per referrer, at the rate in effect now, and no operator notes', () => {
-    const table = referralRatesTable()
-    const refs = new Set(REFERRAL_RATES.rows.map((row) => row.ref))
-    expect(table.split('\n').filter((l) => l.startsWith('| ') && !l.startsWith('| Referrer'))).toHaveLength(refs.size)
-    for (const row of REFERRAL_RATES.rows) if (row.note) expect(table).not.toContain(row.note)
-    expect(table).not.toContain('launch')
-  })
-
-  it('states the headline rate and daggers a rate the burn comes out of', () => {
-    const row = rateFor(REFERRAL_RATES, '', Number.MAX_SAFE_INTEGER)
-    expect(row?.netOfBurn).toBe(true)
-    expect(referralRatesTable()).toContain(`| ${percentOf(headlineBp(row!.bp, row))}† |`)
-    expect(referralRatesTable()).toContain('† Before the registry')
+  // Agreed partner rates are between the partner and us. The docs state the
+  // default and nothing that could print a named row (Kike, 2026-09-19).
+  it('has no placeholder that prints the rate table', () => {
+    expect(() => fillPlaceholders('{{referral:rates}}')).toThrow(/referral placeholders/)
   })
 
   // A headline that cannot be turned back into what the payer sends is a

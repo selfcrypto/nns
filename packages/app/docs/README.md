@@ -43,8 +43,7 @@ unknown key or an unknown format.
 | `{{n:MAX_NAME_LEN}}` | plain integer | `24` |
 | `{{addr:TREASURY_ADDRESS}}` | friendly address, grouped in fours | `NQ28 TKBF …` |
 | `{{height:LAUNCH_HEIGHT}}` | grouped integer | `58,842,720` |
-| `{{referral:rates}}` | the rates in effect today from `packages/settlement/referral-rates.json`, one row per referrer (the default, then each named partner): the referrer's headline rate, the buyer's rebate (or *none*), a dagger and footnote where the burn comes out. Superseded rows and the file's notes stay out | a table |
-| `{{referral:default}}` | the default referrer rate as published, before the burn | `5%` |
+| `{{referral:default}}` | the default referrer rate as published, before the burn. Agreed partner rates have no placeholder and never appear in the docs | `5%` |
 | `{{referral:paid}}` | the same rate as the payer sends it, burn taken out | `4%` |
 | `{{referral:rebate}}` | the default buyer rebate as published; throws where none is paid | `5%` |
 
