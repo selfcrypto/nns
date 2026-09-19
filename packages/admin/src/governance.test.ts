@@ -23,7 +23,7 @@ const HEAD = 58_099_950
 /** The minimum this CLI will accept: GOVERNANCE_DELAY plus the mempool margin. */
 const EFFECTIVE = HEAD + CONSTANTS.GOVERNANCE_DELAY + NOTICE_MARGIN
 const HASH = 'c0ffee'.repeat(10) + 'c0ff'
-/** 10 NIM — exactly ADMIN_MIN_BALANCE, so a healthy plan carries no warning. */
+/** 10 NIM — well above ADMIN_MIN_BALANCE, so a healthy plan carries no warning. */
 const BALANCE = 1_000_000
 
 /** A change inside every §10.6 bound: +25% on the base fee, +50 bp. */

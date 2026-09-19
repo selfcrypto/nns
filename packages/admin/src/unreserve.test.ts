@@ -25,7 +25,7 @@ interface RecordedCall {
   readonly params: readonly unknown[]
 }
 
-/** 10 NIM — exactly ADMIN_MIN_BALANCE, so a healthy plan carries no warning. */
+/** 10 NIM — well above ADMIN_MIN_BALANCE, so a healthy plan carries no warning. */
 function fakeRpc(balance = 1_000_000): { rpc: AdminRpc; calls: RecordedCall[] } {
   const calls: RecordedCall[] = []
   const rpc: AdminRpc = {
@@ -133,9 +133,9 @@ describe('planUnreserve', () => {
   })
 
   it('warns under ADMIN_MIN_BALANCE without blocking the send', async () => {
-    // 5 NIM: funded for dust, but §11.5 rule 2 says alerting at zero alerts
+    // 0.05 NIM: funded for dust, but §11.5 rule 2 says alerting at zero alerts
     // after the failure.
-    const { rpc } = fakeRpc(500_000)
+    const { rpc } = fakeRpc(5_000)
     const plan = await planUnreserve(rpc, fakeReservation(), release)
     expect(plan.checks).toHaveLength(1)
     expect(plan.checks[0]).toMatchObject({ severity: 'warn' })

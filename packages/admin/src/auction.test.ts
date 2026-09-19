@@ -21,7 +21,7 @@ interface RecordedCall {
   readonly params: readonly unknown[]
 }
 
-/** 10 NIM — exactly ADMIN_MIN_BALANCE, so a healthy plan carries no warning. */
+/** 10 NIM — well above ADMIN_MIN_BALANCE, so a healthy plan carries no warning. */
 function fakeRpc(balance = 1_000_000): { rpc: AdminRpc; calls: RecordedCall[] } {
   const calls: RecordedCall[] = []
   const rpc: AdminRpc = {
@@ -118,7 +118,7 @@ async function plan(
   overrides: Overrides = {},
   balanceNim = 10,
 ): Promise<AuctionPlan> {
-  const { rpc } = fakeRpc(balanceNim * 100_000)
+  const { rpc } = fakeRpc(Math.round(balanceNim * 100_000))
   return planAuction(rpc, fakeSources(overrides), { ...open, ...params })
 }
 
@@ -264,7 +264,8 @@ describe('planAuction', () => {
   })
 
   it('warns under ADMIN_MIN_BALANCE without blocking the send', async () => {
-    const built = await plan({}, {}, 5)
+    // 0.05 NIM: half the 0.1 NIM floor.
+    const built = await plan({}, {}, 0.05)
     expect(built.checks.map((check) => check.severity)).toEqual(['warn'])
     await expect(broadcast(fakeRpc(500_000).rpc, built)).resolves.toMatchObject({ hash: HASH })
   })
@@ -310,7 +311,7 @@ describe('describeAuctionPlan', () => {
   })
 
   it('prints every check with its severity', async () => {
-    const lines = describeAuctionPlan(await plan({}, { auctions: [RUNNING] }, 5)).join('\n')
+    const lines = describeAuctionPlan(await plan({}, { auctions: [RUNNING] }, 0.05)).join('\n')
     expect(lines).toContain('REFUSED: "binance" is already under auction')
     expect(lines).toContain('WARNING: §11.5')
     expect(lines).toContain('ONE OF THEM IS "binance"')

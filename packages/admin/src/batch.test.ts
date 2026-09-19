@@ -154,11 +154,11 @@ describe('planBatch', () => {
   })
 
   it('warns under the floor once the batch is paid, as one plan does', async () => {
-    // ADMIN_MIN_BALANCE is 10 NIM; three luna of dust leave exactly that
-    // from 1,000,003, and one luna short of it from 1,000,002.
-    const exact = await planBatch(fakeRpc(1_000_003).rpc, fakeReservation(), command)
+    // ADMIN_MIN_BALANCE is 0.1 NIM; three luna of dust leave exactly that
+    // from 10,003, and one luna short of it from 10,002.
+    const exact = await planBatch(fakeRpc(10_003).rpc, fakeReservation(), command)
     expect(exact.checks).toEqual([])
-    const under = await planBatch(fakeRpc(1_000_002).rpc, fakeReservation(), command)
+    const under = await planBatch(fakeRpc(10_002).rpc, fakeReservation(), command)
     expect(under.checks.map((check) => check.severity)).toEqual(['warn'])
     expect(under.checks[0]?.message).toContain('once these are paid')
   })
