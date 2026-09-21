@@ -1409,6 +1409,31 @@ export const eraNoticeHint = (blocks: number = CONSTANTS.TERM_LENGTH): string =>
   `a lifetime about ${periodApprox(blocks * CONSTANTS.LIFETIME_TERMS)} instead of ${CONSTANTS.LIFETIME_TERMS} years, and prices are set for testing. ` +
   `Nothing registered here carries over. The registry starts again at launch.`
 
+// ── Before LAUNCH_HEIGHT ─────────────────────────────────────────────────────
+
+/** Blocks still to go before the registry opens; 0 once the head has reached `LAUNCH_HEIGHT`. */
+export const blocksToLaunch = (head: number, launch: number = CONSTANTS.LAUNCH_HEIGHT): number =>
+  Math.max(0, launch - head)
+
+export const launchTag = (): string => 'Launching'
+
+/**
+ * The pre-launch strip's one line. The moment is derived — `LAUNCH_HEIGHT`
+ * against the head, at a block a second — and rendered in the reader's own
+ * zone, so nobody has to convert a typed "14:00 CET".
+ */
+export function launchNoticeLine(head: number, nowMs: number, launch: number = CONSTANTS.LAUNCH_HEIGHT): string {
+  const at = new Date(nowMs + blocksToLaunch(head, launch) * 1_000)
+  const day = at.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
+  const time = at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
+  return `The registry opens ${day}, around ${time}.`
+}
+
+/** Behind the strip's "?": why nothing can be registered yet, and why not to try. */
+export const launchNoticeHint = (launch: number = CONSTANTS.LAUNCH_HEIGHT): string =>
+  `Nimiq Names starts at block ${launch.toLocaleString('en-US')}. Nothing sent before that block is read, ` +
+  `so a registration sent early registers nothing. The time shown is an estimate from the chain's height; this notice disappears when the block arrives.`
+
 // ── The landing page (a browser's front door; Pay opens on Buy) ─────────────
 
 /**

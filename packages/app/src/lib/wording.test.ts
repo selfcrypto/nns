@@ -55,6 +55,9 @@ import {
   STATUS_TAG,
   termPerk,
   isCompressedEra,
+  blocksToLaunch,
+  launchNoticeHint,
+  launchNoticeLine,
   eraNoticeLine,
   eraNoticeHint,
   verifiedByLine,
@@ -629,5 +632,26 @@ describe('on chain / on-chain', () => {
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/^\s*\/\/.*$/gm, '')
     expect(source.match(/(?:are|is|be|them|it|they|,)\s+on-chain/g) ?? []).toEqual([])
+  })
+})
+
+describe('the pre-launch strip', () => {
+  it('counts blocks down to LAUNCH_HEIGHT and stops at zero, so the strip removes itself', () => {
+    expect(blocksToLaunch(100, 160)).toBe(60)
+    expect(blocksToLaunch(160, 160)).toBe(0)
+    expect(blocksToLaunch(500, 160)).toBe(0)
+  })
+
+  it('derives the moment from the height at a block a second, never from a typed time', () => {
+    const now = Date.UTC(2026, 8, 22, 10, 0, 0)
+    const twoHours = launchNoticeLine(1_000, now, 1_000 + 7_200)
+    const at = new Date(now + 7_200_000)
+    expect(twoHours).toContain(at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }))
+    expect(twoHours).toContain(at.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }))
+  })
+
+  it('says why an early registration is lost, with the height it waits for', () => {
+    expect(launchNoticeHint(62_275_680)).toContain('62,275,680')
+    expect(launchNoticeHint()).toMatch(/registers nothing/)
   })
 })
