@@ -28,6 +28,23 @@ http {
 
     server_tokens off;
 
+    # One bucket per client address across every vhost. Generous on purpose:
+    # a screen of the app fires a handful of API reads at once, and a mobile
+    # carrier puts many users behind one address — this is a ceiling on a
+    # single source hammering Postgres through the API, not a quota. The relay
+    # keeps its own, stricter limiter behind this one.
+    limit_req_zone $binary_remote_addr zone=perip:10m rate=30r/s;
+    limit_req_status 429;
+    limit_req zone=perip burst=120 nodelay;
+
+    # Sent on every response, errors included. No frame-ancestors / X-Frame-
+    # Options: whether Nimiq Pay frames a mini app is not measured yet, and a
+    # header that blanks the app inside the wallet is worse than the one it
+    # leaves out.
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
     # The ACME client resolves the CA's hostname itself, so nginx needs a
     # resolver in the main http context or issuance fails with "resolver is
     # not configured". With network_mode: host this is the host's stub.
