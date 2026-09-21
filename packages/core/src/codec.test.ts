@@ -100,8 +100,8 @@ describe('every message type round-trips encode → parse', () => {
     ],
     [
       'A',
-      encodeAuction({ name: 'kikename', startingPrice: 40_000_000n, endHeight: 58_200_000, minPrice: FLOOR }),
-      { type: 'A', name: 'kikename', startingPrice: 40_000_000n, endHeight: 58_200_000 },
+      encodeAuction({ name: 'kikename', startingPrice: 62_500_000n, endHeight: 58_200_000, minPrice: FLOOR }),
+      { type: 'A', name: 'kikename', startingPrice: 62_500_000n, endHeight: 58_200_000 },
     ],
     [
       'P',

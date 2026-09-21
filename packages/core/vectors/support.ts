@@ -178,7 +178,7 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
       return encodeBuy({ name, price: BigInt(spec.price as string), ...sender })
     case 'settlement':
       return encodeSettlement({
-        height: 58903520,
+        height: 62336480,
         txIndex: 0,
         payee: address(book, spec.payee as string),
         amount: BigInt(spec.amount as string),

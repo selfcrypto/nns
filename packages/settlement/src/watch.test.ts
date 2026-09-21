@@ -36,7 +36,7 @@ import { testAddress } from './test-fixtures.js'
 
 const config = testConfig()
 const NAME = 'alicename'
-const PRICE = 50_000_001n
+const PRICE = 70_000_001n
 const COMMISSION = commissionOn(PRICE, CONSTANTS.COMMISSION_RATE)
 const PROCEEDS = PRICE - COMMISSION
 

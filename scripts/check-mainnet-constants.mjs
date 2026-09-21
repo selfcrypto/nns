@@ -31,7 +31,7 @@ const SOURCE = 'packages/core/src/constants.ts'
 
 /** The mainnet values, as §3 prints them. The base fee in NIM, the rest in blocks. */
 const MAINNET = {
-  FEE_BASE: 400,
+  FEE_BASE: 625,
   TERM_LENGTH: 31_536_000,
   GRACE_PERIOD: 2_592_000,
   GOVERNANCE_DELAY: 86_400,
@@ -56,7 +56,7 @@ const failures = []
 const missing = []
 
 for (const [key, expected] of Object.entries(MAINNET)) {
-  // `FEE_BASE: nim(400n),` and `TERM_LENGTH: 31_536_000,` in one shape.
+  // `FEE_BASE: nim(625n),` and `TERM_LENGTH: 31_536_000,` in one shape.
   const match = new RegExp(`^\\s*${key}:\\s*(?:nim\\()?([0-9_]+)n?\\)?`, 'm').exec(text)
   if (match === null) {
     missing.push(key)

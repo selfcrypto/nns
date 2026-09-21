@@ -49,7 +49,7 @@ float, never a `number`.
 
 ```ts
 import { CONSTANTS } from '@nimiqnames/core'
-CONSTANTS.SPEC_REVISION  // 29
+CONSTANTS.SPEC_REVISION  // 31
 ```
 
 This package's `version` tracks its **API**. `SPEC_REVISION` tracks the

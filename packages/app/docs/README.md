@@ -41,7 +41,7 @@ unknown key or an unknown format.
 | `{{dur:RENEW_WINDOW}}` | how long before expiry the renewal reminder starts, `GRACE_PERIOD × 2`, derived from `states.ts` rather than `CONSTANTS` because it is the app's rule, not a §3 figure | `60 days` |
 | `{{pct:BURN_SHARE_BP}}` | basis points → percent | `20%` |
 | `{{n:MAX_NAME_LEN}}` | plain integer | `24` |
-| `{{addr:TREASURY_ADDRESS}}` | friendly address, grouped in fours | `NQ28 TKBF …` |
+| `{{addr:TREASURY_ADDRESS}}` | friendly address, grouped in fours | `NQ39 M3TJ …` |
 | `{{height:LAUNCH_HEIGHT}}` | grouped integer | `58,842,720` |
 | `{{referral:default}}` | the default referrer rate as published, before the burn. Agreed partner rates have no placeholder and never appear in the docs | `5%` |
 | `{{referral:paid}}` | the same rate as the payer sends it, burn taken out | `4%` |

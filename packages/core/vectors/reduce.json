@@ -4,10 +4,10 @@
   "spec": "nns-spec-v1 draft r29, §7.3, §7.4 and §7.5",
   "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`), a bare height advance (`advanceTo`), or a `check` against the state at that point. A `check` may also carry `label`, which snapshots the four §8.1 component digests (`nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` — the commitment minus the height and the log hash), and `since` + `changed`, which compares them against an earlier label: every component **not** listed in `changed` MUST be byte-identical. `logLines` is the number of §8.2 lines emitted so far, and a height advance MUST never add one.",
   "addresses": {
-    "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
-    "PROTOCOL": "NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8",
-    "ADMIN": "NQ80 6XNV JDFY YEKF HMM3 UCYK VBLP 7H6Y FNXS",
-    "MARKETPLACE": "NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB",
+    "TREASURY": "NQ39 M3TJ 2NC1 G4PJ 07JF BFKG Q3X6 AK7K J7YT",
+    "PROTOCOL": "NQ91 SQRC L91X D5QK 6A21 1UV7 11EY 7YA3 BBRT",
+    "ADMIN": "NQ95 0MNS X5BJ 3SMV XA2E 7059 BU9F AXX6 J4MX",
+    "MARKETPLACE": "NQ55 SY33 7HS4 DP5N H9P0 9PMG 7MD8 PTL8 N2P5",
     "BURN": "NQ07 0000 0000 0000 0000 0000 0000 0000 0000",
     "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
     "BOB": "NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK",
@@ -20,11 +20,11 @@
     "networkId": 24
   },
   "constants": {
-    "FEE_BASE": "40000000",
+    "FEE_BASE": "62500000",
     "FEE_MULTIPLIERS": "1-2 → 200×, 3 → 100×, 4 → 50×, 5 → 25×, 6 → 10×, 7-11 → 5×, 12+ → 1× of FEE_BASE (§10.1, frozen)",
     "LIFETIME_MULTIPLIER": "10 — a lifetime term costs ten yearly fees of its band (§10.4)",
     "LIFETIME_TERMS": 100,
-    "MIN_PRICE": "FEE_BASE at the message's height, so 40000000 until a P moves it",
+    "MIN_PRICE": "FEE_BASE at the message's height, so 62500000 until a P moves it",
     "REFUND_FLOOR": "100000",
     "TERM_LENGTH": 31536000,
     "GRACE_PERIOD": 2592000,
@@ -43,11 +43,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename",
             "executionResult": false
           },
@@ -69,11 +69,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename",
             "isReward": true
           },
@@ -92,11 +92,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename",
             "networkId": 25
           },
@@ -116,7 +116,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BOB",
@@ -139,7 +139,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BOB",
@@ -159,7 +159,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -178,7 +178,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 2,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -197,7 +197,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 3,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -230,11 +230,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842725,
+            "blockNumber": 62275685,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -247,7 +247,7 @@
           "kikename": {
             "owner": "ALICE",
             "target": "ALICE",
-            "expiry": 90378725,
+            "expiry": 93811685,
             "status": "REGISTERED",
             "host": ""
           }
@@ -263,11 +263,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "40000000",
+            "value": "62500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -278,7 +278,7 @@
                 "kind": "REFUND",
                 "owedBy": "TREASURY",
                 "owedTo": "ALICE",
-                "amount": "40000000"
+                "amount": "62500000"
               }
             ]
           }
@@ -293,11 +293,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842725,
+            "blockNumber": 62275685,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "1000000000",
+            "value": "1562500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -307,7 +307,7 @@
                 "kind": "REFUND",
                 "owedBy": "TREASURY",
                 "owedTo": "ALICE",
-                "amount": "800000000"
+                "amount": "1250000000"
               }
             ]
           }
@@ -318,7 +318,7 @@
           "kikename": {
             "owner": "ALICE",
             "target": "ALICE",
-            "expiry": 90378725,
+            "expiry": 93811685,
             "status": "REGISTERED",
             "host": ""
           }
@@ -334,11 +334,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842725,
+            "blockNumber": 62275685,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200099999",
+            "value": "312599999",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -352,7 +352,7 @@
           "kikename": {
             "owner": "ALICE",
             "target": "ALICE",
-            "expiry": 90378725,
+            "expiry": 93811685,
             "status": "REGISTERED",
             "host": ""
           }
@@ -368,11 +368,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "40000000",
+            "value": "62500000",
             "text": "NNS1Gaaaaaaaaaaaa"
           },
           "verdict": {
@@ -393,11 +393,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gn1m1q"
           },
           "verdict": {
@@ -415,11 +415,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -438,11 +438,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -451,11 +451,11 @@
         },
         {
           "tx": {
-            "blockNumber": 90378721,
+            "blockNumber": 93811681,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -478,11 +478,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -491,7 +491,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BOB",
@@ -521,11 +521,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -534,7 +534,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BOB",
@@ -547,7 +547,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -570,11 +570,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -583,7 +583,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "BOB",
@@ -608,11 +608,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -621,7 +621,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -634,7 +634,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BOB",
@@ -646,7 +646,7 @@
           }
         },
         {
-          "advanceTo": 58885920,
+          "advanceTo": 62318880,
           "note": "one block short of maturity"
         },
         {
@@ -660,7 +660,7 @@
           }
         },
         {
-          "advanceTo": 58885921
+          "advanceTo": 62318881
         }
       ],
       "expect": {
@@ -678,11 +678,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -691,7 +691,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "BOB",
@@ -704,7 +704,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -716,7 +716,7 @@
           }
         },
         {
-          "advanceTo": 58942720
+          "advanceTo": 62375680
         }
       ],
       "expect": {
@@ -733,11 +733,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -746,7 +746,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -773,11 +773,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -786,7 +786,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "CAROL",
             "recipient": "CAROL",
@@ -800,7 +800,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BOB",
@@ -812,7 +812,7 @@
           }
         },
         {
-          "advanceTo": 58885921,
+          "advanceTo": 62318881,
           "note": "one block short of XFER_TIMELOCK from 58842722"
         },
         {
@@ -825,7 +825,7 @@
           }
         },
         {
-          "advanceTo": 58885922
+          "advanceTo": 62318882
         }
       ],
       "expect": {
@@ -841,11 +841,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -853,7 +853,7 @@
           }
         },
         {
-          "advanceTo": 90378720
+          "advanceTo": 93811680
         },
         {
           "check": {
@@ -868,7 +868,7 @@
           }
         },
         {
-          "advanceTo": 92970720
+          "advanceTo": 96403680
         }
       ],
       "expect": {
@@ -884,11 +884,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -897,11 +897,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Nkikename"
           },
           "verdict": {
@@ -913,7 +913,7 @@
         "names": {
           "kikename": {
             "owner": "ALICE",
-            "expiry": 121914720
+            "expiry": 125347680
           }
         }
       }
@@ -923,11 +923,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -936,12 +936,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|100000000"
+            "text": "NNS1Okikename|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -949,11 +949,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -963,13 +963,13 @@
                 "kind": "SALE_PROCEEDS",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "ALICE",
-                "amount": "97500000"
+                "amount": "152343750"
               },
               {
                 "kind": "COMMISSION",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "TREASURY",
-                "amount": "2500000"
+                "amount": "3906250"
               }
             ]
           }
@@ -980,7 +980,7 @@
           "kikename": {
             "owner": "BOB",
             "target": "BOB",
-            "expiry": 90378720
+            "expiry": 93811680
           }
         },
         "note": "The buyer inherits the name's current expiry, and the two legs sum to the price exactly."
@@ -992,11 +992,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1005,7 +1005,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -1018,12 +1018,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 2,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|100000000"
+            "text": "NNS1Okikename|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -1036,24 +1036,24 @@
               "kikename": {
                 "owner": "ALICE",
                 "host": "a.com",
-                "expiry": 90378720
+                "expiry": 93811680
               }
             },
             "offers": {
               "kikename": {
                 "seller": "ALICE",
-                "price": "100000000"
+                "price": "156250000"
               }
             }
           }
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -1063,13 +1063,13 @@
                 "kind": "SALE_PROCEEDS",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "ALICE",
-                "amount": "97500000"
+                "amount": "152343750"
               },
               {
                 "kind": "COMMISSION",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "TREASURY",
-                "amount": "2500000"
+                "amount": "3906250"
               }
             ]
           }
@@ -1084,7 +1084,7 @@
                 "target": "BOB",
                 "host": "",
                 "status": "REGISTERED",
-                "expiry": 90378720
+                "expiry": 93811680
               }
             },
             "offers": {
@@ -1102,7 +1102,7 @@
             "owner": "BOB",
             "target": "BOB",
             "host": "",
-            "expiry": 90378720
+            "expiry": 93811680
           }
         },
         "resolves": {
@@ -1116,11 +1116,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1129,12 +1129,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|100000000"
+            "text": "NNS1Okikename|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -1142,11 +1142,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -1155,11 +1155,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 1,
             "sender": "CAROL",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -1170,7 +1170,7 @@
                 "kind": "REFUND",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "CAROL",
-                "amount": "100000000"
+                "amount": "156250000"
               }
             ]
           }
@@ -1189,11 +1189,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1202,12 +1202,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|100000000"
+            "text": "NNS1Okikename|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -1215,11 +1215,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "100000001",
+            "value": "156250001",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -1230,7 +1230,7 @@
                 "kind": "REFUND",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "BOB",
-                "amount": "100000001"
+                "amount": "156250001"
               }
             ]
           }
@@ -1250,11 +1250,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1263,12 +1263,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|100000000"
+            "text": "NNS1Okikename|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -1276,11 +1276,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -1290,13 +1290,13 @@
                 "kind": "SALE_PROCEEDS",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "ALICE",
-                "amount": "97500000"
+                "amount": "152343750"
               },
               {
                 "kind": "COMMISSION",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "TREASURY",
-                "amount": "2500000"
+                "amount": "3906250"
               }
             ]
           }
@@ -1306,18 +1306,18 @@
             "label": "owed",
             "logLines": 3,
             "outstanding": {
-              "58842721:0": [
+              "62275681:0": [
                 {
                   "kind": "SALE_PROCEEDS",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "ALICE",
-                  "amount": "97500000"
+                  "amount": "152343750"
                 },
                 {
                   "kind": "COMMISSION",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "TREASURY",
-                  "amount": "2500000"
+                  "amount": "3906250"
                 }
               ]
             }
@@ -1325,12 +1325,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 0,
             "sender": "MARKETPLACE",
             "recipient": "ALICE",
-            "value": "97499999",
-            "text": "NNS1M58842721|0"
+            "value": "152343749",
+            "text": "NNS1M62275681|0"
           },
           "verdict": {
             "kind": "OK"
@@ -1338,12 +1338,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 1,
             "sender": "MARKETPLACE",
             "recipient": "ALICE",
-            "value": "97500001",
-            "text": "NNS1M58842721|0"
+            "value": "152343751",
+            "text": "NNS1M62275681|0"
           },
           "verdict": {
             "kind": "OK"
@@ -1351,12 +1351,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 2,
             "sender": "TREASURY",
             "recipient": "ALICE",
-            "value": "97500000",
-            "text": "NNS1M58842721|0"
+            "value": "152343750",
+            "text": "NNS1M62275681|0"
           },
           "verdict": {
             "kind": "OK"
@@ -1366,18 +1366,18 @@
           "check": {
             "logLines": 6,
             "outstanding": {
-              "58842721:0": [
+              "62275681:0": [
                 {
                   "kind": "SALE_PROCEEDS",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "ALICE",
-                  "amount": "97500000"
+                  "amount": "152343750"
                 },
                 {
                   "kind": "COMMISSION",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "TREASURY",
-                  "amount": "2500000"
+                  "amount": "3906250"
                 }
               ]
             }
@@ -1385,12 +1385,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842723,
+            "blockNumber": 62275683,
             "txIndex": 0,
             "sender": "MARKETPLACE",
             "recipient": "ALICE",
-            "value": "97500000",
-            "text": "NNS1M58842721|0"
+            "value": "152343750",
+            "text": "NNS1M62275681|0"
           },
           "verdict": {
             "kind": "OK"
@@ -1400,12 +1400,12 @@
           "check": {
             "logLines": 7,
             "outstanding": {
-              "58842721:0": [
+              "62275681:0": [
                 {
                   "kind": "COMMISSION",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "TREASURY",
-                  "amount": "2500000"
+                  "amount": "3906250"
                 }
               ]
             }
@@ -1413,12 +1413,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842723,
+            "blockNumber": 62275683,
             "txIndex": 1,
             "sender": "MARKETPLACE",
             "recipient": "ALICE",
-            "value": "97500000",
-            "text": "NNS1M58842721|0"
+            "value": "152343750",
+            "text": "NNS1M62275681|0"
           },
           "verdict": {
             "kind": "OK"
@@ -1428,12 +1428,12 @@
           "check": {
             "logLines": 8,
             "outstanding": {
-              "58842721:0": [
+              "62275681:0": [
                 {
                   "kind": "COMMISSION",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "TREASURY",
-                  "amount": "2500000"
+                  "amount": "3906250"
                 }
               ]
             }
@@ -1441,12 +1441,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842723,
+            "blockNumber": 62275683,
             "txIndex": 2,
             "sender": "MARKETPLACE",
             "recipient": "TREASURY",
-            "value": "2500000",
-            "text": "NNS1M58842721|0"
+            "value": "3906250",
+            "text": "NNS1M62275681|0"
           },
           "verdict": {
             "kind": "OK"
@@ -1454,12 +1454,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842723,
+            "blockNumber": 62275683,
             "txIndex": 3,
             "sender": "MARKETPLACE",
             "recipient": "ALICE",
-            "value": "97500000",
-            "text": "NNS1M58842720|0"
+            "value": "152343750",
+            "text": "NNS1M62275680|0"
           },
           "verdict": {
             "kind": "OK"
@@ -1471,7 +1471,7 @@
             "changed": [],
             "logLines": 10,
             "outstanding": {
-              "58842721:0": null
+              "62275681:0": null
             },
             "names": {
               "kikename": {
@@ -1497,11 +1497,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1510,7 +1510,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -1524,7 +1524,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -1538,12 +1538,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 2,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|19"
+            "text": "NNS1Okikename|30"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1552,12 +1552,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 3,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|9999"
+            "text": "NNS1Okikename|15624"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1566,12 +1566,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 4,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|39999999"
+            "text": "NNS1Okikename|62499999"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1580,12 +1580,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 5,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|40000000"
+            "text": "NNS1Okikename|62500000"
           },
           "verdict": {
             "kind": "OK"
@@ -1606,12 +1606,12 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P80000000|250|58929120"
+            "text": "NNS1P125000000|250|62362080"
           },
           "verdict": {
             "kind": "OK"
@@ -1619,11 +1619,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1632,12 +1632,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58929119,
+            "blockNumber": 62362079,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|40000000"
+            "text": "NNS1Okikename|62500000"
           },
           "verdict": {
             "kind": "OK"
@@ -1645,12 +1645,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58929120,
+            "blockNumber": 62362080,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|40000000"
+            "text": "NNS1Okikename|62500000"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1659,12 +1659,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58929120,
+            "blockNumber": 62362080,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|80000000"
+            "text": "NNS1Okikename|125000000"
           },
           "verdict": {
             "kind": "OK"
@@ -1673,7 +1673,7 @@
       ],
       "expect": {
         "prices": {
-          "feeBase": "80000000"
+          "feeBase": "125000000"
         }
       }
     },
@@ -1682,12 +1682,12 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P80000000|250|58929120"
+            "text": "NNS1P125000000|250|62362080"
           },
           "verdict": {
             "kind": "OK"
@@ -1695,11 +1695,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58929119,
+            "blockNumber": 62362079,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1708,11 +1708,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58929120,
+            "blockNumber": 62362080,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gothername"
           },
           "verdict": {
@@ -1723,7 +1723,7 @@
                 "kind": "REFUND",
                 "owedBy": "TREASURY",
                 "owedTo": "BOB",
-                "amount": "200000000"
+                "amount": "312500000"
               }
             ]
           }
@@ -1736,7 +1736,7 @@
           }
         },
         "prices": {
-          "feeBase": "80000000"
+          "feeBase": "125000000"
         }
       }
     },
@@ -1746,12 +1746,12 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P80000000|250|58929120"
+            "text": "NNS1P125000000|250|62362080"
           },
           "verdict": {
             "kind": "OK"
@@ -1759,11 +1759,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58929120,
+            "blockNumber": 62362080,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1774,18 +1774,18 @@
                 "kind": "REFUND",
                 "owedBy": "TREASURY",
                 "owedTo": "ALICE",
-                "amount": "200000000"
+                "amount": "312500000"
               }
             ]
           }
         },
         {
           "tx": {
-            "blockNumber": 58929120,
+            "blockNumber": 62362080,
             "txIndex": 1,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "625000000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -1800,7 +1800,7 @@
           }
         },
         "prices": {
-          "feeBase": "80000000"
+          "feeBase": "125000000"
         }
       }
     },
@@ -1809,12 +1809,12 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P10000000001|250|58929120"
+            "text": "NNS1P15625000002|250|62362080"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1824,7 +1824,7 @@
       ],
       "expect": {
         "prices": {
-          "feeBase": "40000000"
+          "feeBase": "62500000"
         }
       },
       "note": "PRICE_MAX_FACTOR and PRICE_MIN_INTERVAL were removed (§10.6), so a P may move a band as far as it likes and land in the very next block. What is left is the range check: one luna above PRICE_CEILING forfeits, and the active prices are unchanged."
@@ -1834,12 +1834,12 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P40000000|250|58929120"
+            "text": "NNS1P62500000|250|62362080"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1849,7 +1849,7 @@
       ],
       "expect": {
         "prices": {
-          "feeBase": "40000000"
+          "feeBase": "62500000"
         }
       }
     },
@@ -1859,12 +1859,12 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P80000000|250|58929120"
+            "text": "NNS1P125000000|250|62362080"
           },
           "verdict": {
             "kind": "OK"
@@ -1872,34 +1872,34 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P60000000|250|58929121"
+            "text": "NNS1P93750000|250|62362081"
           },
           "verdict": {
             "kind": "OK"
           }
         },
         {
-          "advanceTo": 58929120
+          "advanceTo": 62362080
         },
         {
           "check": {
             "prices": {
-              "feeBase": "40000000"
+              "feeBase": "62500000"
             }
           }
         },
         {
-          "advanceTo": 58929121
+          "advanceTo": 62362081
         }
       ],
       "expect": {
         "prices": {
-          "feeBase": "60000000"
+          "feeBase": "93750000"
         }
       }
     },
@@ -1909,12 +1909,12 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P80000000|250|58929120"
+            "text": "NNS1P125000000|250|62362080"
           },
           "verdict": {
             "kind": "OK"
@@ -1925,18 +1925,18 @@
             "label": "queued",
             "logLines": 1,
             "pendingGovernance": {
-              "effectiveHeight": 58929120
+              "effectiveHeight": 62362080
             }
           }
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P60000000|250|58929122"
+            "text": "NNS1P93750000|250|62362082"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1945,12 +1945,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P60000000|250|58929121"
+            "text": "NNS1P93750000|250|62362081"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1959,12 +1959,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842723,
+            "blockNumber": 62275683,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P60000000|750|58929124"
+            "text": "NNS1P93750000|750|62362084"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1977,27 +1977,27 @@
             "changed": [],
             "logLines": 4,
             "pendingGovernance": {
-              "effectiveHeight": 58929120
+              "effectiveHeight": 62362080
             }
           }
         },
         {
-          "advanceTo": 58929119
+          "advanceTo": 62362079
         },
         {
           "check": {
             "prices": {
-              "feeBase": "40000000"
+              "feeBase": "62500000"
             }
           }
         },
         {
-          "advanceTo": 58929120
+          "advanceTo": 62362080
         },
         {
           "check": {
             "prices": {
-              "feeBase": "80000000"
+              "feeBase": "125000000"
             },
             "pendingGovernance": null
           }
@@ -2005,7 +2005,7 @@
       ],
       "expect": {
         "prices": {
-          "feeBase": "80000000",
+          "feeBase": "125000000",
           "commissionBp": 250
         },
         "logLines": 4
@@ -2013,15 +2013,15 @@
     },
     {
       "id": "auction_lifecycle_open_bid_outbid_extend_close_settle",
-      "note": "§6 `A` (r28) end to end. The startingPrice is 1,000 NIM; a first bid one luna short refunds under WRONG_PRICE and leaves no standing bid; the first bid at the startingPrice stands and moves no ownership; the increment is floor(standing × 500 bp), so 104,999,999 is short and 105,000,000 raises — and the raise refunds BOB *at once*, keyed by BOB's own bid, so the marketplace holds one bid per auction. The late bid lands 500 blocks before the end and moves it to bid + AUCTION_EXTENSION. The close is a height effect: nothing at end − 1, and at the end the winner takes the name with the §7.3 transfer resets (the delegate host set before the auction is gone) and two legs are owed against the winning bid's ref — proceeds less commission at the rate active at the close, and the commission — discharged by two `M`s like any sale. No transaction ever emits the close, so the log line count does not move across it.",
+      "note": "§6 `A` (r28) end to end. The startingPrice is 1,562.5 NIM; a first bid one luna short refunds under WRONG_PRICE and leaves no standing bid; the first bid at the startingPrice stands and moves no ownership; the increment is floor(standing × 500 bp), so 164,062,499 is short and 164,062,500 raises — and the raise refunds BOB *at once*, keyed by BOB's own bid, so the marketplace holds one bid per auction. The late bid lands 500 blocks before the end and moves it to bid + AUCTION_EXTENSION. The close is a height effect: nothing at end − 1, and at the end the winner takes the name with the §7.3 transfer resets (the delegate host set before the auction is gone) and two legs are owed against the winning bid's ref — proceeds less commission at the rate active at the close, and the commission — discharged by two `M`s like any sale. No transaction ever emits the close, so the log line count does not move across it.",
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -2030,7 +2030,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -2043,12 +2043,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|100000000|58929200"
+            "text": "NNS1Akikename|156250000|62362160"
           },
           "verdict": {
             "kind": "OK"
@@ -2060,8 +2060,8 @@
             "auctions": {
               "kikename": {
                 "seller": "ALICE",
-                "startingPrice": "100000000",
-                "endHeight": 58929200,
+                "startingPrice": "156250000",
+                "endHeight": 62362160,
                 "bidder": null,
                 "bid": "0"
               }
@@ -2070,11 +2070,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "99999999",
+            "value": "156249999",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -2085,7 +2085,7 @@
                 "kind": "REFUND",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "BOB",
-                "amount": "99999999"
+                "amount": "156249999"
               }
             ]
           }
@@ -2102,11 +2102,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842723,
+            "blockNumber": 62275683,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -2119,8 +2119,8 @@
             "auctions": {
               "kikename": {
                 "bidder": "BOB",
-                "bid": "100000000",
-                "endHeight": 58929200
+                "bid": "156250000",
+                "endHeight": 62362160
               }
             },
             "names": {
@@ -2133,11 +2133,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842724,
+            "blockNumber": 62275684,
             "txIndex": 0,
             "sender": "CAROL",
             "recipient": "MARKETPLACE",
-            "value": "104999999",
+            "value": "164062499",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -2148,18 +2148,18 @@
                 "kind": "REFUND",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "CAROL",
-                "amount": "104999999"
+                "amount": "164062499"
               }
             ]
           }
         },
         {
           "tx": {
-            "blockNumber": 58842724,
+            "blockNumber": 62275684,
             "txIndex": 1,
             "sender": "CAROL",
             "recipient": "MARKETPLACE",
-            "value": "105000000",
+            "value": "164062500",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -2169,7 +2169,7 @@
                 "kind": "REFUND",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "BOB",
-                "amount": "100000000"
+                "amount": "156250000"
               }
             ]
           }
@@ -2179,17 +2179,17 @@
             "auctions": {
               "kikename": {
                 "bidder": "CAROL",
-                "bid": "105000000",
-                "endHeight": 58929200
+                "bid": "164062500",
+                "endHeight": 62362160
               }
             },
             "outstanding": {
-              "58842723:0": [
+              "62275683:0": [
                 {
                   "kind": "REFUND",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "BOB",
-                  "amount": "100000000"
+                  "amount": "156250000"
                 }
               ]
             }
@@ -2197,11 +2197,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58928700,
+            "blockNumber": 62361660,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "110250000",
+            "value": "172265625",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -2211,7 +2211,7 @@
                 "kind": "REFUND",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "CAROL",
-                "amount": "105000000"
+                "amount": "164062500"
               }
             ]
           }
@@ -2222,14 +2222,14 @@
             "auctions": {
               "kikename": {
                 "bidder": "BOB",
-                "bid": "110250000",
-                "endHeight": 58929300
+                "bid": "172265625",
+                "endHeight": 62362260
               }
             }
           }
         },
         {
-          "advanceTo": 58929299
+          "advanceTo": 62362259
         },
         {
           "check": {
@@ -2249,7 +2249,7 @@
           }
         },
         {
-          "advanceTo": 58929300
+          "advanceTo": 62362260
         },
         {
           "check": {
@@ -2269,18 +2269,18 @@
               }
             },
             "outstanding": {
-              "58928700:0": [
+              "62361660:0": [
                 {
                   "kind": "SALE_PROCEEDS",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "ALICE",
-                  "amount": "107493750"
+                  "amount": "167958985"
                 },
                 {
                   "kind": "COMMISSION",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "TREASURY",
-                  "amount": "2756250"
+                  "amount": "4306640"
                 }
               ]
             }
@@ -2288,12 +2288,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58929301,
+            "blockNumber": 62362261,
             "txIndex": 0,
             "sender": "MARKETPLACE",
             "recipient": "ALICE",
-            "value": "107493750",
-            "text": "NNS1M58928700|0"
+            "value": "167958985",
+            "text": "NNS1M62361660|0"
           },
           "verdict": {
             "kind": "OK"
@@ -2302,12 +2302,12 @@
         {
           "check": {
             "outstanding": {
-              "58928700:0": [
+              "62361660:0": [
                 {
                   "kind": "COMMISSION",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "TREASURY",
-                  "amount": "2756250"
+                  "amount": "4306640"
                 }
               ]
             }
@@ -2315,12 +2315,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58929301,
+            "blockNumber": 62362261,
             "txIndex": 1,
             "sender": "MARKETPLACE",
             "recipient": "TREASURY",
-            "value": "2756250",
-            "text": "NNS1M58928700|0"
+            "value": "4306640",
+            "text": "NNS1M62361660|0"
           },
           "verdict": {
             "kind": "OK"
@@ -2329,7 +2329,7 @@
         {
           "check": {
             "outstanding": {
-              "58928700:0": null
+              "62361660:0": null
             }
           }
         }
@@ -2352,11 +2352,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -2365,12 +2365,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|100000000|58929120"
+            "text": "NNS1Akikename|156250000|62362080"
           },
           "verdict": {
             "kind": "OK"
@@ -2378,11 +2378,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -2397,7 +2397,7 @@
           }
         },
         {
-          "advanceTo": 58929119
+          "advanceTo": 62362079
         },
         {
           "check": {
@@ -2408,7 +2408,7 @@
             "auctions": {
               "kikename": {
                 "bidder": "BOB",
-                "endHeight": 58929120
+                "endHeight": 62362080
               }
             },
             "names": {
@@ -2419,7 +2419,7 @@
           }
         },
         {
-          "advanceTo": 58929120
+          "advanceTo": 62362080
         },
         {
           "check": {
@@ -2455,11 +2455,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -2468,12 +2468,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|100000000|58929120"
+            "text": "NNS1Akikename|156250000|62362080"
           },
           "verdict": {
             "kind": "OK"
@@ -2481,11 +2481,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "99999999",
+            "value": "156249999",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -2496,13 +2496,13 @@
                 "kind": "REFUND",
                 "owedBy": "MARKETPLACE",
                 "owedTo": "BOB",
-                "amount": "99999999"
+                "amount": "156249999"
               }
             ]
           }
         },
         {
-          "advanceTo": 58929120
+          "advanceTo": 62362080
         },
         {
           "check": {
@@ -2515,12 +2515,12 @@
               }
             },
             "outstanding": {
-              "58842721:0": [
+              "62275681:0": [
                 {
                   "kind": "REFUND",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "BOB",
-                  "amount": "99999999"
+                  "amount": "156249999"
                 }
               ]
             }
@@ -2528,12 +2528,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58929120,
+            "blockNumber": 62362080,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|100000000|59015520"
+            "text": "NNS1Akikename|156250000|62448480"
           },
           "verdict": {
             "kind": "OK"
@@ -2541,11 +2541,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58929120,
+            "blockNumber": 62362080,
             "txIndex": 1,
             "sender": "CAROL",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -2569,11 +2569,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -2582,11 +2582,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gothername"
           },
           "verdict": {
@@ -2595,7 +2595,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "CAROL",
@@ -2608,12 +2608,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Oothername|100000000"
+            "text": "NNS1Oothername|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -2625,7 +2625,7 @@
             "transfers": {
               "kikename": {
                 "newOwner": "CAROL",
-                "effectiveHeight": 58885921
+                "effectiveHeight": 62318881
               }
             },
             "offers": {
@@ -2637,12 +2637,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842723,
+            "blockNumber": 62275683,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|100000000|58929200"
+            "text": "NNS1Akikename|156250000|62362160"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -2651,12 +2651,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842723,
+            "blockNumber": 62275683,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Aothername|100000000|58929200"
+            "text": "NNS1Aothername|156250000|62362160"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -2685,7 +2685,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842724,
+            "blockNumber": 62275684,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -2698,7 +2698,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842724,
+            "blockNumber": 62275684,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -2721,12 +2721,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842725,
+            "blockNumber": 62275685,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|100000000|58929200"
+            "text": "NNS1Akikename|156250000|62362160"
           },
           "verdict": {
             "kind": "OK"
@@ -2734,12 +2734,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842725,
+            "blockNumber": 62275685,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Aothername|100000000|58929200"
+            "text": "NNS1Aothername|156250000|62362160"
           },
           "verdict": {
             "kind": "OK"
@@ -2759,12 +2759,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842726,
+            "blockNumber": 62275686,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|100000000"
+            "text": "NNS1Okikename|156250000"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -2773,7 +2773,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842726,
+            "blockNumber": 62275686,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "CAROL",
@@ -2787,12 +2787,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842726,
+            "blockNumber": 62275686,
             "txIndex": 2,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|200000000|58929200"
+            "text": "NNS1Akikename|312500000|62362160"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -2801,7 +2801,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842726,
+            "blockNumber": 62275686,
             "txIndex": 3,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -2815,7 +2815,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842726,
+            "blockNumber": 62275686,
             "txIndex": 4,
             "sender": "ALICE",
             "recipient": "CAROL",
@@ -2827,7 +2827,7 @@
           }
         },
         {
-          "advanceTo": 58885921
+          "advanceTo": 62318881
         },
         {
           "check": {
@@ -2839,7 +2839,7 @@
             "auctions": {
               "kikename": {
                 "seller": "ALICE",
-                "endHeight": 58929200
+                "endHeight": 62362160
               }
             }
           }
@@ -2863,11 +2863,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -2876,12 +2876,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|100000000"
+            "text": "NNS1Okikename|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -2889,12 +2889,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|200000000"
+            "text": "NNS1Okikename|312500000"
           },
           "verdict": {
             "kind": "OK"
@@ -2905,19 +2905,19 @@
             "offers": {
               "kikename": {
                 "seller": "ALICE",
-                "price": "200000000",
-                "openedHeight": 58842722
+                "price": "312500000",
+                "openedHeight": 62275682
               }
             }
           }
         },
         {
           "tx": {
-            "blockNumber": 58842723,
+            "blockNumber": 62275683,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -2927,7 +2927,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842724,
+            "blockNumber": 62275684,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -2940,7 +2940,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842725,
+            "blockNumber": 62275685,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BOB",
@@ -2953,7 +2953,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842726,
+            "blockNumber": 62275686,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "CAROL",
@@ -2969,7 +2969,7 @@
             "transfers": {
               "kikename": {
                 "newOwner": "CAROL",
-                "effectiveHeight": 58885926
+                "effectiveHeight": 62318886
               }
             },
             "offers": {
@@ -2978,7 +2978,7 @@
           }
         },
         {
-          "advanceTo": 58885925
+          "advanceTo": 62318885
         },
         {
           "check": {
@@ -2990,7 +2990,7 @@
           }
         },
         {
-          "advanceTo": 58885926
+          "advanceTo": 62318886
         }
       ],
       "expect": {
@@ -3012,12 +3012,12 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Anim|100000000|58929120"
+            "text": "NNS1Anim|156250000|62362080"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -3026,12 +3026,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Anim|100000000|58929120"
+            "text": "NNS1Anim|156250000|62362080"
           },
           "verdict": {
             "kind": "OK"
@@ -3042,7 +3042,7 @@
             "auctions": {
               "nim": {
                 "seller": "TREASURY",
-                "startingPrice": "100000000",
+                "startingPrice": "156250000",
                 "bidder": null
               }
             }
@@ -3050,11 +3050,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gnim"
           },
           "verdict": {
@@ -3064,11 +3064,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 1,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bnim"
           },
           "verdict": {
@@ -3077,7 +3077,7 @@
           }
         },
         {
-          "advanceTo": 58929120
+          "advanceTo": 62362080
         },
         {
           "check": {
@@ -3087,7 +3087,7 @@
             "names": {
               "nim": {
                 "owner": "BOB",
-                "expiry": 90465120,
+                "expiry": 93898080,
                 "host": ""
               }
             },
@@ -3095,18 +3095,18 @@
               "nim": true
             },
             "outstanding": {
-              "58842721:1": [
+              "62275681:1": [
                 {
                   "kind": "SALE_PROCEEDS",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "TREASURY",
-                  "amount": "97500000"
+                  "amount": "152343750"
                 },
                 {
                   "kind": "COMMISSION",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "TREASURY",
-                  "amount": "2500000"
+                  "amount": "3906250"
                 }
               ]
             }
@@ -3131,11 +3131,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -3144,12 +3144,12 @@
         },
         {
           "tx": {
-            "blockNumber": 90292300,
+            "blockNumber": 93725260,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|100000000|90378719"
+            "text": "NNS1Akikename|156250000|93811679"
           },
           "verdict": {
             "kind": "OK"
@@ -3157,11 +3157,11 @@
         },
         {
           "tx": {
-            "blockNumber": 90378120,
+            "blockNumber": 93811080,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bkikename"
           },
           "verdict": {
@@ -3170,7 +3170,7 @@
           }
         },
         {
-          "advanceTo": 90378719
+          "advanceTo": 93811679
         },
         {
           "check": {
@@ -3188,7 +3188,7 @@
           }
         },
         {
-          "advanceTo": 90378720
+          "advanceTo": 93811680
         },
         {
           "check": {
@@ -3202,12 +3202,12 @@
               }
             },
             "outstanding": {
-              "90378120:0": [
+              "93811080:0": [
                 {
                   "kind": "REFUND",
                   "owedBy": "MARKETPLACE",
                   "owedTo": "BOB",
-                  "amount": "100000000"
+                  "amount": "156250000"
                 }
               ]
             }
@@ -3231,11 +3231,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "TREASURY",
             "recipient": "BURN",
-            "value": "1000",
+            "value": "1563",
             "text": "NNS1F"
           },
           "verdict": {
@@ -3244,11 +3244,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BURN",
-            "value": "1000",
+            "value": "1563",
             "text": "NNS1F"
           },
           "verdict": {
@@ -3267,11 +3267,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gbinance"
           },
           "verdict": {
@@ -3281,7 +3281,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -3294,11 +3294,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 2,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gbinance"
           },
           "verdict": {
@@ -3320,11 +3320,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "2000000000",
+            "value": "3125000000",
             "text": "NNS1Gweb3"
           },
           "verdict": {
@@ -3334,7 +3334,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -3347,11 +3347,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 2,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "2000000000",
+            "value": "3125000000",
             "text": "NNS1Gweb3"
           },
           "verdict": {
@@ -3373,7 +3373,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "BOB",
@@ -3386,11 +3386,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "8000000000",
+            "value": "12500000000",
             "text": "NNS1Gnq"
           },
           "verdict": {
@@ -3415,7 +3415,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -3438,7 +3438,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -3451,11 +3451,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "8000000000",
+            "value": "12500000000",
             "text": "NNS1Gnq"
           },
           "verdict": {
@@ -3474,14 +3474,14 @@
                 "owner": "ALICE",
                 "target": "ALICE",
                 "status": "REGISTERED",
-                "expiry": 90378720
+                "expiry": 93811680
               }
             }
           }
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "CAROL",
@@ -3506,7 +3506,7 @@
                 "owner": "ALICE",
                 "target": "ALICE",
                 "status": "REGISTERED",
-                "expiry": 90378720
+                "expiry": 93811680
               }
             }
           }
@@ -3529,7 +3529,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -3542,11 +3542,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "8000000000",
+            "value": "12500000000",
             "text": "NNS1Gnq"
           },
           "verdict": {
@@ -3564,13 +3564,13 @@
               "nq": {
                 "owner": "ALICE",
                 "status": "REGISTERED",
-                "expiry": 90378720
+                "expiry": 93811680
               }
             }
           }
         },
         {
-          "advanceTo": 90378720
+          "advanceTo": 93811680
         },
         {
           "check": {
@@ -3591,7 +3591,7 @@
           }
         },
         {
-          "advanceTo": 92970720
+          "advanceTo": 96403680
         },
         {
           "check": {
@@ -3610,7 +3610,7 @@
         },
         {
           "tx": {
-            "blockNumber": 92970721,
+            "blockNumber": 96403681,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -3624,11 +3624,11 @@
         },
         {
           "tx": {
-            "blockNumber": 92970721,
+            "blockNumber": 96403681,
             "txIndex": 1,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "8000000000",
+            "value": "12500000000",
             "text": "NNS1Gnq"
           },
           "verdict": {
@@ -3642,7 +3642,7 @@
             "owner": "BOB",
             "target": "BOB",
             "status": "REGISTERED",
-            "expiry": 124506721
+            "expiry": 127939681
           }
         },
         "resolves": {
@@ -3657,11 +3657,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -3670,7 +3670,7 @@
         },
         {
           "tx": {
-            "blockNumber": 90335520,
+            "blockNumber": 93768480,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BOB",
@@ -3682,7 +3682,7 @@
           }
         },
         {
-          "advanceTo": 90378720
+          "advanceTo": 93811680
         }
       ],
       "expect": {
@@ -3700,11 +3700,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -3713,12 +3713,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|100000000"
+            "text": "NNS1Okikename|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -3728,19 +3728,19 @@
           "check": {
             "label": "opened",
             "logLines": 2,
-            "height": 58842720,
+            "height": 62275680,
             "offers": {
               "kikename": {
                 "seller": "ALICE",
-                "price": "100000000",
-                "openedHeight": 58842720,
-                "expiryHeight": 60138720
+                "price": "156250000",
+                "openedHeight": 62275680,
+                "expiryHeight": 63571680
               }
             }
           }
         },
         {
-          "advanceTo": 60138719,
+          "advanceTo": 63571679,
           "note": "one block short: the offer is still open"
         },
         {
@@ -3748,16 +3748,16 @@
             "since": "opened",
             "changed": [],
             "logLines": 2,
-            "height": 60138719,
+            "height": 63571679,
             "offers": {
               "kikename": {
-                "expiryHeight": 60138720
+                "expiryHeight": 63571680
               }
             }
           }
         },
         {
-          "advanceTo": 60138720,
+          "advanceTo": 63571680,
           "note": "exactly OFFER_MAX_LIFETIME after it opened"
         },
         {
@@ -3767,7 +3767,7 @@
               "pendingRoot"
             ],
             "logLines": 2,
-            "height": 60138720,
+            "height": 63571680,
             "offers": {
               "kikename": null
             },
@@ -3790,11 +3790,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -3803,7 +3803,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BOB",
@@ -3821,7 +3821,7 @@
             "transfers": {
               "kikename": {
                 "newOwner": "BOB",
-                "effectiveHeight": 58885921
+                "effectiveHeight": 62318881
               }
             },
             "names": {
@@ -3833,7 +3833,7 @@
           }
         },
         {
-          "advanceTo": 58885920,
+          "advanceTo": 62318880,
           "note": "one block short: the owner can still cancel"
         },
         {
@@ -3841,10 +3841,10 @@
             "since": "pending",
             "changed": [],
             "logLines": 2,
-            "height": 58885920,
+            "height": 62318880,
             "transfers": {
               "kikename": {
-                "effectiveHeight": 58885921
+                "effectiveHeight": 62318881
               }
             },
             "names": {
@@ -3859,7 +3859,7 @@
           }
         },
         {
-          "advanceTo": 58885921,
+          "advanceTo": 62318881,
           "note": "exactly XFER_TIMELOCK after the X landed"
         },
         {
@@ -3870,7 +3870,7 @@
               "pendingRoot"
             ],
             "logLines": 2,
-            "height": 58885921,
+            "height": 62318881,
             "transfers": {
               "kikename": null
             },
@@ -3897,12 +3897,12 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P80000000|250|58929120"
+            "text": "NNS1P125000000|250|62362080"
           },
           "verdict": {
             "kind": "OK"
@@ -3913,15 +3913,15 @@
             "label": "pending_p",
             "logLines": 1,
             "prices": {
-              "feeBase": "40000000"
+              "feeBase": "62500000"
             },
             "pendingGovernance": {
-              "effectiveHeight": 58929120
+              "effectiveHeight": 62362080
             }
           }
         },
         {
-          "advanceTo": 58929119,
+          "advanceTo": 62362079,
           "note": "one block short: the old prices still bind"
         },
         {
@@ -3929,17 +3929,17 @@
             "since": "pending_p",
             "changed": [],
             "logLines": 1,
-            "height": 58929119,
+            "height": 62362079,
             "prices": {
-              "feeBase": "40000000"
+              "feeBase": "62500000"
             },
             "pendingGovernance": {
-              "effectiveHeight": 58929120
+              "effectiveHeight": 62362080
             }
           }
         },
         {
-          "advanceTo": 58929120,
+          "advanceTo": 62362080,
           "note": "exactly GOVERNANCE_DELAY after the P landed"
         },
         {
@@ -3950,9 +3950,9 @@
               "pendingRoot"
             ],
             "logLines": 1,
-            "height": 58929120,
+            "height": 62362080,
             "prices": {
-              "feeBase": "80000000"
+              "feeBase": "125000000"
             },
             "pendingGovernance": null
           }
@@ -3960,7 +3960,7 @@
       ],
       "expect": {
         "prices": {
-          "feeBase": "80000000"
+          "feeBase": "125000000"
         },
         "logLines": 1
       }
@@ -3971,7 +3971,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -3986,7 +3986,7 @@
           "check": {
             "label": "released",
             "logLines": 1,
-            "height": 58842720,
+            "height": 62275680,
             "unreserved": {
               "binance": true
             },
@@ -3996,7 +3996,7 @@
           }
         },
         {
-          "advanceTo": 58929120,
+          "advanceTo": 62362080,
           "note": "a full GOVERNANCE_DELAY later: nothing was scheduled, so nothing fires"
         },
         {
@@ -4004,7 +4004,7 @@
             "since": "released",
             "changed": [],
             "logLines": 1,
-            "height": 58929120,
+            "height": 62362080,
             "unreserved": {
               "binance": true
             },
@@ -4025,7 +4025,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "BOB",
@@ -4040,7 +4040,7 @@
           "check": {
             "label": "awarded",
             "logLines": 1,
-            "height": 58842720,
+            "height": 62275680,
             "unreserved": {
               "binance": true
             },
@@ -4049,7 +4049,7 @@
                 "owner": "BOB",
                 "target": "BOB",
                 "status": "REGISTERED",
-                "expiry": 90378720,
+                "expiry": 93811680,
                 "host": ""
               }
             },
@@ -4059,7 +4059,7 @@
           }
         },
         {
-          "advanceTo": 58929120,
+          "advanceTo": 62362080,
           "note": "a full GOVERNANCE_DELAY later: the award was complete on landing"
         },
         {
@@ -4067,14 +4067,14 @@
             "since": "awarded",
             "changed": [],
             "logLines": 1,
-            "height": 58929120,
+            "height": 62362080,
             "unreserved": {
               "binance": true
             },
             "names": {
               "binance": {
                 "owner": "BOB",
-                "expiry": 90378720
+                "expiry": 93811680
               }
             },
             "resolves": {
@@ -4087,7 +4087,7 @@
         "names": {
           "binance": {
             "owner": "BOB",
-            "expiry": 90378720
+            "expiry": 93811680
           }
         },
         "logLines": 1
@@ -4099,11 +4099,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "2000000000",
+            "value": "3125000000",
             "text": "NNS1Gkikename||L"
           },
           "verdict": {
@@ -4112,11 +4112,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "2000000000",
+            "value": "3125000000",
             "text": "NNS1Gothername|kikename|L"
           },
           "verdict": {
@@ -4130,13 +4130,13 @@
             "owner": "ALICE",
             "target": "ALICE",
             "status": "REGISTERED",
-            "expiry": 3212442720
+            "expiry": 3215875680
           },
           "othername": {
             "owner": "BOB",
             "target": "BOB",
             "status": "REGISTERED",
-            "expiry": 3212442720
+            "expiry": 3215875680
           }
         },
         "resolves": {
@@ -4152,11 +4152,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "1999999999",
+            "value": "3124999999",
             "text": "NNS1Gkikename||L"
           },
           "verdict": {
@@ -4167,18 +4167,18 @@
                 "kind": "REFUND",
                 "owedBy": "TREASURY",
                 "owedTo": "ALICE",
-                "amount": "1999999999"
+                "amount": "3124999999"
               }
             ]
           }
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename||L"
           },
           "verdict": {
@@ -4189,7 +4189,7 @@
                 "kind": "REFUND",
                 "owedBy": "TREASURY",
                 "owedTo": "ALICE",
-                "amount": "200000000"
+                "amount": "312500000"
               }
             ]
           }
@@ -4206,11 +4206,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -4219,11 +4219,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842725,
+            "blockNumber": 62275685,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "2100000000",
+            "value": "3281250000",
             "text": "NNS1Nkikename|L"
           },
           "verdict": {
@@ -4233,7 +4233,7 @@
                 "kind": "REFUND",
                 "owedBy": "TREASURY",
                 "owedTo": "BOB",
-                "amount": "100000000"
+                "amount": "156250000"
               }
             ]
           }
@@ -4242,7 +4242,7 @@
           "check": {
             "names": {
               "kikename": {
-                "expiry": 3243978720,
+                "expiry": 3247411680,
                 "status": "REGISTERED"
               }
             }
@@ -4250,11 +4250,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842726,
+            "blockNumber": 62275686,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Nkikename"
           },
           "verdict": {
@@ -4266,7 +4266,7 @@
         "names": {
           "kikename": {
             "owner": "ALICE",
-            "expiry": 3275514720,
+            "expiry": 3278947680,
             "status": "REGISTERED"
           }
         },
@@ -4279,11 +4279,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "2000000000",
+            "value": "3125000000",
             "text": "NNS1Gkikename||L"
           },
           "verdict": {
@@ -4291,7 +4291,7 @@
           }
         },
         {
-          "advanceTo": 3212442719
+          "advanceTo": 3215875679
         },
         {
           "check": {
@@ -4307,7 +4307,7 @@
           }
         },
         {
-          "advanceTo": 3212442720
+          "advanceTo": 3215875680
         },
         {
           "check": {
@@ -4323,7 +4323,7 @@
           }
         },
         {
-          "advanceTo": 3215034720
+          "advanceTo": 3218467680
         },
         {
           "check": {
@@ -4341,15 +4341,15 @@
     },
     {
       "id": "the_open_bands_are_multiples_of_FEE_BASE",
-      "note": "§10.1 since 2026-09-11: 5 → 25×, 6 → 10×, 7–11 → 5×, 12+ → 1× of FEE_BASE (400 NIM). The first step is the vector that pins the reprice: a 5-character G paying the pre-fold flat 2,000 NIM is short of its 10,000 NIM band and is refunded, which is what a rules rebuild does to every such registration already landed. Each band's exact fee then registers.",
+      "note": "§10.1 since 2026-09-11: 5 → 25×, 6 → 10×, 7–11 → 5×, 12+ → 1× of FEE_BASE (625 NIM). The first step is the vector that pins the reprice: a 5-character G paying the 7–11 band's 3,125 NIM is short of its 15,625 NIM band and is refunded, which is what a rules rebuild does to every such registration already landed. Each band's exact fee then registers.",
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gabcde"
           },
           "verdict": {
@@ -4360,18 +4360,18 @@
                 "kind": "REFUND",
                 "owedBy": "TREASURY",
                 "owedTo": "ALICE",
-                "amount": "200000000"
+                "amount": "312500000"
               }
             ]
           }
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "1000000000",
+            "value": "1562500000",
             "text": "NNS1Gabcde"
           },
           "verdict": {
@@ -4380,11 +4380,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 2,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "400000000",
+            "value": "625000000",
             "text": "NNS1Gabcdef"
           },
           "verdict": {
@@ -4393,11 +4393,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 3,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gabcdefg"
           },
           "verdict": {
@@ -4406,11 +4406,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 4,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gabcdefghijk"
           },
           "verdict": {
@@ -4419,11 +4419,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 5,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "40000000",
+            "value": "62500000",
             "text": "NNS1Gabcdefghijkl"
           },
           "verdict": {
@@ -4432,11 +4432,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 6,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "399999999",
+            "value": "624999999",
             "text": "NNS1Gbcdefg"
           },
           "verdict": {
@@ -4447,7 +4447,7 @@
                 "kind": "REFUND",
                 "owedBy": "TREASURY",
                 "owedTo": "BOB",
-                "amount": "399999999"
+                "amount": "624999999"
               }
             ]
           }
@@ -4476,11 +4476,11 @@
     },
     {
       "id": "a_released_two_character_name_is_priced_by_its_own_band",
-      "note": "§10.1: 1–4 characters are reserved by rule, and their band — 200× for 1–2, 100× for 3, 50× for 4 — is the holding cost once a U or an admin A has moved one out. A G after the release, every N, and the N|L upgrade all read it: the 7–11 fee is an underpayment for `nq`, 80,000 NIM registers it, another 80,000 renews it, and 800,000 makes it a lifetime. The release itself and an award owe nothing (§6 U).",
+      "note": "§10.1: 1–4 characters are reserved by rule, and their band — 200× for 1–2, 100× for 3, 50× for 4 — is the holding cost once a U or an admin A has moved one out. A G after the release, every N, and the N|L upgrade all read it: the 7–11 fee is an underpayment for `nq`, 125,000 NIM registers it, another 125,000 renews it, and 1,250,000 makes it a lifetime. The release itself and an award owe nothing (§6 U).",
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -4493,11 +4493,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gnq"
           },
           "verdict": {
@@ -4508,18 +4508,18 @@
                 "kind": "REFUND",
                 "owedBy": "TREASURY",
                 "owedTo": "ALICE",
-                "amount": "200000000"
+                "amount": "312500000"
               }
             ]
           }
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 2,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "8000000000",
+            "value": "12500000000",
             "text": "NNS1Gnq"
           },
           "verdict": {
@@ -4528,11 +4528,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "8000000000",
+            "value": "12500000000",
             "text": "NNS1Nnq"
           },
           "verdict": {
@@ -4541,11 +4541,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "79999999999",
+            "value": "124999999999",
             "text": "NNS1Nnq|L"
           },
           "verdict": {
@@ -4556,18 +4556,18 @@
                 "kind": "REFUND",
                 "owedBy": "TREASURY",
                 "owedTo": "ALICE",
-                "amount": "79999999999"
+                "amount": "124999999999"
               }
             ]
           }
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "80000000000",
+            "value": "125000000000",
             "text": "NNS1Nnq|L"
           },
           "verdict": {
@@ -4579,7 +4579,7 @@
         "names": {
           "nq": {
             "owner": "ALICE",
-            "expiry": 3275514720,
+            "expiry": 3278947680,
             "status": "REGISTERED"
           }
         },
@@ -4592,7 +4592,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "BOB",
@@ -4609,7 +4609,7 @@
               "kikename": false
             },
             "outstanding": {
-              "58842720:0": null
+              "62275680:0": null
             },
             "logLines": 1
           }
@@ -4621,7 +4621,7 @@
             "owner": "BOB",
             "target": "BOB",
             "status": "REGISTERED",
-            "expiry": 90378720,
+            "expiry": 93811680,
             "host": ""
           }
         },
@@ -4637,11 +4637,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -4656,7 +4656,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "BOB",
@@ -4681,7 +4681,7 @@
           }
         },
         {
-          "advanceTo": 90378720
+          "advanceTo": 93811680
         },
         {
           "check": {
@@ -4694,7 +4694,7 @@
         },
         {
           "tx": {
-            "blockNumber": 90378720,
+            "blockNumber": 93811680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "BOB",
@@ -4707,7 +4707,7 @@
           }
         },
         {
-          "advanceTo": 92970720
+          "advanceTo": 96403680
         },
         {
           "check": {
@@ -4718,7 +4718,7 @@
         },
         {
           "tx": {
-            "blockNumber": 92970720,
+            "blockNumber": 96403680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "BOB",
@@ -4731,7 +4731,7 @@
         },
         {
           "tx": {
-            "blockNumber": 92970720,
+            "blockNumber": 96403680,
             "txIndex": 1,
             "sender": "ADMIN",
             "recipient": "CAROL",
@@ -4748,7 +4748,7 @@
         "names": {
           "kikename": {
             "owner": "BOB",
-            "expiry": 124506720,
+            "expiry": 127939680,
             "status": "REGISTERED"
           }
         },
@@ -4761,7 +4761,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "BOB",
@@ -4774,7 +4774,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -4803,7 +4803,7 @@
             "owner": "BOB",
             "target": "BOB",
             "status": "REGISTERED",
-            "expiry": 3212442720
+            "expiry": 3215875680
           }
         },
         "logLines": 2
@@ -4815,7 +4815,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "BOB",
@@ -4828,7 +4828,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -4842,7 +4842,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 2,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -4865,7 +4865,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 3,
             "sender": "ADMIN",
             "recipient": "CAROL",
@@ -4884,7 +4884,7 @@
           },
           "nq": {
             "owner": "CAROL",
-            "expiry": 90378720
+            "expiry": 93811680
           }
         },
         "logLines": 4
@@ -4896,11 +4896,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -4909,7 +4909,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ADMIN",
             "recipient": "BOB",
@@ -4937,7 +4937,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "BOB",
@@ -4950,11 +4950,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -4965,7 +4965,7 @@
                 "kind": "REFUND",
                 "owedBy": "TREASURY",
                 "owedTo": "ALICE",
-                "amount": "200000000"
+                "amount": "312500000"
               }
             ]
           }
@@ -4986,12 +4986,12 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P100000|250|58929120"
+            "text": "NNS1P100000|250|62362080"
           },
           "verdict": {
             "kind": "OK"
@@ -4999,12 +4999,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P99999|250|58929121"
+            "text": "NNS1P99999|250|62362081"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -5013,12 +5013,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 1,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P10000000001|250|58929121"
+            "text": "NNS1P10000000001|250|62362081"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -5027,12 +5027,12 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 2,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P10000000000|250|58929121"
+            "text": "NNS1P10000000000|250|62362081"
           },
           "verdict": {
             "kind": "OK"
@@ -5041,15 +5041,15 @@
         {
           "check": {
             "pendingGovernance": {
-              "effectiveHeight": 58929121
+              "effectiveHeight": 62362081
             },
             "prices": {
-              "feeBase": "40000000"
+              "feeBase": "62500000"
             }
           }
         },
         {
-          "advanceTo": 58929121
+          "advanceTo": 62362081
         },
         {
           "check": {
@@ -5061,7 +5061,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58929121,
+            "blockNumber": 62362081,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -5074,7 +5074,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58929121,
+            "blockNumber": 62362081,
             "txIndex": 1,
             "sender": "BOB",
             "recipient": "TREASURY",
@@ -5087,7 +5087,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58929121,
+            "blockNumber": 62362081,
             "txIndex": 2,
             "sender": "CAROL",
             "recipient": "TREASURY",
@@ -5130,11 +5130,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -5143,7 +5143,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -5161,14 +5161,14 @@
             "names": {
               "kikename": {
                 "status": "REGISTERED",
-                "expiry": 90378720,
+                "expiry": 93811680,
                 "host": "a.com"
               }
             }
           }
         },
         {
-          "advanceTo": 90378719,
+          "advanceTo": 93811679,
           "note": "last block of the term"
         },
         {
@@ -5176,11 +5176,11 @@
             "since": "registered",
             "changed": [],
             "logLines": 2,
-            "height": 90378719,
+            "height": 93811679,
             "names": {
               "kikename": {
                 "status": "REGISTERED",
-                "expiry": 90378720,
+                "expiry": 93811680,
                 "host": "a.com"
               }
             },
@@ -5190,7 +5190,7 @@
           }
         },
         {
-          "advanceTo": 90378720,
+          "advanceTo": 93811680,
           "note": "exactly TERM_LENGTH after registration"
         },
         {
@@ -5200,11 +5200,11 @@
               "nameRoot"
             ],
             "logLines": 2,
-            "height": 90378720,
+            "height": 93811680,
             "names": {
               "kikename": {
                 "status": "GRACE",
-                "expiry": 90378720,
+                "expiry": 93811680,
                 "host": ""
               }
             },
@@ -5219,7 +5219,7 @@
           }
         },
         {
-          "advanceTo": 92970719,
+          "advanceTo": 96403679,
           "note": "last block of the grace period"
         },
         {
@@ -5227,11 +5227,11 @@
             "since": "grace",
             "changed": [],
             "logLines": 2,
-            "height": 92970719,
+            "height": 96403679,
             "names": {
               "kikename": {
                 "status": "GRACE",
-                "expiry": 90378720
+                "expiry": 93811680
               }
             },
             "resolves": {
@@ -5240,7 +5240,7 @@
           }
         },
         {
-          "advanceTo": 92970720,
+          "advanceTo": 96403680,
           "note": "exactly GRACE_PERIOD after the expiry"
         },
         {
@@ -5250,7 +5250,7 @@
               "nameRoot"
             ],
             "logLines": 2,
-            "height": 92970720,
+            "height": 96403680,
             "absent": [
               "kikename"
             ],
@@ -5274,11 +5274,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -5287,11 +5287,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gothername"
           },
           "verdict": {
@@ -5299,7 +5299,7 @@
           }
         },
         {
-          "advanceTo": 92970718
+          "advanceTo": 96403678
         },
         {
           "check": {
@@ -5316,7 +5316,7 @@
           }
         },
         {
-          "advanceTo": 92970719,
+          "advanceTo": 96403679,
           "note": "one block short of the release: nothing fires"
         },
         {
@@ -5324,7 +5324,7 @@
             "since": "two_in_grace",
             "changed": [],
             "logLines": 2,
-            "height": 92970719,
+            "height": 96403679,
             "names": {
               "kikename": {
                 "status": "GRACE"
@@ -5337,11 +5337,11 @@
         },
         {
           "tx": {
-            "blockNumber": 92970719,
+            "blockNumber": 96403679,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Nkikename"
           },
           "verdict": {
@@ -5355,18 +5355,18 @@
             "names": {
               "kikename": {
                 "status": "REGISTERED",
-                "expiry": 121914720
+                "expiry": 125347680
               }
             }
           }
         },
         {
           "tx": {
-            "blockNumber": 92970720,
+            "blockNumber": 96403680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Nothername"
           },
           "verdict": {
@@ -5381,14 +5381,14 @@
               "nameRoot"
             ],
             "logLines": 4,
-            "height": 92970720,
+            "height": 96403680,
             "absent": [
               "othername"
             ],
             "names": {
               "kikename": {
                 "status": "REGISTERED",
-                "expiry": 121914720
+                "expiry": 125347680
               }
             }
           }
@@ -5399,7 +5399,7 @@
           "kikename": {
             "owner": "ALICE",
             "status": "REGISTERED",
-            "expiry": 121914720
+            "expiry": 125347680
           }
         },
         "resolves": {
@@ -5415,7 +5415,7 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -5429,11 +5429,11 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gbinance"
           },
           "verdict": {
@@ -5453,11 +5453,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842730,
+            "blockNumber": 62275690,
             "txIndex": 0,
             "sender": "PAY_HTLC_1",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gpayname",
             "senderType": 2,
             "proof": "010091b21f4b100273bd7034f6369c29d1f7ba72dba7de6720ad3cd8b8191621891300668acc228bf8ad0a832757b1e92b549e07f775937c2b4d2818d555943bef1c8421728d8f7bd4695d85fb3b626b541dcb0e3fbd791357d8720596c3b89547f506009e1ffbdc365402365800270b0b68904e51514e8bb05e48cd5e7310ba1412f6a2008525da9a0f4d04539a1a606df4b39307eeec06df1cf2e2c3d65030bcf4f675967425e34eb68cee64d3b7e9c6ea935ddc1ffa110565ead6a92aaf912d7fb1fb03"
@@ -5489,11 +5489,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842730,
+            "blockNumber": 62275690,
             "txIndex": 0,
             "sender": "PAY_HTLC_1",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gpayname",
             "senderType": 2,
             "proof": "010091b21f4b100273bd7034f6369c29d1f7ba72dba7de6720ad3cd8b8191621891300668acc228bf8ad0a832757b1e92b549e07f775937c2b4d2818d555943bef1c8421728d8f7bd4695d85fb3b626b541dcb0e3fbd791357d8720596c3b89547f506009e1ffbdc365402365800270b0b68904e51514e8bb05e48cd5e7310ba1412f6a2008525da9a0f4d04539a1a606df4b39307eeec06df1cf2e2c3d65030bcf4f675967425e34eb68cee64d3b7e9c6ea935ddc1ffa110565ead6a92aaf912d7fb1fb03"
@@ -5504,7 +5504,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842740,
+            "blockNumber": 62275700,
             "txIndex": 0,
             "sender": "PAY_HTLC_2",
             "recipient": "ALICE",
@@ -5540,11 +5540,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842730,
+            "blockNumber": 62275690,
             "txIndex": 0,
             "sender": "PAY_HTLC_1",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gpayname",
             "senderType": 2,
             "proof": "010091b21f4b100273bd7034f6369c29d1f7ba72dba7de6720ad3cd8b8191621891300668acc228bf8ad0a832757b1e92b549e07f775937c2b4d2818d555943bef1c8421728d8f7bd4695d85fb3b626b541dcb0e3fbd791357d8720596c3b89547f506009e1ffbdc365402365800270b0b68904e51514e8bb05e48cd5e7310ba1412f6a2008525da9a0f4d04539a1a606df4b39307eeec06df1cf2e2c3d65030bcf4f675967425e34eb68cee64d3b7e9c6ea935ddc1ffa110565ead6a92aaf912d7fb1fb03"
@@ -5555,7 +5555,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842740,
+            "blockNumber": 62275700,
             "txIndex": 0,
             "sender": "PAY_HTLC_2",
             "recipient": "ALICE",
@@ -5584,11 +5584,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -5597,7 +5597,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -5621,7 +5621,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842722,
+            "blockNumber": 62275682,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -5651,11 +5651,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -5664,7 +5664,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -5677,7 +5677,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BOB",
@@ -5689,7 +5689,7 @@
           }
         },
         {
-          "advanceTo": 58885921
+          "advanceTo": 62318881
         }
       ],
       "expect": {
@@ -5709,11 +5709,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -5722,7 +5722,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -5734,7 +5734,7 @@
           }
         },
         {
-          "advanceTo": 90378720
+          "advanceTo": 93811680
         },
         {
           "check": {
@@ -5750,7 +5750,7 @@
         },
         {
           "tx": {
-            "blockNumber": 90378720,
+            "blockNumber": 93811680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -5764,11 +5764,11 @@
         },
         {
           "tx": {
-            "blockNumber": 90378721,
+            "blockNumber": 93811681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Nkikename"
           },
           "verdict": {
@@ -5795,11 +5795,11 @@
       "steps": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           },
           "verdict": {
@@ -5808,7 +5808,7 @@
         },
         {
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -5837,11 +5837,11 @@
       "kikename_to_alice": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           }
         }
@@ -5849,56 +5849,56 @@
       "offer_open_at_1_nim": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           }
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|100000000"
+            "text": "NNS1Okikename|156250000"
           }
         }
       ],
       "one_in_grace_one_registered": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           }
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gothername"
           }
         },
         {
-          "advanceTo": 90378720
+          "advanceTo": 93811680
         },
         {
           "tx": {
-            "blockNumber": 90378720,
+            "blockNumber": 93811680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Nothername"
           }
         }
@@ -5906,39 +5906,39 @@
       "auction_open_at_1000_nim": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           }
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|100000000|58929120"
+            "text": "NNS1Akikename|156250000|62362080"
           }
         }
       ],
       "transfer_pending_to_carol": [
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           }
         },
         {
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 1,
             "sender": "ALICE",
             "recipient": "CAROL",
@@ -5955,11 +5955,11 @@
         "pinnedBy": "§7.5",
         "note": "Albatross puts failed transactions in blocks. §7.5 discards one before the message is parsed, so it earns no log line at all — a reducer that routed first would write a WRONG_RECIPIENT line no other implementation has.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "PROTOCOL",
-          "value": "200000000",
+          "value": "312500000",
           "text": "NNS1Gkikename",
           "executionResult": false
         },
@@ -5973,11 +5973,11 @@
             "reason": "WRONG_RECIPIENT"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           }
         }
@@ -5988,7 +5988,7 @@
         "pinnedBy": "§7.5",
         "note": "The network check is first of all, and is the one §7.5 rule that does not even advance the state's height. This payload would forfeit three different ways on mainnet.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "PROTOCOL",
@@ -6006,7 +6006,7 @@
             "reason": "WRONG_RECIPIENT"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -6021,7 +6021,7 @@
         "pinnedBy": "§7.5",
         "note": "The same rule against the *parse*, which is the half the routing pair cannot see: a failed transaction carrying a payload that does not parse must still be discarded silently, not logged as MALFORMED_PAYLOAD. §7.5 runs \"before a message is even parsed\".",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "PROTOCOL",
@@ -6039,7 +6039,7 @@
             "reason": "MALFORMED_PAYLOAD"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -6054,7 +6054,7 @@
         "pinnedBy": "§7.4 — \"hex → `NNS1` prefix → length → type → payload\"; that both are logged verdicts at all is §5.2 (r23)",
         "note": "§7.4's parse chain reads the length before the type letter, so a payload failing both is OVER_LENGTH. The row was pinnedBy: null until r23: §5.2 called both cases 'ignored', so while that stood, the tokens' very existence — not just their order — was in dispute between two clauses. Unreachable on mainnet — 65 bytes never lands in a block — so this pair exists only here, for deployments whose data cap exceeds the budget.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "TREASURY",
@@ -6071,7 +6071,7 @@
             "reason": "UNKNOWN_TYPE"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -6086,7 +6086,7 @@
         "pinnedBy": "§7.4 — \"hex → `NNS1` prefix → length → type → payload\"; that an unknown type is a logged verdict at all is §5.2 (r23)",
         "note": "Both payloads are empty after the type letter. §7.4's parse chain reads the type before the payload, so an unknown letter is reported as such rather than as a payload that failed to parse. The row was pinnedBy: null until r23 for the same reason as its neighbour: §5.2 said an unknown type is 'ignored', which disputed the token's existence, not merely its position — and this member is mainnet-reachable, so the fork it names was live.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "TREASURY",
@@ -6103,7 +6103,7 @@
             "reason": "MALFORMED_PAYLOAD"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -6118,7 +6118,7 @@
         "pinnedBy": null,
         "note": "A `D` with no pipe does not parse, and it is also at the wrong address. Routing is a §5.3 property of a parsed message, so it cannot precede the parse — but nothing states that, and the two tokens differ.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "TREASURY",
@@ -6135,7 +6135,7 @@
             "reason": "WRONG_RECIPIENT"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -6150,11 +6150,11 @@
         "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
         "note": "First and second of the five. The name breaks §4.2 and the message is at the wrong address; routing claims it.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "PROTOCOL",
-          "value": "200000000",
+          "value": "312500000",
           "text": "NNS1G0kikename"
         },
         "verdict": {
@@ -6167,11 +6167,11 @@
             "reason": "INVALID_NAME"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1G0kikename"
           }
         }
@@ -6182,7 +6182,7 @@
         "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
         "note": "Second and fourth of the five. A leading digit breaks §4.2, and the message also pays one NIM against a 2,000 NIM band.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "TREASURY",
@@ -6199,11 +6199,11 @@
             "reason": "INSUFFICIENT_VALUE"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "100000",
+            "value": "156250",
             "text": "NNS1Gkikename"
           }
         }
@@ -6214,7 +6214,7 @@
         "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
         "note": "Third and fourth of the five. `binance` is on the published half of RESERVED_NAMES, and the message underpays as well.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "TREASURY",
@@ -6231,11 +6231,11 @@
             "reason": "INSUFFICIENT_VALUE"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "100000",
+            "value": "156250",
             "text": "NNS1Gkikename"
           }
         }
@@ -6246,11 +6246,11 @@
         "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
         "note": "Fourth and fifth. Since r29 both readings are refunds owed by the treasury, so the order decides only the token the log carries — and §7.4 fixes it: the underpayment is named, not the race.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "TREASURY",
-          "value": "100000",
+          "value": "156250",
           "text": "NNS1Gkikename"
         },
         "verdict": {
@@ -6263,11 +6263,11 @@
             "reason": "LOST_REGISTRATION_RACE"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           }
         }
@@ -6278,11 +6278,11 @@
         "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
         "note": "Fourth and fifth again, on the other branch of availability: a name in GRACE rather than one held by somebody else.",
         "tx": {
-          "blockNumber": 90378720,
+          "blockNumber": 93811680,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "TREASURY",
-          "value": "100000",
+          "value": "156250",
           "text": "NNS1Gkikename"
         },
         "verdict": {
@@ -6295,11 +6295,11 @@
             "reason": "NAME_IN_GRACE"
           },
           "tx": {
-            "blockNumber": 90378720,
+            "blockNumber": 93811680,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Gkikename"
           }
         }
@@ -6310,7 +6310,7 @@
         "pinnedBy": null,
         "note": "§7.4 lists \"`X`, `S`, `D` on an expired or grace-period name\" and \"`S`, `O`, `D`, `X`, `K` from anyone other than the current owner\" as two bullets, in that order, but a bullet list is not a check order. A stranger's `S` on a grace name trips both.",
         "tx": {
-          "blockNumber": 90378720,
+          "blockNumber": 93811680,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "CAROL",
@@ -6327,7 +6327,7 @@
             "reason": "NOT_OWNER"
           },
           "tx": {
-            "blockNumber": 90378720,
+            "blockNumber": 93811680,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "CAROL",
@@ -6342,7 +6342,7 @@
         "pinnedBy": null,
         "note": "§7.4 lists \"`X`, `S`, `D` on an expired or grace-period name\" and \"`S`, `O`, `D`, `X`, `K` from anyone other than the current owner\" as two bullets, in that order, but a bullet list is not a check order. A stranger's `X` on a grace name trips both.",
         "tx": {
-          "blockNumber": 90378720,
+          "blockNumber": 93811680,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "CAROL",
@@ -6359,7 +6359,7 @@
             "reason": "NOT_OWNER"
           },
           "tx": {
-            "blockNumber": 90378720,
+            "blockNumber": 93811680,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "CAROL",
@@ -6374,7 +6374,7 @@
         "pinnedBy": null,
         "note": "`D` is the only message with both a routing check and a tighter payload limit; routing runs first.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "TREASURY",
@@ -6391,7 +6391,7 @@
             "reason": "NAME_NOT_REGISTERED"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -6406,7 +6406,7 @@
         "pinnedBy": null,
         "note": "Same unordered pair of §7.4 bullets as `S` and `X`.",
         "tx": {
-          "blockNumber": 90378720,
+          "blockNumber": 93811680,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "PROTOCOL",
@@ -6423,7 +6423,7 @@
             "reason": "NOT_OWNER"
           },
           "tx": {
-            "blockNumber": 90378720,
+            "blockNumber": 93811680,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "PROTOCOL",
@@ -6438,7 +6438,7 @@
         "pinnedBy": null,
         "note": "This is the whole of what carries `INVALID_HOST`: the host is validated **last**, after ownership. A reducer that checked the host first would give a stranger's malformed `D` the host token instead, and §7.4 says nothing either way — the two are separate bullets.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "PROTOCOL",
@@ -6455,7 +6455,7 @@
             "reason": "INVALID_HOST"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -6470,7 +6470,7 @@
         "pinnedBy": null,
         "note": "Routing before existence: §5.3 sends every `K` to `PROTOCOL_ADDRESS`, and that is read before the registry is consulted at all.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "TREASURY",
@@ -6487,7 +6487,7 @@
             "reason": "NAME_NOT_FOUND"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -6502,7 +6502,7 @@
         "pinnedBy": null,
         "note": "Existence before ownership: a stranger's `K` for a name nobody holds reports the name, not the sender.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "PROTOCOL",
@@ -6519,7 +6519,7 @@
             "reason": "NOT_OWNER"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "PROTOCOL",
@@ -6534,7 +6534,7 @@
         "pinnedBy": null,
         "note": "Ownership before the thing being cancelled. Nothing is pending on `kikename` in either message; only the sender differs.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "PROTOCOL",
@@ -6551,7 +6551,7 @@
             "reason": "NOTHING_TO_CANCEL"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -6566,11 +6566,11 @@
         "pinnedBy": null,
         "note": "Routing before existence, as for `K` — but an `N` is fee-bearing, so it goes to the treasury rather than to `PROTOCOL_ADDRESS`.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "PROTOCOL",
-          "value": "200000000",
+          "value": "312500000",
           "text": "NNS1Nothername"
         },
         "verdict": {
@@ -6583,11 +6583,11 @@
             "reason": "NAME_NOT_FOUND"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "200000000",
+            "value": "312500000",
             "text": "NNS1Nothername"
           }
         }
@@ -6598,7 +6598,7 @@
         "pinnedBy": null,
         "note": "`N` puts existence ahead of value. §7.4 fixes that order for `G` and says nothing about `N`, so the consistency is a choice — but a reducer that reversed it would answer an underfunded renewal of a nonexistent name with the value token.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "TREASURY",
@@ -6615,11 +6615,11 @@
             "reason": "INSUFFICIENT_VALUE"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
-            "value": "100000",
+            "value": "156250",
             "text": "NNS1Nkikename"
           }
         }
@@ -6630,12 +6630,12 @@
         "pinnedBy": null,
         "note": "Routing before ownership. §5.3 sends an `O` to the treasury, since it is a fee-bearing message even at a `LISTING_FEE` of zero.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Okikename|100000000"
+          "text": "NNS1Okikename|156250000"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6647,12 +6647,12 @@
             "reason": "NOT_OWNER"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|100000000"
+            "text": "NNS1Okikename|156250000"
           }
         }
       },
@@ -6662,7 +6662,7 @@
         "pinnedBy": null,
         "note": "This is what carries `BELOW_MIN_PRICE`: the floor is checked after ownership. §7.4 pins the floor against the *value carried* — \"The payload is checked before the value carried\" — and says nothing about the sender. That value ordering is unobservable today, since `LISTING_FEE` is 0 and no `O` can underpay, so this pair is the only live precedence the token has.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "TREASURY",
@@ -6679,7 +6679,7 @@
             "reason": "BELOW_MIN_PRICE"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
@@ -6694,11 +6694,11 @@
         "pinnedBy": null,
         "note": "Routing before the offer lookup. A `B` at the treasury never reaches the marketplace's books, so it forfeits rather than earning a refund.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "TREASURY",
-          "value": "100000000",
+          "value": "156250000",
           "text": "NNS1Bkikename"
         },
         "verdict": {
@@ -6711,11 +6711,11 @@
             "reason": "OFFER_NOT_OPEN"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bkikename"
           }
         }
@@ -6726,11 +6726,11 @@
         "pinnedBy": "§7.4 — \"An amount below `REFUND_FLOOR` is forfeited rather than refunded\"",
         "note": "The floor converts a refund into a forfeit, so it is read after the refund reason is settled and overrides its token. Both sides of the pair are the same message at two values.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "MARKETPLACE",
-          "value": "5000",
+          "value": "7813",
           "text": "NNS1Bkikename"
         },
         "verdict": {
@@ -6743,11 +6743,11 @@
             "reason": "OFFER_NOT_OPEN"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "100000000",
+            "value": "156250000",
             "text": "NNS1Bkikename"
           }
         }
@@ -6758,11 +6758,11 @@
         "pinnedBy": "§7.4 — the `REFUND_FLOOR` paragraph",
         "note": "The other refund arm, against a genuinely open offer.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "MARKETPLACE",
-          "value": "5000",
+          "value": "7813",
           "text": "NNS1Bkikename"
         },
         "verdict": {
@@ -6775,11 +6775,11 @@
             "reason": "WRONG_PRICE"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "MARKETPLACE",
-            "value": "99999999",
+            "value": "156249999",
             "text": "NNS1Bkikename"
           }
         }
@@ -6790,12 +6790,12 @@
         "pinnedBy": "§7.4 — the recipient check precedes every other check on the types that have one",
         "note": "Routing first, as for every routed type. Through r27 this pair pinned routing ahead of the version forfeit; r28 removed the forfeit and the name rows moved up behind the same recipient check.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "TREASURY",
           "value": "1",
-          "text": "NNS1Akikename|40000000|59000000"
+          "text": "NNS1Akikename|62500000|62432960"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6807,12 +6807,12 @@
             "reason": "NAME_NOT_FOUND"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|40000000|59000000"
+            "text": "NNS1Akikename|62500000|62432960"
           }
         }
       },
@@ -6822,12 +6822,12 @@
         "pinnedBy": "§7.4 check-order table (r28, 2026-09-03) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM`",
         "note": "Payload rows run floor, window length, then the window's end against the term. Ten blocks before the name expires, an `A` ending at the expiry is both too short and past the term; it is told the window is too short. The same `A` sent with a full-length window from that height reaches the term row.",
         "tx": {
-          "blockNumber": 90378710,
+          "blockNumber": 93811670,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|40000000|90378720"
+          "text": "NNS1Akikename|62500000|93811680"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6839,12 +6839,12 @@
             "reason": "AUCTION_BEYOND_TERM"
           },
           "tx": {
-            "blockNumber": 90378710,
+            "blockNumber": 93811670,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|40000000|90465110"
+            "text": "NNS1Akikename|62500000|93898070"
           }
         }
       },
@@ -6854,12 +6854,12 @@
         "pinnedBy": "§7.4 check-order table (r28) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`",
         "note": "Which auction this is — the owner's or the admin's — is decided by the name's state before the sender is consulted: an unregistered ordinary name is nobody's to auction, so a stranger's `A` for it reports the name, not the sender. The same stranger's `A` for a name still held in RESERVED_NAMES reaches the sender row.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|40000000|59000000"
+          "text": "NNS1Akikename|62500000|62432960"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6871,12 +6871,12 @@
             "reason": "NOT_ADMIN"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Anim|40000000|59000000"
+            "text": "NNS1Anim|62500000|62432960"
           }
         }
       },
@@ -6886,12 +6886,12 @@
         "pinnedBy": "§7.4 check-order table (r30) — `A`: name state, sender, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM`",
         "note": "Authority before the name's pending status, as `O`'s order already has it: a stranger is told they do not own the name, the owner is told an auction is already open.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|40000000|59000000"
+          "text": "NNS1Akikename|62500000|62432960"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6903,12 +6903,12 @@
             "reason": "AUCTION_OPEN"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|40000000|59000000"
+            "text": "NNS1Akikename|62500000|62432960"
           }
         }
       },
@@ -6918,12 +6918,12 @@
         "pinnedBy": "§7.4 check-order table (r30) — `A`: name state, sender, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM`",
         "note": "State before payload. A one-luna startingPrice is far below `MIN_PRICE`, and the owner is still told the auction is open — the same message with a lawful startingPrice earns the same token, which is what makes the floor the later check.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|1|59000000"
+          "text": "NNS1Akikename|1|62432960"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6937,12 +6937,12 @@
         "pinnedBy": "§7.4 check-order table (r28) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`",
         "note": "Payload rows run floor first: the floor is what keeps `floor(bid × AUCTION_MIN_INCREMENT)` from rounding to zero (§6 `O`), and the window is measured from the landing block like `P`'s notice. An `A` a block short on both counts reports the floor.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|1|58929120"
+          "text": "NNS1Akikename|1|62362080"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6954,12 +6954,12 @@
             "reason": "INSUFFICIENT_NOTICE"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|40000000|58929120"
+            "text": "NNS1Akikename|62500000|62362080"
           }
         }
       },
@@ -6969,12 +6969,12 @@
         "pinnedBy": "§7.4 check-order table (r30) — `O`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE`",
         "note": "The AUCTION_OPEN row sits after authority and before the price, in `O` as in `A`.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "TREASURY",
           "value": "1",
-          "text": "NNS1Okikename|40000000"
+          "text": "NNS1Okikename|62500000"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6986,12 +6986,12 @@
             "reason": "AUCTION_OPEN"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|40000000"
+            "text": "NNS1Okikename|62500000"
           }
         }
       },
@@ -7001,7 +7001,7 @@
         "pinnedBy": "§7.4 check-order table (r30) — `X`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`",
         "note": "Same shape for the transfer: a stranger is refused as a stranger, the owner is refused because bidders have committed money against the window.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "CAROL",
@@ -7018,7 +7018,7 @@
             "reason": "AUCTION_OPEN"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "CAROL",
@@ -7033,7 +7033,7 @@
         "pinnedBy": "§7.4 check-order table (r30) — `X`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`",
         "note": "One pending thing per name (§7.3, r30): a message of a different kind is refused after the authority rows and before any payload row, with the token naming what stands; the same kind replaces it. A stranger is refused as a stranger; the owner is told what already stands and that a `K` is the way across kinds. Only one of the pending-state rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `X` over a listing — the case Kike found on the beta on 2026-09-16, a `B` deciding where a name in transit went.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "CAROL",
@@ -7050,7 +7050,7 @@
             "reason": "OFFER_OPEN"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "CAROL",
@@ -7065,12 +7065,12 @@
         "pinnedBy": "§7.4 check-order table (r30) — `O`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE`",
         "note": "One pending thing per name (§7.3, r30): a message of a different kind is refused after the authority rows and before any payload row, with the token naming what stands; the same kind replaces it. A stranger is refused as a stranger; the owner is told what already stands and that a `K` is the way across kinds. Only one of the pending-state rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `O` over a pending transfer, which the first r30 cut let through as a void of the transfer.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "TREASURY",
           "value": "1",
-          "text": "NNS1Okikename|40000000"
+          "text": "NNS1Okikename|62500000"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7082,12 +7082,12 @@
             "reason": "TRANSFER_PENDING"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|40000000"
+            "text": "NNS1Okikename|62500000"
           }
         }
       },
@@ -7097,12 +7097,12 @@
         "pinnedBy": "§7.4 check-order table (r30) — `A`: name state, sender, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM`",
         "note": "One pending thing per name (§7.3, r30): a message of a different kind is refused after the authority rows and before any payload row, with the token naming what stands; the same kind replaces it. A stranger is refused as a stranger; the owner is told what already stands and that a `K` is the way across kinds. Only one of the pending-state rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `A` over a listing, which r28 let through as a void of the offer.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|40000000|59000000"
+          "text": "NNS1Akikename|62500000|62432960"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7114,12 +7114,12 @@
             "reason": "OFFER_OPEN"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|40000000|59000000"
+            "text": "NNS1Akikename|62500000|62432960"
           }
         }
       },
@@ -7129,12 +7129,12 @@
         "pinnedBy": "§7.4 check-order table (r30) — `A`: name state, sender, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM`",
         "note": "One pending thing per name (§7.3, r30): a message of a different kind is refused after the authority rows and before any payload row, with the token naming what stands; the same kind replaces it. A stranger is refused as a stranger; the owner is told what already stands and that a `K` is the way across kinds. Only one of the pending-state rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `A` over a pending transfer, which r28 let through as a void of the transfer.",
         "tx": {
-          "blockNumber": 58842721,
+          "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|40000000|59000000"
+          "text": "NNS1Akikename|62500000|62432960"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7146,12 +7146,12 @@
             "reason": "TRANSFER_PENDING"
           },
           "tx": {
-            "blockNumber": 58842721,
+            "blockNumber": 62275681,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|40000000|59000000"
+            "text": "NNS1Akikename|62500000|62432960"
           }
         }
       },
@@ -7161,12 +7161,12 @@
         "pinnedBy": null,
         "note": "Routing before authority. §5.3 puts a `P` at `PROTOCOL_ADDRESS`; the sender is only consulted once the message is at the right address.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "TREASURY",
           "value": "1",
-          "text": "NNS1P40000000|250|58929120"
+          "text": "NNS1P62500000|250|62362080"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7178,12 +7178,12 @@
             "reason": "NOT_ADMIN"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P40000000|250|58929120"
+            "text": "NNS1P62500000|250|62362080"
           }
         }
       },
@@ -7193,12 +7193,12 @@
         "pinnedBy": null,
         "note": "Authority before notice. §7.4's `P` bullet names the sender and the §10.6 bounds, and puts notice in a trailing sentence covering `P` and `U` together — no order anywhere.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1P40000000|250|58842721"
+          "text": "NNS1P62500000|250|62275681"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7210,12 +7210,12 @@
             "reason": "INSUFFICIENT_NOTICE"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P40000000|250|58842721"
+            "text": "NNS1P62500000|250|62275681"
           }
         }
       },
@@ -7225,12 +7225,12 @@
         "pinnedBy": null,
         "note": "Notice before the §10.6 rails. The `fee_base` here is 200,000 NIM, twice `PRICE_CEILING`, and the notice is one block — a fat-fingered governance message that is also badly timed reports the timing.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ADMIN",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1P20000000000|250|58842721"
+          "text": "NNS1P31250000000|250|62275681"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7242,12 +7242,12 @@
             "reason": "GOVERNANCE_BOUND_VIOLATED"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1P20000000000|250|58929120"
+            "text": "NNS1P31250000000|250|62362080"
           }
         }
       },
@@ -7257,7 +7257,7 @@
         "pinnedBy": "§7.4 — \"sender, recipient, name syntax, reservation\" (r22)",
         "note": "First and second of the four. Authority leads, even for the one recipient a `U` may not name.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "BURN",
@@ -7274,7 +7274,7 @@
             "reason": "INVALID_RECIPIENT"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "BURN",
@@ -7289,7 +7289,7 @@
         "pinnedBy": "§7.4 — \"sender, recipient, name syntax, reservation\" (r22)",
         "note": "Second and third of the four. r21 pinned the recipient against the notice; r22 removed the notice row, so the recipient now leads the name rows instead. The reason is unchanged and is the whole point of the case: since r17 the recipient is an operand rather than a route (§5.3) — `PROTOCOL_ADDRESS` releases, anything else awards — so a `U` naming `BURN_ADDRESS` is neither a release of a bad name nor an award of one, and judging its name would report a defect that is not the one it has.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ADMIN",
           "recipient": "BURN",
@@ -7306,7 +7306,7 @@
             "reason": "INVALID_NAME"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -7321,7 +7321,7 @@
         "pinnedBy": "§7.4 — \"sender, recipient, name syntax, reservation\" (r22)",
         "note": "Third and fourth, matching the order §7.4 fixes for `G`. Neither `ab-` nor `kikename` is reserved, so the first would earn `NAME_NOT_RESERVED` too under the other reading.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ADMIN",
           "recipient": "PROTOCOL",
@@ -7338,7 +7338,7 @@
             "reason": "NAME_NOT_RESERVED"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
@@ -7353,7 +7353,7 @@
         "pinnedBy": "§7.4 check-order table (2026-09-11) — `U`: `NOT_ADMIN`, `INVALID_RECIPIENT`, `INVALID_NAME`, then `NAME_NOT_RESERVED` (release) or `NAME_NOT_AVAILABLE` (award)",
         "note": "The award's last row, the twin of the release pair above it. `ab-` fails rule 4 and is on neither membership route; `kikename` is well-formed and held by ALICE. Under the other reading the first probe would report a name it cannot award for a reason it does not have.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ADMIN",
           "recipient": "BOB",
@@ -7370,7 +7370,7 @@
             "reason": "NAME_NOT_AVAILABLE"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ADMIN",
             "recipient": "BOB",
@@ -7385,11 +7385,11 @@
         "pinnedBy": null,
         "note": "Routing before authority, the same way `P` does it.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "TREASURY",
-          "value": "12345",
+          "value": "19290",
           "text": "NNS1F"
         },
         "verdict": {
@@ -7402,11 +7402,11 @@
             "reason": "WRONG_SENDER"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "BURN",
-            "value": "12345",
+            "value": "19290",
             "text": "NNS1F"
           }
         }
@@ -7417,7 +7417,7 @@
         "pinnedBy": "§7.4",
         "note": "The recipient check precedes every other check on the types that have one (§7.4); E routes to PROTOCOL_ADDRESS. A misrouted E for an absent name trips both.",
         "tx": {
-          "blockNumber": 58842720,
+          "blockNumber": 62275680,
           "txIndex": 0,
           "sender": "ALICE",
           "recipient": "CAROL",
@@ -7434,7 +7434,7 @@
             "reason": "NAME_NOT_REGISTERED"
           },
           "tx": {
-            "blockNumber": 58842720,
+            "blockNumber": 62275680,
             "txIndex": 0,
             "sender": "ALICE",
             "recipient": "PROTOCOL",
@@ -7449,7 +7449,7 @@
         "pinnedBy": null,
         "note": "Same order as S, whose shape E shares: state before sender, so the more fundamental fact about the name is the one reported. A stranger's E on a grace name trips both.",
         "tx": {
-          "blockNumber": 90378720,
+          "blockNumber": 93811680,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "PROTOCOL",
@@ -7466,7 +7466,7 @@
             "reason": "NOT_OWNER"
           },
           "tx": {
-            "blockNumber": 90378720,
+            "blockNumber": 93811680,
             "txIndex": 0,
             "sender": "BOB",
             "recipient": "PROTOCOL",

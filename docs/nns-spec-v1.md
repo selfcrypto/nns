@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 30**
+**Protocol specification, v1 draft — revision 31**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -273,14 +273,14 @@ a mapping the user is being asked to trust.
 ## 3. Constants
 
 Blocks are ~1 s; 60 blocks = 1 batch ≈ 1 min; 43,200 blocks = 1 epoch ≈ 12 h.
-NIM figures assume ~$0.0005/NIM.
+NIM figures assume ~$0.00032/NIM, the rate at the launch freeze (2026-09-22).
 
 | Constant | Proposed value | Notes |
 |---|---|---|
 | `PROTOCOL_ID` | `NNS1` | 4 ASCII bytes, prefix of every message |
-| `LAUNCH_HEIGHT` | **OPEN** | Indexers start here, not at genesis |
-| `TREASURY_ADDRESS` | **OPEN** | Receives fees — and only fees |
-| `PROTOCOL_ADDRESS` | **OPEN** | Receives dust-only signalling messages and acts as the §5.3 sentinel; key held cold, never in a node |
+| `LAUNCH_HEIGHT` | 62,275,680 | Indexers start here, not at genesis |
+| `TREASURY_ADDRESS` | `NQ39 M3TJ 2NC1 G4PJ 07JF BFKG Q3X6 AK7K J7YT` | Receives fees — and only fees |
+| `PROTOCOL_ADDRESS` | `NQ91 SQRC L91X D5QK 6A21 1UV7 11EY 7YA3 BBRT` | Receives dust-only signalling messages and acts as the §5.3 sentinel; key held cold, never in a node |
 | `REFUND_FLOOR` | 1 NIM (100,000 luna) | Below this, a refundable amount is forfeited instead (§7.4). 10,000 luna through r28 |
 | `ANCHOR_STALENESS_LIMIT` | 48 h | Client warns beyond this (§8.5). One missed daily-floor anchor of margin (§9) |
 | `SEGMENT_LENGTH` | 31,536,000 blocks (~1 y) | Log segment boundary (§8.8). Read 3,153,600 — a tenth of its own label — through r28; nothing derives from it yet |
@@ -288,8 +288,8 @@ NIM figures assume ~$0.0005/NIM.
 | `MIN_PRICE` | `FEE_BASE` | Floor on an `O` price and an `A` starting price (§6) — the cheapest a name can be registered |
 | `AUCTION_MIN_DURATION` | 86,400 blocks (~24 h) | Shortest permitted auction (§6 `A`) |
 | `AUCTION_EXTENSION` | 600 blocks (~10 min) | Anti-sniping extension (§6 `A`) |
-| `ADMIN_ADDRESS` | **OPEN** | Governance only; cold key, distinct from treasury |
-| `MARKETPLACE_ADDRESS` | **OPEN** | `B` escrow and `M` settlement; the only NNS hot wallet, distinct from both |
+| `ADMIN_ADDRESS` | `NQ95 0MNS X5BJ 3SMV XA2E 7059 BU9F AXX6 J4MX` | Governance only; cold key, distinct from treasury |
+| `MARKETPLACE_ADDRESS` | `NQ55 SY33 7HS4 DP5N H9P0 9PMG 7MD8 PTL8 N2P5` | `B` escrow and `M` settlement; the only NNS hot wallet, distinct from both |
 | `BURN_ADDRESS` | `NQ07 0000 0000 0000 0000 0000 0000 0000 0000` | Canonical Nimiq burn address |
 | `RESERVED_NAMES` | Published list + by rule (§4.1) | The published half is in the reference implementation's constants; **still incomplete** — additions are free until `LAUNCH_HEIGHT` and out of scope afterwards (§10.6) |
 | `LISTING_FEE` | 0 | Value owed on an `O` (§6 `O`). Not governable: no `P` field carries it (§10.6, §12 item 3) |
@@ -298,7 +298,7 @@ NIM figures assume ~$0.0005/NIM.
 | `MAX_LABEL_LEN` | 24 chars | Subdomain label (§4.4) |
 | `MAX_HOST_LEN` | 30 chars | Delegate resolver host (§6 `D`); `resolver.binance.com` is 20 |
 | `MAX_REF_LEN` | 24 chars | Referrer on a registration (§6 `G`) — a registered name, so it equals `MAX_NAME_LEN` |
-| `FEE_BASE` | 400 NIM (~$0.20) | The 12+ band's yearly fee and the base every other band is a multiple of (§10.1); **the one governable price** |
+| `FEE_BASE` | 625 NIM (~$0.20) | The 12+ band's yearly fee and the base every other band is a multiple of (§10.1); **the one governable price** |
 | `FEE_MULTIPLIERS` | 1–2 → 200×, 3 → 100×, 4 → 50×, 5 → 25×, 6 → 10×, 7–11 → 5×, 12+ → 1× | Yearly fee by name length, as multiples of `FEE_BASE` (§10.1). Frozen: a spec revision, never a `P`. 1–4 binds once a name is released, awarded or auctioned (§4.1) |
 | `LIFETIME_MULTIPLIER` | 10 | A lifetime term costs this many yearly fees of its band (§10.4) |
 | `LIFETIME_TERMS` | 100 | A lifetime term is this many `TERM_LENGTH`s — a plain expiry ~100 y out, not a sentinel (§10.4) |
@@ -1934,7 +1934,7 @@ Every `CHECKPOINT_INTERVAL` blocks, build a tree over all names in
 
 **Checkpoint heights are absolute multiples of `CHECKPOINT_INTERVAL`** —
 counted from block zero, never as offsets from `LAUNCH_HEIGHT`. The schedule
-must not move with a config value: `LAUNCH_HEIGHT` is an **OPEN** §3 value, so
+must not move with a config value: `LAUNCH_HEIGHT` was open until the launch freeze, so
 an offset schedule is one two operators can disagree about while both honestly
 implementing "every `CHECKPOINT_INTERVAL` blocks". Multiples of 720 from zero
 need no agreement. `LAUNCH_HEIGHT` itself never gets a checkpoint unless it
@@ -2778,13 +2778,13 @@ name length. Every band is `FEE_BASE × multiplier`, per `TERM_LENGTH`:
 
 | Length | Multiplier | Yearly fee at launch | Rationale |
 |---|---|---|---|
-| 1–2 | 200× | 80,000 NIM (~$40) | Reserved by rule (§4.1) until the admin auctions (§6 `A`), awards (§6 `U`) or releases it; the band is what it costs to hold afterwards |
-| 3 | 100× | 40,000 NIM (~$20) | Reserved by rule likewise. Most tickers and brands live at 3–4, which is what keeps the published list short |
-| 4 | 50× | 20,000 NIM (~$10) | Reserved by rule likewise |
-| 5 | 25× | 10,000 NIM (~$5) | The top of the open market; priced so bulk squatting for resale is not a day-one business |
-| 6 | 10× | 4,000 NIM (~$2) | |
-| 7–11 | 5× | 2,000 NIM (~$1) | The desirable range |
-| 12+ | 1× | 400 NIM (~$0.20) | Effectively free to a user; still bounds the log |
+| 1–2 | 200× | 125,000 NIM (~$40) | Reserved by rule (§4.1) until the admin auctions (§6 `A`), awards (§6 `U`) or releases it; the band is what it costs to hold afterwards |
+| 3 | 100× | 62,500 NIM (~$20) | Reserved by rule likewise. Most tickers and brands live at 3–4, which is what keeps the published list short |
+| 4 | 50× | 31,250 NIM (~$10) | Reserved by rule likewise |
+| 5 | 25× | 15,625 NIM (~$5) | The top of the open market; priced so bulk squatting for resale is not a day-one business |
+| 6 | 10× | 6,250 NIM (~$2) | |
+| 7–11 | 5× | 3,125 NIM (~$1) | The desirable range |
+| 12+ | 1× | 625 NIM (~$0.20) | Effectively free to a user; still bounds the log |
 
 A lifetime term (§10.4) costs `LIFETIME_MULTIPLIER` (10) times the band's
 yearly fee.

@@ -218,11 +218,11 @@ describe('describeGovernancePlan', () => {
   it('prints every parameter as a change, the height both ways, and what the bounds were checked against', async () => {
     const lines = describeGovernancePlan(await plan()).join('\n')
     expect(lines).toContain('P governance:')
-    expect(lines).toContain('40000000 luna (400 NIM) → 50000000 luna (500 NIM)')
+    expect(lines).toContain('62500000 luna (625 NIM) → 50000000 luna (500 NIM)')
     expect(lines).toContain('250 bp → 300 bp')
     expect(lines).toContain(`effective at height ${EFFECTIVE} — head is ${HEAD}`)
     expect(lines).toContain('~25.0 h from now')
-    expect(lines).toContain('NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8')
+    expect(lines).toContain('NQ91 SQRC L91X D5QK 6A21 1UV7 11EY 7YA3 BBRT')
     expect(lines).toContain('PROTOCOL_ADDRESS')
     expect(lines).toContain('ADMIN_ADDRESS), balance 1000000 luna (10 NIM)')
     expect(lines).toContain(`http://api.test/params at height ${HEAD - 100} (100 blocks behind head)`)
@@ -235,7 +235,7 @@ describe('describeGovernancePlan', () => {
     const lines = describeGovernancePlan(await plan({ commissionBp: LAUNCH_PRICES.commissionBp })).join('\n')
     expect(lines).toContain('250 bp (unchanged)')
     const same = describeGovernancePlan(await plan({ feeBase: LAUNCH_PRICES.feeBase })).join('\n')
-    expect(same).toContain('yearly fees   1–2 80,000 NIM · 3 40,000 NIM · 4 20,000 NIM · 5 10,000 NIM · 6 4,000 NIM · 7–11 2,000 NIM · 12+ 400 NIM (unchanged)')
+    expect(same).toContain('yearly fees   1–2 125,000 NIM · 3 62,500 NIM · 4 31,250 NIM · 5 15,625 NIM · 6 6,250 NIM · 7–11 3,125 NIM · 12+ 625 NIM (unchanged)')
   })
 
   it('prints every band’s yearly fee under the proposed base — the readback a misplaced decimal shows up in', async () => {
@@ -243,10 +243,10 @@ describe('describeGovernancePlan', () => {
     // luna the operator typed is not the number to check, the price of a
     // two-letter name is. Priced by core's feeFor, not multiplied here.
     const lines = describeGovernancePlan(await plan()).join('\n')
-    expect(lines).toContain('yearly fees   1–2 80,000 NIM · 3 40,000 NIM · 4 20,000 NIM · 5 10,000 NIM · 6 4,000 NIM · 7–11 2,000 NIM · 12+ 400 NIM')
+    expect(lines).toContain('yearly fees   1–2 125,000 NIM · 3 62,500 NIM · 4 31,250 NIM · 5 15,625 NIM · 6 6,250 NIM · 7–11 3,125 NIM · 12+ 625 NIM')
     expect(lines).toContain('→ 1–2 100,000 NIM · 3 50,000 NIM · 4 25,000 NIM · 5 12,500 NIM · 6 5,000 NIM · 7–11 2,500 NIM · 12+ 500 NIM')
     const tenfold = describeGovernancePlan(await plan({ feeBase: LAUNCH_PRICES.feeBase * 10n })).join('\n')
-    expect(tenfold).toContain('→ 1–2 800,000 NIM')
+    expect(tenfold).toContain('→ 1–2 1,250,000 NIM')
     expect(tenfold).toContain('Check the decimal point')
   })
 

@@ -30,7 +30,7 @@ import { testAddress } from './test-fixtures.js'
 import { replayLog } from './replay.js'
 
 const NAME = 'alicename'
-const PRICE = 50_000_001n
+const PRICE = 70_000_001n
 const COMMISSION = commissionOn(PRICE, CONSTANTS.COMMISSION_RATE)
 const PROCEEDS = PRICE - COMMISSION
 
@@ -133,8 +133,8 @@ describe('reconcile', () => {
   it('renders luna as NIM without ever computing on the rendered form', () => {
     const report = reportFor(scenario)
     const text = describeReport(report).join('\n')
-    // 50,000,001 luna is 500.00001 NIM — the fractional digits are the point.
-    expect(text).toContain('500.00001')
+    // 70,000,001 luna is 700.00001 NIM — the fractional digits are the point.
+    expect(text).toContain('700.00001')
     expect(text).toContain('1 NIM = 100,000 luna')
   })
 

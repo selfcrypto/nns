@@ -4,10 +4,10 @@
   "spec": "nns-spec-v1 draft r27, §5.2 and §8.2",
   "description": "Canonical order is (block_number ascending, transaction hash ascending, bytewise), and tx_index is a transaction's zero-based rank in that order within its block. The rank's universe is every transaction in the block whose recipientData begins with NNS1, taken BEFORE any §7.5 discard — a discarded message still occupies its rank, and everything unprefixed is invisible to the count. Each case's transactions are authored in RESPONSE order, which deliberately never matches canonical order: a runner must rank them (the reference implementation is core's rankMessages) before reducing. txIndex on a transaction is the hand-authored expected rank; a transaction authored without txIndex must be excluded from the universe and never reduced.",
   "addresses": {
-    "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
-    "PROTOCOL": "NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8",
-    "ADMIN": "NQ80 6XNV JDFY YEKF HMM3 UCYK VBLP 7H6Y FNXS",
-    "MARKETPLACE": "NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB",
+    "TREASURY": "NQ39 M3TJ 2NC1 G4PJ 07JF BFKG Q3X6 AK7K J7YT",
+    "PROTOCOL": "NQ91 SQRC L91X D5QK 6A21 1UV7 11EY 7YA3 BBRT",
+    "ADMIN": "NQ95 0MNS X5BJ 3SMV XA2E 7059 BU9F AXX6 J4MX",
+    "MARKETPLACE": "NQ55 SY33 7HS4 DP5N H9P0 9PMG 7MD8 PTL8 N2P5",
     "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
     "BOB": "NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK"
   },
@@ -18,14 +18,14 @@
     {
       "id": "two_registrations_in_one_block",
       "note": "Authored with Bob first in response order; Alice's lower hash ranks 0 and wins. Bob loses the race and is refunded by the treasury — a concurrency loss, not a client error (§7.4).",
-      "block": 58842730,
+      "block": 62275690,
       "transactions": [
         {
           "txIndex": 1,
           "hash": "aa10000000000000000000000000000000000000000000000000000000000000",
           "sender": "BOB",
           "recipient": "TREASURY",
-          "value": "200000000",
+          "value": "312500000",
           "text": "NNS1Gkikename",
           "verdict": {
             "kind": "REFUND",
@@ -37,7 +37,7 @@
           "hash": "aa00000000000000000000000000000000000000000000000000000000000000",
           "sender": "ALICE",
           "recipient": "TREASURY",
-          "value": "200000000",
+          "value": "312500000",
           "text": "NNS1Gkikename",
           "verdict": {
             "kind": "OK"
@@ -49,24 +49,24 @@
           "kikename": "ALICE"
         },
         "logLines": [
-          "58842730 0 aa00000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3 200000000 4e4e5331476b696b656e616d65 OK",
-          "58842730 1 aa10000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3 200000000 4e4e5331476b696b656e616d65 LOST_REGISTRATION_RACE"
+          "62275690 0 aa00000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331476b696b656e616d65 OK",
+          "62275690 1 aa10000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331476b696b656e616d65 LOST_REGISTRATION_RACE"
         ],
-        "logHash": "45df6846243559c4331f7344851ee1c0e6e0849af84422d142ec13021d22d21d",
-        "root": "8b4ac4f5ed0f1bf3991a8c59c81dc8b6534920633f99bd4037d77f8f9dada7dc"
+        "logHash": "63a18e23fce144d0929183aff8845696a13cec46acc189fe7a75dc287fb287d7",
+        "root": "44acd2f5adee2a2bd23a08b8893f0bb2f2fea1cf86e16981cb323301825e489b"
       }
     },
     {
       "id": "the_same_block_with_the_hashes_swapped",
       "note": "Identical transactions, opposite hashes, opposite outcome. This is the case that proves the hash rank is load-bearing rather than incidental: response order is unchanged from the previous case, only the hashes moved.",
-      "block": 58842730,
+      "block": 62275690,
       "transactions": [
         {
           "txIndex": 0,
           "hash": "aa00000000000000000000000000000000000000000000000000000000000000",
           "sender": "BOB",
           "recipient": "TREASURY",
-          "value": "200000000",
+          "value": "312500000",
           "text": "NNS1Gkikename",
           "verdict": {
             "kind": "OK"
@@ -77,7 +77,7 @@
           "hash": "aa10000000000000000000000000000000000000000000000000000000000000",
           "sender": "ALICE",
           "recipient": "TREASURY",
-          "value": "200000000",
+          "value": "312500000",
           "text": "NNS1Gkikename",
           "verdict": {
             "kind": "REFUND",
@@ -90,25 +90,25 @@
           "kikename": "BOB"
         },
         "logLines": [
-          "58842730 0 aa00000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3 200000000 4e4e5331476b696b656e616d65 OK",
-          "58842730 1 aa10000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3 200000000 4e4e5331476b696b656e616d65 LOST_REGISTRATION_RACE"
+          "62275690 0 aa00000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331476b696b656e616d65 OK",
+          "62275690 1 aa10000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331476b696b656e616d65 LOST_REGISTRATION_RACE"
         ],
-        "logHash": "afd922ec2f02596403c69bf1c1bd16c0a2af21b20607336b182b3e35360b9792",
-        "root": "c63df39f271482ce4d7a00698c7ba053f530f7586062981037e40f4febe24125",
+        "logHash": "81d636df6f35c70584b2caec2ace78cf94b5b1c0610cb750017e95930d200ab7",
+        "root": "53585a8ff11722d3e54dc6eb6b534039b1490288c4b7147ae3fa604df5c042d7",
         "differsFrom": "two_registrations_in_one_block"
       }
     },
     {
       "id": "a_discarded_message_still_occupies_its_rank",
       "note": "The rank's universe is pre-discard: §7.5 drops the failed G before any rule, so it takes no name and earns no log line — but its hash still holds rank 0, and Bob's surviving G logs at index 1, not 0.",
-      "block": 58842740,
+      "block": 62275700,
       "transactions": [
         {
           "txIndex": 0,
           "hash": "bb00000000000000000000000000000000000000000000000000000000000000",
           "sender": "ALICE",
           "recipient": "TREASURY",
-          "value": "200000000",
+          "value": "312500000",
           "text": "NNS1Gkikename",
           "executionResult": false,
           "verdict": {
@@ -121,7 +121,7 @@
           "hash": "bb10000000000000000000000000000000000000000000000000000000000000",
           "sender": "BOB",
           "recipient": "TREASURY",
-          "value": "200000000",
+          "value": "312500000",
           "text": "NNS1Gkikename",
           "verdict": {
             "kind": "OK"
@@ -133,29 +133,29 @@
           "kikename": "BOB"
         },
         "logLines": [
-          "58842740 1 bb10000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3 200000000 4e4e5331476b696b656e616d65 OK"
+          "62275700 1 bb10000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331476b696b656e616d65 OK"
         ],
-        "logHash": "99f857ce24cf565af1917993be5ac260fb2a3995a6028ec5d53b7da8b41d92da",
-        "root": "9d17094e8f8c947e08d3f86826d86d060bd15fe9c78aa79b15d3c81e1dce7a41"
+        "logHash": "3723c85d7dd96b59c7bd71279bec41215bada3b9999cbd77effd330ed9455cce",
+        "root": "802360d678718c7171d92a07e525206366bd7af03820d0565040295f382b9275"
       }
     },
     {
       "id": "a_single_message_ranks_zero_whatever_else_the_block_carries",
       "note": "Only NNS1-prefixed transactions hold ranks. The block also carries a plain transfer with unrelated data and a transfer with none — one hash below the message, one above — and the message still ranks 0. Under the r26 body-position rule its index depended on where the validator placed it.",
-      "block": 58842750,
+      "block": 62275710,
       "transactions": [
         {
           "hash": "cc00000000000000000000000000000000000000000000000000000000000000",
           "sender": "BOB",
           "recipient": "MARKETPLACE",
-          "value": "500",
+          "value": "782",
           "text": "hello world"
         },
         {
           "hash": "ccff000000000000000000000000000000000000000000000000000000000000",
           "sender": "BOB",
           "recipient": "MARKETPLACE",
-          "value": "500",
+          "value": "782",
           "text": ""
         },
         {
@@ -163,7 +163,7 @@
           "hash": "cc50000000000000000000000000000000000000000000000000000000000000",
           "sender": "ALICE",
           "recipient": "TREASURY",
-          "value": "200000000",
+          "value": "312500000",
           "text": "NNS1Gkikename",
           "verdict": {
             "kind": "OK"
@@ -175,10 +175,10 @@
           "kikename": "ALICE"
         },
         "logLines": [
-          "58842750 0 cc50000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3 200000000 4e4e5331476b696b656e616d65 OK"
+          "62275710 0 cc50000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331476b696b656e616d65 OK"
         ],
-        "logHash": "83535a295aceb803b6a20ec8be7dbd459bbc2064c3d2fd7d8685c0a89e47d616",
-        "root": "dd8e4ff2d87d2735e2ec0b41da9efa428053552e86f0081cb58a4592bd7ed1b3"
+        "logHash": "2105602e43471aa331a952204ee7e9855464a2f007e147c6d98708c4a671a886",
+        "root": "245ec17d6c46852aa68b2249e552b8840caaa62101fd43c54d83329801c0e2c7"
       }
     }
   ]

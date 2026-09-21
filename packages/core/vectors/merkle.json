@@ -17,12 +17,12 @@
           "name": "kikename",
           "owner": "ALICE",
           "target": "ALICE",
-          "expiry": 90378720,
+          "expiry": 93811680,
           "status": "REGISTERED",
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000056311e00000",
-        "leaf": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000059773e00000",
+        "leaf": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
         "note": "An unset host is a zero length prefix and nothing more, and an unset evm is 20 zero bytes. The r19 recovery field sat between status and the host (r20 removed it); r26 inserted evm:20B between target and expiry."
       },
       {
@@ -31,12 +31,12 @@
           "name": "kike-one",
           "owner": "ALICE",
           "target": "BOB",
-          "expiry": 90378720,
+          "expiry": 93811680,
           "status": "GRACE",
           "host": "nns.x.com"
         },
-        "enc": "086b696b652d6f6e655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c596673000000000000000000000000000000000000000000000000056311e001096e6e732e782e636f6d",
-        "leaf": "ba6b7e3876a8a8fcb6ab372246bf43525c3922c00cc908e332be806741efc3d2",
+        "enc": "086b696b652d6f6e655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c596673000000000000000000000000000000000000000000000000059773e001096e6e732e782e636f6d",
+        "leaf": "b52b532648d64aebaba74eed8645feafdf209ba63847c21b5964766594f7e4a5",
         "note": "status is 0x01 for GRACE, 0x00 for REGISTERED."
       },
       {
@@ -58,12 +58,12 @@
           "name": "kikenam",
           "owner": "ALICE",
           "target": "ALICE",
-          "expiry": 90378720,
+          "expiry": 93811680,
           "status": "REGISTERED",
           "host": "e"
         },
-        "enc": "076b696b656e616d5a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000056311e0000165",
-        "leaf": "04679d137cf3edd1296c51be4f9a829680140933726d709434ef8c9a33b5889e",
+        "enc": "076b696b656e616d5a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000059773e0000165",
+        "leaf": "c9772e0457aa23db0864a7e3a4eb976bb00de8461f8bd18c4e05a80708a6f103",
         "note": "Paired with the next case. Without length prefixes these two distinct states would share an encoding."
       },
       {
@@ -72,12 +72,12 @@
           "name": "kikename",
           "owner": "ALICE",
           "target": "ALICE",
-          "expiry": 90378720,
+          "expiry": 93811680,
           "status": "REGISTERED",
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000056311e00000",
-        "leaf": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655"
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000059773e00000",
+        "leaf": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b"
       },
       {
         "id": "evm_set_is_twenty_raw_bytes",
@@ -86,12 +86,12 @@
           "owner": "ALICE",
           "target": "BOB",
           "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b",
-          "expiry": 90378720,
+          "expiry": 93811680,
           "status": "REGISTERED",
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c5966731b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b00000000056311e00000",
-        "leaf": "747689b6b7e152d9622f6749a102841b2665dcce6ab64444cbe46ea09753cc68",
+        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c5966731b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b00000000059773e00000",
+        "leaf": "70266c8077a80b44ddfc98d9cd74ba1d1d81f7c48ab575f219e53aee831d536a",
         "note": "§6 E's record enters the leaf as the raw 20 bytes between target and expiry; base64url is only the wire form. Absent evm in these vectors means unset."
       }
     ]
@@ -101,7 +101,7 @@
     "defaults": {
       "owner": "ALICE",
       "target": "ALICE",
-      "expiry": 90378720,
+      "expiry": 93811680,
       "status": "REGISTERED",
       "host": ""
     },
@@ -116,7 +116,7 @@
         "names": [
           "kikename"
         ],
-        "root": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655"
+        "root": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b"
       },
       {
         "id": "two_leaves",
@@ -124,7 +124,7 @@
           "aaaaaname",
           "bbbbbname"
         ],
-        "root": "5ccbf504bbd146a168770d1aa735534127957197dc8151de1f129867f60f63dc"
+        "root": "9e6a9498debafff52b1c5b0dd2d0bba60aeeac0d912dc3c9c440846ecd828e4f"
       },
       {
         "id": "three_leaves_odd_promotion",
@@ -133,7 +133,7 @@
           "bbbbbname",
           "cccccname"
         ],
-        "root": "b47a494bdc0e2711dc0b2200442ec0bc0c4fd253281a1f1fdf03213e856e1cc7"
+        "root": "50195c54de7f44dce971da0f6be4ba112797ad9ad58585ee0255c3067c0bfc3d"
       },
       {
         "id": "five_leaves",
@@ -144,7 +144,7 @@
           "dddddname",
           "eeeeename"
         ],
-        "root": "a65365c8dfe11408c2ee40bbba51dd533739b10d7785c3610d05e14703367e18"
+        "root": "f7962b56e59fddef6ba7e59bb95ea1d6e45a67a2aa7f1b410c771aadaee764bd"
       },
       {
         "id": "insertion_order_does_not_matter",
@@ -153,7 +153,7 @@
           "aaaaaname",
           "bbbbbname"
         ],
-        "root": "b47a494bdc0e2711dc0b2200442ec0bc0c4fd253281a1f1fdf03213e856e1cc7",
+        "root": "50195c54de7f44dce971da0f6be4ba112797ad9ad58585ee0255c3067c0bfc3d",
         "sameRootAs": "three_leaves_odd_promotion"
       },
       {
@@ -166,7 +166,7 @@
             "status": "GRACE"
           }
         },
-        "root": "98b187ea081b333ae713e2e174edf266e89bd42dda5fcf2d37d1fa20b8041d63",
+        "root": "cc1909d89c04987be657456abcb11101c45952ac7fa7fd27a3f531699cb77f55",
         "note": "This is what makes non-inclusion mean AVAILABLE rather than merely not-REGISTERED (§8.1)."
       }
     ]
@@ -275,7 +275,7 @@
         "id": "empty_state_at_launch",
         "note": "Nothing registered, nothing pending, nothing released. Pins the three empty forms: the name root is 32 zero bytes, while the pending and unreserved commitments are keccak256 of their lone tag byte — 0x04 and 0x0A. Not zeros, and not each other: an implementation cannot substitute one empty form for another.",
         "state": {
-          "height": 58842720,
+          "height": 62275680,
           "prices": {
             "feeBase": "40000000",
             "commissionBp": "250"
@@ -286,12 +286,12 @@
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "a6e66d2270ce52b24d8c162f18459dd22ff810b7f7d54fb7ecf1851d838eca94"
+        "commitment": "8b7d9b0a1e88827393a11fdf28c8b9d0d9ab14c91c68ed55379bd8c7514f17e6"
       },
       {
         "id": "one_name_nothing_pending",
         "state": {
-          "height": 58903520,
+          "height": 62336480,
           "prices": {
             "feeBase": "40000000",
             "commissionBp": "250"
@@ -301,24 +301,24 @@
               "name": "kikename",
               "owner": "ALICE",
               "target": "ALICE",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "REGISTERED",
               "host": ""
             }
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "95219ddc165d7c3e17c66dc443bf7b20e59c1e985e8a531209bdeb37d0ec96bc"
+        "commitment": "53208625093c5496f2961e8087ea97366a5ecfc687bf3a4fbc6cd8d7da1ab074"
       },
       {
         "id": "every_pending_category",
         "note": "One of each category the pending set has: a pending X, an open O, an open A (r28) and a pending P. Tags 0x06 (pending R, r20) and 0x09 (pending U, r22) are retired and not reused; 0x0B is the auction. Entries are concatenated by category in §8.1's order — transfers, offers, auctions, governance — and bytewise by name inside a category, then hashed once under 0x04. This case's value moves whenever the pending set gains a category, because its state does (r22 removed an entry, r28 adds one); every other case here keeps its value across both, which is the file-level form of §8.1's \"an empty category contributes nothing\".",
         "state": {
-          "height": 58903520,
+          "height": 62336480,
           "prices": {
             "feeBase": "40000000",
             "commissionBp": "250"
@@ -328,7 +328,7 @@
               "name": "kikename",
               "owner": "ALICE",
               "target": "ALICE",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "REGISTERED",
               "host": ""
             },
@@ -336,7 +336,7 @@
               "name": "othername",
               "owner": "BOB",
               "target": "BOB",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "GRACE",
               "host": "nns.binance.com"
             }
@@ -345,12 +345,12 @@
             {
               "name": "othername",
               "newOwner": "CAROL",
-              "effectiveHeight": 58946720
+              "effectiveHeight": 62379680
             },
             {
               "name": "kikename",
               "newOwner": "BOB",
-              "effectiveHeight": 58946720
+              "effectiveHeight": 62379680
             }
           ],
           "offers": [
@@ -358,8 +358,8 @@
               "name": "kikename",
               "seller": "ALICE",
               "price": "100000000",
-              "openedHeight": 58902720,
-              "expiryHeight": 60198720
+              "openedHeight": 62335680,
+              "expiryHeight": 63631680
             }
           ],
           "pendingGovernance": {
@@ -367,31 +367,31 @@
               "feeBase": "80000000",
               "commissionBp": "250"
             },
-            "effectiveHeight": 58946720
+            "effectiveHeight": 62379680
           },
           "auctions": [
             {
               "name": "kikename",
               "seller": "ALICE",
               "startingPrice": "100000000",
-              "endHeight": 58929200,
+              "endHeight": 62362160,
               "bidder": "CAROL",
               "bid": "110250000"
             }
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "c9a279f988933002ac3575bd0248cffeee29da2a21a9590c9889d55b65eb94cc",
+        "nameRoot": "482923d084fa4e8f9fd36ecfd305d398a2a949f3e2d6405db06c1f453eca5c4d",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
-        "pendingRoot": "348497c820ba376aa20bd6704aac40ccd01e200d0b914d1b22eea2ccc0eedee8",
+        "pendingRoot": "9b6dccbfa3c8f70f17ca38df082bd4175ee239ea79ea1ffa6f4094877ba8dee0",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "45b213bd9bf3ee7d8bca8e035afdb5c58b24f4da86c0297e89528a129381e06b"
+        "commitment": "8b295d7284f33908cee29bb830127dcdf4b691a848f57f5935ff54051b98d29f"
       },
       {
         "id": "one_open_auction_no_bid",
         "note": "An `A` nobody has bid on: the standing bidder is 20 zero bytes and the bid is 0, so a client can prove \"no bid stands\" from the checkpoint alone. Same names as one_open_offer's world, different pending root, same name root.",
         "state": {
-          "height": 58903520,
+          "height": 62336480,
           "prices": {
             "feeBase": "40000000",
             "commissionBp": "250"
@@ -401,7 +401,7 @@
               "name": "kikename",
               "owner": "ALICE",
               "target": "ALICE",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "REGISTERED",
               "host": ""
             }
@@ -411,22 +411,22 @@
               "name": "kikename",
               "seller": "ALICE",
               "startingPrice": "100000000",
-              "endHeight": 58929200
+              "endHeight": 62362160
             }
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
-        "pendingRoot": "e5a8b09fa15aab9e7eed73a02e118a2eac88682e7fc067e9fe373022ccebe714",
+        "pendingRoot": "cc826ddf70c716a39d309f2d174973f32f6c03735d1b050a06c73d6dad8dec49",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "c222997424dbffceab795213df18a8a363863785fe08825d66a8eca816e85b13"
+        "commitment": "425afa16db6160c5553b07c16a9fa9b341605603fc23c7ade2a79b1a5af7b7ec"
       },
       {
         "id": "one_open_auction_with_bid",
         "note": "The same auction after a bid met the startingPrice and one extension moved the end: bidder, bid and end height are all in the entry. The bid's transaction ref is not — §8.1 keeps settlement identity out of the commitment, on the same terms as the obligations — so two states differing only in that ref commit identically.",
         "state": {
-          "height": 58903520,
+          "height": 62336480,
           "prices": {
             "feeBase": "40000000",
             "commissionBp": "250"
@@ -436,7 +436,7 @@
               "name": "kikename",
               "owner": "ALICE",
               "target": "ALICE",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "REGISTERED",
               "host": ""
             }
@@ -446,24 +446,24 @@
               "name": "kikename",
               "seller": "ALICE",
               "startingPrice": "100000000",
-              "endHeight": 58929300,
+              "endHeight": 62362260,
               "bidder": "BOB",
               "bid": "110250000"
             }
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
-        "pendingRoot": "683a137113b4e1fda184412ccf62c6d50625c715cff54092e6e6a331fb9d196b",
+        "pendingRoot": "da858120aa0862b61a50a8286e7651848e11bf00ffd883b8dddd1d1f7972d1a1",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "2708c628a79624805d10b96c32982a348c104706d6fa0b8c7a1c2d1952a7676d"
+        "commitment": "f503f95481fbfde205fcd46bdac815ac721cfae1d968be689c4ef0070241db7c"
       },
       {
         "id": "same_names_no_pending_set",
         "note": "The names of every_pending_category with the pending set dropped. Same name root, different commitment — which is the whole reason §8.1 requires the pending set committed.",
         "state": {
-          "height": 58903520,
+          "height": 62336480,
           "prices": {
             "feeBase": "40000000",
             "commissionBp": "250"
@@ -473,7 +473,7 @@
               "name": "kikename",
               "owner": "ALICE",
               "target": "ALICE",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "REGISTERED",
               "host": ""
             },
@@ -481,7 +481,7 @@
               "name": "othername",
               "owner": "BOB",
               "target": "BOB",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "GRACE",
               "host": "nns.binance.com"
             }
@@ -490,17 +490,17 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "every_pending_category",
         "differsFrom": "every_pending_category",
-        "nameRoot": "c9a279f988933002ac3575bd0248cffeee29da2a21a9590c9889d55b65eb94cc",
+        "nameRoot": "482923d084fa4e8f9fd36ecfd305d398a2a949f3e2d6405db06c1f453eca5c4d",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "9bfc7aece11000c2cd2349c81c234f3a2c7c2e256a2b5fd63abb2c02c60de02a"
+        "commitment": "fa446b1251bda7346f43917cc7324210867bc596c701d436073db7b99499c685"
       },
       {
         "id": "prices_moved_by_a_P",
         "note": "Identical to one_name_nothing_pending but for FEE_BASE — doubled. The active prices are inside the commitment, so the checkpoint moves. Two fields under tag 0x03 since 2026-09-11 (fee_base, commission_bp; COMMITMENT_LAYOUT 6): every pricesRoot in this file moved when fee_long left the digest.",
         "state": {
-          "height": 58903520,
+          "height": 62336480,
           "prices": {
             "feeBase": "80000000",
             "commissionBp": "250"
@@ -510,7 +510,7 @@
               "name": "kikename",
               "owner": "ALICE",
               "target": "ALICE",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "REGISTERED",
               "host": ""
             }
@@ -519,17 +519,17 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "one_name_nothing_pending",
         "differsFrom": "one_name_nothing_pending",
-        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
         "pricesRoot": "7f572fbc868eaa5be760f6b228a5a18c688e97086a3161bfc93f1d44f51c720a",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "884a93af13c4e38b4346047976497fcaaa24c00a3a8a22deaad2d62a6a571361"
+        "commitment": "0fbfd1616b2f4763dac3852d66f097c85fac17edcf4193ef0dc2c2850f9565e4"
       },
       {
         "id": "one_fired_unreserve",
         "note": "The r16 case. `binance` has been released by a `U` that took effect: it has no leaf (it is AVAILABLE, not REGISTERED or GRACE) and it is no longer pending, so through r15 this state and one_name_nothing_pending committed to identical bytes while disagreeing about whether the name is registrable at all. Tag 0x0A is what separates them.",
         "state": {
-          "height": 58903520,
+          "height": 62336480,
           "prices": {
             "feeBase": "40000000",
             "commissionBp": "250"
@@ -539,7 +539,7 @@
               "name": "kikename",
               "owner": "ALICE",
               "target": "ALICE",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "REGISTERED",
               "host": ""
             }
@@ -551,17 +551,17 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "one_name_nothing_pending",
         "differsFrom": "one_name_nothing_pending",
-        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "621cc735f00f1996b0c525a38267877ef62abc4d46947768578330547026a95c",
-        "commitment": "0f2110968bda542dd845b308e72fbeb6425aba203c79e35ab7477694e711fd45"
+        "commitment": "47aad84bd2be17b64ca5561d55837e58ebbeff0fbf1ba4d7f44f2f357e2d526a"
       },
       {
         "id": "unreserved_sorted_bytewise",
         "note": "Three released names, authored in the bytewise order §8.1 requires. Flat: len:u8 ‖ name, no heights — a fired `U` carries nothing but the fact that it fired.",
         "state": {
-          "height": 58903520,
+          "height": 62336480,
           "prices": {
             "feeBase": "40000000",
             "commissionBp": "250"
@@ -571,7 +571,7 @@
               "name": "kikename",
               "owner": "ALICE",
               "target": "ALICE",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "REGISTERED",
               "host": ""
             }
@@ -583,17 +583,17 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "f620900b533d87f4d7405b52a351a27baea463cbd828ec6a7a4c4b388898d763",
-        "commitment": "82a8a9d76a59bc829dbfff733a17b8b2dd139b35a4a3e3fa960dd652c09b7fcc"
+        "commitment": "5e1a1240697700c0ba2dccb07294fa2bb180e2f64684289943d8b74df3f04f62"
       },
       {
         "id": "unreserved_authored_unsorted",
         "note": "The same three names authored in a different order. The set is sorted before hashing, so the commitment is identical — an implementation carrying insertion order into the digest fails here.",
         "state": {
-          "height": 58903520,
+          "height": 62336480,
           "prices": {
             "feeBase": "40000000",
             "commissionBp": "250"
@@ -603,7 +603,7 @@
               "name": "kikename",
               "owner": "ALICE",
               "target": "ALICE",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "REGISTERED",
               "host": ""
             }
@@ -616,17 +616,17 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameCommitmentAs": "unreserved_sorted_bytewise",
-        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "f620900b533d87f4d7405b52a351a27baea463cbd828ec6a7a4c4b388898d763",
-        "commitment": "82a8a9d76a59bc829dbfff733a17b8b2dd139b35a4a3e3fa960dd652c09b7fcc"
+        "commitment": "5e1a1240697700c0ba2dccb07294fa2bb180e2f64684289943d8b74df3f04f62"
       },
       {
         "id": "unreserved_length_prefixes_prevent_collision",
         "note": "`ab` ‖ `cd` released, against the single name `abcd`. The u8 length prefix is what keeps the two concatenations apart; drop it and these two states share an encoding.",
         "state": {
-          "height": 58903520,
+          "height": 62336480,
           "prices": {
             "feeBase": "40000000",
             "commissionBp": "250"
@@ -636,7 +636,7 @@
               "name": "kikename",
               "owner": "ALICE",
               "target": "ALICE",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "REGISTERED",
               "host": ""
             }
@@ -648,16 +648,16 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "differsFrom": "unreserved_one_joined_name",
-        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "55d8faceb22e897e1072e0411f03f6df7d395d44eb12c946ea8a8ac307bf14a7",
-        "commitment": "75d6417ea77b790c2fbb66d018e70005796979d66958e2393ee0f0a1c0d5a3e3"
+        "commitment": "26312bb2aa43cc9a7ec27c0c10c74af94fc2dab4c246bcabb895ad4c489f8122"
       },
       {
         "id": "unreserved_one_joined_name",
         "state": {
-          "height": 58903520,
+          "height": 62336480,
           "prices": {
             "feeBase": "40000000",
             "commissionBp": "250"
@@ -667,7 +667,7 @@
               "name": "kikename",
               "owner": "ALICE",
               "target": "ALICE",
-              "expiry": 90378720,
+              "expiry": 93811680,
               "status": "REGISTERED",
               "host": ""
             }
@@ -677,11 +677,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "1cb029b876edc92661f7c394463ea04332f1cea70107ead3c24580b5aa73b655",
+        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "9613428d03a791759f48f9a8f6be65697e3a041ba059fb4acf677bc16db77086",
-        "commitment": "6813178ed30841e5a3607866e2ea5b1bdeca33b3bc2a1b8dbc02a21b394eda34"
+        "commitment": "225581a8e34f29df5270b6866acca6970553dac1555d8cc514cd256d5de33ae2"
       }
     ]
   }

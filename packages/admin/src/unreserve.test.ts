@@ -324,7 +324,7 @@ describe('describePlan', () => {
   it('says what a release does, where it goes, and that it binds on landing', () => {
     const lines = describePlan(planFor()).join('\n')
     expect(lines).toContain('U release: binance')
-    expect(lines).toContain('NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8')
+    expect(lines).toContain('NQ91 SQRC L91X D5QK 6A21 1UV7 11EY 7YA3 BBRT')
     expect(lines).toContain('PROTOCOL_ADDRESS')
     expect(lines).toContain('effective on landing')
     expect(lines).toContain('no notice window and nothing to cancel')

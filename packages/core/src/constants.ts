@@ -60,7 +60,7 @@ export const CONSTANTS = Object.freeze({
    * about the §8.1 commitment's shape alone. Bump it in the same commit that
    * folds a revision.
    */
-  SPEC_REVISION: 30,
+  SPEC_REVISION: 31,
 
   // ── Wire format (§5.1, §5.2) ──────────────────────────────────────────────
   /** Prefix of every NNS message. 4 ASCII bytes. */
@@ -138,7 +138,7 @@ export const CONSTANTS = Object.freeze({
    * a message's height*, not this launch figure, so there is deliberately no
    * `MIN_PRICE` entry here. Use `minPrice(state.prices)` from `state.ts`.
    */
-  FEE_BASE: nim(400n),
+  FEE_BASE: nim(625n),
   /**
    * Yearly fee by name length, as multiples of `FEE_BASE` (§10.1). Each row
    * covers every length up to and including `upTo` that the row above did
@@ -251,35 +251,35 @@ export const CONSTANTS = Object.freeze({
   // ── Launch (§3, §7.2) ─────────────────────────────────────────────────────
   /**
    * Indexers start here, not at genesis; the checkpoint at this height is
-   * §8.1's genesis. Frozen 2026-08-14 at the height the indexer deployment
-   * already started from, 60 blocks above the node's measured history horizon
-   * (58,842,660) so the determinism harness can run against this exact value.
+   * §8.1's genesis. **The launch value, set at the second freeze
+   * (2026-09-22)**: about three hours above the head at the time of the
+   * commit, on a `CHECKPOINT_INTERVAL` boundary. Through the pre-launch
+   * batteries it was 58,842,720 (frozen 2026-08-14, 60 blocks above the
+   * node's measured history horizon).
    *
-   * **Provisional by design, not by accident**: the launch freeze bumps this
-   * pinned literal to a future mainnet height in a deliberate commit before
-   * going live, and the compressed-tempo battery edits it on its throwaway
-   * branch. Neither is a config override — there is no env var for it.
+   * A compressed-tempo battery edits it on its throwaway branch. That is not
+   * a config override — there is no env var for it.
    */
-  LAUNCH_HEIGHT: 58_842_720,
+  LAUNCH_HEIGHT: 62_275_680,
 
   // ── Addresses that are settled (§3) ───────────────────────────────────────
   /**
-   * The four §3 role addresses, frozen 2026-08-14 (launch freeze, second
-   * half). These are the funded battery addresses whose keys the operator
-   * holds in `~/.nns` — chosen deliberately: the battery must test the build
-   * that ships, and launch replaces the whole cast in a second freeze (see
-   * the header). All four are pairwise distinct (§3, §10.6), asserted once in
+   * The four §3 role addresses — **the launch cast, set at the second freeze
+   * (2026-09-22)** from keys generated offline by
+   * `scripts/gen-protocol-keys.mjs`. The 2026-08-14 battery cast they replace
+   * was frozen deliberately, so the batteries tested the build that ships.
+   * All four are pairwise distinct (§3, §10.6), asserted once in
    * `constants.test.ts` now that they are literals rather than at every
    * startup.
    */
   /** Receives fees — and only fees (§5.3). */
-  TREASURY_ADDRESS: parseAddress('NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3'),
+  TREASURY_ADDRESS: parseAddress('NQ39 M3TJ 2NC1 G4PJ 07JF BFKG Q3X6 AK7K J7YT'),
   /** Receives dust-only signalling, and acts as the §5.3 sentinel. */
-  PROTOCOL_ADDRESS: parseAddress('NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8'),
+  PROTOCOL_ADDRESS: parseAddress('NQ91 SQRC L91X D5QK 6A21 1UV7 11EY 7YA3 BBRT'),
   /** Governance only; cold key, distinct from the treasury (§10.6). */
-  ADMIN_ADDRESS: parseAddress('NQ80 6XNV JDFY YEKF HMM3 UCYK VBLP 7H6Y FNXS'),
+  ADMIN_ADDRESS: parseAddress('NQ95 0MNS X5BJ 3SMV XA2E 7059 BU9F AXX6 J4MX'),
   /** `B` escrow and `M` settlement; the only NNS hot wallet (§3). */
-  MARKETPLACE_ADDRESS: parseAddress('NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB'),
+  MARKETPLACE_ADDRESS: parseAddress('NQ55 SY33 7HS4 DP5N H9P0 9PMG 7MD8 PTL8 N2P5'),
   /**
    * Canonical Nimiq burn address. Decodes to 20 zero bytes, which is also the
    * §8.1 encoding of an *unset* recovery address.

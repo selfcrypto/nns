@@ -53,10 +53,10 @@ const SCHEMA = 'store_test'
 const POOL_URL =
   URL === undefined ? '' : `${URL}${URL.includes('?') ? '&' : '?'}options=${encodeURIComponent(`-c search_path=${SCHEMA}`)}`
 
-const A = 'NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3' // CONSTANTS.TREASURY_ADDRESS, spaced as the RPC prints it
-const B = 'NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8' // CONSTANTS.PROTOCOL_ADDRESS
-const C = 'NQ80 6XNV JDFY YEKF HMM3 UCYK VBLP 7H6Y FNXS' // CONSTANTS.ADMIN_ADDRESS
-const D = 'NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB' // CONSTANTS.MARKETPLACE_ADDRESS
+const A = 'NQ39 M3TJ 2NC1 G4PJ 07JF BFKG Q3X6 AK7K J7YT' // CONSTANTS.TREASURY_ADDRESS, spaced as the RPC prints it
+const B = 'NQ91 SQRC L91X D5QK 6A21 1UV7 11EY 7YA3 BBRT' // CONSTANTS.PROTOCOL_ADDRESS
+const C = 'NQ95 0MNS X5BJ 3SMV XA2E 7059 BU9F AXX6 J4MX' // CONSTANTS.ADMIN_ADDRESS
+const D = 'NQ55 SY33 7HS4 DP5N H9P0 9PMG 7MD8 PTL8 N2P5' // CONSTANTS.MARKETPLACE_ADDRESS
 
 const CONFIG = defineConfig({ networkId: 24 })
 
@@ -94,7 +94,7 @@ describe('configFingerprint', () => {
     // replaces the four battery addresses at the launch freeze. This digest
     // moving means "rebuild, do not resume" — recompute it and update the pin
     // alongside either edit.
-    expect(BASELINE).toBe('d6522310c3f1e93e2a40642c20eee1ec850b2591d57024633a8bb68529762dab')
+    expect(BASELINE).toBe('ee7456777c791c85c247e87e38e1e58204ff86fd7effbfcef4494ebae4671cbd')
     // Order is not protocol (§4.1 is exact-match membership), which is what the
     // `.sort()` in the payload buys: resorting the constant leaves this digest
     // alone, and only an added, removed or edited entry moves it.

@@ -4,10 +4,10 @@
   "spec": "nns-spec-v1 draft r29, §5 and §6",
   "description": "Wire format. `text` is the message as ASCII; `data` is the same bytes as lowercase hex, which is what the RPC carries in both directions (§5.1). Recipients are role names resolved through `addresses`; `value` is luna as a decimal string.",
   "addresses": {
-    "TREASURY": "NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3",
-    "PROTOCOL": "NQ38 NKD4 7ALG YRDQ DXL8 PARE 7JRS JGJD MAU8",
-    "ADMIN": "NQ80 6XNV JDFY YEKF HMM3 UCYK VBLP 7H6Y FNXS",
-    "MARKETPLACE": "NQ71 TPMV QN9D MV6A 1HX1 NL2Q 4CJG 5J8M QPTB",
+    "TREASURY": "NQ39 M3TJ 2NC1 G4PJ 07JF BFKG Q3X6 AK7K J7YT",
+    "PROTOCOL": "NQ91 SQRC L91X D5QK 6A21 1UV7 11EY 7YA3 BBRT",
+    "ADMIN": "NQ95 0MNS X5BJ 3SMV XA2E 7059 BU9F AXX6 J4MX",
+    "MARKETPLACE": "NQ55 SY33 7HS4 DP5N H9P0 9PMG 7MD8 PTL8 N2P5",
     "BURN": "NQ07 0000 0000 0000 0000 0000 0000 0000 0000",
     "ALICE": "NQ57 B9KP 90CE KELB BGNF TKLY C0QG 3LM3 EH2H",
     "BOB": "NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK"
@@ -311,11 +311,11 @@
       },
       {
         "id": "M_settlement_zero_based_index",
-        "text": "NNS1M58903520|0",
-        "data": "4e4e53314d35383930333532307c30",
+        "text": "NNS1M62336480|0",
+        "data": "4e4e53314d36323333363438307c30",
         "message": {
           "type": "M",
-          "height": 58903520,
+          "height": 62336480,
           "txIndex": 0
         },
         "build": {
@@ -328,18 +328,18 @@
       },
       {
         "id": "A_auction",
-        "text": "NNS1Akikename|40000000|59042720",
-        "data": "4e4e5331416b696b656e616d657c34303030303030307c3539303432373230",
+        "text": "NNS1Akikename|62500000|62475680",
+        "data": "4e4e5331416b696b656e616d657c36323530303030307c3632343735363830",
         "message": {
           "type": "A",
           "name": "kikename",
-          "startingPrice": "40000000",
-          "endHeight": 59042720
+          "startingPrice": "62500000",
+          "endHeight": 62475680
         },
         "build": {
           "builder": "auction",
-          "startingPrice": "40000000",
-          "endHeight": 59042720
+          "startingPrice": "62500000",
+          "endHeight": 62475680
         },
         "note": "The startingPrice carries the same MIN_PRICE floor as an O price (§6 A), so the builder will not encode less than FEE_BASE.",
         "recipient": "PROTOCOL",
@@ -347,19 +347,19 @@
       },
       {
         "id": "P_governance",
-        "text": "NNS1P80000000|250|58942720",
-        "data": "4e4e53315038303030303030307c3235307c3538393432373230",
+        "text": "NNS1P80000000|250|62375680",
+        "data": "4e4e53315038303030303030307c3235307c3632333735363830",
         "message": {
           "type": "P",
           "feeBase": "80000000",
           "commissionBp": "250",
-          "effectiveHeight": 58942720
+          "effectiveHeight": 62375680
         },
         "build": {
           "builder": "governance",
           "feeBase": "80000000",
           "commissionBp": "250",
-          "effectiveHeight": 58942720
+          "effectiveHeight": 62375680
         },
         "recipient": "PROTOCOL",
         "value": "1",
@@ -367,7 +367,7 @@
       },
       {
         "id": "U_unreserve",
-        "note": "One field since r22: a U executes in the block it lands in, so it carries no effective height. NNS1Ubinance|58942720 — the r21 form — is MALFORMED_PAYLOAD, pinned below.",
+        "note": "One field since r22: a U executes in the block it lands in, so it carries no effective height. NNS1Ubinance|62375680 — the r21 form — is MALFORMED_PAYLOAD, pinned below.",
         "text": "NNS1Ubinance",
         "data": "4e4e53315562696e616e6365",
         "message": {
@@ -717,8 +717,8 @@
       },
       {
         "id": "M_without_index",
-        "text": "NNS1M58903520",
-        "data": "4e4e53314d3538393033353230",
+        "text": "NNS1M62336480",
+        "data": "4e4e53314d3632333336343830",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -746,8 +746,8 @@
       {
         "id": "U_with_a_height_is_the_retired_r21_form",
         "note": "Through r21 a U carried `|<effective_height>`. r22 made it execute on landing and removed the field; since 2026-09-11 the second field exists again and is exactly `L` (a lifetime award), so a number there is still one field too many in meaning and MALFORMED_PAYLOAD in fact. Rejecting it is deliberate: a pre-r22 client's message must fail loudly rather than release a name on a number nothing reads.",
-        "text": "NNS1Ubinance|58942720",
-        "data": "4e4e53315562696e616e63657c3538393432373230",
+        "text": "NNS1Ubinance|62375680",
+        "data": "4e4e53315562696e616e63657c3632333735363830",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -819,8 +819,8 @@
       },
       {
         "id": "padded_height_rejected",
-        "text": "NNS1M0058903520|0",
-        "data": "4e4e53314d303035383930333532307c30",
+        "text": "NNS1M0062336480|0",
+        "data": "4e4e53314d303036323333363438307c30",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -960,22 +960,22 @@
         "id": "O_price_below_MIN_PRICE",
         "builder": "offer",
         "name": "kikename",
-        "price": "39999999",
+        "price": "62499999",
         "note": "One luna under FEE_BASE. Below the floor the message would forfeit (§6 O), which §7.4 classes as client-preventable — so the builder prevents it."
       },
       {
         "id": "A_reserve_below_MIN_PRICE",
         "builder": "auction",
         "name": "kikename",
-        "startingPrice": "39999999",
-        "endHeight": 59042720
+        "startingPrice": "62499999",
+        "endHeight": 62475680
       },
       {
         "id": "O_price_below_a_MIN_PRICE_a_P_has_raised",
         "builder": "offer",
         "name": "kikename",
-        "price": "40000000",
-        "minPrice": "80000000",
+        "price": "62500000",
+        "minPrice": "125000000",
         "note": "The launch floor, refused because a P has doubled FEE_BASE. MIN_PRICE is the value in effect at the message's height, never the constant."
       },
       {

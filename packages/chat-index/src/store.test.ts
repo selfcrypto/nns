@@ -22,7 +22,7 @@ const POOL_URL =
 
 const A = 'NQ42 5QRF L5AV J6K3 BQHQ FAE8 XXHR TS8Y 9YRA'
 const B = 'NQ64 TY4R HYX0 2XL4 9J8T UD8K 6YLV M2KP KMBS'
-const C = 'NQ28 TKBF VF67 HP8R Y812 5FNM NNDN TS7Q F5G3'
+const C = 'NQ39 M3TJ 2NC1 G4PJ 07JF BFKG Q3X6 AK7K J7YT'
 
 const row = (over: Partial<ChatRow> = {}): ChatRow => ({
   txHash: 'h1',

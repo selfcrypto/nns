@@ -16,7 +16,7 @@ describe('CONSTANTS — §3', () => {
 
   it('states every amount in luna, matching the NIM figures §3 prints', () => {
     expect(LUNA_PER_NIM).toBe(100_000n)
-    expect(CONSTANTS.FEE_BASE).toBe(40_000_000n) //          400 NIM
+    expect(CONSTANTS.FEE_BASE).toBe(62_500_000n) //          625 NIM
     expect(CONSTANTS.PRICE_FLOOR).toBe(100_000n) //         1 NIM
     expect(CONSTANTS.PRICE_CEILING).toBe(10_000_000_000n) // 100,000 NIM
   })
@@ -47,13 +47,13 @@ describe('CONSTANTS — §3', () => {
     // bands' top, and the released short names above it.
     const nim = (length: number): bigint => (CONSTANTS.FEE_BASE * feeMultiplier(length)) / LUNA_PER_NIM
     expect([nim(2), nim(3), nim(4), nim(5), nim(6), nim(8), nim(12)]).toEqual([
-      80_000n,
-      40_000n,
-      20_000n,
-      10_000n,
-      4_000n,
-      2_000n,
-      400n,
+      125_000n,
+      62_500n,
+      31_250n,
+      15_625n,
+      6_250n,
+      3_125n,
+      625n,
     ])
   })
 
@@ -175,7 +175,7 @@ describe('CONSTANTS — §3', () => {
     expect(values).toStrictEqual({
       // Not a §3 value: the revision these rules claim to be, pinned here so
       // a fold that moves a rule and forgets the number fails on the way out.
-      SPEC_REVISION: 30,
+      SPEC_REVISION: 31,
       PROTOCOL_ID: 'NNS1',
       MAX_DATA_BYTES: 64,
       MAX_DELEGATE_MESSAGE_BYTES: 58,
@@ -187,7 +187,7 @@ describe('CONSTANTS — §3', () => {
       DUST_VALUE: 1n,
       REFUND_FLOOR: 100_000n,
       LISTING_FEE: 0n,
-      FEE_BASE: 40_000_000n, //                400 NIM
+      FEE_BASE: 62_500_000n, //                625 NIM
       FEE_MULTIPLIERS: [
         { upTo: 2, times: 200n },
         { upTo: 3, times: 100n },
@@ -223,11 +223,11 @@ describe('CONSTANTS — §3', () => {
       // four addresses are the operator-supplied battery cast; launch
       // replaces them in a second freeze that edits these exact literals
       // (the launch freeze). Compact form: parseAddress strips the spaces.
-      LAUNCH_HEIGHT: 58_842_720,
-      TREASURY_ADDRESS: 'NQ28TKBFVF67HP8RY8125FNMNNDNTS7QF5G3',
-      PROTOCOL_ADDRESS: 'NQ38NKD47ALGYRDQDXL8PARE7JRSJGJDMAU8',
-      ADMIN_ADDRESS: 'NQ806XNVJDFYYEKFHMM3UCYKVBLP7H6YFNXS',
-      MARKETPLACE_ADDRESS: 'NQ71TPMVQN9DMV6A1HX1NL2Q4CJG5J8MQPTB',
+      LAUNCH_HEIGHT: 62_275_680,
+      TREASURY_ADDRESS: 'NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT',
+      PROTOCOL_ADDRESS: 'NQ91SQRCL91XD5QK6A211UV711EY7YA3BBRT',
+      ADMIN_ADDRESS: 'NQ950MNSX5BJ3SMVXA2E7059BU9FAXX6J4MX',
+      MARKETPLACE_ADDRESS: 'NQ55SY337HS4DP5NH9P09PMG7MD8PTL8N2P5',
       BURN_ADDRESS: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000',
     })
   })

@@ -35,7 +35,7 @@ const HEAD = LAUNCH_HEIGHT + 100
 
 const NAME = 'alicename'
 /** Above `MIN_PRICE` (= `FEE_BASE`), and odd, so `floor` leaves a remainder. */
-const PRICE = 50_000_001n
+const PRICE = 70_000_001n
 const COMMISSION = commissionOn(PRICE, CONSTANTS.COMMISSION_RATE)
 const PROCEEDS = PRICE - COMMISSION
 

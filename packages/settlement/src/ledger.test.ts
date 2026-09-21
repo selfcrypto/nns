@@ -568,7 +568,7 @@ describe.skipIf(URL === undefined)('Ledger over Postgres', () => {
   // §8.2 lines through the replay and the watcher's snapshot into the ledger.
   it('takes a real log through the watcher and records what it owes', async () => {
     const name = 'alicename'
-    const price = 50_000_001n
+    const price = 70_000_001n
     const prices = initialState().prices
     const staged = stageLog(
       [
