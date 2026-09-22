@@ -88,8 +88,8 @@ services:
     profiles: ['mail']
     restart: unless-stopped
     environment:
-      ALLOWED_SENDER_DOMAINS: ${NNS_NOTIFY_MAIL_DOMAIN:?set the sending domain in .env}
-      POSTFIX_myhostname: ${NNS_NOTIFY_MAIL_HOSTNAME:?set the relay's hostname (the IP's reverse name) in .env}
+      ALLOWED_SENDER_DOMAINS: ${NNS_NOTIFY_MAIL_DOMAIN:-}
+      POSTFIX_myhostname: ${NNS_NOTIFY_MAIL_HOSTNAME:-}
       DKIM_AUTOGENERATE: 'true'
       DKIM_SELECTOR: ${NNS_NOTIFY_MAIL_DKIM_SELECTOR:-notify}
     volumes:
