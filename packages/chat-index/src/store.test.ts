@@ -85,4 +85,11 @@ describe.skipIf(DB === undefined)('Store', () => {
     expect(typeof message?.blockNumber).toBe('number')
     expect(typeof message?.timestamp).toBe('number')
   })
+
+  it('tails every message forward from a height, oldest first', async () => {
+    expect((await store.messagesSince(0, 10)).map((row) => row.blockNumber)).toEqual([1_000, 1_001])
+    expect((await store.messagesSince(1_000, 10)).map((row) => row.txHash)).toEqual(['h2'])
+    expect(await store.messagesSince(1_001, 10)).toEqual([])
+    expect(await store.messagesSince(0, 1)).toHaveLength(1)
+  })
 })

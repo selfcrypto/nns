@@ -16,6 +16,7 @@ const walletThat = (outcome: SubmitOutcome): Wallet => ({
   connect: null,
   disconnect: null,
   pick: null,
+  sign: null,
   submit: () => Promise.resolve(outcome),
 })
 

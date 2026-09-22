@@ -9,7 +9,8 @@
 # Used by the development stack (`docker-compose.yml`, `indexer`) and by every
 # deployment role in `deploy/` — `indexer` and `api` for a resolver operator,
 # `delegate` for a delegate operator, `chat-index` for the optional NC chat
-# index, and those plus `relay` for the service.
+# index, `notify` for the optional notifier, and those plus `relay` for the
+# service.
 #
 # Built from the **repository root** as context, because every service is a
 # workspace member: it needs `pnpm-workspace.yaml` for the catalog, the
@@ -32,7 +33,7 @@ ARG PKG
 
 FROM node:24-alpine AS build
 ARG PKG
-RUN test -n "${PKG}" || { echo 'PKG build-arg is required: indexer | api | relay | delegate | settlement | anchor | chat-index' >&2; exit 1; }
+RUN test -n "${PKG}" || { echo 'PKG build-arg is required: indexer | api | relay | delegate | settlement | anchor | chat-index | notify' >&2; exit 1; }
 
 # Corepack's future is uncertain across Node majors; a pinned global install is
 # the version-stable way to get the pnpm the lockfile was written by.
@@ -43,7 +44,7 @@ WORKDIR /app
 # Manifests first, so a source-only change does not re-resolve the dependency
 # graph. The catalog lives in pnpm-workspace.yaml, so it is part of the input.
 # Every member is copied — not just this service's subtree — because the
-# lockfile describes all twelve, and `--frozen-lockfile` should compare against
+# lockfile describes all thirteen, and `--frozen-lockfile` should compare against
 # the same workspace pnpm wrote it from.
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY packages/admin/package.json packages/admin/
@@ -55,6 +56,7 @@ COPY packages/chat-index/package.json packages/chat-index/
 COPY packages/core/package.json packages/core/
 COPY packages/delegate/package.json packages/delegate/
 COPY packages/indexer/package.json packages/indexer/
+COPY packages/notify/package.json packages/notify/
 COPY packages/relay/package.json packages/relay/
 COPY packages/resolver/package.json packages/resolver/
 COPY packages/settlement/package.json packages/settlement/

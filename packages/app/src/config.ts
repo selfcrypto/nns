@@ -126,6 +126,20 @@ export function chatEndpoint(): string | null {
 }
 
 /**
+ * The optional notification service (`packages/notify`, tasks/26). When set,
+ * the corner panel offers Notifications for the acting address and the
+ * `#/probe-sign` page can be used. Unset renders nothing: a self-hoster has no
+ * notifier, and a control whose fix is a service they do not run is worse
+ * than no control (§2.2).
+ */
+export function notifyEndpoint(): string | null {
+  const raw = import.meta.env['VITE_NNS_NOTIFY'] as string | undefined
+  if (raw === undefined || raw.trim() === '') return null
+  if (!isEndpointUrl(raw)) throw new ConfigParseError(`VITE_NNS_NOTIFY must be ${URL_SHAPE}`)
+  return raw.replace(/\/+$/, '')
+}
+
+/**
  * Where a transaction can be checked by someone who does not take this app's
  * word for it (Rico, 2026-09-15: *"to give more confidence to the service"*).
  *

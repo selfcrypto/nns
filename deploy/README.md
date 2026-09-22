@@ -57,6 +57,16 @@ Three things an operator should know before running it:
   database is disposable — every row is rebuildable from the chain — so
   retention is genuinely your call.
 
+## A second optional extra: notifications
+
+[`notify/`](notify/) tells an address by email or Telegram what happened to
+its names (renewal reminders, sales and bids, transfers, new messages) after
+the address signs in with a wallet signature. Like the chat index it is not a
+role: it reads the public API and the chat index, holds no Nimiq key, and the
+app shows nothing without it. Unlike every other database under `deploy/`,
+its database holds **contacts** and is not rebuildable from the chain; its
+README says what that means for backups.
+
 ## The root `docker-compose.yml` is not a deployment
 
 The compose file at the repository root is the **development** stack — the
@@ -67,7 +77,7 @@ deploying, you are in the right directory now; use one of the rows above.
 
 **One image recipe.** All services build from `docker/Dockerfile`, parameterised
 by a `PKG` build arg
-(`indexer | api | relay | delegate | settlement | anchor | chat-index`). The
+(`indexer | api | relay | delegate | settlement | anchor | chat-index | notify`). The
 build context is the **repository root**, so clone the whole repo — not just
 `deploy/`. Everything compiles inside the image: the host needs Docker and
 nothing else, no Node, no pnpm.

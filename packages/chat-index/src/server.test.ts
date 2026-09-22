@@ -25,6 +25,8 @@ const stubStore = (rows: readonly ChatRow[]): Store =>
   ({
     messagesFor: async (_address: string, limit: number, before: number | null) =>
       rows.filter((entry) => before === null || entry.blockNumber < before).slice(0, limit),
+    messagesSince: async (since: number, limit: number) =>
+      [...rows].filter((entry) => entry.blockNumber > since).sort((a, b) => a.blockNumber - b.blockNumber).slice(0, limit),
   }) as unknown as Store
 
 const silent = createLogger('error', () => undefined)
@@ -100,6 +102,20 @@ describe('the read endpoint', () => {
 
   it('is read-only, and says so', async () => {
     expect((await fetch(`${base}/messages/NQ00`, { method: 'POST' })).status).toBe(405)
+  })
+
+  it('tails the whole index forward from a height', async () => {
+    const body = (await (await fetch(`${base}/messages?since=0`)).json()) as Page & { since: number }
+    expect(body.since).toBe(0)
+    expect(body.messages.map((message) => message.hash)).toEqual(['h2', 'h1'])
+    expect(body.window.startHeight).toBe(58_842_720)
+    // Two rows fill the page of two, so the reader is told where to continue.
+    expect(body.next).toBe(1_000)
+    const rest = await page(await fetch(`${base}/messages?since=900`))
+    expect(rest.messages.map((message) => message.hash)).toEqual(['h1'])
+    expect(rest.next).toBeNull()
+    expect((await fetch(`${base}/messages`)).status).toBe(400)
+    expect((await fetch(`${base}/messages?since=-1`)).status).toBe(400)
   })
 
   it('reports health with the window rather than a bare ok', async () => {

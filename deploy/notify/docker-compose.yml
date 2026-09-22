@@ -1,0 +1,83 @@
+# The notification service (packages/notify, tasks/26) — optional, and
+# independent of everything else here.
+#
+#   cp .env.example .env
+#   docker compose up -d --build
+#
+# It reads the public resolver API and the chat index, writes its own
+# Postgres, and sends email and Telegram messages. It holds no Nimiq key and
+# no node credential: stop it, delete its volume, or never run it, and the
+# names, the log and every root are exactly as they were. What stops is mail.
+#
+# Not one of the roles in ../README.md. A resolver operator does not need it,
+# and an operator who runs only this is not serving NNS. Its database is the
+# one in this directory that holds personal data — contacts — and is the one
+# that is not rebuildable from the chain: keep the volume, or accept that
+# losing it means everyone signs in again.
+
+name: nns-notify
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: nns
+      POSTGRES_PASSWORD: ${NNS_NOTIFY_POSTGRES_PASSWORD:-nns}
+      POSTGRES_DB: nns_notify
+    volumes:
+      - notify-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nns -d nns_notify']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    restart: unless-stopped
+
+  notify:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile
+      args:
+        PKG: notify
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    # The host's loopback, so the API and the chat index can be named as the
+    # edge sees them (`http://host.docker.internal:8635`) rather than through
+    # the public hostname and its TLS.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    environment:
+      NNS_NOTIFY_DATABASE_URL: postgres://nns:${NNS_NOTIFY_POSTGRES_PASSWORD:-nns}@postgres:5432/nns_notify
+      NNS_NOTIFY_API_URL: ${NNS_NOTIFY_API_URL:?set the resolver API URL in .env}
+      NNS_NOTIFY_CHAT_URL: ${NNS_NOTIFY_CHAT_URL:-}
+      NNS_NOTIFY_PUBLIC_URL: ${NNS_NOTIFY_PUBLIC_URL:?set the public URL of this service in .env}
+      NNS_NOTIFY_APP_URL: ${NNS_NOTIFY_APP_URL:-}
+      NNS_NOTIFY_HOST: ${NNS_NOTIFY_HOST:-}
+      NNS_NOTIFY_TELEGRAM_TOKEN: ${NNS_NOTIFY_TELEGRAM_TOKEN:-}
+      NNS_NOTIFY_SMTP_HOST: ${NNS_NOTIFY_SMTP_HOST:-}
+      NNS_NOTIFY_SMTP_PORT: ${NNS_NOTIFY_SMTP_PORT:-587}
+      NNS_NOTIFY_SMTP_USER: ${NNS_NOTIFY_SMTP_USER:-}
+      NNS_NOTIFY_SMTP_PASSWORD: ${NNS_NOTIFY_SMTP_PASSWORD:-}
+      NNS_NOTIFY_SMTP_FROM: ${NNS_NOTIFY_SMTP_FROM:-}
+      NNS_NOTIFY_SIGN_CONVENTIONS: ${NNS_NOTIFY_SIGN_CONVENTIONS:-}
+      NNS_NOTIFY_NETWORK_ID: ${NNS_NOTIFY_NETWORK_ID:-24}
+      NNS_NOTIFY_POLL_SECONDS: ${NNS_NOTIFY_POLL_SECONDS:-60}
+      NNS_NOTIFY_SESSION_TTL_DAYS: ${NNS_NOTIFY_SESSION_TTL_DAYS:-30}
+      NNS_NOTIFY_MAX_FAILURES: ${NNS_NOTIFY_MAX_FAILURES:-5}
+      NNS_NOTIFY_PORT: 8638
+      NNS_NOTIFY_LOG_LEVEL: ${NNS_NOTIFY_LOG_LEVEL:-info}
+    # Loopback by default: plain HTTP, behind the same TLS terminator as
+    # everything else. The app calls it from a browser and the confirmation
+    # links in mail land on it, so it needs a public path — README.md.
+    ports:
+      - '${NNS_NOTIFY_PUBLISH:-127.0.0.1:8638}:8638'
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '5' }
+
+volumes:
+  notify-data:

@@ -1876,3 +1876,74 @@ export const copyFailedLine = (): string => 'Select it to copy'
 export const backToInboxLabel = (): string => 'Inbox'
 export const backToInboxAria = (): string => 'Back to inbox'
 export const yesterdayLabel = (): string => 'Yesterday'
+
+// ── Notifications (tasks/26: an address signs in once) ──────────────────────
+//
+// The corner panel's row, the sheet it opens, and the `#/probe-sign` page
+// used once to pin what Nimiq Pay's `sign()` produces. Every explanation is
+// behind a `?`; the visible lines stay short.
+
+export const notifyLabel = (): string => 'Notifications'
+export const notifySheetTitle = (): string => 'Notifications'
+/** Under the title: which address the sheet is about. */
+export const notifySheetIntro = (address: string): string => `For ${address}`
+export const notifySignInLabel = (): string => 'Sign in with this address'
+export const notifySignInHint = (): string =>
+  'Your wallet signs a short text naming this address and this site. Nothing goes on chain and nothing is paid. The signature proves the address is yours, so only you can see and change these settings.'
+export const notifySigningLine = (): string => 'Waiting for your wallet…'
+export const notifyDeclinedLine = (): string => 'The wallet did not sign.'
+export const notifyUnsupportedLine = (): string => 'This wallet cannot sign a message.'
+export const notifyMismatchLine = (signer: string): string => `The wallet signed as ${signer}. Pick that address to set up its notifications.`
+export const notifyFailedLine = (detail: string): string => `Could not sign in: ${detail}`
+export const notifyUnreachableLine = (): string => 'The notification service is not answering.'
+export const notifyLoadingLine = (): string => 'Loading…'
+
+export const notifyContactsLabel = (): string => 'Where to reach you'
+export const notifyEmailLabel = (): string => 'Email'
+export const notifyEmailPlaceholder = (): string => 'you@example.com'
+export const notifyEmailAddLabel = (): string => 'Add'
+export const notifyEmailSentLine = (): string => 'Check your inbox and open the confirmation link.'
+export const notifyEmailBadLine = (): string => 'That is not an email address.'
+export const notifyEmailLimitLine = (): string => 'Too many confirmation emails. Try again later.'
+export const notifyConfirmedLabel = (): string => 'confirmed'
+export const notifyPendingLabel = (): string => 'waiting for confirmation'
+export const notifyTelegramLabel = (): string => 'Telegram'
+export const notifyTelegramConnectLabel = (): string => 'Connect Telegram'
+export const notifyTelegramLinkedLabel = (): string => 'linked'
+export const notifyTelegramOpenLabel = (): string => 'Open Telegram'
+export const notifyTelegramOpenLine = (): string => 'Press Start in Telegram and this chat will receive the notifications.'
+export const notifyTelegramHint = (): string =>
+  'A bot can only write to a chat you started. The link opens the bot with a code that ties the chat to this address. No username is typed or stored. Send /stop to the bot to unlink.'
+export const notifyNoChannelsLine = (): string => 'No email or Telegram is set up on this service yet.'
+export const notifyRemoveLabel = (): string => 'Remove'
+
+export const notifyEventsLabel = (): string => 'Send me'
+export const NOTIFY_CATEGORY_LABEL: Record<'renewal' | 'market' | 'transfer' | 'chat', string> = {
+  renewal: 'Renewal reminders',
+  market: 'Sales and bids',
+  transfer: 'Transfers to me',
+  chat: 'New messages',
+}
+export const NOTIFY_CATEGORY_HINT: Record<'renewal' | 'market' | 'transfer' | 'chat', string> = {
+  renewal: 'When a name can be renewed, when it stops resolving, and a last call before anyone can register it.',
+  market: 'A name of yours was bought, someone bid on your auction, you were outbid, or an auction you were in closed.',
+  transfer: 'Someone started a transfer of a name to this address, and when it completes.',
+  chat: 'Someone sent this address a message. Who wrote is named, the text is not.',
+}
+
+export const notifyDeleteLabel = (): string => 'Delete everything about this address'
+export const notifyDeleteConfirmLabel = (): string => 'Yes, delete'
+export const notifyDeleteHint = (): string =>
+  'Removes every contact, every setting and the record of what was sent for this address. Nothing about you stays on the service.'
+export const notifySignOutLabel = (): string => 'Sign out'
+export const notifyDataHint = (): string =>
+  'The service keeps this address, the contacts you add here and which messages it already sent. Every message carries a one-click unsubscribe.'
+
+// The probe page (tasks/26 D0).
+export const probeTitle = (): string => 'Signing probe'
+export const probeIntro = (): string => 'Signs a fixed text with the wallet and checks the signature locally. Nothing is sent anywhere.'
+export const probeSignLabel = (): string => 'Sign the test text'
+export const probeNoWalletLine = (): string => 'Connect a wallet first.'
+export const probeVerifiedLine = (convention: string, address: string): string => `Verified under the ${convention} convention. Signer: ${address}`
+export const probeUnverifiedLine = (): string => 'The signature verifies under neither convention.'
+export const probeCopyLabel = (): string => 'Copy result'

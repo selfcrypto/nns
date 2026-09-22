@@ -1,0 +1,25 @@
+{
+  "name": "@nns/notify",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Email and Telegram notifications for an address that signed in (tasks/26). Off-protocol: own database, reads the public API, replays through core, holds no Nimiq key, and nothing imports it.",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.check.json",
+    "test": "vitest run",
+    "start": "node dist/main.js",
+    "dev": "node --env-file=.env dist/main.js"
+  },
+  "dependencies": {
+    "@nimiqnames/core": "workspace:*",
+    "pg": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/pg": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

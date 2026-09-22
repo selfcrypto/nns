@@ -51,6 +51,19 @@ export {
   type RandomBytes,
 } from './keypair.js'
 
+// Off-chain "this address said this" (packages/notify's sign-in). Not protocol.
+export {
+  SIGNATURE_BYTES,
+  SIGNED_MESSAGE_CONVENTIONS,
+  SIGNED_MESSAGE_PREFIX,
+  SignedMessageError,
+  signMessage,
+  signedMessageDigest,
+  verifySignedMessage,
+  type SignedMessageConvention,
+  type VerifiedMessage,
+} from './signed-message.js'
+
 export {
   ConfigError,
   defineConfig,

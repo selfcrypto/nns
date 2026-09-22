@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { appConfig, ConfigParseError } from './config'
+import { appConfig, ConfigParseError, notifyEndpoint } from './config'
 import { applyHostChrome, describeChrome } from './lib/chrome'
 import { formatRoute, parseRoute, TABS, type NavTab, type Route, type Tab } from './lib/route'
 import { detectWallet, type Wallet } from './lib/wallet'
@@ -8,6 +8,7 @@ import { applyTheme, loadTheme, saveTheme, systemPrefersDark, type Theme } from 
 import { BRAND_MARK as MARK } from './lib/brand'
 import { SITE_NAME, TAB_LABEL } from './lib/wording'
 import { IdentityBar } from './components/IdentityBar'
+import { NotifySheet } from './components/NotifySheet'
 import { EraNotice } from './components/EraNotice'
 import { useBlocksToLaunch } from './lib/launch'
 import { MastheadLinks, MastheadMenu } from './components/MastheadNav'
@@ -20,6 +21,7 @@ import { InboxScreen } from './screens/Inbox'
 import { MyNamesScreen } from './screens/MyNames'
 import { OffersScreen } from './screens/Offers'
 import { PayScreen } from './screens/Pay'
+import { ProbeSignScreen } from './screens/ProbeSign'
 
 /**
  * `buy` rather than `search`: the tab is named for the job, and the code says
@@ -91,6 +93,10 @@ export function App() {
   const [wallet, setWallet] = useState<Wallet | null>(null)
   /** The identity row's address list, open or closed. */
   const [identityOpen, setIdentityOpen] = useState(false)
+  // The notifications sheet, for one address at a time (tasks/26). Only
+  // offered when a notifier is configured; a self-hoster has none.
+  const notifyBase = notifyEndpoint()
+  const [notifyFor, setNotifyFor] = useState<string | null>(null)
   /** The nav menu, open or closed — a phone's form of the masthead links. */
   const [menuOpen, setMenuOpen] = useState(false)
   // Hub connects mutate the wallet's identity in place; this counter re-renders on them.
@@ -319,6 +325,14 @@ export function App() {
               onConnect={connect}
               onDisconnect={disconnect}
               onPick={pick}
+              onNotify={
+                notifyBase === null
+                  ? null
+                  : (address) => {
+                      setIdentityOpen(false)
+                      setNotifyFor(address)
+                    }
+              }
               expanded={identityOpen}
               onToggle={() => {
                 setMenuOpen(false)
@@ -368,6 +382,7 @@ export function App() {
           <MyNamesScreen key={wallet?.identity.addresses[0] ?? ''} wallet={wallet} manage={route.param} onManageHandled={() => replace({ tab: 'names', param: null }, true)} onConnect={connect} />
         )}
         {tab === 'docs' && <DocsScreen slug={route.param} />}
+        {tab === 'probe-sign' && <ProbeSignScreen wallet={wallet} />}
         {tab === 'inbox' && <InboxScreen key={wallet?.identity.addresses[0] ?? ''} wallet={wallet} onConnect={connect} />}
         {tab === 'market' && (
           <OffersScreen
@@ -378,7 +393,10 @@ export function App() {
           />
         )}
       </main>
-      {tab !== 'home' && tab !== 'docs' && (
+      {notifyBase !== null && notifyFor !== null && (
+        <NotifySheet base={notifyBase} address={notifyFor} wallet={wallet} onClose={() => setNotifyFor(null)} />
+      )}
+      {tab !== 'home' && tab !== 'docs' && tab !== 'probe-sign' && (
         <nav className="tabbar" aria-label="Sections">
           {TABS.map((entry) => (
             <button

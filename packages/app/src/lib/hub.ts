@@ -20,6 +20,11 @@ export type HubSignOutcome = HubSigned | 'declined'
 
 type HubApiInstance = {
   chooseAddress(request: { appName: string }): Promise<{ address: string }>
+  signMessage(request: { appName: string; signer: string; message: string }): Promise<{
+    signer: string
+    signerPublicKey: Uint8Array
+    signature: Uint8Array
+  }>
   signTransaction(request: {
     appName: string
     sender: string
@@ -45,6 +50,24 @@ export async function hubChooseAddress(): Promise<string | null> {
     return canonicalAddress(result.address)
   } catch {
     return null
+  }
+}
+
+export type HubSignMessageOutcome = { readonly publicKey: string; readonly signature: string } | 'declined'
+
+const toHex = (bytes: Uint8Array): string => Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+
+/**
+ * `signMessage`: the Hub signs `\x16Nimiq Signed Message:\n` + length + text,
+ * hashed, with the chosen address's key (`core.verifySignedMessage`'s `nimiq`
+ * convention). One popup; a close is `declined`.
+ */
+export async function hubSignMessage(signer: string, message: string): Promise<HubSignMessageOutcome> {
+  try {
+    const signed = await (await hub()).signMessage({ appName: APP_NAME, signer, message })
+    return { publicKey: toHex(signed.signerPublicKey), signature: toHex(signed.signature) }
+  } catch {
+    return 'declined'
   }
 }
 

@@ -4672,3 +4672,189 @@ li.note {
   border-color: var(--line-strong);
   color: var(--ink);
 }
+
+/* ── Notifications (tasks/26): the sheet the corner panel opens ─────────── */
+
+.identity-notify {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.notify-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 4px 0 8px;
+}
+
+.notify-signin {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notify-signin .modal-btn-send {
+  width: 100%;
+}
+
+.notify-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.notify-note-warn {
+  color: var(--ink);
+}
+
+.notify-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notify-heading {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notify-channel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--paper);
+}
+
+.notify-contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.notify-contact-target {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.notify-state {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.notify-state-ok {
+  color: #1a8f5a;
+}
+
+.notify-remove,
+.notify-danger-quiet {
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.notify-remove:hover,
+.notify-danger-quiet:hover {
+  background: rgba(var(--tint-ink), 0.06);
+  color: var(--ink);
+}
+
+.notify-email-form {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.notify-email-form .modal-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.notify-link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.notify-link-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.notify-link-actions a.connect {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.notify-toggle {
+  align-items: center;
+}
+
+.notify-foot {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.notify-delete-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.notify-danger {
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: var(--radius-field);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* The signing probe page (tasks/26 D0). */
+.probe-sign {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.probe-result {
+  margin: 0;
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--paper);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

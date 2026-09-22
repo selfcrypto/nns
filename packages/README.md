@@ -25,6 +25,7 @@ somebody's client. That is the failure mode the whole design exists to prevent.
 | **`admin`** | Cold-key CLI for `P` (governance), `U` (unreserve), `F` (burn attestation), `A` (the admin's auction of a reserved name, r28) | **cold key** (in the node's wallet) | node, an NNS API |
 | **`chat`** | The NC message convention (`docs/app-chat.md`): wire format, inbox derivation. **Not protocol** | no | **nothing** — pure |
 | **`chat-index`** | Optional: indexes NC messages and serves them by address, so the Inbox is a lookup rather than a full-history pull | no | node (read), its own Postgres |
+| **`notify`** | Optional: email and Telegram notifications for an address that signed in (renewals, sales and bids, transfers, new messages); the bot also resolves names | bot token, SMTP password | any NNS API, the chat index, its own Postgres |
 
 Only three packages can spend anything, and they are deliberately the three you
 would never deploy on a public box: `settlement`, `anchor`, `admin`.

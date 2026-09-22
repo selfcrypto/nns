@@ -32,8 +32,8 @@ import {
   type StorageLike,
 } from './identity'
 import { isHostedWebView } from './chrome'
-import { hubChooseAddress, hubSignTransaction } from './hub'
-import { connectWallet, devAddressOverride, paySendTransaction, type WalletSession } from './sdk'
+import { hubChooseAddress, hubSignMessage, hubSignTransaction } from './hub'
+import { connectWallet, devAddressOverride, paySendTransaction, paySign, type WalletSession } from './sdk'
 import { defaultTransport, fetchAccountType, isDefiniteRejection, type HistoryTransport } from './history'
 
 export interface SubmitRequest {
@@ -47,8 +47,19 @@ export type SubmitOutcome =
   | { readonly ok: true; readonly hash: string | null; readonly serializedTxHex: string | null }
   | { readonly ok: false; readonly reason: 'declined' | 'no-rpc' | 'failed'; readonly detail?: string }
 
+export type SignOutcome =
+  | { readonly ok: true; readonly publicKey: string; readonly signature: string }
+  | { readonly ok: false; readonly reason: 'declined' | 'failed'; readonly detail?: string }
+
 export interface Wallet {
   readonly identity: Identity
+  /**
+   * Sign a text, no transaction (the notification sign-in, tasks/26). Hub:
+   * the named address's popup. Pay: `sign()`, and the wallet chooses the
+   * signer, so the caller verifies which address the key derives to. Null
+   * where nothing can sign.
+   */
+  readonly sign: ((address: string, text: string) => Promise<SignOutcome>) | null
   /** Hub: one popup, one more address. Pay: ask the host again. */
   readonly connect: (() => Promise<Identity>) | null
   /**
@@ -186,6 +197,13 @@ async function payWallet(session: WalletSession | null, storage: StorageLike): P
 
     pick: null,
 
+    sign: async (_address, text) => {
+      if (current === null) return { ok: false, reason: 'failed', detail: 'no Nimiq Pay account is connected' }
+      const signed = await paySign(current.provider, text)
+      if (!signed.ok) return signed.declined ? { ok: false, reason: 'declined' } : { ok: false, reason: 'failed', detail: signed.detail }
+      return { ok: true, publicKey: signed.publicKey, signature: signed.signature }
+    },
+
     // No transport: the wallet signs and broadcasts in one call, so a Pay
     // send works with no RPC endpoint configured. The confirm loop above
     // still needs one for the chat flows, and asks for it itself.
@@ -242,6 +260,11 @@ function hubWallet(storage: StorageLike, search: string): Wallet {
       addresses = withActive(addresses, address)
       saveHubAddresses(storage, addresses)
       return identity()
+    },
+
+    sign: async (address, text) => {
+      const signed = await hubSignMessage(address, text)
+      return signed === 'declined' ? { ok: false, reason: 'declined' } : { ok: true, ...signed }
     },
 
     disconnect: () => {

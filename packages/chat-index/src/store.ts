@@ -142,6 +142,34 @@ export class Store {
   }
 
   /**
+   * Every message above a height, oldest first, whoever it involves: the
+   * notifier's tail (`packages/notify`). `since` is exclusive and the page is
+   * bounded, so a caller walks forward with the last row's height and never
+   * re-reads a block it has finished — a block boundary is a coarse cursor,
+   * the same trade `messagesFor` makes, and a caller that stops mid-block
+   * re-reads that block, which the notifier's send-once ledger absorbs.
+   */
+  async messagesSince(since: number, limit: number): Promise<readonly ChatRow[]> {
+    const { rows } = await this.pool.query<{
+      tx_hash: string
+      block_number: number
+      timestamp: number
+      sender: string
+      recipient: string
+      message: string
+      recipient_data: string
+    }>(
+      `SELECT tx_hash, block_number, timestamp, sender, recipient, message, recipient_data
+         FROM chat_messages
+        WHERE block_number > $1
+        ORDER BY block_number ASC, tx_hash ASC
+        LIMIT $2`,
+      [since, limit],
+    )
+    return rows.map(toRow)
+  }
+
+  /**
    * Messages involving an address, newest first. `before` is an exclusive
    * block-number cursor, which is coarse on purpose: a page boundary inside a
    * block would need a composite cursor to be stable, and the caller wants
@@ -165,14 +193,24 @@ export class Store {
         LIMIT $3`,
       [address, before, limit],
     )
-    return rows.map((row) => ({
-      txHash: row.tx_hash,
-      blockNumber: row.block_number,
-      timestamp: row.timestamp,
-      sender: row.sender,
-      recipient: row.recipient,
-      message: row.message,
-      recipientData: row.recipient_data,
-    }))
+    return rows.map(toRow)
   }
 }
+
+const toRow = (row: {
+  tx_hash: string
+  block_number: number
+  timestamp: number
+  sender: string
+  recipient: string
+  message: string
+  recipient_data: string
+}): ChatRow => ({
+  txHash: row.tx_hash,
+  blockNumber: row.block_number,
+  timestamp: row.timestamp,
+  sender: row.sender,
+  recipient: row.recipient,
+  message: row.message,
+  recipientData: row.recipient_data,
+})

@@ -118,6 +118,55 @@ export async function paySendTransaction(
   return { ok: true, hash: result }
 }
 
+export type PaySignOutcome =
+  | { readonly ok: true; readonly publicKey: string; readonly signature: string }
+  | { readonly ok: false; readonly declined: boolean; readonly detail: string }
+
+/**
+ * A 32- or 64-byte value as the SDK might spell it — hex with or without
+ * `0x`, or base64 — normalised to bare lowercase hex. `sign()`'s encoding is
+ * undocumented (tasks/26 D0), so both are accepted and the verifier decides.
+ */
+export function keyHex(value: unknown, bytes: number): string | null {
+  if (typeof value !== 'string') return null
+  const bare = value.startsWith('0x') || value.startsWith('0X') ? value.slice(2) : value
+  if (bare.length === bytes * 2 && /^[0-9a-fA-F]+$/.test(bare)) return bare.toLowerCase()
+  try {
+    const decoded = atob(bare.replace(/-/g, '+').replace(/_/g, '/'))
+    if (decoded.length !== bytes) return null
+    return Array.from(decoded, (c) => c.charCodeAt(0).toString(16).padStart(2, '0')).join('')
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Sign a text with the wallet's key: `sign()` is on the SDK's wallet surface
+ * (rpc-reference §8, typed 2026-08-16, unprobed until tasks/26 D0). No
+ * transaction, no broadcast; the wallet chooses which address signs, as it
+ * does for a send, and the server derives the address from the public key.
+ */
+export async function paySign(provider: NimiqProvider, text: string): Promise<PaySignOutcome> {
+  let result: unknown
+  try {
+    result = await provider.sign(text)
+  } catch (error) {
+    return { ok: false, declined: false, detail: error instanceof Error ? error.message : String(error) }
+  }
+  const failure = walletError(result)
+  if (failure !== null) {
+    const declined = /reject|declin|cancel|denied|abort/i.test(`${failure.type} ${failure.message}`)
+    return { ok: false, declined, detail: failure.message === '' ? failure.type : failure.message }
+  }
+  const { publicKey, signature } = (typeof result === 'object' && result !== null ? result : {}) as Record<string, unknown>
+  const pk = keyHex(publicKey, 32)
+  const sig = keyHex(signature, 64)
+  if (pk === null || sig === null) {
+    return { ok: false, declined: false, detail: `the wallet returned an unexpected shape: ${JSON.stringify(result).slice(0, 200)}` }
+  }
+  return { ok: true, publicKey: pk, signature: sig }
+}
+
 /** The Pay host's UI language — never `navigator.language`. */
 export function hostLanguage(): string | undefined {
   if (typeof window === 'undefined') return undefined

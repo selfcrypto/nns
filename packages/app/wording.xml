@@ -461,4 +461,56 @@
     <string id="backToInboxAria">Back to inbox</string>
     <string id="yesterdayLabel">Yesterday</string>
   </group>
+  <group name="Notifications (tasks/26: an address signs in once)">
+    <string id="notifyLabel">Notifications</string>
+    <string id="notifySheetTitle">Notifications</string>
+    <string id="notifySheetIntro" params="address">For {address}</string>
+    <string id="notifySignInLabel">Sign in with this address</string>
+    <string id="notifySignInHint">Your wallet signs a short text naming this address and this site. Nothing goes on chain and nothing is paid. The signature proves the address is yours, so only you can see and change these settings.</string>
+    <string id="notifySigningLine">Waiting for your wallet…</string>
+    <string id="notifyDeclinedLine">The wallet did not sign.</string>
+    <string id="notifyUnsupportedLine">This wallet cannot sign a message.</string>
+    <string id="notifyMismatchLine" params="signer">The wallet signed as {signer}. Pick that address to set up its notifications.</string>
+    <string id="notifyFailedLine" params="detail">Could not sign in: {detail}</string>
+    <string id="notifyUnreachableLine">The notification service is not answering.</string>
+    <string id="notifyLoadingLine">Loading…</string>
+    <string id="notifyContactsLabel">Where to reach you</string>
+    <string id="notifyEmailLabel">Email</string>
+    <string id="notifyEmailPlaceholder">you@example.com</string>
+    <string id="notifyEmailAddLabel">Add</string>
+    <string id="notifyEmailSentLine">Check your inbox and open the confirmation link.</string>
+    <string id="notifyEmailBadLine">That is not an email address.</string>
+    <string id="notifyEmailLimitLine">Too many confirmation emails. Try again later.</string>
+    <string id="notifyConfirmedLabel">confirmed</string>
+    <string id="notifyPendingLabel">waiting for confirmation</string>
+    <string id="notifyTelegramLabel">Telegram</string>
+    <string id="notifyTelegramConnectLabel">Connect Telegram</string>
+    <string id="notifyTelegramLinkedLabel">linked</string>
+    <string id="notifyTelegramOpenLabel">Open Telegram</string>
+    <string id="notifyTelegramOpenLine">Press Start in Telegram and this chat will receive the notifications.</string>
+    <string id="notifyTelegramHint">A bot can only write to a chat you started. The link opens the bot with a code that ties the chat to this address. No username is typed or stored. Send /stop to the bot to unlink.</string>
+    <string id="notifyNoChannelsLine">No email or Telegram is set up on this service yet.</string>
+    <string id="notifyRemoveLabel">Remove</string>
+    <string id="notifyEventsLabel">Send me</string>
+    <string id="NOTIFY_CATEGORY_LABEL.chat">New messages</string>
+    <string id="NOTIFY_CATEGORY_LABEL.market">Sales and bids</string>
+    <string id="NOTIFY_CATEGORY_LABEL.renewal">Renewal reminders</string>
+    <string id="NOTIFY_CATEGORY_LABEL.transfer">Transfers to me</string>
+    <string id="NOTIFY_CATEGORY_HINT.chat">Someone sent this address a message. Who wrote is named, the text is not.</string>
+    <string id="NOTIFY_CATEGORY_HINT.market">A name of yours was bought, someone bid on your auction, you were outbid, or an auction you were in closed.</string>
+    <string id="NOTIFY_CATEGORY_HINT.renewal">When a name can be renewed, when it stops resolving, and a last call before anyone can register it.</string>
+    <string id="NOTIFY_CATEGORY_HINT.transfer">Someone started a transfer of a name to this address, and when it completes.</string>
+    <string id="notifyDeleteLabel">Delete everything about this address</string>
+    <string id="notifyDeleteConfirmLabel">Yes, delete</string>
+    <string id="notifyDeleteHint">Removes every contact, every setting and the record of what was sent for this address. Nothing about you stays on the service.</string>
+    <string id="notifySignOutLabel">Sign out</string>
+    <string id="notifyDataHint">The service keeps this address, the contacts you add here and which messages it already sent. Every message carries a one-click unsubscribe.</string>
+    <string id="probeTitle">Signing probe</string>
+    <string id="probeIntro">Signs a fixed text with the wallet and checks the signature locally. Nothing is sent anywhere.</string>
+    <string id="probeSignLabel">Sign the test text</string>
+    <string id="probeNoWalletLine">Connect a wallet first.</string>
+    <string id="probeVerifiedLine" params="convention address">Verified under the {convention} convention. Signer: {address}</string>
+    <string id="probeUnverifiedLine">The signature verifies under neither convention.</string>
+    <string id="probeCopyLabel">Copy result</string>
+  </group>
 </wording>

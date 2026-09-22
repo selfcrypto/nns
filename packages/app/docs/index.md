@@ -20,6 +20,7 @@ under it is a page, in order. The flat order is also the previous/next chain.
 - inbox: Inbox
 - market: Market
 - referrals: Referrals
+- notifications: Notifications
 - fails: Refused transactions
 
 ## Trust
