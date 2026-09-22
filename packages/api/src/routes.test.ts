@@ -934,7 +934,23 @@ describe('GET /log/decoded', () => {
         '0',
         'D',
         'NNS1Dnimiq|delegated.nimiqnames.com',
+        '0.00001',
+        NQ_A,
         'OK',
+      ])
+    })
+
+    it('shows the value in NIM and the sender compact, one token each', async () => {
+      const body = await text([
+        `59185480 0 8576 ${NQ_A} ${NQ_B} 625000000 ${D_HEX} OK`,
+        `59185481 0 8577 ${NQ_B} ${NQ_A} 62500000 ${D_HEX} OK`,
+        `59185482 0 8578 ${NQ_A} ${NQ_B} 150000 ${D_HEX} OK`,
+      ])
+      const rows = body.split('\n').filter((line) => line.startsWith('  '))
+      expect(rows.map((line) => line.trim().split(/\s+/).slice(-3, -1))).toEqual([
+        ['6250', NQ_A],
+        ['625', NQ_B],
+        ['1.5', NQ_A],
       ])
     })
 

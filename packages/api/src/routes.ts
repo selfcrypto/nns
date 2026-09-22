@@ -111,13 +111,26 @@ function renderPayload(hex: string): string | null {
 interface DecodedEntry {
   readonly blockHeight: number
   readonly txIndex: number
+  readonly sender: string
+  /** Luna, as the log carries it. */
+  readonly value: string
   readonly verdict: string
   readonly message: string | null
   readonly type: string | null
 }
 
+/** Luna as NIM for a person: `625000000` → `6250`, `62500000` → `625`, `150000` → `1.5`. */
+function nimOf(luna: string): string {
+  const whole = luna.length > 5 ? luna.slice(0, -5) : '0'
+  const fraction = luna.padStart(6, '0').slice(-5).replace(/0+$/, '')
+  return fraction === '' ? whole : `${whole}.${fraction}`
+}
+
 /**
- * The decoded log as an aligned table, for a person with a browser.
+ * The decoded log as an aligned table, for a person with a browser: what was
+ * sent, by whom and for how much, beside the verdict — the JSON view carries
+ * all of it, and a table that hid the money and the sender made a reader
+ * open the JSON for the two things they came for (Rico, 2026-09-22).
  *
  * **The preamble is a safety device, not decoration.** `/log` is `text/plain`
  * too, so of the two views this is the one genuinely easy to mistake for the
@@ -140,21 +153,28 @@ function decodedTable(entries: readonly DecodedEntry[], checkpointHeight: number
   const height = (entry: DecodedEntry): string => String(entry.blockHeight)
   const index = (entry: DecodedEntry): string => String(entry.txIndex)
   const message = (entry: DecodedEntry): string => entry.message ?? '(undecodable)'
+  const nim = (entry: DecodedEntry): string => nimOf(entry.value)
+  // Compact, as the log writes it: one whitespace-free token per column.
+  const sender = (entry: DecodedEntry): string => entry.sender.replace(/ /g, '')
 
   const wHeight = width(height, 'height')
   const wIndex = width(index, 'ix')
   const wMessage = width(message, 'message')
+  const wNim = width(nim, 'NIM')
+  const wSender = width(sender, 'sender')
 
   const lines = [
     '# NNS log, DECODED — a derived view, NOT the §8.2 artifact.',
     `# Canonical bytes: /log   checkpoint ${checkpointHeight}   keccak256 0x${logHash}`,
     '#',
-    `# ${'height'.padEnd(wHeight)}  ${'ix'.padStart(wIndex)}  type  ${'message'.padEnd(wMessage)}  verdict`,
+    `# ${'height'.padEnd(wHeight)}  ${'ix'.padStart(wIndex)}  type  ${'message'.padEnd(wMessage)}  ` +
+      `${'NIM'.padStart(wNim)}  ${'sender'.padEnd(wSender)}  verdict`,
   ]
   for (const entry of entries) {
     lines.push(
       `  ${height(entry).padEnd(wHeight)}  ${index(entry).padStart(wIndex)}  ` +
-        `${(entry.type ?? '?').padEnd(4)}  ${message(entry).padEnd(wMessage)}  ${entry.verdict}`,
+        `${(entry.type ?? '?').padEnd(4)}  ${message(entry).padEnd(wMessage)}  ` +
+        `${nim(entry).padStart(wNim)}  ${sender(entry).padEnd(wSender)}  ${entry.verdict}`,
     )
   }
   return Buffer.from(`${lines.join('\n')}\n`, 'utf8')
