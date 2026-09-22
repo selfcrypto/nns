@@ -10,7 +10,7 @@
 import { EnvError, loadSettings, type ChatIndexSettings } from './env.js'
 import { createLogger, type Logger } from './logger.js'
 import { RpcClient, RpcError } from './rpc.js'
-import { Scanner } from './scan.js'
+import { Scanner, StartAheadOfHead } from './scan.js'
 import { createChatServer } from './server.js'
 import { Store, createPool, migrate } from './store.js'
 
@@ -124,6 +124,11 @@ async function main(): Promise<void> {
         if (scanned === 0) await sleep(settings.pollIntervalMs, controller.signal)
       } catch (error) {
         if (controller.signal.aborted) break
+        if (error instanceof StartAheadOfHead) {
+          logger.info('chat.waiting', { reason: 'start height not reached', startHeight: error.startHeight, head: error.head })
+          await sleep(settings.pollIntervalMs, controller.signal)
+          continue
+        }
         // A start height the node no longer holds is not transient: retrying
         // would index a silent gap forever. Everything else is.
         if (error instanceof RpcError && error.answered && scanner.nextBatch === undefined) {

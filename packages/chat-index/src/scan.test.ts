@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { CHAT_PREFIX_HEX, hasChatPrefix, rowsFromBatch } from './scan.js'
-import type { RpcTransaction } from './rpc.js'
+import { CHAT_PREFIX_HEX, Scanner, StartAheadOfHead, hasChatPrefix, rowsFromBatch } from './scan.js'
+import { RpcError, type RpcClient, type RpcTransaction } from './rpc.js'
+
+const silent = { info() {}, warn() {}, error() {}, debug() {} } as never
 
 const hex = (text: string): string =>
   [...new TextEncoder().encode(text)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
@@ -77,5 +79,34 @@ describe('discovery', () => {
     // An unrecognised proof shape degrades to the account, exactly as core does.
     const fallback = rowsFromBatch(7, [tx({ from: htlc, fromType: 2, proof: '00ff' })], 24, 1)
     expect(fallback.rows[0]?.sender).toBe(htlc)
+  })
+})
+
+describe('Scanner.tick before the start height', () => {
+  const rpcAt = (head: number) =>
+    ({
+      isConsensusEstablished: async () => true,
+      getBatchNumber: async () => 980_000,
+      getBlockNumber: async () => head,
+      batchOfBlock: async (height: number) => {
+        if (height > head) throw new RpcError(`Block not found: ${height}`, true)
+        return 979_000
+      },
+      transactionsByBatch: async () => [],
+    }) as unknown as RpcClient
+
+  it('waits when the start height is above the head, instead of reading it as a pruned horizon', async () => {
+    const scanner = new Scanner({ rpc: rpcAt(100), logger: silent, networkId: 24, startHeight: 200, onBatch: async () => {} })
+    await expect(scanner.tick()).rejects.toBeInstanceOf(StartAheadOfHead)
+    expect(scanner.nextBatch).toBeUndefined()
+  })
+
+  it('still refuses a start height the node answers not-found for below the head', async () => {
+    const rpc = rpcAt(300)
+    rpc.batchOfBlock = async () => {
+      throw new RpcError('Block not found: 200', true)
+    }
+    const scanner = new Scanner({ rpc, logger: silent, networkId: 24, startHeight: 200, onBatch: async () => {} })
+    await expect(scanner.tick()).rejects.toBeInstanceOf(RpcError)
   })
 })

@@ -76,6 +76,18 @@ export interface ScannerOptions {
   readonly startBatch?: number | undefined
 }
 
+/** The start height is above the head: not an error, a wait. `main` sleeps and retries. */
+export class StartAheadOfHead extends Error {
+  override readonly name = 'StartAheadOfHead'
+  readonly startHeight: number
+  readonly head: number
+  constructor(startHeight: number, head: number) {
+    super(`start height ${startHeight} is ${startHeight - head} blocks above the head ${head}`)
+    this.startHeight = startHeight
+    this.head = head
+  }
+}
+
 export class Scanner {
   private cursor: number | undefined
   private readonly options: ScannerOptions
@@ -101,6 +113,14 @@ export class Scanner {
    */
   private async resolveStart(): Promise<number> {
     if (this.cursor !== undefined) return this.cursor
+    // A start height the chain has not reached yet answers the same "not
+    // found" as a pruned one. Asking the head first tells them apart: below
+    // it is the horizon refusal; above it is a launch in the future, and the
+    // scan waits for the block rather than exiting.
+    const head = await this.options.rpc.getBlockNumber()
+    if (head < this.options.startHeight) {
+      throw new StartAheadOfHead(this.options.startHeight, head)
+    }
     const batch = await this.options.rpc.batchOfBlock(this.options.startHeight)
     this.options.logger.info('chat.start', { startHeight: this.options.startHeight, startBatch: batch })
     this.cursor = batch

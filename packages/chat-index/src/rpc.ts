@@ -86,6 +86,10 @@ export class RpcClient {
     return this.call<boolean>('isConsensusEstablished', [])
   }
 
+  getBlockNumber(): Promise<number> {
+    return this.call<number>('getBlockNumber', [])
+  }
+
   getBatchNumber(): Promise<number> {
     return this.call<number>('getBatchNumber', [])
   }
