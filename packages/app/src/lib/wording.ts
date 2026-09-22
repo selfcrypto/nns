@@ -807,6 +807,8 @@ export const PRICE_TABLE = {
   reserved: `Names of ${CONSTANTS.MIN_NAME_LEN - 1} characters or fewer are reserved.`,
   more: 'Prices, terms and expiry',
 } as const
+/** The collapsed row's one number: the cheapest band, off the live table. */
+export const fromPriceLine = (nim: string): string => `From ${nim} NIM a year`
 /** A band's span of lengths: "5", "7–11", or "12+" for the last one. */
 export const lengthBandLabel = (from: number, to: number | null): string =>
   to === null ? `${from}+` : from === to ? `${from}` : `${from}–${to}`
@@ -1530,12 +1532,10 @@ export const LANDING = {
       { title: 'Subdomains', body: 'Delegate pay.yourname and the rest to a host you run.' },
     ],
   },
-  prices: {
-    badge: 'Prices',
-    title: 'Price follows',
-    titleAccent: 'length',
-    sub: `A lifetime is ${CONSTANTS.LIFETIME_TERMS} years for the price of ${CONSTANTS.LIFETIME_MULTIPLIER}. Renewing costs the same as registering.`,
-  },
+  // One collapsed row (components/PriceTable.tsx, `PriceDisclosure`): the
+  // table was a whole section and too much page for a fact a reader wants
+  // once (Rico, 2026-09-22).
+  prices: { title: 'Prices' },
   burn: {
     badge: 'Fee burn',
     title: 'Fees burn',

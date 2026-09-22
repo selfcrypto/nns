@@ -167,6 +167,7 @@
     <string id="PRICE_TABLE.more">Prices, terms and expiry</string>
     <string id="PRICE_TABLE.reserved">Names of 4 characters or fewer are reserved.</string>
     <string id="PRICE_TABLE.year">A year</string>
+    <string id="fromPriceLine" params="nim">From {nim} NIM a year</string>
     <string id="lengthBandLabel" params="from to">{from}–{to}</string>
     <string id="nimAmountLine" params="nim">{nim} NIM</string>
     <string id="walletBalanceLabel">Wallet balance</string>
