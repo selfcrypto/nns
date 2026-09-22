@@ -102,7 +102,7 @@ export async function performSend(options: {
   // can see, never about what the network did, so before concluding
   // anything negative, ask the chain directly. It answered a registration
   // as "the network did not include this transaction" while the name was
-  // already registered and visible in "My names" (Kike, 2026-08-21).
+  // already registered and visible in "My names" (Rico, 2026-08-21).
   if (!anyPollAnswered) return { status: 'unchecked', hash: submitted.hash }
   switch (await inspectOnChain(transport, submitted.hash)) {
     case 'executed':

@@ -57,7 +57,7 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
   // The review reads the rate at the chain head, like the expiry line beside
   // it. It used to fall back to height 0 when `/name` had not answered, which
   // quoted the launch row — 10%, no rebate — on a screen registering at the
-  // split's rates. Kike hit it on the first manual registration (2026-09-12).
+  // split's rates. Rico hit it on the first manual registration (2026-09-12).
   it('prices the referral at the head even when the name’s record has not arrived', () => {
     const prepared = prepareAction({
       inputs: { action: 'register', ref: 'ricomav' },
@@ -164,7 +164,7 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
 
   // The delay was typed into the sentence as "~12 h". `XFER_TIMELOCK` is 600
   // blocks in the tempo era both boxes run, so the one number the line existed
-  // to carry was wrong on every deployment we have (Kike, 2026-09-15).
+  // to carry was wrong on every deployment we have (Rico, 2026-09-15).
   it('the transfer review reads its delay from the constant, never from a typed string', () => {
     const line = prepare({ action: 'transfer', newOwner: OTHER }).review.join(' ')
     expect(line).toBe(transferMovesLine(blocksApprox(CONSTANTS.XFER_TIMELOCK)))
@@ -232,7 +232,7 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     expect(prepared.review[0]).toMatch(/^Takes it off sale/)
   })
 
-  // Kike, 2026-09-15: *"show on the Cancel Transfer section how much time is
+  // Rico, 2026-09-15: *"show on the Cancel Transfer section how much time is
   // remaining to cancel it since right now you can just guess it"*.
   it('cancel says how long is left to use it', () => {
     const pending = registered({ transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 } })
@@ -426,7 +426,7 @@ describe('delegate: the review names the mechanism, and a no-op `D` is refused',
     const prepared = prepare({ action: 'delegate', host: 'nns.example.com' }, withHost(''))
     expect(prepared.review).toEqual(['nns.example.com will answer for everything under example.'])
     // Who the addresses come from is the caveat; the delegation itself is on
-    // chain, and the hint says that first (Kike, 2026-09-15: the old line
+    // chain, and the hint says that first (Rico, 2026-09-15: the old line
     // "sounds scary when it shouldn't").
     expect(prepared.reviewHint).toMatch(/come from nns\.example\.com/)
     expect(prepared.reviewHint).toMatch(/on chain/)
@@ -443,7 +443,7 @@ describe('delegate: the review names the mechanism, and a no-op `D` is refused',
   })
 
   // Both reviews are one sentence, because the sheet is a form and the bubble
-  // beside it is where the second sentence went (Kike, 2026-09-15).
+  // beside it is where the second sentence went (Rico, 2026-09-15).
   it('says it in one sentence either way', () => {
     for (const host of ['nns.example.com', 'clear']) {
       const prepared = prepare({ action: 'delegate', host }, withHost(host === 'clear' ? 'nns.example.com' : ''))

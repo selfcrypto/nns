@@ -12,7 +12,7 @@ the names are in the category files and nowhere else.
 
 §4.1's asymmetry, taken at face value: a name left off is anyone's the block
 after `LAUNCH_HEIGHT`, forever; a name reserved by mistake comes back with one
-`U`. So **when unsure, reserve** (Kike, 2026-09-18: *it can be speculative,
+`U`. So **when unsure, reserve** (Rico, 2026-09-18: *it can be speculative,
 protect as much as possible, we can always release them*). A doubtful entry
 goes in under its category's `speculative` array — reserved exactly like the
 rest, listed apart only so the release candidates are one read away.
@@ -23,7 +23,7 @@ famous bears them: people are the paying customers, and someone registering
 their own name gets it at the normal fee in one transaction. A famous *full*
 name has one rightful holder and is reserved (`elonmusk`, `elon-musk`,
 `cz-binance`); a bare mononym only when it is not also an ordinary name
-(`messi`, `shakira`, `obama` in; `gerrard`, `neville`, `hazard` out). `ronaldo` is in on the same test (Kike,
+(`messi`, `shakira`, `obama` in; `gerrard`, `neville`, `hazard` out). `ronaldo` is in on the same test (Rico,
 2026-09-19): a first name elsewhere, one footballer's to anyone searching it. The
 filter was a merged list of ~1,100 common first names and surnames across 14
 countries plus a hand pass over every bare entry in the people categories.
@@ -77,9 +77,9 @@ suffixes (`bershkafashion`, `calm-app`) and legal forms (`dowinc`).
 
 - **Personal names** — above.
 - **Nimiq team members' legal names and GitHub handles** — the team is
-  reserved by the Telegram handles it uses daily (`nimiq-team`), Kike's list,
+  reserved by the Telegram handles it uses daily (`nimiq-team`), Rico's list,
   2026-09-19; the 27-person public-source draft was dropped.
-- **Slurs** — an open question for Kike: reserving one puts it in a public
+- **Slurs** — an open question for Rico: reserving one puts it in a public
   file; the alternative is §8.5's interface layer hiding it.
 - **Blanket variants** (`elonmusk-official`) — they multiply without end, and
   the interface layer owns them.

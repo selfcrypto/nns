@@ -8,7 +8,7 @@ const OWNER = 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000'
  * The field that refused a name. `X` and `S` both record an address, so the
  * field still hands `prepareAction` an address — but a user typing `rico` is
  * naming a destination, not failing to type an address, and NNS of all
- * services has to read it that way (Kike, 2026-09-15).
+ * services has to read it that way (Rico, 2026-09-15).
  */
 describe('readAddressField', () => {
   it('takes an address and returns the spaced form a review line uses', () => {

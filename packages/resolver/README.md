@@ -19,7 +19,7 @@ import { createResolver } from '@nimiqnames/resolver'
 // the default quorum is 2, so this asks both and requires them to agree.
 const nns = createResolver({})
 
-const result = await nns.resolve('kike')
+const result = await nns.resolve('rico')
 result.address       // 'NQ...' — the address to pay
 result.verification  // 'PROVEN'
 result.quorum        // { required: 2, queried: 2, agreed: 2, resolvers: [{ name, url }, …] }
@@ -43,7 +43,7 @@ module — 68 kB, 24 kB over the wire, importing nothing:
 ```html
 <script type="module">
   import { createResolver } from 'https://cdn.jsdelivr.net/npm/@nimiqnames/resolver/dist/nns.js'
-  const { address } = await createResolver({}).resolve('kike')
+  const { address } = await createResolver({}).resolve('rico')
 </script>
 ```
 

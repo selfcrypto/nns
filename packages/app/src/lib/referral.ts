@@ -16,7 +16,7 @@
  *   in one sitting — the store is durable for the same reason `pinning.ts`'s
  *   is, and it is cleared when a registration confirms.
  * - **It also expires.** §10.7's referral is earned when the link is used
- *   (Kike, 2026-09-12), and a slot with no clock turns "used a link" into
+ *   (Rico, 2026-09-12), and a slot with no clock turns "used a link" into
  *   "used a link at some point in the past", which is a different claim. So
  *   the entry carries the moment it was stored and dies `REFERRAL_TTL_MS`
  *   later. Days rather than minutes: a link is read on a phone and acted on

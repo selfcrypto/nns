@@ -79,7 +79,7 @@ export function lunaToNim(luna: bigint): string {
  *
  * Which is not hypothetical: Pay's MAX button did exactly that the day
  * grouping shipped, offering a balance of `18,765.84304` and rejecting it on
- * the next keystroke (Kike, 2026-09-14). `format.test.ts` pins the round trip
+ * the next keystroke (Rico, 2026-09-14). `format.test.ts` pins the round trip
  * through the parser so the pair cannot drift apart again.
  */
 export function lunaToNimInput(luna: bigint): string {
@@ -140,7 +140,7 @@ export function blocksApprox(blocks: number): string {
  * A date is the right rendering for an expiry a year out and the wrong one for
  * a timelock. `XFER_TIMELOCK` is 43,200 blocks on mainnet and 600 in a tempo
  * era; both came out of `formatApproxDate` as the day it already is, so the
- * one number the line existed to carry was the one it did not say (Kike,
+ * one number the line existed to carry was the one it did not say (Rico,
  * 2026-09-15). Anything already due reads as the next block, because that is
  * when the effect fires (§7.3).
  */
@@ -179,7 +179,7 @@ export function ellipsizeAddress(address: string): string {
  * Review lines arrive as plain strings so `actions.ts` stays free of markup,
  * but the name inside them is still a name: §4.3 wants it in the
  * confusable-safe face wherever it is shown, and a sheet that asks "clear the
- * host for ricomaverick?" should point at the word it means (Kike,
+ * host for ricomaverick?" should point at the word it means (Rico,
  * 2026-09-15). A match counts only when neither neighbour is a character a
  * name or a hostname can contain, so `rico` is not marked inside
  * `ricomaverick` or inside `rico.example.com`.

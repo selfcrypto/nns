@@ -16,7 +16,7 @@
  * ## One referral, two payouts
  *
  * A referred `G` earns a **share** for the referring name's `target` and a
- * **rebate** for the buyer (Kike, 2026-09-12: "5% share and 5% rebate — the
+ * **rebate** for the buyer (Rico, 2026-09-12: "5% share and 5% rebate — the
  * same as an initial 10% for the referrer, now split"). They are two legs and
  * not one because they pay two different addresses, and the audit is only
  * worth anything if each `M` is matched to the thing it paid.
@@ -42,7 +42,7 @@
  *   what was paid then: a lifetime `G` pays one share of a fee that is ten
  *   yearly ones, and nothing later — `N` carries no `ref`, so a referred
  *   buyer who renews or extends next month earns the referrer nothing
- *   (Kike, 2026-09-12). Never `tx.value`: an overpayment must not farm a
+ *   (Rico, 2026-09-12). Never `tx.value`: an overpayment must not farm a
  *   share;
  * - the rate is the table's row for `(ref, height)` — its `bp` for the share,
  *   its `rebateBp` for the rebate — and the row's `selfBp` for **both** when

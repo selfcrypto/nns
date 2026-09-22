@@ -9,7 +9,7 @@ const reason = (name: string): string | null => {
 
 describe('validateName — §4.2 table, verbatim', () => {
   // The spec prints these two rows. If either side moves, the spec moved.
-  it.each(['layer', 'bitcoin7', '21kike'])('accepts %s', (name) => {
+  it.each(['layer', 'bitcoin7', '21rico'])('accepts %s', (name) => {
     expect(validateName(name).ok).toBe(true)
   })
 
@@ -95,8 +95,8 @@ describe('validateName — §4.1 rules, in order', () => {
 describe('validateName — §4.2 positional digit rule', () => {
   it('permits digit runs at either end', () => {
     expect(validateName('web33').ok).toBe(true)
-    expect(validateName('23kike').ok).toBe(true)
-    expect(validateName('23kike99').ok).toBe(true)
+    expect(validateName('23rico').ok).toBe(true)
+    expect(validateName('23rico99').ok).toBe(true)
   })
 
   it('forbids a digit between letters', () => {
@@ -106,7 +106,7 @@ describe('validateName — §4.2 positional digit rule', () => {
 
   it('forbids 0 or 1 at either boundary — the r6 clause', () => {
     expect(reason('nimiq0')).toBe('BOUNDARY_DIGIT')
-    expect(reason('1kike')).toBe('BOUNDARY_DIGIT')
+    expect(reason('1rico')).toBe('BOUNDARY_DIGIT')
     expect(reason('0nimiq')).toBe('BOUNDARY_DIGIT')
     expect(reason('nimiq1')).toBe('BOUNDARY_DIGIT')
   })
@@ -176,18 +176,18 @@ describe('validateLabel — §4.4', () => {
 
 describe('parseQuery — §4.4', () => {
   it('reads a bare name', () => {
-    expect(parseQuery('kikename')).toEqual({ ok: true, query: { kind: 'name', name: 'kikename' } })
+    expect(parseQuery('riconame')).toEqual({ ok: true, query: { kind: 'name', name: 'riconame' } })
   })
 
   it('splits label from parent', () => {
-    expect(parseQuery('alice.kikename')).toEqual({
+    expect(parseQuery('alice.riconame')).toEqual({
       ok: true,
-      query: { kind: 'dotted', label: 'alice', parent: 'kikename' },
+      query: { kind: 'dotted', label: 'alice', parent: 'riconame' },
     })
   })
 
   it('rejects more than one dot — nested delegation is v2', () => {
-    expect(parseQuery('a.b.kikename')).toEqual({ ok: false, reason: 'TOO_MANY_DOTS', detail: null })
+    expect(parseQuery('a.b.riconame')).toEqual({ ok: false, reason: 'TOO_MANY_DOTS', detail: null })
   })
 
   it('requires the parent to be a valid registrable name', () => {
@@ -195,6 +195,6 @@ describe('parseQuery — §4.4', () => {
   })
 
   it('rejects an empty label', () => {
-    expect(parseQuery('.kikename')).toEqual({ ok: false, reason: 'BAD_LABEL', detail: 'TOO_SHORT' })
+    expect(parseQuery('.riconame')).toEqual({ ok: false, reason: 'BAD_LABEL', detail: 'TOO_SHORT' })
   })
 })

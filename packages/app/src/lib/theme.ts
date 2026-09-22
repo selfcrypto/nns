@@ -15,7 +15,7 @@
  *
  * **The landing page is deliberately exempt.** It is photographs and a video
  * shot for a white ground, and relighting the palette under them looks worse
- * than not offering the switch at all (Kike, 2026-09-14). So `dashboard` is a
+ * than not offering the switch at all (Rico, 2026-09-14). So `dashboard` is a
  * parameter here rather than an assumption: the stored choice survives a trip
  * to the landing page, it just does not paint it. When those assets have dark
  * cuts, the call site drops the argument and this file does not change.

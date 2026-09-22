@@ -84,7 +84,7 @@ describe('what the pages quote is what the app says', () => {
       alarmBody('PROOF_INVALID'),
       alarmBody('ANCHOR_MISMATCH'),
       targetChangedLine(),
-      delegateFailedLine('kike'),
+      delegateFailedLine('rico'),
       delegateFailedLine('exchange'),
       GATE_REASON_TEXT['in-grace'],
       GATE_REASON_TEXT['auction-open'],
@@ -104,7 +104,7 @@ describe('what the pages quote is what the app says', () => {
   })
 
   // Every tile, group and tab is named in the pages exactly as the app spells
-  // it: "one word per thing" (Kike, 2026-09-15) includes the capitals.
+  // it: "one word per thing" (Rico, 2026-09-15) includes the capitals.
   it('names the owner tiles and groups as the app does', () => {
     const text = all()
     for (const tile of Object.values(OWNER_TILE)) expect(text).toContain(tile.title)

@@ -76,12 +76,12 @@ export interface Wallet {
    * authorizing key, and a contract is the wrong thing to call "your
    * address"), but the contract is exactly where Pay keeps the spendable
    * NIM — so a balance summed over the identity read ~0 on a funded wallet
-   * (Kike, 2026-08-23). Pay exposes no balance method of its own; the sum
+   * (Rico, 2026-08-23). Pay exposes no balance method of its own; the sum
    * over the **raw** `listAccounts()` set, contract included, is the number
    * the wallet itself shows. Hub: the acting address alone — it is the one
    * that signs, so it is the one that pays. Summed over every saved address,
    * the Pay tab's balance and the sheets' shortfall check ignored a switch
-   * (Kike, 2026-09-18).
+   * (Rico, 2026-09-18).
    */
   readonly balanceAddresses: readonly string[]
   readonly submit: (request: SubmitRequest, transport: HistoryTransport | null) => Promise<SubmitOutcome>
@@ -93,7 +93,7 @@ export async function detectWallet(storage: StorageLike, search: string): Promis
   // **Inside Pay, the fallback is Pay again — never the Hub.** `connectWallet`
   // returns null for a declined prompt exactly as it does for "no wallet here",
   // and falling through on the first case offered a *desktop web-wallet
-  // connector inside Pay's own WebView* (Kike, 2026-08-22). The container is a
+  // connector inside Pay's own WebView* (Rico, 2026-08-22). The container is a
   // wallet; the answer to a declined connection is to ask it again.
   if (isHostedWebView()) return await payWallet(null, storage)
   return hubWallet(storage, search)
@@ -105,7 +105,7 @@ export async function detectWallet(storage: StorageLike, search: string): Promis
  * just strings from `listAccounts()`. A contract is the wrong thing to show a
  * user as "your address": it expires, and since §7.2 attribution (r25)
  * ownership follows the authorizing key, so nothing the user owns is ever
- * recorded against it (Kike, 2026-08-22).
+ * recorded against it (Rico, 2026-08-22).
  *
  * `getAccountByAddress`'s `type` is the only signal that tells them apart, so
  * the filter is a node round trip and therefore best-effort in both directions:

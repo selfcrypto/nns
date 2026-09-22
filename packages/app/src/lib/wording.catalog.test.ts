@@ -2,7 +2,7 @@
  * The wording catalog: every user-visible string in one XML file, generated
  * from `wording.ts` and checked against it on every run.
  *
- * Kike, 2026-09-15: *"Maybe we could use an XML to collect the expressions
+ * Rico, 2026-09-15: *"Maybe we could use an XML to collect the expressions
  * used, so it can be easily edited and placed, and also translated."* This is
  * the review-and-handoff half of that. `wording.ts` stays the source, because
  * a third of these strings read a constant — `XFER_TIMELOCK`, `OFFER_

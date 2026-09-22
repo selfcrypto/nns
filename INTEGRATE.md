@@ -1,7 +1,7 @@
 # Put names in your app
 
 Your payee field takes `NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M QCQ4 8P8M`. It could
-take `kike`.
+take `rico`.
 
 That is the whole offer. Two ways in, both small; the second is the one worth
 your time. The deep version of everything here is [`docs/integration.md`](docs/integration.md)
@@ -16,7 +16,7 @@ No bundler:
 <script type="module">
   import { createResolver } from 'https://cdn.jsdelivr.net/npm/@nimiqnames/resolver@0.1.0/dist/nns.js'
 
-  const { address, verification } = await createResolver({}).resolve('kike')
+  const { address, verification } = await createResolver({}).resolve('rico')
   // address      → 'NQ64 VFXQ …', the address to pay
   // verification → 'PROVEN'
 </script>

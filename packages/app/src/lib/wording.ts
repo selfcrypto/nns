@@ -24,7 +24,7 @@ import { blocksApprox, formatApproxIn, lunaToNim } from './format'
  * What the product is called to a reader: **Nimiq Names**. `NNS` is the
  * protocol — the thing the messages, the spec and the packages are named
  * for — and it stays in the documentation and the social card, not in the
- * chrome (Kike, 2026-09-13). The masthead and the footer both read this.
+ * chrome (Rico, 2026-09-13). The masthead and the footer both read this.
  */
 export const SITE_NAME = 'Nimiq Names'
 
@@ -74,7 +74,7 @@ export const NAV: readonly (readonly [string, string])[] = [
  * The fifth door, and the only one that opens onto people rather than
  * documents, so it is a group and not a link: there is no contact *page* to
  * point at, and three channels behind one word is what the masthead has room
- * for (Kike, 2026-09-16).
+ * for (Rico, 2026-09-16).
  *
  * `null` is a channel that does not exist yet. It renders as a row that is
  * plainly not pressable, with the reason beside it, rather than as `#` — the
@@ -116,7 +116,7 @@ export const themeToggleLabel = (dark: boolean): string =>
  *
  * The operator used to be appended at N = 1 and nobody was named above it,
  * which is backwards: at N = 2 the line said two parties agreed and left the
- * user unable to name either (Kike, 2026-08-28, on adding a second resolver).
+ * user unable to name either (Rico, 2026-08-28, on adding a second resolver).
  * The list answers it at every N.
  */
 export function verifiedByLine(quorum: QuorumReport): string {
@@ -127,7 +127,7 @@ export function verifiedByLine(quorum: QuorumReport): string {
  * The URL as a user can go and check it: absolute. The configured value may
  * be a same-origin path (`/api`, `config.ts`), which is right for `fetch` and
  * wrong on a card — "NIMIQNAMES.COM — /api" reads as a path that is not the
- * API (Kike, 2026-09-10), when `https://nimiqnames.com/api` is exactly where
+ * API (Rico, 2026-09-10), when `https://nimiqnames.com/api` is exactly where
  * it answers. Resolved against `base`, the document by default; a value that
  * is not a URL at all is shown as configured.
  */
@@ -140,7 +140,7 @@ export function resolverUrlShown(url: string, base: string = globalThis.document
 }
 
 /**
- * One agreeing party, as one line (Kike, 2026-09-15: *"I see both lines for
+ * One agreeing party, as one line (Rico, 2026-09-15: *"I see both lines for
  * each resolver redundant and it say the same"*).
  *
  * The endpoint is the line, because it is the half a user can go and check
@@ -183,7 +183,7 @@ export const proofPendingLine = (): string =>
 
 /**
  * The badge on a delegated answer: **the host that answered, not the parent
- * name** (Kike, 2026-09-16: *"Imagine reading 'Resolved by binance' being
+ * name** (Rico, 2026-09-16: *"Imagine reading 'Resolved by binance' being
  * that name registered by 3rd party person"*).
  *
  * A name is not its brand. `binance` is registrable by anybody who gets there
@@ -206,7 +206,7 @@ export const delegatedLine = (parent: string, host: string | null): string =>
   host === null || host === '' ? `Resolved by ${parent}’s host` : `Resolved by ${host}`
 
 /**
- * What a subdomain card's `?` says (Kike, 2026-09-15: *"sounds scary when it
+ * What a subdomain card's `?` says (Rico, 2026-09-15: *"sounds scary when it
  * shouldn't"*). The old line led with what is missing, and read as a warning
  * about a name whose owner had done nothing wrong. The delegation is a `D`
  * record in the leaf, covered by the same proof as the parent, so *it* is
@@ -306,7 +306,7 @@ export const unreachableLine = (): string =>
  * The resolvers answered as of different heights and differ: a change from
  * the newest blocks has reached one and not yet the other. Neutral on
  * purpose — this is the expected state for the seconds after every
- * registration, and the alarm vocabulary is not spent on it (Kike,
+ * registration, and the alarm vocabulary is not spent on it (Rico,
  * 2026-09-10, on the first live registration of the demo era).
  */
 export const propagatingLine = (): string =>
@@ -366,7 +366,7 @@ export const graceEndsUnknownPhrase = (): string => 'its grace period ends'
 export const expiresLine = (whenDate: string): string => `Expires ${whenDate}.`
 
 /**
- * The status tag, carrying the date the word depends on (Kike, 2026-09-15:
+ * The status tag, carrying the date the word depends on (Rico, 2026-09-15:
  * *"Registered until Aug 11, 2028 would look much better and it saves a
  * line"*). "Registered" and a separate *Expires* line said one thing in two
  * places; the tag is where a reader looks for the state, and the state is
@@ -499,7 +499,7 @@ const NAME_REASON_TEXT: Partial<Record<NameInvalidReason, string>> = {
   // §4.2's r6 boundary clause, which this used to describe as "digits can only
   // lead or trail, not both" — a rule that does not exist: `2nimiq2`,
   // `9nimiq9` and `23nimiq45` are all valid. What is barred is `0` and `1` at
-  // either end, closing `nimiq0`/`nimiqo` and `1kike`/`lkike`.
+  // either end, closing `nimiq0`/`nimiqo` and `1rico`/`lrico`.
   BOUNDARY_DIGIT: 'A name can’t start or end with 0 or 1.',
 }
 
@@ -559,7 +559,7 @@ export function queryFaultLine(fault: QueryFault): string {
  * auditability aside. That is the why, and the 2026-09-04 hint decision is
  * explicit that the why may go one gesture away while the warning stays.
  *
- * It was one 62-word sentence fusing all four facts (Kike, 2026-09-14: *"is
+ * It was one 62-word sentence fusing all four facts (Rico, 2026-09-14: *"is
  * awful, bad worded and long"*). A warning nobody finishes reading is not a
  * warning, which is the failure this split is fixing — not a relaxation of
  * the rule.
@@ -596,7 +596,7 @@ export const soldByLine = (seller: string): string => `Sold by ${seller}.`
  * What a seller actually receives. The line it replaced was "The marketplace
  * takes its commission from the sale, not from listing" — which contrasts the
  * sale against a charge that does not exist (`LISTING_FEE` is 0, settled at
- * zero by §12 item 3), so it read as a warning about a fee nobody pays. Kike,
+ * zero by §12 item 3), so it read as a warning about a fee nobody pays. Rico,
  * 2026-09-14: *"doesn't make sense since the user doesn't pay anything. That
  * amount is just the initial price he asks for, so no coins to take a fee
  * from."*
@@ -617,7 +617,7 @@ export const auctionProceedsLine = (minNetNim: string, percent: string): string 
 
 /**
  * Current-state lines, shown at the top of an action sheet so the owner sees
- * what they are about to change before typing anything (Kike, 2026-08-23).
+ * what they are about to change before typing anything (Rico, 2026-08-23).
  * The expiry date is the block-clock approximation — ~1 block/s — and keeps
  * the `≈` the states doc requires.
  */
@@ -632,7 +632,7 @@ export const currentHostLine = (host: string): string => `${host} currently answ
 export const noHostLine = (): string => 'No subdomain host set.'
 
 /**
- * The `D` review, both directions (Kike, 2026-09-14: *"Subdomains under
+ * The `D` review, both directions (Rico, 2026-09-14: *"Subdomains under
  * ricomaverick stop resolving" … doesn't make sense, since they're resolved
  * too, but by the delegated host*). The old clear line said resolution stops,
  * which reads as NNS taking away something it was doing — and NNS never
@@ -640,7 +640,7 @@ export const noHostLine = (): string => 'No subdomain host set.'
  * host is the whole mechanism, so clearing it is not a downgrade to on-chain
  * resolution, it is the end of the only resolution there was.
  *
- * One sentence each, and the rest behind the bubble (Kike, 2026-09-15: *"the
+ * One sentence each, and the rest behind the bubble (Rico, 2026-09-15: *"the
  * second sentence can be removed since it says nothing new … have short and
  * clear feedback and when more is needed use a (i) bubble"*). What the two
  * second sentences carried — that the host's answers are its own word, and
@@ -663,7 +663,7 @@ export const delegateClearedHint = (): string =>
 
 /**
  * Clearing is a checkbox, the way `S`'s "Point back at my address" and `E`'s
- * "Remove the linked address" already were (Kike, 2026-09-15, pointing at the
+ * "Remove the linked address" already were (Rico, 2026-09-15, pointing at the
  * `S` sheet: *"show to where is delegated at the moment and a checkbox"*). An
  * empty field meant a clear before that, which is indistinguishable from a
  * sheet nobody has typed in yet.
@@ -673,12 +673,12 @@ export const clearHostCheckLabel = (): string => 'Remove the current host'
 export const clearHostLabel = (): string => 'Clear subdomain host'
 
 /** The field, which must never echo the current host: a placeholder that
- *  repeats it reads as a filled box (Kike, 2026-09-15). */
+ *  repeats it reads as a filled box (Rico, 2026-09-15). */
 export const hostPlaceholder = (hasHost: boolean): string =>
   hasHost ? 'New host, e.g. nns.example.com' : 'Host, e.g. nns.example.com'
 
 /**
- * The rest of every review, one bubble per sheet (Kike, 2026-09-15: *"a
+ * The rest of every review, one bubble per sheet (Rico, 2026-09-15: *"a
  * fucking shit ton of text here too to say the same over and over"*, on an `E`
  * review whose three lines were the address, the chains it covers and a
  * reminder to check it). The review keeps what changes if you press the
@@ -749,7 +749,7 @@ export const ACTION_LABEL: Record<AppAction, string> = {
 }
 
 /**
- * `N` on Buy, for a name the viewer does not hold (Kike, 2026-09-09: "Lets
+ * `N` on Buy, for a name the viewer does not hold (Rico, 2026-09-09: "Lets
  * allow it as gift"). Anyone may renew (§6 `N`); the label says what the
  * payer gets — nothing — so the button cannot read as a way to acquire.
  */
@@ -819,7 +819,7 @@ export function priceHint(fees: readonly { readonly upTo: number; readonly yearl
  * transaction — the part a payer must not be left to guess at when the wallet
  * asks for the full amount.
  *
- * **The referrer's own share is not on this screen** (Kike, 2026-09-12: "no
+ * **The referrer's own share is not on this screen** (Rico, 2026-09-12: "no
  * point into showing an user that is going to pay the same how much is going
  * to receive the referrer"). It changes nothing the buyer decides, and a
  * number a reader cannot act on reads as a cost they are carrying. It stays
@@ -835,7 +835,7 @@ export const referredByLine = (ref: string, rebate: string | null = null, netOfB
     : `Referred by ${ref}. ${rebate}${netOfBurn ? ` ${BURN_ASIDE}` : ''} comes back to you once it confirms.`
 
 /**
- * The rates Kike publishes are the ones he decided — 5% and 5% — and the
+ * The rates Rico publishes are the ones he decided — 5% and 5% — and the
  * table holds what the payer sends, which is a fifth less, because §10.2
  * burns a share of everything the treasury takes in and a payout must not be
  * burned on twice (decisions.md, "A referral payout is net of the burn").
@@ -1012,7 +1012,7 @@ export const sendSubmittingLine = (): string => 'Waiting for the wallet…'
  * the API when the batch's macro block closes, in exact 60-block steps
  * (2026-08-21, `send.ts`'s `settling`).
  *
- * **One clock, named once** (Kike, 2026-09-15: *"the waiting message isn't
+ * **One clock, named once** (Rico, 2026-09-15: *"the waiting message isn't
  * the same for every card using it"*). Every screen that waits says this, and
  * `sendSettlingLine` gives the same estimate in its own words: two different
  * numbers for one batch is the app disagreeing with itself.
@@ -1028,7 +1028,7 @@ export const sendDeclinedLine = (): string => 'Nothing was sent.'
  * The strongest negative the app is entitled to, and weaker than it used to
  * be. It claimed "the network did not include this transaction" on evidence
  * that only concerned our own indexer's visibility — and said it about a
- * registration that was already registered (Kike, 2026-08-21). The send
+ * registration that was already registered (Rico, 2026-08-21). The send
  * machine now asks the chain before reaching this line at all, so by the time
  * it shows, the transaction was not found in a block either. Even then it is
  * "hasn't appeared", never "was refused": a transaction can still be in
@@ -1080,7 +1080,7 @@ export const disconnectLabel = (): string => 'Disconnect'
  * Pay hands its account set over with no prompt and offers no revocation, so
  * the app's disconnect is device-local. That was spelled out under the row as
  * a sentence, and it read as a warning about something that had gone wrong
- * (Kike, 2026-08-22) — a caveat nobody asked for, attached to a button whose
+ * (Rico, 2026-08-22) — a caveat nobody asked for, attached to a button whose
  * behaviour is obvious from pressing it. The label carries what it needs to.
  */
 export const payConnectLabel = (): string => 'Connect Nimiq Pay'
@@ -1226,7 +1226,7 @@ export const buyAcknowledgeLabel = (): string =>
  * Two numbers and nothing else. It used to add "Top it up first, sending now
  * would pay nothing and register nothing" — describing a send the sheet had
  * already blocked (`ready` requires `shortfall === null`), which is what made
- * a reader ask why it would let the transaction through (Kike, 2026-09-14).
+ * a reader ask why it would let the transaction through (Rico, 2026-09-14).
  * A line under a disabled button does not need to argue against pressing it.
  */
 export const insufficientBalanceLine = (needNim: string, haveNim: string): string =>
@@ -1270,7 +1270,7 @@ export const CHAT_ENCODE_TEXT: Record<'EMPTY_MESSAGE' | 'CONTROL_CHARS' | 'OVER_
 export const inboxWindowLine = (sinceDate: string): string => `Messages since ${sinceDate}.`
 
 /**
- * The accessible name of the per-message explorer link (Kike, 2026-09-15: *"to
+ * The accessible name of the per-message explorer link (Rico, 2026-09-15: *"to
  * give more confidence to the service"*). It draws as `ExternalIcon` alone —
  * a bubble is the wrong place for a sentence — so this carries the whole
  * meaning for a screen reader and for the tooltip.
@@ -1283,7 +1283,7 @@ export const viewOnExplorerLabel = (): string => 'Check this message on a block 
  * (2026-09-15). It was shown in the alarm palette on a message that attacked
  * nobody, and two lines under a hint saying names on this screen come from the
  * registry — two true statements about two different names, reading as a
- * contradiction because nothing distinguished them. Kike: *"both estatements
+ * contradiction because nothing distinguished them. Rico: *"both estatements
  * say the opposite"*, and then *"the red message must be removed because it
  * won't make sense at all"*.
  */
@@ -1373,7 +1373,7 @@ export const burnExplainer = (): string =>
  * the term: §3 says ~1 y, and every era cuts it to days or hours so a whole
  * lifecycle fits a session. Derived, not configured — a deploy flag that
  * someone has to remember to set is exactly the notice that goes missing
- * on the day it matters (Kike, 2026-09-11: testers must not think they
+ * on the day it matters (Rico, 2026-09-11: testers must not think they
  * are buying final names at a test price).
  */
 export const isCompressedEra = (blocks: number = CONSTANTS.TERM_LENGTH): boolean => blocks / 86_400 < 364
@@ -1530,7 +1530,7 @@ export const LANDING = {
       { title: 'Resources', links: [['Documentation', '#/docs/intro'], ['Developer docs', '#/docs/developers'], ['GitHub', REPO], ['Nimiq', 'https://nimiq.com']] },
       // Telegram is **this project's** group (`CONTACT`, and the masthead's
       // Contact door reads the same list), the other two are Nimiq's. Asked
-      // for directly (Kike, 2026-09-16): the reader who wants to reach the
+      // for directly (Rico, 2026-09-16): the reader who wants to reach the
       // people running the registry should not land in the wallet's channel.
       { title: 'Community', links: [['X', 'https://x.com/nimiq'], ['Discord', 'https://discord.gg/nimiq'], ['Telegram', TELEGRAM]] },
     ],
@@ -1542,7 +1542,7 @@ export const LANDING = {
 //
 // Headlines, pills, tiles and the trust bars the redesign put on every
 // screen, moved here from the components. The copy is Bakar's, edited by
-// Kike. The claims are true as design — where a name points is read from
+// Rico. The claims are true as design — where a name points is read from
 // chain data and the client verifies the proof, so "decentralized" and
 // "100% on-chain" are facts, not marketing — and a claim is reworded only
 // where it names a mechanism the code does not have: Market's "escrow" sat
@@ -1626,7 +1626,7 @@ export const OWNER_GROUP_TITLE = {
 } as const
 
 /**
- * The rate configured for **this** name, beside the Referrals title (Kike,
+ * The rate configured for **this** name, beside the Referrals title (Rico,
  * 2026-09-12: "should be nice to reflect on the panel name, what is the % is
  * configured for you (5% by default but for example binance may see a 20%)").
  * A partner's row is not the default, and the owner is the one person who
@@ -1666,7 +1666,7 @@ export const copyLinkLabel = (): string => 'Copy link'
 /**
   * A name in grace does not resolve (§7.3), so a link to it has nothing to send
   * to. It said "a name in grace can’t be paid", which reads as the name being
-  * bought (Kike, 2026-09-14: *"What that 'paid' means? Don't you mean 'sold'?"*).
+  * bought (Rico, 2026-09-14: *"What that 'paid' means? Don't you mean 'sold'?"*).
   * The subject is the payment, not the name.
   */
 export const requestInGraceLine = (): string => 'Payments can’t reach a name in grace. Renew it first.'
@@ -1728,7 +1728,7 @@ export const cancelHint = (
   subject: { readonly to: string | null; readonly priceNim: string | null; readonly leftBlocks?: number | null },
 ): string => {
   // How long is left to use it. A cancel window you have to guess at is the
-  // one number the tile owes you (Kike, 2026-09-15), and it is short by
+  // one number the tile owes you (Rico, 2026-09-15), and it is short by
   // design — 10 min in a tempo era, 12 h on mainnet.
   const left = subject.leftBlocks == null ? '' : `, ${blocksApprox(subject.leftBlocks)} left`
   if (set === 'transfer') return subject.to === null ? `Stop the pending transfer${left}` : `To ${subject.to}${left}`
@@ -1783,7 +1783,7 @@ export const toLabel = (): string => 'To:'
  * A listing's **kind**, beside the name; `buyNowLabel` is the **action**, on
  * the button. The two were both "Buy Now", which printed one phrase twice on
  * every offer card while the auction card beside it read *Live Auction* /
- * *Place Bid* and did not (Kike, 2026-09-16). "For Sale" is the word the rest
+ * *Place Bid* and did not (Rico, 2026-09-16). "For Sale" is the word the rest
  * of the app already uses for a fixed-price listing — `Cancel Sale`, *take it
  * off sale*, *This name is not for sale* — so the pill, the filter tab and
  * every sentence elsewhere now agree.

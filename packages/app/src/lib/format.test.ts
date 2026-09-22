@@ -40,7 +40,7 @@ describe('approx dates', () => {
 
   // A timelock is a countdown. Rendered through `formatApproxDate` it came out
   // as the day it already is, on mainnet's 12 h and on a tempo era's 10 min
-  // alike (Kike, 2026-09-15).
+  // alike (Rico, 2026-09-15).
   it('renders a pending effect as time left, and a due one as the next block', () => {
     expect(formatApproxIn(600)).toBe('in ~10 min')
     expect(formatApproxIn(43_200)).toBe('in ~12 h')
@@ -111,7 +111,7 @@ describe('the read form and the typed form', () => {
   /**
    * The bug this pair exists for: Pay's MAX filled the amount field from the
    * *read* form, so a balance of 18,765.84304 went in and the parser rejected
-   * it on the next keystroke (Kike, 2026-09-14). Anything a button puts into
+   * it on the next keystroke (Rico, 2026-09-14). Anything a button puts into
    * a field has to survive the parser behind it.
    */
   it('round-trips the typed form through the parser, which is what MAX needs', () => {

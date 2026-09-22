@@ -25,7 +25,7 @@ A screen that needs a wallet you have not connected shows the same connect butto
 
 ## Links
 
-The screen you are on is the page's address: `#/buy/kike`, `#/names`, `#/market/indigo`, `#/docs/prices`. A reload or a shared link lands where you were.
+The screen you are on is the page's address: `#/buy/rico`, `#/names`, `#/market/indigo`, `#/docs/prices`. A reload or a shared link lands where you were.
 
 Two links do more. A **payment link** opens Pay with the recipient and the amount filled in ([Pay](pay)). A **referral link** records who introduced you ([Referrals](referrals)). Tapping either in a chat app opens a browser rather than Nimiq Pay. Inside the mini app, paste the link into the search box or the recipient field instead.
 

@@ -713,7 +713,7 @@ export function PayScreen({
                   <AddressRow address={resolved.address} full />
                   {/* Who verified the address about to be paid. Pay showed
                       nothing of it until 2026-09-15, on the one screen where
-                      money actually moves (Kike). Same foot as the result
+                      money actually moves (Rico). Same foot as the result
                       card's, in this card's own padding. */}
                   <div className="answer-foot">
                     <VerificationLine result={resolved} />

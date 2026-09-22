@@ -125,14 +125,14 @@ describe('non-inclusion', () => {
   }
 
   it('accepts the empty tree, whose all-zero root is itself the proof', () => {
-    const document = readNonInclusionDocument(nonInclusionJson([], 'kikeee'))
-    expect(() => verifyNonInclusion(document, 'kikeee')).not.toThrow()
+    const document = readNonInclusionDocument(nonInclusionJson([], 'ricoee'))
+    expect(() => verifyNonInclusion(document, 'ricoee')).not.toThrow()
   })
 
   it('rejects an empty-tree claim over a non-zero root', () => {
-    const json = nonInclusionJson([], 'kikeee')
+    const json = nonInclusionJson([], 'ricoee')
     json['root'] = `0x${'11'.repeat(32)}`
-    expect(() => verifyNonInclusion(readNonInclusionDocument(json), 'kikeee')).toThrow(/32 zero bytes/)
+    expect(() => verifyNonInclusion(readNonInclusionDocument(json), 'ricoee')).toThrow(/32 zero bytes/)
   })
 
   it('rejects brackets that are not adjacent', () => {

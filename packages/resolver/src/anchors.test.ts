@@ -72,7 +72,7 @@ const failingRpc = (label: string): AnchorReadRpc => ({
 
 type Reply = { readonly status: number; readonly body: unknown } | 'unreachable'
 
-const RECORDS = [record('alpha'), record('kikeee'), record('zulued')]
+const RECORDS = [record('alpha'), record('ricoee'), record('zulued')]
 const OTHER_RECORDS = [...RECORDS, record('mikeee')]
 
 const A: ResolverEndpoint = { name: 'reference', url: 'https://a.example' }
@@ -81,7 +81,7 @@ const B: ResolverEndpoint = { name: 'community', url: 'https://b.example' }
 /** Both resolvers serve the same answer, and `/checkpoints/{h}` from `checkpoint`. */
 function network(options: { readonly proof?: boolean; readonly checkpoint?: Reply } = {}) {
   const paths: string[] = []
-  const body = resolveJson(RECORDS, 'kikeee', options.proof === false ? { proof: false } : {})
+  const body = resolveJson(RECORDS, 'ricoee', options.proof === false ? { proof: false } : {})
   const fetchImpl: HttpFetch = async (url) => {
     const path = new URL(url).pathname
     paths.push(path)
@@ -124,7 +124,7 @@ const GOOD = commitmentOf(RECORDS)
 describe('the shipped default', () => {
   it('reports not-checked and costs nothing when no anchor policy is configured', async () => {
     const net = network()
-    const result = await resolverWith(net, undefined).resolve('kikeee')
+    const result = await resolverWith(net, undefined).resolve('ricoee')
 
     expect(result.anchor).toMatchObject({ status: 'not-checked', reason: 'NOT_CONFIGURED', check: null })
     expect(result.warnings.map((w) => w.code)).toContain('ANCHOR_NOT_CHECKED')
@@ -137,7 +137,7 @@ describe('the shipped default', () => {
     // configured, and there is still nobody listed to have anchored anything.
     const net = network()
     const rpcs = [fakeRpc('one', []), fakeRpc('two', [])]
-    const result = await resolverWith(net, policy(rpcs, [])).resolve('kikeee')
+    const result = await resolverWith(net, policy(rpcs, [])).resolve('ricoee')
 
     expect(result.anchor.status).toBe('not-checked')
     expect(result.anchor.check).toEqual({ status: 'not-checked', reason: 'NO_PUBLISHERS' })
@@ -149,7 +149,7 @@ describe('the shipped default', () => {
 
   it('still resolves, and the answer is unchanged by any of it', async () => {
     const net = network()
-    const result = await resolverWith(net, undefined).resolve('kikeee')
+    const result = await resolverWith(net, undefined).resolve('ricoee')
     expect(result.verification).toBe('PROVEN')
   })
 })
@@ -169,7 +169,7 @@ describe('§8.5 #1 over a configured list', () => {
         { publisher: PUBLISHER_B, commitment: GOOD },
       ]),
     ]
-    const result = await resolverWith(net, policy(rpcs, [PUBLISHER_A, PUBLISHER_B])).resolve('kikeee')
+    const result = await resolverWith(net, policy(rpcs, [PUBLISHER_A, PUBLISHER_B])).resolve('ricoee')
 
     expect(result.anchor.status).toBe('verified')
     // A check that passes says nothing: no anchor warning at all.
@@ -183,7 +183,7 @@ describe('§8.5 #1 over a configured list', () => {
       { publisher: OUTSIDER, commitment: GOOD },
     ]
     const rpcs = [fakeRpc('one', anchors), fakeRpc('two', anchors)]
-    const result = await resolverWith(network(), policy(rpcs, [PUBLISHER_A, PUBLISHER_B])).resolve('kikeee')
+    const result = await resolverWith(network(), policy(rpcs, [PUBLISHER_A, PUBLISHER_B])).resolve('ricoee')
 
     expect(result.anchor.status).toBe('quorum-not-met')
     expect(result.anchor.check).toMatchObject({ found: 1, required: 2 })
@@ -196,7 +196,7 @@ describe('§8.5 #1 over a configured list', () => {
       { publisher: PUBLISHER_B, commitment: GOOD, ageSeconds: 200_000 },
     ]
     const rpcs = [fakeRpc('one', anchors), fakeRpc('two', anchors)]
-    const result = await resolverWith(network(), policy(rpcs, [PUBLISHER_A, PUBLISHER_B])).resolve('kikeee')
+    const result = await resolverWith(network(), policy(rpcs, [PUBLISHER_A, PUBLISHER_B])).resolve('ricoee')
 
     expect(result.anchor.status).toBe('verified')
     expect(result.warnings.map((w) => w.code)).toContain('ANCHOR_STALE')
@@ -211,7 +211,7 @@ describe('§8.5 #1 over a configured list', () => {
       ]),
       failingRpc('two'),
     ]
-    const result = await resolverWith(network(), policy(rpcs, [PUBLISHER_A, PUBLISHER_B])).resolve('kikeee')
+    const result = await resolverWith(network(), policy(rpcs, [PUBLISHER_A, PUBLISHER_B])).resolve('ricoee')
 
     expect(result.anchor.status).toBe('unavailable')
     expect(result.warnings.map((w) => w.code)).toContain('ANCHOR_UNAVAILABLE')
@@ -220,7 +220,7 @@ describe('§8.5 #1 over a configured list', () => {
   it('has nothing to ask about when no proof was served', async () => {
     const rpcs = [fakeRpc('one', []), fakeRpc('two', [])]
     const net = network({ proof: false })
-    const result = await resolverWith(net, policy(rpcs, [PUBLISHER_A, PUBLISHER_B])).resolve('kikeee')
+    const result = await resolverWith(net, policy(rpcs, [PUBLISHER_A, PUBLISHER_B])).resolve('ricoee')
 
     expect(result.anchor).toMatchObject({ status: 'not-checked', reason: 'NO_CHECKPOINT' })
     expect(net.paths.filter((p) => p.startsWith('/checkpoints/'))).toEqual([])
@@ -233,7 +233,7 @@ describe('§8.5 #1 over a configured list', () => {
     ]
     const rpcs = [fakeRpc('one', anchors), fakeRpc('two', anchors)]
     const net = network({ checkpoint: { status: 410, body: { error: 'CHECKPOINT_NOT_RETAINED' } } })
-    const result = await resolverWith(net, policy(rpcs, [PUBLISHER_A, PUBLISHER_B])).resolve('kikeee')
+    const result = await resolverWith(net, policy(rpcs, [PUBLISHER_A, PUBLISHER_B])).resolve('ricoee')
 
     // The resolution stands — it agreed and its proof verified. Only the
     // anchor tier could not run, and it says which party and why.
@@ -256,7 +256,7 @@ describe('halting', () => {
     ]
     const rpcs = [fakeRpc('one', anchors), fakeRpc('two', anchors)]
     const error = await resolverWith(network(), policy(rpcs, [PUBLISHER_A, PUBLISHER_B]))
-      .resolve('kikeee')
+      .resolve('ricoee')
       .catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(AnchorError)
@@ -268,7 +268,7 @@ describe('halting', () => {
     const anchors = [{ publisher: PUBLISHER_A, commitment: commitmentOf(OTHER_RECORDS) }]
     const rpcs = [fakeRpc('one', anchors), fakeRpc('two', anchors)]
     const error = await resolverWith(network(), policy(rpcs, [PUBLISHER_A, PUBLISHER_B]))
-      .resolve('kikeee')
+      .resolve('ricoee')
       .catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(AnchorError)
@@ -283,7 +283,7 @@ describe('halting', () => {
     ]
     const rpcs = [fakeRpc('one', anchors), fakeRpc('two', anchors)]
     const error = await resolverWith(network(), policy(rpcs, [PUBLISHER_A, PUBLISHER_B]))
-      .resolve('kikeee')
+      .resolve('ricoee')
       .catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(AnchorError)
@@ -304,7 +304,7 @@ describe('halting', () => {
     const net = network({ checkpoint: { status: 200, body: checkpointJson(RECORDS, { overrides: { commitment: stolen } }) } })
 
     const error = await resolverWith(net, policy(rpcs, [PUBLISHER_A, PUBLISHER_B]))
-      .resolve('kikeee')
+      .resolve('ricoee')
       .catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(AnchorError)
@@ -322,7 +322,7 @@ describe('halting', () => {
     const net = network({ checkpoint: { status: 200, body: checkpointJson(OTHER_RECORDS) } })
 
     const error = await resolverWith(net, policy(rpcs, [PUBLISHER_A, PUBLISHER_B]))
-      .resolve('kikeee')
+      .resolve('ricoee')
       .catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(AnchorError)

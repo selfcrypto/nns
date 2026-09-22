@@ -266,7 +266,7 @@ Each was found while implementing `core` and ratified into the spec by r15. They
 implementations fork *silently* if they read the clause differently:
 
 1. **Numeric fields are canonical decimal** — no sign, leading zeros or
-   whitespace. `NNS1Okikename|0123` is `MALFORMED_PAYLOAD` (§5.2).
+   whitespace. `NNS1Oriconame|0123` is `MALFORMED_PAYLOAD` (§5.2).
 2. **`data` in a log line is hex.** Raw text would let a payload containing a
    newline forge an entire log line (§8.2).
 3. **Effects due at the same height fire in a fixed order** and before that

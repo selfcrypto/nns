@@ -86,7 +86,7 @@ describe('"Verified by N resolvers" (resolver README decision, 2026-08-14)', () 
     expect(verifiedByLine({ required: 2, queried: 2, agreed: 2, resolvers: [LABS, OURS] })).toBe('Verified by 2 resolvers')
   })
 
-  // The count names nobody, which is the whole complaint at N = 2 (Kike,
+  // The count names nobody, which is the whole complaint at N = 2 (Rico,
   // 2026-08-28). The party is the name; the URL is the half a user can check,
   // and since 2026-09-15 the row is one line rather than both said twice.
   it('names a party whose URL does not already name it', () => {
@@ -115,7 +115,7 @@ describe('"Verified by N resolvers" (resolver README decision, 2026-08-14)', () 
   })
 
   // A same-origin `/api` is right for fetch and wrong on the card: shown
-  // bare it reads as a path that is not the API (Kike, 2026-09-10).
+  // bare it reads as a path that is not the API (Rico, 2026-09-10).
   it('shows a same-origin path as the absolute URL it fetches', () => {
     expect(resolverUrlShown('/api', 'https://nimiqnames.com/#/buy')).toBe('https://nimiqnames.com/api')
     expect(resolverUrlShown('https://nns.sonartech.pro', 'https://nimiqnames.com/')).toBe('https://nns.sonartech.pro')
@@ -127,7 +127,7 @@ describe('"Verified by N resolvers" (resolver README decision, 2026-08-14)', () 
   })
 })
 
-describe('propagation is depth, not alarm (Kike, 2026-09-10)', () => {
+describe('propagation is depth, not alarm (Rico, 2026-09-10)', () => {
   it('never uses the alarm vocabulary', () => {
     for (const line of [propagatingLine(), propagatingRetryLine(true), propagatingRetryLine(false), STATUS_TAG.propagating]) {
       expect(line.toLowerCase()).not.toMatch(/disagree|stop|do not pay|alarm|wrong/)
@@ -198,7 +198,7 @@ describe('a broken checker never reads as a negative result (decisions.md)', () 
     // This assertion used to require the opposite — that `unconfirmed` say
     // "the network did not include this transaction" — and so pinned the bug
     // in place: the app said exactly that about a registration that was
-    // already registered and already listed in "My names" (Kike,
+    // already registered and already listed in "My names" (Rico,
     // 2026-08-21). The app never observes the network refusing anything. It
     // observes an effect not yet visible, which is a claim about our own
     // indexer, and a transaction not found on chain, which can still be in
@@ -239,7 +239,7 @@ describe('state lines', () => {
 
 /**
  * Every assertion here is a sentence that was wrong on the live deployment
- * (Kike, 2026-08-17) — "they're all really weird and mostly incorrect".
+ * (Rico, 2026-08-17) — "they're all really weird and mostly incorrect".
  */
 describe('field wording says which rule broke, and says it truthfully', () => {
   it('states §4.2\'s boundary clause, not a rule that does not exist', () => {
@@ -297,7 +297,7 @@ describe('the wallet seam shows through in wording as little as in code', () => 
 
 describe('the referral lines (§10.7)', () => {
   // The review is the **buyer's** screen. What the referrer earns changes
-  // nothing they decide, so it is not on it (Kike, 2026-09-12: "no point into
+  // nothing they decide, so it is not on it (Rico, 2026-09-12: "no point into
   // showing an user that is going to pay the same how much is going to
   // receive the referrer"). Naming the referrer stays — a field travelling
   // with their registration that they cannot see is one they cannot correct.
@@ -332,8 +332,8 @@ describe('the referral lines (§10.7)', () => {
     expect(shareHint('10%')).toContain('pays the same price')
   })
 
-  // Kike publishes 5% and the payer sends 4%. The screens say 5% and name the
-  // burn once, beside the number (Kike, 2026-09-12: "5% (minus burn fee) or
+  // Rico publishes 5% and the payer sends 4%. The screens say 5% and name the
+  // burn once, beside the number (Rico, 2026-09-12: "5% (minus burn fee) or
   // something like that").
   describe('the burn beside the rate', () => {
     it('the review and the strip each name it once', () => {
@@ -464,7 +464,7 @@ describe('a `K` is named by what it will clear (§6 `K`)', () => {
 })
 
 /**
- * Kike, 2026-09-14, forwarding a Nimiq team member on the balance block:
+ * Rico, 2026-09-14, forwarding a Nimiq team member on the balance block:
  * *"This text is so obviously Claude speak"* — *"please stop using the '-' to
  * split sentences. I prefer a dot or brackets (only when needed)."*
  *
@@ -477,7 +477,7 @@ describe('no em dash splits a sentence a user reads', () => {
   // Every string literal in the source, comments excluded, found by walking
   // the characters rather than the lines: the first version read `wording.ts`
   // line by line and so covered neither a trailing `// comment` nor the
-  // review lines in `actions.ts`, which is where Kike found three of them on
+  // review lines in `actions.ts`, which is where Rico found three of them on
   // one sheet (2026-09-15). What a user reads is a string, so strings are what
   // this reads.
   const stringsIn = (source: string): readonly string[] => {
@@ -591,7 +591,7 @@ describe('the custodial disclosure keeps §8.5 #10 on the card', () => {
 })
 
 /**
- * Two defect classes Kike found on the live site rather than a test finding
+ * Two defect classes Rico found on the live site rather than a test finding
  * them (2026-09-15), pinned so they cannot come back a third time.
  */
 describe('a duration in a string is read from its constant', () => {

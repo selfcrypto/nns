@@ -41,7 +41,7 @@ const ratesOf = (value: unknown, path: string, what: string): unknown[] => {
  * when `partnersPath` names one: a file on the box, `{ "rates": [ … ] }`,
  * holding named rows only. An agreed partner rate is between the partner and
  * the operator: it is on chain for anyone who looks, and stays out of the
- * repository and the docs (Kike, 2026-09-19). The default stays the committed
+ * repository and the docs (Rico, 2026-09-19). The default stays the committed
  * one, so a partner file carrying a `ref: null` row is refused rather than
  * allowed to reprice every referral from a file nobody reviews. The merged
  * rows go through the one parser, so the append-only and duplicate rules hold

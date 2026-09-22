@@ -96,7 +96,7 @@ on-chain", which would be false about the address the user is about to pay.
 | `NameError` `NAME_INVALID` | Field-level, before any network call, with the §4.1 reason in plain words (§3 below) |
 | `LookupError` `NOT_FOUND` | The name has no record — offer the availability check / register path |
 | `LookupError` `IN_GRACE` | The GRACE wording of §1 |
-| `QuorumError` (`QUORUM_UNMET`, `QUORUM_LAGGING`, `QUORUM_DISAGREEMENT`, `QUORUM_ROOT_MISMATCH`) | **Alarm tier** for the disagreement forms — resolvers said different things **as of one height**; show which party said what (`.replies`) and do not answer. `QUORUM_UNMET` (too few answered) is an availability failure: "couldn't reach enough resolvers", retry, no alarm vocabulary. `QUORUM_LAGGING` (different answers **as of different heights** — the seconds after a change lands, when one resolver has the block and another has not) is **depth, never alarm**: the `propagating` card, "a recent change is still reaching every resolver", the screen asking again on its own every 3 s for up to a minute (`useRetryWhilePropagating`), then "search again in a moment". This is the expected state right after every registration (Kike, 2026-09-10, on the era's first live one). `.replies` reached none of these cards until 2026-09-15 — `search()` kept the code and the message and dropped the parties, so an alarm could name nobody; `outcomeForError` carries them now and `search.test.ts` pins it |
+| `QuorumError` (`QUORUM_UNMET`, `QUORUM_LAGGING`, `QUORUM_DISAGREEMENT`, `QUORUM_ROOT_MISMATCH`) | **Alarm tier** for the disagreement forms — resolvers said different things **as of one height**; show which party said what (`.replies`) and do not answer. `QUORUM_UNMET` (too few answered) is an availability failure: "couldn't reach enough resolvers", retry, no alarm vocabulary. `QUORUM_LAGGING` (different answers **as of different heights** — the seconds after a change lands, when one resolver has the block and another has not) is **depth, never alarm**: the `propagating` card, "a recent change is still reaching every resolver", the screen asking again on its own every 3 s for up to a minute (`useRetryWhilePropagating`), then "search again in a moment". This is the expected state right after every registration (Rico, 2026-09-10, on the era's first live one). `.replies` reached none of these cards until 2026-09-15 — `search()` kept the code and the message and dropped the parties, so an alarm could name nobody; `outcomeForError` carries them now and `search.test.ts` pins it |
 | `ProofError` | **Alarm tier.** A served proof did not hold. Do not show an address |
 | `AnchorError` (`CHECKPOINT_BINDING_INVALID`, `ANCHOR_MISMATCH`, `ANCHOR_DIVERGENCE`) | **Alarm tier.** Surface the conflict and stop resolving (§8.5 #7) |
 | `DocumentError` | A resolver served a malformed reply — an operator fault, worded as one. Retryable |
@@ -139,7 +139,7 @@ about a name a `U` could open.
 | Valid name **the viewer owns** | "You own this name." and a *Manage it* handoff to My names — never the owner actions. Buy offers `register`, `buy`, `bid` and — on a name the viewer does not hold — *Gift a renewal*; the owner's actions live in My names alone (app-ux §2) |
 | Dotted query, parent not registered | The parent's own §1 state, worded about the parent |
 | Dotted query, parent has no host | `PARENT_NOT_DELEGATING` wording |
-| Dotted query, host answered | `DELEGATED` result, §2 treatment — and **no name action, ever**. A label is not a registrable object: every action in §4 takes a name, and the only name in a delegated answer is the parent, which resolved and is therefore held. The card offering the acquisition list offered to register *the parent* — a `G` the reducer forfeits as `NAME_TAKEN` (Kike, 2026-08-28). What it does offer is the address: **Pay this address**, and **Message this address**, an NC message to the address the host answered with, subject `label.parent`. Not the parent's owner: §8.6 gives a label no record and no owner, and whoever runs the host is a different party from whoever holds the label |
+| Dotted query, host answered | `DELEGATED` result, §2 treatment — and **no name action, ever**. A label is not a registrable object: every action in §4 takes a name, and the only name in a delegated answer is the parent, which resolved and is therefore held. The card offering the acquisition list offered to register *the parent* — a `G` the reducer forfeits as `NAME_TAKEN` (Rico, 2026-08-28). What it does offer is the address: **Pay this address**, and **Message this address**, an NC message to the address the host answered with, subject `label.parent`. Not the parent's owner: §8.6 gives a label no record and no owner, and whoever runs the host is a different party from whoever holds the label |
 | Dotted query, host failed | `DELEGATE_FAILED` wording — host's fault, parent shown verified |
 | Any query, resolvers a block apart and differing | The `propagating` card (§2): name, a *Propagating* tag, depth tier, re-asked on its own. Never the alarm card |
 
@@ -192,10 +192,10 @@ include this transaction", never "sent".
    never hidden, greyed or apologetic. The count says how many parties the
    answer rests on and nothing about which, and a configured `name` identifies
    a party only to whoever wrote the config — the URL is the half a user can
-   go and check (Kike, 2026-08-28, on adding a second resolver).
+   go and check (Rico, 2026-08-28, on adding a second resolver).
 
    **One line per party, and the name only when the URL does not already
-   carry it** (Kike, 2026-09-15: *"I see both lines for each resolver
+   carry it** (Rico, 2026-09-15: *"I see both lines for each resolver
    redundant and it say the same"*). A config that names a party after its
    host printed one fact twice, so the endpoint is the line — absolute, per
    the 2026-09-10 decision — and a party whose name is not in its URL keeps
@@ -203,7 +203,7 @@ include this transaction", never "sent".
    only, never read by any check, because a slow resolver is not a wrong one.
 
    The list sits **behind a disclosure on that line, closed by default**
-   (Kike, 2026-09-11): it is evidence for the count, and at the six or eight
+   (Rico, 2026-09-11): it is evidence for the count, and at the six or eight
    resolvers a grown quorum has it is longer than the answer it supports.
    One tap is the whole cost, and the count — the statement a user acts on —
    is what stays on the card.

@@ -13,15 +13,15 @@ import {
 import { CONSTANTS } from './constants.js'
 
 /** From the project README. */
-const KIKE = 'NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M QCQ4 8P8M'
+const RICO = 'NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M QCQ4 8P8M'
 
 describe('parseAddress', () => {
   it('accepts the conventional spaced form', () => {
-    expect(parseAddress(KIKE)).toBe('NQ64VFXQTPAS5Q7SADEX072SCR2MQCQ48P8M')
+    expect(parseAddress(RICO)).toBe('NQ64VFXQTPAS5Q7SADEX072SCR2MQCQ48P8M')
   })
 
   it('accepts the compact form and lowercase input', () => {
-    expect(parseAddress('nq64vfxqtpas5q7sadex072scr2mqcq48p8m')).toBe(parseAddress(KIKE))
+    expect(parseAddress('nq64vfxqtpas5q7sadex072scr2mqcq48p8m')).toBe(parseAddress(RICO))
   })
 
   it('accepts the canonical burn address from §3', () => {
@@ -47,13 +47,13 @@ describe('parseAddress', () => {
 
   it('tryParseAddress returns null instead of throwing', () => {
     expect(tryParseAddress('not an address')).toBeNull()
-    expect(tryParseAddress(KIKE)).not.toBeNull()
+    expect(tryParseAddress(RICO)).not.toBeNull()
   })
 })
 
 describe('byte conversion', () => {
   it('round-trips through 20 raw bytes', () => {
-    const address = parseAddress(KIKE)
+    const address = parseAddress(RICO)
     const bytes = addressToBytes(address)
     expect(bytes).toHaveLength(ADDRESS_BYTES)
     expect(addressFromBytes(bytes)).toBe(address)
@@ -80,7 +80,7 @@ describe('byte conversion', () => {
 
 describe('formatAddress', () => {
   it('restores the conventional spacing', () => {
-    expect(formatAddress(parseAddress(KIKE))).toBe(KIKE)
+    expect(formatAddress(parseAddress(RICO))).toBe(RICO)
   })
 
   it('formats the burn address exactly as §3 writes it', () => {

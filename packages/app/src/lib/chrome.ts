@@ -209,7 +209,7 @@ export function describeChrome(
  *
  *   - **Overlay mode**: the layout viewport keeps its height and the *visual*
  *     one shrinks — `innerHeight - visualHeight` opens past 100 px.
- *   - **Resize mode** — what Pay's in-app browser actually does (Kike's
+ *   - **Resize mode** — what Pay's in-app browser actually does (Rico's
  *     second screenshot pair, 2026-08-23: the bar re-stuck above the
  *     keyboard, so the layout viewport itself shrank and the first detector
  *     never fired): `innerHeight` drops well below the tallest value this
@@ -239,7 +239,7 @@ export function keyboardVisible(view: {
  *   - `innerHeight − 100svh`: the Android navigation bar drawn **over** the
  *     WebView. `visualViewport` does not see an overlaid system bar — on
  *     2026-08-23 it measured 0 on a device whose nav buttons were sitting
- *     straight on the tab bar's labels (Kike's third screenshot set, the
+ *     straight on the tab bar's labels (Rico's third screenshot set, the
  *     original 2026-08-22 bug back for one deploy) — but the same screenshots
  *     show the `100svh` frame ending *above* those buttons, so the svh probe
  *     is the instrument that captures it.

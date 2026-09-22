@@ -127,7 +127,7 @@ export function chatEndpoint(): string | null {
 
 /**
  * Where a transaction can be checked by someone who does not take this app's
- * word for it (Kike, 2026-09-15: *"to give more confidence to the service"*).
+ * word for it (Rico, 2026-09-15: *"to give more confidence to the service"*).
  *
  * A **template**, not a base, because the two Nimiq explorers disagree about
  * URL shape and neither is wrong: `https://nimiq.watch/#{hash}` routes on the

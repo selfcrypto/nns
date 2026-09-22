@@ -11,9 +11,9 @@ const reading = (value: string | Error) => ({
 
 describe('readClipboard', () => {
   it('hands back what the clipboard held', async () => {
-    expect(await readClipboard(reading('https://nimiqnames.com/pay/kike?amount=25'))).toEqual({
+    expect(await readClipboard(reading('https://nimiqnames.com/pay/rico?amount=25'))).toEqual({
       kind: 'text',
-      text: 'https://nimiqnames.com/pay/kike?amount=25',
+      text: 'https://nimiqnames.com/pay/rico?amount=25',
     })
   })
 

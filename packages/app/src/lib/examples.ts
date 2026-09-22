@@ -11,7 +11,7 @@
  * true.
  *
  * They were `NQ00 0000 …0001` through `…0005` until 2026-09-13, which read as
- * five names all pointing at the same nothing (Kike). Random-looking is the
+ * five names all pointing at the same nothing (Rico). Random-looking is the
  * whole point — the illustration is "a name has an address behind it", and
  * five zeroed strings illustrate a broken registry. **These become five real
  * registered names once the era has run a few days.**

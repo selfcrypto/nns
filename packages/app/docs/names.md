@@ -5,13 +5,13 @@ A name is what you type instead of an address. The app names the rule a string b
 ## The six rules
 
 1. **{{n:MIN_NAME_LEN}} to {{n:MAX_NAME_LEN}} characters.** Shorter names are not invalid. They are *reserved*, see below.
-2. **Only `a` to `z`, `0` to `9` and `-`.** Lowercase only. Type `Kike` and the app searches `kike`.
+2. **Only `a` to `z`, `0` to `9` and `-`.** Lowercase only. Type `Rico` and the app searches `rico`.
 3. **At least one letter.** `12345` is not a name.
 4. **No hyphen at the start or the end, and never two in a row.** `my-name` yes. `-myname`, `myname-` and `my--name` no.
-5. **Digits only at the ends, never between letters.** `web3`, `bitcoin7` and `21kike` are fine. `n1m1q`, `nim1qpay`, `g00gle` and `b1tc0in` are not. Impersonating a name means swapping a letter inside it for a digit that looks like one, and this rule removes that whole class. At the ends, `0` and `1` are barred as well, which closes `sud0` against `sudo` and `1ayer` against `layer`.
+5. **Digits only at the ends, never between letters.** `web3`, `bitcoin7` and `21rico` are fine. `n1m1q`, `nim1qpay`, `g00gle` and `b1tc0in` are not. Impersonating a name means swapping a letter inside it for a digit that looks like one, and this rule removes that whole class. At the ends, `0` and `1` are barred as well, which closes `sud0` against `sudo` and `1ayer` against `layer`.
 6. **Not reserved.** See below.
 
-Dots are not part of a name. `shop.kike` is a subdomain of `kike` ([Subdomains](subdomains)).
+Dots are not part of a name. `shop.rico` is a subdomain of `rico` ([Subdomains](subdomains)).
 
 **Why a hyphen and not an underscore.** An underscore disappears under a link's underline: `self_crypto` reads as `self crypto`. A hyphen does not, and it is legal in a hostname.
 
@@ -48,7 +48,7 @@ A reserved name is not lost. The administrator can do one of three things with i
 
 The list errs on the side of reserving. A name left off it is anyone's the moment the registry opens, and no rule can take it back. A name reserved by mistake is released with one message.
 
-First names and surnames are **not** reserved. The product is `kike` instead of an address, and the person called David should not have to outbid a squatter for `david`. Two exceptions: the Telegram handles of the Nimiq team, kept for them, and a handful of one-word names only one star answers to, like `ronaldo`.
+First names and surnames are **not** reserved. The product is `rico` instead of an address, and the person called David should not have to outbid a squatter for `david`. Two exceptions: the Telegram handles of the Nimiq team, kept for them, and a handful of one-word names only one star answers to, like `ronaldo`.
 
 ## How names are shown
 

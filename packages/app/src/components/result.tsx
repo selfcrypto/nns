@@ -47,7 +47,7 @@ export const tierOf = (result: ResolveResult): RailTier => {
  *
  * Behind a disclosure, closed by default: at the two resolvers of today it is
  * two lines, at the six or eight of a grown quorum it is the whole card, and
- * the list is evidence for the count rather than the statement itself (Kike,
+ * the list is evidence for the count rather than the statement itself (Rico,
  * 2026-09-11). The count line is the disclosure, so the evidence is one tap
  * away and never more than that — §5 wording rule 1.
  */
@@ -132,7 +132,7 @@ export function QuorumReplies({ replies, tone }: { replies: readonly ResolverRep
 
 /**
  * The address and who vouched for it, as **one object with two compartments**
- * (Kike, 2026-09-15: *"place them inside a bubble or a div, properly
+ * (Rico, 2026-09-15: *"place them inside a bubble or a div, properly
  * aligned"*). They were two siblings with three different left edges, and the
  * verification read as a loose caption rather than as the provenance of the
  * address above it.
@@ -198,7 +198,7 @@ export function WarningNotes({ warnings }: { warnings: readonly ResolveWarning[]
  * The address being answered, with its identicon — what will actually be
  * paid, and the whole row is the copy control.
  *
- * Copying is offered here and not on every address the app draws (Kike,
+ * Copying is offered here and not on every address the app draws (Rico,
  * 2026-09-16: *"I don't know if add a copy option always on every case"*).
  * The line is whether the address is the **object** of the screen or a word
  * inside something else: this row and the Inbox's thread header are objects,

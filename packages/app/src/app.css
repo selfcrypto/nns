@@ -106,7 +106,7 @@
  *
  * The attribute lands on `<html>`, and only for the dashboard: the landing
  * page is photographs and a video shot for a white ground, and a relit
- * palette under them is worse than no night mode at all (Kike, 2026-09-14).
+ * palette under them is worse than no night mode at all (Rico, 2026-09-14).
  * Gold is the one hue that does not move — it is the brand's, it carries on
  * both grounds, and the honeycomb is drawn in it.
  */
@@ -279,7 +279,7 @@ select:focus-visible {
  * anything between the two is drawn over. `z-index` covers both rows.
  *
  * Solid, not frosted: under glass the page's text ghosted through the nav and
- * the strip, and read as overlap rather than as a surface (Kike, 2026-09-18).
+ * the strip, and read as overlap rather than as a surface (Rico, 2026-09-18).
  */
 .masthead {
   padding: 0;
@@ -304,7 +304,7 @@ select:focus-visible {
  * reasoning that Pay's own bar already names the app — but the wordmark was
  * never the problem (the grey strip was a bogus top reserve, since removed),
  * and a search field welded to the top edge of the WebView reads as broken
- * chrome rather than as a clean start (Kike, 2026-08-22). It carries no
+ * chrome rather than as a clean start (Rico, 2026-08-22). It carries no
  * controls now, so nothing is at risk up here either way.
  */
 
@@ -688,7 +688,7 @@ select:focus-visible {
  * to be able to read, and the mark alone still says where they are.
  *
  * 480 rather than the 380 this was written at, which never fired on a phone
- * anyone owns (Kike, 2026-09-14: *"I would remove Nimiq Names entirely after a
+ * anyone owns (Rico, 2026-09-14: *"I would remove Nimiq Names entirely after a
  * certain px is reached and just leave the logo"*). Measured: the lockup is
  * 152px, the row spends 32px of padding and a 12px gap, so the text fits only
  * at `196 + corner` — and the corner is not a constant. It is 200px on a
@@ -751,7 +751,7 @@ select:focus-visible {
   z-index: 2;
   padding: 8px 6px;
   /* Solid for the masthead's reason: under glass the page's cards read
-     through the pill as clutter (Kike, 2026-09-18). */
+     through the pill as clutter (Rico, 2026-09-18). */
   background: var(--card);
   border-radius: 24px;
   border: 1px solid rgba(var(--tint-ink), 0.06);
@@ -1058,7 +1058,7 @@ select:focus-visible {
   }
 }
 
-/* Blue, not the proven green (Kike, 2026-09-16: *"looks awful mainly in dark
+/* Blue, not the proven green (Rico, 2026-09-16: *"looks awful mainly in dark
    mode"*). Green is spent on the verification glyph a compartment below, and
    a copy is not a proof — it is the app's interactive blue, the same one the
    Inbox's copy button and the expiry line already take, and the one colour
@@ -1178,7 +1178,7 @@ select:focus-visible {
 
 /* Above every modal (1200/1201): a hint sits inside the sheet and its
    popover is portaled to the body, so a lower index put the explanation
-   under the thing it explains (Kike, 2026-09-11). */
+   under the thing it explains (Rico, 2026-09-11). */
 .hint-scrim {
   position: fixed;
   inset: 0;
@@ -1210,7 +1210,7 @@ select:focus-visible {
 /*
  * The answer and its provenance are one object with two compartments: the
  * address on top, who vouched for it underneath, a hairline between them
- * (Kike, 2026-09-15 — the two used to be siblings with three different left
+ * (Rico, 2026-09-15 — the two used to be siblings with three different left
  * edges, and the verification read as a loose caption).
  *
  * `--box-pad` is declared by whichever box hosts the foot, so the divider can
@@ -1241,7 +1241,7 @@ select:focus-visible {
   border-top: 1px solid var(--line);
   /* Pay centres the text inside its panel, and a centred list of resolvers
      with the dots left where they were is the one thing this block must never
-     look like (Kike, 2026-09-15). The foot sets its own alignment everywhere
+     look like (Rico, 2026-09-15). The foot sets its own alignment everywhere
      rather than depending on what it is dropped into. */
   text-align: left;
 }
@@ -2163,7 +2163,7 @@ li.note {
 
 /* Inside a button that is mid-send. `currentColor` rather than white: the
    same rule has to read on the blue gradient (where the text is white) and on
-   the disabled grey send button of a sheet that is confirming (Kike,
+   the disabled grey send button of a sheet that is confirming (Rico,
    2026-09-15, asking for the animation the sheet never had). */
 .btn-spinner {
   width: 14px;

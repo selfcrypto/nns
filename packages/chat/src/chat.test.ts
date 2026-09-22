@@ -68,7 +68,7 @@ describe('encode/parse roundtrip', () => {
   })
 
   // The subject used to eat 4 + len(name): 57 bytes for a message about a
-  // 5-character name, 11 for the longest dotted one (Kike, 2026-09-15).
+  // 5-character name, 11 for the longest dotted one (Rico, 2026-09-15).
   it('is the same budget whatever the message is about', () => {
     expect(chatByteBudget()).toBe(61)
   })
@@ -92,7 +92,7 @@ describe('encode/parse roundtrip', () => {
   })
 
   /**
-   * The prefix was kept when the subject was dropped (Kike, 2026-09-15), so a
+   * The prefix was kept when the subject was dropped (Rico, 2026-09-15), so a
    * payload written in the old three-field shape still parses — as the literal
    * text it now is. `CHAT_MIN_HEIGHT` is what keeps that from mattering: every
    * message older than this era is dropped before a reader sees it.
@@ -145,7 +145,7 @@ describe('inbox derivation', () => {
   /**
    * The inbox showed threads from before this era — about names that had since
    * changed hands, so a conversation was headed by a name the address no
-   * longer held (Kike, 2026-09-15). No reader in the path applied a floor.
+   * longer held (Rico, 2026-09-15). No reader in the path applied a floor.
    */
   it('drops anything below CHAT_MIN_HEIGHT', () => {
     const messages = chatMessages(
@@ -211,13 +211,13 @@ describe('peer identity', () => {
     const identity = peerIdentity(
       [
         { name: 'longer-name', status: 'REGISTERED' },
-        { name: 'kike', status: 'REGISTERED' },
+        { name: 'rico', status: 'REGISTERED' },
         { name: 'rico', status: 'REGISTERED' },
         { name: 'abc', status: 'REGISTERED' },
       ],
       2,
     )
-    expect(identity.shown).toEqual(['abc', 'kike'])
+    expect(identity.shown).toEqual(['abc', 'rico'])
     expect(identity.more).toBe(2)
   })
 

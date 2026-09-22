@@ -86,7 +86,7 @@ describe('a referred G owes the referrer a share — §10.7 in one collector', (
     // The fee owed is what the reducer checked the value against; a `G|L`
     // pays LIFETIME_MULTIPLIER yearly fees at once, and the share is the rate
     // on what was paid at the moment the link was used — once, and never
-    // again, since `N` carries no ref (Kike, 2026-09-12).
+    // again, since `N` carries no ref (Rico, 2026-09-12).
     const { replay, shares } = collect([referrerRegistered, referred({ lifetime: true })])
     expect(replay.mismatches).toEqual([])
     const lifetimeFee = feeFor(NEWCOMER, initialState().prices, true)
@@ -306,7 +306,7 @@ describe('a referral payment is recognised from the log, and priced by the table
   })
 })
 
-// ── the buyer's rebate (Kike, 2026-09-12) ──────────────────────────────────
+// ── the buyer's rebate (Rico, 2026-09-12) ──────────────────────────────────
 //
 // One referral, two payouts: the share to the referring name's `target`, the
 // rebate to the buyer. `DEFAULT` above deliberately carries no `rebateBp`, so

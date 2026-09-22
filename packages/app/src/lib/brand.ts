@@ -1,10 +1,10 @@
 /**
  * The logo, as it ships in `public/brand`. The site's mark is the hexagon
  * alone: the product is **Nimiq Names**, and the letters NNS name the
- * protocol it speaks (Kike, 2026-09-13). The social card,
+ * protocol it speaks (Rico, 2026-09-13). The social card,
  * `brand/og-image.png`, is the mark beside the words "Nimiq Names" — the
  * NNS lockup stood there for a day and was the one place the letters still
- * showed (Kike, 2026-09-14).
+ * showed (Rico, 2026-09-14).
  *
  * A path rather than an import: these are public files, and one name typed
  * twice in two screens is a 404 nobody sees until a deploy.

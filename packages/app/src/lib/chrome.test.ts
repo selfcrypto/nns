@@ -7,7 +7,7 @@ describe('isHostedWebView', () => {
     expect(isHostedWebView({ nimiqPay: { language: 'de' } })).toBe(true)
     // …and the in-app browser need not, but the provider is injected there,
     // because the wallet works. Testing only the first is what made the bottom
-    // reserve a no-op on a real phone (Kike, 2026-08-22).
+    // reserve a no-op on a real phone (Rico, 2026-08-22).
     expect(isHostedWebView({ nimiq: {} })).toBe(true)
     expect(isHostedWebView({ nimiq: {}, nimiqPay: {} })).toBe(true)
   })
@@ -92,7 +92,7 @@ describe('bottomShortfall', () => {
   })
 
   it('takes the svh gap — the nav bar drawn over the WebView, invisible to visualViewport', () => {
-    // Kike's device, 2026-08-23: visual == inner (slack 0), yet the 100svh
+    // Rico's device, 2026-08-23: visual == inner (slack 0), yet the 100svh
     // frame ends above the nav buttons. The svh probe is what sees them.
     expect(bottomShortfall({ innerHeight: 851, visualHeight: 851, svhHeight: 803 })).toBe(48)
   })
@@ -134,7 +134,7 @@ describe('the reserve clamp and the Android nav floor', () => {
   })
 
   it('floors the reserve under Android nav buttons no instrument can see', () => {
-    // Kike's device: every instrument reads 0 while the buttons overlay the
+    // Rico's device: every instrument reads 0 while the buttons overlay the
     // bar mid-scroll — nav overlay AND layout slack, both invisible, so the
     // floor is the full screenshot-measured pair (48 + 74).
     expect(chromeInsets({ pay: true, safeArea, override: null, slack: 0, android: true }).bottom).toBe(120)

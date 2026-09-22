@@ -116,7 +116,7 @@ const resolveResult = (over: Partial<ResolveResult> = {}): ResolveResult => ({
 
 describe('viewFor — which outcomes carry an actionable name', () => {
   /**
-   * The bug this exists for (Kike, 2026-08-28): `rico.nns` resolved through
+   * The bug this exists for (Rico, 2026-08-28): `rico.nns` resolved through
    * `nns`'s delegate and the card offered **Register**. There is no label to
    * register — the `G` would have gone out for the *parent*, which resolved and
    * is therefore held, and the reducer forfeits that fee as `NAME_TAKEN`.
@@ -484,7 +484,7 @@ describe('identityRow', () => {
  * The regression this was written for: Pay's card said "Connect a wallet to act
  * on names" and offered nothing to press, because every screen asked
  * `wallet === null` and the Hub adapter answers with a real wallet holding no
- * address (Kike, 2026-09-14, on the deployed app).
+ * address (Rico, 2026-09-14, on the deployed app).
  */
 describe('connectInstead', () => {
   const wallet = (addresses: readonly string[]) => ({

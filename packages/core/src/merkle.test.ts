@@ -45,7 +45,7 @@ const stateWith = (...records: NameRecord[]): NnsState =>
 describe('§8.1 leaf byte layout', () => {
   it('lays the fields out exactly as the spec writes them', () => {
     const r = record({
-      name: 'kike-one',
+      name: 'rico-one',
       target: BOB,
       evm: '0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b',
       host: 'nns.x.com',
@@ -59,7 +59,7 @@ describe('§8.1 leaf byte layout', () => {
 
     let at = 0
     expect(enc[at++]).toBe(8)
-    expect(enc.slice(at, (at += 8))).toEqual(Uint8Array.from([...'kike-one'].map((c) => c.charCodeAt(0))))
+    expect(enc.slice(at, (at += 8))).toEqual(Uint8Array.from([...'rico-one'].map((c) => c.charCodeAt(0))))
     expect(enc.slice(at, (at += 20))).toEqual(addressToBytes(ALICE))
     expect(enc.slice(at, (at += 20))).toEqual(addressToBytes(BOB))
     expect(enc.slice(at, (at += 20))).toEqual(
@@ -72,42 +72,42 @@ describe('§8.1 leaf byte layout', () => {
   })
 
   it('encodes an unset evm as 20 zero bytes', () => {
-    const enc = encodeLeaf(record({ name: 'kikename' }))
+    const enc = encodeLeaf(record({ name: 'riconame' }))
     expect(enc.slice(1 + 8 + 40, 1 + 8 + 60)).toEqual(new Uint8Array(20))
   })
 
   it('writes the expiry big-endian', () => {
-    const enc = encodeLeaf(record({ name: 'kikename', expiry: 1 }))
+    const enc = encodeLeaf(record({ name: 'riconame', expiry: 1 }))
     expect(enc.slice(1 + 8 + 60, 1 + 8 + 60 + 8)).toEqual(Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 1]))
   })
 
   it('encodes an unset host as a zero length prefix and nothing more', () => {
-    const enc = encodeLeaf(record({ name: 'kikename', host: '' }))
+    const enc = encodeLeaf(record({ name: 'riconame', host: '' }))
     expect(enc[enc.length - 1]).toBe(0)
   })
 
   it('uses 0x00 for REGISTERED and 0x01 for GRACE', () => {
     const at = 1 + 8 + 60 + 8
-    expect(encodeLeaf(record({ name: 'kikename', status: 'REGISTERED' }))[at]).toBe(0x00)
-    expect(encodeLeaf(record({ name: 'kikename', status: 'GRACE' }))[at]).toBe(0x01)
+    expect(encodeLeaf(record({ name: 'riconame', status: 'REGISTERED' }))[at]).toBe(0x00)
+    expect(encodeLeaf(record({ name: 'riconame', status: 'GRACE' }))[at]).toBe(0x01)
   })
 
   it('domain-separates the leaf with 0x00', () => {
-    const r = record({ name: 'kikename' })
+    const r = record({ name: 'riconame' })
     expect(leafHash(r)).toEqual(keccak_256(Uint8Array.from([0x00, ...encodeLeaf(r)])))
   })
 
   it('gives no two distinct states the same encoding, because every field is length-prefixed', () => {
     // Without the length prefixes, "ab" + host "c" and "abc" + no host would
     // collide. With them, they cannot.
-    const a = encodeLeaf(record({ name: 'kikenam', host: 'e' }))
-    const b = encodeLeaf(record({ name: 'kikename', host: '' }))
+    const a = encodeLeaf(record({ name: 'riconam', host: 'e' }))
+    const b = encodeLeaf(record({ name: 'riconame', host: '' }))
     expect(bytesToHex(a)).not.toBe(bytesToHex(b))
   })
 
   it('leaves the referrer out — it is accounting, not registry state', () => {
     // NameRecord has no ref field at all, which is the structural guarantee.
-    expect(Object.keys(record({ name: 'kikename' })).sort()).toEqual([
+    expect(Object.keys(record({ name: 'riconame' })).sort()).toEqual([
       'evm',
       'expiry',
       'host',
@@ -121,12 +121,12 @@ describe('§8.1 leaf byte layout', () => {
 
 describe('compareNames — bytewise-lexicographic', () => {
   it('orders by byte value, putting digits and hyphen before letters', () => {
-    const sorted = ['kike-one', 'kike0one', 'kikename', 'zebraname'].sort(compareNames)
-    expect(sorted).toEqual(['kike-one', 'kike0one', 'kikename', 'zebraname'])
+    const sorted = ['rico-one', 'rico0one', 'riconame', 'zebraname'].sort(compareNames)
+    expect(sorted).toEqual(['rico-one', 'rico0one', 'riconame', 'zebraname'])
   })
 
   it('sorts a prefix before the string that extends it', () => {
-    expect(compareNames('kikename', 'kikenames')).toBeLessThan(0)
+    expect(compareNames('riconame', 'riconames')).toBeLessThan(0)
   })
 
   it('agrees with JavaScript string comparison across the permitted character set', () => {
@@ -144,7 +144,7 @@ describe('merkleRoot', () => {
   })
 
   it('is the leaf hash itself for a single leaf', () => {
-    const r = record({ name: 'kikename' })
+    const r = record({ name: 'riconame' })
     expect(merkleRoot(stateWith(r))).toEqual(leafHash(r))
   })
 
@@ -172,21 +172,21 @@ describe('merkleRoot', () => {
   })
 
   it('changes when any committed field changes', () => {
-    const base = record({ name: 'kikename' })
+    const base = record({ name: 'riconame' })
     const root = merkleRoot(stateWith(base))
     for (const variant of [
-      record({ name: 'kikename', owner: BOB }),
-      record({ name: 'kikename', target: BOB }),
-      record({ name: 'kikename', expiry: base.expiry + 1 }),
-      record({ name: 'kikename', status: 'GRACE' }),
-      record({ name: 'kikename', host: 'a.com' }),
+      record({ name: 'riconame', owner: BOB }),
+      record({ name: 'riconame', target: BOB }),
+      record({ name: 'riconame', expiry: base.expiry + 1 }),
+      record({ name: 'riconame', status: 'GRACE' }),
+      record({ name: 'riconame', host: 'a.com' }),
     ]) {
       expect(bytesEqual(merkleRoot(stateWith(variant)), root)).toBe(false)
     }
   })
 
   it('keeps grace names in the tree, which is what makes non-inclusion mean AVAILABLE', () => {
-    expect(sortedRecords(stateWith(record({ name: 'kikename', status: 'GRACE' })))).toHaveLength(1)
+    expect(sortedRecords(stateWith(record({ name: 'riconame', status: 'GRACE' })))).toHaveLength(1)
   })
 })
 
@@ -242,7 +242,7 @@ describe('merkleNonInclusion — §8.3', () => {
   const state = stateWith(...records)
 
   it('reports an empty tree', () => {
-    expect(merkleNonInclusion(initialState(), 'kikename').kind).toBe('EMPTY_TREE')
+    expect(merkleNonInclusion(initialState(), 'riconame').kind).toBe('EMPTY_TREE')
   })
 
   it('returns the two bracketing leaves for a name in the middle', () => {
@@ -269,7 +269,7 @@ describe('merkleNonInclusion — §8.3', () => {
 
 describe('checkpoint — §8.1 final clause', () => {
   it('binds the name root, prices, pending set, log hash and height', () => {
-    const state = stateWith(record({ name: 'kikename' }))
+    const state = stateWith(record({ name: 'riconame' }))
     const log = new Uint8Array(HASH_BYTES).fill(7)
     const base = checkpoint(state, log)
 
@@ -285,13 +285,13 @@ describe('checkpoint — §8.1 final clause', () => {
   })
 
   it('moves when the pending set changes — the reason §8.1 requires it committed', () => {
-    const state = stateWith(record({ name: 'kikename' }))
+    const state = stateWith(record({ name: 'riconame' }))
     const empty = pendingCommitment(state)
 
     const withTransfer = Object.freeze({
       ...state,
       transfers: new Map([
-        ['kikename', { name: 'kikename', newOwner: BOB, effectiveHeight: 100 }],
+        ['riconame', { name: 'riconame', newOwner: BOB, effectiveHeight: 100 }],
       ]),
     })
     expect(bytesEqual(pendingCommitment(withTransfer), empty)).toBe(false)
@@ -299,14 +299,14 @@ describe('checkpoint — §8.1 final clause', () => {
     const withOffer = Object.freeze({
       ...state,
       offers: new Map([
-        ['kikename', { name: 'kikename', seller: ALICE, price: 5n, openedHeight: 1, expiryHeight: 2 }],
+        ['riconame', { name: 'riconame', seller: ALICE, price: 5n, openedHeight: 1, expiryHeight: 2 }],
       ]),
     })
     expect(bytesEqual(pendingCommitment(withOffer), empty)).toBe(false)
   })
 
   it('commits an open auction under 0x0B, and the standing bid moves it (r28)', () => {
-    const state = stateWith(record({ name: 'kikename' }))
+    const state = stateWith(record({ name: 'riconame' }))
     const empty = pendingCommitment(state)
     const u64 = (value: bigint): Uint8Array => {
       const bytes = new Uint8Array(8)
@@ -315,7 +315,7 @@ describe('checkpoint — §8.1 final clause', () => {
     }
 
     const open = {
-      name: 'kikename',
+      name: 'riconame',
       seller: ALICE,
       startingPrice: 40_000_000n,
       endHeight: 100,
@@ -323,7 +323,7 @@ describe('checkpoint — §8.1 final clause', () => {
       bid: 0n,
       bidRef: null,
     }
-    const noBid = Object.freeze({ ...state, auctions: new Map([['kikename', open]]) })
+    const noBid = Object.freeze({ ...state, auctions: new Map([['riconame', open]]) })
     expect(bytesEqual(pendingCommitment(noBid), empty)).toBe(false)
 
     // The preimage, pinned by bytes rather than by a remembered digest: an
@@ -333,7 +333,7 @@ describe('checkpoint — §8.1 final clause', () => {
       keccak_256(
         concatBytes(
           Uint8Array.from([0x04, 0x0b, 8]),
-          new TextEncoder().encode('kikename'),
+          new TextEncoder().encode('riconame'),
           addressToBytes(ALICE),
           u64(40_000_000n),
           u64(100n),
@@ -347,17 +347,17 @@ describe('checkpoint — §8.1 final clause', () => {
     // (§8.1 keeps settlement identity out), so two states differing only in
     // `bidRef` commit identically.
     const bid = { ...open, bidder: BOB, bid: 42_000_000n, bidRef: { height: 50, txIndex: 0 } }
-    const withBid = Object.freeze({ ...state, auctions: new Map([['kikename', bid]]) })
+    const withBid = Object.freeze({ ...state, auctions: new Map([['riconame', bid]]) })
     const otherRef = Object.freeze({
       ...state,
-      auctions: new Map([['kikename', { ...bid, bidRef: { height: 51, txIndex: 3 } }]]),
+      auctions: new Map([['riconame', { ...bid, bidRef: { height: 51, txIndex: 3 } }]]),
     })
     expect(bytesEqual(pendingCommitment(withBid), pendingCommitment(noBid))).toBe(false)
     expect(bytesEqual(pendingCommitment(withBid), pendingCommitment(otherRef))).toBe(true)
   })
 
   it('also commits a pending P, which §8.1 does not enumerate', () => {
-    const state = stateWith(record({ name: 'kikename' }))
+    const state = stateWith(record({ name: 'riconame' }))
     const empty = pendingCommitment(state)
 
     const withGovernance = Object.freeze({
@@ -381,8 +381,8 @@ describe('checkpoint — §8.1 final clause', () => {
     // r22 exactly what it committed under r21 — pinned here by preimage rather
     // than by a remembered digest, so the claim does not rest on a copied hash.
     const state = Object.freeze({
-      ...stateWith(record({ name: 'kikename' })),
-      transfers: new Map([['kikename', { name: 'kikename', newOwner: BOB, effectiveHeight: 100 }]]),
+      ...stateWith(record({ name: 'riconame' })),
+      transfers: new Map([['riconame', { name: 'riconame', newOwner: BOB, effectiveHeight: 100 }]]),
       pendingGovernance: {
         prices: { feeBase: 1n, commissionBp: 3n },
         effectiveHeight: 200,
@@ -394,7 +394,7 @@ describe('checkpoint — §8.1 final clause', () => {
           Uint8Array.from([
             0x04,
             0x05,
-            8, ...[...'kikename'].map((c) => c.charCodeAt(0)),
+            8, ...[...'riconame'].map((c) => c.charCodeAt(0)),
           ]),
           addressToBytes(BOB),
           Uint8Array.from([0, 0, 0, 0, 0, 0, 0, 100]),
@@ -407,7 +407,7 @@ describe('checkpoint — §8.1 final clause', () => {
   })
 
   it('moves when a U fires — the r16 hole, tag 0x0A', () => {
-    const state = stateWith(record({ name: 'kikename' }))
+    const state = stateWith(record({ name: 'riconame' }))
     const log = new Uint8Array(HASH_BYTES).fill(7)
     // A fired `U` leaves no leaf and no pending entry, so through r15 these two
     // states committed alike while disagreeing about whether `binance` was
@@ -450,7 +450,7 @@ describe('checkpoint — §8.1 final clause', () => {
     // What a client has: a `/checkpoints/{height}` document, and no state.
     // If this ever stops holding, a client cannot tell whether an anchored
     // commitment binds the nameRoot its proof verified against.
-    const state = stateWith(record({ name: 'kikename' }), record({ name: 'othername' }))
+    const state = stateWith(record({ name: 'riconame' }), record({ name: 'othername' }))
     const derived = checkpoint(state, new Uint8Array(HASH_BYTES).fill(7))
 
     expect(commitmentFrom(derived)).toEqual(derived.commitment)
@@ -472,8 +472,8 @@ describe('checkpoint — §8.1 final clause', () => {
   })
 
   it('is stable across identical states built independently', () => {
-    const a = stateWith(record({ name: 'kikename' }), record({ name: 'othername' }))
-    const b = stateWith(record({ name: 'othername' }), record({ name: 'kikename' }))
+    const a = stateWith(record({ name: 'riconame' }), record({ name: 'othername' }))
+    const b = stateWith(record({ name: 'othername' }), record({ name: 'riconame' }))
     const log = new Uint8Array(HASH_BYTES)
     expect(checkpoint(a, log).commitment).toEqual(checkpoint(b, log).commitment)
   })

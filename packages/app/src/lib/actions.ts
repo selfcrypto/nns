@@ -219,7 +219,7 @@ export function prepareAction(options: {
           // that the rebate arrives afterwards, as a second transaction. The
           // rate is read at `head`, the same height the expiry line uses: a
           // `?? 0` here quoted the launch row's 10% with no rebate on every
-          // review whose `/name` read had not landed (found by Kike's M1,
+          // review whose `/name` read had not landed (found by Rico's M1,
           // 2026-09-12).
           ...(ref === null ? [] : [referredByLine(ref, rebatePercent(ref, head), rateIsNetOfBurn(ref, head))]),
         ],
@@ -243,7 +243,7 @@ export function prepareAction(options: {
           // rendering of a hundred terms, and for a term the same line. That
           // it extends from the expiry rather than from today is the *why*,
           // and it moved behind the bubble with the rest of the second
-          // sentences (Kike, 2026-09-15).
+          // sentences (Rico, 2026-09-15).
           ...(record !== null && info !== null
             ? [newExpiryLine(formatApproxWhen(approxDate(record.expiry + termFor(lifetime), info.height, nowMs), nowMs))]
             : []),
@@ -364,7 +364,7 @@ export function prepareAction(options: {
       const lines: string[] = []
       // The window, not just the intent: a transfer's timelock is 10 min in a
       // tempo era and 12 h on mainnet, and the sheet used to leave it to guess
-      // (Kike, 2026-09-15).
+      // (Rico, 2026-09-15).
       if (clears === 'transfer' && pendingTransfer !== null) {
         lines.push(`Cancels the transfer to ${pendingTransfer.newOwner} (${blocksApprox(pendingTransfer.effectiveHeight - head)} left).`)
       }

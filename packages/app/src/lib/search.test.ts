@@ -46,7 +46,7 @@ describe('parseSearchQuery', () => {
 })
 
 /**
- * Every case here was a wrong message on the live deployment (Kike,
+ * Every case here was a wrong message on the live deployment (Rico,
  * 2026-08-17). The table is the regression suite: core's first failing code is
  * not the rule a user can act on.
  */

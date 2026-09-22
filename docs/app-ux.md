@@ -58,10 +58,10 @@ chrome a phone keeps on screen may not spend three rows on a sentence the
 hint already carries.
 The decision is the constants', not a deploy flag: `isCompressedEra`
 (`wording.ts`) is `TERM_LENGTH` under a year, so a mainnet bundle cannot
-show it and an era bundle cannot forget it. Kike, 2026-09-11: testers must
+show it and an era bundle cannot forget it. Rico, 2026-09-11: testers must
 not think they are buying final names at a test price.
 
-**The site is called Nimiq Names; the protocol is NNS** (Kike, 2026-09-13).
+**The site is called Nimiq Names; the protocol is NNS** (Rico, 2026-09-13).
 The masthead and the footer carry the hexagon mark (`public/brand`, from
 `assets/nns-lockup-2048.png`) beside `SITE_NAME`, and the tagline that used
 to sit beside the old `nns.` wordmark is gone — "Nimiq Names · names on
@@ -126,7 +126,7 @@ Hints are computed off the settled value for that reason. Outcomes are
 **Buy offers acquisition — and one gift.** `register` as a full-width action that
 opens the `G` sheet; **Gift a renewal** (`N`, which anyone may send, §6) on a
 registered or grace name the viewer does not hold, with a review line saying
-the name stays its owner's (Kike, 2026-09-09); and for a name that is for sale or under auction a line
+the name stays its owner's (Rico, 2026-09-09); and for a name that is for sale or under auction a line
 saying so with **Check now.**, which hands the name to Market
 (`#/market/<name>`), where the `B` flow lives since the redesign (2026-09-09,
 Bakar's PR #2; `buy` and `bid` are never both, because state says which a
@@ -168,14 +168,14 @@ names My names lists, the owner actions a card offers, the sender of every
 send, Pay's included. One address, picked, since 2026-09-18 — before it the
 app acted as the whole set under four rules (the union on My names, the
 owning member for owner actions, the first for everything else, a From picker
-on Pay), and the list here looked like a switch and switched nothing (Kike).
+on Pay), and the list here looked like a switch and switched nothing (Rico).
 On Pay there is one address and the host picks the signer, so nothing to pick. It was in the masthead
 and at the foot of this screen at once, which is two copies of one control, and
 that is what stopped; where the surviving copy sits is its `placement` prop.
 It spent one build above the tab bar, on the argument that the top strip was
 the part of the screen we had been wrong about three times — and moved back to
 the corner once the chrome reserves were measured rather than reasoned about
-(Kike, 2026-08-22). In the corner the collapsed control is the address alone:
+(Rico, 2026-08-22). In the corner the collapsed control is the address alone:
 there is room for one thing up there, and the address is the one that has to
 stay legible.
 
@@ -218,7 +218,7 @@ the starting price, "No bids yet" or the highest bid, the minimum next bid, sell
 "ends ≈ date") in one list — a buyer is looking for a name, not a mechanism.
 **A row's pill names its kind and its button names the action** — *For Sale* /
 *Buy Now*, *Live Auction* / *Place Bid* — because both halves of the offer row
-read "Buy Now" until 2026-09-16 (Kike: *"those repeated Buy Now doing the same
+read "Buy Now" until 2026-09-16 (Rico: *"those repeated Buy Now doing the same
 are weird"*). **A card has one control, the CTA**: the face carried the
 `onClick` too, which made the status pill pressable and gave every card two
 ways to do one thing. It is a plain `div` now, so the pill is a tag.
@@ -396,7 +396,7 @@ no-withdrawal, the chains an EVM address covers — are behind the sheet's
 column asks for is still on the sheet; the column no longer says which half it
 is on. Three sheets had grown to three lines saying one thing, and `E`'s third
 was *"The registry records the address you declare — double-check it is
-yours"*, dash and all (Kike: *"a fucking shit ton of text here too to say the
+yours"*, dash and all (Rico: *"a fucking shit ton of text here too to say the
 same over and over"*).
 
 **A duration on a review line is read from its constant, never typed**

@@ -1,5 +1,5 @@
 /**
- * Reading a field that takes **an address or a name** (Kike, 2026-09-15:
+ * Reading a field that takes **an address or a name** (Rico, 2026-09-15:
  * *"Doesn't make sense not be able to transfer a name filling another name as
  * destination … This service is all about using names. How bad it looks if we
  * are the first ones not allowing it"*).

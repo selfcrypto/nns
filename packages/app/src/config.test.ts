@@ -58,7 +58,7 @@ describe('parseQuorum', () => {
 
 /**
  * The explorer link exists so a reader does not have to take the app's word
- * that a message is a real transaction (Kike, 2026-09-15). A template rather
+ * that a message is a real transaction (Rico, 2026-09-15). A template rather
  * than a base, because the two Nimiq explorers route differently and neither
  * is wrong.
  */

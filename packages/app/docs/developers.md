@@ -15,7 +15,7 @@ import { createResolver } from '@nimiqnames/resolver'
 
 const nns = createResolver({})   // DEFAULT_RESOLVERS, quorum 2
 
-const result = await nns.resolve('kike')
+const result = await nns.resolve('rico')
 result.address        // 'NQ…', the address to pay
 result.verification   // 'PROVEN' | 'PROOF_PENDING' | 'DELEGATED'
 result.quorum         // { required, queried, agreed, resolvers: [{ name, url, ms }] }

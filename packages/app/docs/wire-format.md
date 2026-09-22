@@ -6,7 +6,7 @@ Every NNS message is an ordinary Nimiq basic transaction whose data field is:
 NNS1  <one type letter>  <payload>
 ```
 
-For example, `NNS1Gkike` registers `kike`, and `NNS1Dkike|nns.example.com` sets its subdomain host.
+For example, `NNS1Grico` registers `rico`, and `NNS1Drico|nns.example.com` sets its subdomain host.
 
 - **At most 64 bytes.** Sixty-five bytes is accepted by the RPC, returns a hash, and never lands in a block.
 - **Hex over RPC**, both directions.

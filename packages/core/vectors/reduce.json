@@ -7031,7 +7031,7 @@
         "id": "X_not_owner_beats_offer_open",
         "setup": "offer_open_at_1_nim",
         "pinnedBy": "§7.4 check-order table (r30) — `X`: `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `OFFER_OPEN`",
-        "note": "One pending thing per name (§7.3, r30): a message of a different kind is refused after the authority rows and before any payload row, with the token naming what stands; the same kind replaces it. A stranger is refused as a stranger; the owner is told what already stands and that a `K` is the way across kinds. Only one of the pending-state rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `X` over a listing — the case Kike found on the beta on 2026-09-16, a `B` deciding where a name in transit went.",
+        "note": "One pending thing per name (§7.3, r30): a message of a different kind is refused after the authority rows and before any payload row, with the token naming what stands; the same kind replaces it. A stranger is refused as a stranger; the owner is told what already stands and that a `K` is the way across kinds. Only one of the pending-state rows can ever be satisfiable at once — the three maps are exclusive — so each is pinned against `NOT_OWNER` rather than against its siblings. Here an `X` over a listing — the case Rico found on the beta on 2026-09-16, a `B` deciding where a name in transit went.",
         "tx": {
           "blockNumber": 62275681,
           "txIndex": 0,

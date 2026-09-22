@@ -5,7 +5,7 @@
  * does not apply. Positive means the registry is not open yet: the strip
  * says when, and every search field is inert, because a lookup against
  * resolvers that hold no state yet answers "unreachable", which reads as an
- * outage rather than a date (Kike, 2026-09-22).
+ * outage rather than a date (Rico, 2026-09-22).
  */
 
 import { useEffect, useState } from 'react'

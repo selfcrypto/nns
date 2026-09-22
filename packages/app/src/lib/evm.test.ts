@@ -223,7 +223,7 @@ describe('sendUsdtOnPolygon over a fake provider', () => {
     })
   })
 
-  it('switches the chain when the wallet is elsewhere — the sheet Kike saw', async () => {
+  it('switches the chain when the wallet is elsewhere — the sheet Rico saw', async () => {
     const { provider, calls } = fake({
       eth_requestAccounts: ['0xAA00000000000000000000000000000000000001'],
       eth_chainId: '0x1',

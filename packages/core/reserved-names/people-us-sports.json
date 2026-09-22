@@ -1,7 +1,7 @@
 {
   "tier": "AWARD",
   "title": "American sports: NFL (MVPs/Pro Bowl stars of the last ~15 years, all-time icons), MLB (modern stars and legends), NHL (icons, current stars)",
-  "source": "Compiled from trained knowledge of NFL MVP/Pro Bowl/Hall-of-Fame rosters, MLB MVP/Hall-of-Fame rosters, and NHL Hart/Art Ross/Hall-of-Fame rosters. No live fetch performed this session; compiled 2026-09-18. | Kike, 2026-09-19: betis and ronaldo, then a pass for club short names and nicknames and recent sport stars (2024–26 breakouts), from knowledge; a famous mononym is in when one star owns it (ronaldo), a bare surname shared by many is not (kane, palmer, alonso)",
+  "source": "Compiled from trained knowledge of NFL MVP/Pro Bowl/Hall-of-Fame rosters, MLB MVP/Hall-of-Fame rosters, and NHL Hart/Art Ross/Hall-of-Fame rosters. No live fetch performed this session; compiled 2026-09-18. | Rico, 2026-09-19: betis and ronaldo, then a pass for club short names and nicknames and recent sport stars (2024–26 breakouts), from knowledge; a famous mononym is in when one star owns it (ronaldo), a bare surname shared by many is not (kane, palmer, alonso)",
   "names": [
     "aaron-donald",
     "aaron-judge",

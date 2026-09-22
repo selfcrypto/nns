@@ -23,7 +23,7 @@ Every resolver serves the same read-only API, described by its own `GET /openapi
 ```bash
 curl -s https://nimiqnames.com/api/params
 curl -s https://nimiqnames.com/api/checkpoints/latest
-curl -s https://nimiqnames.com/api/resolve/kike
+curl -s https://nimiqnames.com/api/resolve/rico
 ```
 
 The proof in `/resolve` is the product. Anyone can check it against `/checkpoints/latest` with `@nimiqnames/core` alone. If a proof reaches you by another route (a cached reply, a QR code), verify it with the library's `verifyInclusion` and `verifyNonInclusion` rather than your own code.

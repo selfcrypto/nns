@@ -12,13 +12,13 @@ Type a name, or `label.name`. The search runs by itself a second after you stop 
 | **In grace** | "Expired and not available. The owner can renew until ≈ date." | **Gift a renewal** |
 | **Reserved** | "Reserved by the registry. Not open for registration." | Nothing ([Rules and reserved names](names)) |
 | **For sale or under auction** | The listing, with **Check now** | Opens it in Market |
-| **A subdomain** (`shop.kike`) | The parent's verified card, then the address its host gave, marked *Subdomain* | **Pay this address**, **Message this address** |
+| **A subdomain** (`shop.rico`) | The parent's verified card, then the address its host gave, marked *Subdomain* | **Pay this address**, **Message this address** |
 | **Not a valid name** | The rule it broke, in red | Fix the name |
 | **Just registered by someone** | "Just registered by someone else. Search again to see it." | Search again |
 
 Every registered card carries the **verification line**, "Verified by N resolvers" ([The verification line](verification)).
 
-A subdomain card has two halves. The parent (`kike`) is proven. The address for `shop` is the parent owner's server's word. If that server does not answer, the card says "kike's host did not answer. Only its owner can say whether the subdomain exists."
+A subdomain card has two halves. The parent (`rico`) is proven. The address for `shop` is the parent owner's server's word. If that server does not answer, the card says "rico's host did not answer. Only its owner can say whether the subdomain exists."
 
 ## Registering
 

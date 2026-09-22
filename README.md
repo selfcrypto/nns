@@ -10,7 +10,7 @@
 [![License](https://img.shields.io/badge/license-MIT-1F2348?style=flat-square)](LICENSE)
 [![Nimiq](https://img.shields.io/badge/chain-Nimiq%20Albatross-0582CA?style=flat-square)](https://nimiq.com)
 
-**`kike`** &nbsp;→&nbsp; `NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M QCQ4 8P8M`
+**`rico`** &nbsp;→&nbsp; `NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M QCQ4 8P8M`
 
 </div>
 
@@ -42,7 +42,7 @@ so anyone can run them.
 ```
    Nimiq chain                Indexer                  Clients
 ┌────────────────┐      ┌────────────────┐      ┌──────────────────┐
-│ NNS1Gkike      │      │  replay rules  │      │ resolve("kike")  │
+│ NNS1Grico      │      │  replay rules  │      │ resolve("rico")  │
 │ NNS1Sfoo       │ ──>  │  §4 validity   │ ──>  │ + Merkle proof   │
 │ NNS1Xbar       │      │  §7 reducer    │      │ + quorum check   │
 │ (64-byte data) │      │  §8 Merkle     │      │ + anchor check   │
@@ -64,7 +64,7 @@ Three clocks, and only the first decides whether a name works:
 ## Building on it
 
 Your payee field takes `NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M QCQ4 8P8M`. It
-could take `kike`, in two minutes and one script tag — and you can hand every
+could take `rico`, in two minutes and one script tag — and you can hand every
 one of your own users a name for free, with no per-user registration and no
 on-chain state. [**INTEGRATE.md**](INTEGRATE.md) is the one-page version;
 [`docs/integration.md`](docs/integration.md) is the whole of it.

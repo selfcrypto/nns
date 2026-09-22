@@ -27,7 +27,7 @@
  * any rates) **without amending §10.2 at all**, so the burn stays something
  * any outsider computes from the log alone. Practically: a headline 5% is
  * written here as 400 bp, and the referrer and the buyer each carry the burn
- * on their own portion (Kike, 2026-09-12).
+ * on their own portion (Rico, 2026-09-12).
  *
  * Rows are appended, never edited: a recomputation next month must reproduce
  * the payouts made last month, so a rate change is a new row with a height,
@@ -198,7 +198,7 @@ export function rateFor(table: RateTable, ref: string, height: number): RateRow 
  * where it states one, otherwise the default row in effect — `null` before
  * any row starts.
  *
- * The rebate is the buyer's, not the referrer's (Kike, 2026-09-12: "any user
+ * The rebate is the buyer's, not the referrer's (Rico, 2026-09-12: "any user
  * using a referral gets a fixed 5%, always, no matter the % we set for a
  * certain referral"). A partner's row exists to raise *their* share, and
  * before this it silently dropped the buyer's rebate to nothing whenever it

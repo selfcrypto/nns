@@ -8,7 +8,7 @@
  * It was the union until 2026-09-18: My names across the set, owner actions
  * signed by whichever member owned the name, anyone-actions by the first, and
  * a separate From picker on Pay. Four rules for one question — who am I —
- * and the list in the corner looked like a switch and switched nothing (Kike).
+ * and the list in the corner looked like a switch and switched nothing (Rico).
  */
 
 import { formatAddress, tryParseAddress } from '@nimiqnames/core'
@@ -118,7 +118,7 @@ const PAY_DISMISSED_KEY = 'nns.pay.dismissed'
  * Pay hands its account set over with no prompt and no revocation, so there is
  * nothing in Pay to disconnect from — which is why the Pay adapter shipped with
  * `connect` and `disconnect` both null, and why a user who had connected could
- * find no way back out (Kike, 2026-08-22). This flag is that way out, and it is
+ * find no way back out (Rico, 2026-08-22). This flag is that way out, and it is
  * honest about its scope: it drops the addresses from the app's identity on
  * this device. It revokes nothing in the wallet, and the wording must not claim
  * it does.

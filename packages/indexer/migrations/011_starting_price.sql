@@ -4,7 +4,7 @@
 -- refunded on arrival and never stands (§6 `A`), which is a starting price:
 -- public, and the least a first bid can be. "Reserve" is the eBay word for
 -- something else — a hidden threshold that bids below still stand under —
--- and Kike read it that way from the app's own status line. The spec, the
+-- and Rico read it that way from the app's own status line. The spec, the
 -- wire field, the API field (`startingPrice`) and this column were renamed
 -- together on 2026-09-04: it is a starting price, not a reserve. Bytes on
 -- the wire and in the §8.1 entry are unchanged: nothing

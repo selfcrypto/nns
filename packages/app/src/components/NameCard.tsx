@@ -725,7 +725,7 @@ export function NameCard({
       // When the term ends — app-states §1/§6 — and the §10.4 reminder inside
       // the 60-day window. Both ride the status tag: "Registered" without a
       // date withholds the fact that gives the word its meaning, and on its
-      // own line it spent a line to repeat a word (Kike, 2026-09-15).
+      // own line it spent a line to repeat a word (Rico, 2026-09-15).
       const expiryDate =
         record !== null && height !== null && record.status === 'REGISTERED'
           ? formatApproxWhen(approxDate(record.expiry, height, nowMs), nowMs)

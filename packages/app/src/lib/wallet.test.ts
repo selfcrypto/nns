@@ -43,7 +43,7 @@ describe('detectWallet — which adapter answers', () => {
     // The regression this exists for. `connectWallet` returns null for a
     // declined prompt exactly as it does for "no wallet here", and falling
     // through on the first case offered a desktop web-wallet connector inside
-    // Pay's own WebView (Kike, 2026-08-22).
+    // Pay's own WebView (Rico, 2026-08-22).
     connectWallet.mockResolvedValue(null)
     isHostedWebView.mockReturnValue(true)
     const wallet = await detectWallet(memoryStore(), '')

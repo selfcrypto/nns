@@ -239,7 +239,7 @@ export function formatLuna(amount: bigint): string {
  * is routine rather than an incident". `ADMIN_ADDRESS` has no income and every
  * message it sends costs `DUST_VALUE` plus a fee of 0, so 1 NIM funds 100,000
  * messages — a lifetime of `P`, `U` and `A`. The floor is a tenth of that
- * (Kike, 2026-09-19: it was 10 NIM, which warned on an address holding
+ * (Rico, 2026-09-19: it was 10 NIM, which warned on an address holding
  * decades of headroom): still ten thousand messages, and it only warns.
  */
 export const ADMIN_MIN_BALANCE = LUNA_PER_NIM / 10n

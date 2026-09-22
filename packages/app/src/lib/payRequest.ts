@@ -9,7 +9,7 @@
  *
  * Two shapes, one meaning (`PayLinkForm`). The app routes by hash, and a hash
  * never leaves the browser: a chat's link-preview crawler fetching
- * `/#/pay/kike?amount=25` sees `/` and draws the site's generic card. The
+ * `/#/pay/rico?amount=25` sees `/` and draws the site's generic card. The
  * path form is the one a crawler can read — the reference edge
  * (`deploy/service/nginx.conf`) answers it with a card naming the payee and
  * the amount, then sends the browser on to the hash route — so it is what

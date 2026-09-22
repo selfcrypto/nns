@@ -12,7 +12,7 @@
  * `owner` is not in the agreement key, so the badge never spoke to the one
  * question a buyer has: does the seller own this. Rendering it beside
  * *Sold by* printed one address twice, that being the ordinary case of an
- * owner pointing a name at themself (Kike, 2026-09-16; decisions.md, "A
+ * owner pointing a name at themself (Rico, 2026-09-16; decisions.md, "A
  * verification badge belongs on the answer it verifies"). The §8.5 pin check
  * left for its own reasons the same day.
  *

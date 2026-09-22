@@ -150,7 +150,7 @@ describe('shareAmount', () => {
 })
 
 /**
- * The rebate is the **buyer's** (Kike, 2026-09-12: "any user using a referral
+ * The rebate is the **buyer's** (Rico, 2026-09-12: "any user using a referral
  * gets a fixed 5%, always, no matter the % we set for a certain referral").
  * A partner row raises that partner's share; before this it also silently
  * took the buyer's half away whenever it did not restate it, so the person

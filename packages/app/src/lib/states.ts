@@ -33,7 +33,7 @@ export interface NameView {
  * of a failed fetch, which this package gives to `resolve()` and
  * `available()` alone. It shipped as the default and offered **Register** on a
  * delegated subdomain — for the *parent*, whose `G` would have been forfeited
- * as `NAME_TAKEN` (Kike, 2026-08-28).
+ * as `NAME_TAKEN` (Rico, 2026-08-28).
  *
  * So the caller passes what the resolver already established: a name that
  * resolved is `registered`, one `available()` cleared is `available`, one that
@@ -406,7 +406,7 @@ export function shortfallFor(owed: bigint | null, balances: readonly (bigint | n
  * own signer can put in a single transaction. `shortfallFor`'s reading rule,
  * shared with Pay's MAX: the Remote wallet keeps the NIM in the HTLC contract
  * the identity drops, so the chosen sender's own balance there is dust while
- * the badge, summed over the raw set, shows the real number (Kike,
+ * the badge, summed over the raw set, shows the real number (Rico,
  * 2026-09-17: 8,470 NIM in the badge, MAX 1.6). `null` on an empty or
  * incomplete reading, for the same reason `shortfallFor` refuses nothing on
  * one.
@@ -473,7 +473,7 @@ export function identityRow(
  * *first* state, not the second. The Hub adapter hands back a wallet before
  * anybody has connected — a real object whose address set is empty — so the
  * test was false exactly when a user needed the button, and Pay's card said
- * "Connect a wallet to act on names" with nothing on it to press (Kike,
+ * "Connect a wallet to act on names" with nothing on it to press (Rico,
  * 2026-09-14, on the deployed app).
  *
  * `canConnect` is whether the screen has a connect handler at all. Without one

@@ -156,7 +156,7 @@ describe('the generated tables', () => {
   })
 
   // Agreed partner rates are between the partner and us. The docs state the
-  // default and nothing that could print a named row (Kike, 2026-09-19).
+  // default and nothing that could print a named row (Rico, 2026-09-19).
   it('has no placeholder that prints the rate table', () => {
     expect(() => fillPlaceholders('{{referral:rates}}')).toThrow(/referral placeholders/)
   })

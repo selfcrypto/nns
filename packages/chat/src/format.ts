@@ -28,7 +28,7 @@ export const CHAT_DUST_LUNA = 1n
  *
  * The inbox showed conversations from before the era it runs in, about names
  * whose ownership had since moved, so a thread could be headed by a name the
- * address no longer holds (Kike, 2026-09-15). A message below `LAUNCH_HEIGHT`
+ * address no longer holds (Rico, 2026-09-15). A message below `LAUNCH_HEIGHT`
  * is about a registry that does not exist here, so it is not an NC message at
  * all. The floor belongs to the convention rather than to one reader: the app
  * and the index both apply it, and an index configured below it is refused.
@@ -63,7 +63,7 @@ const CONTROL = /[\u0000-\u001f\u007f]/
  * The payload is the message.
  *
  * It was `NC1<name>|<message>`, where `<name>` was the subject the sender
- * typed in. Kike, 2026-09-15: *"That var on the payload doesn't makes sense at
+ * typed in. Rico, 2026-09-15: *"That var on the payload doesn't makes sense at
  * all. Name should be retrieved (if any) by the app with on-chain data against
  * the address that sent the message, and that's all."* He is right, and the
  * cost of the field was not only bytes: a sender-written name is the only
@@ -78,7 +78,7 @@ const CONTROL = /[\u0000-\u001f\u007f]/
  * every message from before this era is dropped, so an old three-field payload
  * can only reach a reader if it was sent in this era, where it reads as a
  * message beginning `name|`. A version bump was the alternative and would have
- * hidden those instead (Kike chose to keep the prefix).
+ * hidden those instead (Rico chose to keep the prefix).
  */
 export function encodeChatPayload(message: string): ChatEncodeResult {
   if (message.length === 0) return { ok: false, reason: 'EMPTY_MESSAGE' }

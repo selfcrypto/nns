@@ -2,7 +2,7 @@ import type { SendPhase } from '../lib/send'
 import { sendConfirmingLine, sendSubmittingLine } from '../lib/wording'
 
 /**
- * What a send is waiting for, in one shape everywhere it waits (Kike,
+ * What a send is waiting for, in one shape everywhere it waits (Rico,
  * 2026-09-15: *"the waiting message isn't the same for every card using
  * it"*). Pay had a tinted banner with a spinner; the action sheet and the
  * chat composer had a plain grey note and a button that said "Confirming…"

@@ -9,7 +9,7 @@
 
 A name registry for Nimiq with no smart contracts. Registrations are carried in
 transaction data; a deterministic indexer replays them into a `name → address`
-mapping; a Nimiq Pay mini app lets users send to `kike` instead of an address.
+mapping; a Nimiq Pay mini app lets users send to `rico` instead of an address.
 
 > **Review status.** Everything marked **OPEN** is undecided or unverified.
 > Everything else reflects decisions already taken.
@@ -359,7 +359,7 @@ lands between 15 and 39 — X 15, Farcaster 16, Instagram 30, Telegram 32,
 GitHub 39 — and the outlier, ENS, is unbounded only because it hashes labels
 rather than storing them, which is also where its homoglyph problems live.
 Past roughly 20 characters a name stops being recognisable at a glance, and
-recognition is the entire product: `kike` instead of an address.
+recognition is the entire product: `rico` instead of an address.
 
 Implementations MUST reject rather than normalise. Uppercase input is not
 lowercased — it is invalid.
@@ -405,7 +405,7 @@ digits; the remainder MUST contain no digits.
 
 | Valid | Invalid |
 |---|---|
-| `layer`, `web3`, `2fa`, `bitcoin7`, `21kike` | `n1m1q`, `nimiq0pay`, `g00gle`, `b1tc0in`, `1ayer`, `sud0` |
+| `layer`, `web3`, `2fa`, `bitcoin7`, `21rico` | `n1m1q`, `nimiq0pay`, `g00gle`, `b1tc0in`, `1ayer`, `sud0` |
 
 *(`web3` and `2fa` illustrate the digit rule only — at 1–4 characters they
 are reserved by rule (§4.1) and registrable only after a `U` releases them.
@@ -421,7 +421,7 @@ Deliberately **not** addressed: multigraph confusions (`rn`/`m`, `cl`/`d`,
 
 **Boundary clause — adopted in r6.** Additionally, **`0` and `1` may not be
 the first or last character** of a name. This closes the boundary collisions
-(`nimiq0`/`nimiqo`, `1kike`/`lkike`) while preserving `web3`, `x2`, `2fa`,
+(`nimiq0`/`nimiqo`, `1rico`/`lrico`) while preserving `web3`, `x2`, `2fa`,
 `bitcoin7`. Desirable names do not begin or end in `0` or `1`, so the
 casualty list is effectively empty.
 
@@ -802,7 +802,7 @@ Clients taking an EVM address as user input SHOULD validate the EIP-55
 checksum when the input is mixed-case, before encoding; the wire and leaf
 forms are raw bytes and carry no checksum of their own.
 
-Example: `NNS1Ekike|Gz9qCeLEDVXIobLD1OX2BxgpOks` — 37 bytes.
+Example: `NNS1Erico|Gz9qCeLEDVXIobLD1OX2BxgpOks` — 37 bytes.
 
 ### `X` — Transfer ownership
 
@@ -2265,7 +2265,7 @@ of overclaim §2.1 exists to avoid.
 
 ```json
 {
-  "name": "kike",
+  "name": "rico",
   "owner": "NQ...",
   "target": "NQ...",
   "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b",
@@ -2819,7 +2819,7 @@ this protocol's own marketplace. Price is the lever §10.1 already trusts
 against bloat; it is the same lever against squatting, applied where the
 scarcity is. $5 is deliberately a fraction of what ENS charges for its
 short bands — a smaller ecosystem, priced for its users rather than its
-speculators — and the cap Kike set on 2026-09-11.
+speculators — and the cap Rico set on 2026-09-11.
 
 **Why the reserved lengths have a band at all.** A 1–4 character name
 enters the open registry by auction, award or release, and from then on

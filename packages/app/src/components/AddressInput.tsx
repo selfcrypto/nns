@@ -26,7 +26,7 @@ function NoteWithName({ line, name }: { line: string; name: string }) {
 
 /**
  * The one field that takes **an address or a name**. A name is resolved and
- * the box fills itself with the address that came back (Kike, 2026-09-15:
+ * the box fills itself with the address that came back (Rico, 2026-09-15:
  * *"it should allow a name, resolve the target and auto fill the box with the
  * output address"*).
  *

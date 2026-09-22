@@ -2,7 +2,7 @@
  * A "?" beside a line, and the explanation behind it — hover on a desktop,
  * tap on a phone, where there is no hover. It exists so a card can state a
  * fact in one line and keep the paragraph that justifies it one gesture away
- * instead of on screen (Kike, 2026-09-04: "a lot of text everywhere").
+ * instead of on screen (Rico, 2026-09-04: "a lot of text everywhere").
  *
  * The popover is `position: fixed` and placed by measurement: centred under
  * the button, clamped to the viewport's width, and flipped above the button

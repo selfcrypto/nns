@@ -41,7 +41,7 @@ counts UTF-8 bytes, not characters, because an emoji costs four.
 2026-09-15 — the name the sender said the message was about. It cost 4 +
 `len(name)` of the budget, leaving 57 bytes for a message about a 5-character
 name and **11** for the longest dotted subject, and it bought a name that
-could not be trusted on arrival. Kike: *"That var on the payload doesn't makes
+could not be trusted on arrival. Rico: *"That var on the payload doesn't makes
 sense at all. Name should be retrieved (if any) by the app with on-chain data
 against the address that sent the message, and that's all."* What a name in
 this app means is settled by the registry, so the only names shown are the
@@ -53,7 +53,7 @@ asserted on the wire, so nothing has to be disclaimed.
 `chatMessages` drops it, and an index configured to start below it is refused
 (`packages/chat-index/src/env.ts`). Without that floor the inbox showed
 threads from before the era, headed by names whose ownership had since moved —
-which is how `nns` appeared in a stranger's inbox (Kike, 2026-09-15). An
+which is how `nns` appeared in a stranger's inbox (Rico, 2026-09-15). An
 operator may start an index **later** than the floor and says so in its
 declared window; the client clamps that window to the floor so it never
 promises blocks it drops.
@@ -105,7 +105,7 @@ owner does not exist for it and there is nothing to look up: the only party the
 query designates is the address the parent's delegate host answered with. A
 message about `rico.nns` therefore goes **there**. The parent's owner is not a
 stand-in — they run the host, and the address they hand out may belong to
-anyone (Kike, 2026-08-28). Two things follow, and the app says both beside the
+anyone (Rico, 2026-08-28). Two things follow, and the app says both beside the
 composer: that address is the host's word and no proof covers it, and it is a
 *target*, so it may be a deposit address nobody reads.
 
@@ -224,7 +224,7 @@ called for. That marking was the app's worst line: red, in the alarm palette,
 on a message that attacked nobody, two lines under a hint saying names on this
 screen come from the registry. Both statements were true — of two different
 names — and nothing on the screen distinguished them, so it read as the app
-contradicting itself (Kike: *"both estatements say the opposite"*). Deleting
+contradicting itself (Rico: *"both estatements say the opposite"*). Deleting
 the field deleted the line.
 
 **Every message links to its own transaction** (2026-09-15). The Inbox renders

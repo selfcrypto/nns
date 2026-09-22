@@ -67,7 +67,7 @@ import {
  * bold. Two reasons, and either alone would be enough: §4.3 wants a name
  * rendered confusable-safe *wherever it is shown*, and a sentence in the body
  * font quietly exempted itself from that; and a review whose subject is a
- * name should point at it (Kike, 2026-09-15, on a clear whose review named
+ * name should point at it (Rico, 2026-09-15, on a clear whose review named
  * `ricomaverick` in running text: *"it needs something"*).
  */
 function ReviewLine({ line, name }: { line: string; name: string }) {
@@ -205,7 +205,7 @@ export function ActionSheet({
         return bidNim.trim() !== ''
       // A clear is the checkbox, never an empty field: the field being empty
       // is what a sheet looks like before it is used, and previewing a clear
-      // there read as a contradiction of the line above it (Kike,
+      // there read as a contradiction of the line above it (Rico,
       // 2026-09-15). `S` and `E` already worked this way.
       case 'delegate':
         return clearHost || host.trim() !== ''
@@ -383,7 +383,7 @@ export function ActionSheet({
               <input
                 className="sheet-input nns-name"
                 // Never the current address: a placeholder that repeats it
-                // reads as a filled field (Kike, 2026-09-15, on `D`).
+                // reads as a filled field (Rico, 2026-09-15, on `D`).
                 placeholder={info?.record?.evm ? '0x… new EVM address' : '0x… EVM address'}
                 value={evmInput}
                 onChange={(event) => setEvmInput(event.target.value)}
@@ -411,7 +411,7 @@ export function ActionSheet({
         </>
       )}
       {/* An address **or a name**: NNS refusing a name in its own fields was
-          the first thing a reader noticed (Kike, 2026-09-15). */}
+          the first thing a reader noticed (Rico, 2026-09-15). */}
       {action === 'transfer' && <AddressInput value={newOwner} onChange={setNewOwner} />}
       {action === 'delegate' && (
         <>

@@ -471,7 +471,7 @@
   --box-pad: 14px;
   /* The panel around it centres its text, which put the wrapped half of the
      address and the whole resolver list down the middle while their dots and
-     identicon stayed left (Kike, 2026-09-15). The recipient card is one
+     identicon stayed left (Rico, 2026-09-15). The recipient card is one
      object and sets its own alignment. */
   text-align: left;
   display: flex;

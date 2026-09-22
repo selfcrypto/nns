@@ -1,10 +1,10 @@
 # What NNS is
 
-One name instead of an address. `kike` pays `NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M QCQ4 8P8M`, on Nimiq, with no smart contract and no custodian in between.
+One name instead of an address. `rico` pays `NQ64 VFXQ TPAS 5Q7S ADEX 072S CR2M QCQ4 8P8M`, on Nimiq, with no smart contract and no custodian in between.
 
 ## How it works
 
-1. **A registration is one ordinary Nimiq transaction.** Its data field says `NNS1Gkike`, its recipient is the registry's treasury address, and its value is the fee.
+1. **A registration is one ordinary Nimiq transaction.** Its data field says `NNS1Grico`, its recipient is the registry's treasury address, and its value is the fee.
 2. **An indexer reads every such transaction and applies the published rules.** The result is a table of name → address. Anyone can run one, and every honest one derives the same table.
 3. **Your wallet asks a resolver for a name and gets the address with a Merkle proof.** The wallet checks the proof before it shows you anything.
 
