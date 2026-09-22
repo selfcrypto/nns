@@ -15,13 +15,14 @@ import { getParams, getReferrals } from '../lib/api'
 import { shareLinkFor } from '../lib/referral'
 import { percentOf, rateIsNetOfBurn, rebatePercent, referralHeadlineBp, referralRateBp, shareAmount } from '../lib/referralRates'
 import { useAsync } from '../lib/useAsync'
+import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { Hint } from './Hint'
 import { createPortal } from 'react-dom'
 import { CONSTANTS } from '@nimiqnames/core'
 import { actingAs, primaryAddress } from '../lib/identity'
 import { approxDate, ellipsizeAddress, formatApproxWhen, lunaToNim } from '../lib/format'
 import type { SearchOutcome } from '../lib/search'
-import { actionGates, cancellable, cancelTileGroup, connectInstead, registrationFee, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
+import { actionGates, cancellable, cancelTileGroup, connectInstead, feeRowFor, mostHeld, registrationFee, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import { IdentityBar } from './IdentityBar'
 import {
@@ -80,6 +81,9 @@ import {
   giftRenewalLabel,
   REQUEST_TILE,
   requestInGraceLine,
+  lifetimePriceLine,
+  walletHoldsLine,
+  yearlyPriceLine,
 } from '../lib/wording'
 import { ClockIcon } from './icons'
 import { AnswerBlock, Overlays, QuorumReplies, TitleName, WarningNotes, tierOf } from './result'
@@ -92,6 +96,41 @@ import { Badge, RailCard, type RailTier } from './ui'
 /** Discovery: what someone who does not own the name can do with it. `buy` and `bid` never both show — state decides (§6 `A`). */
 /** `renew` here is the gift: anyone may send an `N` (§6), and the label says so. */
 export const ACQUIRE_ACTIONS: readonly AppAction[] = ['register', 'renew', 'buy', 'bid']
+
+/**
+ * Under an available name: the price for a year and for a lifetime, and —
+ * when a wallet is connected — what it holds, so whether it can pay is one
+ * glance rather than a sheet away (Rico, 2026-09-22). `feeRowFor` reads the
+ * band off `/params.fees`; the balance is `mostHeld` over the wallet's
+ * payers, the sheet's own reading (`shortfallFor`). Display-only: a missing
+ * balance hides its span, a missing `/params` hides the row.
+ */
+function PriceRow({ name, wallet }: { name: string; wallet: Wallet | null }) {
+  const params = useAsync(() => getParams(apiBase()), [])
+  const payers = wallet === null ? [] : wallet.balanceAddresses.length > 0 ? wallet.balanceAddresses : actingAs(wallet.identity)
+  const payersKey = payers.join(',')
+  const held = useAsync(
+    payers.length === 0
+      ? null
+      : async (): Promise<bigint | null> => {
+          const transport = defaultTransport()
+          if (transport === null) return null
+          return mostHeld(await Promise.all(payers.map((address) => fetchNimBalance(transport, address))))
+        },
+    [payersKey],
+  )
+  if (params.status !== 'done') return null
+  const row = feeRowFor(name, params.value.fees)
+  const balance = held.status === 'done' ? held.value : null
+  const short = balance !== null && balance < row.yearly
+  return (
+    <div className="price-row">
+      <span className="price-year">{yearlyPriceLine(lunaToNim(row.yearly))}</span>
+      <span className="price-lifetime">{lifetimePriceLine(lunaToNim(row.lifetime))}</span>
+      {balance !== null && <span className={`price-balance${short ? ' is-short' : ''}`}>{walletHoldsLine(lunaToNim(balance))}</span>}
+    </div>
+  )
+}
 
 /** Management: the owner's eight, which live in My names and nowhere else. */
 export const OWNER_ACTIONS: readonly AppAction[] = ['setTarget', 'setEvm', 'transfer', 'delegate', 'renew', 'offer', 'auction', 'cancel']
@@ -910,6 +949,7 @@ export function NameCard({
                 {availableLine()}
               </span>
             </div>
+            <PriceRow name={outcome.name} wallet={wallet} />
           </div>
           <WarningNotes warnings={availability.warnings} />
           {view !== null && (

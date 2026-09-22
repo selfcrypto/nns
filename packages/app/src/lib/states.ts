@@ -358,6 +358,37 @@ export function feeRowFor(name: string, fees: readonly FeeRow[]): FeeRow {
   return row
 }
 
+/**
+ * §10.1's open bands as a table reads them: one row per `/params.fees` row
+ * from `MIN_NAME_LEN` up, with the span of lengths it covers. The reserved
+ * rows below are not bands a reader can buy into, so they are not rows. The
+ * last band's `to` is null: `MAX_NAME_LEN` bounds it, and "12+" is what the
+ * reader needs, not "12–24".
+ */
+export interface PriceBand {
+  readonly from: number
+  readonly to: number | null
+  readonly yearly: bigint
+  readonly lifetime: bigint
+}
+
+export function priceBands(fees: readonly FeeRow[]): readonly PriceBand[] {
+  const bands: PriceBand[] = []
+  let from = 1
+  for (const row of fees) {
+    if (row.upTo >= CONSTANTS.MIN_NAME_LEN) {
+      bands.push({
+        from: Math.max(from, CONSTANTS.MIN_NAME_LEN),
+        to: row.upTo >= CONSTANTS.MAX_NAME_LEN ? null : row.upTo,
+        yearly: row.yearly,
+        lifetime: row.lifetime,
+      })
+    }
+    from = row.upTo + 1
+  }
+  return bands
+}
+
 /** The exact §10.5 value a `G` or `N` for this name must carry, from `/params` — for a term, or a lifetime (§10.4). */
 export function registrationFee(name: string, params: ApiParams, lifetime = false): bigint {
   const row = feeRowFor(name, params.fees)

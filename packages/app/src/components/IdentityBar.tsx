@@ -28,15 +28,19 @@
  * draws something; `lib/states.ts`'s `identityRow` decides which, and is tested.
  */
 
-import { identityRow } from '../lib/states'
-import { ellipsizeAddress } from '../lib/format'
+import { identityRow, mostHeld } from '../lib/states'
+import { ellipsizeAddress, lunaToNim } from '../lib/format'
+import { defaultTransport, fetchNimBalance } from '../lib/history'
+import { useAsync } from '../lib/useAsync'
 import type { Wallet } from '../lib/wallet'
 import {
   addAddressLabel,
   connectWalletLabel,
   disconnectLabel,
   moreAddressesLabel,
+  nimAmountLine,
   payConnectLabel,
+  walletHoldsLine,
   walletCheckingLine,
   showEveryAddressLabel
 } from '../lib/wording'
@@ -65,6 +69,30 @@ export function IdentityBar({
   const row = identityRow(wallet)
   const top = placement === 'top'
   const bar = `identity-bar identity-${placement}`
+  const addresses = wallet?.identity.addresses ?? []
+
+  // The corner panel says what each address holds, asked once per opening:
+  // whether the wallet can pay for a name should be one glance, on any screen
+  // (Rico, 2026-09-22). A list gets a figure per row; a lone address gets one
+  // line, read the way the sheets read it (`Wallet.balanceAddresses`,
+  // `mostHeld`). Display-only, and a miss hides the figure rather than
+  // showing a zero.
+  const listed = addresses.length > 1
+  const payers = wallet === null ? [] : listed ? addresses : wallet.balanceAddresses.length > 0 ? wallet.balanceAddresses : addresses
+  const payersKey = payers.join(',')
+  const balances = useAsync(
+    top && expanded && payers.length > 0
+      ? async (): Promise<ReadonlyMap<string, bigint | null>> => {
+          const transport = defaultTransport()
+          if (transport === null) return new Map()
+          const found = await Promise.all(payers.map((address) => fetchNimBalance(transport, address)))
+          return new Map(payers.map((address, index) => [address, found[index] ?? null]))
+        }
+      : null,
+    [top, expanded, payersKey],
+  )
+  const balanceOf = (address: string): bigint | null => (balances.status === 'done' ? (balances.value.get(address) ?? null) : null)
+  const held = balances.status === 'done' && !listed ? mostHeld(payers.map((address) => balances.value.get(address) ?? null)) : null
 
   if (row.kind === 'checking') {
     return (
@@ -87,7 +115,6 @@ export function IdentityBar({
     )
   }
 
-  const addresses = wallet?.identity.addresses ?? []
   const disconnect = row.canDisconnect && onDisconnect !== null ? onDisconnect : null
   const add = row.canAdd && onConnect !== null ? onConnect : null
   // Top: the address is the whole collapsed control, so the panel is the only
@@ -129,6 +156,7 @@ export function IdentityBar({
       </div>
       {expanded && hasPanel && (
         <div className="identity-expanded">
+          {held !== null && <p className="identity-balance-line">{walletHoldsLine(lunaToNim(held))}</p>}
           {row.more > 0 && (
             <ul className="identity-list">
               {addresses.map((address) => {
@@ -144,6 +172,7 @@ export function IdentityBar({
                     >
                       <Identicon address={address} size={18} />
                       <span className="identity-address nns-name">{ellipsizeAddress(address)}</span>
+                      {balanceOf(address) !== null && <span className="identity-balance">{nimAmountLine(lunaToNim(balanceOf(address) ?? 0n))}</span>}
                       {acting && (
                         <svg className="identity-pick-mark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <polyline points="20 6 9 17 4 12" />

@@ -1557,6 +1557,89 @@ li.note {
   flex: none;
 }
 
+/* Under the title of an available name (`PriceRow`): the two prices, and
+   what the wallet holds pushed to the right, green when it covers a year and
+   the alarm colour when it does not. */
+.price-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  margin-top: 10px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.price-year {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.price-balance {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--proven);
+}
+
+.price-balance.is-short {
+  color: var(--alarm);
+}
+
+/* The §10.1 table (components/PriceTable.tsx): Buy's idle state and the
+   landing page. Numbers right, lengths left, one hairline per row. */
+.price-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.price-table th,
+.price-table td {
+  padding: 9px 6px;
+  text-align: right;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.price-table th:first-child,
+.price-table td:first-child {
+  text-align: left;
+}
+
+.price-table thead th {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  border-bottom: 1px solid var(--line);
+}
+
+.price-table tbody th {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.price-table tbody td {
+  color: var(--ink-soft);
+}
+
+.price-table tbody tr + tr {
+  border-top: 1px solid rgba(var(--tint-ink), 0.06);
+}
+
+.price-table-foot {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: var(--ink-faint);
+}
+
+.price-table-foot a {
+  color: var(--nimiq-blue);
+  text-decoration: none;
+}
+
 .available-line {
   margin: 0;
   color: var(--proven);
@@ -2694,6 +2777,24 @@ li.note {
 .identity-pick:focus-visible {
   outline: 2px solid var(--nimiq-blue);
   outline-offset: 1px;
+}
+
+/* What an address holds, at the right of its row; the lone address's line
+   sits above the buttons instead. */
+.identity-balance {
+  margin-left: auto;
+  flex: none;
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.identity-balance-line {
+  margin: 0 0 4px;
+  padding: 2px 4px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
 }
 
 .identity-pick-mark {

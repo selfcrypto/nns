@@ -13,6 +13,7 @@ import {
   identityRow,
   nameView,
   feeRowFor,
+  priceBands,
   registrationFee,
   mostHeld,
   shortfallFor,
@@ -383,6 +384,17 @@ describe('clocks', () => {
     // Half-open §7.3: the name is in GRACE *at* expiry, so an end there is already past the last resolving block.
     expect(auctionOutlivesTerm(2_000_000, 2_000_000)).toBe(true)
     expect(auctionOutlivesTerm(1_999_999, 2_000_000)).toBe(false)
+  })
+
+  it('priceBands is the table: one open band per row from MIN_NAME_LEN, the last unbounded', () => {
+    const bands: readonly (readonly [number, bigint])[] = [[2, 200n], [3, 100n], [4, 50n], [5, 25n], [6, 10n], [11, 5n], [24, 1n]]
+    const fees = bands.map(([upTo, times]) => ({ upTo, times, yearly: 62_500_000_000n * times, lifetime: 625_000_000_000n * times }))
+    expect(priceBands(fees).map((band) => [band.from, band.to, band.yearly])).toEqual([
+      [5, 5, 1_562_500_000_000n],
+      [6, 6, 625_000_000_000n],
+      [7, 11, 312_500_000_000n],
+      [12, null, 62_500_000_000n],
+    ])
   })
 
   it('registrationFee reads the band off /params.fees by length — a term or a lifetime, never a multiplication', () => {

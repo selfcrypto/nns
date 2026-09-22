@@ -9,6 +9,7 @@ import { EXAMPLE_PROFILES } from '../lib/examples'
 import { referralFromLink, rememberReferral, storedReferral } from '../lib/referral'
 import { PasteButton } from '../components/PasteButton'
 import { ReferrerStrip } from '../components/ReferrerStrip'
+import { LivePriceTable } from '../components/PriceTable'
 import styles from './landing-page.module.css'
 
 /**
@@ -147,7 +148,7 @@ export function HomeScreen({
   const [linkNote, setLinkNote] = useState<string | null>(null)
   const burn = useAsync(() => getBurn(apiBase()), [])
   const searchInput = useRef<HTMLInputElement>(null)
-  const { hero, features, steps, chains, burn: burnCopy, cta, footer } = LANDING
+  const { hero, features, steps, chains, prices, burn: burnCopy, cta, footer } = LANDING
 
   /**
    * A **share link** pasted into the hero is read as a link, not searched as
@@ -364,6 +365,24 @@ export function HomeScreen({
                 <source src="/multiple-chains.mp4" type="video/mp4" />
               </video>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* The table before the burn figures: what a name costs comes before
+          where the money goes. */}
+      <section className="prices-section">
+        <div className="prices-container">
+          <span className="cross-chain-badge">
+            <span className="badge-pulse pulse-orange" />
+            {prices.badge}
+          </span>
+          <h3 className="section-title">
+            {prices.title} <span className="text-highlight-orange">{prices.titleAccent}</span>
+          </h3>
+          <p className="section-subtitle">{prices.sub}</p>
+          <div className="prices-card">
+            <LivePriceTable />
           </div>
         </div>
       </section>

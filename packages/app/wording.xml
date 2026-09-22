@@ -162,6 +162,16 @@
     <string id="lifetimeChoiceLabel">Lifetime</string>
     <string id="termChoiceGroupLabel">Term</string>
     <string id="choicePriceLine" params="nim">{nim} NIM</string>
+    <string id="PRICE_TABLE.length">Length</string>
+    <string id="PRICE_TABLE.lifetime">Lifetime</string>
+    <string id="PRICE_TABLE.more">Prices, terms and expiry</string>
+    <string id="PRICE_TABLE.reserved">Names of 4 characters or fewer are reserved.</string>
+    <string id="PRICE_TABLE.year">A year</string>
+    <string id="lengthBandLabel" params="from to">{from}–{to}</string>
+    <string id="nimAmountLine" params="nim">{nim} NIM</string>
+    <string id="yearlyPriceLine" params="nim">{nim} NIM a year</string>
+    <string id="lifetimePriceLine" params="nim">{nim} NIM for a lifetime</string>
+    <string id="walletHoldsLine" params="nim">Your wallet holds {nim} NIM</string>
     <string id="referredByLine" params="ref rebate netOfBurn">Referred by {ref}. Your price is unchanged.</string>
     <string id="BURN_WORD">minus the registry’s burn</string>
     <string id="PRICE_UNCHANGED">Your price is unchanged</string>

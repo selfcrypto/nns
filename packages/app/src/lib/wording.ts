@@ -796,6 +796,28 @@ export const termChoiceGroupLabel = (): string => 'Term'
 export const choicePriceLine = (nim: string): string => `${nim} NIM`
 
 /**
+ * The price table (components/PriceTable.tsx), on the landing page and on
+ * Buy before a query: §10.1 as rows, off `/params.fees` like the hint below.
+ * A reader asked for the table, not the sentence (Rico, 2026-09-22).
+ */
+export const PRICE_TABLE = {
+  length: 'Length',
+  year: 'A year',
+  lifetime: 'Lifetime',
+  reserved: `Names of ${CONSTANTS.MIN_NAME_LEN - 1} characters or fewer are reserved.`,
+  more: 'Prices, terms and expiry',
+} as const
+/** A band's span of lengths: "5", "7–11", or "12+" for the last one. */
+export const lengthBandLabel = (from: number, to: number | null): string =>
+  to === null ? `${from}+` : from === to ? `${from}` : `${from}–${to}`
+export const nimAmountLine = (nim: string): string => `${nim} NIM`
+/** Under an available name: what it costs, before the sheet asks which term. */
+export const yearlyPriceLine = (nim: string): string => `${nim} NIM a year`
+export const lifetimePriceLine = (nim: string): string => `${nim} NIM for a lifetime`
+/** Beside a price, and at the top of the address panel: whether the wallet can pay it, at a glance. */
+export const walletHoldsLine = (nim: string): string => `Your wallet holds ${nim} NIM`
+
+/**
  * §10.1's table in one sentence, behind the "?" beside the choice. The rows
  * are `/params.fees`, so a governance change reprices the hint by itself;
  * the reserved lengths below `MIN_NAME_LEN` are one clause, not rows.
@@ -1503,6 +1525,12 @@ export const LANDING = {
       { title: 'EVM payments', body: 'One linked 0x address works on every EVM chain. USDT over Polygon in Nimiq Pay today.' },
       { title: 'Subdomains', body: 'Delegate pay.yourname and the rest to a host you run.' },
     ],
+  },
+  prices: {
+    badge: 'Prices',
+    title: 'Price follows',
+    titleAccent: 'length',
+    sub: `A lifetime is ${CONSTANTS.LIFETIME_TERMS} years for the price of ${CONSTANTS.LIFETIME_MULTIPLIER}. Renewing costs the same as registering.`,
   },
   burn: {
     badge: 'Fee burn',
