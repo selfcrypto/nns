@@ -39,6 +39,7 @@ import {
   type Prices,
 } from '@nimiqnames/core'
 
+import { describeMessage } from './describe.js'
 import { inclusionDocument, nonInclusionDocument, type ProofContext } from './proofs.js'
 import {
   NotSyncedError,
@@ -117,6 +118,8 @@ interface DecodedEntry {
   readonly verdict: string
   readonly message: string | null
   readonly type: string | null
+  /** What the message does, in words (`describe.ts`). */
+  readonly meaning: string
 }
 
 /** Luna as NIM for a person: `625000000` → `6250`, `62500000` → `625`, `150000` → `1.5`. */
@@ -128,9 +131,11 @@ function nimOf(luna: string): string {
 
 /**
  * The decoded log as an aligned table, for a person with a browser: what was
- * sent, by whom and for how much, beside the verdict — the JSON view carries
- * all of it, and a table that hid the money and the sender made a reader
- * open the JSON for the two things they came for (Rico, 2026-09-22).
+ * sent, what it means, by whom and for how much, beside the verdict. The JSON
+ * view carries all of it; a table that hid the money and the sender made a
+ * reader open the JSON for the two things they came for, and a payload such
+ * as `NNS1Egaston|MKoKX39T…` says nothing to anyone until it is read out as
+ * an address (Rico, 2026-09-22, launch day).
  *
  * **The preamble is a safety device, not decoration.** `/log` is `text/plain`
  * too, so of the two views this is the one genuinely easy to mistake for the
@@ -160,6 +165,7 @@ function decodedTable(entries: readonly DecodedEntry[], checkpointHeight: number
   const wHeight = width(height, 'height')
   const wIndex = width(index, 'ix')
   const wMessage = width(message, 'message')
+  const wMeaning = width((entry) => entry.meaning, 'meaning')
   const wNim = width(nim, 'NIM')
   const wSender = width(sender, 'sender')
 
@@ -168,13 +174,13 @@ function decodedTable(entries: readonly DecodedEntry[], checkpointHeight: number
     `# Canonical bytes: /log   checkpoint ${checkpointHeight}   keccak256 0x${logHash}`,
     '#',
     `# ${'height'.padEnd(wHeight)}  ${'ix'.padStart(wIndex)}  type  ${'message'.padEnd(wMessage)}  ` +
-      `${'NIM'.padStart(wNim)}  ${'sender'.padEnd(wSender)}  verdict`,
+      `${'meaning'.padEnd(wMeaning)}  ${'NIM'.padStart(wNim)}  ${'sender'.padEnd(wSender)}  verdict`,
   ]
   for (const entry of entries) {
     lines.push(
       `  ${height(entry).padEnd(wHeight)}  ${index(entry).padStart(wIndex)}  ` +
         `${(entry.type ?? '?').padEnd(4)}  ${message(entry).padEnd(wMessage)}  ` +
-        `${nim(entry).padStart(wNim)}  ${sender(entry).padEnd(wSender)}  ${entry.verdict}`,
+        `${entry.meaning.padEnd(wMeaning)}  ${nim(entry).padStart(wNim)}  ${sender(entry).padEnd(wSender)}  ${entry.verdict}`,
     )
   }
   return Buffer.from(`${lines.join('\n')}\n`, 'utf8')
@@ -599,6 +605,7 @@ export function createRoutes(queries: Queries): RouteHandler {
         verdict: field.verdict,
         data: field.data,
         message: renderPayload(field.data),
+        meaning: describeMessage(parsed, field.recipient, field.value),
         type: parsed.ok ? parsed.message.type : null,
         parseFailure: parsed.ok ? null : parsed.reason,
       }

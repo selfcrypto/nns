@@ -559,7 +559,7 @@ paths:
                     items:
                       type: object
                       required:
-                        [blockHeight, txIndex, txHash, sender, recipient, value, verdict, data, message, type, parseFailure]
+                        [blockHeight, txIndex, txHash, sender, recipient, value, verdict, data, message, meaning, type, parseFailure]
                       properties:
                         blockHeight: { type: integer }
                         txIndex: { type: integer }
@@ -570,6 +570,7 @@ paths:
                         verdict: { type: string }
                         data: { type: string, description: The canonical §8.2 hex, unchanged. }
                         message: { type: string, nullable: true, description: Decoded payload; %xx for non-printable bytes. }
+                        meaning: { type: string, description: What the message does, in words; a reading aid, never a rule. The verdict says whether it took effect. }
                         type: { type: string, nullable: true, description: §6 message letter, or null when unparseable. }
                         parseFailure: { type: string, nullable: true }
                   height: { type: integer }

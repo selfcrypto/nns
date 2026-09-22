@@ -934,6 +934,7 @@ describe('GET /log/decoded', () => {
         '0',
         'D',
         'NNS1Dnimiq|delegated.nimiqnames.com',
+        ...'serves subdomains of nimiq from delegated.nimiqnames.com'.split(' '),
         '0.00001',
         NQ_A,
         'OK',
