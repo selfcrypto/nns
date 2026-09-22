@@ -41,6 +41,7 @@ const SETTLE_MS = 1_000
 
 export function BuyScreen({
   wallet,
+  preLaunch = false,
   seed,
   onManage,
   onPay,
@@ -49,6 +50,8 @@ export function BuyScreen({
   onQuery,
 }: {
   wallet: Wallet | null
+  /** Before LAUNCH_HEIGHT the field is inert; the strip says when it opens. */
+  preLaunch?: boolean
   seed: string
   /** The settled query, for the URL — a reload comes back to the same card (`App.tsx`). */
   onQuery?: ((query: string) => void) | undefined
@@ -102,7 +105,8 @@ export function BuyScreen({
     return isShortName(query) ? { tone: 'note', text: shortNameNoteLine() } : null
   }, [query])
 
-  const outcome = useAsync(query === '' ? null : () => search(query), [query, nonce])
+  // A seeded query (a share link, a Buy handoff) would look up too: before launch nothing does.
+  const outcome = useAsync(query === '' || preLaunch ? null : () => search(query), [query, nonce, preLaunch])
   const retrying = useRetryWhilePropagating(outcome, () => setNonce((value) => value + 1))
 
   useEffect(() => {
@@ -148,9 +152,10 @@ export function BuyScreen({
                   value={text}
                   onChange={(event) => acceptQuery(event.target.value)}
                   aria-label="Search names"
+                  disabled={preLaunch}
                 />
                 {text === '' && <PasteButton onPaste={acceptQuery} onNote={setLinkNote} />}
-                <button className={`search-go ${styles.searchBtn}`} type="submit" disabled={trimmed === ''}>
+                <button className={`search-go ${styles.searchBtn}`} type="submit" disabled={preLaunch || trimmed === ''}>
                   Lookup
                 </button>
               </div>

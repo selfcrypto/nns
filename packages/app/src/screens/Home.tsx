@@ -133,7 +133,16 @@ function RawAddresses({ prefix }: { prefix: string }) {
   )
 }
 
-export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) => void; onOpenApp: () => void }) {
+export function HomeScreen({
+  preLaunch = false,
+  onSearch,
+  onOpenApp,
+}: {
+  /** Before LAUNCH_HEIGHT the hero's field is inert; the strip above says when it opens. */
+  preLaunch?: boolean
+  onSearch: (query: string) => void
+  onOpenApp: () => void
+}) {
   const [query, setQuery] = useState('')
   const [linkNote, setLinkNote] = useState<string | null>(null)
   const burn = useAsync(() => getBurn(apiBase()), [])
@@ -176,7 +185,7 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
               className={`hero-search ${styles.heroSearch}`}
               onSubmit={(event) => {
                 event.preventDefault()
-                if (query.trim() !== '') onSearch(query.trim())
+                if (!preLaunch && query.trim() !== '') onSearch(query.trim())
               }}
             >
               <div className={`hero-search-wrapper ${styles.searchWrapper}`}>
@@ -198,9 +207,10 @@ export function HomeScreen({ onSearch, onOpenApp }: { onSearch: (query: string) 
                   value={query}
                   onChange={(event) => acceptQuery(event.target.value)}
                   aria-label={hero.placeholder}
+                  disabled={preLaunch}
                 />
                 {query === '' && <PasteButton onPaste={acceptQuery} onNote={setLinkNote} />}
-                <button className={`hero-search-go ${styles.searchBtn}`} type="submit" disabled={query.trim() === ''}>
+                <button className={`hero-search-go ${styles.searchBtn}`} type="submit" disabled={preLaunch || query.trim() === ''}>
                   {hero.go}
                 </button>
               </div>

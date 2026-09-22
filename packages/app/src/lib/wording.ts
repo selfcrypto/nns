@@ -1422,8 +1422,8 @@ export const launchTag = (): string => 'Launching'
  * against the head, at a block a second — and rendered in the reader's own
  * zone, so nobody has to convert a typed "14:00 CET".
  */
-export function launchNoticeLine(head: number, nowMs: number, launch: number = CONSTANTS.LAUNCH_HEIGHT): string {
-  const at = new Date(nowMs + blocksToLaunch(head, launch) * 1_000)
+export function launchNoticeLine(blocksToGo: number, nowMs: number): string {
+  const at = new Date(nowMs + blocksToGo * 1_000)
   const day = at.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
   const time = at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })
   return `The registry opens ${day}, around ${time}.`

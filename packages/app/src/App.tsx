@@ -9,6 +9,7 @@ import { BRAND_MARK as MARK } from './lib/brand'
 import { SITE_NAME, TAB_LABEL } from './lib/wording'
 import { IdentityBar } from './components/IdentityBar'
 import { EraNotice } from './components/EraNotice'
+import { useBlocksToLaunch } from './lib/launch'
 import { MastheadLinks, MastheadMenu } from './components/MastheadNav'
 import { ThemeToggle } from './components/ThemeToggle'
 import { TabIcon, type TabIconName } from './components/icons'
@@ -119,6 +120,9 @@ export function App() {
   // search form was never affected: a fragment-only `replaceState` leaves it
   // alone, which is why every link `shareLinkFor` has emitted still works.
   const [referral] = useState(() => referralFromLocation(window.location.search, window.location.hash))
+  const blocksToLaunch = useBlocksToLaunch()
+  // Before LAUNCH_HEIGHT every search field is inert (lib/launch.ts).
+  const preLaunch = blocksToLaunch !== null && blocksToLaunch > 0
   useEffect(() => {
     if (referral !== null) void rememberReferral(referral)
   }, [referral])
@@ -323,12 +327,13 @@ export function App() {
             />
           </div>
         </div>
-        <EraNotice />
+        <EraNotice blocksToLaunch={blocksToLaunch} />
       </header>
       <main className="content">
         {diagnostic && <ChromeDiagnostic wallet={wallet} />}
         {tab === 'home' && (
           <HomeScreen
+            preLaunch={preLaunch}
             onSearch={(query) => navigate({ tab: 'buy', param: query })}
             onOpenApp={() => navigate({ tab: 'names', param: null })}
           />
@@ -337,6 +342,7 @@ export function App() {
           <BuyScreen
             key={route.param ?? ''}
             wallet={wallet}
+            preLaunch={preLaunch}
             seed={route.param ?? ''}
             onQuery={(query) => replace({ tab: 'buy', param: query }, false)}
             onManage={manageName}
@@ -349,6 +355,7 @@ export function App() {
           <PayScreen
             key={route.param ?? ''}
             wallet={wallet}
+            preLaunch={preLaunch}
             seed={route.param ?? ''}
             onQuery={(query) => replace({ tab: 'pay', param: query }, false)}
             onConnect={connect}

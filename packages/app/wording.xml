@@ -328,7 +328,7 @@
   </group>
   <group name="Before LAUNCH_HEIGHT">
     <string id="launchTag">Launching</string>
-    <string id="launchNoticeLine" params="head nowMs launch">The registry opens Invalid Date, around Invalid Date.</string>
+    <string id="launchNoticeLine" params="blocksToGo nowMs">The registry opens Thursday, January 1, around 01:00 AM GMT+1.</string>
     <string id="launchNoticeHint" params="launch">Nimiq Names starts at block 62,275,680. Nothing sent before that block is read, so a registration sent early registers nothing. The time shown is an estimate from the chain's height; this notice disappears when the block arrives.</string>
   </group>
   <group name="The landing page (a browser's front door; Pay opens on Buy)">

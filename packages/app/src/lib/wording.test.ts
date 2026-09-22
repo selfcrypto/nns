@@ -644,7 +644,7 @@ describe('the pre-launch strip', () => {
 
   it('derives the moment from the height at a block a second, never from a typed time', () => {
     const now = Date.UTC(2026, 8, 22, 10, 0, 0)
-    const twoHours = launchNoticeLine(1_000, now, 1_000 + 7_200)
+    const twoHours = launchNoticeLine(7_200, now)
     const at = new Date(now + 7_200_000)
     expect(twoHours).toContain(at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }))
     expect(twoHours).toContain(at.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }))

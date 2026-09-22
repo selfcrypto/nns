@@ -118,11 +118,14 @@ const REGISTER_ONLY: readonly AppAction[] = ['register']
 
 export function PayScreen({
   wallet,
+  preLaunch = false,
   seed,
   onQuery,
   onConnect,
 }: {
   wallet: Wallet | null
+  /** Before LAUNCH_HEIGHT the field is inert; the strip says when it opens. */
+  preLaunch?: boolean
   seed: string
   /** The settled query, for the URL — a reload comes back to the same name (`App.tsx`). */
   onQuery?: ((query: string) => void) | undefined
@@ -190,7 +193,8 @@ export function PayScreen({
 
   const trimmed = text.trim().toLowerCase()
   const [query, flushQuery] = useDebounced(trimmed, SETTLE_MS)
-  const outcome = useAsync(query === '' ? null : () => search(query), [query, nonce])
+  // A seeded query (a share link, a Buy handoff) would look up too: before launch nothing does.
+  const outcome = useAsync(query === '' || preLaunch ? null : () => search(query), [query, nonce, preLaunch])
   const retrying = useRetryWhilePropagating(outcome, () => setNonce((v) => v + 1))
 
   useEffect(() => {
@@ -481,6 +485,8 @@ export function PayScreen({
                   value={text}
                   onChange={(event) => acceptQuery(event.target.value)}
                   aria-label={payNameAria()}
+                
+                  disabled={preLaunch}
                 />
                 {text !== '' && (
                   <button
@@ -501,7 +507,7 @@ export function PayScreen({
                   </button>
                 )}
                 {text === '' && <PasteButton onPaste={acceptQuery} onNote={setPasteNote} />}
-                <button className={styles.searchSubmitBtn} type="submit" disabled={trimmed === ''}>
+                <button className={styles.searchSubmitBtn} type="submit" disabled={preLaunch || trimmed === ''}>
                   {resolveLabel()}
                 </button>
               </div>
