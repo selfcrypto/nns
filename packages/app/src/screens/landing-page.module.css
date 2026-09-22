@@ -2890,11 +2890,9 @@
   outline-offset: 3px;
 }
 
-/* Prices: one collapsed row (components/PriceTable.tsx, `PriceDisclosure`)
-   between the chains and the burn figures, opening into the §10.1 table.
-   The card is the dashboard's white so the table reads as the app's, not
-   as copy; the row is the whole control, chevron turning like the proven
-   foot's (`.verify-toggle`). */
+/* Prices: the collapsed row (components/PriceTable.tsx, `PriceDisclosure`;
+   its card is styled in app.css, shared with Buy) between the chains and
+   the burn figures. */
 :global(.prices-section) {
   padding: 8px 24px 64px;
   position: relative;
@@ -2906,71 +2904,9 @@
   margin: 0 auto;
 }
 
-:global(.prices-card) {
-  background: #FFFFFF;
-  border: 1px solid rgba(31, 35, 72, 0.08);
-  border-radius: 20px;
-  box-shadow: 0 10px 30px -12px rgba(31, 35, 72, 0.18);
-  text-align: left;
-  overflow: hidden;
-}
-
-:global(.prices-toggle) {
-  appearance: none;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  margin: 0;
-  padding: 16px 20px;
-  border: 0;
-  background: none;
-  font: inherit;
-  color: var(--ink);
-  text-align: left;
-  cursor: pointer;
-}
-
-:global(.prices-toggle:disabled) {
-  cursor: default;
-}
-
-:global(.prices-toggle-title) {
-  font-size: 16px;
-  font-weight: 700;
-}
-
-:global(.prices-toggle-from) {
-  font-size: 14px;
-  color: var(--ink-soft);
-}
-
-:global(.prices-toggle .icon) {
-  margin-left: auto;
-  flex: none;
-  opacity: 0.6;
-  transition: transform 140ms ease;
-}
-
-:global(.prices-toggle[aria-expanded='true'] .icon) {
-  transform: rotate(180deg);
-}
-
-:global(.prices-body) {
-  padding: 0 20px 16px;
-  border-top: 1px solid rgba(31, 35, 72, 0.06);
-}
-
 @media (max-width: 768px) {
   :global(.prices-section) {
     padding: 0 16px 48px;
   }
 
-  :global(.prices-toggle) {
-    padding: 14px 16px;
-  }
-
-  :global(.prices-body) {
-    padding: 0 12px 12px;
-  }
 }

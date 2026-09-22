@@ -26,7 +26,7 @@ import {
 import { referralFromLink, rememberReferral, storedReferral } from '../lib/referral'
 import { ACQUIRE_ACTIONS, NameCard } from '../components/NameCard'
 import { PasteButton } from '../components/PasteButton'
-import { LivePriceTable } from '../components/PriceTable'
+import { PriceDisclosure } from '../components/PriceTable'
 import { ReferrerStrip } from '../components/ReferrerStrip'
 import { TrustBar } from '../components/TrustBar'
 import { Spinner } from '../components/ui'
@@ -182,7 +182,7 @@ export function BuyScreen({
                     </button>
                   ))}
                 </div>
-                <LivePriceTable />
+                <PriceDisclosure />
               </div>
             )}
             {outcome.status === 'loading' && (

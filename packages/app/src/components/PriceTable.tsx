@@ -1,9 +1,9 @@
 /**
  * §10.1 as a table: one row per open band, a year and a lifetime each, off
- * the live `/params.fees` so a governance change reprices it by itself. The
- * landing page and Buy's idle state both show it — a reader deciding what to
- * search for wants the price before the name, and the sheet's "?" sentence
- * only appears once a name is chosen (Rico, 2026-09-22).
+ * the live `/params.fees` so a governance change reprices it by itself. A
+ * reader deciding what to search for wants the price before the name, and
+ * the sheet's "?" sentence only appears once a name is chosen (Rico,
+ * 2026-09-22). `PriceDisclosure` below is how both screens show it.
  */
 
 import { useId, useState } from 'react'
@@ -46,21 +46,12 @@ export function PriceTable({ fees }: { fees: readonly FeeRow[] }) {
 }
 
 /**
- * The table off the live `/params`. Nothing while it loads or if it fails:
- * display-only, and the docs page states the same prices for a reader who
- * arrives while the API is down.
- */
-export function LivePriceTable() {
-  const params = useAsync(() => getParams(apiBase()), [])
-  return params.status === 'done' ? <PriceTable fees={params.value.fees} /> : null
-}
-
-/**
- * The landing page's form: one row — "Prices", the cheapest band, a chevron —
- * that opens into the table, the way a proven answer's foot opens into its
- * resolvers (`result.tsx`). A whole section for it was too much page for a
- * fact a reader wants once (Rico, 2026-09-22). The row is there before
- * `/params` answers so the page does not jump; the figure joins it.
+ * One row — "Prices", the cheapest band, a chevron — that opens into the
+ * table, the way a proven answer's foot opens into its resolvers
+ * (`result.tsx`). On the landing page and on Buy before a query: a whole
+ * section, or the open table, was too much page for a fact a reader wants
+ * once (Rico, 2026-09-22, twice). The row is there before `/params` answers
+ * so the page does not jump; the figure joins it and the toggle enables.
  */
 export function PriceDisclosure() {
   const params = useAsync(() => getParams(apiBase()), [])

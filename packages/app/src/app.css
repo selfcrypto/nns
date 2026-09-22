@@ -1640,6 +1640,75 @@ li.note {
   color: var(--alarm);
 }
 
+/* The collapsed prices row (components/PriceTable.tsx, `PriceDisclosure`),
+   on the landing page and on Buy before a query: a white card whose whole
+   top row is the control, the chevron turning like the proven foot's
+   (`.verify-toggle`), the table beneath it once open. */
+.prices-card {
+  background: #FFFFFF;
+  border: 1px solid rgba(31, 35, 72, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px -12px rgba(31, 35, 72, 0.18);
+  text-align: left;
+  overflow: hidden;
+}
+
+.prices-toggle {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 16px 20px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.prices-toggle:disabled {
+  cursor: default;
+}
+
+.prices-toggle-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.prices-toggle-from {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.prices-toggle .icon {
+  margin-left: auto;
+  flex: none;
+  opacity: 0.6;
+  transition: transform 140ms ease;
+}
+
+.prices-toggle[aria-expanded='true'] .icon {
+  transform: rotate(180deg);
+}
+
+.prices-body {
+  padding: 0 20px 16px;
+  border-top: 1px solid rgba(31, 35, 72, 0.06);
+}
+
+@media (max-width: 768px) {
+  .prices-toggle {
+    padding: 14px 16px;
+  }
+
+  .prices-body {
+    padding: 0 12px 12px;
+  }
+}
+
 /* The §10.1 table (components/PriceTable.tsx): Buy's idle state and the
    landing page. Numbers right, lengths left, one hairline per row. */
 .price-table table {
