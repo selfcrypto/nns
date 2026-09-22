@@ -1645,27 +1645,29 @@ li.note {
    top row is the control, the chevron turning like the proven foot's
    (`.verify-toggle`), the table beneath it once open. */
 .prices-card {
-  background: #FFFFFF;
-  border: 1px solid rgba(31, 35, 72, 0.08);
+  background: var(--card);
+  border: 1px solid var(--line);
   border-radius: 20px;
-  box-shadow: 0 10px 30px -12px rgba(31, 35, 72, 0.18);
+  box-shadow: var(--shadow-card);
   text-align: left;
   overflow: hidden;
 }
 
 .prices-toggle {
   appearance: none;
+  position: relative;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   width: 100%;
   margin: 0;
-  padding: 16px 20px;
+  padding: 16px 44px;
   border: 0;
   background: none;
   font: inherit;
   color: var(--ink);
-  text-align: left;
+  text-align: center;
   cursor: pointer;
 }
 
@@ -1684,7 +1686,10 @@ li.note {
 }
 
 .prices-toggle .icon {
-  margin-left: auto;
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  margin-top: -8px;
   flex: none;
   opacity: 0.6;
   transition: transform 140ms ease;
@@ -1696,12 +1701,16 @@ li.note {
 
 .prices-body {
   padding: 0 20px 16px;
-  border-top: 1px solid rgba(31, 35, 72, 0.06);
+  border-top: 1px solid var(--line);
 }
 
 @media (max-width: 768px) {
   .prices-toggle {
-    padding: 14px 16px;
+    padding: 14px 40px;
+  }
+
+  .prices-toggle .icon {
+    right: 16px;
   }
 
   .prices-body {
@@ -1753,12 +1762,15 @@ li.note {
 }
 
 .price-table-foot {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   font-size: 12.5px;
+  text-align: center;
   color: var(--ink-faint);
 }
 
 .price-table-foot a {
+  display: block;
+  margin-top: 4px;
   color: var(--nimiq-blue);
   text-decoration: none;
 }
