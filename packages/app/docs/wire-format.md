@@ -35,7 +35,7 @@ For example, `NNS1Grico` registers `rico`, and `NNS1Drico|nns.example.com` sets 
 
 Build payloads with `@nimiqnames/core`: `encodeRegister`, `encodeSetTarget`, `encodeSetEvm`, `encodeTransfer`, `encodeDelegate`, `encodeCancel`, `encodeRenew`, `encodeOffer`, `encodeBuy`, `encodeAuction`. They refuse anything the registry would refuse, including an over-length payload.
 
-The `ref` on a registration is a registered name of up to {{n:MAX_REF_LEN}} characters whose owner drove the registration. It has no effect on validity, price or ownership ([Referrals](referrals)).
+The `ref` on a registration names the registered name whose owner drove it, up to {{n:MAX_REF_LEN}} characters. The registry records the field as sent and checks nothing about it: the name registers either way, and the log prints whatever was typed. A payout goes only to a referrer that was registered at that height ([Referrals](referrals)).
 
 Same-block order is by transaction hash, ascending. A refused message still occupies its position.
 

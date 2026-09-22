@@ -28,7 +28,7 @@ A referral is earned once, at registration. Renewals carry no referrer and pay n
 
 ## What a referral cannot do
 
-The `ref` field on a registration has no effect on the registration. A wrong or unknown referrer is ignored and the name registers normally. Nothing about ownership, price or resolution depends on it.
+The `ref` field on a registration has no effect on the registration. The registry records it as sent and checks nothing about it: a wrong or unknown referrer earns nothing and the name registers normally. The public log prints the field as typed, so a line can read *referred by* a name that was never registered. Nothing about ownership, price or resolution depends on it.
 
 The payouts are a policy of the registry, not a rule of the protocol. Anyone can check them: the public log records every referred registration and every payout.
 

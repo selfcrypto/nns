@@ -1014,8 +1014,11 @@ three drops above. A message that reaches the chain and fails a rule gets a
   these is a check your client should have made before enabling the button;
   `@nimiqnames/core`'s builders and `/available` cover all of them.
 
-The full 28-token vocabulary is in the spec, §7.4. `/log/decoded?format=text`
-shows every verdict ever issued.
+The full 31-token vocabulary is in the spec, §7.4. `/log/decoded?format=text`
+shows every verdict ever issued. It prints the data field as sent: a
+registration's `ref` appears on its line whether or not that name was ever
+registered, because the registry checks nothing about it (§10.7). A payout
+goes only to a referrer registered at that height.
 
 ---
 
