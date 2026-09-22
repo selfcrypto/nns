@@ -6,14 +6,14 @@ import { detectWallet, type Wallet } from './lib/wallet'
 import { referralFromLocation, rememberReferral } from './lib/referral'
 import { applyTheme, loadTheme, saveTheme, systemPrefersDark, type Theme } from './lib/theme'
 import { BRAND_MARK as MARK } from './lib/brand'
-import { SITE_NAME, TAB_LABEL } from './lib/wording'
+import { SITE_NAME, TAB_LABEL, notifyLabel } from './lib/wording'
 import { IdentityBar } from './components/IdentityBar'
 import { NotifySheet } from './components/NotifySheet'
 import { EraNotice } from './components/EraNotice'
 import { useBlocksToLaunch } from './lib/launch'
 import { MastheadLinks, MastheadMenu } from './components/MastheadNav'
 import { ThemeToggle } from './components/ThemeToggle'
-import { TabIcon, type TabIconName } from './components/icons'
+import { BellIcon, TabIcon, type TabIconName } from './components/icons'
 import { HomeScreen } from './screens/Home'
 import { BuyScreen } from './screens/Buy'
 import { DocsScreen } from './screens/Docs'
@@ -319,20 +319,32 @@ export function App() {
                 setMenuOpen((open) => !open)
               }}
             />
+            {/* The bell: notifications for the acting address (tasks/26). In the
+                theme switch's circle, between the nav button and the chip, and
+                only when there is a notifier and an address to sign in with. A
+                row inside the wallet panel was where nobody found it (Rico,
+                2026-09-23). */}
+            {notifyBase !== null && tab !== 'home' && (wallet?.identity.addresses[0] ?? null) !== null && (
+              <button
+                type="button"
+                className="theme-toggle notify-bell"
+                aria-label={notifyLabel()}
+                title={notifyLabel()}
+                onClick={() => {
+                  setIdentityOpen(false)
+                  setMenuOpen(false)
+                  setNotifyFor(wallet?.identity.addresses[0] ?? null)
+                }}
+              >
+                <BellIcon />
+              </button>
+            )}
             <IdentityBar
               placement="top"
               wallet={wallet}
               onConnect={connect}
               onDisconnect={disconnect}
               onPick={pick}
-              onNotify={
-                notifyBase === null
-                  ? null
-                  : (address) => {
-                      setIdentityOpen(false)
-                      setNotifyFor(address)
-                    }
-              }
               expanded={identityOpen}
               onToggle={() => {
                 setMenuOpen(false)

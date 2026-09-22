@@ -481,11 +481,11 @@
     <string id="notifyEmailSentLine">Check your inbox and open the confirmation link.</string>
     <string id="notifyEmailBadLine">That is not an email address.</string>
     <string id="notifyEmailLimitLine">Too many confirmation emails. Try again later.</string>
-    <string id="notifyConfirmedLabel">confirmed</string>
-    <string id="notifyPendingLabel">waiting for confirmation</string>
+    <string id="notifyConfirmedLabel">Confirmed</string>
+    <string id="notifyPendingLabel">Waiting for confirmation</string>
     <string id="notifyTelegramLabel">Telegram</string>
     <string id="notifyTelegramConnectLabel">Connect Telegram</string>
-    <string id="notifyTelegramLinkedLabel">linked</string>
+    <string id="notifyTelegramLinkedLabel">Linked</string>
     <string id="notifyTelegramOpenLabel">Open Telegram</string>
     <string id="notifyTelegramOpenLine">Press Start in Telegram and this chat will receive the notifications.</string>
     <string id="notifyTelegramHint">A bot can only write to a chat you started. The link opens the bot with a code that ties the chat to this address. No username is typed or stored. Send /stop to the bot to unlink.</string>

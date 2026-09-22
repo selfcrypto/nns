@@ -74,6 +74,34 @@ a fresh database starts at the current checkpoint and narrates nothing older.
   once per event, and drops a contact after repeated refusals. What it
   cannot do is make a bad domain look good; the DKIM and DMARC are yours.
 
+## Email from this box
+
+A box with no mail server can send its own, outbound only, with the `mail`
+profile: a Postfix relay with DKIM that listens inside the compose network,
+opens no port on the host and receives nothing. Four things, in order:
+
+1. **Reverse DNS.** At the provider's panel, set the IP's PTR to a name
+   like `mail.example.com`, and give that name an A record back to the IP.
+   Google and the rest refuse mail from an IP whose reverse name does not
+   resolve to it. Check outbound port 25 is open from the box first (most
+   VPS providers open it on request).
+2. `.env`: `NNS_NOTIFY_MAIL_DOMAIN`, `NNS_NOTIFY_MAIL_HOSTNAME` (the PTR
+   name), then `docker compose --profile mail up -d mailer`. The relay
+   generates its DKIM key on first start; read the public half with
+   `docker compose exec mailer cat /etc/opendkim/keys/<domain>.<selector>.txt`
+   (the selector is `notify` unless changed).
+3. **Three TXT records** on the domain: `v=spf1 ip4:<the IP> -all` at the
+   apex, the DKIM record at `<selector>._domainkey`, and
+   `v=DMARC1; p=quarantine` at `_dmarc`.
+4. Point the notifier at it: `NNS_NOTIFY_SMTP_HOST=mailer`,
+   `NNS_NOTIFY_SMTP_PORT=587`, `NNS_NOTIFY_SMTP_SECURE=plain`, no user, a
+   From on the domain; `docker compose up -d notify`. Send yourself a
+   confirmation from the app and check the headers say `dkim=pass` and
+   `spf=pass`.
+
+Volume is low, a handful a day, which is what keeps a fresh IP's reputation
+a non-issue once the records are right.
+
 ## Sign-in conventions
 
 A sign-in is a signature over a challenge the service wrote. The Hub, the

@@ -197,8 +197,10 @@ export class SmtpSender implements EmailSender {
         session.swap(await upgrade(session.raw, this.settings.host))
         features = await hello()
       }
-      const plain = Buffer.from(`\0${this.settings.user}\0${this.settings.password}`, 'utf8').toString('base64')
-      await session.command(`AUTH PLAIN ${plain}`, 2)
+      if (this.settings.user !== '') {
+        const plain = Buffer.from(`\0${this.settings.user}\0${this.settings.password}`, 'utf8').toString('base64')
+        await session.command(`AUTH PLAIN ${plain}`, 2)
+      }
       await session.command(`MAIL FROM:<${mailbox(this.settings.from)}>`, 2)
       try {
         await session.command(`RCPT TO:<${message.to}>`, 2)

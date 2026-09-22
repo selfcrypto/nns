@@ -39,7 +39,6 @@ import {
   disconnectLabel,
   moreAddressesLabel,
   nimAmountLine,
-  notifyLabel,
   payConnectLabel,
   walletHoldsLine,
   walletCheckingLine,
@@ -54,7 +53,6 @@ export function IdentityBar({
   onConnect,
   onDisconnect,
   onPick = null,
-  onNotify = null,
   expanded,
   onToggle,
   placement = 'bottom',
@@ -64,8 +62,6 @@ export function IdentityBar({
   onDisconnect: (() => void) | null
   /** Make an address the acting one. Null where there is no list to pick from. */
   onPick?: ((address: string) => void) | null
-  /** Open the notifications sheet for the acting address (tasks/26). Null when no notifier is configured, and nothing is drawn. */
-  onNotify?: ((address: string) => void) | null
   expanded: boolean
   onToggle: () => void
   placement?: IdentityPlacement
@@ -124,7 +120,7 @@ export function IdentityBar({
   // Top: the address is the whole collapsed control, so the panel is the only
   // place the other controls exist and it must open even for a lone address.
   // Bottom: Disconnect is already on the row, and the panel is the rest of the set.
-  const hasPanel = top ? disconnect !== null || add !== null || onNotify !== null || row.more > 0 : row.more > 0 || add !== null || onNotify !== null
+  const hasPanel = top ? disconnect !== null || add !== null || row.more > 0 : row.more > 0 || add !== null
 
   return (
     <div className={bar}>
@@ -187,17 +183,6 @@ export function IdentityBar({
                 )
               })}
             </ul>
-          )}
-          {/* The acting address's notifications. The list above is the switch,
-              so one row covers every address: pick, then open. */}
-          {onNotify !== null && (
-            <button type="button" className="connect connect-quiet identity-add identity-notify" onClick={() => onNotify(row.primary)}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              {notifyLabel()}
-            </button>
           )}
           {add !== null && (
             <button type="button" className="connect connect-quiet identity-add" onClick={add}>

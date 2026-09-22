@@ -22,8 +22,13 @@ export class EnvError extends Error {
 export interface SmtpSettings {
   readonly host: string
   readonly port: number
-  /** `starttls` on 587, `tls` on 465. `plain` exists for the tests' fake server; no `.env` produces it. */
+  /**
+   * `starttls` on 587, `tls` on 465, by port unless `NNS_NOTIFY_SMTP_SECURE`
+   * says otherwise. `plain` is for a relay on the compose network
+   * (`deploy/notify`'s `mail` profile), where the hop never leaves the box.
+   */
   readonly secure: 'starttls' | 'tls' | 'plain'
+  /** Empty means no AUTH: a relay that trusts its own network. */
   readonly user: string
   readonly password: string
   /** `Name <mailbox@domain>` or a bare mailbox. */
@@ -101,11 +106,15 @@ function smtp(env: EnvSource): SmtpSettings | null {
   const host = optional(env, 'NNS_NOTIFY_SMTP_HOST')
   if (host === null) return null
   const port = integer(env, 'NNS_NOTIFY_SMTP_PORT', 587, 1)
+  const mode = optional(env, 'NNS_NOTIFY_SMTP_SECURE')
+  if (mode !== null && mode !== 'starttls' && mode !== 'tls' && mode !== 'plain') {
+    throw new EnvError('NNS_NOTIFY_SMTP_SECURE must be starttls, tls or plain')
+  }
   return {
     host,
     port,
-    secure: port === 465 ? 'tls' : 'starttls',
-    user: required(env, 'NNS_NOTIFY_SMTP_USER'),
+    secure: mode ?? (port === 465 ? 'tls' : 'starttls'),
+    user: optional(env, 'NNS_NOTIFY_SMTP_USER') ?? '',
     password: env['NNS_NOTIFY_SMTP_PASSWORD'] ?? '',
     from: required(env, 'NNS_NOTIFY_SMTP_FROM'),
   }

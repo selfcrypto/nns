@@ -74,5 +74,30 @@ services:
       driver: json-file
       options: { max-size: '10m', max-file: '5' }
 
+  # An outbound-only mail relay with DKIM, for a box that has no mail server
+  # to hand (tasks/26, 2026-09-23). Off unless started with the `mail`
+  # profile. Listens on 587 inside the compose network only, no port on the
+  # host, no inbound mail, no mailbox: it signs what the notifier hands it
+  # and delivers straight to the recipients' servers over port 25. The
+  # notifier then points at it with NNS_NOTIFY_SMTP_HOST=mailer,
+  # NNS_NOTIFY_SMTP_SECURE=plain and no user (README.md, "Email from this
+  # box"). The DKIM key is generated once into the volume; its public half
+  # goes into the domain's DNS.
+  mailer:
+    image: boky/postfix:latest
+    profiles: ['mail']
+    restart: unless-stopped
+    environment:
+      ALLOWED_SENDER_DOMAINS: ${NNS_NOTIFY_MAIL_DOMAIN:?set the sending domain in .env}
+      POSTFIX_myhostname: ${NNS_NOTIFY_MAIL_HOSTNAME:?set the relay's hostname (the IP's reverse name) in .env}
+      DKIM_AUTOGENERATE: 'true'
+      DKIM_SELECTOR: ${NNS_NOTIFY_MAIL_DKIM_SELECTOR:-notify}
+    volumes:
+      - dkim-keys:/etc/opendkim/keys
+    logging:
+      driver: json-file
+      options: { max-size: '10m', max-file: '5' }
+
 volumes:
   notify-data:
+  dkim-keys:

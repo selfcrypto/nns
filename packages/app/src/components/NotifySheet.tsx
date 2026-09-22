@@ -278,7 +278,7 @@ export function NotifySheet({ base, address, wallet, onClose }: { base: string; 
                   {emails.map((contact) => (
                     <div key={contact.id} className="notify-contact">
                       <span className="notify-contact-target">{contact.target}</span>
-                      <span className={contact.confirmed ? 'notify-state notify-state-ok' : 'notify-state'}>
+                      <span className={contact.confirmed ? 'notify-state notify-state-ok' : 'notify-state notify-state-pending'}>
                         {contact.confirmed ? notifyConfirmedLabel() : notifyPendingLabel()}
                       </span>
                       <button type="button" className="notify-remove" onClick={() => remove(contact)}>
@@ -311,19 +311,33 @@ export function NotifySheet({ base, address, wallet, onClose }: { base: string; 
               )}
               {settings.channels.telegram && (
                 <div className="notify-channel">
-                  <span className="request-field-label">
-                    {notifyTelegramLabel()} <Hint>{notifyTelegramHint()}</Hint>
-                  </span>
-                  {telegrams.map((contact) => (
+                  {/* One line: the channel's name, its hint, and when a chat
+                      is linked, the state and Remove on the same line. A
+                      chat has no address to print, so a row of its own said
+                      "Telegram" twice (Rico, 2026-09-23). */}
+                  <div className="notify-contact">
+                    <span className="request-field-label notify-contact-target">
+                      {notifyTelegramLabel()} <Hint>{notifyTelegramHint()}</Hint>
+                    </span>
+                    {telegrams[0] !== undefined && (
+                      <>
+                        <span className="notify-state notify-state-ok">{notifyTelegramLinkedLabel()}</span>
+                        <button type="button" className="notify-remove" onClick={() => remove(telegrams[0] as Contact)}>
+                          {notifyRemoveLabel()}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  {telegrams.slice(1).map((contact) => (
                     <div key={contact.id} className="notify-contact">
-                      <span className="notify-contact-target">{notifyTelegramLabel()}</span>
+                      <span className="notify-contact-target" />
                       <span className="notify-state notify-state-ok">{notifyTelegramLinkedLabel()}</span>
                       <button type="button" className="notify-remove" onClick={() => remove(contact)}>
                         {notifyRemoveLabel()}
                       </button>
                     </div>
                   ))}
-                  {link === null ? (
+                  {telegrams.length > 0 ? null : link === null ? (
                     <button type="button" className="connect connect-quiet" onClick={connectTelegram}>
                       {notifyTelegramConnectLabel()}
                     </button>

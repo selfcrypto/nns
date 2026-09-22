@@ -26,6 +26,9 @@ describe('loadSettings', () => {
     expect(loadSettings({ ...BASE, ...smtp })?.smtp).toMatchObject({ port: 587, secure: 'starttls' })
     expect(loadSettings({ ...BASE, ...smtp, NNS_NOTIFY_SMTP_PORT: '465' })?.smtp).toMatchObject({ port: 465, secure: 'tls' })
     expect(() => loadSettings({ ...BASE, NNS_NOTIFY_SMTP_HOST: 'mail.example.com' })).toThrow(EnvError)
+    // A relay on the compose network: no TLS on the hop, no AUTH.
+    expect(loadSettings({ ...BASE, NNS_NOTIFY_SMTP_HOST: 'mailer', NNS_NOTIFY_SMTP_SECURE: 'plain', NNS_NOTIFY_SMTP_FROM: 'n@x.io' })?.smtp).toMatchObject({ secure: 'plain', user: '' })
+    expect(() => loadSettings({ ...BASE, NNS_NOTIFY_SMTP_HOST: 'mailer', NNS_NOTIFY_SMTP_SECURE: 'maybe', NNS_NOTIFY_SMTP_FROM: 'n@x.io' })).toThrow(EnvError)
   })
 
   it('pins the signature conventions when told to', () => {

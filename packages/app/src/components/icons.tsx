@@ -169,6 +169,16 @@ export function MoonIcon() {
   )
 }
 
+/** The notifications bell: the masthead corner's fourth control (tasks/26). */
+export function BellIcon() {
+  return (
+    <Glyph size={18}>
+      <path d="M18 8.5a6 6 0 0 0-12 0c0 6.5-2.5 8.5-2.5 8.5h17S18 15 18 8.5" />
+      <path d="M13.7 20.5a2 2 0 0 1-3.4 0" />
+    </Glyph>
+  )
+}
+
 export function SunIcon() {
   return (
     <Glyph size={18}>
