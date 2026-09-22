@@ -13,6 +13,7 @@ import {
   lunaToNim,
   lunaToNimInput,
   splitAroundName,
+  lunaToNimShort,
 } from './format'
 import { parseNimAmount } from './actions'
 
@@ -209,5 +210,18 @@ describe('isTxHash', () => {
   // `https://nimiq.watch/#h1` would be pinning a broken link.
   it('rejects the placeholder hashes the chat fixtures use', () => {
     for (const dummy of ['abc', 'h1', 'htlc', '']) expect(isTxHash(dummy)).toBe(false)
+  })
+})
+
+describe('lunaToNimShort', () => {
+  it('is whole NIM from 1 NIM up, floored and grouped', () => {
+    expect(lunaToNimShort(100_001_000n)).toBe('1,000')
+    expect(lunaToNimShort(199_999n)).toBe('1')
+    expect(lunaToNimShort(62_500_000_000n)).toBe('625,000')
+  })
+  it('is two floored decimals under 1 NIM', () => {
+    expect(lunaToNimShort(99_999n)).toBe('0.99')
+    expect(lunaToNimShort(5_000n)).toBe('0.05')
+    expect(lunaToNimShort(0n)).toBe('0.00')
   })
 })

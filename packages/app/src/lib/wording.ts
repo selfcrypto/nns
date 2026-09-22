@@ -811,10 +811,14 @@ export const PRICE_TABLE = {
 export const lengthBandLabel = (from: number, to: number | null): string =>
   to === null ? `${from}+` : from === to ? `${from}` : `${from}–${to}`
 export const nimAmountLine = (nim: string): string => `${nim} NIM`
-/** Under an available name: what it costs, before the sheet asks which term. */
-export const yearlyPriceLine = (nim: string): string => `${nim} NIM a year`
-export const lifetimePriceLine = (nim: string): string => `${nim} NIM for a lifetime`
-/** Beside a price, and at the top of the address panel: whether the wallet can pay it, at a glance. */
+/**
+ * Under an available name's two prices (`PriceRow`): the wallet's balance
+ * on the right, and on the left either the plain label or, when it does not
+ * cover a year, the one thing the reader needs to know.
+ */
+export const walletBalanceLabel = (): string => 'Wallet balance'
+export const notEnoughForYearLine = (): string => 'Not enough for a year'
+/** At the top of the address panel for a lone address: what it holds, at a glance. */
 export const walletHoldsLine = (nim: string): string => `Your wallet holds ${nim} NIM`
 
 /**

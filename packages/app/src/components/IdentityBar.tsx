@@ -29,7 +29,7 @@
  */
 
 import { identityRow, mostHeld } from '../lib/states'
-import { ellipsizeAddress, lunaToNim } from '../lib/format'
+import { ellipsizeAddress, lunaToNimShort } from '../lib/format'
 import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { useAsync } from '../lib/useAsync'
 import type { Wallet } from '../lib/wallet'
@@ -156,7 +156,7 @@ export function IdentityBar({
       </div>
       {expanded && hasPanel && (
         <div className="identity-expanded">
-          {held !== null && <p className="identity-balance-line">{walletHoldsLine(lunaToNim(held))}</p>}
+          {held !== null && <p className="identity-balance-line">{walletHoldsLine(lunaToNimShort(held))}</p>}
           {row.more > 0 && (
             <ul className="identity-list">
               {addresses.map((address) => {
@@ -172,7 +172,7 @@ export function IdentityBar({
                     >
                       <Identicon address={address} size={18} />
                       <span className="identity-address nns-name">{ellipsizeAddress(address)}</span>
-                      {balanceOf(address) !== null && <span className="identity-balance">{nimAmountLine(lunaToNim(balanceOf(address) ?? 0n))}</span>}
+                      {balanceOf(address) !== null && <span className="identity-balance">{nimAmountLine(lunaToNimShort(balanceOf(address) ?? 0n))}</span>}
                       {acting && (
                         <svg className="identity-pick-mark" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                           <polyline points="20 6 9 17 4 12" />

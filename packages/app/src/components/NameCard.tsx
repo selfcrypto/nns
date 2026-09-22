@@ -20,7 +20,7 @@ import { Hint } from './Hint'
 import { createPortal } from 'react-dom'
 import { CONSTANTS } from '@nimiqnames/core'
 import { actingAs, primaryAddress } from '../lib/identity'
-import { approxDate, ellipsizeAddress, formatApproxWhen, lunaToNim } from '../lib/format'
+import { approxDate, ellipsizeAddress, formatApproxWhen, lunaToNim, lunaToNimShort } from '../lib/format'
 import type { SearchOutcome } from '../lib/search'
 import { actionGates, cancellable, cancelTileGroup, connectInstead, feeRowFor, mostHeld, registrationFee, renewalUrgency, sameAddress, signerFor, viewFor, type AppAction, type NameView } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
@@ -81,9 +81,9 @@ import {
   giftRenewalLabel,
   REQUEST_TILE,
   requestInGraceLine,
-  lifetimePriceLine,
-  walletHoldsLine,
-  yearlyPriceLine,
+  PRICE_TABLE,
+  notEnoughForYearLine,
+  walletBalanceLabel,
 } from '../lib/wording'
 import { ClockIcon } from './icons'
 import { AnswerBlock, Overlays, QuorumReplies, TitleName, WarningNotes, tierOf } from './result'
@@ -98,12 +98,15 @@ import { Badge, RailCard, type RailTier } from './ui'
 export const ACQUIRE_ACTIONS: readonly AppAction[] = ['register', 'renew', 'buy', 'bid']
 
 /**
- * Under an available name: the price for a year and for a lifetime, and —
- * when a wallet is connected — what it holds, so whether it can pay is one
- * glance rather than a sheet away (Rico, 2026-09-22). `feeRowFor` reads the
- * band off `/params.fees`; the balance is `mostHeld` over the wallet's
- * payers, the sheet's own reading (`shortfallFor`). Display-only: a missing
- * balance hides its span, a missing `/params` hides the row.
+ * Under an available name: the two prices as a pair of cells, a year and a
+ * lifetime, and — when a wallet is connected — a balance row beneath, so
+ * whether it can pay is one glance rather than a sheet away (Rico,
+ * 2026-09-22; the first cut was a loose line of text, and he said so).
+ * `feeRowFor` reads the band off `/params.fees`; the balance is `mostHeld`
+ * over the wallet's payers, the sheet's own reading (`shortfallFor`), shown
+ * short (`lunaToNimShort`) because it is a glance, not an amount to send.
+ * Display-only: a missing balance hides its row, a missing `/params` hides
+ * the block.
  */
 function PriceRow({ name, wallet }: { name: string; wallet: Wallet | null }) {
   const params = useAsync(() => getParams(apiBase()), [])
@@ -124,11 +127,35 @@ function PriceRow({ name, wallet }: { name: string; wallet: Wallet | null }) {
   const balance = held.status === 'done' ? held.value : null
   const short = balance !== null && balance < row.yearly
   return (
-    <div className="price-row">
-      <span className="price-year">{yearlyPriceLine(lunaToNim(row.yearly))}</span>
-      <span className="price-lifetime">{lifetimePriceLine(lunaToNim(row.lifetime))}</span>
-      {balance !== null && <span className={`price-balance${short ? ' is-short' : ''}`}>{walletHoldsLine(lunaToNim(balance))}</span>}
-    </div>
+    <>
+      <dl className="price-block">
+        <div className="price-cell">
+          <dt>{PRICE_TABLE.year}</dt>
+          <dd>
+            {lunaToNim(row.yearly)} <small>NIM</small>
+          </dd>
+        </div>
+        <div className="price-cell">
+          <dt>{PRICE_TABLE.lifetime}</dt>
+          <dd>
+            {lunaToNim(row.lifetime)} <small>NIM</small>
+          </dd>
+        </div>
+      </dl>
+      {balance !== null && (
+        <div className={`price-balance${short ? ' is-short' : ''}`}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M20 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z" />
+            <path d="M16 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2" />
+            <circle cx="17" cy="14" r="1" />
+          </svg>
+          <span>{short ? notEnoughForYearLine() : walletBalanceLabel()}</span>
+          <span className="price-balance-amount">
+            {lunaToNimShort(balance)} <small>NIM</small>
+          </span>
+        </div>
+      )}
+    </>
   )
 }
 

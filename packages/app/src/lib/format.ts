@@ -72,6 +72,18 @@ export function lunaToNim(luna: bigint): string {
 }
 
 /**
+ * A balance at a glance: whole NIM from 1 NIM up, two decimals under it,
+ * floored — a glance must never say more than the wallet has. Five
+ * decimals (`lunaToNim`) are right for a price the wallet will be asked
+ * for exactly, and noise beside one: `1,000.00001` next to `625` reads as
+ * a different kind of number (Rico, 2026-09-22).
+ */
+export function lunaToNimShort(luna: bigint): string {
+  if (luna >= LUNA_PER_NIM) return group(luna / LUNA_PER_NIM)
+  return `0.${(luna / 1_000n).toString().padStart(2, '0')}`
+}
+
+/**
  * The same number, ungrouped. **For a field**, whose contents are parsed
  * again — `parseNimAmount` reads the comma `lunaToNim` writes as a decimal
  * point, so filling an input from the grouped form puts a value in it that

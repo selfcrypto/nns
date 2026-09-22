@@ -169,8 +169,8 @@
     <string id="PRICE_TABLE.year">A year</string>
     <string id="lengthBandLabel" params="from to">{from}–{to}</string>
     <string id="nimAmountLine" params="nim">{nim} NIM</string>
-    <string id="yearlyPriceLine" params="nim">{nim} NIM a year</string>
-    <string id="lifetimePriceLine" params="nim">{nim} NIM for a lifetime</string>
+    <string id="walletBalanceLabel">Wallet balance</string>
+    <string id="notEnoughForYearLine">Not enough for a year</string>
     <string id="walletHoldsLine" params="nim">Your wallet holds {nim} NIM</string>
     <string id="referredByLine" params="ref rebate netOfBurn">Referred by {ref}. Your price is unchanged.</string>
     <string id="BURN_WORD">minus the registry’s burn</string>

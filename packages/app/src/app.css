@@ -1557,32 +1557,86 @@ li.note {
   flex: none;
 }
 
-/* Under the title of an available name (`PriceRow`): the two prices, and
-   what the wallet holds pushed to the right, green when it covers a year and
-   the alarm colour when it does not. */
-.price-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 14px;
-  margin-top: 10px;
-  font-size: 13.5px;
-  color: var(--ink-soft);
-  font-variant-numeric: tabular-nums;
+/* Under the title of an available name (`PriceRow`): the two prices as a
+   pair of cells on the depth surface, the way the sheet's term choice sits,
+   and beneath them the wallet's balance as one row — label left, figure
+   right, green when it covers a year and the alarm colour when it does not.
+   The unit is set small and faint so the figure is what the eye lands on. */
+.price-block {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 14px 0 0;
+  padding: 0;
+  background: var(--depth-bg);
+  border-radius: 14px;
 }
 
-.price-year {
+.price-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 14px 11px;
+}
+
+.price-cell + .price-cell {
+  border-left: 1px solid rgba(var(--tint-ink), 0.08);
+}
+
+.price-cell dt {
+  font-size: 12.5px;
   font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.price-cell dd {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.price-cell dd small,
+.price-balance-amount small {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
 }
 
 .price-balance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 0 2px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.price-balance svg {
+  flex: none;
+  color: var(--ink-faint);
+}
+
+.price-balance-amount {
   margin-left: auto;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--proven);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .price-balance.is-short {
+  color: var(--alarm);
+}
+
+.price-balance.is-short svg,
+.price-balance.is-short .price-balance-amount {
   color: var(--alarm);
 }
 
