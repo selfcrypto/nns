@@ -39,6 +39,9 @@ email, and the app's sheet says which exist.
   STARTTLS, or 465) and refuses to authenticate in the clear.
 - **`NNS_NOTIFY_PUBLIC_URL`**, the base of every link it mails. Under
   [`../edge`](../edge/) it is the app's origin plus `/notify`.
+- **The API and chat URLs are the public ones**, even on the box that runs
+  them: the other roles publish on the host's loopback, which a container
+  cannot reach.
 
 ## Put it behind TLS
 

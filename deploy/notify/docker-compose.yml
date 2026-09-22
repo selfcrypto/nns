@@ -45,11 +45,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
     init: true
-    # The host's loopback, so the API and the chat index can be named as the
-    # edge sees them (`http://host.docker.internal:8635`) rather than through
-    # the public hostname and its TLS.
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
     environment:
       NNS_NOTIFY_DATABASE_URL: postgres://nns:${NNS_NOTIFY_POSTGRES_PASSWORD:-nns}@postgres:5432/nns_notify
       NNS_NOTIFY_API_URL: ${NNS_NOTIFY_API_URL:?set the resolver API URL in .env}
