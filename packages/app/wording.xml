@@ -191,6 +191,7 @@
     <string id="notANimAmountLine" params="what">{what} must be a NIM amount, like 450 or 1.5.</string>
     <string id="notADurationLine">Duration must be a number of days, like 3 or 1.5.</string>
     <string id="auctionTooShortLine" params="minimum">An auction runs at least {minimum}.</string>
+    <string id="auctionTooLongLine" params="maximum">An auction runs at most {maximum}.</string>
     <string id="notAnAddressForLine" params="what">{what} is not a Nimiq address.</string>
     <string id="feesUnavailableLine">The current fees could not be loaded. Try again.</string>
     <string id="alreadyOwnerLine">That is already the owning address.</string>
@@ -214,7 +215,7 @@
     <string id="composerPlaceholder">A short message…</string>
     <string id="pricePlaceholder">Price in NIM</string>
     <string id="startingPricePlaceholder">Starting price in NIM</string>
-    <string id="durationPlaceholder" params="minimum">Duration in days (at least {minimum})</string>
+    <string id="durationPlaceholder" params="minimum maximum">Duration in days, {minimum} to {maximum}</string>
   </group>
   <group name="A field that takes an address or a name (`lib/addressField.ts`)">
     <string id="addressOrNamePlaceholder">Address or name</string>

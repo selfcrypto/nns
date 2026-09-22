@@ -286,6 +286,8 @@ export function describeAuctionPlan(plan: AuctionPlan): string[] {
       `${CONSTANTS.AUCTION_EXTENSION} blocks (${hours(CONSTANTS.AUCTION_EXTENSION)}) moves the end to that bid + ${CONSTANTS.AUCTION_EXTENSION}`,
     `  earliest usable ${head + CONSTANTS.AUCTION_MIN_DURATION + NOTICE_MARGIN} — AUCTION_MIN_DURATION (${CONSTANTS.AUCTION_MIN_DURATION}) ` +
       `plus ${NOTICE_MARGIN} blocks (${hours(NOTICE_MARGIN)}) of landing margin, since the window runs from the block this lands in`,
+    `  latest usable   ${head + CONSTANTS.AUCTION_MAX_DURATION} — AUCTION_MAX_DURATION (${CONSTANTS.AUCTION_MAX_DURATION}, ` +
+      `${hours(CONSTANTS.AUCTION_MAX_DURATION)}) from head; a later landing block only shortens the window, so no margin`,
     `  payload     ${plan.data} — decoded: name ${JSON.stringify(name)}, starting price ${startingPrice} luna, end ${endHeight}`,
     `  to          ${formatAddress(plan.recipient)} (PROTOCOL_ADDRESS), value ${formatLuna(plan.value)}, fee 0`,
     `  from        ${formatAddress(plan.sender)} (ADMIN_ADDRESS), balance ${formatLuna(plan.balance)}`,

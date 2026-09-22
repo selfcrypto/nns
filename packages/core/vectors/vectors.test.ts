@@ -646,7 +646,7 @@ describe('vectors/reduce.json', () => {
         N: 2,
         O: 4, // r28: NOT_OWNER before AUCTION_OPEN; r30: and before TRANSFER_PENDING (a second O replaces, so no OFFER_OPEN row)
         B: 3,
-        A: 8, // r28: routing, name state, sender, AUCTION_OPEN, floor, notice, term (2026-09-03) — the version forfeit is gone; r30: OFFER_OPEN and TRANSFER_PENDING beside AUCTION_OPEN
+        A: 9, // r28: routing, name state, sender, AUCTION_OPEN, floor, notice, term (2026-09-03) — the version forfeit is gone; r30: OFFER_OPEN and TRANSFER_PENDING beside AUCTION_OPEN; r31 fold: the cap between notice and term
         P: 3,
         U: 4, // r22 removed the notice row and its pair; 2026-09-11 split the last row by recipient and added the award's
         F: 1,
@@ -673,11 +673,13 @@ describe('vectors/reduce.json', () => {
       // thing per name, the same kind replacing it — which is seven
       // (type × standing state) rows, each pinned against `NOT_OWNER` rather
       // than against its siblings, which it can never co-occur with: three
-      // were r28's, four are r30's.
+      // were r28's, four are r30's. The r31 fold capped the window: one
+      // pinned row orders the cap behind the floor's twin and ahead of the
+      // term.
       const cases = section.cases as any[]
       const pinned = cases.filter((c) => c.pinnedBy !== null)
       const free = cases.filter((c) => c.pinnedBy === null)
-      expect(pinned).toHaveLength(29)
+      expect(pinned).toHaveLength(30)
       expect(free).toHaveLength(19)
       for (const testCase of cases) {
         expect(typeof testCase.note, `${testCase.id} needs a note`).toBe('string')

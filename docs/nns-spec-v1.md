@@ -287,6 +287,7 @@ NIM figures assume ~$0.00032/NIM, the rate at the launch freeze (2026-09-22).
 | `AUCTION_MIN_INCREMENT` | 5% | Minimum raise over the standing bid (§6 `A`) |
 | `MIN_PRICE` | `FEE_BASE` | Floor on an `O` price and an `A` starting price (§6) — the cheapest a name can be registered |
 | `AUCTION_MIN_DURATION` | 86,400 blocks (~24 h) | Shortest permitted auction (§6 `A`) |
+| `AUCTION_MAX_DURATION` | 604,800 blocks (~7 d) | Longest permitted auction (§6 `A`), measured like the shortest. r31 fold, 2026-09-22 |
 | `AUCTION_EXTENSION` | 600 blocks (~10 min) | Anti-sniping extension (§6 `A`) |
 | `ADMIN_ADDRESS` | `NQ95 0MNS X5BJ 3SMV XA2E 7059 BU9F AXX6 J4MX` | Governance only; cold key, distinct from treasury |
 | `MARKETPLACE_ADDRESS` | `NQ55 SY33 7HS4 DP5N H9P0 9PMG 7MD8 PTL8 N2P5` | `B` escrow and `M` settlement; the only NNS hot wallet, distinct from both |
@@ -1109,6 +1110,13 @@ NNS1A<name>|<starting_price>|<end_height>
 - `end_height` MUST be at least `AUCTION_MIN_DURATION` above the height of
   the block the message landed in — measured from inclusion like `P`'s
   notice, and forfeiting `INSUFFICIENT_NOTICE` on the same terms
+- `end_height` MUST be at most `AUCTION_MAX_DURATION` above that same height,
+  forfeiting `AUCTION_TOO_LONG` (r31 fold, 2026-09-22). An auction is a sale
+  with a date: while it runs the name can do nothing else, `K` cannot cancel
+  it, and every bid is held until it ends. A window of months is a listing
+  wearing an auction's exclusivity, and a listing is what `O` is for. Seven
+  days is eBay's default and OpenSea's auction cap. Extensions still carry an
+  end past the cap, exactly as they can carry it onto the term
 - For the owner's auction, `end_height` MUST be below the name's `expiry`
   — an auction sells the current term, and the close hands over the current
   expiry. Forfeits `AUCTION_BEYOND_TERM`; the expiry is in the checkpoint
@@ -1119,9 +1127,9 @@ NNS1A<name>|<starting_price>|<end_height>
 grace name, `NAME_NOT_FOUND` for a name nobody could auction), then the
 sender (`NOT_OWNER` / `NOT_ADMIN`), then the pending-state rows
 (`AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING` — one pending thing per
-name, §7.3), then the starting price floor, then the window's length, then
-its end against the term — state, authority, pending status, payload, as
-`O`'s order already runs (§7.4).
+name, §7.3), then the starting price floor, then the window's length — floor,
+then cap — then its end against the term — state, authority, pending status,
+payload, as `O`'s order already runs (§7.4).
 
 **Nothing opens over an auction, and an auction opens over nothing.** A name
 with a pending transfer or an open offer refuses the `A` (§7.3); the owner
@@ -1671,8 +1679,9 @@ the more informative of two true answers.
   the auction is in the committed pending set (§8.1), so a correct client
   prevents it; and `A` from anyone but `ADMIN_ADDRESS` for a name still held
   in `RESERVED_NAMES`, or for a name nobody could auction, or with less than
-  `AUCTION_MIN_DURATION` of window from the landing block, or — the owner's
-  — with an end at or past the name's expiry
+  `AUCTION_MIN_DURATION` or more than `AUCTION_MAX_DURATION` of window from
+  the landing block, or — the owner's — with an end at or past the name's
+  expiry
 - `X`, `S`, `D`, `E`, `A` on an expired or grace-period name
 - `D` whose host exceeds `MAX_HOST_LEN` or includes a scheme
 - `P` from any sender other than `ADMIN_ADDRESS`, violating a §10.6 bound, or
@@ -1796,7 +1805,8 @@ against a message of a listed type.
 | `AUCTION_OPEN` | `O` `X` `A` | An auction is open on the name — one pending thing per name (§7.3): the owner cannot list, transfer, or auction it again until the close, and `K` cannot end it. Checked after the owner row and before any payload row |
 | `OFFER_OPEN` | `X` `A` | An offer is open on the name — one pending thing per name (§7.3): a listing is a standing invitation to strangers, so a transfer or an auction beside it would let whoever sends a `B` first decide where the name goes. The way across is a `K`; a second `O` is not refused but replaces the listing (§6 `O`). Checked with `AUCTION_OPEN`, which it can never co-occur with |
 | `TRANSFER_PENDING` | `O` `A` | A transfer is pending on the name — one pending thing per name (§7.3): the owner has already said where the name goes, and a sale or an auction would say somewhere else. The way across is a `K`, which lands at once; a second `X` is not refused but replaces the transfer (§6 `X`). Checked with the two rows above, which it can never co-occur with |
-| `AUCTION_BEYOND_TERM` | `A` | The owner's `end_height` is at or past the name's `expiry` (§6 `A`): an auction sells the current term. The last payload row, after the window's length |
+| `AUCTION_TOO_LONG` | `A` | `end_height` more than `AUCTION_MAX_DURATION` above the height of the block the message landed in (§6 `A`, r31 fold): the cap on the window, judged right after its floor |
+| `AUCTION_BEYOND_TERM` | `A` | The owner's `end_height` is at or past the name's `expiry` (§6 `A`): an auction sells the current term. The last payload row, after the window's length at both ends |
 | `BELOW_REFUND_FLOOR` | `G` `N` `O` `B` | A message that would otherwise be refundable, carrying less than `REFUND_FLOOR`. The only token that crosses columns |
 
 `OVER_LENGTH` is **unreachable on mainnet**. The network caps transaction
@@ -1858,7 +1868,7 @@ each type runs its rows in this order:
 | `O` | `NAME_NOT_REGISTERED`, `NOT_OWNER`, `AUCTION_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_VALUE` |
 | `B` | `OFFER_NOT_OPEN`, `WRONG_PRICE` — with an auction open, the bid path has only `WRONG_PRICE` (§6 `A`) |
 | `M`, `F` | `WRONG_SENDER` |
-| `A` | `NAME_NOT_REGISTERED` / `NAME_NOT_FOUND` (which auction this is), `NOT_OWNER` / `NOT_ADMIN`, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM` — state, authority, pending status, payload (§6 `A`) |
+| `A` | `NAME_NOT_REGISTERED` / `NAME_NOT_FOUND` (which auction this is), `NOT_OWNER` / `NOT_ADMIN`, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_TOO_LONG`, `AUCTION_BEYOND_TERM` — state, authority, pending status, payload (§6 `A`) |
 | `P` | `NOT_ADMIN`, `INSUFFICIENT_NOTICE`, `GOVERNANCE_BOUND_VIOLATED` |
 | `U` | `NOT_ADMIN`, `INVALID_RECIPIENT`, `INVALID_NAME`, then `NAME_NOT_RESERVED` (release) or `NAME_NOT_AVAILABLE` (award) — the recipient chose which |
 

@@ -6849,6 +6849,38 @@
         }
       },
       {
+        "id": "A_too_long_beats_beyond_term",
+        "setup": "kikename_to_alice",
+        "pinnedBy": "§7.4 check-order table (r31 fold, 2026-09-22) — `A`: name state, sender, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_TOO_LONG`, `AUCTION_BEYOND_TERM`",
+        "note": "The window's length is judged before its end against the term, at both ends: floor, cap, then expiry. Inside the last AUCTION_MAX_DURATION of the term, an `A` ending one block past the cap is also past the expiry; it is told the window is too long. The same `A` ending exactly at the expiry is within the cap and reaches the term row.",
+        "tx": {
+          "blockNumber": 93206980,
+          "txIndex": 0,
+          "sender": "ALICE",
+          "recipient": "PROTOCOL",
+          "value": "1",
+          "text": "NNS1Akikename|62500000|93811781"
+        },
+        "verdict": {
+          "kind": "FORFEIT",
+          "reason": "AUCTION_TOO_LONG"
+        },
+        "insteadOf": {
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "AUCTION_BEYOND_TERM"
+          },
+          "tx": {
+            "blockNumber": 93206980,
+            "txIndex": 0,
+            "sender": "ALICE",
+            "recipient": "PROTOCOL",
+            "value": "1",
+            "text": "NNS1Akikename|62500000|93811680"
+          }
+        }
+      },
+      {
         "id": "A_name_not_found_beats_not_admin",
         "setup": "empty",
         "pinnedBy": "§7.4 check-order table (r28) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`",

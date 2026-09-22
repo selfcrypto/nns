@@ -243,6 +243,15 @@ describe('planAuction', () => {
     expect(messages(built)).toContain('AUCTION_MIN_DURATION')
   })
 
+  it('refuses a certain forfeit the other way: an end over AUCTION_MAX_DURATION from head, with no margin', async () => {
+    const built = await plan({ endHeight: HEAD + CONSTANTS.AUCTION_MAX_DURATION + 1 })
+    expect(blockingChecks(built.checks)).toHaveLength(1)
+    expect(messages(built)).toContain('AUCTION_TOO_LONG')
+    expect(messages(built)).toContain('AUCTION_MAX_DURATION')
+    // The cap itself is legal from every later landing block.
+    expect(blockingChecks((await plan({ endHeight: HEAD + CONSTANTS.AUCTION_MAX_DURATION })).checks)).toHaveLength(0)
+  })
+
   it('refuses the bare minimum too, and names the end that carries the margin', async () => {
     const built = await plan({ endHeight: HEAD + CONSTANTS.AUCTION_MIN_DURATION })
     expect(blockingChecks(built.checks)).toHaveLength(1)

@@ -159,7 +159,10 @@ describe('CONSTANTS — §3', () => {
     // than the opener was allowed to. A relation, so it survives a tempo
     // profile — `scripts/check-tempo-relations.mjs` runs it at fork time.
     expect(CONSTANTS.AUCTION_EXTENSION).toBeLessThan(CONSTANTS.AUCTION_MIN_DURATION)
-    expect(CONSTANTS.AUCTION_MIN_DURATION).toBeLessThan(CONSTANTS.TERM_LENGTH)
+    // The cap is judged after the floor, so a window between the two is the
+    // only legal one — an empty band would refuse every A.
+    expect(CONSTANTS.AUCTION_MIN_DURATION).toBeLessThan(CONSTANTS.AUCTION_MAX_DURATION)
+    expect(CONSTANTS.AUCTION_MAX_DURATION).toBeLessThan(CONSTANTS.TERM_LENGTH)
   })
 
   it('equals the mainnet values, field for field', () => {
@@ -213,6 +216,7 @@ describe('CONSTANTS — §3', () => {
       OFFER_MAX_LIFETIME: 1_296_000,
       AUCTION_MIN_INCREMENT_BP: 500n,
       AUCTION_MIN_DURATION: 86_400,
+      AUCTION_MAX_DURATION: 604_800,
       AUCTION_EXTENSION: 600,
       CHECKPOINT_INTERVAL: 720,
       SEGMENT_LENGTH: 31_536_000,

@@ -228,6 +228,8 @@ export const CONSTANTS = Object.freeze({
   AUCTION_MIN_INCREMENT_BP: 500n,
   /** Shortest permitted auction. ~24 h. */
   AUCTION_MIN_DURATION: 86_400,
+  /** Longest permitted auction, measured like the shortest. ~7 d (r31 fold, 2026-09-22). */
+  AUCTION_MAX_DURATION: 604_800,
   /** Anti-sniping extension. ~10 min. */
   AUCTION_EXTENSION: 600,
 

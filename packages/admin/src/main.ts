@@ -81,8 +81,9 @@ wins: the name is REGISTERED to the bidder for a full term, leaves the reserved
 set, and both legs of the sale land on TREASURY_ADDRESS. It REFUSES a name
 that is not currently reserved (GET /available/{name} — a released or
 registered name forfeits NAME_NOT_FOUND or NOT_OWNER), a name already under
-auction (GET /auctions — a second A forfeits AUCTION_OPEN), and an end under
-AUCTION_MIN_DURATION plus the same landing margin p applies to notice. K
+auction (GET /auctions — a second A forfeits AUCTION_OPEN), an end under
+AUCTION_MIN_DURATION plus the same landing margin p applies to notice, and
+an end over AUCTION_MAX_DURATION (AUCTION_TOO_LONG, r31 fold). K
 cannot cancel an auction, so the decoded dry run is the last point to stop it.
 
 All are dry runs; nothing is broadcast without --send.

@@ -125,6 +125,7 @@ export type ForfeitReason =
   | 'AUCTION_OPEN'
   | 'OFFER_OPEN'
   | 'TRANSFER_PENDING'
+  | 'AUCTION_TOO_LONG'
   | 'AUCTION_BEYOND_TERM'
 
 /**
@@ -1018,6 +1019,14 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       if (message.startingPrice < minPrice(state.prices)) return keep(forfeit('BELOW_MIN_PRICE'))
       if (message.endHeight < tx.blockNumber + CONSTANTS.AUCTION_MIN_DURATION) {
         return keep(forfeit('INSUFFICIENT_NOTICE'))
+      }
+      // The cap, measured from the same block (r31 fold, 2026-09-22): a
+      // window is a sale with a date, and one that runs for months is a
+      // listing that locks the name and every bid. Extensions can still
+      // carry an end past the cap, exactly as they can carry it onto the
+      // term.
+      if (message.endHeight > tx.blockNumber + CONSTANTS.AUCTION_MAX_DURATION) {
+        return keep(forfeit('AUCTION_TOO_LONG'))
       }
       // An auction sells the current term: the owner's window must end
       // before the name's expiry (2026-09-03). Expiry is in the checkpoint, so

@@ -335,9 +335,15 @@ export const cancelTileGroup = (set: Cancellable): 'ownership' | 'market' => (se
  */
 export const AUCTION_LANDING_MARGIN = 3_600
 
-/** Where an auction opened now against `head` ends, for a duration the owner chose in blocks. */
+/**
+ * Where an auction opened now against `head` ends, for a duration the owner
+ * chose in blocks. The margin protects the floor, not the cap: an end at
+ * `head + AUCTION_MAX_DURATION` is inside the cap from every later landing
+ * block, so the margin is dropped where it would push past it, and a typed
+ * `AUCTION_MAX_DURATION` is a legal auction (r31 fold).
+ */
 export const auctionEndHeight = (head: number, durationBlocks: number): number =>
-  head + AUCTION_LANDING_MARGIN + durationBlocks
+  head + Math.min(AUCTION_LANDING_MARGIN + durationBlocks, CONSTANTS.AUCTION_MAX_DURATION)
 
 /**
  * §6 `A` has no rule against an end at or past expiry — the §7.3 grace reset

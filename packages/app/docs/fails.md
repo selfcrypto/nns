@@ -56,6 +56,7 @@ The value stays where it was sent. Every row here is checkable before sending.
 | A sale or auction priced below the base registration price | `BELOW_MIN_PRICE` |
 | A subdomain host that is too long, has a scheme, or a bad character | `INVALID_HOST` |
 | An auction ending sooner than {{dur:AUCTION_MIN_DURATION}} out | `INSUFFICIENT_NOTICE` |
+| An auction ending later than {{dur:AUCTION_MAX_DURATION}} out | `AUCTION_TOO_LONG` |
 | An auction ending at or after the name's expiry | `AUCTION_BEYOND_TERM` |
 | A cancel with nothing to cancel | `NOTHING_TO_CANCEL` |
 

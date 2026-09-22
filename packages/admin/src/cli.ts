@@ -173,6 +173,8 @@ export interface LandingBound {
   readonly field: string
   readonly floor: number
   readonly floorName: string
+  /** The cap, where the rule has one (`A` since the r31 fold), and the token it forfeits. */
+  readonly cap?: { readonly blocks: number; readonly name: string; readonly token: string }
 }
 
 /** `P`: `effective_height − landing ≥ GOVERNANCE_DELAY` (§6 `P`, §10.6). */
@@ -183,12 +185,17 @@ export const GOVERNANCE_NOTICE: LandingBound = Object.freeze({
   floorName: 'GOVERNANCE_DELAY',
 })
 
-/** `A`: `end_height − landing ≥ AUCTION_MIN_DURATION` (§6 `A`), forfeiting the same token. */
+/**
+ * `A`: `AUCTION_MIN_DURATION ≤ end_height − landing ≤ AUCTION_MAX_DURATION`
+ * (§6 `A`), the floor forfeiting the same token as `P`'s notice and the cap
+ * its own (r31 fold).
+ */
 export const AUCTION_WINDOW: LandingBound = Object.freeze({
   clause: '§6 A window',
   field: 'end height',
   floor: CONSTANTS.AUCTION_MIN_DURATION,
   floorName: 'AUCTION_MIN_DURATION',
+  cap: { blocks: CONSTANTS.AUCTION_MAX_DURATION, name: 'AUCTION_MAX_DURATION', token: 'AUCTION_TOO_LONG' },
 })
 
 /**
@@ -198,7 +205,21 @@ export const AUCTION_WINDOW: LandingBound = Object.freeze({
  */
 export function noticeChecks(target: number, head: number, bound: LandingBound): AdminCheck[] {
   const notice = target - head
-  const { clause, field, floor, floorName } = bound
+  const { clause, field, floor, floorName, cap } = bound
+  // The cap needs no margin: a landing block later than head only shortens
+  // the window, so a target inside the cap from head is inside it from
+  // wherever the message lands.
+  if (cap !== undefined && notice > cap.blocks) {
+    return [
+      {
+        severity: 'refuse',
+        message:
+          `${clause}: ${field} is ${notice} blocks from head ${head}, over ${cap.name} ` +
+          `(${cap.blocks} blocks, ${hours(cap.blocks)}) — this forfeits ${cap.token} wherever it lands; ` +
+          `the latest usable end is ${head + cap.blocks}`,
+      },
+    ]
+  }
   if (notice < floor) {
     return [
       {

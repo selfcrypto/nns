@@ -46,6 +46,7 @@ import {
   GATE_REASON_TEXT,
   alreadyOwnerLine,
   alreadyYoursLine,
+  auctionTooLongLine,
   auctionTooShortLine,
   bidBelowMinimumLine,
   feesUnavailableLine,
@@ -128,9 +129,10 @@ const BLOCKS_PER_DAY = 86_400
 
 /**
  * An auction duration typed in days, to blocks. Two decimals — a quarter day
- * is the finest anyone plans a sale in — and never below `AUCTION_MIN_DURATION`,
- * which §6 `A` forfeits on. The landing margin is added on top by
- * `auctionEndHeight`, so the minimum typed here is a legal auction.
+ * is the finest anyone plans a sale in — and never below `AUCTION_MIN_DURATION`
+ * or above `AUCTION_MAX_DURATION`, which §6 `A` forfeits on. The landing
+ * margin is added on top by `auctionEndHeight`, clamped to the cap, so both
+ * bounds typed here are legal auctions.
  */
 export const parseAuctionDuration = (text: string): number => {
   const match = /^([0-9]+)(?:[.,]([0-9]{1,2}))?$/.exec(text.trim())
@@ -139,6 +141,9 @@ export const parseAuctionDuration = (text: string): number => {
   const blocks = Math.round((hundredths * BLOCKS_PER_DAY) / 100)
   if (blocks < CONSTANTS.AUCTION_MIN_DURATION) {
     throw new ActionInputError(auctionTooShortLine(blocksApprox(CONSTANTS.AUCTION_MIN_DURATION)))
+  }
+  if (blocks > CONSTANTS.AUCTION_MAX_DURATION) {
+    throw new ActionInputError(auctionTooLongLine(blocksApprox(CONSTANTS.AUCTION_MAX_DURATION)))
   }
   return blocks
 }

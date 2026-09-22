@@ -381,6 +381,9 @@ describe('clocks', () => {
   it('an auction end carries the landing margin on top of the typed duration, and outlives the term from expiry itself', () => {
     const { AUCTION_LANDING_MARGIN, auctionEndHeight, auctionOutlivesTerm } = states
     expect(auctionEndHeight(1_000_000, CONSTANTS.AUCTION_MIN_DURATION)).toBe(1_000_000 + AUCTION_LANDING_MARGIN + CONSTANTS.AUCTION_MIN_DURATION)
+    // The margin never pushes an end past the cap: the cap is inside from every later landing block.
+    expect(auctionEndHeight(1_000_000, CONSTANTS.AUCTION_MAX_DURATION)).toBe(1_000_000 + CONSTANTS.AUCTION_MAX_DURATION)
+    expect(auctionEndHeight(1_000_000, CONSTANTS.AUCTION_MAX_DURATION - 100)).toBe(1_000_000 + CONSTANTS.AUCTION_MAX_DURATION)
     // Half-open §7.3: the name is in GRACE *at* expiry, so an end there is already past the last resolving block.
     expect(auctionOutlivesTerm(2_000_000, 2_000_000)).toBe(true)
     expect(auctionOutlivesTerm(1_999_999, 2_000_000)).toBe(false)

@@ -65,6 +65,7 @@ There is no recovery message. A lost owner key is a lost name.
 | `AUCTION_OPEN` | A sale, transfer or auction while an auction runs |
 | `OFFER_OPEN` | A transfer or auction while the name is for sale |
 | `TRANSFER_PENDING` | A sale or auction while a transfer is pending |
+| `AUCTION_TOO_LONG` | An auction running longer than {{dur:AUCTION_MAX_DURATION}} |
 | `AUCTION_BEYOND_TERM` | An owner's auction ending at or past the name's expiry |
 | `BELOW_REFUND_FLOOR` | Would have been refunded, but the amount is below the floor |
 

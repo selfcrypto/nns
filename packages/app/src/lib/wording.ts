@@ -945,6 +945,8 @@ export const notADurationLine = (): string => 'Duration must be a number of days
 
 export const auctionTooShortLine = (minimum: string): string => `An auction runs at least ${minimum}.`
 
+export const auctionTooLongLine = (maximum: string): string => `An auction runs at most ${maximum}.`
+
 export const notAnAddressForLine = (what: string): string => `${what} is not a Nimiq address.`
 
 export const feesUnavailableLine = (): string => 'The current fees could not be loaded. Try again.'
@@ -996,11 +998,13 @@ export const pricePlaceholder = (): string => 'Price in NIM'
 export const startingPricePlaceholder = (): string => 'Starting price in NIM'
 
 /**
- * The floor is `AUCTION_MIN_DURATION`, not the number 1: it is a day on
- * mainnet and an hour in a tempo era, and the placeholder read "(at least 1)"
- * in both (2026-09-15, the same defect as the transfer delay).
+ * The bounds are `AUCTION_MIN_DURATION` and `AUCTION_MAX_DURATION`, not the
+ * numbers 1 and 7: a day and a week on mainnet, an hour and whatever a tempo
+ * era says, and the placeholder read "(at least 1)" in both (2026-09-15, the
+ * same defect as the transfer delay).
  */
-export const durationPlaceholder = (minimum: string): string => `Duration in days (at least ${minimum})`
+export const durationPlaceholder = (minimum: string, maximum: string): string =>
+  `Duration in days, ${minimum} to ${maximum}`
 
 /* ── A field that takes an address or a name (`lib/addressField.ts`) ── */
 

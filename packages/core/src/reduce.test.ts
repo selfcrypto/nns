@@ -1666,16 +1666,34 @@ describe('A — auction (§6, r28)', () => {
       ])
     })
 
+    it('an A whose end is past AUCTION_MAX_DURATION from the landing block forfeits AUCTION_TOO_LONG, after the floor', () => {
+      registerToAlice()
+      const at = LAUNCH + 1
+      expect(step(auctionOf('riconame', STARTING_PRICE, at + CONSTANTS.AUCTION_MAX_DURATION + 1), { sender: ALICE, at }).verdict).toEqual({
+        kind: 'FORFEIT',
+        reason: 'AUCTION_TOO_LONG',
+      })
+      // The cap is measured from the block the A lands in, like the floor: the
+      // same end is legal one block later.
+      expect(step(auctionOf('riconame', STARTING_PRICE, at + CONSTANTS.AUCTION_MAX_DURATION + 1), { sender: ALICE, at: at + 1 }).verdict.kind).toBe('OK')
+      expect(state.auctions.has('riconame')).toBe(true)
+    })
+
     it('an A whose end is at or past the expiry forfeits AUCTION_BEYOND_TERM, after the window rows', () => {
       registerToAlice()
       registerToAlice('othername')
       const expiry = LAUNCH + CONSTANTS.TERM_LENGTH
-      expect(step(auctionOf('riconame', STARTING_PRICE, expiry), { sender: ALICE, at: LAUNCH + 1 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_BEYOND_TERM' })
-      expect(step(auctionOf('riconame', STARTING_PRICE, expiry + 1), { sender: ALICE, at: LAUNCH + 2 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_BEYOND_TERM' })
+      // Sent inside the last AUCTION_MAX_DURATION of the term, so the window
+      // clears the cap and the term row is the one that answers.
+      const late = expiry - CONSTANTS.AUCTION_MAX_DURATION + 10
+      expect(step(auctionOf('riconame', STARTING_PRICE, expiry), { sender: ALICE, at: late }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_BEYOND_TERM' })
+      expect(step(auctionOf('riconame', STARTING_PRICE, expiry + 1), { sender: ALICE, at: late + 1 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_BEYOND_TERM' })
       // One block inside the term opens.
       expect(step(auctionOf('riconame', STARTING_PRICE, expiry - 1), { sender: ALICE, at: expiry - CONSTANTS.AUCTION_MIN_DURATION - 5 }).verdict.kind).toBe('OK')
       // Too short *and* past the term: the window's length is judged first.
       expect(step(auctionOf('othername', STARTING_PRICE, expiry), { sender: ALICE, at: expiry - 10 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'INSUFFICIENT_NOTICE' })
+      // Too long *and* past the term: the cap too, so the end against the term is the last payload row.
+      expect(step(auctionOf('othername', STARTING_PRICE, expiry + CONSTANTS.AUCTION_MAX_DURATION), { sender: ALICE, at: expiry - 10 }).verdict).toEqual({ kind: 'FORFEIT', reason: 'AUCTION_TOO_LONG' })
     })
 
     it('fires at exactly end_height, before that block’s transactions: transfer resets plus two legs by the winning ref', () => {

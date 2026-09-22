@@ -452,7 +452,7 @@ export function ActionSheet({
           <input
             className="sheet-input"
             inputMode="decimal"
-            placeholder={durationPlaceholder(blocksApprox(CONSTANTS.AUCTION_MIN_DURATION))}
+            placeholder={durationPlaceholder(blocksApprox(CONSTANTS.AUCTION_MIN_DURATION), blocksApprox(CONSTANTS.AUCTION_MAX_DURATION))}
             value={durationDays}
             onChange={(event) => setDurationDays(event.target.value)}
           />

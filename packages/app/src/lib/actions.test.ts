@@ -286,6 +286,12 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
       for (const bad of ['', 'abc', '-1', '1.234', '0']) expect(() => parseAuctionDuration(bad), bad).toThrow(ActionInputError)
     })
 
+    it('a duration over AUCTION_MAX_DURATION is refused too, and the cap itself is a legal auction (r31 fold)', () => {
+      expect(() => prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '30' })).toThrow(/at most/)
+      expect(parseAuctionDuration('7')).toBe(CONSTANTS.AUCTION_MAX_DURATION)
+      expect(() => parseAuctionDuration('7.01')).toThrow(ActionInputError)
+    })
+
     it('the review says what opening voids, and refuses an end at or past the term (AUCTION_BEYOND_TERM)', () => {
       const withBoth = registered({
         transfer: { newOwner: OTHER, effectiveHeight: 1_040_000 },
@@ -295,8 +301,10 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
       expect(prepared.review.some((line) => line.includes('transfer'))).toBe(true)
       expect(prepared.review.some((line) => line.includes('sale'))).toBe(true)
       expect(prepared.review.some((line) => line.includes('Renew first'))).toBe(false)
-      // Expiry at 2_000_000; 12 days from 1_000_000 lands past it — the message would forfeit, so the sheet refuses.
-      expect(() => prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '12' })).toThrow(/Renew first/)
+      // A name three days from expiry: a five-day window is inside the cap
+      // and lands past the term — the message would forfeit, so the sheet refuses.
+      const nearExpiry = { ...registered(), record: { ...registered().record!, expiry: 1_000_000 + 3 * 86_400 } }
+      expect(() => prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '5' }, nearExpiry)).toThrow(/Renew first/)
     })
 
     it('a bid is a B to the marketplace whose value is the bid — at least the minimum, never less', () => {
