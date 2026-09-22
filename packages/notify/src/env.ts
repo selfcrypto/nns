@@ -80,9 +80,14 @@ const url = (value: string, key: string): string => {
   return value.replace(/\/+$/, '')
 }
 
+/**
+ * Default `nimiq` alone since 2026-09-23: Nimiq Pay's `sign()` was measured
+ * on a device (tasks/26 D0, rpc-reference §8) and signs the same convention
+ * the Hub does. `raw` stays available by name for a wallet that does not.
+ */
 function conventions(env: EnvSource): readonly SignedMessageConvention[] {
   const raw = optional(env, 'NNS_NOTIFY_SIGN_CONVENTIONS')
-  if (raw === null) return SIGNED_MESSAGE_CONVENTIONS
+  if (raw === null) return ['nimiq']
   const list = raw.split(',').map((entry) => entry.trim())
   for (const entry of list) {
     if (!(SIGNED_MESSAGE_CONVENTIONS as readonly string[]).includes(entry)) {

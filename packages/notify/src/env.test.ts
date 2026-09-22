@@ -17,7 +17,7 @@ describe('loadSettings', () => {
     expect(settings.telegramToken).toBeNull()
     expect(settings.smtp).toBeNull()
     expect(settings.chatUrl).toBeNull()
-    expect(settings.conventions).toEqual(['nimiq', 'raw'])
+    expect(settings.conventions).toEqual(['nimiq'])
     expect(settings.port).toBe(8638)
   })
 

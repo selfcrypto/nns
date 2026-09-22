@@ -76,9 +76,9 @@ a fresh database starts at the current checkpoint and narrates nothing older.
 
 ## Sign-in conventions
 
-A sign-in is a signature over a challenge the service wrote. The Hub and
-Keyguard sign the `nimiq` convention (prefix, length, text, SHA-256). Nimiq
-Pay's `sign()` has not been measured on a device yet (tasks/26 D0); until it
-is, `NNS_NOTIFY_SIGN_CONVENTIONS` unset tries `nimiq` and then `raw`, and
-the service logs which one every sign-in satisfied. Once the answer is in
-`docs/rpc-reference.md`, name that convention alone.
+A sign-in is a signature over a challenge the service wrote. The Hub, the
+Keyguard and Nimiq Pay (measured on a device, 2026-09-23) all sign the
+`nimiq` convention (prefix, length, text, SHA-256), which is the default.
+`NNS_NOTIFY_SIGN_CONVENTIONS=nimiq,raw` also accepts a signature over the
+bare bytes, for a wallet that does not; the service logs which one every
+sign-in satisfied.
