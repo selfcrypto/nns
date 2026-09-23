@@ -47,6 +47,7 @@ import {
   notifyEmailBadLine,
   notifyEmailLabel,
   notifyEmailLimitLine,
+  notifyEmailSendFailedLine,
   notifyEmailPlaceholder,
   notifyEmailSentLine,
   notifyEventsLabel,
@@ -190,6 +191,7 @@ export function NotifySheet({ base, address, wallet, onClose }: { base: string; 
     } catch (error) {
       if (error instanceof NotifyError && error.code === 'BAD_EMAIL') setEmailNote(notifyEmailBadLine())
       else if (error instanceof NotifyError && error.status === 429) setEmailNote(notifyEmailLimitLine())
+      else if (error instanceof NotifyError && error.code === 'MAIL_FAILED') setEmailNote(notifyEmailSendFailedLine())
       else if (error instanceof NotifyError && error.status === 401) {
         saveSession(storage, address, null)
         setView({ kind: 'signed-out', note: null, busy: false })

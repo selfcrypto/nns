@@ -481,6 +481,7 @@
     <string id="notifyEmailSentLine">Check your inbox and open the confirmation link.</string>
     <string id="notifyEmailBadLine">That is not an email address.</string>
     <string id="notifyEmailLimitLine">Too many confirmation emails. Try again later.</string>
+    <string id="notifyEmailSendFailedLine">The confirmation email could not be sent. Try again.</string>
     <string id="notifyConfirmedLabel">Confirmed</string>
     <string id="notifyPendingLabel">Waiting for confirmation</string>
     <string id="notifyTelegramLabel">Telegram</string>

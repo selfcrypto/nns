@@ -151,6 +151,43 @@ describe('the notify server', () => {
   })
 })
 
+describe('a confirmation that cannot be sent', () => {
+  it('leaves no waiting row behind', async () => {
+    const store = new FakeStore()
+    const server = createNotifyServer({
+      store: asStore(store),
+      logger: createLogger('error', () => undefined),
+      host: 'nimiqnames.com',
+      publicUrl: 'https://nimiqnames.com/notify',
+      appUrl: 'https://nimiqnames.com',
+      conventions: ['nimiq'],
+      sessionTtlMs: 3_600_000,
+      telegramBot: null,
+      email: {
+        send: async () => {
+          throw new Error('relay down')
+        },
+      },
+    })
+    await new Promise<void>((resolve) => server.listen(0, resolve))
+    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`
+    await store.createSession('h', address, new Date(Date.now() + 60_000))
+    // The fake store hashes nothing: the bearer's hash must be the stored key.
+    const { hashToken } = await import('./tokens.js')
+    const token = 'tok_tok_tok_tok_tok_tok'
+    store.sessions.set(hashToken(token), { address, expiresAt: new Date(Date.now() + 60_000) })
+    const response = await fetch(`${base}/contacts/email`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      body: JSON.stringify({ email: 'kike@example.com' }),
+    })
+    expect(response.status).toBe(502)
+    expect((await response.json() as { error: string }).error).toBe('MAIL_FAILED')
+    expect(store.rows).toHaveLength(0)
+    await new Promise<void>((resolve) => server.close(() => resolve()))
+  })
+})
+
 describe('maskEmail', () => {
   it('keeps the first and last letter and the domain', () => {
     expect(maskEmail('kike@example.com')).toBe('k…e@example.com')

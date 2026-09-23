@@ -245,14 +245,22 @@ export function createNotifyServer(options: ServerOptions): Server {
       const confirm = randomToken()
       const contact = await store.addEmail(address, email, hashToken(confirm), new Date(now() + EMAIL_CONFIRM_TTL_MS), randomToken())
       if (!contact.confirmed) {
-        await options.email.send({
-          to: email,
-          subject: 'Confirm notifications for your Nimiq name',
-          text:
-            `Someone asked to send notifications about ${address} to this mailbox. If that was you, confirm here:\n\n` +
-            `${options.publicUrl}/confirm/${confirm}\n\nIf it was not, ignore this message and nothing will be sent.`,
-          unsubscribeUrl: null,
-        })
+        try {
+          await options.email.send({
+            to: email,
+            subject: 'Confirm notifications for your Nimiq name',
+            text:
+              `Someone asked to send notifications about ${address} to this mailbox. If that was you, confirm here:\n\n` +
+              `${options.publicUrl}/confirm/${confirm}\n\nIf it was not, ignore this message and nothing will be sent.`,
+            unsubscribeUrl: null,
+          })
+        } catch (error) {
+          // A row waiting for a mail that never left is a lie the sheet would
+          // keep telling; the address is dropped and the caller told to retry.
+          await store.deleteContact(address, contact.id)
+          logger.error('notify.confirm.failed', { error })
+          throw new HttpError(502, 'MAIL_FAILED', 'the confirmation email could not be sent; try again')
+        }
       }
       json(response, 202, { contact: publicContact(contact) })
       return
