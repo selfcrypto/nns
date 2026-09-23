@@ -4844,9 +4844,9 @@ li.note {
 /* A switch per category: blue on, grey off (Rico, 2026-09-23). The input is
    visually hidden, not removed, so it keeps its focus ring and its role. */
 .notify-toggle {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding: 6px 0;
   font-size: 14.5px;

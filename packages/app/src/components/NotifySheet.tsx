@@ -366,13 +366,16 @@ export function NotifySheet({ base, address, wallet, onClose }: { base: string; 
               <h4 className="notify-heading">{notifyEventsLabel()}</h4>
               {CATEGORIES.map((category) => (
                 <label key={category} className="notify-toggle">
+                  {/* A real checkbox drives it, so the keyboard and a screen
+                      reader see a switch; the track and the knob are drawn.
+                      It comes first on purpose: a label's target is its first
+                      labelable descendant, and the hint's button is one, so
+                      with the text first a tap opened the hint instead. */}
+                  <input type="checkbox" role="switch" className="notify-switch-input" checked={settings.preferences[category]} onChange={() => toggle(category)} />
+                  <span className="notify-switch" aria-hidden="true" />
                   <span className="notify-toggle-label">
                     {NOTIFY_CATEGORY_LABEL[category]} <Hint>{NOTIFY_CATEGORY_HINT[category]}</Hint>
                   </span>
-                  {/* A real checkbox drives it, so the keyboard and a screen
-                      reader see a switch; the track and the knob are drawn. */}
-                  <input type="checkbox" role="switch" className="notify-switch-input" checked={settings.preferences[category]} onChange={() => toggle(category)} />
-                  <span className="notify-switch" aria-hidden="true" />
                 </label>
               ))}
             </section>
