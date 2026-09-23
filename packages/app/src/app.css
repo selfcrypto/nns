@@ -4841,8 +4841,68 @@ li.note {
   align-items: center;
 }
 
+/* A switch per category: blue on, grey off (Rico, 2026-09-23). The input is
+   visually hidden, not removed, so it keeps its focus ring and its role. */
 .notify-toggle {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 14.5px;
+  cursor: pointer;
+}
+
+.notify-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+}
+
+.notify-switch-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.notify-switch {
+  flex: none;
+  position: relative;
+  width: 40px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(var(--tint-ink), 0.18);
+  transition: background 0.15s ease;
+}
+
+.notify-switch::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+
+.notify-switch-input:checked + .notify-switch {
+  background: var(--nimiq-blue);
+}
+
+.notify-switch-input:checked + .notify-switch::after {
+  transform: translateX(16px);
+}
+
+.notify-switch-input:focus-visible + .notify-switch {
+  box-shadow: 0 0 0 3px var(--nimiq-blue-glow);
 }
 
 .notify-foot {
