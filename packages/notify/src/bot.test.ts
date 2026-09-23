@@ -43,17 +43,38 @@ describe('botReply', () => {
     expect(await botReply('/names', '42', deps({ addressesOf: async () => [] }))).toContain('No address is linked')
   })
 
-  it('resolves a bare name, with the expiry as a date from the head', async () => {
-    const reply = await botReply('riconame', '42', deps())
+  it('resolves on /resolve, with the expiry as a date from the head', async () => {
+    const reply = await botReply('/resolve riconame', '42', deps())
     expect(reply).toContain(`Pays to: ${ADDRESS}`)
     expect(reply).toContain('Expires: 2026-10-03')
     expect(reply).toContain('#/pay/riconame')
     expect(await botReply('/resolve nimiq', '42', deps())).toContain('reserved')
-    expect(await botReply('somethingfree', '42', deps())).toContain('not registered')
-    expect(await botReply('not a name!', '42', deps())).toContain('not a valid name')
+    expect(await botReply('/resolve somethingfree', '42', deps())).toContain('not registered')
+    expect(await botReply('/resolve not a name!', '42', deps())).toContain('not a valid name')
+    expect(await botReply('/resolve', '42', deps())).toContain('followed by a name')
   })
 
-  it('answers anything else with the help text', async () => {
-    expect(await botReply('/whatever', '42', deps())).toContain('Send a name to look it up')
+  // A bare word was a lookup until 2026-09-23. A bot that examines every
+  // word said in front of it and replies is noise, so plain text is help in
+  // a private chat and nothing anywhere else.
+  it('answers plain text and unknown commands with the help text in a private chat', async () => {
+    let looked = 0
+    const d = deps({ lookup: async (name) => { looked++; return { kind: 'available', name } } })
+    expect(await botReply('riconame', '42', d)).toContain('/resolve <name> looks a name up')
+    expect(await botReply('/whatever', '42', d)).toContain('/resolve <name> looks a name up')
+    expect(looked).toBe(0)
+  })
+
+  it('in a group answers /resolve and /help alone, and never binds or unbinds it', async () => {
+    let bound = 0
+    const d = deps({ link: async () => { bound++; return ADDRESS } })
+    expect(await botReply('/resolve riconame', '-100', d, false)).toContain(`Pays to: ${ADDRESS}`)
+    expect(await botReply('/help', '-100', d, false)).toContain('/resolve <name>')
+    expect(await botReply('riconame', '-100', d, false)).toBeNull()
+    expect(await botReply('/whatever', '-100', d, false)).toBeNull()
+    expect(await botReply('/start good-token-good-token', '-100', d, false)).toBeNull()
+    expect(await botReply('/stop', '-100', d, false)).toBeNull()
+    expect(await botReply('/names', '-100', d, false)).toBeNull()
+    expect(bound).toBe(0)
   })
 })

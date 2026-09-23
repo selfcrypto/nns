@@ -145,7 +145,8 @@ async function botLoop(settings: NotifySettings, api: TelegramApi, store: Store,
         offset = update.updateId + 1
         if (update.chatId === '' || update.text === '') continue
         try {
-          await api.send(update.chatId, await botReply(update.text, update.chatId, deps))
+          const reply = await botReply(update.text, update.chatId, deps, update.privateChat)
+          if (reply !== null) await api.send(update.chatId, reply)
         } catch (error) {
           logger.warn('notify.bot.reply-failed', { error })
         }
@@ -185,6 +186,7 @@ async function main(): Promise<void> {
 
     const telegram = settings.telegramToken === null ? null : new TelegramApi(settings.telegramToken)
     const telegramBot = telegram === null ? null : await telegram.username()
+    if (telegram !== null) await telegram.registerCommands()
     const email = settings.smtp === null ? null : new SmtpSender(settings.smtp)
     const transport: Transport = { email, telegram }
     const unsubscribeUrl = (contact: Contact): string | null =>

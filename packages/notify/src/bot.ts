@@ -3,9 +3,13 @@
  * gets from its dependencies, so the tests need no Telegram and no
  * database.
  *
- * Four things it understands: `/start <token>` from the app's deep link
- * (the binding), `/stop`, `/names`, and a name — bare or after `/resolve` —
- * which it looks up on the public API. Everything else gets the help text.
+ * Commands only: `/start <token>` from the app's deep link (the binding),
+ * `/stop`, `/names`, and `/resolve <name>`, looked up on the public API. In a
+ * private chat anything else gets the help text; in a group or a channel
+ * anything else gets silence, and only `/resolve` and `/help` answer at all.
+ * A bare name was a lookup until 2026-09-23 — a bot that examines every
+ * word said in front of it and replies is noise, not a feature (Kike) — and
+ * `/start` outside a private chat would bind the group to someone's address.
  */
 
 import { validateNameSyntax } from '@nimiqnames/core'
@@ -30,7 +34,7 @@ export interface BotDeps {
 const HELP = (appUrl: string): string =>
   `This bot sends notifications for Nimiq Name Service addresses: renewal reminders, sales and bids, transfers and new messages.\n\n` +
   `To link an address, open the app, sign in with the address and tap Connect Telegram: ${appUrl}\n\n` +
-  `Send a name to look it up. /names lists the names of your linked addresses. /stop unlinks this chat.`
+  `/resolve <name> looks a name up. /names lists the names of your linked addresses. /stop unlinks this chat.`
 
 const day = (height: number, head: number, nowMs: number): string => approxDate(height, head, nowMs).toISOString().slice(0, 10)
 
@@ -58,12 +62,16 @@ async function describe(name: string, deps: BotDeps): Promise<string> {
   }
 }
 
-export async function botReply(text: string, chatId: string, deps: BotDeps): Promise<string> {
+/** The reply, or null for a message the bot lets pass in silence. */
+export async function botReply(text: string, chatId: string, deps: BotDeps, privateChat = true): Promise<string | null> {
   const trimmed = text.trim()
   const [command = '', ...rest] = trimmed.split(/\s+/)
   const argument = rest.join(' ')
+  const verb = command.toLowerCase().replace(/@.*$/, '')
 
-  switch (command.toLowerCase().replace(/@.*$/, '')) {
+  if (!privateChat && verb !== '/resolve' && verb !== '/help') return null
+
+  switch (verb) {
     case '/start': {
       if (argument === '') return HELP(deps.appUrl)
       const address = await deps.link(argument, chatId)
@@ -87,9 +95,8 @@ export async function botReply(text: string, chatId: string, deps: BotDeps): Pro
     case '/help':
       return HELP(deps.appUrl)
     case '/resolve':
-      return argument === '' ? 'Send /resolve followed by a name, or just the name.' : describe(argument, deps)
+      return argument === '' ? 'Send /resolve followed by a name.' : describe(argument.replace(/^@/, ''), deps)
     default:
-      if (trimmed === '' || trimmed.startsWith('/')) return HELP(deps.appUrl)
-      return describe(trimmed.replace(/^@/, ''), deps)
+      return HELP(deps.appUrl)
   }
 }

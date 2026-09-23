@@ -1,6 +1,7 @@
 /**
- * The Telegram Bot API, the three calls this service makes: `getMe` for the
- * bot's name (the deep link needs it), `sendMessage`, and `getUpdates` with
+ * The Telegram Bot API, the four calls this service makes: `getMe` for the
+ * bot's name (the deep link needs it), `setMyCommands` for the slash menu,
+ * `sendMessage`, and `getUpdates` with
  * long polling — no webhook, so no inbound route and no secret in a URL.
  */
 
@@ -19,6 +20,8 @@ export interface TelegramUpdate {
   readonly updateId: number
   readonly chatId: string
   readonly text: string
+  /** A one-to-one chat with the bot. In a group or a channel the bot answers `/resolve` and `/help` alone. */
+  readonly privateChat: boolean
 }
 
 export type TelegramFetch = (url: string, init: { method: string; headers: Record<string, string>; body: string }) => Promise<{
@@ -52,6 +55,22 @@ export class TelegramApi implements TelegramSender {
     return body.result
   }
 
+  /**
+   * The slash menu Telegram shows in a chat with the bot. Registered on every
+   * start, so the list is the code's and not something typed into BotFather
+   * once and forgotten. `/start` is left out: it is the deep link's verb.
+   */
+  async registerCommands(): Promise<void> {
+    await this.call('setMyCommands', {
+      commands: [
+        { command: 'resolve', description: 'Look a name up' },
+        { command: 'names', description: 'The names of your linked addresses' },
+        { command: 'stop', description: 'Unlink this chat' },
+        { command: 'help', description: 'What this bot does' },
+      ],
+    })
+  }
+
   /** The bot's username, for `https://t.me/<username>?start=<token>`. */
   async username(): Promise<string> {
     const me = (await this.call('getMe', {})) as { username?: unknown }
@@ -82,7 +101,7 @@ export class TelegramApi implements TelegramSender {
     if (!Array.isArray(result)) return []
     const updates: TelegramUpdate[] = []
     for (const entry of result) {
-      const { update_id, message } = (entry ?? {}) as { update_id?: unknown; message?: { text?: unknown; chat?: { id?: unknown } } }
+      const { update_id, message } = (entry ?? {}) as { update_id?: unknown; message?: { text?: unknown; chat?: { id?: unknown; type?: unknown } } }
       if (typeof update_id !== 'number') continue
       const chatId = message?.chat?.id
       const text = message?.text
@@ -90,6 +109,7 @@ export class TelegramApi implements TelegramSender {
         updateId: update_id,
         chatId: typeof chatId === 'number' || typeof chatId === 'string' ? String(chatId) : '',
         text: typeof text === 'string' ? text : '',
+        privateChat: message?.chat?.type === 'private',
       })
     }
     return updates

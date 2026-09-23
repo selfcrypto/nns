@@ -18,7 +18,7 @@ The sheet lists the channels the service has set up, under **Where to reach you*
 
 **Telegram.** Tap **Connect Telegram**, then **Open Telegram**. It opens the service's bot with a code that ties that chat to your address. Press **Start** and the row reads **Linked**. No username is typed or stored. **Remove** in the sheet, or `/stop` sent to the bot, unlinks the chat.
 
-The bot also answers questions. Send it a name and it replies with the address the name pays to, the owner when that is a different address, the expiry, and a link to pay it. A name nobody holds comes back with a link to register it. `/names` lists the names of every address linked to that chat, and `/help` the commands.
+The bot also answers commands. `/resolve <name>` replies with the address the name pays to, the owner when that is a different address, the expiry, and a link to pay it. A name nobody holds comes back with a link to register it. `/names` lists the names of every address linked to that chat, and `/help` the commands. It answers commands only, never plain text, so it can sit in a group without replying to every word said.
 
 ## What is sent
 
