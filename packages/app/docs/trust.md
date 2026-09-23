@@ -2,19 +2,18 @@
 
 An operator's answer is an operator's word. NNS is built so you never have to take it. Every answer carries a proof, several resolvers can be asked and compared, and the whole registry can be recomputed from the chain by anyone.
 
-## Three clocks
+## Two clocks
 
 | Clock | Every | What it gates |
 |---|---|---|
-| **Finality** | ~minutes | The name is registered and resolves. Payments to it work |
-| **Checkpoint** | ~{{dur:CHECKPOINT_INTERVAL}} | A Merkle proof exists for it |
+| **Finality** | ~{{dur:CHECKPOINT_INTERVAL}}, the macro block that closes a batch | The name is registered, resolves, and carries a Merkle proof. Payments to it work |
 | **Anchor** | on change, at least daily | The root is notarised on an EVM chain |
 
-Only the first decides whether a name works. A name registered a minute ago resolves normally and shows "Proof pending". The two later clocks add depth, not doubt.
+Only the first decides whether a name works. A checkpoint is cut at every finalised macro block, so a name registered a minute ago resolves normally and already carries its proof. "Proof pending" appears only when a resolver's newest checkpoint is behind its own state, and it adds depth, not doubt. The anchor adds depth too.
 
 ## What a proof is
 
-Every resolver publishes a **checkpoint** every ~{{dur:CHECKPOINT_INTERVAL}}: one hash that commits to every name, every address, the prices in effect, every pending sale, transfer and auction, and the public log up to that block. An answer comes with the leaf for the name and the path from that leaf to the root. Your device rebuilds the leaf, recombines the path, and compares the result to the committed root. If one byte of the answer differs, the comparison fails.
+Every resolver publishes a **checkpoint** at every finalised macro block (every ~{{dur:CHECKPOINT_INTERVAL}}): one hash that commits to every name, every address, the prices in effect, every pending sale, transfer and auction, and the public log up to that block. An answer comes with the leaf for the name and the path from that leaf to the root. Your device rebuilds the leaf, recombines the path, and compares the result to the committed root. If one byte of the answer differs, the comparison fails.
 
 So a resolver cannot serve you an address the checkpoint does not contain, and cannot tell you and your neighbour different things under one root. What a proof cannot do is tell you whether the checkpoint itself is honest. That is what the next two mechanisms are for.
 

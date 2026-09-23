@@ -207,20 +207,23 @@ interface ResolveResult {
 | `PROOF_PENDING` | The name resolves and payments to it work; no checkpoint commits to this value yet | Pending depth — neutral, not an alarm |
 | `DELEGATED` | A delegate host answered (see below). The parent is proven; this address is not | Visibly different from the two above |
 
-`PROOF_PENDING` is a clock, not a fault. Checkpoints are cut every
-`CHECKPOINT_INTERVAL` blocks — 60, one batch, ~1 minute — so a name registered or repointed since the last one has no
-proof to serve yet. It carries a `PROOF_PENDING` warning whose wording is
-deliberately about depth. Do not put a red badge on it: it is the expected
-state of every fresh registration, and a warning users see on every healthy
-day is a warning they stop reading.
+`PROOF_PENDING` is a clock, not a fault. A checkpoint is cut at every
+finalised macro block (`CHECKPOINT_INTERVAL` is one batch, 60 blocks, since
+2026-09-23), so a resolver at the head proves a registration in the same
+commit that applies it, and a fresh name normally arrives `PROVEN`. The
+state remains for a resolver whose newest checkpoint is behind its own state
+— a fault, or another implementation on a coarser schedule — and its wording
+is deliberately about depth. Do not put a red badge on it: a warning that
+reads as an alarm on a healthy day is a warning users stop reading.
 
 ### A **missing** proof and a **failed** proof are not the same thing
 
 This is the single most important line in the package, and conflating the two
 breaks it in one direction or the other.
 
-- **Missing** — the operator served `proof: null`. The checkpoint simply is not
-  due. You get a normal result with `PROOF_PENDING`. Nothing is wrong.
+- **Missing** — the operator served `proof: null`: its newest checkpoint is
+  behind its state. You get a normal result with `PROOF_PENDING`. Nothing is
+  wrong with the answer.
 - **Failed** — the operator served a proof and it does not recombine. That
   **always throws** `ProofError`, with no degraded mode and no result to
   inspect. It throws even when the other resolvers agree with each other:

@@ -10,10 +10,10 @@ Each resolver answered with a Merkle proof, and the app checked the proof agains
 
 ## Two quiet lines
 
-Either can appear under a fresh name, and neither is a problem.
+Neither is the normal case: a checkpoint is cut at the macro block that finalises a batch, so a registration and its proof arrive together. Either can still appear when a resolver's newest checkpoint is behind its own state, and neither is a problem.
 
-- "Proof pending. The name works now. Checkpoints are cut every ~{{dur:CHECKPOINT_INTERVAL}}." The name is registered and resolves. The proof arrives with the next checkpoint.
-- "Repointed since the last checkpoint. This address is newer than its proof." The owner changed the target after the last checkpoint. The next checkpoint covers the new address.
+- "Proof pending. The name works now. Checkpoints are cut every ~{{dur:CHECKPOINT_INTERVAL}}." The name is registered and resolves. The proof arrives with that resolver's next checkpoint.
+- "Repointed since the last checkpoint. This address is newer than its proof." The owner changed the target after that resolver's newest checkpoint. Its next checkpoint covers the new address.
 
 ## A subdomain
 

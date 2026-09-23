@@ -73,9 +73,11 @@ user's wallet.
 - the address behind a **subdomain** (`shop.alice`). NNS proves only that
   `alice` exists and that its owner designated a host; the host's answer is
   the owner's word (§5, §3.4);
-- anything about a name in the seconds after a change: state is *live*
-  ahead of the last checkpoint, so the newest changes come without a proof
-  until the next boundary (§3.3, "PROOF_PENDING");
+- anything about a name in the batch that is still open: an indexer applies
+  a batch only once its macro block is final, and cuts a checkpoint at that
+  macro block, so a change and its proof arrive together — nothing is known
+  about the open batch at all (§1.3). `PROOF_PENDING` stays defined for a
+  resolver whose newest checkpoint is behind its own state (§3.3);
 - that the operator's servers are up. Run your own (§7) if that matters.
 
 ### 1.3 Three clocks
@@ -86,11 +88,13 @@ integration bug:
 | Clock | Where | Meaning |
 |---|---|---|
 | `height` | every state response | the block this indexer's state is as of. Live. |
-| `proof.nimiq_height` | `/resolve`, `/available` | the checkpoint boundary the proof is against. Lags `height` by up to `CHECKPOINT_INTERVAL` |
+| `proof.nimiq_height` | `/resolve`, `/available` | the checkpoint boundary the proof is against. Equal to `height` on a resolver at the head: every finalised macro block is a boundary (`CHECKPOINT_INTERVAL` is one batch since 2026-09-23), so the two clocks coincide |
 | `expiry` | a name record | the first block at which the name **stops** resolving (the term is half-open: it resolves at `expiry − 1`, not at `expiry`) |
 
-A name **works as soon as its registration is final** on chain — you do not
-wait for a checkpoint to pay it. The checkpoint is what lets you *verify* it.
+A name **works as soon as its registration is final** on chain, and since
+the checkpoint is cut at the macro block that finalises it, its proof exists
+at the same moment. You never wait for a proof to pay a name; the proof is
+what lets you *verify* it.
 
 ### 1.4 The name rules, in one paragraph
 
@@ -426,7 +430,7 @@ All options:
 | Value | What is true | What to show |
 |---|---|---|
 | `PROVEN` | the address is in a checkpoint every agreeing resolver signed off on, and the proof recombined to that root on your machine | "Verified by N resolvers" |
-| `PROOF_PENDING` | the name resolves and is payable, but the newest checkpoint predates the record, or the target changed since the boundary (`TARGET_CHANGED_SINCE_CHECKPOINT`) | "Verified by N resolvers · proof pending" — **depth, not alarm** |
+| `PROOF_PENDING` | the name resolves and is payable, but this resolver's newest checkpoint predates the record, or the target changed since that boundary (`TARGET_CHANGED_SINCE_CHECKPOINT`). Not the normal case: a checkpoint is cut at every finalised batch, so a resolver at the head proves a registration in the commit that applies it | "Verified by N resolvers · proof pending" — **depth, not alarm** |
 | `DELEGATED` | a subdomain: the parent is proven, the address is the owner's server's word | "Address provided by the owner's server" — **visibly different** from the two above |
 
 Anything worse than these **throws**; there is no degraded success. A proof
@@ -488,8 +492,8 @@ Warnings you will see and what they mean:
 | `warnings[].code` | Meaning | Show it? |
 |---|---|---|
 | `QUORUM_BELOW_SPEC` | you configured `quorum < 2` | no — it is for you, not the user |
-| `PROOF_PENDING` | checkpoint not yet due for this record | as "proof pending", quietly |
-| `TARGET_CHANGED_SINCE_CHECKPOINT` | the owner repointed the name after the last boundary | as "proof pending" |
+| `PROOF_PENDING` | this resolver's newest checkpoint predates the record — a resolver behind its own state, since every finalised batch is a checkpoint | as "proof pending", quietly |
+| `TARGET_CHANGED_SINCE_CHECKPOINT` | the owner repointed the name after this resolver's newest checkpoint | as "proof pending" |
 | `DELEGATED_ANSWER` | this is a subdomain answer | yes — see line 2 above |
 | `DELEGATE_HOST_UNPROVEN` | the parent's own record is `PROOF_PENDING` | as "proof pending" |
 | `ROOT_HEIGHTS_DIFFER` | two resolvers sit at different checkpoints and the cross-height comparison could not complete | no; it carries which resolver and why, for your logs |

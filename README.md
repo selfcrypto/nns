@@ -53,12 +53,11 @@ so anyone can run them.
                      log  → IPFS (content-addressed)
 ```
 
-Three clocks, and only the first decides whether a name works:
+Two clocks, and only the first decides whether a name works:
 
 | Clock | Interval | Gates |
 |---|---|---|
-| Finality | ~minutes | **The name is registered and resolves** |
-| Checkpoint | ~1 min, one batch | A Merkle proof exists for it |
+| Finality — the macro block that closes a batch | ~1 min | **The name is registered, resolves, and carries a Merkle proof.** A checkpoint is cut at every finalised macro block, so "final" and "provable" are one moment |
 | Anchor | on change, daily floor | The root is notarised on an EVM chain |
 
 ## Building on it

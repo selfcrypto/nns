@@ -6,7 +6,7 @@
 - **Label** and **parent.** The two halves of `label.parent`. The parent is a name. The label is answered by the parent's host.
 - **Host.** A server a name's owner runs to answer for its labels. Proves nothing.
 - **Resolver.** The server that replays the chain and answers lookups with proofs. Also the client library that asks several of them and verifies the proofs.
-- **Checkpoint.** A commitment to the whole registry, cut every ~{{dur:CHECKPOINT_INTERVAL}}.
+- **Checkpoint.** A commitment to the whole registry, cut at every finalised macro block (every ~{{dur:CHECKPOINT_INTERVAL}}), so a name is provable the moment it is final.
 - **Proof.** The path from a name's leaf to the checkpoint's root, which the client rebuilds and compares.
 - **Quorum.** How many independent resolvers must agree before a client accepts an answer.
 - **Anchor.** A checkpoint commitment posted to a contract on an EVM chain, by a publisher.

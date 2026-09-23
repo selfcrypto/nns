@@ -329,10 +329,12 @@ export function createRoutes(queries: Queries): RouteHandler {
       // owner can renew — so say which of the two absences this is.
       return respond(404, { error: 'IN_GRACE', name, expiry: record.expiry, height })
     }
-    // The proof rides on its own clock (§8.7): it derives from the latest
-    // checkpoint, so a name registered since simply has `proof: null` until
-    // the next boundary — pending depth, not an error. The §8.3 document
-    // carries the *checkpoint's* record, which may lag the live fields above.
+    // The proof derives from the latest checkpoint (§8.7). Every finalised
+    // macro block is a boundary since 2026-09-23, so at the head the two
+    // coincide and a registration is proven in the commit that applied it;
+    // a name the newest checkpoint predates has `proof: null` — pending
+    // depth, not an error. The §8.3 document carries the *checkpoint's*
+    // record, which then lags the live fields above.
     const base = await queries.proofBase()
     const context = contextOf(base.value)
     return respond(200, {

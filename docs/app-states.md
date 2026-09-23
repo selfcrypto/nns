@@ -67,7 +67,7 @@ destroyed.
 | Value | Required treatment |
 |---|---|
 | `PROVEN` | The normal, good case. Carries the §5 "Verified by N resolvers" line |
-| `PROOF_PENDING` | **Depth, not alarm.** "Proof pending — checkpoints are cut every ~1 min." (the interval is `CHECKPOINT_INTERVAL` rendered, as the landing's "One-year terms" is `TERM_LENGTH` rendered — a tempo era shows its own numbers) The name resolves and payments work (§8.7). No red, no warning glyph. This is the expected state of every fresh registration |
+| `PROOF_PENDING` | **Depth, not alarm.** "Proof pending — checkpoints are cut every ~1 min." (the interval is `CHECKPOINT_INTERVAL` rendered, as the landing's "One-year terms" is `TERM_LENGTH` rendered — a tempo era shows its own numbers) The name resolves and payments work (§8.7). No red, no warning glyph. Since 2026-09-23 a checkpoint is cut at every finalised macro block, so a fresh registration normally arrives `PROVEN`; this is a resolver whose newest checkpoint is behind its own state, and still depth |
 | `DELEGATED` | **Visibly different from both.** "Resolved by `<host>`" — the parent is proven, the address is the host's word. **The badge names the host, not the parent** (2026-09-16): a name is not its brand, `binance` is registrable by whoever gets there first, and "Resolved by binance" reads as that company's endorsement on the one card that carries no proof. The host is a domain the reader can judge, and it is the party that actually answered. The parent is named one tap away, by the hint, as what delegated. §8.5 #6 writes the label as *resolved by `<parent>`* and is wrong about this; the clause's requirement is the visual distinction, which naming the host serves better. Never rendered identically to a proven answer (§8.5 #6). The identicon still renders (it is honest about the address), with the distinction carried alongside |
 
 `TARGET_CHANGED_SINCE_CHECKPOINT` (a proof verified, but for the previous
@@ -231,8 +231,9 @@ include this transaction", never "sent".
 5. **Delegated answers are never rendered identically to proven ones.**
 6. **`ANCHOR_NOT_CHECKED` is a quiet status**, not a warning — the standing
    state while the publisher list ships empty.
-7. **Depth is depth** (§8.7): a fresh name works at finality; the checkpoint
-   (~1 min, one batch) and anchor (on change, daily floor) clocks add verification depth to a name that
+7. **Depth is depth** (§8.7): a fresh name works and is proven at finality —
+   the checkpoint is cut at the macro block that finalises it — and the anchor
+   clock (on change, daily floor) adds verification depth to a name that
    already functions. A user who just paid must never be told something is
    wrong with their name.
 8. **Renewal reminder** (§10.4, non-deferrable): approaching expiry surfaces

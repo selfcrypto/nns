@@ -47,7 +47,7 @@ Both default endpoints are run by the same operator on two separately replayed b
 | Value | Meaning | Show it as |
 |---|---|---|
 | `PROVEN` | A proof for this exact answer recombined to a root the quorum agrees on | The normal case |
-| `PROOF_PENDING` | The name resolves and payments work. No checkpoint commits to this value yet (checkpoints are cut every ~{{dur:CHECKPOINT_INTERVAL}}) | Pending depth. Neutral, never red |
+| `PROOF_PENDING` | The name resolves and payments work. This resolver's newest checkpoint does not commit to the value yet. Not the normal case: a checkpoint is cut at every finalised macro block (every ~{{dur:CHECKPOINT_INTERVAL}}), so a resolver at the head proves a registration in the same commit that applies it | Pending depth. Neutral, never red |
 | `DELEGATED` | A subdomain, answered by the parent's host. The parent is proven, this address is not | Visibly different from both |
 
 A name repointed since the last checkpoint comes back as `PROOF_PENDING` with a `TARGET_CHANGED_SINCE_CHECKPOINT` warning. Do not call that "verified": the proof covers the previous address.

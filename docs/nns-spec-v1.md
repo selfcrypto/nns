@@ -150,7 +150,7 @@ mapping; a Nimiq Pay mini app lets users send to `rico` instead of an address.
 
 | Threat | Mitigation | Residual risk |
 |---|---|---|
-| Indexer operator rewrites the mapping | Merkle inclusion proofs verified client-side; roots anchored on an EVM chain (§9) | A name newer than the last anchor is trusted until the next checkpoint |
+| Indexer operator rewrites the mapping | Merkle inclusion proofs verified client-side; roots anchored on an EVM chain (§9) | A name newer than the last anchor is proven against a checkpoint the anchor chain has not yet seen |
 | **Operator forges a whole state and anchors it** | Not stopped by proofs — a sole publisher's lie is internally consistent. Defeated by independent replay (Tier 3), client quorum (§8.5), and multi-publisher anchoring (§9) | Users of a single resolver with a single anchor publisher are exposed; see §2.1 |
 | Operator refuses to answer for a name (API censorship) | Detectable — the entry is in the published log and any independent resolver answers it | Not preventable; users must switch resolver endpoints |
 | Log-growth spam | **Not mitigated in v1** — only registration is priced (§7.6). Mechanisms designed and deferred (§16.2, §16.3) | Spam scales with names owned (~$200 of names sustains ~6.5 GB/year); visible in the log, and answerable by raising `FEE_BASE` within a week (§10.6) |
@@ -2520,8 +2520,8 @@ at every finalised batch — so a name is provable the moment it is final:
 
 | Clock | Interval | What it gates |
 |---|---|---|
-| Finality (`FINALITY_RULE`) | ~minutes, last finalised macro block | **The name is registered and resolves** |
-| Checkpoint (`CHECKPOINT_INTERVAL`) | ~1 min — the same batch | A Merkle proof exists for it |
+| Finality (`FINALITY_RULE`) | one batch (~1 min), the last finalised macro block | **The name is registered and resolves** |
+| Checkpoint (`CHECKPOINT_INTERVAL`) | one batch — the same macro block | A Merkle proof exists for it |
 | Anchor (§9) | on change, daily floor | The root is notarised on the anchor chain (§9) |
 
 **A name is usable at the first clock.** Registration takes effect when the
@@ -2529,6 +2529,16 @@ transaction is final; the indexer applies it, the resolver answers for it,
 and payments to it work. Checkpoints and anchors add *verification depth* to
 a name that already functions — they are not an activation queue, and no
 part of this specification makes resolution wait for them.
+
+**A name is provable at the same clock.** Every transaction in a batch sits
+in a micro block below the macro block that closes it, the indexer applies
+the batch only once that macro block is final (§7.2 step 3), and the
+checkpoint at that macro block fires before its own block's transactions
+(§7.3) — so it covers the whole batch, and a resolver at the head proves a
+registration in the commit that applies it. `PROOF_PENDING` (§8.5) is
+therefore not the state of every fresh name but of a resolver whose newest
+checkpoint is behind its own state: another implementation on a coarser
+schedule, or a fault. It is still shown as depth.
 
 The practical consequence is that a name registered between anchors resolves
 normally and carries a proof against the current checkpoint, with only the
