@@ -8,6 +8,7 @@
  * unsent and try again.
  */
 
+import { emailBody, greetingFor } from './email.js'
 import { CATEGORY_OF, eventKey, type NotifyEvent } from './events.js'
 import type { Logger } from './logger.js'
 import { render, type RenderContext } from './render.js'
@@ -54,6 +55,8 @@ export async function deliver(events: readonly NotifyEvent[], options: DeliverOp
     if (contacts.length === 0) continue
     const key = eventKey(event)
     const message = render(event, options.context)
+    const greeting = greetingFor(options.context.nameOf(event.to))
+    const reason = `You receive this because notifications for ${event.to} were set up in the Nimiq Names app.`
 
     for (const contact of contacts) {
       if (await store.wasSent(event.to, key, contact.id)) {
@@ -63,10 +66,18 @@ export async function deliver(events: readonly NotifyEvent[], options: DeliverOp
       try {
         if (contact.channel === 'email') {
           if (transport.email === null) continue
-          await transport.email.send({ to: contact.target, subject: message.subject, text: message.text, unsubscribeUrl: options.unsubscribeUrl(contact) })
+          const unsubscribeUrl = options.unsubscribeUrl(contact)
+          const body = emailBody(options.context.appUrl, {
+            greeting,
+            paragraphs: message.text.split('\n\n'),
+            cta: message.cta,
+            reason,
+            unsubscribeUrl,
+          })
+          await transport.email.send({ to: contact.target, subject: message.subject, text: body.text, html: body.html, unsubscribeUrl })
         } else {
           if (transport.telegram === null) continue
-          await transport.telegram.send(contact.target, `${message.subject}\n\n${message.text}`)
+          await transport.telegram.send(contact.target, `${message.subject}\n\n${message.text}\n\n${message.cta.label}: ${message.cta.url}`)
         }
         await store.markSent(event.to, key, contact.id)
         if (contact.failures > 0) await store.clearFailures(contact.id)

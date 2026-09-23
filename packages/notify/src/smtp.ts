@@ -167,10 +167,11 @@ export function composeMessage(message: EmailMessage, from: string, nowMs: numbe
     headers.push(`List-Unsubscribe: <${message.unsubscribeUrl}>`)
     headers.push('List-Unsubscribe-Post: List-Unsubscribe=One-Click')
   }
-  const body = message.unsubscribeUrl === null ? message.text : `${message.text}\n\nStop these messages: ${message.unsubscribeUrl}`
+  // A laid-out message already says how to stop; a plain one gets the line.
+  const body = message.html !== undefined || message.unsubscribeUrl === null ? message.text : `${message.text}\n\nStop these messages: ${message.unsubscribeUrl}`
   const part = (type: string, content: string): string =>
     `--${boundary}\r\nContent-Type: ${type}; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${encoded(content)}\r\n`
-  return `${headers.join('\r\n')}\r\n\r\n${part('text/plain', body)}${part('text/html', textToHtml(body))}--${boundary}--\r\n`
+  return `${headers.join('\r\n')}\r\n\r\n${part('text/plain', body)}${part('text/html', message.html ?? textToHtml(body))}--${boundary}--\r\n`
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/

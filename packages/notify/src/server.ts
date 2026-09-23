@@ -22,6 +22,7 @@
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 
+import { emailBody, greetingFor } from './email.js'
 import { CATEGORIES } from './events.js'
 import { Limiter } from './limiter.js'
 import type { Logger } from './logger.js'
@@ -43,6 +44,8 @@ export interface ServerOptions {
   /** The bot's username, or null when Telegram is off. */
   readonly telegramBot: string | null
   readonly email: EmailSender | null
+  /** The first name an address holds, for the greeting. Null when unknown or absent. */
+  readonly nameOf?: (address: string) => Promise<string | null>
   readonly now?: () => number
 }
 
@@ -246,17 +249,22 @@ export function createNotifyServer(options: ServerOptions): Server {
       const contact = await store.addEmail(address, email, hashToken(confirm), new Date(now() + EMAIL_CONFIRM_TTL_MS), randomToken())
       if (!contact.confirmed) {
         try {
-          await options.email.send({
-            to: email,
-            subject: 'Confirm your email for Nimiq Names',
-            text:
-              `This email address was added in the Nimiq Names app to receive notifications for the address ${address}.\n\n` +
-              `To confirm it, open this link:\n${options.publicUrl}/confirm/${confirm}\n\n` +
-              `The link works once and expires in 24 hours. If you did not add it, ignore this message: nothing is sent until the link is opened.\n\n` +
-              `Nimiq Names\n${options.appUrl}`,
-            // One click deletes the pending row: the same as ignoring it, sooner.
-            unsubscribeUrl: `${options.publicUrl}/unsubscribe/${contact.unsubscribeToken}`,
+          const name = options.nameOf === undefined ? null : await options.nameOf(address)
+          // One click deletes the pending row: the same as ignoring it, sooner.
+          const unsubscribeUrl = `${options.publicUrl}/unsubscribe/${contact.unsubscribeToken}`
+          const body = emailBody(options.appUrl, {
+            greeting: greetingFor(name),
+            paragraphs: [
+              'Thank you for using Nimiq Names.',
+              `This email address was added in the app to receive notifications for ${address}: renewal reminders, sales and bids, transfers and new messages.`,
+              'Confirm it with the button below. The link works once and expires in 24 hours.',
+              'If you did not add it, ignore this message: nothing is sent until the link is opened.',
+            ],
+            cta: { label: 'Confirm email', url: `${options.publicUrl}/confirm/${confirm}` },
+            reason: `You receive this because this address was entered in the Nimiq Names app for ${address}.`,
+            unsubscribeUrl,
           })
+          await options.email.send({ to: email, subject: 'Confirm your email for Nimiq Names', text: body.text, html: body.html, unsubscribeUrl })
         } catch (error) {
           // A row waiting for a mail that never left is a lie the sheet would
           // keep telling; the address is dropped and the caller told to retry.

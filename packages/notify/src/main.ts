@@ -109,7 +109,7 @@ async function pollOnce(settings: NotifySettings, store: Store, transport: Trans
     const names = new Map<string, string | null>()
     for (const event of relevant) {
       const others = 'buyer' in event ? [event.buyer] : 'bidder' in event ? [event.bidder] : 'winner' in event ? [event.winner] : 'from' in event ? [event.from] : []
-      for (const other of others) if (!names.has(other)) names.set(other, await nameOf(other))
+      for (const other of [event.to, ...others]) if (!names.has(other)) names.set(other, await nameOf(other))
     }
     const report = await deliver(relevant, {
       store,
@@ -200,6 +200,7 @@ async function main(): Promise<void> {
       sessionTtlMs: settings.sessionTtlMs,
       telegramBot,
       email,
+      nameOf: (address) => fetchNamesOf(settings.apiUrl, address, fetcher).then((names) => names[0] ?? null).catch(() => null),
     })
     server.listen(settings.port, () => logger.info('notify.listening', { port: settings.port }))
 

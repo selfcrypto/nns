@@ -8,6 +8,8 @@ export interface EmailMessage {
   readonly to: string
   readonly subject: string
   readonly text: string
+  /** The same words laid out (`email.ts`); without it the text is rendered plainly. */
+  readonly html?: string
   /** One click, no login. Goes in the body and in `List-Unsubscribe`. */
   readonly unsubscribeUrl: string | null
 }
