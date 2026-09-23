@@ -75,13 +75,18 @@ const json = (response: ServerResponse, status: number, body: unknown): void => 
   response.end(JSON.stringify(body))
 }
 
+/**
+ * The page a mailed link lands on. No link back to the app: the reader came
+ * from a mail client, and inside Nimiq Pay a web link opens a browser, not
+ * the app (Rico, 2026-09-23). The sheet they left is where they are going.
+ */
 const page = (response: ServerResponse, status: number, title: string, text: string, appUrl: string): void => {
   const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c)
   response.writeHead(status, { 'content-type': 'text/html; charset=utf-8', ...CORS })
   response.end(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escape(title)}</title>` +
-      `<style>body{font-family:system-ui,sans-serif;margin:0;padding:48px 24px;color:#1f2348;background:#f6f7fb}main{max-width:480px;margin:0 auto}h1{font-size:22px;margin:0 0 12px}p{line-height:1.5}a{color:#0582ca}</style></head>` +
-      `<body><main><h1>${escape(title)}</h1><p>${escape(text)}</p><p><a href="${escape(appUrl)}">Back to the app</a></p></main></body></html>`,
+      `<style>body{font-family:system-ui,sans-serif;margin:0;padding:48px 24px;color:#1f2348;background:#f6f7fb}main{max-width:480px;margin:0 auto}h1{font-size:22px;margin:0 0 12px;display:flex;align-items:center;gap:10px}h1 img{width:28px;height:28px;border-radius:6px}p{line-height:1.5}</style></head>` +
+      `<body><main><h1><img src="${escape(appUrl)}/brand/nns-mark.png" alt="">${escape(title)}</h1><p>${escape(text)}</p><p>You can close this page.</p></main></body></html>`,
   )
 }
 
@@ -110,12 +115,20 @@ const clientIp = (request: IncomingMessage): string => {
   return first !== undefined && first !== '' ? first : (request.socket.remoteAddress ?? 'unknown')
 }
 
+/**
+ * `ar•••@g•••.com`: enough to tell two mailboxes apart on the sheet, not
+ * enough to reconstruct either. The domain is masked to its first letter
+ * and its suffix, since `@gmail.com` in the clear is most of an address.
+ */
 export const maskEmail = (email: string): string => {
   const at = email.indexOf('@')
-  if (at < 1) return '…'
+  if (at < 1) return '•••'
   const local = email.slice(0, at)
-  const domain = email.slice(at)
-  return `${local[0]}${local.length > 2 ? '…' : ''}${local.length > 1 ? local[local.length - 1] : ''}${domain}`
+  const domain = email.slice(at + 1)
+  const dot = domain.lastIndexOf('.')
+  const host = dot > 0 ? domain.slice(0, dot) : domain
+  const suffix = dot > 0 ? domain.slice(dot) : ''
+  return `${local.slice(0, Math.min(2, Math.max(1, local.length - 1)))}•••@${host[0] ?? ''}•••${suffix}`
 }
 
 const publicContact = (contact: Contact) => ({

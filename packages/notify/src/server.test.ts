@@ -102,7 +102,7 @@ describe('the notify server', () => {
   it('adds an email, mails the confirmation, confirms through the link, and unsubscribes through the other', async () => {
     const added = await post('/contacts/email', { email: 'Kike@Example.com' }, token)
     expect(added.status).toBe(202)
-    expect((await json<{ contact: { target: string; confirmed: boolean } }>(added)).contact).toEqual({ id: 1, channel: 'email', target: 'k…e@example.com', confirmed: false })
+    expect((await json<{ contact: { target: string; confirmed: boolean } }>(added)).contact).toEqual({ id: 1, channel: 'email', target: 'ki•••@e•••.com', confirmed: false })
     expect(mails).toHaveLength(1)
     expect(mails[0]?.to).toBe('kike@example.com')
     const link = /https:\/\/nimiqnames\.com\/notify\/confirm\/([A-Za-z0-9_-]+)/.exec(mails[0]?.text ?? '')?.[1]
@@ -189,9 +189,11 @@ describe('a confirmation that cannot be sent', () => {
 })
 
 describe('maskEmail', () => {
-  it('keeps the first and last letter and the domain', () => {
-    expect(maskEmail('kike@example.com')).toBe('k…e@example.com')
-    expect(maskEmail('ab@x.io')).toBe('ab@x.io')
-    expect(maskEmail('a@x.io')).toBe('a@x.io')
+  it('keeps two letters of the mailbox, one of the domain, and the suffix', () => {
+    expect(maskEmail('kike@example.com')).toBe('ki•••@e•••.com')
+    expect(maskEmail('arkaknio@gmail.com')).toBe('ar•••@g•••.com')
+    expect(maskEmail('ab@x.io')).toBe('a•••@x•••.io')
+    expect(maskEmail('a@x.io')).toBe('a•••@x•••.io')
+    expect(maskEmail('kike@localhost')).toBe('ki•••@l•••')
   })
 })
