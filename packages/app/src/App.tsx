@@ -312,15 +312,8 @@ export function App() {
                 }}
               />
             )}
-            <MastheadMenu
-              open={menuOpen}
-              onToggle={() => {
-                setIdentityOpen(false)
-                setMenuOpen((open) => !open)
-              }}
-            />
             {/* The bell: notifications for the acting address (tasks/26). In the
-                theme switch's circle, between the nav button and the chip, and
+                theme switch's circle, between the switch and the nav button, and
                 only when there is a notifier and an address to sign in with. A
                 row inside the wallet panel was where nobody found it (Rico,
                 2026-09-23). */}
@@ -339,6 +332,13 @@ export function App() {
                 <BellIcon />
               </button>
             )}
+            <MastheadMenu
+              open={menuOpen}
+              onToggle={() => {
+                setIdentityOpen(false)
+                setMenuOpen((open) => !open)
+              }}
+            />
             <IdentityBar
               placement="top"
               wallet={wallet}
