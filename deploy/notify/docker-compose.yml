@@ -93,6 +93,9 @@ services:
       POSTFIX_myhostname: ${NNS_NOTIFY_MAIL_HOSTNAME:-}
       DKIM_AUTOGENERATE: 'true'
       DKIM_SELECTOR: ${NNS_NOTIFY_MAIL_DKIM_SELECTOR:-notify}
+      # The box has no IPv6 route; without this every delivery to Gmail first
+      # fails on its AAAA record and then succeeds on the A record.
+      POSTFIX_inet_protocols: ipv4
     volumes:
       - dkim-keys:/etc/opendkim/keys
     logging:
