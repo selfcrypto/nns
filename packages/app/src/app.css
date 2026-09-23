@@ -483,10 +483,13 @@ select:focus-visible {
   color: var(--nimiq-blue);
 }
 
-/* Gold for the sun, and only for the sun: it is the one hue that does not
-   move between the palettes, and a lit face on a dark corner is the clearest
-   thing this button can say about what pressing it does. */
-:root[data-theme='dark'] .theme-toggle {
+/* Gold for the three glyphs in the dark palette: it is the one hue that does
+   not move between the palettes, and a lit corner is the clearest thing the
+   switch can say about what pressing it does. The bell and the menu take it
+   too, or the corner reads as one lit button and two unlit ones (Rico,
+   2026-09-23). */
+:root[data-theme='dark'] .theme-toggle,
+:root[data-theme='dark'] .masthead-menu {
   color: var(--accent);
 }
 
