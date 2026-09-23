@@ -10,7 +10,7 @@ import type { AddressInfo } from 'node:net'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import type { SmtpSettings } from './env.js'
-import { SmtpSender, composeMessage, isEmail } from './smtp.js'
+import { SmtpSender, composeMessage, isEmail, textToHtml } from './smtp.js'
 import { DeliveryRefused } from './transport.js'
 
 interface FakeSmtp {
@@ -91,9 +91,16 @@ describe('SmtpSender', () => {
     expect(wire).toContain('Subject: riconame can be renewed')
     expect(wire).toContain('List-Unsubscribe: <https://nimiqnames.com/notify/unsubscribe/t0k>')
     expect(wire).toContain('List-Unsubscribe-Post: List-Unsubscribe=One-Click')
-    const body = Buffer.from(wire.split('\r\n\r\n')[1]?.replace(/\r\n/g, '') ?? '', 'base64').toString('utf8')
-    expect(body).toContain('Hello\n.\nbye')
-    expect(body).toContain('Stop these messages: https://nimiqnames.com/notify/unsubscribe/t0k')
+    expect(wire).toContain('Content-Type: multipart/alternative')
+    const parts = wire.split(/--=_nns_[a-f0-9]+(?:--)?\r\n/).filter((p) => p.includes('Content-Type: text/'))
+    expect(parts).toHaveLength(2)
+    const decode = (part: string) => Buffer.from(part.split('\r\n\r\n')[1]?.replace(/\r\n/g, '') ?? '', 'base64').toString('utf8')
+    const text = decode(parts[0] ?? '')
+    expect(text).toContain('Hello\n.\nbye')
+    expect(text).toContain('Stop these messages: https://nimiqnames.com/notify/unsubscribe/t0k')
+    const html = decode(parts[1] ?? '')
+    expect(html).toContain('<a href="https://nimiqnames.com/notify/unsubscribe/t0k">')
+    expect(html).toContain('Hello<br>.<br>bye')
   })
 
   it('refuses to authenticate in the clear when STARTTLS is not offered', async () => {
@@ -116,7 +123,15 @@ describe('composeMessage', () => {
     expect(wire).toContain(`Subject: =?UTF-8?B?${Buffer.from('Última llamada').toString('base64')}?=`)
     expect(wire).toContain('Message-ID: <id1@x.io>')
     expect(wire).not.toContain('List-Unsubscribe')
-    expect(wire.endsWith(`${Buffer.from('ñ').toString('base64')}\r\n`)).toBe(true)
+    expect(wire).toContain(`\r\n\r\n${Buffer.from('ñ').toString('base64')}\r\n`)
+    expect(wire.endsWith('--=_nns_id1--\r\n')).toBe(true)
+  })
+
+  it('renders the text as paragraphs with real links, escaped', () => {
+    expect(textToHtml('a <b>\n\nsee https://x.io/p?q=1 now')).toBe(
+      '<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.5;color:#1f2348">' +
+        '<p>a &lt;b&gt;</p><p>see <a href="https://x.io/p?q=1">https://x.io/p?q=1</a> now</p></body></html>',
+    )
   })
 
   it('knows a mailbox from a string', () => {

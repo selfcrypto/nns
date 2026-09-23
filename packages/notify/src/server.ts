@@ -248,10 +248,12 @@ export function createNotifyServer(options: ServerOptions): Server {
         try {
           await options.email.send({
             to: email,
-            subject: 'Confirm notifications for your Nimiq name',
+            subject: 'Confirm your email for Nimiq Names',
             text:
-              `Someone asked to send notifications about ${address} to this mailbox. If that was you, confirm here:\n\n` +
-              `${options.publicUrl}/confirm/${confirm}\n\nIf it was not, ignore this message and nothing will be sent.`,
+              `This email address was added in the Nimiq Names app to receive notifications for the address ${address}.\n\n` +
+              `To confirm it, open this link:\n${options.publicUrl}/confirm/${confirm}\n\n` +
+              `The link works once and expires in 24 hours. If you did not add it, ignore this message: nothing is sent until the link is opened.\n\n` +
+              `Nimiq Names\n${options.appUrl}`,
             unsubscribeUrl: null,
           })
         } catch (error) {

@@ -126,8 +126,33 @@ export const mailbox = (from: string): string => {
 
 const domainOf = (address: string): string => address.slice(address.indexOf('@') + 1)
 
-/** The RFC 5322 message, ready for DATA. Exported for the tests. */
+const escapeHtml = (value: string): string =>
+  value.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] ?? c)
+
+/**
+ * The text as a minimal HTML part: paragraphs on blank lines, URLs as links.
+ * Not a design, a second rendering of the same words: a text-only message
+ * carrying one bare link is the shape spam filters were trained on, and a
+ * multipart with a real anchor is what every mail client sends.
+ */
+export function textToHtml(text: string): string {
+  const paragraphs = text.split(/\n{2,}/).map((paragraph) =>
+    escapeHtml(paragraph)
+      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>')
+      .replace(/\n/g, '<br>'),
+  )
+  return (
+    '<!doctype html><html><body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.5;color:#1f2348">' +
+    paragraphs.map((p) => `<p>${p}</p>`).join('') +
+    '</body></html>'
+  )
+}
+
+const encoded = (value: string): string => wrap76(Buffer.from(value, 'utf8').toString('base64'))
+
+/** The RFC 5322 message, ready for DATA: multipart/alternative, text then HTML. Exported for the tests. */
 export function composeMessage(message: EmailMessage, from: string, nowMs: number, id: string): string {
+  const boundary = `=_nns_${id}`
   const headers = [
     `From: ${from}`,
     `To: ${message.to}`,
@@ -135,16 +160,17 @@ export function composeMessage(message: EmailMessage, from: string, nowMs: numbe
     `Date: ${new Date(nowMs).toUTCString()}`,
     `Message-ID: <${id}@${domainOf(mailbox(from))}>`,
     'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=utf-8',
-    'Content-Transfer-Encoding: base64',
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
     'Auto-Submitted: auto-generated',
   ]
   if (message.unsubscribeUrl !== null) {
     headers.push(`List-Unsubscribe: <${message.unsubscribeUrl}>`)
     headers.push('List-Unsubscribe-Post: List-Unsubscribe=One-Click')
   }
-  const body = message.unsubscribeUrl === null ? message.text : `${message.text}\n\nStop these messages: ${message.unsubscribeUrl}\n`
-  return `${headers.join('\r\n')}\r\n\r\n${wrap76(Buffer.from(body, 'utf8').toString('base64'))}\r\n`
+  const body = message.unsubscribeUrl === null ? message.text : `${message.text}\n\nStop these messages: ${message.unsubscribeUrl}`
+  const part = (type: string, content: string): string =>
+    `--${boundary}\r\nContent-Type: ${type}; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n${encoded(content)}\r\n`
+  return `${headers.join('\r\n')}\r\n\r\n${part('text/plain', body)}${part('text/html', textToHtml(body))}--${boundary}--\r\n`
 }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
