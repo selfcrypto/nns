@@ -254,7 +254,8 @@ export function createNotifyServer(options: ServerOptions): Server {
               `To confirm it, open this link:\n${options.publicUrl}/confirm/${confirm}\n\n` +
               `The link works once and expires in 24 hours. If you did not add it, ignore this message: nothing is sent until the link is opened.\n\n` +
               `Nimiq Names\n${options.appUrl}`,
-            unsubscribeUrl: null,
+            // One click deletes the pending row: the same as ignoring it, sooner.
+            unsubscribeUrl: `${options.publicUrl}/unsubscribe/${contact.unsubscribeToken}`,
           })
         } catch (error) {
           // A row waiting for a mail that never left is a lie the sheet would
