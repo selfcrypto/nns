@@ -13,7 +13,7 @@ Every resolver serves the same read-only API, described by its own `GET /openapi
 | `/offers`, `/auctions` | Every open sale. Every running auction with its standing bid and the minimum next bid |
 | `/params` | The prices in effect, any scheduled change, and `fees`: every length band already priced (`upTo`, `times`, `yearly`, `lifetime`, in luna) |
 | `/checkpoints/latest`, `/checkpoints/{height}` | A checkpoint document: the six components and their commitment |
-| `/log`, `/log/decoded` | The complete public log through the latest checkpoint. `decoded` renders the data field as text |
+| `/log`, `/log/decoded` | The complete public log through the latest checkpoint. `decoded` reads each line out: the data field as text, the NIM sent, the sender, and one sentence saying what the message does. `?format=text` is an aligned table |
 | `/settlements` | Outstanding settlement obligations: what the marketplace and treasury owe |
 | `/burn` | Burned so far and owed so far |
 | `/referrals/{name}` | Every registration that named this name as its referrer. Log facts only, no share computed |

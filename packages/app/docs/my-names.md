@@ -19,7 +19,7 @@ The card shows where the name points, its expiry, anything pending, and the owne
 ## Marketplace
 
 - **Sell (Fixed Price).** Puts the name up for sale at a price you set, no lower than the base registration price (today {{nim:FEE_BASE}}). Listing is free. While it is listed the tile reads **Change Price**. You can change the price or take it off sale at any time, and it expires by itself after {{dur:OFFER_MAX_LIFETIME}}. You receive the price minus {{pct:COMMISSION_RATE}} commission.
-- **Start Auction.** Sets a starting price (same floor) and a duration of at least {{dur:AUCTION_MIN_DURATION}}. The auction must end before the name expires, so renew first if it would not. It cannot start while a transfer or a sale is pending: cancel that first. While it runs, nothing on the name can be changed and no bid can be withdrawn. A bid in the last {{dur:AUCTION_EXTENSION}} extends the end by that much. At the end, the highest bid wins and you receive it minus commission. With no bid, the name stays yours.
+- **Start Auction.** Sets a starting price (same floor) and a duration between {{dur:AUCTION_MIN_DURATION}} and {{dur:AUCTION_MAX_DURATION}}. The auction must end before the name expires, so renew first if it would not. It cannot start while a transfer or a sale is pending: cancel that first. While it runs, nothing on the name can be changed and no bid can be withdrawn. A bid in the last {{dur:AUCTION_EXTENSION}} extends the end by that much. At the end, the highest bid wins and you receive it minus commission. With no bid, the name stays yours.
 
 A name has at most one pending thing: a transfer, a sale or an auction. Starting a different one means cancelling the first. Entering grace cancels both and refunds any bid ([Prices](prices)).
 

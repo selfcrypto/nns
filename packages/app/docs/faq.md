@@ -36,6 +36,12 @@ Yes. The **Request Payment** tile on your name's card builds one. [Pay](pay).
 **Can I earn anything for bringing people in?**
 Yes. Whoever registers through your name's share link gets {{referral:rebate}} of the fee back, and your name earns at least {{referral:default}}. Partners bringing volume can agree a higher rate with us through **Contact** at the top of the app. [Referrals](referrals).
 
+**Can it tell me when my name is about to expire?**
+Yes. The bell in the top corner sets up email or Telegram for the address you are using: renewal reminders, sales and bids, transfers to you and new messages. [Notifications](notifications).
+
+**Has NNS launched?**
+Yes, on 22 September 2026. What is still open, a third-party resolver and the anchor publishers, is on one page. [Status](status).
+
 **Are messages private?**
 No. An Inbox message is a transaction, readable by anyone on chain forever. So is the message on a payment. [Inbox](inbox).
 

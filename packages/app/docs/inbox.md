@@ -17,6 +17,8 @@ A message to a **subdomain** goes to the address its host answered with, which m
 
 You cannot message your own name, because the network drops a transaction to yourself.
 
+A new message can reach you by email or Telegram as well. The notice names the sender and never carries the text ([Notifications](notifications)).
+
 ## Hiding a sender
 
 **Hide sender** silences an address on this device. Hidden conversations collapse into "Hidden (n)", and **Unhide** brings one back.

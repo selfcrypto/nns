@@ -8,7 +8,7 @@ You pay exactly the price to the marketplace address, and the name is yours the 
 
 ## Bidding
 
-The first bid must meet the starting price. Each later bid must beat the standing bid by at least {{pct:AUCTION_MIN_INCREMENT_BP}}, and the app shows the minimum. When a higher bid lands, the outbid bidder is refunded at once. A bid in the last {{dur:AUCTION_EXTENSION}} extends the end by that much. At the end, the standing bid wins and the name transfers.
+The first bid must meet the starting price. Each later bid must beat the standing bid by at least {{pct:AUCTION_MIN_INCREMENT_BP}}, and the app shows the minimum. When a higher bid lands, the outbid bidder is refunded at once. A bid in the last {{dur:AUCTION_EXTENSION}} extends the end by that much. At the end, the standing bid wins and the name transfers. A bid on your auction, being outbid, and the close can reach you by email or Telegram ([Notifications](notifications)).
 
 ## What the operator holds
 

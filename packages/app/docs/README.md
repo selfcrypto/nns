@@ -84,7 +84,7 @@ applies here too:
   **Routing & Records**), and a line the app says is quoted verbatim.
   `docsPages.test.ts` pins the quotes it can.
 
-What is provisional before launch is said once, on the Status page, not on
+What is still open after launch is said once, on the Status page, not on
 every page. Nothing operator-private (box addresses, hostnames, tunnels) and
 nothing from the maintainer's working notes is published here.
 

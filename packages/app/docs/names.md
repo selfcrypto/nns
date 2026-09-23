@@ -36,7 +36,7 @@ Red means the string can never be a name. Grey means it is a real name with a ru
 Two kinds of name are held back by the registry.
 
 - **Every name of 1 to 4 characters.** `okx`, `visa`, `web3` and `bank` are all held without anyone listing them.
-- **A curated list** of about 22,600 names. `nimiq` and Nimiq's own products, exchanges, wallets, chains, payment networks, banks, big brands, famous people and sports clubs by their full names, and the words a scammer would want (`admin`, `support`, `official`). The list is fixed at launch and can only shrink afterwards.
+- **A curated list** of about 22,600 names. `nimiq` and Nimiq's own products, exchanges, wallets, chains, payment networks, banks, big brands, famous people and sports clubs by their full names, and the words a scammer would want (`admin`, `support`, `official`). The list was fixed at launch and can only shrink.
 
 A reserved name is not lost. The administrator can do one of three things with it.
 

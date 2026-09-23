@@ -5,7 +5,7 @@ The app runs in two places, and every action works in both.
 - **Inside Nimiq Pay**, as a mini app. Pay hands over your addresses and signs every transaction in its own sheet.
 - **In a browser**, with the Nimiq Hub as the wallet. Connect once and the Hub signs.
 
-Both open on the landing page. Its search box takes you into Buy, **My names** opens the names you hold, and **How it works** opens these pages.
+Both open on the landing page. Its search box takes you into Buy, **My names** opens the names you hold, and **How it works** opens these pages. Further down, a **Prices** row opens the price table on a tap, and the burn figures sit under it ([Prices](prices)).
 
 ## The five tabs
 
@@ -19,7 +19,9 @@ Both open on the landing page. Its search box takes you into Buy, **My names** o
 
 ## Your wallet
 
-The app acts as one address at a time, shown in the top corner with its identicon. My Names lists that address's names, and every send is signed by it. Tap it to switch to another of your addresses, add one, or disconnect. Inside Nimiq Pay the wallet picks the address, and disconnecting only stops this app using it.
+The app acts as one address at a time, shown in the top corner with its identicon. My Names lists that address's names, and every send is signed by it. Tap it to see its balance, switch to another of your addresses, add one, or disconnect. Inside Nimiq Pay the wallet picks the address, and disconnecting only stops this app using it.
+
+Beside the sun and moon button, a **bell** opens the notifications for that address: email or Telegram when a name of yours needs renewing, sells, receives a bid or a message ([Notifications](notifications)).
 
 A screen that needs a wallet you have not connected shows the same connect button in place.
 
@@ -32,6 +34,10 @@ Two links do more. A **payment link** opens Pay with the recipient and the amoun
 ## The "?" and the "(i)"
 
 What you must see is on the card. The reason is one tap away, behind the **?** beside a line. In a sheet you are about to send from, the same control is a blue **(i)** next to the review.
+
+## Contact
+
+**Contact** at the top opens the project's Telegram group, the maintainer's Telegram and the X account. It is where a partner rate is agreed and where a bug is reported ([Referrals](referrals)).
 
 ## Night mode
 

@@ -13,6 +13,8 @@ Nobody has to take the operator's word, but only if other people run the pieces.
 
 Nothing in this table holds a Nimiq key. The roles that do, hosting the app and paying what the protocol owes, are the operator's alone.
 
+The notification service under `deploy/notify` is not a role. It serves no protocol data and holds no key, and it reads the public API like any other client. An operator hosting a copy of the app can run one beside it or leave it out ([Notifications](notifications)).
+
 ## Run a resolver
 
 A resolver replays the chain into name → address and serves it with proofs. It is three containers (Postgres, the indexer, the read-only API), of which only the API is published.

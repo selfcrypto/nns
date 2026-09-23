@@ -34,7 +34,7 @@ A registration lasts **{{dur:TERM_LENGTH}}** from the block it lands in. Renewin
 
 **Anyone can renew any name.** A renewal is a payment naming the name. Ownership does not change.
 
-The app reminds you from **{{dur:RENEW_WINDOW}}** before expiry, on every screen that shows the name.
+The app reminds you from **{{dur:RENEW_WINDOW}}** before expiry, on every screen that shows the name, and by email or Telegram if you set that up ([Notifications](notifications)).
 
 ## Expiry and grace
 

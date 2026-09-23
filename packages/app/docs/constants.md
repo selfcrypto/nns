@@ -45,6 +45,7 @@ Blocks, at roughly one per second.
 | `XFER_TIMELOCK` | {{blocks:XFER_TIMELOCK}} | {{dur:XFER_TIMELOCK}} | A transfer waits this long and can be cancelled meanwhile |
 | `OFFER_MAX_LIFETIME` | {{blocks:OFFER_MAX_LIFETIME}} | {{dur:OFFER_MAX_LIFETIME}} | Then the sale expires by itself |
 | `AUCTION_MIN_DURATION` | {{blocks:AUCTION_MIN_DURATION}} | {{dur:AUCTION_MIN_DURATION}} | Shortest auction |
+| `AUCTION_MAX_DURATION` | {{blocks:AUCTION_MAX_DURATION}} | {{dur:AUCTION_MAX_DURATION}} | Longest window an auction can open with |
 | `AUCTION_EXTENSION` | {{blocks:AUCTION_EXTENSION}} | {{dur:AUCTION_EXTENSION}} | A late bid moves the end to at least this far out |
 | `AUCTION_MIN_INCREMENT_BP` | n/a | {{pct:AUCTION_MIN_INCREMENT_BP}} | Minimum raise over the standing bid |
 | `GOVERNANCE_DELAY` | {{blocks:GOVERNANCE_DELAY}} | {{dur:GOVERNANCE_DELAY}} | Notice before a price change takes effect |

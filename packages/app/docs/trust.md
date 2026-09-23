@@ -23,7 +23,7 @@ The client asks **several independent resolvers** and compares their roots and t
 
 The resolver list ships inside the client and is never downloaded, so it can only change by publishing a version everyone can inspect.
 
-At launch the two shipped resolvers are run by one operator on two machines that replay separately. That catches a bug or a bad deploy on one of them. It does not catch the operator. The count in "Verified by N resolvers" is exact, so the day a second operator runs one, it moves ([The verification line](verification)).
+The two shipped resolvers are run by one operator on two machines that replay separately. That catches a bug or a bad deploy on one of them. It does not catch the operator. The count in "Verified by N resolvers" is exact, so the day a second operator runs one, it moves ([The verification line](verification)).
 
 ## Anchoring
 

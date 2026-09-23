@@ -1,12 +1,12 @@
 # Buy
 
-Type a name, or `label.name`. The search runs by itself a second after you stop typing.
+Type a name, or `label.name`. The search runs by itself a second after you stop typing. Before you type, the screen shows the price table ([Prices](prices)).
 
 ## What comes back
 
 | Outcome | What the card shows | What you can do |
 |---|---|---|
-| **Available** | The price for a year and for a lifetime | **Register** |
+| **Available** | The price for a year and for a lifetime, with your wallet's balance beside them | **Register** |
 | **Registered** | The address it points to, the expiry, and the verification line | **Pay this address**, **Message the owner**, **Gift a renewal** |
 | **You own this** | The same card, marked as yours | **Manage it**, which opens the name in My Names |
 | **In grace** | "Expired and not available. The owner can renew until ≈ date." | **Gift a renewal** |

@@ -37,4 +37,4 @@ under it is a page, in order. The flat order is also the previous/next chain.
 - constants: Constants
 - messages: Messages and verdicts
 - glossary: Glossary
-- status: Pre-launch status
+- status: Status

@@ -40,7 +40,7 @@ Only ever **add**. Never replace, remove, or lower the quorum from a fetched sou
 
 `quorum` defaults to 2. Setting it to 1 is allowed, and every result then carries `QUORUM_BELOW_SPEC`.
 
-Both default endpoints are run by the same operator on two separately replayed boxes. That catches a bug or a bad deploy on one of them, not the operator ([Pre-launch status](status)).
+Both default endpoints are run by the same operator on two separately replayed boxes. That catches a bug or a bad deploy on one of them, not the operator ([Status](status)).
 
 ## What `verification` means
 
@@ -93,4 +93,4 @@ import '@nimiqnames/resolver/rendering.css'   // then class="nns-name" on the el
 
 ## Anchors
 
-Optional and off by default. Configure the anchor contract, at least two independently operated RPC endpoints, and the publisher list (`DEFAULT_ANCHOR_PUBLISHERS`), and every result is cross-checked against what was anchored on the EVM chain. Both defaults ship empty until launch fills them ([Pre-launch status](status)).
+Optional and off by default. Configure the anchor contract, at least two independently operated RPC endpoints, and the publisher list (`DEFAULT_ANCHOR_PUBLISHERS`), and every result is cross-checked against what was anchored on the EVM chain. Both defaults ship empty: no anchor contract is deployed yet ([Status](status)).
