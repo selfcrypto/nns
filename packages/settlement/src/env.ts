@@ -23,7 +23,7 @@
  * operator's divergence.
  */
 
-import { defineConfig, type NnsConfig } from '@nimiqnames/core'
+import { CONSTANTS, defineConfig, type NnsConfig } from '@nimiqnames/core'
 
 import { DEFAULT_RATES_PATH, readRateTable, type RateTable } from './rates.js'
 
@@ -179,13 +179,14 @@ export function loadSettings(env: EnvSource = process.env): ReconcilerSettings {
 /**
  * Default poll interval, seconds.
  *
- * A quarter of `CHECKPOINT_INTERVAL` at ~1 s blocks. `/log` only changes at a
- * checkpoint boundary, so polling faster buys nothing but requests — and the
- * poll is a cheap `/checkpoints/latest` that refetches the file only when the
- * height moves, so overshooting the boundary costs a few minutes of latency and
- * nothing else.
+ * A quarter of `CHECKPOINT_INTERVAL` at ~1 s blocks — 15 s since the interval
+ * became one batch (r31 fold, 2026-09-23; it was 180 at 720). `/log` only
+ * changes at a checkpoint boundary, so polling faster buys nothing but
+ * requests — and the poll is a cheap `/checkpoints/latest` that refetches the
+ * file only when the height moves, so overshooting the boundary costs a few
+ * seconds of latency and nothing else.
  */
-export const DEFAULT_POLL_SECONDS = 180
+export const DEFAULT_POLL_SECONDS = Math.ceil(CONSTANTS.CHECKPOINT_INTERVAL / 4)
 
 export function loadWatcherSettings(env: EnvSource = process.env): WatcherSettings {
   const base = loadSettings(env)

@@ -33,9 +33,11 @@ export class ReplayError extends Error {
 }
 
 /**
- * Checkpoint boundaries per persisted segment. Thirty-two keeps a year of
- * mainnet to a dozen commits while never holding more than thirty-two
- * registries at once.
+ * Checkpoint boundaries per persisted segment — thirty-two registries live at
+ * once, at most. With `CHECKPOINT_INTERVAL` one batch (r31 fold, 2026-09-23)
+ * that is thirty-two batches a commit, about 16,000 commits over a year of
+ * mainnet; the count is a rebuild's speed, never its result, and these
+ * segments are not §8.8's — those are the log's archive format, unimplemented.
  */
 export const SEGMENT_BOUNDARIES = 32
 

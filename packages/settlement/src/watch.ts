@@ -19,9 +19,10 @@
  * not need to: §7.2 step 3 forbids an indexer from advancing state past the
  * last finalised macro block, so every height the API can stamp is already
  * final, and `/log` is stamped with a **checkpoint boundary** — one every
- * `CHECKPOINT_INTERVAL` (720) blocks against a finality horizon of about one
- * batch. The watcher therefore trails the chain by ~12 minutes where finality
- * asks for ~1, and settles far past it while owning no rule about it.
+ * `CHECKPOINT_INTERVAL` blocks, which since the r31 fold (2026-09-23) is one
+ * batch, the finality horizon itself. The watcher therefore trails the chain
+ * by exactly finality, while owning no rule about it. (At the old 720 it
+ * trailed by ~12 minutes where finality asked for ~1.)
  *
  * What replaces the rule is the shape of {@link WatchSnapshot}: obligations and
  * the height they were observed at come out of **one** stamped fetch and cannot

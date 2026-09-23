@@ -717,8 +717,8 @@ describe('/checkpoints/{height}', () => {
     expect(response.status).toBe(400)
     expect(response.body).toMatchObject({
       error: 'NOT_A_CHECKPOINT_HEIGHT',
-      interval: 720,
-      nearest: { below: CHECKPOINT_HEIGHT, above: CHECKPOINT_HEIGHT + 720 },
+      interval: 60,
+      nearest: { below: CHECKPOINT_HEIGHT, above: CHECKPOINT_HEIGHT + 60 },
     })
   })
 

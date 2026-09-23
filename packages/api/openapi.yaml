@@ -423,7 +423,7 @@ paths:
           required: true
           schema: { type: integer, minimum: 0 }
           description: >
-            An absolute multiple of CHECKPOINT_INTERVAL (720). Not an offset
+            An absolute multiple of CHECKPOINT_INTERVAL (60). Not an offset
             from LAUNCH_HEIGHT (§8.1).
       responses:
         '200':

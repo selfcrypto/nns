@@ -234,8 +234,14 @@ export const CONSTANTS = Object.freeze({
   AUCTION_EXTENSION: 600,
 
   // ── State and verification (§8) ───────────────────────────────────────────
-  /** Root recomputed and published every this many blocks. ~12 min. */
-  CHECKPOINT_INTERVAL: 720,
+  /**
+   * Root recomputed and published every this many blocks. One batch (~1 min):
+   * an indexer never advances past the last finalised macro block, so a batch
+   * is the finest grain there is, and a checkpoint per batch makes "final" and
+   * "provable" the same moment. Was 720 (~12 min) until the r31 fold of
+   * 2026-09-23; 720 is a multiple of 60, so every earlier checkpoint stands.
+   */
+  CHECKPOINT_INTERVAL: 60,
   /** Log segment boundary (§8.8). ~1 y — was 3,153,600 (~36 days) through r28, a tenth of what the label said; nothing reads it yet. */
   SEGMENT_LENGTH: 31_536_000,
   /** Independent resolvers a client must agree before acting (§8.5). */

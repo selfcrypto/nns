@@ -186,7 +186,7 @@ describe('planUpdate', () => {
 
   // One block of slack against an off-by-one in the issuer's window, and it
   // costs nothing: checkpoints are CHECKPOINT_INTERVAL apart, so the next
-  // snapshot is 720 blocks away either way.
+  // snapshot is a full interval away either way.
   it('does not expire an attempt whose window ends exactly at the checkpoint', () => {
     const entry = entryOf(first, { state: 'CLAIMED', attemptCount: 1, live: liveAttempt({ expiresAfter: 1_440 }) })
     expect(planUpdate([entry], snapshotOf(1_440, [first])).expired).toEqual([])

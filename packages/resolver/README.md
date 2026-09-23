@@ -207,8 +207,8 @@ interface ResolveResult {
 | `PROOF_PENDING` | The name resolves and payments to it work; no checkpoint commits to this value yet | Pending depth — neutral, not an alarm |
 | `DELEGATED` | A delegate host answered (see below). The parent is proven; this address is not | Visibly different from the two above |
 
-`PROOF_PENDING` is a clock, not a fault. Checkpoints are cut every ~720 blocks
-(~12 minutes), so a name registered or repointed since the last one has no
+`PROOF_PENDING` is a clock, not a fault. Checkpoints are cut every
+`CHECKPOINT_INTERVAL` blocks — 60, one batch, ~1 minute — so a name registered or repointed since the last one has no
 proof to serve yet. It carries a `PROOF_PENDING` warning whose wording is
 deliberately about depth. Do not put a red badge on it: it is the expected
 state of every fresh registration, and a warning users see on every healthy

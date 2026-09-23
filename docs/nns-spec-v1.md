@@ -314,7 +314,7 @@ NIM figures assume ~$0.00032/NIM, the rate at the launch freeze (2026-09-22).
 | `TERM_LENGTH` | 31,536,000 blocks (~1 y) | See §10.4. A *length*: the term is `[registration, registration + TERM_LENGTH)` and the name is in `GRACE` at `expiry` (§7.3) |
 | `GRACE_PERIOD` | 2,592,000 blocks (~30 d) | Resolution off, renewal still allowed. Also a length: `[expiry, expiry + GRACE_PERIOD)`, `AVAILABLE` at the end (§7.3) |
 | `OFFER_MAX_LIFETIME` | 1,296,000 blocks (~15 d) | Then auto-expires |
-| `CHECKPOINT_INTERVAL` | 720 blocks (~12 min) | Root recomputed and published |
+| `CHECKPOINT_INTERVAL` | 60 blocks (~1 min, one batch) | Root recomputed and published. One batch is the finest grain an indexer has (§7.2 step 3), so a checkpoint per batch makes "final" and "provable" the same moment. Was 720 (~12 min) until the r31 fold of 2026-09-23 |
 | `RESOLVER_QUORUM` | 2 | Independent resolvers a client must agree before acting (§8.5) |
 | `ANCHOR_QUORUM` | 2 | Independent publishers whose roots must match (§9) |
 | `DUST_VALUE` | 1 luna | Value for non-fee-bearing messages (§5.4) |
@@ -1946,8 +1946,9 @@ Every `CHECKPOINT_INTERVAL` blocks, build a tree over all names in
 counted from block zero, never as offsets from `LAUNCH_HEIGHT`. The schedule
 must not move with a config value: `LAUNCH_HEIGHT` was open until the launch freeze, so
 an offset schedule is one two operators can disagree about while both honestly
-implementing "every `CHECKPOINT_INTERVAL` blocks". Multiples of 720 from zero
-need no agreement. `LAUNCH_HEIGHT` itself never gets a checkpoint unless it
+implementing "every `CHECKPOINT_INTERVAL` blocks". Multiples of 60 from zero
+need no agreement — and every one is a macro block, so a checkpoint sits on
+every finalised batch. `LAUNCH_HEIGHT` itself never gets a checkpoint unless it
 happens to be such a multiple; a boundary is strictly above the previous one.
 
 The tree itself:
@@ -2513,14 +2514,15 @@ benefits from unbounded names carries the cost of storing them.
 
 ### 8.7 What gates usability, and what does not
 
-Three clocks run at different speeds, and only the first determines whether
-a name works:
+Three clocks, and only the first determines whether a name works. Since
+the r31 fold (2026-09-23) the first two tick together — a checkpoint is cut
+at every finalised batch — so a name is provable the moment it is final:
 
 | Clock | Interval | What it gates |
 |---|---|---|
 | Finality (`FINALITY_RULE`) | ~minutes, last finalised macro block | **The name is registered and resolves** |
-| Checkpoint (`CHECKPOINT_INTERVAL`) | ~12 min | A Merkle proof exists for it |
-| Anchor (§9) | ~1 h | The root is notarised on the anchor chain (§9) |
+| Checkpoint (`CHECKPOINT_INTERVAL`) | ~1 min — the same batch | A Merkle proof exists for it |
+| Anchor (§9) | on change, daily floor | The root is notarised on the anchor chain (§9) |
 
 **A name is usable at the first clock.** Registration takes effect when the
 transaction is final; the indexer applies it, the resolver answers for it,

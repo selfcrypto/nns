@@ -177,7 +177,7 @@ export const hintLabel = (): string => 'More about this'
 export const verifiedHint = (): string =>
   'Each resolver answered with a Merkle proof, and this app checked it against the resolver’s published checkpoint before showing the address.'
 
-/** The interval is `CHECKPOINT_INTERVAL` rendered, never typed — a tempo era cuts one a minute. */
+/** The interval is `CHECKPOINT_INTERVAL` rendered, never typed — it has moved once already (720 → 60, 2026-09-23). */
 export const proofPendingLine = (): string =>
   `Proof pending. The name works now. Checkpoints are cut every ${blocksApprox(CONSTANTS.CHECKPOINT_INTERVAL)}.`
 

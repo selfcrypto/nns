@@ -21,9 +21,10 @@
  * `pipeline.ts` — never offsets from `LAUNCH_HEIGHT`. `LAUNCH_HEIGHT` is an
  * OPEN §3 value, and a checkpoint schedule that moves with a config value is a
  * schedule two operators can disagree about while both following the spec.
- * Multiples of 720 from block zero are the one reading that needs no
+ * Multiples of 60 from block zero are the one reading that needs no
  * agreement. (They are also always macro blocks: the PoS genesis, 3,456,000,
- * is itself a multiple of 720, and 720 is 12 batches.)
+ * is itself a multiple of 60, and 60 blocks is one batch — since the r31 fold
+ * of 2026-09-23, a checkpoint per finalised macro block.)
  *
  * Every multiple from `LAUNCH_HEIGHT` onwards, `LAUNCH_HEIGHT` included when it
  * is itself a multiple. The state there is the empty state, but the checkpoint

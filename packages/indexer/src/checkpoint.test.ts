@@ -131,9 +131,11 @@ describe('CheckpointBuilder', () => {
     }
   })
 
-  it('crosses no boundary, and commits nothing, inside a quiet batch', () => {
+  it('commits nothing when no boundary is crossed', () => {
+    // No real batch is quiet since the interval became one batch (every macro
+    // block is a boundary); a partial advance is what still crosses none.
     const { builder: b, pipeline: p } = builder()
-    expect(b.buildForBatch(p.applyBatch(initialState(), [], LAUNCH + 60))).toEqual([])
+    expect(b.buildForBatch(p.applyBatch(initialState(), [], LAUNCH + INTERVAL / 2))).toEqual([])
   })
 
   it('covers exactly the log lines at or below the checkpoint height', () => {
@@ -148,7 +150,7 @@ describe('CheckpointBuilder', () => {
       blockNumber: LAUNCH + INTERVAL + 10,
       recipientData: payload('NNS1Glatername'),
     })
-    const result = p.applyBatch(initialState(), [before, after], LAUNCH + INTERVAL + 60)
+    const result = p.applyBatch(initialState(), [before, after], LAUNCH + INTERVAL + 30)
 
     expect(result.boundariesCrossed.map((crossing) => crossing.logRowsBefore)).toEqual([1])
     const [record] = b.buildForBatch(result)
@@ -182,8 +184,8 @@ describe('CheckpointBuilder', () => {
     // intermediate the builder holds without changing the chain.
     const messages = [
       candidate({ blockNumber: LAUNCH + 10, recipientData: payload('NNS1Gfirstname') }),
-      candidate({ blockNumber: LAUNCH + INTERVAL + 70, recipientData: payload('NNS1Gsecondname') }),
-      candidate({ blockNumber: LAUNCH + 2 * INTERVAL + 130, recipientData: payload('NNS1Gthirdname') }),
+      candidate({ blockNumber: LAUNCH + INTERVAL + 20, recipientData: payload('NNS1Gsecondname') }),
+      candidate({ blockNumber: LAUNCH + 2 * INTERVAL + 40, recipientData: payload('NNS1Gthirdname') }),
     ]
     const through = LAUNCH + 3 * INTERVAL
 
@@ -196,7 +198,9 @@ describe('CheckpointBuilder', () => {
     let state = initialState()
     const apart = []
     for (const [index, message] of messages.entries()) {
-      const step = split.pipeline.applyBatch(state, [message], LAUNCH + INTERVAL * (index + 1) - 60)
+      // Each split batch ends ten blocks short of the next boundary, so the
+      // apart run crosses each boundary in a different call from the whole run.
+      const step = split.pipeline.applyBatch(state, [message], LAUNCH + INTERVAL * (index + 1) - 10)
       state = step.state
       apart.push(...split.builder.buildForBatch(step))
     }

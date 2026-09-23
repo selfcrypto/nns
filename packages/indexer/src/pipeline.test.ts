@@ -49,26 +49,29 @@ function pipeline(options: PipelineOptions = {}) {
 
 describe('checkpoint boundaries', () => {
   it('steps by CHECKPOINT_INTERVAL from an absolute origin', () => {
-    expect(CONSTANTS.CHECKPOINT_INTERVAL).toBe(720)
+    expect(CONSTANTS.CHECKPOINT_INTERVAL).toBe(60)
     const interval = CONSTANTS.CHECKPOINT_INTERVAL
-    expect(nextBoundaryAbove(0, interval)).toBe(720)
-    expect(nextBoundaryAbove(719, interval)).toBe(720)
+    expect(nextBoundaryAbove(0, interval)).toBe(60)
+    expect(nextBoundaryAbove(59, interval)).toBe(60)
     // A height that IS a boundary has already had it applied.
-    expect(nextBoundaryAbove(720, interval)).toBe(1440)
-    expect(nextBoundaryAbove(58_176_000, interval)).toBe(58_176_720)
+    expect(nextBoundaryAbove(60, interval)).toBe(120)
+    expect(nextBoundaryAbove(58_176_000, interval)).toBe(58_176_060)
   })
 
   it('applies every boundary in the gap, in order', () => {
     const seen: number[] = []
     const state = advanceThroughBoundaries(initialState(), LAUNCH + 1_500, (height) => seen.push(height))
-    expect(seen).toEqual([LAUNCH + 720, LAUNCH + 1_440])
+    // Every multiple of 60 above LAUNCH through the target: 25 of them.
+    expect(seen).toEqual(Array.from({ length: 25 }, (_, i) => LAUNCH + 60 * (i + 1)))
     // …and lands on the target itself, not on the last boundary.
     expect(state.height).toBe(LAUNCH + 1_500)
   })
 
-  it('crosses no boundary inside one batch that spans none', () => {
+  it('crosses no boundary before the next one', () => {
+    // Since the interval became one batch every real batch ends on a
+    // boundary; a partial advance is the one walk that crosses none.
     const seen: number[] = []
-    advanceThroughBoundaries(initialState(), LAUNCH + 60, (height) => seen.push(height))
+    advanceThroughBoundaries(initialState(), LAUNCH + 30, (height) => seen.push(height))
     expect(seen).toEqual([])
   })
 
@@ -81,7 +84,7 @@ describe('checkpoint boundaries', () => {
     // The `after` argument, and the only case that uses it: a state sitting on
     // a boundary nobody has committed yet.
     const seen: number[] = []
-    advanceThroughBoundaries(initialState(), LAUNCH + 60, (height) => seen.push(height), LAUNCH - 1)
+    advanceThroughBoundaries(initialState(), LAUNCH + 30, (height) => seen.push(height), LAUNCH - 1)
     expect(seen).toEqual([LAUNCH])
   })
 
@@ -89,9 +92,10 @@ describe('checkpoint boundaries', () => {
     // `advanceTo` moves forward only, so a boundary below `state.height` is one
     // an earlier call already passed. Clamped rather than thrown at.
     const seen: number[] = []
-    const state = advanceThroughBoundaries(initialState(), LAUNCH + 1_500)
+    const state = advanceThroughBoundaries(initialState(), LAUNCH + 1_530)
     advanceThroughBoundaries(state, LAUNCH + 2_200, (height) => seen.push(height), LAUNCH - 1)
-    expect(seen).toEqual([LAUNCH + 2_160])
+    // Only the boundaries above 1,530: 1,560 through 2,160, never LAUNCH itself.
+    expect(seen).toEqual(Array.from({ length: 11 }, (_, i) => LAUNCH + 1_560 + 60 * i))
   })
 })
 
@@ -100,17 +104,18 @@ describe('applyBatch', () => {
     // The MUST in §7.3. An implementation that advances only on messages
     // passes almost every test and then commits a stale root.
     const { pipeline: p } = pipeline()
-    const macroBlock = LAUNCH + 1_440
+    const macroBlock = LAUNCH + 180
     const result = p.applyBatch(initialState(), [], macroBlock)
     expect(result.state.height).toBe(macroBlock)
     // LAUNCH leads, because it is itself a multiple of the interval.
-    expect(result.boundariesCrossed.map((crossing) => crossing.height)).toEqual([LAUNCH, LAUNCH + 720, LAUNCH + 1_440])
-    // Each carries the state as of its own height — a checkpoint at LAUNCH+720
+    expect(result.boundariesCrossed.map((crossing) => crossing.height)).toEqual([LAUNCH, LAUNCH + 60, LAUNCH + 120, LAUNCH + 180])
+    // Each carries the state as of its own height — a checkpoint at LAUNCH+60
     // must not commit the state as of the macro block above it.
     expect(result.boundariesCrossed.map((crossing) => crossing.state.height)).toEqual([
       LAUNCH,
-      LAUNCH + 720,
-      LAUNCH + 1_440,
+      LAUNCH + 60,
+      LAUNCH + 120,
+      LAUNCH + 180,
     ])
     expect(result.logRows).toEqual([])
   })
@@ -306,18 +311,21 @@ describe('LAUNCH_HEIGHT as a boundary (§8.1)', () => {
       [candidate({ blockNumber: LAUNCH, recipientData: payload('NNS1Gtestname'), value: feeFor('testname', LAUNCH_PRICES), recipient: A })],
       LAUNCH + 60,
     )
-    expect(result.boundariesCrossed.map((crossing) => crossing.height)).toEqual([LAUNCH])
+    expect(result.boundariesCrossed.map((crossing) => crossing.height)).toEqual([LAUNCH, LAUNCH + 60])
     // The launch registration is *not* under the launch checkpoint: a boundary
     // fires before the transactions at its own height (§7.3), so the state it
-    // commits is the empty one and the log prefix it covers is empty.
-    const [launchBoundary] = result.boundariesCrossed
+    // commits is the empty one and the log prefix it covers is empty. The
+    // batch's own boundary, one interval on, is the first to carry it.
+    const [launchBoundary, next] = result.boundariesCrossed
     expect(launchBoundary?.state.names.size).toBe(0)
     expect(launchBoundary?.logRowsBefore).toBe(0)
+    expect(next?.state.names.size).toBe(1)
+    expect(next?.logRowsBefore).toBe(1)
     expect(result.logRows).toHaveLength(1)
   })
 
   it('emits it even when the launch block is itself the batch’s macro block', () => {
-    // 720 is a multiple of 60, so a LAUNCH_HEIGHT on a boundary is always a
+    // The interval is one batch, so a LAUNCH_HEIGHT on a boundary is always a
     // macro block too: the first batch can begin and end at it.
     const { pipeline: p } = pipeline()
     expect(p.applyBatch(initialState(), [], LAUNCH).boundariesCrossed.map((c) => c.height)).toEqual([LAUNCH])
@@ -326,11 +334,11 @@ describe('LAUNCH_HEIGHT as a boundary (§8.1)', () => {
   it('emits it exactly once, however the batches fall', () => {
     const { pipeline: p } = pipeline()
     const first = p.applyBatch(initialState(), [], LAUNCH)
-    const second = p.applyBatch(first.state, [], LAUNCH + 60)
-    const third = p.applyBatch(second.state, [], LAUNCH + 720)
+    const second = p.applyBatch(first.state, [], LAUNCH + 30)
+    const third = p.applyBatch(second.state, [], LAUNCH + 60)
     expect(first.boundariesCrossed.map((c) => c.height)).toEqual([LAUNCH])
     expect(second.boundariesCrossed).toEqual([])
-    expect(third.boundariesCrossed.map((c) => c.height)).toEqual([LAUNCH + 720])
+    expect(third.boundariesCrossed.map((c) => c.height)).toEqual([LAUNCH + 60])
   })
 
   it('does not re-emit it for a run resuming from a database that holds it', () => {
@@ -339,8 +347,8 @@ describe('LAUNCH_HEIGHT as a boundary (§8.1)', () => {
     // lines, so a second derivation is a divergence, not a duplicate.
     const { pipeline: p } = pipeline({ lastCheckpointHeight: LAUNCH })
     const state = initialState() // reloaded at LAUNCH, its checkpoint already written
-    expect(p.applyBatch(state, [], LAUNCH + 60).boundariesCrossed).toEqual([])
-    expect(p.applyBatch(state, [], LAUNCH + 720).boundariesCrossed.map((c) => c.height)).toEqual([LAUNCH + 720])
+    expect(p.applyBatch(state, [], LAUNCH + 30).boundariesCrossed).toEqual([])
+    expect(p.applyBatch(state, [], LAUNCH + 60).boundariesCrossed.map((c) => c.height)).toEqual([LAUNCH + 60])
   })
 
   it('gives a LAUNCH_HEIGHT that is not a multiple no checkpoint of its own', () => {
@@ -353,9 +361,11 @@ describe('LAUNCH_HEIGHT as a boundary (§8.1)', () => {
     const p = new Pipeline(CONFIG, logger, { lastCheckpointHeight: OFF_BOUNDARY - 1 })
     const state = Object.freeze({ ...initialState(), height: OFF_BOUNDARY })
     const result = p.applyBatch(state, [], OFF_BOUNDARY + 1_000)
-    // The schedule is absolute, so the first boundary is the next multiple of
-    // 720 — not `LAUNCH_HEIGHT + 720`.
-    expect(result.boundariesCrossed.map((crossing) => crossing.height)).toEqual([LAUNCH + 720])
+    // The schedule is absolute, so the boundaries are the multiples of 60 —
+    // not `LAUNCH_HEIGHT + 1 + 60k`.
+    expect(result.boundariesCrossed.map((crossing) => crossing.height)).toEqual(
+      Array.from({ length: 16 }, (_, i) => LAUNCH + 60 * (i + 1)),
+    )
   })
 })
 

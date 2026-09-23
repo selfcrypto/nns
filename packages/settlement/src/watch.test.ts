@@ -191,7 +191,7 @@ describe('takeSnapshot', () => {
   })
 
   it('applies no confirmation depth — every leg at or below the stamp is due', () => {
-    // The buy is 690 blocks under the boundary; a watcher that held back
+    // The buy is 30 blocks under the boundary; a watcher that held back
     // "recent" obligations would report nothing here, and be wrong to.
     const lines = stageLog(saleScenario(config), config).lines
     expect(CP1 - H.buy).toBeLessThan(CONSTANTS.CHECKPOINT_INTERVAL)

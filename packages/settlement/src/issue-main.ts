@@ -156,8 +156,8 @@ async function run(argv: readonly string[]): Promise<number> {
 
       // Issue on every cycle, including one where the checkpoint did not move:
       // a leg left unpaid because its sender was empty becomes payable the
-      // moment somebody tops the address up, and waiting ~12 minutes for the
-      // next boundary to notice would be an arbitrary delay on someone's money.
+      // moment somebody tops the address up, and waiting for the next boundary
+      // to notice would be an arbitrary delay on someone's money.
       const report = await issuePass({
         rpc,
         ledger,

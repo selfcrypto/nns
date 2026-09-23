@@ -23,7 +23,7 @@
     <string id="resolverLatency" params="ms">2 ms</string>
     <string id="hintLabel">More about this</string>
     <string id="verifiedHint">Each resolver answered with a Merkle proof, and this app checked it against the resolver’s published checkpoint before showing the address.</string>
-    <string id="proofPendingLine">Proof pending. The name works now. Checkpoints are cut every ~12 min.</string>
+    <string id="proofPendingLine">Proof pending. The name works now. Checkpoints are cut every ~1 min.</string>
     <string id="delegatedLine" params="parent host">Resolved by {host}</string>
     <string id="delegatedExplainer" params="parent host">{parent} has delegated its subdomains to {host}, and that delegation is verified on chain. The address above is the one that host answered with.</string>
     <string id="targetChangedLine">Repointed since the last checkpoint. This address is newer than its proof.</string>
@@ -36,7 +36,7 @@
     <string id="WARNING_TEXT.DELEGATE_HOST_UNPROVEN">The host came from the live record, not a proven one.</string>
     <string id="WARNING_TEXT.DELEGATED_ANSWER">This address is the host’s word, with no proof behind it.</string>
     <string id="WARNING_TEXT.DUPLICATE_RESOLVER">One resolver was listed twice and counted once.</string>
-    <string id="WARNING_TEXT.PROOF_PENDING">Proof pending. The name works now. Checkpoints are cut every ~12 min.</string>
+    <string id="WARNING_TEXT.PROOF_PENDING">Proof pending. The name works now. Checkpoints are cut every ~1 min.</string>
     <string id="WARNING_TEXT.QUORUM_BELOW_SPEC">One resolver is configured to answer.</string>
     <string id="WARNING_TEXT.ROOT_HEIGHTS_DIFFER">Couldn’t compare resolver checkpoints this time.</string>
     <string id="WARNING_TEXT.TARGET_CHANGED_SINCE_CHECKPOINT">Repointed since the last checkpoint. This address is newer than its proof.</string>

@@ -1243,7 +1243,7 @@ freeze.
 | `LIFETIME_MULTIPLIER` / `LIFETIME_TERMS` | 10 / 100 | same | a lifetime is a hundred terms for ten fees |
 | `TERM_LENGTH` | 31,536,000 (~1 y) | 604,800 (~1 w) | blocks per term |
 | `GRACE_PERIOD` | 2,592,000 (30 d) | 86,400 (~1 d) | renewable after expiry |
-| `CHECKPOINT_INTERVAL` | 720 | 60 | blocks between proofs |
+| `CHECKPOINT_INTERVAL` | 60 | same | blocks between proofs — one batch (was 720 until 2026-09-23) |
 | `XFER_TIMELOCK` | 43,200 | 600 | a transfer matures after this |
 | `GOVERNANCE_DELAY` | 86,400 | 1,200 | a `P` takes effect after this |
 | `REFUND_FLOOR` | 1 NIM | same | refunds below it are not owed |

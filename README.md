@@ -58,7 +58,7 @@ Three clocks, and only the first decides whether a name works:
 | Clock | Interval | Gates |
 |---|---|---|
 | Finality | ~minutes | **The name is registered and resolves** |
-| Checkpoint | ~12 min | A Merkle proof exists for it |
+| Checkpoint | ~1 min, one batch | A Merkle proof exists for it |
 | Anchor | on change, daily floor | The root is notarised on an EVM chain |
 
 ## Building on it
