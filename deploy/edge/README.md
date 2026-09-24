@@ -23,11 +23,6 @@ challenge is answered. Delete the server blocks for roles you do not run — a
 hostname nginx is told to certify but nobody points DNS at is a renewal that
 fails forever.
 
-An uptime monitor's public status page is an overlay, not a fourth block:
-`COMPOSE_FILE=docker-compose.yml:status.yml` in `.env` plus
-`NNS_EDGE_STATUS_HOST`. Only the page's anonymous paths are proxied; the
-dashboard and login stay loopback-only, reached over an SSH tunnel.
-
 ## Two things worth knowing before they cost a week
 
 - **`acme-state` is a named volume and must stay one.** It holds the ACME

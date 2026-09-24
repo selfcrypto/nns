@@ -141,9 +141,9 @@ services:
       NNS_ANCHOR_LOOKBACK_BLOCKS: ${NNS_ANCHOR_LOOKBACK_BLOCKS:-}
 
       # The dead-man switch above. An uptime monitor's push URL — Uptime Kuma
-      # calls these "push" monitors and prints the exact line. Reach it over a
-      # shared docker network if the monitor runs beside this role. Optional:
-      # empty means no ping and no monitoring, which is where you started.
+      # calls these "push" monitors and prints the exact line. Run the monitor
+      # off this box: one beside the role dies with it. Optional: empty means
+      # no ping and no monitoring, which is where you started.
       NNS_ANCHOR_PUSH_URL: ${NNS_ANCHOR_PUSH_URL:-}
     logging:
       driver: json-file

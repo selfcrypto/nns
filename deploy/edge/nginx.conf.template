@@ -63,7 +63,7 @@ http {
     acme_shared_zone zone=acme:1M;
 
     # Optional vhosts arrive as compose overlays that mount a second
-    # *.conf.template beside this one (`status.yml` is one). A glob with zero
+    # *.conf.template beside this one (none ships today). A glob with zero
     # matches is legal nginx, so running without any overlay changes nothing.
     include /etc/nginx/vhost-*.conf;
 

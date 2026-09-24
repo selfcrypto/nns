@@ -11,7 +11,7 @@ name: nns-edge
 
 services:
   edge:
-    # Pinned exactly, like kubo and Kuma and unlike the app-tier images: this
+    # Pinned exactly, like kubo and unlike the app-tier images: this
     # is the security boundary, and changes to it should be deliberate and
     # verified, never whatever a routine `pull` happens to fetch. Bump it on
     # purpose and re-check every public URL from outside the box after.
