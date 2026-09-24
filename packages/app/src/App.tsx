@@ -22,6 +22,7 @@ import { MyNamesScreen } from './screens/MyNames'
 import { OffersScreen } from './screens/Offers'
 import { PayScreen } from './screens/Pay'
 import { ProbeSignScreen } from './screens/ProbeSign'
+import { StatsScreen } from './screens/Stats'
 
 /**
  * `buy` rather than `search`: the tab is named for the job, and the code says
@@ -394,6 +395,7 @@ export function App() {
           <MyNamesScreen key={wallet?.identity.addresses[0] ?? ''} wallet={wallet} manage={route.param} onManageHandled={() => replace({ tab: 'names', param: null }, true)} onConnect={connect} />
         )}
         {tab === 'docs' && <DocsScreen slug={route.param} />}
+        {tab === 'stats' && <StatsScreen />}
         {tab === 'probe-sign' && <ProbeSignScreen wallet={wallet} />}
         {tab === 'inbox' && <InboxScreen key={wallet?.identity.addresses[0] ?? ''} wallet={wallet} onConnect={connect} />}
         {tab === 'market' && (

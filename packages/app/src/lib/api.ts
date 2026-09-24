@@ -414,3 +414,207 @@ export async function getParams(base: string, fetchJson: JsonFetch = jsonFetch):
     height: num(body['height'], 'height'),
   }
 }
+
+// ── /stats ───────────────────────────────────────────────────────────────────
+
+/** A count and the luna it carried. */
+export interface Tally {
+  readonly count: number
+  readonly amount: bigint
+}
+
+/** One bucket of `/stats`' daily or hourly series; `bucket` counts from `LAUNCH_HEIGHT`. */
+export interface StatsBucket {
+  readonly bucket: number
+  readonly lines: number
+  readonly registrations: number
+}
+
+/**
+ * `/stats`: the registry counted, for the Stats screen. Display material like
+ * `/offers`, never a source of an address or a verdict.
+ */
+export interface Stats {
+  readonly chain: { readonly launchHeight: number; readonly scannedThrough: number | null; readonly checkpointInterval: number }
+  readonly checkpoints: {
+    readonly retained: number
+    readonly latest: { readonly height: number; readonly commitment: string; readonly createdAt: string } | null
+  }
+  readonly names: {
+    readonly total: number
+    readonly registered: number
+    readonly grace: number
+    readonly owners: number
+    readonly withEvm: number
+    readonly delegated: number
+    readonly pointedElsewhere: number
+    readonly renewSoon: number
+    readonly released: number
+    readonly lifetimeTerms: number
+    readonly renewals: number
+    readonly byLength: readonly { readonly length: number; readonly names: number }[]
+    readonly topHolders: readonly { readonly owner: string; readonly names: number }[]
+    readonly recent: readonly { readonly name: string; readonly height: number; readonly lifetime: boolean }[]
+  }
+  readonly market: {
+    readonly openOffers: number
+    readonly openAuctions: number
+    readonly pendingTransfers: number
+    readonly listings: number
+    readonly sales: number
+    readonly saleVolume: bigint
+    readonly topSale: { readonly name: string; readonly price: bigint } | null
+    readonly auctions: number
+    readonly bids: number
+    readonly topBid: { readonly name: string; readonly bid: bigint } | null
+  }
+  readonly log: {
+    readonly lines: number
+    readonly senders: number
+    readonly byType: readonly { readonly type: string; readonly lines: number; readonly ok: number }[]
+    readonly byVerdict: readonly { readonly verdict: string; readonly lines: number }[]
+    readonly daily: readonly StatsBucket[]
+    readonly hourly: readonly StatsBucket[]
+    readonly dayBlocks: number
+    readonly hourBlocks: number
+  }
+  readonly money: {
+    readonly revenue: bigint
+    readonly owed: bigint
+    readonly burned: bigint
+    readonly payouts: Tally
+    readonly refunded: Tally
+    readonly forfeited: Tally
+    readonly outstanding: Tally
+  }
+  readonly referrals: {
+    readonly registrations: number
+    readonly referrers: number
+    readonly top: readonly { readonly name: string; readonly registrations: number; readonly volume: bigint }[]
+  }
+  readonly height: number
+}
+
+const list = <T>(value: unknown, path: string, read: (item: unknown, path: string) => T): readonly T[] => {
+  if (!Array.isArray(value)) throw shape(path)
+  return value.map((item, index) => read(item, `${path}[${index}]`))
+}
+
+const nullableNum = (value: unknown, path: string): number | null => (value === null ? null : num(value, path))
+
+const readTally = (value: unknown, path: string): Tally => {
+  const body = record(value, path)
+  return { count: num(body['count'], `${path}.count`), amount: luna(body['amount'], `${path}.amount`) }
+}
+
+const readBucket = (value: unknown, path: string): StatsBucket => {
+  const body = record(value, path)
+  return {
+    bucket: num(body['bucket'], `${path}.bucket`),
+    lines: num(body['lines'], `${path}.lines`),
+    registrations: num(body['registrations'], `${path}.registrations`),
+  }
+}
+
+export async function getStats(base: string, fetchJson: JsonFetch = jsonFetch): Promise<Stats> {
+  const body = record(await request(fetchJson, base, '/stats'), 'response')
+  const chain = record(body['chain'], 'chain')
+  const checkpoints = record(body['checkpoints'], 'checkpoints')
+  const names = record(body['names'], 'names')
+  const market = record(body['market'], 'market')
+  const log = record(body['log'], 'log')
+  const money = record(body['money'], 'money')
+  const referrals = record(body['referrals'], 'referrals')
+  const latest = checkpoints['latest'] === null ? null : record(checkpoints['latest'], 'checkpoints.latest')
+  const topSale = market['topSale'] === null ? null : record(market['topSale'], 'market.topSale')
+  const topBid = market['topBid'] === null ? null : record(market['topBid'], 'market.topBid')
+  return {
+    chain: {
+      launchHeight: num(chain['launchHeight'], 'chain.launchHeight'),
+      scannedThrough: nullableNum(chain['scannedThrough'], 'chain.scannedThrough'),
+      checkpointInterval: num(chain['checkpointInterval'], 'chain.checkpointInterval'),
+    },
+    checkpoints: {
+      retained: num(checkpoints['retained'], 'checkpoints.retained'),
+      latest:
+        latest === null
+          ? null
+          : {
+              height: num(latest['height'], 'checkpoints.latest.height'),
+              commitment: str(latest['commitment'], 'checkpoints.latest.commitment'),
+              createdAt: str(latest['createdAt'], 'checkpoints.latest.createdAt'),
+            },
+    },
+    names: {
+      total: num(names['total'], 'names.total'),
+      registered: num(names['registered'], 'names.registered'),
+      grace: num(names['grace'], 'names.grace'),
+      owners: num(names['owners'], 'names.owners'),
+      withEvm: num(names['withEvm'], 'names.withEvm'),
+      delegated: num(names['delegated'], 'names.delegated'),
+      pointedElsewhere: num(names['pointedElsewhere'], 'names.pointedElsewhere'),
+      renewSoon: num(names['renewSoon'], 'names.renewSoon'),
+      released: num(names['released'], 'names.released'),
+      lifetimeTerms: num(names['lifetimeTerms'], 'names.lifetimeTerms'),
+      renewals: num(names['renewals'], 'names.renewals'),
+      byLength: list(names['byLength'], 'names.byLength', (item, path) => {
+        const row = record(item, path)
+        return { length: num(row['length'], `${path}.length`), names: num(row['names'], `${path}.names`) }
+      }),
+      topHolders: list(names['topHolders'], 'names.topHolders', (item, path) => {
+        const row = record(item, path)
+        return { owner: str(row['owner'], `${path}.owner`), names: num(row['names'], `${path}.names`) }
+      }),
+      recent: list(names['recent'], 'names.recent', (item, path) => {
+        const row = record(item, path)
+        return { name: str(row['name'], `${path}.name`), height: num(row['height'], `${path}.height`), lifetime: bool(row['lifetime'], `${path}.lifetime`) }
+      }),
+    },
+    market: {
+      openOffers: num(market['openOffers'], 'market.openOffers'),
+      openAuctions: num(market['openAuctions'], 'market.openAuctions'),
+      pendingTransfers: num(market['pendingTransfers'], 'market.pendingTransfers'),
+      listings: num(market['listings'], 'market.listings'),
+      sales: num(market['sales'], 'market.sales'),
+      saleVolume: luna(market['saleVolume'], 'market.saleVolume'),
+      topSale: topSale === null ? null : { name: str(topSale['name'], 'market.topSale.name'), price: luna(topSale['price'], 'market.topSale.price') },
+      auctions: num(market['auctions'], 'market.auctions'),
+      bids: num(market['bids'], 'market.bids'),
+      topBid: topBid === null ? null : { name: str(topBid['name'], 'market.topBid.name'), bid: luna(topBid['bid'], 'market.topBid.bid') },
+    },
+    log: {
+      lines: num(log['lines'], 'log.lines'),
+      senders: num(log['senders'], 'log.senders'),
+      byType: list(log['byType'], 'log.byType', (item, path) => {
+        const row = record(item, path)
+        return { type: str(row['type'], `${path}.type`), lines: num(row['lines'], `${path}.lines`), ok: num(row['ok'], `${path}.ok`) }
+      }),
+      byVerdict: list(log['byVerdict'], 'log.byVerdict', (item, path) => {
+        const row = record(item, path)
+        return { verdict: str(row['verdict'], `${path}.verdict`), lines: num(row['lines'], `${path}.lines`) }
+      }),
+      daily: list(log['daily'], 'log.daily', readBucket),
+      hourly: list(log['hourly'], 'log.hourly', readBucket),
+      dayBlocks: num(log['dayBlocks'], 'log.dayBlocks'),
+      hourBlocks: num(log['hourBlocks'], 'log.hourBlocks'),
+    },
+    money: {
+      revenue: luna(money['revenue'], 'money.revenue'),
+      owed: luna(money['owed'], 'money.owed'),
+      burned: luna(money['burned'], 'money.burned'),
+      payouts: readTally(money['payouts'], 'money.payouts'),
+      refunded: readTally(money['refunded'], 'money.refunded'),
+      forfeited: readTally(money['forfeited'], 'money.forfeited'),
+      outstanding: readTally(money['outstanding'], 'money.outstanding'),
+    },
+    referrals: {
+      registrations: num(referrals['registrations'], 'referrals.registrations'),
+      referrers: num(referrals['referrers'], 'referrals.referrers'),
+      top: list(referrals['top'], 'referrals.top', (item, path) => {
+        const row = record(item, path)
+        return { name: str(row['name'], `${path}.name`), registrations: num(row['registrations'], `${path}.registrations`), volume: luna(row['volume'], `${path}.volume`) }
+      }),
+    },
+    height: num(body['height'], 'height'),
+  }
+}

@@ -20,8 +20,8 @@
  * hash, and the hash is one function pair").
  */
 
-export type Tab = 'home' | 'buy' | 'pay' | 'names' | 'inbox' | 'market' | 'docs' | 'probe-sign'
-export type NavTab = Exclude<Tab, 'home' | 'docs' | 'probe-sign'>
+export type Tab = 'home' | 'buy' | 'pay' | 'names' | 'inbox' | 'market' | 'docs' | 'stats' | 'probe-sign'
+export type NavTab = Exclude<Tab, 'home' | 'docs' | 'stats' | 'probe-sign'>
 
 /**
  * The tab bar, in order. `home` is the landing page and `docs` the
@@ -31,7 +31,7 @@ export type NavTab = Exclude<Tab, 'home' | 'docs' | 'probe-sign'>
 export const TABS: readonly NavTab[] = ['buy', 'pay', 'names', 'inbox', 'market']
 
 /** `probe-sign` is tasks/26 D0's device probe of the wallet's `sign()`: a page, not a tab, reached by typing its hash. */
-const ALL_TABS: readonly Tab[] = ['home', 'docs', 'probe-sign', ...TABS]
+const ALL_TABS: readonly Tab[] = ['home', 'docs', 'stats', 'probe-sign', ...TABS]
 
 export interface Route {
   readonly tab: Tab

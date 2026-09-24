@@ -506,6 +506,126 @@
     <string id="notifyDeleteHint">Removes every contact, every setting and the record of what was sent for this address. Nothing about you stays on the service.</string>
     <string id="notifySignOutLabel">Sign out</string>
     <string id="notifyDataHint">The service keeps this address, the contacts you add here and which messages it already sent. Every message carries a one-click unsubscribe.</string>
+  </group>
+  <group name="Stats (`#/stats`, 2026-09-24: the registry counted, from `/stats`)">
+    <string id="statsTitle">Registry stats</string>
+    <string id="statsSub">Counted from the public log. Anyone can recount them.</string>
+    <string id="statsAsOfLine" params="height">As of block 2</string>
+    <string id="statsLoadingLine">Counting the registry…</string>
+    <string id="statsFailedLine">The stats could not be loaded. Try again in a minute.</string>
+    <string id="statsRetryLabel">Try again</string>
+    <string id="STATS_SECTION.activity">Activity</string>
+    <string id="STATS_SECTION.chain">Chain and proofs</string>
+    <string id="STATS_SECTION.market">Market</string>
+    <string id="STATS_SECTION.names">Names</string>
+    <string id="STATS_SECTION.overview">Overview</string>
+    <string id="STATS_SECTION.referrals">Referrals</string>
+    <string id="STATS_SECTION.treasury">Treasury</string>
+    <string id="statsJumpLabel">Jump to a section</string>
+    <string id="statsNamesHeroLabel">Names registered</string>
+    <string id="statsOwnersLine" params="owners">held by {owners} owners</string>
+    <string id="statsGrowthLabel">Registrations over time</string>
+    <string id="statsKpi.messages">Messages</string>
+    <string id="statsKpi.referred">Referred</string>
+    <string id="statsKpi.revenue">Revenue</string>
+    <string id="statsKpi.senders">Active addresses</string>
+    <string id="statsKpiHint.messages">Every NNS transaction the indexer logged since launch, accepted or not.</string>
+    <string id="statsKpiHint.referred">Registrations that named a referrer.</string>
+    <string id="statsKpiHint.revenue">Registration, renewal and listing fees plus market commission, all accepted by the registry. The base the burn is taken from.</string>
+    <string id="statsKpiHint.senders">Distinct addresses that sent at least one NNS transaction, the registry's own payout addresses included.</string>
+    <string id="statsActivityPerDay">Messages per day</string>
+    <string id="statsActivityPerHour">Messages per hour, last 48 hours</string>
+    <string id="statsSeriesRegistrations">Registrations</string>
+    <string id="statsSeriesOther">Other messages</string>
+    <string id="statsNoActivityLine">Nothing logged in this window.</string>
+    <string id="statsByTypeTitle">By message type</string>
+    <string id="statsVerdictsTitle">Verdicts</string>
+    <string id="statsVerdictsHint">Every logged message gets one verdict. Accepted ones took effect. A refunded one is paid back by the registry. A forfeited one broke a rule a client could have checked, so its value stays where it was sent.</string>
+    <string id="STATS_VERDICT_CLASS.forfeit">Forfeited</string>
+    <string id="STATS_VERDICT_CLASS.ok">Accepted</string>
+    <string id="STATS_VERDICT_CLASS.refund">Refunded</string>
+    <string id="statsRejectionsTitle">Why messages were rejected</string>
+    <string id="STATS_TYPE_LABEL.A">Auction</string>
+    <string id="STATS_TYPE_LABEL.B">Buy or bid</string>
+    <string id="STATS_TYPE_LABEL.D">Subdomain host</string>
+    <string id="STATS_TYPE_LABEL.E">Link EVM address</string>
+    <string id="STATS_TYPE_LABEL.F">Burn</string>
+    <string id="STATS_TYPE_LABEL.G">Register</string>
+    <string id="STATS_TYPE_LABEL.K">Cancel</string>
+    <string id="STATS_TYPE_LABEL.M">Payout</string>
+    <string id="STATS_TYPE_LABEL.N">Renew</string>
+    <string id="STATS_TYPE_LABEL.O">List for sale</string>
+    <string id="STATS_TYPE_LABEL.P">Pricing change</string>
+    <string id="STATS_TYPE_LABEL.S">Point to address</string>
+    <string id="STATS_TYPE_LABEL.U">Release or award</string>
+    <string id="STATS_TYPE_LABEL.X">Transfer</string>
+    <string id="statsUnknownTypeLabel">Unrecognised</string>
+    <string id="statsLengthTitle">By length</string>
+    <string id="statsLengthHint">Names grouped by price band. Shorter names cost more a year.</string>
+    <string id="statsBandLabel" params="from upTo">{from}–{upTo} chars</string>
+    <string id="statsStatusTitle">Status</string>
+    <string id="STATS_STATUS.grace">In grace</string>
+    <string id="STATS_STATUS.registered">Resolving</string>
+    <string id="statsFacts.delegated">Hosting subdomains</string>
+    <string id="statsFacts.evm">Linked to an EVM address</string>
+    <string id="statsFacts.lifetime">Lifetime terms bought</string>
+    <string id="statsFacts.pointed">Pointing elsewhere</string>
+    <string id="statsFacts.released">Reserved names released</string>
+    <string id="statsFacts.renewals">Renewals</string>
+    <string id="statsFacts.renewSoon">Up for renewal</string>
+    <string id="statsFactsHint.lifetime">Registrations, renewals and awards that bought a hundred-year term.</string>
+    <string id="statsFactsHint.pointed">Names that resolve to an address other than their owner's.</string>
+    <string id="statsFactsHint.released">Names taken off the reserved list by the registry admin.</string>
+    <string id="statsFactsHint.renewSoon">Registered names inside their renewal reminder window.</string>
+    <string id="statsHoldersTitle">Top holders</string>
+    <string id="statsHolderCount" params="names">{names} names</string>
+    <string id="statsRecentTitle">Latest registrations</string>
+    <string id="statsLifetimeTag">Lifetime</string>
+    <string id="statsMarket.auctions">Auctions opened</string>
+    <string id="statsMarket.bids">Bids placed</string>
+    <string id="statsMarket.listings">Listings ever</string>
+    <string id="statsMarket.openAuctions">Live auctions</string>
+    <string id="statsMarket.openOffers">For sale now</string>
+    <string id="statsMarket.pendingTransfers">Transfers pending</string>
+    <string id="statsMarket.sales">Sales</string>
+    <string id="statsMarket.saleVolume">Sale volume</string>
+    <string id="statsMarket.topBid">Top bid</string>
+    <string id="statsMarket.topSale">Top sale</string>
+    <string id="statsNoneYet">None yet</string>
+    <string id="statsReferrersLabel">Referrers</string>
+    <string id="statsReferredLabel">Referred sign-ups</string>
+    <string id="statsLeaderboardTitle">Top referrers</string>
+    <string id="statsLeaderboardHint">Ranked by sign-ups brought in. Volume is what those sign-ups paid, not what the referrer earned.</string>
+    <string id="statsReferralCount" params="count">2 sign-ups</string>
+    <string id="statsNoReferralsLine">Nobody has been referred yet.</string>
+    <string id="statsTreasury.forfeited">Forfeited</string>
+    <string id="statsTreasury.outstanding">Owed right now</string>
+    <string id="statsTreasury.payouts">Paid out</string>
+    <string id="statsTreasury.refunded">Refunded</string>
+    <string id="statsTreasury.revenue">Revenue</string>
+    <string id="statsTreasuryHint.outstanding">Payments the registry owes and has not sent yet.</string>
+    <string id="statsTreasuryHint.payouts">Sale proceeds, refunds and referral shares the registry has paid.</string>
+    <string id="statsTxCount" params="count">2 transactions</string>
+    <string id="statsBurnTitle">Burn</string>
+    <string id="statsBurnedOfOwed" params="burned owed">{burned} of {owed} NIM burned</string>
+    <string id="statsChain.anchors">Anchors</string>
+    <string id="statsChain.cadence">Checkpoint every</string>
+    <string id="statsChain.checkpoint">Latest checkpoint</string>
+    <string id="statsChain.commitment">Commitment</string>
+    <string id="statsChain.head">Chain height</string>
+    <string id="statsChain.indexed">Indexed through</string>
+    <string id="statsChain.launch">Launch block</string>
+    <string id="statsChain.retained">Checkpoints kept</string>
+    <string id="statsChainHint.anchors">Checkpoints can be published to Polygon by independent publishers, so a client can check a resolver against them.</string>
+    <string id="statsChainHint.checkpoint">A checkpoint commits the whole registry and the log to one hash. Proofs verify against it.</string>
+    <string id="statsChainHint.commitment">The latest checkpoint's hash. Two honest resolvers at the same height print the same one.</string>
+    <string id="statsChainHint.head">The newest block the node behind this app has seen. Read once when the page opened.</string>
+    <string id="statsChainHint.indexed">The indexer only reads finalised blocks, so it trails the chain by up to a minute.</string>
+    <string id="statsBlocksLine" params="blocks approx">2 blocks ({approx})</string>
+    <string id="statsAgoLine" params="approx">{approx} ago</string>
+    <string id="statsAnchorsNone">No publisher listed yet</string>
+    <string id="statsAnchorsListed" params="count">2 publishers listed</string>
+    <string id="statsUnavailable">Unavailable</string>
     <string id="probeTitle">Signing probe</string>
     <string id="probeIntro">Signs a fixed text with the wallet and checks the signature locally. Nothing is sent anywhere.</string>
     <string id="probeSignLabel">Sign the test text</string>

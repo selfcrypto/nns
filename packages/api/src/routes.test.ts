@@ -112,6 +112,7 @@ function queriesOf(partial: Partial<Queries>): Queries {
     outstanding: unstubbed,
     burn: unstubbed,
     referrals: unstubbed,
+    stats: unstubbed,
     ...partial,
   }
 }

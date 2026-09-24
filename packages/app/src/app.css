@@ -672,11 +672,15 @@ select:focus-visible {
  * every pixel of label spends two of breakpoint, which is the reason to weigh
  * a sixth rather than just adding it.
  *
+ * **1010 since 2026-09-24, for Stats, the sixth.** Weighed: the page has no
+ * other door, and the tab bar is the wrong one for a page read now and then.
+ * The row measures 454px, so the same corner and the same 26px land at 1008.
+ *
  * The button is no loss on the way down: it holds the same rows, costs 30px of
  * width and no height, and height is the scarce one inside Nimiq Pay, where
  * the top reserve is 0 and the bottom is down ~120px before the tab bar.
  */
-@media (max-width: 960px) {
+@media (max-width: 1010px) {
   .masthead-nav {
     display: none;
   }

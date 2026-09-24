@@ -586,6 +586,70 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
         '503': { $ref: '#/components/responses/NotSynced' }
 
+  /stats:
+    get:
+      summary: The registry counted, for a statistics page (2026-09-24)
+      description: >
+        Aggregates over the registry's tables and the §8.2 log, all from one
+        snapshot at `height`. Display material, like /offers: nothing here is
+        proven and a client decides nothing with it. Counted once per state
+        height and cached, so the cost does not grow with callers. A sale is
+        an accepted `B` against an open `O`, a bid one against an open `A`,
+        told apart by the name's latest accepted `O` or `A` (the two are
+        exclusive). `log.daily` and `log.hourly` list only buckets that have
+        lines; bucket `b` covers heights from `launchHeight + b × dayBlocks`
+        (or `hourBlocks`), and `hourly` covers the last 48 hours.
+      responses:
+        '200':
+          description: The counts.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [chain, checkpoints, names, market, log, money, referrals, height]
+                properties:
+                  chain:
+                    type: object
+                    properties:
+                      launchHeight: { $ref: '#/components/schemas/Height' }
+                      scannedThrough: { oneOf: [{ type: integer }, { type: 'null' }], description: The indexer's cursor. }
+                      checkpointInterval: { type: integer }
+                  checkpoints:
+                    type: object
+                    properties:
+                      retained: { type: integer }
+                      latest:
+                        oneOf:
+                          - type: object
+                            properties:
+                              height: { $ref: '#/components/schemas/Height' }
+                              commitment: { type: string }
+                              createdAt: { type: string, format: date-time }
+                          - type: 'null'
+                  names:
+                    type: object
+                    description: >
+                      Counts over the names table, plus `lifetimeTerms` and `renewals` (accepted `G|L`/`N|L`/`U|L`
+                      and `N` lines), the five largest holders and the eight latest accepted `G`s, newest first.
+                      `renewSoon` counts REGISTERED names inside §10.4's reminder window, `GRACE_PERIOD` × 2.
+                  market:
+                    type: object
+                    description: Open offers, auctions and transfers now; accepted listings, auctions, sales and bids over the log. Luna as decimal strings.
+                  log:
+                    type: object
+                    description: Line totals by type letter and by verdict token, distinct senders, and the daily and hourly series.
+                  money:
+                    type: object
+                    description: >
+                      `revenue`, `owed` and `burned` exactly as /burn serves them; payouts (accepted `M`),
+                      refunded (§7.4's refundable tokens), forfeited (every other rejection) and outstanding
+                      obligations, each `{count, amount}` with luna as a decimal string.
+                  referrals:
+                    type: object
+                    description: Accepted `G`s that named a referrer, distinct referrers, and the top ten by registrations with the value those registrations carried.
+                  height: { $ref: '#/components/schemas/Height' }
+        '503': { $ref: '#/components/responses/NotSynced' }
+
   /settlements:
     get:
       summary: Outstanding settlement obligations

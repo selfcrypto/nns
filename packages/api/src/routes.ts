@@ -43,12 +43,16 @@ import { describeMessage } from './describe.js'
 import { inclusionDocument, nonInclusionDocument, type ProofContext } from './proofs.js'
 import {
   NotSyncedError,
+  STATS_DAY_BLOCKS,
+  STATS_HOUR_BLOCKS,
   type ApiAuction,
   type ApiNameRecord,
   type ApiOffer,
   type LatestCheckpoint,
   type ProofBase,
   type Queries,
+  type StatsReport,
+  type Tally,
 } from './queries.js'
 
 export interface ApiResponse {
@@ -192,6 +196,63 @@ const displayAddress = (compact: string): string => {
   return parsed === null ? compact : formatAddress(parsed)
 }
 
+const serialiseTally = (tally: Tally): { count: number; amount: string } => ({
+  count: tally.count,
+  amount: tally.amount.toString(),
+})
+
+function serialiseStats(report: StatsReport, height: number): unknown {
+  const { accepted, money } = report
+  return {
+    chain: {
+      launchHeight: CONSTANTS.LAUNCH_HEIGHT,
+      scannedThrough: report.scannedThrough,
+      checkpointInterval: CONSTANTS.CHECKPOINT_INTERVAL,
+    },
+    checkpoints: report.checkpoints,
+    names: {
+      ...report.names,
+      topHolders: report.names.topHolders.map((holder) => ({ owner: formatAddress(holder.owner), names: holder.names })),
+      lifetimeTerms: accepted.lifetimeTerms,
+      renewals: accepted.renewals,
+      recent: accepted.recent,
+    },
+    market: {
+      openOffers: report.open.offers,
+      openAuctions: report.open.auctions,
+      pendingTransfers: report.open.transfers,
+      listings: accepted.market.listings,
+      sales: accepted.market.sales,
+      saleVolume: accepted.market.saleVolume.toString(),
+      topSale:
+        accepted.market.topSale === null
+          ? null
+          : { name: accepted.market.topSale.name, price: accepted.market.topSale.price.toString() },
+      auctions: accepted.market.auctions,
+      bids: accepted.market.bids,
+      topBid:
+        accepted.market.topBid === null ? null : { name: accepted.market.topBid.name, bid: accepted.market.topBid.bid.toString() },
+    },
+    log: { ...report.log, dayBlocks: STATS_DAY_BLOCKS, hourBlocks: STATS_HOUR_BLOCKS },
+    money: {
+      revenue: money.revenue.toString(),
+      // `/burn`'s rule, not a second one: BURN_SHARE of revenue, floored.
+      owed: ((money.revenue * CONSTANTS.BURN_SHARE_BP) / 10_000n).toString(),
+      burned: money.burned.toString(),
+      payouts: serialiseTally(money.payouts),
+      refunded: serialiseTally(money.refunded),
+      forfeited: serialiseTally(money.forfeited),
+      outstanding: serialiseTally(money.outstanding),
+    },
+    referrals: {
+      registrations: accepted.referrals.registrations,
+      referrers: accepted.referrals.referrers,
+      top: accepted.referrals.top.map((entry) => ({ ...entry, volume: entry.volume.toString() })),
+    },
+    height,
+  }
+}
+
 /**
  * Every path this API serves, in one place.
  *
@@ -221,6 +282,7 @@ export const ROUTES = Object.freeze([
   '/referrals/{name}',
   '/resolve/{name}',
   '/settlements',
+  '/stats',
 ])
 
 /**
@@ -680,6 +742,18 @@ export function createRoutes(queries: Queries): RouteHandler {
     })
   }
 
+  /**
+   * The registry counted, for a statistics page. Display material like
+   * `/offers`: no figure here is proven, and a client decides nothing with
+   * one. Heights stay heights — a client dates them the way it dates an
+   * expiry — and `launchHeight`/`dayBlocks` travel with the daily series so
+   * a reader can place its buckets without knowing the constants.
+   */
+  async function statsRoute(): Promise<ApiResponse> {
+    const { height, value } = await queries.stats()
+    return respond(200, serialiseStats(value, height))
+  }
+
   async function burnRoute(): Promise<ApiResponse> {
     const { height, value } = await queries.burn()
     // 'OK' is §8.2's published verdict token for an accepted message — a
@@ -813,6 +887,7 @@ export function createRoutes(queries: Queries): RouteHandler {
         return await settlementsRoute(searchParams.get('owed_to'))
       }
       if (head === 'burn' && segments.length === 1) return await burnRoute()
+      if (head === 'stats' && segments.length === 1) return await statsRoute()
       if (head === 'referrals' && a !== undefined && segments.length === 2) return await referralsRoute(a)
       // Static, needs no snapshot, and deliberately answers before the
       // NOT_SYNCED gate every other route sits behind: the contract is true

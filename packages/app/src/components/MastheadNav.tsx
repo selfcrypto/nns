@@ -21,7 +21,7 @@
  *   what matters inside Nimiq Pay: `--chrome-top` is 0 there and the bottom is
  *   already down ~120px before the tab bar's pill.
  *
- * Which one shows is CSS (`app.css`, the 960px block), not a JS breakpoint —
+ * Which one shows is CSS (`app.css`, the 1010px block), not a JS breakpoint —
  * one list, rendered twice, so the two can never disagree about what is in it.
  *
  * **Contact is a group, not a link** (2026-09-16), because there is no contact
@@ -142,7 +142,7 @@ function ContactMenu() {
   )
 }
 
-/** The links themselves, above 960px. */
+/** The links themselves, above 1010px. */
 export function MastheadLinks() {
   return (
     <nav className="masthead-nav" aria-label="Site">
@@ -155,7 +155,7 @@ export function MastheadLinks() {
 }
 
 /**
- * The same rows behind a button, at 960px and below. `open` is owned by
+ * The same rows behind a button, at 1010px and below. `open` is owned by
  * `App.tsx` because the wallet panel hangs in this same corner and the two have
  * to be mutually exclusive — two panels overlapping in one corner is a bug you
  * only see on the device.

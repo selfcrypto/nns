@@ -67,6 +67,7 @@ export const NAV: readonly (readonly [string, string])[] = [
   ['Docs', '#/docs/intro'],
   ['Protocol', `${REPO}/blob/main/docs/nns-spec-v1.md`],
   ['GitHub', REPO],
+  ['Stats', '#/stats'],
   ['Dashboard', '#/buy'],
 ] as const
 
@@ -1939,6 +1940,169 @@ export const notifyDeleteHint = (): string =>
 export const notifySignOutLabel = (): string => 'Sign out'
 export const notifyDataHint = (): string =>
   'The service keeps this address, the contacts you add here and which messages it already sent. Every message carries a one-click unsubscribe.'
+
+// ── Stats (`#/stats`, 2026-09-24: the registry counted, from `/stats`) ─────
+//
+// Every figure is read from one `/stats` snapshot and comes from the public
+// log or the registry's tables. Display material: nothing on the page is a
+// proof, and the page says where the numbers come from rather than
+// vouching for them.
+
+export const statsTitle = (): string => 'Registry stats'
+export const statsSub = (): string => 'Counted from the public log. Anyone can recount them.'
+export const statsAsOfLine = (height: string): string => `As of block ${height}`
+export const statsLoadingLine = (): string => 'Counting the registry…'
+export const statsFailedLine = (): string => 'The stats could not be loaded. Try again in a minute.'
+export const statsRetryLabel = (): string => 'Try again'
+
+export type StatsSection = 'overview' | 'activity' | 'names' | 'market' | 'referrals' | 'treasury' | 'chain'
+export const STATS_SECTION: Record<StatsSection, string> = {
+  overview: 'Overview',
+  activity: 'Activity',
+  names: 'Names',
+  market: 'Market',
+  referrals: 'Referrals',
+  treasury: 'Treasury',
+  chain: 'Chain and proofs',
+}
+export const statsJumpLabel = (): string => 'Jump to a section'
+
+export const statsNamesHeroLabel = (): string => 'Names registered'
+export const statsOwnersLine = (owners: string): string => `held by ${owners} ${owners === '1' ? 'owner' : 'owners'}`
+export const statsGrowthLabel = (): string => 'Registrations over time'
+
+export const statsKpi = {
+  revenue: 'Revenue',
+  messages: 'Messages',
+  senders: 'Active addresses',
+  referred: 'Referred',
+} as const
+export const statsKpiHint = {
+  revenue: 'Registration, renewal and listing fees plus market commission, all accepted by the registry. The base the burn is taken from.',
+  messages: 'Every NNS transaction the indexer logged since launch, accepted or not.',
+  senders: 'Distinct addresses that sent at least one NNS transaction, the registry\'s own payout addresses included.',
+  referred: 'Registrations that named a referrer.',
+} as const
+
+export const statsActivityPerDay = (): string => 'Messages per day'
+export const statsActivityPerHour = (): string => 'Messages per hour, last 48 hours'
+export const statsSeriesRegistrations = (): string => 'Registrations'
+export const statsSeriesOther = (): string => 'Other messages'
+export const statsNoActivityLine = (): string => 'Nothing logged in this window.'
+export const statsByTypeTitle = (): string => 'By message type'
+export const statsVerdictsTitle = (): string => 'Verdicts'
+export const statsVerdictsHint = (): string =>
+  'Every logged message gets one verdict. Accepted ones took effect. A refunded one is paid back by the registry. A forfeited one broke a rule a client could have checked, so its value stays where it was sent.'
+export const STATS_VERDICT_CLASS: Record<'ok' | 'refund' | 'forfeit', string> = {
+  ok: 'Accepted',
+  refund: 'Refunded',
+  forfeit: 'Forfeited',
+}
+export const statsRejectionsTitle = (): string => 'Why messages were rejected'
+
+/** The message types by their one-letter tag (§6), as a reader says them. */
+export const STATS_TYPE_LABEL: Record<string, string> = {
+  G: 'Register',
+  S: 'Point to address',
+  E: 'Link EVM address',
+  X: 'Transfer',
+  D: 'Subdomain host',
+  K: 'Cancel',
+  N: 'Renew',
+  O: 'List for sale',
+  B: 'Buy or bid',
+  A: 'Auction',
+  M: 'Payout',
+  P: 'Pricing change',
+  U: 'Release or award',
+  F: 'Burn',
+}
+export const statsUnknownTypeLabel = (): string => 'Unrecognised'
+
+export const statsLengthTitle = (): string => 'By length'
+export const statsLengthHint = (): string => 'Names grouped by price band. Shorter names cost more a year.'
+export const statsBandLabel = (from: number, upTo: number | null): string =>
+  upTo === null ? `${from}+ chars` : from === upTo ? `${from} chars` : `${from}–${upTo} chars`
+export const statsStatusTitle = (): string => 'Status'
+export const STATS_STATUS: Record<'registered' | 'grace', string> = { registered: 'Resolving', grace: 'In grace' }
+export const statsFacts = {
+  lifetime: 'Lifetime terms bought',
+  renewals: 'Renewals',
+  evm: 'Linked to an EVM address',
+  delegated: 'Hosting subdomains',
+  pointed: 'Pointing elsewhere',
+  renewSoon: 'Up for renewal',
+  released: 'Reserved names released',
+} as const
+export const statsFactsHint = {
+  lifetime: 'Registrations, renewals and awards that bought a hundred-year term.',
+  pointed: 'Names that resolve to an address other than their owner\'s.',
+  renewSoon: 'Registered names inside their renewal reminder window.',
+  released: 'Names taken off the reserved list by the registry admin.',
+} as const
+export const statsHoldersTitle = (): string => 'Top holders'
+export const statsHolderCount = (names: number): string => `${names} ${names === 1 ? 'name' : 'names'}`
+export const statsRecentTitle = (): string => 'Latest registrations'
+export const statsLifetimeTag = (): string => 'Lifetime'
+
+export const statsMarket = {
+  openOffers: 'For sale now',
+  openAuctions: 'Live auctions',
+  pendingTransfers: 'Transfers pending',
+  listings: 'Listings ever',
+  sales: 'Sales',
+  saleVolume: 'Sale volume',
+  auctions: 'Auctions opened',
+  bids: 'Bids placed',
+  topSale: 'Top sale',
+  topBid: 'Top bid',
+} as const
+export const statsNoneYet = (): string => 'None yet'
+
+export const statsReferrersLabel = (): string => 'Referrers'
+export const statsReferredLabel = (): string => 'Referred sign-ups'
+export const statsLeaderboardTitle = (): string => 'Top referrers'
+export const statsLeaderboardHint = (): string => 'Ranked by sign-ups brought in. Volume is what those sign-ups paid, not what the referrer earned.'
+export const statsReferralCount = (count: number): string => `${count} ${count === 1 ? 'sign-up' : 'sign-ups'}`
+export const statsNoReferralsLine = (): string => 'Nobody has been referred yet.'
+
+export const statsTreasury = {
+  revenue: 'Revenue',
+  payouts: 'Paid out',
+  refunded: 'Refunded',
+  forfeited: 'Forfeited',
+  outstanding: 'Owed right now',
+} as const
+export const statsTreasuryHint = {
+  payouts: 'Sale proceeds, refunds and referral shares the registry has paid.',
+  outstanding: 'Payments the registry owes and has not sent yet.',
+} as const
+export const statsTxCount = (count: number): string => `${count} ${count === 1 ? 'transaction' : 'transactions'}`
+export const statsBurnTitle = (): string => 'Burn'
+export const statsBurnedOfOwed = (burned: string, owed: string): string => `${burned} of ${owed} NIM burned`
+
+export const statsChain = {
+  head: 'Chain height',
+  indexed: 'Indexed through',
+  checkpoint: 'Latest checkpoint',
+  cadence: 'Checkpoint every',
+  retained: 'Checkpoints kept',
+  commitment: 'Commitment',
+  anchors: 'Anchors',
+  launch: 'Launch block',
+} as const
+export const statsChainHint = {
+  head: 'The newest block the node behind this app has seen. Read once when the page opened.',
+  indexed: 'The indexer only reads finalised blocks, so it trails the chain by up to a minute.',
+  checkpoint: 'A checkpoint commits the whole registry and the log to one hash. Proofs verify against it.',
+  commitment: 'The latest checkpoint\'s hash. Two honest resolvers at the same height print the same one.',
+  anchors: 'Checkpoints can be published to Polygon by independent publishers, so a client can check a resolver against them.',
+} as const
+export const statsBlocksLine = (blocks: string, approx: string): string => `${blocks} blocks (${approx})`
+export const statsAgoLine = (approx: string): string => `${approx} ago`
+export const statsAnchorsNone = (): string => 'No publisher listed yet'
+export const statsAnchorsListed = (count: number): string => `${count} ${count === 1 ? 'publisher' : 'publishers'} listed`
+export const statsUnavailable = (): string => 'Unavailable'
 
 // The probe page (tasks/26 D0).
 export const probeTitle = (): string => 'Signing probe'

@@ -571,4 +571,37 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     expect(body.burned).toBe('100000')
     expect(body.attestations).toHaveLength(2)
   })
+  it('/stats agrees with /burn and the log it counted, and recounts only when state moves', async () => {
+    const burn = (await handle('GET', '/burn')).body as { revenue: string; owed: string; burned: string }
+    const response = await handle('GET', '/stats')
+    expect(response.status).toBe(200)
+    const body = response.body as {
+      money: { revenue: string; owed: string; burned: string; forfeited: { count: number } }
+      log: { lines: number; byVerdict: { verdict: string; lines: number }[]; byType: { type: string; lines: number }[] }
+      names: { total: number }
+      height: number
+    }
+    // One base, served twice: the stats page must never disagree with /burn.
+    expect(body.money).toMatchObject({ revenue: burn.revenue, owed: burn.owed, burned: burn.burned })
+    const counted = await pool.query(`SELECT count(*) AS n, count(*) FILTER (WHERE verdict <> 'OK') AS rejected FROM log`)
+    const row = counted.rows[0] as { n: string; rejected: string }
+    expect(body.log.lines).toBe(Number(row.n))
+    expect(body.log.byVerdict.reduce((sum, v) => sum + v.lines, 0)).toBe(body.log.lines)
+    expect(body.log.byType.reduce((sum, t) => sum + t.lines, 0)).toBe(body.log.lines)
+    // No refund-class token was written above, so every rejection forfeited.
+    expect(body.money.forfeited.count).toBe(Number(row.rejected))
+
+    // Cached per state height: a new line at the same height is not counted…
+    await pool.query(
+      `INSERT INTO log (block_height, tx_index, tx_hash, sender, recipient, value, data, verdict)
+       VALUES (58199540, 0, $1, $2, $3, '1', '4e4e533153746573746e616d65', 'OK')`,
+      ['f6'.repeat(32), A, B],
+    )
+    expect(((await handle('GET', '/stats')).body as { log: { lines: number } }).log.lines).toBe(body.log.lines)
+    // …until the indexer moves state, when it is.
+    await pool.query('UPDATE params SET state_height = state_height + 60')
+    expect(((await handle('GET', '/stats')).body as { log: { lines: number } }).log.lines).toBe(body.log.lines + 1)
+    await pool.query('UPDATE params SET state_height = state_height - 60')
+    await pool.query(`DELETE FROM log WHERE block_height = 58199540`)
+  })
 })

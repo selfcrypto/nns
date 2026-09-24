@@ -1,5 +1,5 @@
 /**
- * The masthead's four destinations (`NAV`, wording.ts) are the one part of the
+ * The masthead's five destinations (`NAV`, wording.ts) are the one part of the
  * nav with a silent failure mode. `parseRoute` answers an unknown tab with the
  * fallback rather than an error, so a typo in `#/docs/intro` does not throw and
  * does not 404 — it quietly lands the reader on whatever screen the caller
@@ -15,8 +15,8 @@ import { NAV } from './wording'
 import { formatRoute, parseRoute } from './route'
 
 describe('masthead nav', () => {
-  it('has four destinations, each labelled once', () => {
-    expect(NAV).toHaveLength(4)
+  it('has five destinations, each labelled once (another moves the app.css nav breakpoint)', () => {
+    expect(NAV).toHaveLength(5)
     expect(new Set(NAV.map(([label]) => label)).size).toBe(NAV.length)
   })
 

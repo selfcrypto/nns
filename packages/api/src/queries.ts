@@ -12,9 +12,21 @@
  * "as of block" stamp the RPC's `metadata` gives state reads.
  */
 
-import { BURN_ADDRESS, CONSTANTS, merkleRoot, parse, parseAddress, type Address, type Auction, type NameStatus } from '@nimiqnames/core'
+import {
+  BURN_ADDRESS,
+  CONSTANTS,
+  merkleRoot,
+  parse,
+  parseAddress,
+  type Address,
+  type Auction,
+  type NameStatus,
+  type RefundReason,
+} from '@nimiqnames/core'
 import { logLineFromRow, toHeight, toLuna, type LogRow } from '@nns/indexer'
 import type { Pool, PoolClient } from 'pg'
+
+import { tallyAccepted, type AcceptedLine, type AcceptedTally } from './stats.js'
 
 /** The database is present but the indexer has not initialised it yet. */
 export class NotSyncedError extends Error {
@@ -260,6 +272,77 @@ export interface ApiReferral {
   readonly lifetime: boolean
 }
 
+/** A count and the luna it carried. */
+export interface Tally {
+  readonly count: number
+  readonly amount: bigint
+}
+
+/**
+ * `/stats` — the registry and its log, counted. Display material in the same
+ * sense as `/offers`: nothing here is proven, and nothing a client decides
+ * with may come from it. Every figure is read from one snapshot, so they
+ * describe one height.
+ */
+export interface StatsReport {
+  readonly scannedThrough: number | null
+  readonly checkpoints: {
+    readonly retained: number
+    readonly latest: { readonly height: number; readonly commitment: string; readonly createdAt: string } | null
+  }
+  readonly names: {
+    readonly total: number
+    readonly registered: number
+    readonly grace: number
+    readonly owners: number
+    readonly withEvm: number
+    readonly delegated: number
+    readonly pointedElsewhere: number
+    /** `REGISTERED` names inside §10.4's reminder window (`GRACE_PERIOD` × 2 before expiry). */
+    readonly renewSoon: number
+    readonly released: number
+    readonly byLength: readonly { readonly length: number; readonly names: number }[]
+    readonly topHolders: readonly { readonly owner: Address; readonly names: number }[]
+  }
+  readonly open: { readonly offers: number; readonly auctions: number; readonly transfers: number }
+  readonly log: {
+    readonly lines: number
+    readonly senders: number
+    /** The type byte after `NNS1`, `?` when it is not a letter. */
+    readonly byType: readonly { readonly type: string; readonly lines: number; readonly ok: number }[]
+    readonly byVerdict: readonly { readonly verdict: string; readonly lines: number }[]
+    /** Day `d` is heights `[LAUNCH_HEIGHT + d × 86,400, …)`, ~one day of one-second blocks. */
+    readonly daily: readonly StatsBucket[]
+    /** The last `STATS_RECENT_HOURS` hours, hour `h` being heights `[LAUNCH_HEIGHT + h × 3,600, …)`. */
+    readonly hourly: readonly StatsBucket[]
+  }
+  readonly money: {
+    /** §10.2's base, as `/burn` serves it. */
+    readonly revenue: bigint
+    readonly burned: bigint
+    readonly payouts: Tally
+    readonly refunded: Tally
+    readonly forfeited: Tally
+    readonly outstanding: Tally
+  }
+  readonly accepted: AcceptedTally
+}
+
+/** §7.4's refundable column, typed against core's so a new token cannot be missed silently. */
+const REFUND_VERDICTS: readonly RefundReason[] = ['LOST_REGISTRATION_RACE', 'OFFER_NOT_OPEN', 'WRONG_PRICE', 'INSUFFICIENT_VALUE']
+
+/** One bucket of a `/stats` series: log lines, and the accepted `G`s among them. */
+export interface StatsBucket {
+  readonly bucket: number
+  readonly lines: number
+  readonly registrations: number
+}
+
+/** A day and an hour of one-second blocks: the buckets `/stats`' two series count in. */
+export const STATS_DAY_BLOCKS = 86_400
+export const STATS_HOUR_BLOCKS = 3_600
+export const STATS_RECENT_HOURS = 48
+
 export interface Snapshot<T> {
   readonly height: number
   readonly value: T
@@ -285,6 +368,7 @@ export interface Queries {
   burn(): Promise<Snapshot<BurnReport>>
   /** Every `OK` `G` whose `ref` is this name, in canonical order (§10.7). */
   referrals(name: string): Promise<Snapshot<readonly ApiReferral[]>>
+  stats(): Promise<Snapshot<StatsReport>>
 }
 
 // ── Row mapping ─────────────────────────────────────────────────────────────
@@ -399,6 +483,12 @@ export class PgQueries implements Queries {
    * answer, because the derived root is compared to the stored one below.
    */
   #tree: { key: string; records: ReadonlyMap<string, ApiNameRecord> | null } | null = null
+  /**
+   * `/stats` at the height it was counted at. The indexer moves state once a
+   * batch, so every request inside that minute is one small read instead of
+   * a pass over the log, however many clients are asking.
+   */
+  #stats: { height: number; report: StatsReport } | null = null
 
   constructor(pool: Pool) {
     this.#pool = pool
@@ -409,7 +499,7 @@ export class PgQueries implements Queries {
    * no row (or no table at all) means the indexer has never initialised this
    * database, which is a 503, not a 500.
    */
-  async #snapshot<T>(work: (client: PoolClient) => Promise<T>): Promise<Snapshot<T>> {
+  async #snapshot<T>(work: (client: PoolClient, height: number) => Promise<T>): Promise<Snapshot<T>> {
     const client = await this.#pool.connect()
     try {
       await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
@@ -417,7 +507,7 @@ export class PgQueries implements Queries {
       const row: Row | undefined = params.rows[0]
       if (row === undefined) throw new NotSyncedError('the indexer has not written state yet')
       const height = toHeight(row['state_height'], 'state_height')
-      const value = await work(client)
+      const value = await work(client, height)
       await client.query('COMMIT')
       return { height, value }
     } catch (error) {
@@ -698,6 +788,15 @@ export class PgQueries implements Queries {
     })
   }
 
+  async stats(): Promise<Snapshot<StatsReport>> {
+    return this.#snapshot(async (client, height) => {
+      if (this.#stats?.height === height) return this.#stats.report
+      const report = await readStats(client, height)
+      this.#stats = { height, report }
+      return report
+    })
+  }
+
   async burn(): Promise<Snapshot<BurnReport>> {
     return this.#snapshot(async (client) => {
       // Only tagged transfers enter the log (§6 `F`) — an untagged burn is
@@ -778,6 +877,156 @@ function verificationOf(row: Row | undefined): VerificationSnapshot {
                 ? null
                 : toHeight(row['shadow_through'], 'shadow_through'),
           },
+  }
+}
+
+const count = (row: Row | undefined, field: string): number => toHeight(row?.[field] ?? 0, field)
+
+// `NNS1G` is 4e4e533147 in the hex the log stores.
+const BUCKETS = `SELECT (block_height - $1) / $2 AS bucket, count(*) AS n,
+                        count(*) FILTER (WHERE verdict = 'OK' AND data LIKE '4e4e533147%') AS registrations
+                   FROM log WHERE block_height >= $3 GROUP BY 1 ORDER BY 1`
+
+const bucket = (row: Row): StatsBucket => ({
+  bucket: count(row, 'bucket'),
+  lines: count(row, 'n'),
+  registrations: count(row, 'registrations'),
+})
+
+const tally = (row: Row | undefined): Tally => ({ count: count(row, 'n'), amount: toLuna(row?.['amount'] ?? '0', 'amount') })
+
+/** The type letter from the log's hex: the byte after `NNS1`, which is hex chars 8–9. */
+function typeLetter(hex: string): string {
+  const code = Number.parseInt(hex, 16)
+  return code >= 0x41 && code <= 0x5a ? String.fromCharCode(code) : '?'
+}
+
+/**
+ * Every `/stats` figure, in the caller's snapshot. The counts are SQL; what
+ * needs a payload decoded is one pass over the accepted lines of the types
+ * that carry it (`stats.ts`), bounded like `/referrals`' by what took effect.
+ */
+async function readStats(client: PoolClient, height: number): Promise<StatsReport> {
+  const renewWindow = height + 2 * CONSTANTS.GRACE_PERIOD
+  // One statement at a time: a client runs them in series anyway, and pg 9
+  // refuses overlapping ones.
+  const q = async (sql: string, params: readonly unknown[] = []): Promise<{ rows: unknown[] }> => client.query(sql, [...params])
+  const cursor = await q('SELECT scanned_through FROM "cursor"')
+  const checkpoints = await q('SELECT count(*) AS n FROM checkpoints')
+  const latest = await q('SELECT height, commitment, created_at FROM checkpoints ORDER BY height DESC LIMIT 1')
+  const names = await q(
+    `SELECT count(*) AS total,
+            count(*) FILTER (WHERE status = 'REGISTERED') AS registered,
+            count(*) FILTER (WHERE status = 'GRACE') AS grace,
+            count(DISTINCT owner) AS owners,
+            count(*) FILTER (WHERE evm <> '') AS evm,
+            count(*) FILTER (WHERE host <> '') AS delegated,
+            count(*) FILTER (WHERE target <> owner) AS pointed,
+            count(*) FILTER (WHERE status = 'REGISTERED' AND expiry < $1) AS renew_soon
+       FROM names`,
+    [renewWindow],
+  )
+  const lengths = await q('SELECT length(name) AS length, count(*) AS n FROM names GROUP BY 1 ORDER BY 1')
+  const holders = await q('SELECT owner, count(*) AS n FROM names GROUP BY owner ORDER BY n DESC, owner LIMIT 5')
+  const released = await q('SELECT count(*) AS n FROM unreserved')
+  const open = await q(`SELECT kind, count(*) AS n FROM pending WHERE kind IN ('OFFER', 'AUCTION', 'TRANSFER') GROUP BY kind`)
+  const types = await q(
+    `SELECT substr(data, 9, 2) AS t, count(*) AS n, count(*) FILTER (WHERE verdict = 'OK') AS ok
+       FROM log GROUP BY 1 ORDER BY n DESC, 1`,
+  )
+  const verdicts = await q('SELECT verdict, count(*) AS n FROM log GROUP BY verdict ORDER BY n DESC, verdict')
+  const senders = await q('SELECT count(*) AS n, count(DISTINCT sender) AS senders FROM log')
+  const daily = await q(BUCKETS, [CONSTANTS.LAUNCH_HEIGHT, STATS_DAY_BLOCKS, 0])
+  const hourly = await q(BUCKETS, [CONSTANTS.LAUNCH_HEIGHT, STATS_HOUR_BLOCKS, height - STATS_RECENT_HOURS * STATS_HOUR_BLOCKS])
+  // The same four prefixes `burn()` sums for revenue, and its `F` filter for
+  // the burned half: `NNS1G`/`N`/`O`/`M` to the treasury, `NNS1F` to the burn
+  // address. `NNS1M` alone is 4e4e53314d.
+  const money = await q(
+    `SELECT
+       COALESCE(SUM(value) FILTER (WHERE recipient = $1 AND verdict = 'OK'
+         AND (data LIKE '4e4e533147%' OR data LIKE '4e4e53314e%' OR data LIKE '4e4e53314f%' OR data LIKE '4e4e53314d%')), 0) AS revenue,
+       COALESCE(SUM(value) FILTER (WHERE recipient = $2 AND verdict = 'OK' AND data LIKE '4e4e533146%'), 0) AS burned,
+       count(*) FILTER (WHERE verdict = 'OK' AND data LIKE '4e4e53314d%') AS payouts,
+       COALESCE(SUM(value) FILTER (WHERE verdict = 'OK' AND data LIKE '4e4e53314d%'), 0) AS payout_amount,
+       count(*) FILTER (WHERE verdict = ANY($3)) AS refunded,
+       COALESCE(SUM(value) FILTER (WHERE verdict = ANY($3)), 0) AS refunded_amount,
+       count(*) FILTER (WHERE verdict <> 'OK' AND verdict <> ALL($3)) AS forfeited,
+       COALESCE(SUM(value) FILTER (WHERE verdict <> 'OK' AND verdict <> ALL($3)), 0) AS forfeited_amount
+     FROM log`,
+    [CONSTANTS.TREASURY_ADDRESS, BURN_ADDRESS, REFUND_VERDICTS],
+  )
+  const outstanding = await q('SELECT count(*) AS n, COALESCE(SUM(amount), 0) AS amount FROM settlements')
+  // `G` `N` `O` `A` `B` `U`: the types `stats.ts` reads a payload from.
+  const accepted = await q(
+    `SELECT block_height, sender, value, data FROM log
+      WHERE verdict = 'OK' AND substr(data, 9, 2) IN ('47', '4e', '4f', '41', '42', '55')
+      ORDER BY block_height, tx_index`,
+  )
+
+  const first = (result: { rows: unknown[] }): Row | undefined => result.rows[0] as Row | undefined
+  const nameRow = first(names)
+  const moneyRow = first(money)
+  const latestRow = first(latest)
+  const openCounts = new Map((open.rows as Row[]).map((row) => [text(row, 'kind'), count(row, 'n')]))
+  const cursorRow = first(cursor)
+
+  return {
+    scannedThrough: cursorRow === undefined ? null : toHeight(cursorRow['scanned_through'], 'scanned_through'),
+    checkpoints: {
+      retained: count(first(checkpoints), 'n'),
+      latest:
+        latestRow === undefined
+          ? null
+          : {
+              height: toHeight(latestRow['height'], 'height'),
+              commitment: `0x${bytesHex(latestRow, 'commitment')}`,
+              createdAt: (latestRow['created_at'] as Date).toISOString(),
+            },
+    },
+    names: {
+      total: count(nameRow, 'total'),
+      registered: count(nameRow, 'registered'),
+      grace: count(nameRow, 'grace'),
+      owners: count(nameRow, 'owners'),
+      withEvm: count(nameRow, 'evm'),
+      delegated: count(nameRow, 'delegated'),
+      pointedElsewhere: count(nameRow, 'pointed'),
+      renewSoon: count(nameRow, 'renew_soon'),
+      released: count(first(released), 'n'),
+      byLength: (lengths.rows as Row[]).map((row) => ({ length: count(row, 'length'), names: count(row, 'n') })),
+      topHolders: (holders.rows as Row[]).map((row) => ({ owner: address(row, 'owner'), names: count(row, 'n') })),
+    },
+    open: {
+      offers: openCounts.get('OFFER') ?? 0,
+      auctions: openCounts.get('AUCTION') ?? 0,
+      transfers: openCounts.get('TRANSFER') ?? 0,
+    },
+    log: {
+      lines: count(first(senders), 'n'),
+      senders: count(first(senders), 'senders'),
+      byType: (types.rows as Row[]).map((row) => ({ type: typeLetter(text(row, 't')), lines: count(row, 'n'), ok: count(row, 'ok') })),
+      byVerdict: (verdicts.rows as Row[]).map((row) => ({ verdict: text(row, 'verdict'), lines: count(row, 'n') })),
+      daily: (daily.rows as Row[]).map(bucket),
+      hourly: (hourly.rows as Row[]).map(bucket),
+    },
+    money: {
+      revenue: toLuna(moneyRow?.['revenue'] ?? '0', 'revenue'),
+      burned: toLuna(moneyRow?.['burned'] ?? '0', 'burned'),
+      payouts: { count: count(moneyRow, 'payouts'), amount: toLuna(moneyRow?.['payout_amount'] ?? '0', 'payout_amount') },
+      refunded: { count: count(moneyRow, 'refunded'), amount: toLuna(moneyRow?.['refunded_amount'] ?? '0', 'refunded_amount') },
+      forfeited: { count: count(moneyRow, 'forfeited'), amount: toLuna(moneyRow?.['forfeited_amount'] ?? '0', 'forfeited_amount') },
+      outstanding: tally(first(outstanding)),
+    },
+    accepted: tallyAccepted(
+      (accepted.rows as Row[]).map(
+        (row): AcceptedLine => ({
+          height: toHeight(row['block_height'], 'block_height'),
+          sender: address(row, 'sender'),
+          value: toLuna(row['value'], 'value'),
+          data: text(row, 'data'),
+        }),
+      ),
+    ),
   }
 }
 

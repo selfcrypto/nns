@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ApiError, getAuctions, getBurn, getNameInfo, getOffers, getParams, getReferrals, type JsonFetch } from './api'
+import { ApiError, getAuctions, getBurn, getNameInfo, getOffers, getParams, getReferrals, getStats, type JsonFetch } from './api'
 
 const FEES_WIRE = ([[2, 200n], [3, 100n], [4, 50n], [5, 25n], [6, 10n], [11, 5n], [24, 1n]] as const).map(([upTo, times]) => ({
   upTo,
@@ -224,5 +224,51 @@ describe('getReferrals', () => {
     expect(result.registrations[0]).toMatchObject({ name: 'newcomer', height: 61_200_000, value: 400_000n, lifetime: false })
     expect(result.registrations[1]).toMatchObject({ name: 'lifelong', value: 4_000_000n, lifetime: true })
     expect(result.height).toBe(61_200_060)
+  })
+})
+
+describe('getStats', () => {
+  const tally = (count: number, amount: string) => ({ count, amount })
+  const body = {
+    chain: { launchHeight: 1_000, scannedThrough: 5_000, checkpointInterval: 60 },
+    checkpoints: { retained: 3, latest: { height: 4_980, commitment: '0xab', createdAt: '2026-09-24T00:00:00.000Z' } },
+    names: {
+      total: 2, registered: 2, grace: 0, owners: 1, withEvm: 0, delegated: 0, pointedElsewhere: 0, renewSoon: 0, released: 0,
+      lifetimeTerms: 1, renewals: 0,
+      byLength: [{ length: 12, names: 2 }],
+      topHolders: [{ owner: 'NQ07 0000 0000 0000 0000 0000 0000 0000 0000', names: 2 }],
+      recent: [{ name: 'example-name', height: 4_000, lifetime: true }],
+    },
+    market: {
+      openOffers: 0, openAuctions: 0, pendingTransfers: 0, listings: 1, sales: 1, saleVolume: '123456789012345678901',
+      topSale: { name: 'example-name', price: '123456789012345678901' }, auctions: 0, bids: 0, topBid: null,
+    },
+    log: {
+      lines: 3, senders: 1,
+      byType: [{ type: 'G', lines: 3, ok: 3 }],
+      byVerdict: [{ verdict: 'OK', lines: 3 }],
+      daily: [{ bucket: 0, lines: 3, registrations: 2 }],
+      hourly: [],
+      dayBlocks: 86_400, hourBlocks: 3_600,
+    },
+    money: {
+      revenue: '1000', owed: '200', burned: '0',
+      payouts: tally(0, '0'), refunded: tally(0, '0'), forfeited: tally(0, '0'), outstanding: tally(0, '0'),
+    },
+    referrals: { registrations: 1, referrers: 1, top: [{ name: 'ref-name', registrations: 1, volume: '1000' }] },
+    height: 5_000,
+  }
+
+  it('reads amounts as bigint, beyond what a number holds', async () => {
+    const stats = await getStats('http://api', respond({ '/stats': { status: 200, body } }))
+    expect(stats.market.saleVolume).toBe(123_456_789_012_345_678_901n)
+    expect(stats.market.topBid).toBeNull()
+    expect(stats.referrals.top[0]?.volume).toBe(1_000n)
+    expect(stats.names.recent[0]?.lifetime).toBe(true)
+  })
+
+  it('refuses a body that has lost a field', async () => {
+    const broken = { ...body, money: { ...body.money, owed: 200 } }
+    await expect(getStats('http://api', respond({ '/stats': { status: 200, body: broken } }))).rejects.toBeInstanceOf(ApiError)
   })
 })

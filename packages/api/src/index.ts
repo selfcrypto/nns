@@ -18,6 +18,9 @@ export {
   type ProofBase,
   type Queries,
   type Snapshot,
+  type StatsBucket,
+  type StatsReport,
+  type Tally,
 } from './queries.js'
 export { inclusionDocument, nonInclusionDocument, type ProofContext } from './proofs.js'
 export { createRoutes, type ApiResponse, type RouteHandler } from './routes.js'
