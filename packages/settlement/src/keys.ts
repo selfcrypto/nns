@@ -103,7 +103,22 @@ export function loadHotKeys(env: EnvSource): ReadonlyMap<Address, HotKey> {
  * whose wallet was cleared, heals itself instead of failing every send until
  * someone notices.
  */
-export function createNodeWallet(rpc: IssuerRpc, keys: ReadonlyMap<Address, HotKey>, logger?: Logger): Wallet {
+/** The node wallet, plus the one thing only a running issuer needs: a startup sweep. */
+export interface NodeWallet extends Wallet {
+  /**
+   * Lock every held key on the node and confirm it, before the first cycle.
+   *
+   * `withSigningKey` locks in a `finally`, and the SIGTERM handler lets that
+   * `finally` run on a normal stop — but a SIGKILL, an OOM kill or a host crash
+   * between unlock and lock runs nothing, and the node never re-locks on its own
+   * (rpc-reference §5.4: `unlockAccount`'s duration is ignored). Whatever the
+   * last process left open, this one closes before it does anything else.
+   * Returns the addresses that were found unlocked, so the caller can say so.
+   */
+  lockAll(): Promise<readonly Address[]>
+}
+
+export function createNodeWallet(rpc: IssuerRpc, keys: ReadonlyMap<Address, HotKey>, logger?: Logger): NodeWallet {
   const senders = [...keys.keys()]
 
   const importKey = async (key: HotKey): Promise<void> => {
@@ -127,6 +142,27 @@ export function createNodeWallet(rpc: IssuerRpc, keys: ReadonlyMap<Address, HotK
 
   return {
     senders,
+
+    async lockAll(): Promise<readonly Address[]> {
+      const wasOpen: Address[] = []
+      for (const key of keys.values()) {
+        // Imported first: locking an address the wallet does not hold is not a
+        // lock, and a node whose wallet was reset holds none of them.
+        await importKey(key)
+        if ((await rpc.call<boolean>('isAccountUnlocked', [key.address])) === true) {
+          wasOpen.push(key.address)
+          logger?.warn('issue.key.found-unlocked', { sender: key.address })
+        }
+        await rpc.call('lockAccount', [key.address])
+        if ((await rpc.call<boolean>('isAccountUnlocked', [key.address])) === true) {
+          // Something else is holding it open — another client on the same
+          // wallet (§5.4). Starting anyway would not close it; refusing does
+          // not either, but it makes the operator look.
+          throw new EnvError(`${formatAddress(key.address)} is still unlocked after lockAccount — another client holds it open`)
+        }
+      }
+      return wasOpen
+    },
 
     async withSigningKey<T>(sender: Address, body: () => Promise<T>): Promise<T> {
       const key = keys.get(sender)

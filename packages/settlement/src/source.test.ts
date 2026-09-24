@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { encodeRegister, feeFor, initialState, logFile, logHash } from '@nimiqnames/core'
 
 import { LAUNCH_HEIGHT, SELLER, send, stageLog, testConfig } from './test-fixtures.js'
-import { fetchLog, splitLogFile, type Fetcher } from './source.js'
+import { fetchLatestCheckpoint, fetchLog, SourceError, SourceUnavailable, splitLogFile, type Fetcher } from './source.js'
 
 // A real staged line rather than a hand-typed one: the transport layer treats
 // a line as opaque, and a fixture that is not actually a §8.2 line would be a
@@ -170,5 +170,53 @@ describe('fetchLog', () => {
     const snapshot = await fetchLog('http://api.test', fetcher)
     expect(snapshot.lines).toEqual([])
     expect(snapshot.logHash).toBe(emptyHash)
+  })
+})
+
+describe('SourceUnavailable — the source did not answer, which says nothing about the log', () => {
+  const answering = (status: number, body = '<html>502 Bad Gateway</html>'): Fetcher => () =>
+    Promise.resolve({
+      ok: status < 400,
+      status,
+      headers: { get: () => null },
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      text: () => Promise.resolve(body),
+    })
+
+  it('a 5xx from /checkpoints/latest is unavailable — what a service-box redeploy looks like', async () => {
+    const failure = fetchLatestCheckpoint('http://api.test', answering(502))
+    await expect(failure).rejects.toBeInstanceOf(SourceUnavailable)
+    await expect(fetchLatestCheckpoint('http://api.test', answering(503, 'NOT_SYNCED'))).rejects.toThrow(/returned 503: NOT_SYNCED/)
+  })
+
+  it('a 5xx from /log is unavailable', async () => {
+    await expect(fetchLog('http://api.test', answering(504))).rejects.toBeInstanceOf(SourceUnavailable)
+  })
+
+  it('an unreachable host is unavailable, and still names the endpoint', async () => {
+    const dead: Fetcher = () => Promise.reject(new TypeError('fetch failed'))
+    const failure = fetchLatestCheckpoint('http://api.test', dead)
+    await expect(failure).rejects.toBeInstanceOf(SourceUnavailable)
+    await expect(fetchLatestCheckpoint('http://api.test', dead)).rejects.toThrow(/checkpoints\/latest could not be reached/)
+  })
+
+  it('is still a SourceError, so every caller that stopped on one still stops', async () => {
+    await expect(fetchLog('http://api.test', answering(502))).rejects.toBeInstanceOf(SourceError)
+  })
+
+  it('a 4xx is a refusal, not an outage — asking again does not change the answer', async () => {
+    const failure = fetchLatestCheckpoint('http://api.test', answering(404, '{"error":"UNKNOWN_ROUTE"}'))
+    await expect(failure).rejects.toBeInstanceOf(SourceError)
+    await expect(fetchLatestCheckpoint('http://api.test', answering(404, '{"error":"UNKNOWN_ROUTE"}'))).rejects.not.toBeInstanceOf(
+      SourceUnavailable,
+    )
+  })
+
+  it('what a log says is never an outage: a hash mismatch stays a plain refusal', async () => {
+    const failure = fetchLog('http://api.test', stub({ logHashHeader: `0x${'00'.repeat(32)}` }))
+    await expect(failure).rejects.toBeInstanceOf(SourceError)
+    await expect(fetchLog('http://api.test', stub({ logHashHeader: `0x${'00'.repeat(32)}` }))).rejects.not.toBeInstanceOf(
+      SourceUnavailable,
+    )
   })
 })

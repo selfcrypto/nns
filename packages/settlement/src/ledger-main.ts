@@ -21,6 +21,7 @@ import { createLogger } from '@nns/indexer'
 import { createPool } from './db.js'
 import { loadLedgerSettings } from './env.js'
 import { createLedger, describeLedger } from './ledger.js'
+import { pollThroughOutage, sleep, stopOnSignals } from './loop.js'
 import { httpFetcher } from './source.js'
 import { createWatcher, describeSnapshot } from './watch.js'
 
@@ -38,8 +39,6 @@ Holds no key and pins nothing — issuing M transactions is deliverable 2.
 --quiet                print the ledger only, not the due set.
 
 Settings come from the environment; see packages/settlement/.env.example.`
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function run(argv: readonly string[]): Promise<number> {
   let once = false
@@ -90,9 +89,13 @@ async function run(argv: readonly string[]): Promise<number> {
     // Every refusal below — a rewound log, a fork, a debt that was confirmed
     // settled and is outstanding again — means the log is not the one this
     // ledger has been paying against. None of them is retryable, so none is
-    // retried.
+    // retried. A source that does not answer at all is not a refusal, and is
+    // sat out one cycle at a time (loop.ts).
+    const stop = stopOnSignals()
     for (;;) {
-      const result = await watcher.poll()
+      if (stop.aborted) return 0
+      const result = await pollThroughOutage(() => watcher.poll(), { once, pollSeconds, signal: stop })
+      if (result === null) continue
       if (result.kind === 'no-checkpoint') {
         console.log(`${settings.apiUrl} has no checkpoint yet — nothing can be owed before the first boundary.`)
       } else if (result.kind === 'unchanged') {
@@ -116,7 +119,7 @@ async function run(argv: readonly string[]): Promise<number> {
       }
       if (once) return 0
       console.log(`(next poll in ${pollSeconds}s)`)
-      await sleep(pollSeconds * 1000)
+      await sleep(pollSeconds * 1000, stop)
     }
   } finally {
     await pool.end()

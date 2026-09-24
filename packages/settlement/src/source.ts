@@ -28,7 +28,32 @@
 import { logFile, logHash, splitLogFile } from '@nimiqnames/core'
 
 export class SourceError extends Error {
-  override readonly name = 'SourceError'
+  override readonly name: string = 'SourceError'
+}
+
+/**
+ * The source did not answer: unreachable, or a 5xx. A subclass rather than a
+ * separate type because it is still a failure to read the log — every caller
+ * that stops on a `SourceError` stops on this too, and nothing may treat it as
+ * "no news" (see {@link fetchLatestCheckpoint}).
+ *
+ * The distinction exists for the long-running loops (`ledger`, `issue`,
+ * `watch`). Everything else a source can say — a hash that does not match, a
+ * checkpoint that does not commit, a log that is not canonical, a 4xx — is a
+ * statement about the log, and none of it gets better by asking again. This
+ * says nothing about the log at all: the service box redeploying its API is a
+ * 502 for a few seconds, and on 2026-09-24 each of those restarted the issuer.
+ * A loop may wait this out, loudly, one cycle at a time; it must not wait out
+ * its parent.
+ */
+export class SourceUnavailable extends SourceError {
+  override readonly name: string = 'SourceUnavailable'
+}
+
+/** A non-2xx answer: {@link SourceUnavailable} for a 5xx, a plain refusal otherwise. */
+function httpFailure(url: string, status: number, body: string): SourceError {
+  const message = `GET ${url} returned ${status}: ${body.slice(0, 200)}`
+  return status >= 500 ? new SourceUnavailable(message) : new SourceError(message)
 }
 
 export interface LogSnapshot {
@@ -90,15 +115,13 @@ async function get(fetcher: Fetcher, url: string): Promise<Awaited<ReturnType<Fe
     return await fetcher(url)
   } catch (cause) {
     const detail = cause instanceof Error ? (cause.cause instanceof Error ? cause.cause.message : cause.message) : String(cause)
-    throw new SourceError(`GET ${url} could not be reached: ${detail}`)
+    throw new SourceUnavailable(`GET ${url} could not be reached: ${detail}`)
   }
 }
 
 async function getJson(fetcher: Fetcher, url: string): Promise<unknown> {
   const response = await get(fetcher, url)
-  if (!response.ok) {
-    throw new SourceError(`GET ${url} returned ${response.status}: ${(await response.text()).slice(0, 200)}`)
-  }
+  if (!response.ok) throw httpFailure(url, response.status, await response.text())
   try {
     return JSON.parse(await response.text()) as unknown
   } catch {
@@ -129,14 +152,16 @@ export interface LatestCheckpoint {
  * reached its first boundary yet — so it comes back as `null` rather than as a
  * throw. Every other non-200 does throw: a 503 `NOT_SYNCED` looks exactly like
  * "no news" from here, and treating it as such would let a watcher sit quiet
- * against a server that is not answering.
+ * against a server that is not answering. A 5xx throws {@link SourceUnavailable},
+ * which a loop may retry on its next cycle — printing that it did, never the
+ * line a healthy cycle prints.
  */
 export async function fetchLatestCheckpoint(baseUrl: string, fetcher: Fetcher): Promise<LatestCheckpoint | null> {
   const url = `${baseUrl.replace(/\/+$/, '')}/checkpoints/latest`
   const response = await get(fetcher, url)
   const body = await response.text()
   if (response.status === 404 && body.includes('NO_CHECKPOINT')) return null
-  if (!response.ok) throw new SourceError(`GET ${url} returned ${response.status}: ${body.slice(0, 200)}`)
+  if (!response.ok) throw httpFailure(url, response.status, body)
 
   let document: unknown
   try {
@@ -172,9 +197,7 @@ export async function fetchLog(
 ): Promise<LogSnapshot> {
   const url = `${baseUrl.replace(/\/+$/, '')}/log`
   const response = await get(fetcher, url)
-  if (!response.ok) {
-    throw new SourceError(`GET ${url} returned ${response.status}: ${(await response.text()).slice(0, 200)}`)
-  }
+  if (!response.ok) throw httpFailure(url, response.status, await response.text())
 
   const served = new Uint8Array(await response.arrayBuffer())
   const lines = splitLogFile(served)

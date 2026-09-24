@@ -27,9 +27,10 @@ import { createLogger, RpcClient } from '@nns/indexer'
 
 import { createPool } from './db.js'
 import { loadIssuerSettings } from './env.js'
-import { describeIssue, issueFailed, issuePass, resolveExpiryBlocks, type Wallet } from './issue.js'
-import { createNodeWallet, loadHotKeys } from './keys.js'
+import { describeIssue, issueFailed, issuePass, resolveExpiryBlocks } from './issue.js'
+import { createNodeWallet, loadHotKeys, type NodeWallet } from './keys.js'
 import { createLedger, describeLedger } from './ledger.js'
+import { pollThroughOutage, sleep, stopOnSignals } from './loop.js'
 import { httpFetcher } from './source.js'
 import { createWatcher } from './watch.js'
 
@@ -56,8 +57,6 @@ the first transaction is still valid, which is the double payment.
 Settings come from the environment; see packages/settlement/.env.example. The
 keys are NNS_SETTLEMENT_MARKETPLACE_KEY and NNS_SETTLEMENT_TREASURY_KEY, and
 they belong in the environment only — never in a file in this repository.`
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function run(argv: readonly string[]): Promise<number> {
   let send = false
@@ -102,7 +101,7 @@ async function run(argv: readonly string[]): Promise<number> {
     password: settings.rpcPassword,
     logger,
   })
-  const wallet: Wallet | undefined = send ? createNodeWallet(rpc, keys, logger) : undefined
+  const wallet: NodeWallet | undefined = send ? createNodeWallet(rpc, keys, logger) : undefined
 
   const pool = createPool(settings.databaseUrl)
   try {
@@ -140,8 +139,20 @@ async function run(argv: readonly string[]): Promise<number> {
         `, and the §11.5 alert threshold is ${settings.minBalance} luna.`,
     )
 
+    const stop = stopOnSignals()
+    if (wallet !== undefined) {
+      const wasOpen = await wallet.lockAll()
+      console.log(
+        wasOpen.length === 0
+          ? `hot keys locked on the node (${wallet.senders.length} checked).`
+          : `hot keys locked on the node — ${wasOpen.length} had been left UNLOCKED by an earlier run that did not finish.`,
+      )
+    }
+
     for (;;) {
-      const result = await watcher.poll()
+      if (stop.aborted) return 0
+      const result = await pollThroughOutage(() => watcher.poll(), { once, pollSeconds, signal: stop })
+      if (result === null) continue
       if (result.kind === 'no-checkpoint') {
         console.log(`${settings.apiUrl} has no checkpoint yet — nothing can be owed before the first boundary.`)
       } else if (result.kind === 'unchanged') {
@@ -179,7 +190,7 @@ async function run(argv: readonly string[]): Promise<number> {
 
       if (once) return issueFailed(report) ? 1 : 0
       console.log(`(next cycle in ${pollSeconds}s)`)
-      await sleep(pollSeconds * 1000)
+      await sleep(pollSeconds * 1000, stop)
     }
   } finally {
     await pool.end()

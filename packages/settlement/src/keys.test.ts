@@ -133,6 +133,36 @@ describe('createNodeWallet', () => {
     )
   })
 
+  it('lockAll imports, then locks and confirms every held key — the sweep for a run that died between unlock and lock', async () => {
+    let unlocked = true
+    const calls: string[] = []
+    const rpc: IssuerRpc = {
+      async call<T>(method: string): Promise<T> {
+        calls.push(method)
+        if (method === 'importRawKey') return marketplaceKey.address as T
+        if (method === 'isAccountUnlocked') return unlocked as T
+        if (method === 'lockAccount') {
+          unlocked = false
+          return null as T
+        }
+        throw new Error(`unexpected ${method}`)
+      },
+    }
+    const wasOpen = await createNodeWallet(rpc, keys).lockAll()
+    expect(wasOpen).toEqual([marketplaceKey.address])
+    expect(calls).toEqual(['importRawKey', 'isAccountUnlocked', 'lockAccount', 'isAccountUnlocked'])
+  })
+
+  it('lockAll reports nothing when every key was already locked', async () => {
+    const { rpc } = recording({ isAccountUnlocked: false })
+    await expect(createNodeWallet(rpc, keys).lockAll()).resolves.toEqual([])
+  })
+
+  it('lockAll refuses to start when a key stays unlocked — another client holds it open (§5.4)', async () => {
+    const { rpc } = recording({ isAccountUnlocked: true })
+    await expect(createNodeWallet(rpc, keys).lockAll()).rejects.toThrow(/still unlocked after lockAccount/)
+  })
+
   it('has no key for an address it was not given one for', async () => {
     const { rpc } = recording()
     const wallet = createNodeWallet(rpc, keys)

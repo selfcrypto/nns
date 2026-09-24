@@ -14,6 +14,7 @@
 import { initialState } from '@nimiqnames/core'
 
 import { loadWatcherSettings } from './env.js'
+import { pollThroughOutage, sleep, stopOnSignals } from './loop.js'
 import { httpFetcher } from './source.js'
 import { createWatcher, describeSnapshot } from './watch.js'
 
@@ -27,8 +28,6 @@ outstanding. Holds no key, opens no database, broadcasts nothing.
 --interval=<seconds>   override NNS_SETTLEMENT_POLL_SECONDS.
 
 Settings come from the environment; see packages/settlement/.env.example.`
-
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 async function run(argv: readonly string[]): Promise<number> {
   let once = false
@@ -67,9 +66,13 @@ async function run(argv: readonly string[]): Promise<number> {
 
   // A refusal is fatal, not a retry: every one of them means the served log is
   // not something to pay from, and a watcher that backs off and tries again
-  // turns a divergence into a quiet retry loop.
+  // turns a divergence into a quiet retry loop. A source that does not answer
+  // is not a refusal: it is sat out, loudly, one cycle at a time (loop.ts).
+  const stop = stopOnSignals()
   for (;;) {
-    const result = await watcher.poll()
+    if (stop.aborted) return 0
+    const result = await pollThroughOutage(() => watcher.poll(), { once, pollSeconds, signal: stop })
+    if (result === null) continue
     if (result.kind === 'no-checkpoint') {
       console.log(`${settings.apiUrl} has no checkpoint yet — nothing can be owed before the first boundary.`)
     } else if (result.kind === 'unchanged') {
@@ -79,7 +82,7 @@ async function run(argv: readonly string[]): Promise<number> {
     }
     if (once) return 0
     console.log(`(next poll in ${pollSeconds}s)`)
-    await sleep(pollSeconds * 1000)
+    await sleep(pollSeconds * 1000, stop)
   }
 }
 
