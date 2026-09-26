@@ -5,7 +5,7 @@ The app runs in two places, and every action works in both.
 - **Inside Nimiq Pay**, as a mini app. Pay hands over your addresses and signs every transaction in its own sheet.
 - **In a browser**, with the Nimiq Hub as the wallet. Connect once and the Hub signs.
 
-Both open on the landing page. Its search box takes you into Buy, **My names** opens the names you hold, and **How it works** opens these pages. Further down, a **Prices** row opens the price table on a tap, and the burn figures sit under it ([Prices](prices)).
+Both open on the landing page. Its search box takes you into Search, **My names** opens the names you hold, and **How it works** opens these pages. Further down, a **Prices** row opens the price table on a tap, and the burn figures sit under it ([Prices](prices)).
 
 ## The five tabs
 

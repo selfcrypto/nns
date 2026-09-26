@@ -431,6 +431,9 @@
   border: none;
   outline: none;
   flex: 1;
+  /* An input's automatic minimum is its intrinsic width (~250px), which
+     pushed the Search button past the edge of every phone (2026-09-26). */
+  min-width: 0;
   font-size: 16px;
 }
 
@@ -2540,15 +2543,21 @@
     margin-bottom: 14px;
   }
 
+  /* Three across on a phone, so each card is a third of 332–360px. Columns
+     are `minmax(0, 1fr)` and the value scales with the width: at `1fr`
+     alone the cards' min-content (a 32px six-digit figure plus padding)
+     needed 394px and the third card was cut off (2026-09-26). */
   :global(.stats-grid) {
-    gap: 16px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
     max-width: 360px;
     margin: 0 auto;
   }
 
   :global(.stat-card) {
-    padding: 22px 20px 20px;
+    padding: 20px 8px 18px;
     border-radius: 20px;
+    min-width: 0;
   }
 
   :global(.stat-icon-wrap) {
@@ -2558,9 +2567,11 @@
   }
 
   :global(.stat-value) {
-    font-size: 32px;
+    font-size: clamp(20px, 6.6vw, 32px);
     margin-bottom: 6px;
     letter-spacing: -0.02em;
+    max-width: 100%;
+    overflow-wrap: anywhere;
   }
 
   :global(.stat-label) {

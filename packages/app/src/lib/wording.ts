@@ -977,10 +977,11 @@ export const notAUsdtAmountLine = (): string => 'Amount must be a USDT amount, l
 
 export const TAB_LABEL = {
   home: 'Home',
-  // "Buy/Search" rather than "Buy": the tab is still named for the job, but the
-  // job people arrive with is looking a name up, and a tab called Buy reads as
-  // a shop you have to enter before you may ask a question.
-  buy: 'Buy/Search',
+  // "Search" rather than "Buy": the job people arrive with is looking a name
+  // up, and a tab called Buy reads as a shop you have to enter before you may
+  // ask a question. It was "Buy/Search" until 2026-09-26, which truncated to
+  // "Buy/Sea…" in a fifth of every mainstream phone width (Rico).
+  buy: 'Search',
   pay: 'Pay',
   names: 'My Names',
   inbox: 'Inbox',
@@ -1360,7 +1361,7 @@ export const myNamesNoWalletBody = (): string => 'Your names are listed by your 
 export const myNamesEmptyTitle = (): string => 'No names yet'
 
 export const myNamesEmptyBody = (): string =>
-  'Register a name in Buy. It points at your address from the moment it lands.'
+  'Search for a name and register it. It points at your address from the moment it lands.'
 
 /** The button under that line — the sentence names Buy, this goes there. */
 export const myNamesEmptyAction = (): string => 'Find a name'

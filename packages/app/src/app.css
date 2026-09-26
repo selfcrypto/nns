@@ -788,9 +788,9 @@ select:focus-visible {
   display: none;
 }
 
-/* Icon over label, five equal columns. Equal columns are possible now that
-   the label is 11 px under a glyph — "Buy/Search" fits a fifth of 320 px at
-   that size, where it did not at 15 px on a bare row. */
+/* Icon over label, five equal columns. The longest label is "My Names";
+   "Buy/Search" was the longest until 2026-09-26 and truncated to "Buy/Sea…"
+   in a fifth of 393 px, so the tab is "Search" now. */
 .tab {
   appearance: none;
   flex: 1 1 0;
@@ -3972,10 +3972,16 @@ li.note {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 10px;
+  min-width: 0;
 }
 
 .owner-action-tile {
   appearance: none;
+  /* A grid item's automatic minimum is its min-content width, and the EVM
+     tile's unbroken 0x address made every tile in the group wider than the
+     card (2026-09-26, iPhone 15 Pro). With no minimum the tile takes the
+     track and `.owner-action-meta`'s ellipsis does the rest. */
+  min-width: 0;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 16px;

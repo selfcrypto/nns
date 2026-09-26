@@ -6,7 +6,7 @@ Share your name's link. Whoever registers through it gets {{referral:rebate}} of
 
 Every registered name has one: `nimiqnames.com/?ref=<your name>`. Copy it from the **Share Link** tile on the name's card in My Names, which also shows how many registrations it has brought in and roughly what they earned.
 
-Inside Nimiq Pay there is no address bar, so a link can also be pasted into the search box on Buy.
+Inside Nimiq Pay there is no address bar, so a link can also be pasted into the search box on the Search tab.
 
 A name in grace has no working link. Renew first.
 

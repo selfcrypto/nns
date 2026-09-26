@@ -22,7 +22,7 @@ nothing more than two taps deep.
 │         screen             │  one screen at a time, vertical scroll
 │                            │
 ├────────────────────────────┤
-│ Buy/Search Pay My Names Inbox Market │  tab bar, thumb row
+│ Search Pay My Names Inbox Market   │  tab bar, thumb row
 ├────────────────────────────┤
 │ ······ host chrome ······· │  --chrome-bottom (live viewport slack)
 └────────────────────────────┘
@@ -94,7 +94,7 @@ every independent host would need the same rewrite; no router library
 (decisions.md, "Routes are the hash, and the hash is one function pair").
 
 Five tabs, and the first two are named for jobs rather than mechanisms:
-**Buy/Search** is discovery and acquisition, **Pay** sends NIM to a name —
+**Search** (the Buy screen, `#/buy`; labelled Buy/Search until 2026-09-26) is discovery and acquisition, **Pay** sends NIM to a name —
 and, since 2026-08-23, **USDT over Polygon** to the name's §6 `E` record: an
 asset switch on the screen, the same verified resolve (`result.evm`, checked
 against the proven leaf on the same terms as the target), and the send handed

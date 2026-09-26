@@ -1,6 +1,6 @@
 # The verification line
 
-Every address the app shows sits in one block with the line that says who vouched for it: on the Buy card, on Pay, and under a subdomain's parent.
+Every address the app shows sits in one block with the line that says who vouched for it: on the Search card, on Pay, and under a subdomain's parent.
 
 ## "Verified by N resolvers"
 

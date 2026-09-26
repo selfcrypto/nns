@@ -203,7 +203,7 @@
     <string id="notAUsdtAmountLine">Amount must be a USDT amount, like 25 or 9.50.</string>
   </group>
   <group name="Labels that were living in their components">
-    <string id="TAB_LABEL.buy">Buy/Search</string>
+    <string id="TAB_LABEL.buy">Search</string>
     <string id="TAB_LABEL.docs">Docs</string>
     <string id="TAB_LABEL.home">Home</string>
     <string id="TAB_LABEL.inbox">Inbox</string>
@@ -316,7 +316,7 @@
     <string id="myNamesNoWalletTitle">No wallet connected</string>
     <string id="myNamesNoWalletBody">Your names are listed by your wallet addresses.</string>
     <string id="myNamesEmptyTitle">No names yet</string>
-    <string id="myNamesEmptyBody">Register a name in Buy. It points at your address from the moment it lands.</string>
+    <string id="myNamesEmptyBody">Search for a name and register it. It points at your address from the moment it lands.</string>
     <string id="myNamesEmptyAction">Find a name</string>
     <string id="offersEmptyTitle">Nothing on the marketplace</string>
     <string id="offersEmptyBody">Names for sale and open auctions show here.</string>

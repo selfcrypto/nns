@@ -11,7 +11,7 @@ A USDT payment goes through the wallet's EVM provider as a plain token transfer,
 
 ## What you see before you pay
 
-Under the address is the **verification line**, the same one the Buy card carries ([The verification line](verification)). Beside the address is the **identicon** of what will be paid, and the wallet shows it again in its own sheet.
+Under the address is the **verification line**, the same one the Search card carries ([The verification line](verification)). Beside the address is the **identicon** of what will be paid, and the wallet shows it again in its own sheet.
 
 The app refuses a payment to your own address and an amount of zero, because the network would drop both without an error.
 
