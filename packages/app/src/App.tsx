@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { appConfig, ConfigParseError, notifyEndpoint } from './config'
+import { anchorConfig, appConfig, ConfigParseError, notifyEndpoint } from './config'
 import { applyHostChrome, describeChrome } from './lib/chrome'
 import { formatRoute, parseRoute, TABS, type NavTab, type Route, type Tab } from './lib/route'
 import { detectWallet, type Wallet } from './lib/wallet'
@@ -73,6 +73,7 @@ function configProblem(): string | null {
     if (resolvers.length === 0) {
       return 'No resolver endpoints configured. Set VITE_NNS_RESOLVERS. The shipped default list is empty until a public NNS API exists.'
     }
+    anchorConfig() // optional, but set-and-malformed fails here like the rest, not on the Stats page
     return null
   } catch (error) {
     return error instanceof ConfigParseError ? error.message : String(error)

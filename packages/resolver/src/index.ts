@@ -42,8 +42,11 @@ export {
   type AnchorPolicy,
   type AnchorReport,
 } from './anchors.js'
-export type { AnchorCheck, AnchorReadRpc } from '@nimiqnames/anchor/reader'
-export { createAnchorReadRpc } from '@nimiqnames/anchor/reader'
+export type { AnchorCheck, AnchorHeightLookup, AnchorReadRpc } from '@nimiqnames/anchor/reader'
+// `latestAnchoredHeight` is discovery, not verification: what a host app shows
+// as "the newest anchor" (the mini app's Stats page) without deciding anything
+// on it. The decision is `resolve()`'s, through the policy above.
+export { createAnchorReadRpc, latestAnchoredHeight } from '@nimiqnames/anchor/reader'
 
 // Two resolvers, no anchor publishers. Spread them rather than replacing
 // them, so the day either list grows an integrator picks the new entries up

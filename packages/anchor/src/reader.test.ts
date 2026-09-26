@@ -213,7 +213,7 @@ describe('latestAnchoredHeight', () => {
     ]
     return expect(
       latestAnchoredHeight([rpc('a', logs), rpc('b', logs)], { contractAddress: CONTRACT, publishers }),
-    ).resolves.toEqual({ status: 'found', height: HEIGHT + 720 })
+    ).resolves.toEqual({ status: 'found', height: HEIGHT + 720, timestamp: NOW - 3_600, publishers: [ALICE] })
   })
 
   it('does not apply quorum — one publisher still names a height', async () => {
@@ -223,14 +223,14 @@ describe('latestAnchoredHeight', () => {
     const logs = [anchored(ALICE)]
     await expect(
       latestAnchoredHeight([rpc('a', logs), rpc('b', logs)], { contractAddress: CONTRACT, publishers }),
-    ).resolves.toEqual({ status: 'found', height: HEIGHT })
+    ).resolves.toEqual({ status: 'found', height: HEIGHT, timestamp: NOW - 3_600, publishers: [ALICE] })
   })
 
   it('ignores an unlisted publisher entirely (§8.5 #1)', async () => {
     const logs = [anchored(MALLORY, { height: HEIGHT + 1440 }), anchored(ALICE, { height: HEIGHT })]
     await expect(
       latestAnchoredHeight([rpc('a', logs), rpc('b', logs)], { contractAddress: CONTRACT, publishers }),
-    ).resolves.toEqual({ status: 'found', height: HEIGHT })
+    ).resolves.toEqual({ status: 'found', height: HEIGHT, timestamp: NOW - 3_600, publishers: [ALICE] })
   })
 
   it('will not be raised by an anchor only one endpoint reports', async () => {
@@ -241,7 +241,21 @@ describe('latestAnchoredHeight', () => {
     const alone = [...shared, anchored(BOB, { height: HEIGHT + 720, tx: '0xb0b1' as Hex })]
     await expect(
       latestAnchoredHeight([rpc('a', alone), rpc('b', shared)], { contractAddress: CONTRACT, publishers }),
-    ).resolves.toEqual({ status: 'found', height: HEIGHT })
+    ).resolves.toEqual({ status: 'found', height: HEIGHT, timestamp: NOW - 3_600, publishers: [ALICE] })
+  })
+
+  it('names every listed publisher cross-checked at that height, and its newest block time', async () => {
+    // What a display shows beside the height: who anchored it and when. The
+    // older anchor of the pair sets neither — the answer is about the height
+    // found, not the window.
+    const logs = [
+      anchored(ALICE, { height: HEIGHT, timestamp: NOW - 7_200 }),
+      anchored(ALICE, { height: HEIGHT + 720, timestamp: NOW - 3_000, tx: '0xaaa1' as Hex }),
+      anchored(BOB, { height: HEIGHT + 720, timestamp: NOW - 600, tx: '0xb0b1' as Hex }),
+    ]
+    await expect(
+      latestAnchoredHeight([rpc('a', logs), rpc('b', logs)], { contractAddress: CONTRACT, publishers }),
+    ).resolves.toEqual({ status: 'found', height: HEIGHT + 720, timestamp: NOW - 600, publishers: [ALICE, BOB] })
   })
 
   it('reports none when the window holds nothing listed', async () => {

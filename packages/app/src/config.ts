@@ -174,6 +174,85 @@ export function parseExplorerTemplate(raw: string | undefined): string {
 export const explorerTxUrl = (hash: string): string =>
   parseExplorerTemplate(import.meta.env['VITE_NNS_EXPLORER'] as string | undefined).replace('{hash}', hash)
 
+/**
+ * The §9 anchor contract and how to read it (`VITE_NNS_ANCHORS`, 2026-09-26).
+ * One JSON object:
+ *
+ * ```json
+ * {"chain": "Sepolia", "contract": "0x…", "rpcs": ["https://…", "https://…"],
+ *  "publishers": ["0x…"], "lookbackBlocks": 45000, "explorer": "https://…"}
+ * ```
+ *
+ * `chain` is what the page prints — the reader cannot learn it from an
+ * endpoint, and "Polygon" hard-coded in a hint was wrong the day the
+ * publisher went to Sepolia. `rpcs` needs **two**, for the reason the reader
+ * refuses one (§9: a single endpoint can serve a false anchor). `publishers`
+ * needs at least one: the reader ignores every address not listed, so a
+ * configured contract with nobody listed is a page that says "none" about a
+ * chain full of anchors. `lookbackBlocks` defaults to the reader's; public
+ * endpoints cap `eth_getLogs` well below that and answer a wider range with
+ * an error, so a deployment on one sets it (`deploy/service/.env.example`).
+ * `explorer` is a page a reader can check the contract on, optional.
+ *
+ * Unset is a supported deployment: the Stats page says no chain is
+ * configured. Set-but-malformed throws, like every other variable here.
+ * Today its only consumer is the Stats page; wiring it into `createResolver`'s
+ * `anchors` policy is a separate decision, since that check is a hard stop
+ * on every resolve.
+ */
+export interface AnchorConfig {
+  readonly chain: string
+  readonly contract: `0x${string}`
+  readonly rpcs: readonly string[]
+  readonly publishers: readonly string[]
+  readonly lookbackBlocks: bigint | null
+  readonly explorer: string | null
+}
+
+const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/
+
+export function parseAnchorConfig(raw: string | undefined): AnchorConfig | null {
+  if (raw === undefined || raw.trim() === '') return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch {
+    throw new ConfigParseError('VITE_NNS_ANCHORS is not valid JSON. Expected {"chain", "contract", "rpcs", "publishers"}')
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    throw new ConfigParseError('VITE_NNS_ANCHORS must be a JSON object')
+  }
+  const { chain, contract, rpcs, publishers, lookbackBlocks, explorer } = parsed as Record<string, unknown>
+  if (typeof chain !== 'string' || chain.trim() === '') {
+    throw new ConfigParseError('VITE_NNS_ANCHORS.chain must name the chain, as the page prints it (e.g. "Sepolia")')
+  }
+  if (typeof contract !== 'string' || !EVM_ADDRESS.test(contract)) {
+    throw new ConfigParseError('VITE_NNS_ANCHORS.contract must be a 20-byte EVM address')
+  }
+  if (!Array.isArray(rpcs) || rpcs.length < 2 || !rpcs.every((url) => typeof url === 'string' && isEndpointUrl(url))) {
+    throw new ConfigParseError(`VITE_NNS_ANCHORS.rpcs must list at least two endpoints, each ${URL_SHAPE}. One endpoint is not a cross-check (§9)`)
+  }
+  if (!Array.isArray(publishers) || publishers.length === 0 || !publishers.every((address) => typeof address === 'string' && EVM_ADDRESS.test(address))) {
+    throw new ConfigParseError('VITE_NNS_ANCHORS.publishers must list at least one 20-byte EVM address. The reader ignores every address not listed')
+  }
+  if (lookbackBlocks !== undefined && (!Number.isSafeInteger(lookbackBlocks) || (lookbackBlocks as number) < 1)) {
+    throw new ConfigParseError('VITE_NNS_ANCHORS.lookbackBlocks must be a positive integer')
+  }
+  if (explorer !== undefined && (typeof explorer !== 'string' || !/^https?:\/\//.test(explorer))) {
+    throw new ConfigParseError('VITE_NNS_ANCHORS.explorer must be an http(s) URL')
+  }
+  return {
+    chain: chain.trim(),
+    contract: contract.toLowerCase() as `0x${string}`,
+    rpcs: rpcs as string[],
+    publishers: (publishers as string[]).map((address) => address.toLowerCase()),
+    lookbackBlocks: lookbackBlocks === undefined ? null : BigInt(lookbackBlocks as number),
+    explorer: explorer === undefined ? null : (explorer as string),
+  }
+}
+
+export const anchorConfig = (): AnchorConfig | null => parseAnchorConfig(import.meta.env['VITE_NNS_ANCHORS'] as string | undefined)
+
 /** The Nimiq Hub the desktop adapter opens popups against. */
 export function hubEndpoint(): string {
   const raw = import.meta.env['VITE_NNS_HUB_URL'] as string | undefined

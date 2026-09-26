@@ -2089,7 +2089,7 @@ export const statsChain = {
   cadence: 'Checkpoint every',
   retained: 'Checkpoints kept',
   commitment: 'Commitment',
-  anchors: 'Anchors',
+  anchors: 'Latest anchor',
   launch: 'Launch block',
 } as const
 export const statsChainHint = {
@@ -2097,12 +2097,16 @@ export const statsChainHint = {
   indexed: 'The indexer only reads finalised blocks, so it trails the chain by up to a minute.',
   checkpoint: 'A checkpoint commits the whole registry and the log to one hash. Proofs verify against it.',
   commitment: 'The latest checkpoint\'s hash. Two honest resolvers at the same height print the same one.',
-  anchors: 'Checkpoints can be published to Polygon by independent publishers, so a client can check a resolver against them.',
 } as const
+export const statsAnchorsHint = (chain: string): string =>
+  `Checkpoints are published to ${chain} by independent publishers, so a client can check a resolver against them.`
 export const statsBlocksLine = (blocks: string, approx: string): string => `${blocks} blocks (${approx})`
 export const statsAgoLine = (approx: string): string => `${approx} ago`
-export const statsAnchorsNone = (): string => 'No publisher listed yet'
-export const statsAnchorsListed = (count: number): string => `${count} ${count === 1 ? 'publisher' : 'publishers'} listed`
+export const statsAnchorsUnconfigured = (): string => 'No anchor chain configured'
+export const statsAnchorsReading = (chain: string): string => `Reading ${chain}…`
+export const statsAnchorsUnavailable = (chain: string): string => `Could not read ${chain}`
+export const statsAnchorsNoneInWindow = (chain: string, blocks: string): string => `None on ${chain} in its last ${blocks} blocks`
+export const statsAnchorsPublishers = (count: number): string => `${count} ${count === 1 ? 'publisher' : 'publishers'}`
 export const statsUnavailable = (): string => 'Unavailable'
 
 // The probe page (tasks/26 D0).

@@ -406,7 +406,14 @@ async function sweep(
 
 /** Which height {@link latestAnchoredHeight} found, or why it found none. */
 export type AnchorHeightLookup =
-  | { readonly status: 'found'; readonly height: number }
+  | {
+      readonly status: 'found'
+      readonly height: number
+      /** Anchor-chain block time of the newest cross-checked anchor at that height, unix seconds. */
+      readonly timestamp: number
+      /** The distinct listed publishers cross-checked at that height, in the order first seen. */
+      readonly publishers: readonly EvmAddress[]
+    }
   | { readonly status: 'not-checked'; readonly reason: 'NO_PUBLISHERS' }
   | { readonly status: 'unavailable'; readonly errors: readonly { readonly rpc: string; readonly error: string }[] }
   /** The window holds no cross-checked anchor from a listed publisher. */
@@ -431,6 +438,10 @@ export interface AnchorHeightOptions {
  * A seen-once anchor cannot raise the answer: an endpoint that alone claims a
  * newer height would otherwise steer every caller to a height the others have
  * never heard of, which is the single-endpoint trust §9 exists to remove.
+ *
+ * `timestamp` and `publishers` describe what was found at that height, so a
+ * display — the mini app's Stats page — can say when and by whom in one
+ * sweep, without running the check it is not making a decision on.
  */
 export async function latestAnchoredHeight(
   rpcs: readonly AnchorReadRpc[],
@@ -451,7 +462,14 @@ export async function latestAnchoredHeight(
   for (const anchor of swept.confirmed) {
     if (height === null || anchor.nimiqHeight > height) height = anchor.nimiqHeight
   }
-  return height === null ? { status: 'none', lookbackBlocks: lookback } : { status: 'found', height }
+  if (height === null) return { status: 'none', lookbackBlocks: lookback }
+  const atHeight = swept.confirmed.filter((anchor) => anchor.nimiqHeight === height)
+  return {
+    status: 'found',
+    height,
+    timestamp: Math.max(...atHeight.map((anchor) => anchor.timestamp)),
+    publishers: [...new Set(atHeight.map((anchor) => anchor.publisher))] as EvmAddress[],
+  }
 }
 
 function computeStaleness(confirmed: readonly PastAnchor[], now: () => number): AnchorStaleness {

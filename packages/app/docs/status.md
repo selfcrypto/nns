@@ -7,7 +7,7 @@ NNS is live on Nimiq mainnet. The registry opened on 22 September 2026 at block 
 | What | Today | What closes it |
 |---|---|---|
 | **Resolver quorum** | {{n:RESOLVER_QUORUM}}, both run by one operator on two machines that replay separately | A third resolver run by somebody else, which turns the count into an independence check ([Running your own](operators)) |
-| **Anchor publishers** | None listed. The app says "Second-chain check not run." | The contract deployed on Polygon PoS and at least one listed publisher ([How you know the answer is right](trust)) |
+| **Anchor publishers** | One, run by the operator, anchoring every checkpoint change to Sepolia; the Stats page shows the newest. The app says "Second-chain check not run." | The contract deployed on Polygon PoS and a publisher run by somebody else ([How you know the answer is right](trust)) |
 | **The reserved-name list** | About 22,600 names, fixed at launch | Nothing. A name can be released but never added |
 
 ## What is live

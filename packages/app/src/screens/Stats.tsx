@@ -5,8 +5,9 @@
  * resolver, and the page says so rather than vouching for it.
  *
  * **Asked once, never on a timer.** One `/stats` request and, when a relay is
- * configured, one `getBlockNumber` when the page opens; a reload is the
- * refresh. A number that moves costs one request per client per tick
+ * configured, one `getBlockNumber` when the page opens — and, when an anchor
+ * chain is configured (`VITE_NNS_ANCHORS`), one `Anchored` sweep per listed
+ * endpoint for the newest anchor; a reload is the refresh. A number that moves costs one request per client per tick
  * (decisions.md), and the API only recounts once a batch anyway.
  *
  * The charts are inline SVG and HTML bars — no chart library, for the reason
@@ -16,7 +17,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { DEFAULT_ANCHOR_PUBLISHERS } from '@nimiqnames/resolver'
+import { createAnchorReadRpc, latestAnchoredHeight, type AnchorHeightLookup } from '@nimiqnames/resolver'
+import { anchorConfig, type AnchorConfig } from '../config'
 import { getStats, type Stats } from '../lib/api'
 import { approxDate, blocksApprox, ellipsizeAddress, formatApproxWhen, group, lunaToNim, lunaToNimShort } from '../lib/format'
 import { LUNA_PER_NIM } from '@nimiqnames/core'
@@ -43,8 +45,12 @@ import {
   statsActivityPerDay,
   statsActivityPerHour,
   statsAgoLine,
-  statsAnchorsListed,
-  statsAnchorsNone,
+  statsAnchorsHint,
+  statsAnchorsNoneInWindow,
+  statsAnchorsPublishers,
+  statsAnchorsReading,
+  statsAnchorsUnavailable,
+  statsAnchorsUnconfigured,
   statsAsOfLine,
   statsBandLabel,
   statsBlocksLine,
@@ -123,10 +129,54 @@ function useChainHead(): number | null {
   return head
 }
 
+/**
+ * The newest anchor on the configured chain (§9), asked once. Discovery
+ * only — `latestAnchoredHeight` reports what at least two endpoints agree
+ * was anchored, by whom and when; it decides nothing, and the page says
+ * where the figure came from rather than vouching for it.
+ */
+type AnchorState =
+  | { readonly status: 'unconfigured' }
+  | { readonly status: 'loading'; readonly config: AnchorConfig }
+  | { readonly status: 'failed'; readonly config: AnchorConfig }
+  | { readonly status: 'done'; readonly config: AnchorConfig; readonly lookup: AnchorHeightLookup }
+
+function useLatestAnchor(): AnchorState {
+  const config = useMemo(() => anchorConfig(), [])
+  const [state, setState] = useState<AnchorState>(() => (config === null ? { status: 'unconfigured' } : { status: 'loading', config }))
+  useEffect(() => {
+    if (config === null) return
+    let live = true
+    latestAnchoredHeight(
+      config.rpcs.map((url) => createAnchorReadRpc(url)),
+      {
+        contractAddress: config.contract,
+        publishers: config.publishers,
+        ...(config.lookbackBlocks === null ? {} : { lookbackBlocks: config.lookbackBlocks }),
+      },
+    ).then(
+      (lookup) => {
+        if (live) setState({ status: 'done', config, lookup })
+      },
+      () => {
+        if (live) setState({ status: 'failed', config })
+      },
+    )
+    return () => {
+      live = false
+    }
+  }, [config])
+  return state
+}
+
+/** Seconds since, as the checkpoint row prints them: exact under a minute and a half, approximate above. */
+const ageText = (seconds: number): string => (seconds < 90 ? `${seconds} s` : blocksApprox(seconds))
+
 export function StatsScreen() {
   const [attempt, setAttempt] = useState(0)
   const stats = useAsync(() => getStats(apiBase()), [attempt])
   const head = useChainHead()
+  const anchor = useLatestAnchor()
 
   return (
     <div className={`screen ${styles.page}`}>
@@ -150,13 +200,13 @@ export function StatsScreen() {
             </button>
           </div>
         )}
-        {stats.status === 'done' && <StatsBody stats={stats.value} head={head} />}
+        {stats.status === 'done' && <StatsBody stats={stats.value} head={head} anchor={anchor} />}
       </div>
     </div>
   )
 }
 
-function StatsBody({ stats, head }: { stats: Stats; head: number | null }) {
+function StatsBody({ stats, head, anchor }: { stats: Stats; head: number | null; anchor: AnchorState }) {
   const nowMs = useMemo(() => Date.now(), [])
   const series = useMemo(() => activitySeries(stats), [stats])
   const refs = useRef<Partial<Record<StatsSection, HTMLElement | null>>>({})
@@ -201,7 +251,7 @@ function StatsBody({ stats, head }: { stats: Stats; head: number | null }) {
       </Section>
 
       <Section title={STATS_SECTION.chain} bindRef={bind('chain')}>
-        <Chain stats={stats} head={head} nowMs={nowMs} />
+        <Chain stats={stats} head={head} anchor={anchor} nowMs={nowMs} />
       </Section>
     </>
   )
@@ -767,11 +817,38 @@ function Treasury({ stats }: { stats: Stats }) {
   )
 }
 
-function Chain({ stats, head, nowMs }: { stats: Stats; head: number | null; nowMs: number }) {
+function AnchorValue({ state, nowMs }: { state: AnchorState; nowMs: number }) {
+  if (state.status === 'unconfigured') return <span className={styles.muted}>{statsAnchorsUnconfigured()}</span>
+  const { chain, explorer } = state.config
+  if (state.status === 'loading') return <span className={styles.muted}>{statsAnchorsReading(chain)}</span>
+  if (state.status === 'failed' || state.lookup.status === 'unavailable' || state.lookup.status === 'not-checked') {
+    return <span className={styles.muted}>{statsAnchorsUnavailable(chain)}</span>
+  }
+  if (state.lookup.status === 'none') return statsAnchorsNoneInWindow(chain, group(state.lookup.lookbackBlocks))
+  const { height, timestamp, publishers } = state.lookup
+  const ageSec = Math.max(0, Math.round(nowMs / 1000 - timestamp))
+  const where =
+    explorer === null ? (
+      chain
+    ) : (
+      <a href={explorer} target="_blank" rel="noopener noreferrer">
+        {chain}
+      </a>
+    )
+  return (
+    <>
+      {group(height)}
+      <span className={styles.leaderDetail}>
+        {statsAgoLine(ageText(ageSec))} · {statsAnchorsPublishers(publishers.length)} · {where}
+      </span>
+    </>
+  )
+}
+
+function Chain({ stats, head, anchor, nowMs }: { stats: Stats; head: number | null; anchor: AnchorState; nowMs: number }) {
   const latest = stats.checkpoints.latest
   const interval = stats.chain.checkpointInterval
   const ageSec = latest === null ? null : Math.max(0, Math.round((nowMs - Date.parse(latest.createdAt)) / 1000))
-  const publishers = DEFAULT_ANCHOR_PUBLISHERS.length
   const rows: readonly [string, ReactNode, string | undefined][] = [
     [statsChain.head, head === null ? <span className={styles.muted}>{statsUnavailable()}</span> : group(head), statsChainHint.head],
     [statsChain.indexed, stats.chain.scannedThrough === null ? statsUnavailable() : group(stats.chain.scannedThrough), statsChainHint.indexed],
@@ -782,7 +859,7 @@ function Chain({ stats, head, nowMs }: { stats: Stats; head: number | null; nowM
       ) : (
         <>
           {group(latest.height)}
-          {ageSec !== null && <span className={styles.leaderDetail}>{statsAgoLine(ageSec < 90 ? `${ageSec} s` : blocksApprox(ageSec))}</span>}
+          {ageSec !== null && <span className={styles.leaderDetail}>{statsAgoLine(ageText(ageSec))}</span>}
         </>
       ),
       statsChainHint.checkpoint,
@@ -794,7 +871,11 @@ function Chain({ stats, head, nowMs }: { stats: Stats; head: number | null; nowM
       latest === null ? statsNoneYet() : <span className={styles.mono} title={latest.commitment}>{`${latest.commitment.slice(0, 10)}…${latest.commitment.slice(-8)}`}</span>,
       statsChainHint.commitment,
     ],
-    [statsChain.anchors, publishers === 0 ? <span className={styles.muted}>{statsAnchorsNone()}</span> : statsAnchorsListed(publishers), statsChainHint.anchors],
+    [
+      statsChain.anchors,
+      <AnchorValue state={anchor} nowMs={nowMs} />,
+      anchor.status === 'unconfigured' ? undefined : statsAnchorsHint(anchor.config.chain),
+    ],
     [statsChain.launch, group(stats.chain.launchHeight), undefined],
   ]
   return (

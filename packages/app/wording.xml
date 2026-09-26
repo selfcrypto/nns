@@ -608,7 +608,7 @@
     <string id="statsTxCount" params="count">2 transactions</string>
     <string id="statsBurnTitle">Burn</string>
     <string id="statsBurnedOfOwed" params="burned owed">{burned} of {owed} NIM burned</string>
-    <string id="statsChain.anchors">Anchors</string>
+    <string id="statsChain.anchors">Latest anchor</string>
     <string id="statsChain.cadence">Checkpoint every</string>
     <string id="statsChain.checkpoint">Latest checkpoint</string>
     <string id="statsChain.commitment">Commitment</string>
@@ -616,15 +616,18 @@
     <string id="statsChain.indexed">Indexed through</string>
     <string id="statsChain.launch">Launch block</string>
     <string id="statsChain.retained">Checkpoints kept</string>
-    <string id="statsChainHint.anchors">Checkpoints can be published to Polygon by independent publishers, so a client can check a resolver against them.</string>
     <string id="statsChainHint.checkpoint">A checkpoint commits the whole registry and the log to one hash. Proofs verify against it.</string>
     <string id="statsChainHint.commitment">The latest checkpoint's hash. Two honest resolvers at the same height print the same one.</string>
     <string id="statsChainHint.head">The newest block the node behind this app has seen. Read once when the page opened.</string>
     <string id="statsChainHint.indexed">The indexer only reads finalised blocks, so it trails the chain by up to a minute.</string>
+    <string id="statsAnchorsHint" params="chain">Checkpoints are published to {chain} by independent publishers, so a client can check a resolver against them.</string>
     <string id="statsBlocksLine" params="blocks approx">2 blocks ({approx})</string>
     <string id="statsAgoLine" params="approx">{approx} ago</string>
-    <string id="statsAnchorsNone">No publisher listed yet</string>
-    <string id="statsAnchorsListed" params="count">2 publishers listed</string>
+    <string id="statsAnchorsUnconfigured">No anchor chain configured</string>
+    <string id="statsAnchorsReading" params="chain">Reading {chain}…</string>
+    <string id="statsAnchorsUnavailable" params="chain">Could not read {chain}</string>
+    <string id="statsAnchorsNoneInWindow" params="chain blocks">None on {chain} in its last 2 blocks</string>
+    <string id="statsAnchorsPublishers" params="count">2 publishers</string>
     <string id="statsUnavailable">Unavailable</string>
     <string id="probeTitle">Signing probe</string>
     <string id="probeIntro">Signs a fixed text with the wallet and checks the signature locally. Nothing is sent anywhere.</string>

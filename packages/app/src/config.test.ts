@@ -1,7 +1,7 @@
 import { CONSTANTS } from '@nimiqnames/core'
 import { describe, expect, it } from 'vitest'
 
-import { ConfigParseError, parseExplorerTemplate, parseQuorum, parseResolverList } from './config'
+import { ConfigParseError, parseAnchorConfig, parseExplorerTemplate, parseQuorum, parseResolverList } from './config'
 
 describe('parseResolverList', () => {
   it('parses named endpoints', () => {
@@ -83,5 +83,60 @@ describe('parseExplorerTemplate', () => {
     // path here would be a link back into the app, which proves nothing.
     expect(() => parseExplorerTemplate('ftp://x/{hash}')).toThrow(ConfigParseError)
     expect(() => parseExplorerTemplate('/tx/{hash}')).toThrow(ConfigParseError)
+  })
+})
+
+/**
+ * The anchor chain the Stats page reads. Every refusal here is a value that
+ * would otherwise degrade silently: one endpoint reads as a cross-check that
+ * never ran, an empty publisher list makes a chain full of anchors read as
+ * "none", and a missing chain name leaves the page printing a guess.
+ */
+describe('parseAnchorConfig', () => {
+  const contract = '0xEF503A681C490CCB65090B7E9F6DF734D9F7EAEB'
+  const publisher = '0x2EFD3F0E5608BB9E2E7027A1F73485B82E8093C6'
+  const rpcs = ['https://a.example.test', 'https://b.example.test']
+  const full = { chain: ' Sepolia ', contract, rpcs, publishers: [publisher], lookbackBlocks: 45000, explorer: 'https://sepolia.etherscan.io/address/x' }
+
+  it('is unset by default — a supported deployment', () => {
+    expect(parseAnchorConfig(undefined)).toBeNull()
+    expect(parseAnchorConfig('  ')).toBeNull()
+  })
+
+  it('parses a full object, lower-casing the addresses the reader compares', () => {
+    expect(parseAnchorConfig(JSON.stringify(full))).toEqual({
+      chain: 'Sepolia',
+      contract: contract.toLowerCase(),
+      rpcs,
+      publishers: [publisher.toLowerCase()],
+      lookbackBlocks: 45000n,
+      explorer: 'https://sepolia.etherscan.io/address/x',
+    })
+  })
+
+  it('leaves the window and the explorer to their defaults when absent', () => {
+    const { lookbackBlocks: _l, explorer: _e, ...minimal } = full
+    expect(parseAnchorConfig(JSON.stringify(minimal))).toMatchObject({ lookbackBlocks: null, explorer: null })
+  })
+
+  it('refuses one endpoint — one is not a cross-check', () => {
+    expect(() => parseAnchorConfig(JSON.stringify({ ...full, rpcs: [rpcs[0]] }))).toThrow(ConfigParseError)
+  })
+
+  it('refuses an empty publisher list rather than reading a chain as empty', () => {
+    expect(() => parseAnchorConfig(JSON.stringify({ ...full, publishers: [] }))).toThrow(ConfigParseError)
+  })
+
+  it('refuses a malformed address, a missing chain name, a bad window and a relative explorer', () => {
+    expect(() => parseAnchorConfig(JSON.stringify({ ...full, contract: '0x1234' }))).toThrow(ConfigParseError)
+    expect(() => parseAnchorConfig(JSON.stringify({ ...full, publishers: ['not-an-address'] }))).toThrow(ConfigParseError)
+    expect(() => parseAnchorConfig(JSON.stringify({ ...full, chain: '' }))).toThrow(ConfigParseError)
+    expect(() => parseAnchorConfig(JSON.stringify({ ...full, lookbackBlocks: 0 }))).toThrow(ConfigParseError)
+    expect(() => parseAnchorConfig(JSON.stringify({ ...full, explorer: '/address/x' }))).toThrow(ConfigParseError)
+  })
+
+  it('refuses anything that is not one object', () => {
+    expect(() => parseAnchorConfig('nope')).toThrow(ConfigParseError)
+    expect(() => parseAnchorConfig('[]')).toThrow(ConfigParseError)
   })
 })
