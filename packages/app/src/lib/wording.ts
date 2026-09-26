@@ -1119,8 +1119,14 @@ export const disconnectLabel = (): string => 'Disconnect'
  */
 export const payConnectLabel = (): string => 'Connect Nimiq Pay'
 
-/** The identity row while `detectWallet` is still deciding — never nothing. */
-export const walletCheckingLine = (): string => 'Checking wallet…'
+/**
+ * The identity row while `detectWallet` is still deciding — never nothing.
+ * "Checking…", not "Connecting…": in a browser nothing connects here, the app
+ * is asking whether a wallet host answers, and inside Pay that same ask is the
+ * connection. "Checking wallet…" was the line until 2026-09-26, and it
+ * truncated in the 393px masthead (Rico).
+ */
+export const walletCheckingLine = (): string => 'Checking…'
 
 /** The rest of the address set, behind the one being shown. */
 export const moreAddressesLabel = (count: number): string => `+${count}`

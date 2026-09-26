@@ -241,7 +241,7 @@
     <string id="addAddressLabel">Add another address</string>
     <string id="disconnectLabel">Disconnect</string>
     <string id="payConnectLabel">Connect Nimiq Pay</string>
-    <string id="walletCheckingLine">Checking wallet…</string>
+    <string id="walletCheckingLine">Checking…</string>
     <string id="moreAddressesLabel" params="count">+2</string>
   </group>
   <group name="Buy → My names handoff (docs/app-ux.md §2)">
