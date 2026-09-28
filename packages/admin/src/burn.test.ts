@@ -26,15 +26,15 @@ const HASH = 'c0ffee'.repeat(10) + 'c0ff'
 /** `NNS1F` in lowercase hex — what the node returns as `recipientData`. */
 const F_HEX = '4e4e533146'
 
-/** A healthy §10.2 state: 10,000 NIM revenue, 2,000 owed, 500 burned. */
+/** A healthy §10.2 state: 10,000 NIM revenue, its 2,000 share, 500 burned, 1,500 still owed. */
 const STATUS: BurnStatus = {
   revenue: 1_000_000_000n,
-  owed: 200_000_000n,
+  owed: 150_000_000n,
   burned: 50_000_000n,
   height: HEAD - 300,
   url: 'http://api.test/burn',
 }
-const OUTSTANDING = STATUS.owed - STATUS.burned // 150,000,000 luna = 1,500 NIM
+const OUTSTANDING = STATUS.owed
 
 const NO_DEBTS: TreasuryOwes = { total: 0n, legs: 0 }
 
@@ -101,7 +101,7 @@ describe('parseBurnArgs', () => {
 })
 
 describe('planBurn refusals', () => {
-  it('refuses over-owed: the ceiling is owed − burned, and BURN_ADDRESS gives nothing back', async () => {
+  it('refuses over-owed: the ceiling is what is still owed, and BURN_ADDRESS gives nothing back', async () => {
     const { rpc } = fakeRpc()
     const plan = await planBurn(rpc, source(), { amount: OUTSTANDING + 1n })
     const blocking = blockingChecks(plan.checks)
@@ -111,11 +111,18 @@ describe('planBurn refusals', () => {
     await expect(broadcast(rpc, plan)).rejects.toThrow(AdminRefusal)
   })
 
-  it('refuses when nothing is owed — burned already covers owed', async () => {
+  it('refuses when nothing is owed — burned already covers the share', async () => {
     const { rpc } = fakeRpc()
-    const covered = { ...STATUS, burned: STATUS.owed }
+    const covered = { ...STATUS, owed: 0n, burned: 200_000_000n }
     const plan = await planBurn(rpc, source(covered), { amount: 1n })
     expect(blockingChecks(plan.checks)[0]?.message).toContain('nothing is owed')
+  })
+
+  it('refuses an API serving the cumulative owed — its ceiling would count money already burned', async () => {
+    const { rpc } = fakeRpc()
+    const cumulative = { ...STATUS, owed: 200_000_000n }
+    const plan = await planBurn(rpc, source(cumulative), { amount: 1n })
+    expect(blockingChecks(plan.checks)[0]?.message).toContain('inconsistent /burn')
   })
 
   it('refuses over-balance: an unfunded burn is accepted by the RPC and never mined (§11.5)', async () => {
@@ -302,7 +309,7 @@ describe('createBurnSource.fetchAttestations', () => {
 describe('parseBurnStatus', () => {
   it('reads both §10.2 halves and the as-of height', () => {
     const status = parseBurnStatus(
-      { revenue: '1000000000', owed: '200000000', burned: '50000000', height: 58_099_650, attestations: [] },
+      { revenue: '1000000000', owed: '150000000', burned: '50000000', height: 58_099_650, attestations: [] },
       'http://api.test/burn',
     )
     expect(status).toEqual({ ...STATUS })

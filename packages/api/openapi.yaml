@@ -706,8 +706,8 @@ paths:
       description: >
         Every log line addressed to BURN_ADDRESS — F attestations and
         anything that forfeited trying — with the accepted total, the
-        treasury's accepted revenue, and the owed figure BURN_SHARE derives
-        from it. Only tagged transfers enter the log, which is the point of
+        treasury's accepted revenue, and what of its BURN_SHARE is still
+        owed. Only tagged transfers enter the log, which is the point of
         F: an untagged burn is exactly the shortfall this record makes
         visible. Until 2026-08-17 this route served only the burned half and
         deferred "owed" to a dashboard that did not exist, which left
@@ -735,7 +735,9 @@ paths:
                   owed:
                     $ref: '#/components/schemas/Luna'
                     description: >
-                      BURN_SHARE (20%) of revenue, floored to whole luna.
+                      What is still owed: BURN_SHARE (20%) of revenue,
+                      floored to whole luna, less burned. Zero once the burn
+                      is level or ahead.
                   burned:
                     $ref: '#/components/schemas/Luna'
                     description: Sum of value over lines whose verdict is OK.

@@ -264,7 +264,7 @@ curl -s https://api.nimiqnames.com/name/nns
 | `/log` | the canonical §8.2 log, `text/plain`, through the latest checkpoint; `keccak256(body)` = `x-nns-log-hash` | seed a resolver, audit |
 | `/log/decoded` | the same lines decoded as JSON (`?format=text` for a table) — a reading aid, never an artifact | humans |
 | `/settlements` | what the treasury/marketplace owe and have paid (refunds, proceeds) | find your refund |
-| `/burn` | `revenue`, `owed`, `burned` — the §10.2 commitment, auditable | show the burn |
+| `/burn` | `revenue`, `burned`, and `owed` (still owed, zero once level) — the §10.2 commitment, auditable | show the burn |
 | `/referrals/{name}` | registrations that named `name` as referrer | a referrer's dashboard |
 | `/openapi.yaml` | the contract this server implements | code generation |
 

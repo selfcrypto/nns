@@ -1415,8 +1415,6 @@ export const burnBurnedLabel = (): string => 'Burned so far'
 
 export const burnLeftLabel = (): string => 'Left to burn'
 
-export const burnSurplusLine = (nim: string): string => `Ahead by ${nim} NIM, more burned than owed.`
-
 /**
  * Both halves or nothing: burned alone says nothing about whether the
  * commitment is being kept, which is why §10.2 calls the record auditable
@@ -2107,7 +2105,7 @@ export const statsTreasuryHint = {
 } as const
 export const statsTxCount = (count: number): string => `${count} ${count === 1 ? 'transaction' : 'transactions'}`
 export const statsBurnTitle = (): string => 'Burn'
-export const statsBurnedOfOwed = (burned: string, owed: string): string => `${burned} of ${owed} NIM burned`
+export const statsBurnedOfOwed = (burned: string, owed: string): string => `${burned} NIM burned, ${owed} NIM owed`
 
 export const statsChain = {
   head: 'Chain height',

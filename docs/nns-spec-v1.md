@@ -2875,9 +2875,10 @@ sum of `value` over `OK`-verdict `G`, `N`, `O` and `M` lines whose recipient
 is `TREASURY_ADDRESS` — accepted registrations, renewals, listing fees, and
 marketplace commission, the commission counted when its `M` lands (an `M`
 *to* the treasury is a commission by construction; refunds run the other way
-and never enter the base). What is owed is `⌊BURN_SHARE × base⌋`, floored to
-whole luna. One rule, one number, computable by any outsider from §8.2's log
-alone.
+and never enter the base). The commitment is `⌊BURN_SHARE × base⌋`, floored
+to whole luna, and what is **owed** is that commitment less the `value` of
+`OK` `F` lines, never below zero. One rule, one number, computable by any
+outsider from §8.2's log alone.
 
 Because signalling messages go to `PROTOCOL_ADDRESS` instead (§5.3), the
 treasury's balance *approximates* its revenue — but only approximates it.

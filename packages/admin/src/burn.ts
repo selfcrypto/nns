@@ -9,9 +9,9 @@
  * except the amount. The protections stack accordingly:
  *
  * 1. **The operator supplies the amount; the plan computes the ceiling.**
- *    `/burn` serves both halves of §10.2 — accepted revenue, owed
- *    (`BURN_SHARE` of it), burned so far — and a plan that would burn more
- *    than `owed − burned` is *refused*, not warned about. Unlike a large `P`,
+ *    `/burn` serves §10.2 — accepted revenue, burned so far, and what of
+ *    `BURN_SHARE` is still owed — and a plan that would burn more than
+ *    that is *refused*, not warned about. Unlike a large `P`,
  *    which is legal repricing someone might intend, an over-owed `F` has no
  *    legitimate routine use: burning exactly what is owed now and the
  *    remainder after more revenue accrues is never worse than over-burning,
@@ -19,7 +19,7 @@
  *    decimal that still fits the balance.
  * 2. **A stale ceiling is a refusal too.** The `/burn` snapshot lags the
  *    chain, and the dangerous direction is a *recent `F` the snapshot has not
- *    counted*: `owed − burned` then proposes money already burned. So the
+ *    counted*: `owed` then proposes money already burned. So the
  *    plan sweeps `BURN_ADDRESS`'s recent transactions at the node and refuses
  *    outright when it finds an executed `F` above the snapshot height —
  *    rerun once the API has caught up. (An `F` still in the mempool is
@@ -245,19 +245,27 @@ function check(
     )
   }
 
-  // Protection 1 — the §10.2 ceiling. Owed is floored at the API, so this
-  // comparison can only ever be conservative.
-  const outstanding = status.owed - status.burned
-  if (outstanding <= 0n) {
+  // Protection 1 — the §10.2 ceiling. `/burn` serves `owed` as what is still
+  // owed (2026-09-28); an API serving the cumulative figure, or any other
+  // arithmetic, fails the identity and is refused, since a burn over the
+  // real remainder is unrecoverable. Owed is floored, so this is conservative.
+  const expected = expectedOwed(status.revenue, status.burned)
+  if (status.owed !== expected) {
     refuse(
-      `nothing is owed: burned ${formatLuna(status.burned)} already covers owed ${formatLuna(status.owed)} ` +
-        `(BURN_SHARE ${CONSTANTS.BURN_SHARE_BP / 100n}% of ${formatLuna(status.revenue)} accepted revenue, per ${status.url})`,
+      `inconsistent /burn: owed ${formatLuna(status.owed)} is not BURN_SHARE of ${formatLuna(status.revenue)} ` +
+        `less burned ${formatLuna(status.burned)} (${formatLuna(expected)}), per ${status.url}. An API older ` +
+        'than 2026-09-28 serves the cumulative owed; upgrade it before burning',
     )
-  } else if (params.amount > outstanding) {
+  } else if (status.owed === 0n) {
     refuse(
-      `over-owed: ${formatLuna(params.amount)} exceeds the ${formatLuna(outstanding)} outstanding ` +
-        `(owed ${formatLuna(status.owed)} − burned ${formatLuna(status.burned)}). BURN_ADDRESS has no key: an ` +
-        'overpayment is unrecoverable, and burning the remainder later is never worse than over-burning now',
+      `nothing is owed: burned ${formatLuna(status.burned)} already covers BURN_SHARE ${CONSTANTS.BURN_SHARE_BP / 100n}% ` +
+        `of ${formatLuna(status.revenue)} accepted revenue, per ${status.url}`,
+    )
+  } else if (params.amount > status.owed) {
+    refuse(
+      `over-owed: ${formatLuna(params.amount)} exceeds the ${formatLuna(status.owed)} still owed. BURN_ADDRESS ` +
+        'has no key: an overpayment is unrecoverable, and burning the remainder later is never worse than ' +
+        'over-burning now',
     )
   }
 
@@ -341,7 +349,6 @@ export function describeBurnPlan(plan: BurnPlan): string[] {
     throw new Error(`built an F that does not parse back as one: ${plan.data}`)
   }
   const { status } = plan
-  const outstanding = status.owed - status.burned
   const lag = plan.head - status.height
   // Two nodes: the API's indexer may be ahead of the node this CLI plans
   // against, and "-3 blocks behind" on the one line whose job is making
@@ -350,7 +357,7 @@ export function describeBurnPlan(plan: BurnPlan): string[] {
     lag >= 0
       ? `${lag} block${lag === 1 ? '' : 's'} (${hours(lag)}) behind`
       : `${-lag} block${lag === -1 ? '' : 's'} AHEAD of this node's head — the API follows a different node`
-  const within = outstanding >= plan.params.amount
+  const within = status.owed >= plan.params.amount
   const lines = [
     `F burn: ${formatLuna(plan.value)}`,
     `  to            ${formatAddress(plan.recipient)} (BURN_ADDRESS — no key exists; §10.2)`,
@@ -358,10 +365,9 @@ export function describeBurnPlan(plan: BurnPlan): string[] {
     `  payload       ${plan.data} — decoded: F, no fields; the value above is the whole operand`,
     `  ceiling from  ${status.url} at height ${status.height} — head is ${plan.head}, so ${staleness}:`,
     `    revenue     ${formatLuna(status.revenue)} accepted (§10.2 base)`,
-    `    owed        ${formatLuna(status.owed)} (BURN_SHARE ${CONSTANTS.BURN_SHARE_BP / 100n}%)`,
     `    burned      ${formatLuna(status.burned)}`,
-    `    outstanding ${formatLuna(outstanding < 0n ? 0n : outstanding)}` +
-      (within ? ` — this burn leaves ${formatLuna(outstanding - plan.params.amount)}` : ''),
+    `    owed        ${formatLuna(status.owed)} still (BURN_SHARE ${CONSTANTS.BURN_SHARE_BP / 100n}% less burned)` +
+      (within ? ` — this burn leaves ${formatLuna(status.owed - plan.params.amount)}` : ''),
     `  treasury owes ${formatLuna(plan.owes.total)} in ${plan.owes.legs} outstanding leg${plan.owes.legs === 1 ? '' : 's'} (refunds are paid from this address)`,
     !plan.sweepConclusive
       ? `  node sweep    inconclusive — the whole window is above height ${status.height}; see REFUSED below`
@@ -401,6 +407,12 @@ export async function confirmBurn(
 }
 
 // ── The API source ───────────────────────────────────────────────────────────
+
+/** What `/burn` must serve as `owed`: BURN_SHARE of revenue, floored, less burned, never negative. */
+export function expectedOwed(revenue: bigint, burned: bigint): bigint {
+  const share = (revenue * CONSTANTS.BURN_SHARE_BP) / 10_000n
+  return share > burned ? share - burned : 0n
+}
 
 export function parseBurnStatus(body: unknown, url: string): BurnStatus {
   if (typeof body !== 'object' || body === null) {

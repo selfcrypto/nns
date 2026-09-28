@@ -1,4 +1,4 @@
-import { getBurn, leftToBurn } from '../lib/api'
+import { getBurn } from '../lib/api'
 import { lunaToNim } from '../lib/format'
 import { apiBase } from '../lib/nns'
 import { useAsync } from '../lib/useAsync'
@@ -6,7 +6,6 @@ import {
   burnBurnedLabel,
   burnExplainer,
   burnLeftLabel,
-  burnSurplusLine,
   burnTitle,
 } from '../lib/wording'
 import { Hint } from './Hint'
@@ -35,9 +34,8 @@ export function BurnFigures() {
       </p>
       <p className="burn-row">
         <span>{burnLeftLabel()}</span>
-        <span className="burn-amount">{lunaToNim(leftToBurn(burn.value))} NIM</span>
+        <span className="burn-amount">{lunaToNim(owed)} NIM</span>
       </p>
-      {burned > owed && <p className="burn-row">{burnSurplusLine(lunaToNim(burned - owed))}</p>}
     </section>
   )
 }

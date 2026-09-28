@@ -1083,6 +1083,17 @@ describe('/burn', () => {
     expect(body.owed).toBe('200000')
     expect(body.burned).toBe('0')
   })
+
+  it('serves owed as what is still owed: the share less burned, zero once level or ahead', async () => {
+    const burnedOk = (value: bigint) => [{ height: 58_190_000, txIndex: 0, txHash: 'aa11', sender: A, value, verdict: 'OK' }]
+    const owedWith = async (value: bigint) => {
+      const handle = routes({ burn: () => Promise.resolve(snap({ attestations: burnedOk(value), revenue: 1_000_000n })) })
+      return ((await handle('GET', '/burn')).body as { owed: string }).owed
+    }
+    expect(await owedWith(50_000n)).toBe('150000')
+    expect(await owedWith(200_000n)).toBe('0')
+    expect(await owedWith(300_000n)).toBe('0')
+  })
 })
 
 describe('discovery', () => {

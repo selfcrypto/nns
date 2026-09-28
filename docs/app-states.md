@@ -244,7 +244,7 @@ include this transaction", never "sent".
    picture of what will actually be paid.
 10. **Grace is neither gone nor free** — see §1's GRACE wording.
 11. **The §10.2 burn readout is a quiet fact, never a promise banner** —
-    Buy's footer shows burned, owed, and behind/ahead/even (`/burn`; the
+    Market's footer shows burned and what is still owed, as `/burn` serves them (the
     share computed from `CONSTANTS.BURN_SHARE_BP`, never hardcoded), and
     shows nothing when the API does not answer, so an unreachable record
     never reads as a broken promise. (Decided 2026-08-17, built at the

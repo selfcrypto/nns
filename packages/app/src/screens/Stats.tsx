@@ -792,7 +792,9 @@ function Referrals({ stats }: { stats: Stats }) {
 
 function Treasury({ stats }: { stats: Stats }) {
   const { money } = stats
-  const burnedShare = money.owed === 0n ? 0 : Number((money.burned * 1000n) / money.owed) / 10
+  // `owed` is what is still owed, so the share is burned of burned plus it.
+  const committed = money.burned + money.owed
+  const burnedShare = committed === 0n ? 0 : Number((money.burned * 1000n) / committed) / 10
   return (
     <div className={styles.grid}>
       <Card>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ApiError, getAuctions, getBurn, getNameInfo, getOffers, getParams, getReferrals, getStats, leftToBurn, type JsonFetch } from './api'
+import { ApiError, getAuctions, getBurn, getNameInfo, getOffers, getParams, getReferrals, getStats, type JsonFetch } from './api'
 
 const FEES_WIRE = ([[2, 200n], [3, 100n], [4, 50n], [5, 25n], [6, 10n], [11, 5n], [24, 1n]] as const).map(([upTo, times]) => ({
   upTo,
@@ -138,9 +138,6 @@ describe('luna amounts', () => {
     expect(burn.burned).toBe(150_000_000n)
     expect(burn.revenue).toBe(1_000_000_000n)
     expect(burn.height).toBe(42)
-    expect(leftToBurn(burn)).toBe(50_000_000n)
-    expect(leftToBurn({ ...burn, burned: 200_000_000n })).toBe(0n)
-    expect(leftToBurn({ ...burn, burned: 300_000_000n })).toBe(0n)
   })
 
   it('params carries a scheduled governance change with its own prices', async () => {

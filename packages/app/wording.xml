@@ -335,7 +335,6 @@
     <string id="burnTitle">Fee burn</string>
     <string id="burnBurnedLabel">Burned so far</string>
     <string id="burnLeftLabel">Left to burn</string>
-    <string id="burnSurplusLine" params="nim">Ahead by {nim} NIM, more burned than owed.</string>
     <string id="burnExplainer">20% of registry revenue is committed to be burned. The figures come from the public log, so anyone can check.</string>
   </group>
   <group name="The era notice (a compressed-tempo era)">
@@ -612,7 +611,7 @@
     <string id="statsTreasuryHint.payouts">Sale proceeds, refunds and referral shares the registry has paid.</string>
     <string id="statsTxCount" params="count">2 transactions</string>
     <string id="statsBurnTitle">Burn</string>
-    <string id="statsBurnedOfOwed" params="burned owed">{burned} of {owed} NIM burned</string>
+    <string id="statsBurnedOfOwed" params="burned owed">{burned} NIM burned, {owed} NIM owed</string>
     <string id="statsChain.anchors">Latest anchor</string>
     <string id="statsChain.cadence">Checkpoint every</string>
     <string id="statsChain.checkpoint">Latest checkpoint</string>

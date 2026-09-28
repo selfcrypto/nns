@@ -68,8 +68,9 @@ the earliest height it will accept.
 f builds an F (§6): the treasury's burn commitment, value = the amount, sent
 from TREASURY_ADDRESS to BURN_ADDRESS — an address with no key, so this is
 the most irreversible command here. It reads both halves of §10.2 from
-NNS_API_URL's GET /burn and REFUSES an amount over the outstanding owed
-(owed − burned), an amount over the treasury balance, and a plan whose
+NNS_API_URL's GET /burn and REFUSES an amount over what is still owed, a
+/burn whose owed is not BURN_SHARE of revenue less burned, an amount over
+the treasury balance, and a plan whose
 ceiling is provably stale (the node shows an executed F the /burn snapshot
 has not counted). After --send it polls /burn until the attestation appears,
 and reports UNCONFIRMED honestly if it does not — a hash is not confirmation.
