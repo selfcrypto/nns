@@ -17,6 +17,7 @@ import {
 } from '@nimiqnames/core'
 
 import {
+  ADMIN,
   LAUNCH_HEIGHT,
   LOSER,
   MARKETPLACE,
@@ -252,6 +253,35 @@ describe('takeSnapshot — auctions (r28)', () => {
     expect(closed.due[1]).toMatchObject({ owedBy: MARKETPLACE, owedTo: TREASURY, amount: commission })
     expect(closed.due[2]).toMatchObject({ owedBy: MARKETPLACE, owedTo: SELLER, amount: WINNING - commission })
     expect(closed.totalDue).toBe(STARTING_PRICE + WINNING)
+  })
+
+  // The seller of a still-reserved name is the treasury (§6 `A`), so both
+  // legs of the close have one payer, one payee and one ref. `kind` is all
+  // that tells them apart: a key without it would owe one leg and underpay
+  // by the other.
+  it('owes an admin auction’s close as two legs to the treasury, under two keys', () => {
+    const RESERVED = 'bitcoin'
+    const floor = minPrice(initialState().prices)
+    const { lines } = stageLog(
+      [
+        send(HA.open, 0, ADMIN, encodeAuction({ name: RESERVED, startingPrice: STARTING_PRICE, endHeight: END, minPrice: floor })),
+        send(HA.first, 0, WINNER, encodeBuy({ name: RESERVED, price: STARTING_PRICE })),
+      ],
+      config,
+    )
+    expect(lines.map((line) => line.split(' ').at(-1))).toEqual(['OK', 'OK'])
+
+    const open = takeSnapshot(snapshotOf(lines, CP1), replayOf(lines, CP1))
+    expect(open.due).toEqual([])
+
+    const replay = replayOf(lines, CLOSE_CP)
+    expect(replay.state.names.get(RESERVED)?.owner).toBe(WINNER)
+    const closed = takeSnapshot(snapshotOf(lines, CLOSE_CP), replay)
+    expect(closed.due.map((leg) => leg.key)).toEqual([`${HA.first}:0:COMMISSION`, `${HA.first}:0:SALE_PROCEEDS`])
+    const commission = commissionOn(STARTING_PRICE, CONSTANTS.COMMISSION_RATE)
+    expect(closed.due[0]).toMatchObject({ owedBy: MARKETPLACE, owedTo: TREASURY, amount: commission })
+    expect(closed.due[1]).toMatchObject({ owedBy: MARKETPLACE, owedTo: TREASURY, amount: STARTING_PRICE - commission })
+    expect(closed.totalDue).toBe(STARTING_PRICE)
   })
 })
 

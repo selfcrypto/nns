@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CONSTANTS, LUNA_PER_NIM, parse, termFor } from '@nimiqnames/core'
 import { ActionInputError, parseAuctionDuration, parseNimAmount, prepareAction, type ActionInputs } from './actions'
-import type { ApiParams, NameInfo } from './api'
+import type { ApiAuction, ApiParams, NameInfo } from './api'
 import { blocksApprox, formatApproxDate, lunaToNim } from './format'
 import { PRICE_UNCHANGED, offerRepricesLine, termChoiceLabel, transferMovesLine, transferReplacesLine } from './wording'
 
@@ -330,6 +330,62 @@ describe('prepareAction builds through core and prices exactly (§10.5)', () => 
     it('bidding on your own auction is refused, and there is nothing to bid on without one', () => {
       expect(() => prepare({ action: 'bid', bidNim: '1000' }, underAuction, OWNER)).toThrow(ActionInputError)
       expect(() => prepare({ action: 'bid', bidNim: '1000' }, registered(), OTHER)).toThrow(ActionInputError)
+    })
+
+    // The poll-and-compare shape whose `register` variant could not reach
+    // `confirmed` on mainnet (2026-08-21). Amounts travel as decimal strings,
+    // so each answer goes through `api.ts`'s parse as a live one does.
+    const answering = async (pending: Partial<NameInfo['pending']>, confirm: () => Promise<boolean>): Promise<boolean> => {
+      const wire = (entry: ApiAuction) => ({
+        ...entry,
+        startingPrice: entry.startingPrice.toString(),
+        bid: entry.bid.toString(),
+        minimumBid: entry.minimumBid.toString(),
+      })
+      const open = pending.auction ?? null
+      const body = { ...registered(), pending: { transfer: null, offer: null, auction: open === null ? null : wire(open) } }
+      const original = globalThis.fetch
+      globalThis.fetch = (() =>
+        Promise.resolve(new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } }))) as typeof fetch
+      try {
+        return await confirm()
+      } finally {
+        globalThis.fetch = original
+      }
+    }
+
+    it('an auction confirms on the window it opened, at the starting price it sent', async () => {
+      const { confirm } = prepare({ action: 'auction', startingPriceNim: '1000', durationDays: '2' })
+      expect(await answering({}, confirm)).toBe(false)
+      expect(await answering({ auction: { ...auction, startingPrice: 2000n * LUNA_PER_NIM } }, confirm)).toBe(false)
+      expect(await answering({ auction: { ...auction, startingPrice: 1000n * LUNA_PER_NIM } }, confirm)).toBe(true)
+    })
+
+    it('a bid confirms when the standing bid is the viewer’s, at the amount sent', async () => {
+      const { confirm } = prepare({ action: 'bid', bidNim: '1200' }, underAuction, OTHER)
+      const bid = 1200n * LUNA_PER_NIM
+      expect(await answering({}, confirm), 'no auction').toBe(false)
+      expect(await answering({ auction }, confirm), 'no bid yet').toBe(false)
+      expect(await answering({ auction: { ...auction, bidder: OWNER, bid } }, confirm), 'somebody else’s bid').toBe(false)
+      expect(await answering({ auction: { ...auction, bidder: OTHER, bid: bid - 1n } }, confirm), 'an earlier bid of the viewer’s').toBe(false)
+      expect(await answering({ auction: { ...auction, bidder: OTHER, bid } }, confirm)).toBe(true)
+    })
+
+    // Pay picks the signer itself, so the bidder the chain records may be any
+    // member of the set, not the address the app assumed.
+    it('a bid confirms against the whole identity set', async () => {
+      const third = 'NQ42 5QRF L5AV J6K3 BQHQ FAE8 XXHR TS8Y 9YRA'
+      const { confirm } = prepareAction({
+        inputs: { action: 'bid', bidNim: '1200' },
+        name: 'example',
+        info: underAuction,
+        signer: OTHER,
+        viewers: [OTHER, third],
+        params,
+        apiBase: 'http://api',
+        nowMs: NOW,
+      })
+      expect(await answering({ auction: { ...auction, bidder: third, bid: 1200n * LUNA_PER_NIM } }, confirm)).toBe(true)
     })
   })
 

@@ -539,6 +539,21 @@ describe('issuePass — two legs, one transaction', () => {
     expect(kinds(report.outcomes)).toEqual(['1010:0:REFUND planned', '1010:0:REFERRAL_REBATE collided'])
     expect(describeIssue(report).some((line) => line.includes('COLLIDED'))).toBe(true)
   })
+
+  // An admin auction's close: one ref, one payer, one payee, two kinds. The
+  // amounts differ (the commission and what is left of the bid), so both are
+  // sent, and each M carries its own amount.
+  it('pays both legs of an admin auction’s close, which share everything but the amount', async () => {
+    const close = (kind: LedgerEntry['kind'], amount: bigint) =>
+      entry({ ref: { height: 1_010, txIndex: 0 }, kind, amount, owedBy: MARKETPLACE, owedTo: TREASURY })
+    const run = pass([close('COMMISSION', 1_750_000n), close('SALE_PROCEEDS', 68_250_001n)], { send: true })
+    const report = await run.report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:COMMISSION sent', '1010:0:SALE_PROCEEDS sent'])
+    expect(run.ledger.pins.map((plan) => [plan.sender, plan.recipient, plan.value])).toEqual([
+      [MARKETPLACE, TREASURY, 1_750_000n],
+      [MARKETPLACE, TREASURY, 68_250_001n],
+    ])
+  })
 })
 
 describe('issuePass — resuming a pinned attempt', () => {
