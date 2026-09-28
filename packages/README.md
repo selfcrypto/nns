@@ -103,7 +103,8 @@ repository and its images, rather than installing them. What an integrator
 needs from `api` is its *HTTP* surface, which is `docs/integration.md`, not a
 package.
 
-All three are on npm at `0.1.0` since 2026-09-14, so `npm install
+All three are on npm at `0.2.0` (revision 31; `0.1.0` predates the launch and is
+deprecated), so `npm install
 @nimiqnames/resolver` works; `https://nimiqnames.com/nns.js` is still the path
 for a page with no build step (`docs/integration.md` §3.1). Each release is one
 run of `docs/runbooks/release.md`. **The published scope is `@nimiqnames`, not

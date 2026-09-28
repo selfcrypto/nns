@@ -1,8 +1,8 @@
 {
   "name": "@nimiqnames/anchor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "NNS anchor contract (\u00a79): a permissionless, append-only event emitter, and the committed record of its compilation.",
+  "description": "NNS anchor contract (§9): a permissionless, append-only event emitter, and the committed record of its compilation.",
   "license": "MIT",
   "author": "Enrique Ferrater",
   "homepage": "https://github.com/selfcrypto/nns#readme",

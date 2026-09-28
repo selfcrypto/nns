@@ -1,8 +1,8 @@
 {
   "name": "@nimiqnames/resolver",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "Client-side NNS resolution: resolver quorum, \u00a78.3 proof verification, \u00a78.6 delegation. Browser and Node.",
+  "description": "Client-side NNS resolution: resolver quorum, §8.3 proof verification, §8.6 delegation. Browser and Node.",
   "license": "MIT",
   "author": "Enrique Ferrater",
   "homepage": "https://github.com/selfcrypto/nns/blob/main/docs/integration.md",

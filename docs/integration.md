@@ -366,19 +366,19 @@ twice — not a cut-down copy, so everything in this section applies to it
 unchanged, and `https://cdn.jsdelivr.net/npm/@nimiqnames/resolver/dist/nns.js` is
 the same file from a CDN if you prefer one that is not ours.
 
-> **Status, 2026-09-14.** `@nimiqnames/core`, `@nimiqnames/anchor` and
-> `@nimiqnames/resolver` are on npm at `0.1.0`, and `https://nimiqnames.com/nns.js`
-> is live. A CDN copy appears a few minutes after each publish, so a fresh
-> version reaches jsDelivr slightly later than it reaches `npm install`.
+> **Status, 2026-09-28.** `@nimiqnames/core`, `@nimiqnames/anchor` and
+> `@nimiqnames/resolver` are on npm at `0.2.0`, built at revision 31 with the
+> constants the registry launched on, and `https://nimiqnames.com/nns.js` is
+> live. A CDN copy appears a few minutes after each publish.
 >
-> **The two copies carry different constants until launch.** npm and jsDelivr
-> are built from `main`, so they hold the mainnet values; the copy served from
-> `nimiqnames.com` is built from the era the public beta runs, so it holds the
-> compressed ones (§10.4's table). Nothing in resolution depends on that — a
-> name resolves and a proof verifies identically either way — but a fee or a
-> term read straight out of `CONSTANTS` is the mainnet number while the beta
-> chain wants the compressed one. Read prices from `/params` (§6), which is
-> right in both.
+> **Do not build a transaction with `0.1.0`.** It was published on
+> 2026-09-14, before the launch freeze, and carries the pre-launch
+> addresses, launch height and base fee: a registration built with it pays
+> an address the registry does not read. Resolution and proof verification
+> are unaffected. It is marked deprecated on npm.
+>
+> Read prices from `/params` (§6) rather than from `CONSTANTS`: governance
+> can move the base fee, and a compiled-in number cannot follow it.
 
 Either way `dist/` is what ships: ESM, typed, plus `dist/rendering.css`
 (§4.3's type face) and `dist/nns.js` (the bundle above).

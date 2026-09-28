@@ -14,7 +14,7 @@ No bundler:
 
 ```html
 <script type="module">
-  import { createResolver } from 'https://cdn.jsdelivr.net/npm/@nimiqnames/resolver@0.1.0/dist/nns.js'
+  import { createResolver } from 'https://cdn.jsdelivr.net/npm/@nimiqnames/resolver@0.2.0/dist/nns.js'
 
   const { address, verification } = await createResolver({}).resolve('rico')
   // address      → 'NQ64 VFXQ …', the address to pay
