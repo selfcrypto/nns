@@ -26,7 +26,7 @@
           "sender": "BOB",
           "recipient": "TREASURY",
           "value": "312500000",
-          "text": "NNS1Gkikename",
+          "text": "NNS1Griconame",
           "verdict": {
             "kind": "REFUND",
             "reason": "LOST_REGISTRATION_RACE"
@@ -38,7 +38,7 @@
           "sender": "ALICE",
           "recipient": "TREASURY",
           "value": "312500000",
-          "text": "NNS1Gkikename",
+          "text": "NNS1Griconame",
           "verdict": {
             "kind": "OK"
           }
@@ -46,14 +46,14 @@
       ],
       "expect": {
         "owner": {
-          "kikename": "ALICE"
+          "riconame": "ALICE"
         },
         "logLines": [
-          "62275690 0 aa00000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331476b696b656e616d65 OK",
-          "62275690 1 aa10000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331476b696b656e616d65 LOST_REGISTRATION_RACE"
+          "62275690 0 aa00000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331477269636f6e616d65 OK",
+          "62275690 1 aa10000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331477269636f6e616d65 LOST_REGISTRATION_RACE"
         ],
-        "logHash": "63a18e23fce144d0929183aff8845696a13cec46acc189fe7a75dc287fb287d7",
-        "root": "44acd2f5adee2a2bd23a08b8893f0bb2f2fea1cf86e16981cb323301825e489b"
+        "logHash": "d8314fe95f57343bbf5a861899c83114f9c5f372308bc22e286a0e62049264c4",
+        "root": "7fa0d3935753b2d4d06a661ce720663033b8112c83f03eb7603fbc36072f068e"
       }
     },
     {
@@ -67,7 +67,7 @@
           "sender": "BOB",
           "recipient": "TREASURY",
           "value": "312500000",
-          "text": "NNS1Gkikename",
+          "text": "NNS1Griconame",
           "verdict": {
             "kind": "OK"
           }
@@ -78,7 +78,7 @@
           "sender": "ALICE",
           "recipient": "TREASURY",
           "value": "312500000",
-          "text": "NNS1Gkikename",
+          "text": "NNS1Griconame",
           "verdict": {
             "kind": "REFUND",
             "reason": "LOST_REGISTRATION_RACE"
@@ -87,14 +87,14 @@
       ],
       "expect": {
         "owner": {
-          "kikename": "BOB"
+          "riconame": "BOB"
         },
         "logLines": [
-          "62275690 0 aa00000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331476b696b656e616d65 OK",
-          "62275690 1 aa10000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331476b696b656e616d65 LOST_REGISTRATION_RACE"
+          "62275690 0 aa00000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331477269636f6e616d65 OK",
+          "62275690 1 aa10000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331477269636f6e616d65 LOST_REGISTRATION_RACE"
         ],
-        "logHash": "81d636df6f35c70584b2caec2ace78cf94b5b1c0610cb750017e95930d200ab7",
-        "root": "53585a8ff11722d3e54dc6eb6b534039b1490288c4b7147ae3fa604df5c042d7",
+        "logHash": "96b9a2f3ce4b4b4d12ed7bba14e3087944eb8e7c70dd6aaa0647b84e747a7435",
+        "root": "6bb2f5ee7c941f16c90f66287a3edeca3012afeeada44de4fe708c093848b2c4",
         "differsFrom": "two_registrations_in_one_block"
       }
     },
@@ -109,7 +109,7 @@
           "sender": "ALICE",
           "recipient": "TREASURY",
           "value": "312500000",
-          "text": "NNS1Gkikename",
+          "text": "NNS1Griconame",
           "executionResult": false,
           "verdict": {
             "kind": "IGNORED",
@@ -122,7 +122,7 @@
           "sender": "BOB",
           "recipient": "TREASURY",
           "value": "312500000",
-          "text": "NNS1Gkikename",
+          "text": "NNS1Griconame",
           "verdict": {
             "kind": "OK"
           }
@@ -130,13 +130,13 @@
       ],
       "expect": {
         "owner": {
-          "kikename": "BOB"
+          "riconame": "BOB"
         },
         "logLines": [
-          "62275700 1 bb10000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331476b696b656e616d65 OK"
+          "62275700 1 bb10000000000000000000000000000000000000000000000000000000000000 NQ85FJ4RD8VGPP5DFR7HYQ5HG99J7V65JRKK NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331477269636f6e616d65 OK"
         ],
-        "logHash": "3723c85d7dd96b59c7bd71279bec41215bada3b9999cbd77effd330ed9455cce",
-        "root": "802360d678718c7171d92a07e525206366bd7af03820d0565040295f382b9275"
+        "logHash": "c52e0487a24e2e6b3680db87dc0756ba0a485f21144e9f611024b03e2f6017e9",
+        "root": "3d63bf9ef88af2c639596742ec15ef205eab79994beebed061cfba3ffda162e2"
       }
     },
     {
@@ -164,7 +164,7 @@
           "sender": "ALICE",
           "recipient": "TREASURY",
           "value": "312500000",
-          "text": "NNS1Gkikename",
+          "text": "NNS1Griconame",
           "verdict": {
             "kind": "OK"
           }
@@ -172,13 +172,13 @@
       ],
       "expect": {
         "owner": {
-          "kikename": "ALICE"
+          "riconame": "ALICE"
         },
         "logLines": [
-          "62275710 0 cc50000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331476b696b656e616d65 OK"
+          "62275710 0 cc50000000000000000000000000000000000000000000000000000000000000 NQ57B9KP90CEKELBBGNFTKLYC0QG3LM3EH2H NQ39M3TJ2NC1G4PJ07JFBFKGQ3X6AK7KJ7YT 312500000 4e4e5331477269636f6e616d65 OK"
         ],
-        "logHash": "2105602e43471aa331a952204ee7e9855464a2f007e147c6d98708c4a671a886",
-        "root": "245ec17d6c46852aa68b2249e552b8840caaa62101fd43c54d83329801c0e2c7"
+        "logHash": "6705a0b1c8966482028155ad111277cd210eab54fd95b25c2bfb5be75fbce245",
+        "root": "f45083c9142044513e47f9d4df8463204b097e0ecfba930976dc88a5c79d2ee9"
       }
     }
   ]

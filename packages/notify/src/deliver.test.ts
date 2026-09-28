@@ -31,7 +31,7 @@ const event: NotifyEvent = { kind: 'renewal_open', to: ALICE, name: 'riconame', 
 describe('deliver', () => {
   it('sends to every confirmed contact whose category is on, once', async () => {
     const store = new FakeStore()
-    store.seed(ALICE, 'email', 'kike@example.com')
+    store.seed(ALICE, 'email', 'rico@example.com')
     store.seed(ALICE, 'telegram', '42')
     const mails: EmailMessage[] = []
     const chats: string[] = []
@@ -46,7 +46,7 @@ describe('deliver', () => {
 
   it('respects the category toggles and an unconfirmed contact', async () => {
     const store = new FakeStore()
-    store.seed(ALICE, 'email', 'kike@example.com', ['market'])
+    store.seed(ALICE, 'email', 'rico@example.com', ['market'])
     const mails: EmailMessage[] = []
     expect((await deliver([event], options(store, mails, []))).sent).toBe(0)
     const sale: NotifyEvent = { kind: 'offer_bought', to: ALICE, name: 'riconame', buyer: 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK', price: 62_500_000n }

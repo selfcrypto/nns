@@ -14,75 +14,75 @@
       {
         "id": "minimal_registered",
         "record": {
-          "name": "kikename",
+          "name": "riconame",
           "owner": "ALICE",
           "target": "ALICE",
           "expiry": 93811680,
           "status": "REGISTERED",
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000059773e00000",
-        "leaf": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
+        "enc": "087269636f6e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000059773e00000",
+        "leaf": "032bd5be1faf32d456b9a644526fe9871020bc1079537726248db705691e2825",
         "note": "An unset host is a zero length prefix and nothing more, and an unset evm is 20 zero bytes. The r19 recovery field sat between status and the host (r20 removed it); r26 inserted evm:20B between target and expiry."
       },
       {
         "id": "full_grace",
         "record": {
-          "name": "kike-one",
+          "name": "rico-one",
           "owner": "ALICE",
           "target": "BOB",
           "expiry": 93811680,
           "status": "GRACE",
           "host": "nns.x.com"
         },
-        "enc": "086b696b652d6f6e655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c596673000000000000000000000000000000000000000000000000059773e001096e6e732e782e636f6d",
-        "leaf": "b52b532648d64aebaba74eed8645feafdf209ba63847c21b5964766594f7e4a5",
+        "enc": "087269636f2d6f6e655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c596673000000000000000000000000000000000000000000000000059773e001096e6e732e782e636f6d",
+        "leaf": "69908fc6bd44e952e1a10a7ed0aa544a0385399fd833b33eda58ff0cbbe0d42c",
         "note": "status is 0x01 for GRACE, 0x00 for REGISTERED."
       },
       {
         "id": "expiry_of_one_is_big_endian",
         "record": {
-          "name": "kikename",
+          "name": "riconame",
           "owner": "ALICE",
           "target": "ALICE",
           "expiry": 1,
           "status": "REGISTERED",
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000000000010000",
-        "leaf": "7d4a86ff46515657632ff2332ed351bbc668ed70201fce184c10f29a937a482a"
+        "enc": "087269636f6e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000000000010000",
+        "leaf": "bab1f4459777739d5b89afa148b0d1c84375e84c073a78a22544d30216d8c0d7"
       },
       {
         "id": "length_prefixes_prevent_collision_a",
         "record": {
-          "name": "kikenam",
+          "name": "riconam",
           "owner": "ALICE",
           "target": "ALICE",
           "expiry": 93811680,
           "status": "REGISTERED",
           "host": "e"
         },
-        "enc": "076b696b656e616d5a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000059773e0000165",
-        "leaf": "c9772e0457aa23db0864a7e3a4eb976bb00de8461f8bd18c4e05a80708a6f103",
+        "enc": "077269636f6e616d5a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000059773e0000165",
+        "leaf": "9705c1ffdba7776eca5c83acf9b20871b7eb4588bd6deb16228342294e0bdb6c",
         "note": "Paired with the next case. Without length prefixes these two distinct states would share an encoding."
       },
       {
         "id": "length_prefixes_prevent_collision_b",
         "record": {
-          "name": "kikename",
+          "name": "riconame",
           "owner": "ALICE",
           "target": "ALICE",
           "expiry": 93811680,
           "status": "REGISTERED",
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000059773e00000",
-        "leaf": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b"
+        "enc": "087269636f6e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744515a6774818e9ba8b5c2cfdce9f603101d2a374451000000000000000000000000000000000000000000000000059773e00000",
+        "leaf": "032bd5be1faf32d456b9a644526fe9871020bc1079537726248db705691e2825"
       },
       {
         "id": "evm_set_is_twenty_raw_bytes",
         "record": {
-          "name": "kikename",
+          "name": "riconame",
           "owner": "ALICE",
           "target": "BOB",
           "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b",
@@ -90,8 +90,8 @@
           "status": "REGISTERED",
           "host": ""
         },
-        "enc": "086b696b656e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c5966731b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b00000000059773e00000",
-        "leaf": "70266c8077a80b44ddfc98d9cd74ba1d1d81f7c48ab575f219e53aee831d536a",
+        "enc": "087269636f6e616d655a6774818e9ba8b5c2cfdce9f603101d2a3744517c8996a3b0bdcad7e4f1fe0b1825323f4c5966731b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b00000000059773e00000",
+        "leaf": "23831d27b85ea1f47ec6ad66645dbe6e6b8475eea2e5149d9ed8abf629136319",
         "note": "§6 E's record enters the leaf as the raw 20 bytes between target and expiry; base64url is only the wire form. Absent evm in these vectors means unset."
       }
     ]
@@ -114,9 +114,9 @@
       {
         "id": "one_leaf_root_is_the_leaf",
         "names": [
-          "kikename"
+          "riconame"
         ],
-        "root": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b"
+        "root": "032bd5be1faf32d456b9a644526fe9871020bc1079537726248db705691e2825"
       },
       {
         "id": "two_leaves",
@@ -159,14 +159,14 @@
       {
         "id": "grace_names_are_in_the_tree",
         "names": [
-          "kikename"
+          "riconame"
         ],
         "overrides": {
-          "kikename": {
+          "riconame": {
             "status": "GRACE"
           }
         },
-        "root": "cc1909d89c04987be657456abcb11101c45952ac7fa7fd27a3f531699cb77f55",
+        "root": "59c9783923029fffefd102731bfcda83cf348f19ac6edeb2e19830066aae4af1",
         "note": "This is what makes non-inclusion mean AVAILABLE rather than merely not-REGISTERED (§8.1)."
       }
     ]
@@ -177,27 +177,27 @@
       {
         "id": "hyphen_digit_letter",
         "input": [
-          "kikename",
-          "kike0one",
-          "kike-one",
+          "riconame",
+          "rico0one",
+          "rico-one",
           "zebraname"
         ],
         "sorted": [
-          "kike-one",
-          "kike0one",
-          "kikename",
+          "rico-one",
+          "rico0one",
+          "riconame",
           "zebraname"
         ]
       },
       {
         "id": "prefix_sorts_first",
         "input": [
-          "kikenames",
-          "kikename"
+          "riconames",
+          "riconame"
         ],
         "sorted": [
-          "kikename",
-          "kikenames"
+          "riconame",
+          "riconames"
         ]
       }
     ]
@@ -298,7 +298,7 @@
           },
           "names": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "owner": "ALICE",
               "target": "ALICE",
               "expiry": 93811680,
@@ -308,11 +308,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
+        "nameRoot": "032bd5be1faf32d456b9a644526fe9871020bc1079537726248db705691e2825",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "53208625093c5496f2961e8087ea97366a5ecfc687bf3a4fbc6cd8d7da1ab074"
+        "commitment": "94a01feb261a495a95244ad998d355d2179f2406be1a84fe6c99ee739319fdf4"
       },
       {
         "id": "every_pending_category",
@@ -325,7 +325,7 @@
           },
           "names": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "owner": "ALICE",
               "target": "ALICE",
               "expiry": 93811680,
@@ -348,14 +348,14 @@
               "effectiveHeight": 62379680
             },
             {
-              "name": "kikename",
+              "name": "riconame",
               "newOwner": "BOB",
               "effectiveHeight": 62379680
             }
           ],
           "offers": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "seller": "ALICE",
               "price": "100000000",
               "openedHeight": 62335680,
@@ -371,7 +371,7 @@
           },
           "auctions": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "seller": "ALICE",
               "startingPrice": "100000000",
               "endHeight": 62362160,
@@ -381,11 +381,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "482923d084fa4e8f9fd36ecfd305d398a2a949f3e2d6405db06c1f453eca5c4d",
+        "nameRoot": "00512b1b8c6b485322ad2ef23c3bdc9e669cedc13a9fc9fbe4b6b1b6087236e1",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
-        "pendingRoot": "9b6dccbfa3c8f70f17ca38df082bd4175ee239ea79ea1ffa6f4094877ba8dee0",
+        "pendingRoot": "1fa3fb4bf486f993201f34388ce6f40c7c90e684c0576351d8d335ad634c923a",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "8b295d7284f33908cee29bb830127dcdf4b691a848f57f5935ff54051b98d29f"
+        "commitment": "5a8134f55cadbacf98aee2df8eb02dcaa5c669ff441895e463d255cd53a76a3a"
       },
       {
         "id": "one_open_auction_no_bid",
@@ -398,7 +398,7 @@
           },
           "names": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "owner": "ALICE",
               "target": "ALICE",
               "expiry": 93811680,
@@ -408,7 +408,7 @@
           ],
           "auctions": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "seller": "ALICE",
               "startingPrice": "100000000",
               "endHeight": 62362160
@@ -416,11 +416,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
+        "nameRoot": "032bd5be1faf32d456b9a644526fe9871020bc1079537726248db705691e2825",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
-        "pendingRoot": "cc826ddf70c716a39d309f2d174973f32f6c03735d1b050a06c73d6dad8dec49",
+        "pendingRoot": "99a0b63ce0eb9cea24c424dd13369f5d6fd9eac94ea310fe228ea3183e03be30",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "425afa16db6160c5553b07c16a9fa9b341605603fc23c7ade2a79b1a5af7b7ec"
+        "commitment": "e235c752b48816f227e0582f28983be38372a26c50e802e2cbaf503377211565"
       },
       {
         "id": "one_open_auction_with_bid",
@@ -433,7 +433,7 @@
           },
           "names": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "owner": "ALICE",
               "target": "ALICE",
               "expiry": 93811680,
@@ -443,7 +443,7 @@
           ],
           "auctions": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "seller": "ALICE",
               "startingPrice": "100000000",
               "endHeight": 62362260,
@@ -453,11 +453,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
+        "nameRoot": "032bd5be1faf32d456b9a644526fe9871020bc1079537726248db705691e2825",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
-        "pendingRoot": "da858120aa0862b61a50a8286e7651848e11bf00ffd883b8dddd1d1f7972d1a1",
+        "pendingRoot": "88ed5d26546b2e708cdb29b6befb186e9cd760833855fb9258c3140c921a5baa",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "f503f95481fbfde205fcd46bdac815ac721cfae1d968be689c4ef0070241db7c"
+        "commitment": "832645376df5da232c7d1ce68950551297d565a501e5bd592a7d878f7db2bb06"
       },
       {
         "id": "same_names_no_pending_set",
@@ -470,7 +470,7 @@
           },
           "names": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "owner": "ALICE",
               "target": "ALICE",
               "expiry": 93811680,
@@ -490,11 +490,11 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "every_pending_category",
         "differsFrom": "every_pending_category",
-        "nameRoot": "482923d084fa4e8f9fd36ecfd305d398a2a949f3e2d6405db06c1f453eca5c4d",
+        "nameRoot": "00512b1b8c6b485322ad2ef23c3bdc9e669cedc13a9fc9fbe4b6b1b6087236e1",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "fa446b1251bda7346f43917cc7324210867bc596c701d436073db7b99499c685"
+        "commitment": "8d15f28957987048851cb1c06e74c49c14753bb5640d1008fed36ac9dcb07547"
       },
       {
         "id": "prices_moved_by_a_P",
@@ -507,7 +507,7 @@
           },
           "names": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "owner": "ALICE",
               "target": "ALICE",
               "expiry": 93811680,
@@ -519,11 +519,11 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "one_name_nothing_pending",
         "differsFrom": "one_name_nothing_pending",
-        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
+        "nameRoot": "032bd5be1faf32d456b9a644526fe9871020bc1079537726248db705691e2825",
         "pricesRoot": "7f572fbc868eaa5be760f6b228a5a18c688e97086a3161bfc93f1d44f51c720a",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "0ef9d8f8804d174666011a394cab7901679a8944d24249fd148a6a36071151f8",
-        "commitment": "0fbfd1616b2f4763dac3852d66f097c85fac17edcf4193ef0dc2c2850f9565e4"
+        "commitment": "08c6ec754755d33b230c9ac05ef48bb208aed5035c70a6b50f247d32640756d1"
       },
       {
         "id": "one_fired_unreserve",
@@ -536,7 +536,7 @@
           },
           "names": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "owner": "ALICE",
               "target": "ALICE",
               "expiry": 93811680,
@@ -551,11 +551,11 @@
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameNameRootAs": "one_name_nothing_pending",
         "differsFrom": "one_name_nothing_pending",
-        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
+        "nameRoot": "032bd5be1faf32d456b9a644526fe9871020bc1079537726248db705691e2825",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "621cc735f00f1996b0c525a38267877ef62abc4d46947768578330547026a95c",
-        "commitment": "47aad84bd2be17b64ca5561d55837e58ebbeff0fbf1ba4d7f44f2f357e2d526a"
+        "commitment": "89b788f5002a275f0a1ee048300047f8c9968811c5887b9e64313b4df46545c8"
       },
       {
         "id": "unreserved_sorted_bytewise",
@@ -568,7 +568,7 @@
           },
           "names": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "owner": "ALICE",
               "target": "ALICE",
               "expiry": 93811680,
@@ -583,11 +583,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
+        "nameRoot": "032bd5be1faf32d456b9a644526fe9871020bc1079537726248db705691e2825",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "f620900b533d87f4d7405b52a351a27baea463cbd828ec6a7a4c4b388898d763",
-        "commitment": "5e1a1240697700c0ba2dccb07294fa2bb180e2f64684289943d8b74df3f04f62"
+        "commitment": "09b49c1840ea25c40fc9fc22c407b7deaf7f6d437a60a43bc40aa3492d9395ed"
       },
       {
         "id": "unreserved_authored_unsorted",
@@ -600,7 +600,7 @@
           },
           "names": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "owner": "ALICE",
               "target": "ALICE",
               "expiry": 93811680,
@@ -616,11 +616,11 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "sameCommitmentAs": "unreserved_sorted_bytewise",
-        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
+        "nameRoot": "032bd5be1faf32d456b9a644526fe9871020bc1079537726248db705691e2825",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "f620900b533d87f4d7405b52a351a27baea463cbd828ec6a7a4c4b388898d763",
-        "commitment": "5e1a1240697700c0ba2dccb07294fa2bb180e2f64684289943d8b74df3f04f62"
+        "commitment": "09b49c1840ea25c40fc9fc22c407b7deaf7f6d437a60a43bc40aa3492d9395ed"
       },
       {
         "id": "unreserved_length_prefixes_prevent_collision",
@@ -633,7 +633,7 @@
           },
           "names": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "owner": "ALICE",
               "target": "ALICE",
               "expiry": 93811680,
@@ -648,11 +648,11 @@
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
         "differsFrom": "unreserved_one_joined_name",
-        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
+        "nameRoot": "032bd5be1faf32d456b9a644526fe9871020bc1079537726248db705691e2825",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "55d8faceb22e897e1072e0411f03f6df7d395d44eb12c946ea8a8ac307bf14a7",
-        "commitment": "26312bb2aa43cc9a7ec27c0c10c74af94fc2dab4c246bcabb895ad4c489f8122"
+        "commitment": "0429fbab2f83e2d7a065e8016450b4b7cd6ac2eb1c2d10331d7c562e3086945d"
       },
       {
         "id": "unreserved_one_joined_name",
@@ -664,7 +664,7 @@
           },
           "names": [
             {
-              "name": "kikename",
+              "name": "riconame",
               "owner": "ALICE",
               "target": "ALICE",
               "expiry": 93811680,
@@ -677,11 +677,11 @@
           ]
         },
         "logHash": "0101010101010101010101010101010101010101010101010101010101010101",
-        "nameRoot": "a9421900709fb678fad6f889d4c725fdcf6d64adf62905c0653689732a34ef0b",
+        "nameRoot": "032bd5be1faf32d456b9a644526fe9871020bc1079537726248db705691e2825",
         "pricesRoot": "3253e0e3db115b05971079b7b18155b9b99bcbd2e72c93a2b405db2b6bdb5344",
         "pendingRoot": "f343681465b9efe82c933c3e8748c70cb8aa06539c361de20f72eac04e766393",
         "unreservedRoot": "9613428d03a791759f48f9a8f6be65697e3a041ba059fb4acf677bc16db77086",
-        "commitment": "225581a8e34f29df5270b6866acca6970553dac1555d8cc514cd256d5de33ae2"
+        "commitment": "b6d8cb4381bc2c45ff6d9c0b7945466966a5cb98072b32431f49e8473cc0096b"
       }
     ]
   }

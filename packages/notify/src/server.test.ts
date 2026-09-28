@@ -100,11 +100,11 @@ describe('the notify server', () => {
   })
 
   it('adds an email, mails the confirmation, confirms through the link, and unsubscribes through the other', async () => {
-    const added = await post('/contacts/email', { email: 'Kike@Example.com' }, token)
+    const added = await post('/contacts/email', { email: 'Rico@Example.com' }, token)
     expect(added.status).toBe(202)
-    expect((await json<{ contact: { target: string; confirmed: boolean } }>(added)).contact).toEqual({ id: 1, channel: 'email', target: 'ki•••@e•••.com', confirmed: false })
+    expect((await json<{ contact: { target: string; confirmed: boolean } }>(added)).contact).toEqual({ id: 1, channel: 'email', target: 'ri•••@e•••.com', confirmed: false })
     expect(mails).toHaveLength(1)
-    expect(mails[0]?.to).toBe('kike@example.com')
+    expect(mails[0]?.to).toBe('rico@example.com')
     const link = /https:\/\/nimiqnames\.com\/notify\/confirm\/([A-Za-z0-9_-]+)/.exec(mails[0]?.text ?? '')?.[1]
     expect(link).toBeDefined()
 
@@ -136,7 +136,7 @@ describe('the notify server', () => {
     expect(removed.status).toBe(200)
     expect((await fetch(`${base}/contacts/999`, { method: 'DELETE', headers: { authorization: `Bearer ${token}` } })).status).toBe(404)
 
-    store.seed(address, 'email', 'kike@example.com')
+    store.seed(address, 'email', 'rico@example.com')
     expect((await post('/delete', {}, token)).status).toBe(200)
     expect(store.rows).toHaveLength(0)
     expect((await fetch(`${base}/settings`, { headers: { authorization: `Bearer ${token}` } })).status).toBe(401)
@@ -179,7 +179,7 @@ describe('a confirmation that cannot be sent', () => {
     const response = await fetch(`${base}/contacts/email`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: JSON.stringify({ email: 'kike@example.com' }),
+      body: JSON.stringify({ email: 'rico@example.com' }),
     })
     expect(response.status).toBe(502)
     expect((await response.json() as { error: string }).error).toBe('MAIL_FAILED')
@@ -190,10 +190,10 @@ describe('a confirmation that cannot be sent', () => {
 
 describe('maskEmail', () => {
   it('keeps two letters of the mailbox, one of the domain, and the suffix', () => {
-    expect(maskEmail('kike@example.com')).toBe('ki•••@e•••.com')
-    expect(maskEmail('arkaknio@gmail.com')).toBe('ar•••@g•••.com')
+    expect(maskEmail('rico@example.com')).toBe('ri•••@e•••.com')
+    expect(maskEmail('longer.mailbox@gmail.com')).toBe('lo•••@g•••.com')
     expect(maskEmail('ab@x.io')).toBe('a•••@x•••.io')
     expect(maskEmail('a@x.io')).toBe('a•••@x•••.io')
-    expect(maskEmail('kike@localhost')).toBe('ki•••@l•••')
+    expect(maskEmail('rico@localhost')).toBe('ri•••@l•••')
   })
 })

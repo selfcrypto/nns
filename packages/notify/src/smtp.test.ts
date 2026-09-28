@@ -81,11 +81,11 @@ describe('SmtpSender', () => {
   it('speaks the submission sequence and puts the message on the wire', async () => {
     fake = await fakeSmtp()
     const sender = new SmtpSender(settings(fake.port, 'plain'), () => Date.parse('2026-09-23T12:00:00Z'))
-    await sender.send({ to: 'kike@example.com', subject: 'riconame can be renewed', text: 'Hello\n.\nbye', unsubscribeUrl: 'https://nimiqnames.com/notify/unsubscribe/t0k' })
+    await sender.send({ to: 'rico@example.com', subject: 'riconame can be renewed', text: 'Hello\n.\nbye', unsubscribeUrl: 'https://nimiqnames.com/notify/unsubscribe/t0k' })
     expect(fake.received.map((line) => line.split(' ')[0])).toEqual(['EHLO', 'AUTH', 'MAIL', 'RCPT', 'DATA', 'QUIT'])
     expect(fake.received[1]).toBe(`AUTH PLAIN ${Buffer.from('\0notify@nimiqnames.com\0hunter2').toString('base64')}`)
     expect(fake.received[2]).toBe('MAIL FROM:<notify@nimiqnames.com>')
-    expect(fake.received[3]).toBe('RCPT TO:<kike@example.com>')
+    expect(fake.received[3]).toBe('RCPT TO:<rico@example.com>')
     const wire = fake.data.join('\r\n')
     expect(wire).toContain('From: Nimiq Names <notify@nimiqnames.com>')
     expect(wire).toContain('Subject: riconame can be renewed')
@@ -106,7 +106,7 @@ describe('SmtpSender', () => {
   it('refuses to authenticate in the clear when STARTTLS is not offered', async () => {
     fake = await fakeSmtp({ starttls: false })
     const sender = new SmtpSender(settings(fake.port, 'starttls'))
-    await expect(sender.send({ to: 'kike@example.com', subject: 's', text: 't', unsubscribeUrl: null })).rejects.toThrow(/STARTTLS/)
+    await expect(sender.send({ to: 'rico@example.com', subject: 's', text: 't', unsubscribeUrl: null })).rejects.toThrow(/STARTTLS/)
     expect(fake.received.some((line) => line.startsWith('AUTH'))).toBe(false)
   })
 
@@ -135,8 +135,8 @@ describe('composeMessage', () => {
   })
 
   it('knows a mailbox from a string', () => {
-    expect(isEmail('kike@example.com')).toBe(true)
-    expect(isEmail('kike@example')).toBe(false)
+    expect(isEmail('rico@example.com')).toBe(true)
+    expect(isEmail('rico@example')).toBe(false)
     expect(isEmail('@example.com')).toBe(false)
     expect(isEmail(42)).toBe(false)
   })

@@ -48,7 +48,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename",
+            "text": "NNS1Griconame",
             "executionResult": false
           },
           "verdict": {
@@ -60,7 +60,7 @@
       "expect": {
         "names": {},
         "resolves": {
-          "kikename": null
+          "riconame": null
         }
       }
     },
@@ -74,7 +74,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename",
+            "text": "NNS1Griconame",
             "isReward": true
           },
           "verdict": {
@@ -97,7 +97,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename",
+            "text": "NNS1Griconame",
             "networkId": 25
           },
           "verdict": {
@@ -164,7 +164,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Qkikename"
+            "text": "NNS1Qriconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -183,7 +183,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Rkikename"
+            "text": "NNS1Rriconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -215,7 +215,7 @@
             "changed": [],
             "logLines": 3,
             "absent": [
-              "kikename"
+              "riconame"
             ]
           }
         }
@@ -235,7 +235,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -244,7 +244,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE",
             "target": "ALICE",
             "expiry": 93811685,
@@ -253,7 +253,7 @@
           }
         },
         "resolves": {
-          "kikename": "ALICE"
+          "riconame": "ALICE"
         }
       }
     },
@@ -268,7 +268,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "62500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "REFUND",
@@ -298,7 +298,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1562500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK",
@@ -315,7 +315,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE",
             "target": "ALICE",
             "expiry": 93811685,
@@ -324,7 +324,7 @@
           }
         },
         "resolves": {
-          "kikename": "ALICE"
+          "riconame": "ALICE"
         }
       },
       "note": "§10.5 since 2026-09-10 (r29 fold): a G that paid more than the fee in effect registers and owes the surplus back from the treasury, keyed by its own ref — the mirror of the underpayment refund, for the mirror reason (a P lowering the price while the message is in flight)."
@@ -339,7 +339,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312599999",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK",
@@ -349,7 +349,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE",
             "target": "ALICE",
             "expiry": 93811685,
@@ -358,7 +358,7 @@
           }
         },
         "resolves": {
-          "kikename": "ALICE"
+          "riconame": "ALICE"
         }
       },
       "note": "A surplus under REFUND_FLOOR (1 NIM) is kept, as an underpayment under the floor is: one M per dust surplus is the attack the floor exists for."
@@ -420,7 +420,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -443,7 +443,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -456,7 +456,7 @@
             "sender": "BOB",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -466,7 +466,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE",
             "status": "GRACE"
           }
@@ -483,7 +483,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -496,7 +496,7 @@
             "sender": "ALICE",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Skikename"
+            "text": "NNS1Sriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -505,13 +505,13 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE",
             "target": "BOB"
           }
         },
         "resolves": {
-          "kikename": "BOB"
+          "riconame": "BOB"
         }
       }
     },
@@ -526,7 +526,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -539,7 +539,7 @@
             "sender": "ALICE",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Skikename"
+            "text": "NNS1Sriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -552,7 +552,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Skikename"
+            "text": "NNS1Sriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -561,7 +561,7 @@
       ],
       "expect": {
         "resolves": {
-          "kikename": "ALICE"
+          "riconame": "ALICE"
         }
       }
     },
@@ -575,7 +575,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -588,7 +588,7 @@
             "sender": "BOB",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Skikename"
+            "text": "NNS1Sriconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -598,7 +598,7 @@
       ],
       "expect": {
         "resolves": {
-          "kikename": "ALICE"
+          "riconame": "ALICE"
         }
       }
     },
@@ -613,7 +613,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -626,7 +626,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Dkikename|a.com"
+            "text": "NNS1Driconame|a.com"
           },
           "verdict": {
             "kind": "OK"
@@ -639,7 +639,7 @@
             "sender": "ALICE",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -652,7 +652,7 @@
         {
           "check": {
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE",
                 "host": "a.com"
               }
@@ -665,7 +665,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB",
             "target": "BOB",
             "host": ""
@@ -683,7 +683,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -696,7 +696,7 @@
             "sender": "ALICE",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -709,7 +709,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Kkikename"
+            "text": "NNS1Kriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -721,7 +721,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE"
           }
         }
@@ -738,7 +738,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -751,7 +751,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Kkikename"
+            "text": "NNS1Kriconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -761,7 +761,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE"
           }
         }
@@ -778,7 +778,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -791,7 +791,7 @@
             "sender": "CAROL",
             "recipient": "CAROL",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -805,7 +805,7 @@
             "sender": "ALICE",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -818,7 +818,7 @@
         {
           "check": {
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE"
               }
             }
@@ -830,7 +830,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB"
           }
         }
@@ -846,7 +846,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -858,12 +858,12 @@
         {
           "check": {
             "names": {
-              "kikename": {
+              "riconame": {
                 "status": "GRACE"
               }
             },
             "resolves": {
-              "kikename": null
+              "riconame": null
             }
           }
         },
@@ -874,7 +874,7 @@
       "expect": {
         "names": {},
         "resolves": {
-          "kikename": null
+          "riconame": null
         }
       }
     },
@@ -889,7 +889,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -902,7 +902,7 @@
             "sender": "BOB",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Nkikename"
+            "text": "NNS1Nriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -911,7 +911,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE",
             "expiry": 125347680
           }
@@ -928,7 +928,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -941,7 +941,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|156250000"
+            "text": "NNS1Oriconame|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -954,7 +954,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156250000",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "OK",
@@ -977,7 +977,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB",
             "target": "BOB",
             "expiry": 93811680
@@ -997,7 +997,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -1010,7 +1010,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Dkikename|a.com"
+            "text": "NNS1Driconame|a.com"
           },
           "verdict": {
             "kind": "OK"
@@ -1023,7 +1023,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|156250000"
+            "text": "NNS1Oriconame|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -1033,14 +1033,14 @@
           "check": {
             "logLines": 3,
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE",
                 "host": "a.com",
                 "expiry": 93811680
               }
             },
             "offers": {
-              "kikename": {
+              "riconame": {
                 "seller": "ALICE",
                 "price": "156250000"
               }
@@ -1054,7 +1054,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156250000",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "OK",
@@ -1079,7 +1079,7 @@
             "label": "sold",
             "logLines": 4,
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "BOB",
                 "target": "BOB",
                 "host": "",
@@ -1088,17 +1088,17 @@
               }
             },
             "offers": {
-              "kikename": null
+              "riconame": null
             },
             "resolves": {
-              "kikename": "BOB"
+              "riconame": "BOB"
             }
           }
         }
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB",
             "target": "BOB",
             "host": "",
@@ -1106,7 +1106,7 @@
           }
         },
         "resolves": {
-          "kikename": "BOB"
+          "riconame": "BOB"
         },
         "logLines": 4
       }
@@ -1121,7 +1121,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -1134,7 +1134,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|156250000"
+            "text": "NNS1Oriconame|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -1147,7 +1147,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156250000",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "OK"
@@ -1160,7 +1160,7 @@
             "sender": "CAROL",
             "recipient": "MARKETPLACE",
             "value": "156250000",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "REFUND",
@@ -1178,7 +1178,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB"
           }
         }
@@ -1194,7 +1194,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -1207,7 +1207,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|156250000"
+            "text": "NNS1Oriconame|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -1220,7 +1220,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156250001",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "REFUND",
@@ -1238,7 +1238,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE"
           }
         }
@@ -1255,7 +1255,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -1268,7 +1268,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|156250000"
+            "text": "NNS1Oriconame|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -1281,7 +1281,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156250000",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "OK",
@@ -1474,7 +1474,7 @@
               "62275681:0": null
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "BOB",
                 "target": "BOB"
               }
@@ -1484,7 +1484,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB"
           }
         },
@@ -1502,7 +1502,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -1515,7 +1515,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|0"
+            "text": "NNS1Oriconame|0"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1529,7 +1529,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|1"
+            "text": "NNS1Oriconame|1"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1543,7 +1543,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|30"
+            "text": "NNS1Oriconame|30"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1557,7 +1557,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|15624"
+            "text": "NNS1Oriconame|15624"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1571,7 +1571,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|62499999"
+            "text": "NNS1Oriconame|62499999"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1585,7 +1585,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|62500000"
+            "text": "NNS1Oriconame|62500000"
           },
           "verdict": {
             "kind": "OK"
@@ -1594,7 +1594,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE"
           }
         }
@@ -1624,7 +1624,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -1637,7 +1637,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|62500000"
+            "text": "NNS1Oriconame|62500000"
           },
           "verdict": {
             "kind": "OK"
@@ -1650,7 +1650,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|62500000"
+            "text": "NNS1Oriconame|62500000"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -1664,7 +1664,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|125000000"
+            "text": "NNS1Oriconame|125000000"
           },
           "verdict": {
             "kind": "OK"
@@ -1700,7 +1700,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -1731,7 +1731,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE"
           }
         },
@@ -1764,7 +1764,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "REFUND",
@@ -1786,7 +1786,7 @@
             "sender": "BOB",
             "recipient": "TREASURY",
             "value": "625000000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -1795,7 +1795,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB"
           }
         },
@@ -2022,7 +2022,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -2035,7 +2035,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Dkikename|a.com"
+            "text": "NNS1Driconame|a.com"
           },
           "verdict": {
             "kind": "OK"
@@ -2048,7 +2048,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|156250000|62362160"
+            "text": "NNS1Ariconame|156250000|62362160"
           },
           "verdict": {
             "kind": "OK"
@@ -2058,7 +2058,7 @@
           "check": {
             "logLines": 3,
             "auctions": {
-              "kikename": {
+              "riconame": {
                 "seller": "ALICE",
                 "startingPrice": "156250000",
                 "endHeight": 62362160,
@@ -2075,7 +2075,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156249999",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "REFUND",
@@ -2093,7 +2093,7 @@
         {
           "check": {
             "auctions": {
-              "kikename": {
+              "riconame": {
                 "bidder": null,
                 "bid": "0"
               }
@@ -2107,7 +2107,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156250000",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "OK",
@@ -2117,14 +2117,14 @@
         {
           "check": {
             "auctions": {
-              "kikename": {
+              "riconame": {
                 "bidder": "BOB",
                 "bid": "156250000",
                 "endHeight": 62362160
               }
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE",
                 "host": "a.com"
               }
@@ -2138,7 +2138,7 @@
             "sender": "CAROL",
             "recipient": "MARKETPLACE",
             "value": "164062499",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "REFUND",
@@ -2160,7 +2160,7 @@
             "sender": "CAROL",
             "recipient": "MARKETPLACE",
             "value": "164062500",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "OK",
@@ -2177,7 +2177,7 @@
         {
           "check": {
             "auctions": {
-              "kikename": {
+              "riconame": {
                 "bidder": "CAROL",
                 "bid": "164062500",
                 "endHeight": 62362160
@@ -2202,7 +2202,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "172265625",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "OK",
@@ -2220,7 +2220,7 @@
           "check": {
             "logLines": 8,
             "auctions": {
-              "kikename": {
+              "riconame": {
                 "bidder": "BOB",
                 "bid": "172265625",
                 "endHeight": 62362260
@@ -2236,12 +2236,12 @@
             "label": "before_close",
             "logLines": 8,
             "auctions": {
-              "kikename": {
+              "riconame": {
                 "bidder": "BOB"
               }
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE",
                 "host": "a.com"
               }
@@ -2260,10 +2260,10 @@
             ],
             "logLines": 8,
             "auctions": {
-              "kikename": null
+              "riconame": null
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "BOB",
                 "host": ""
               }
@@ -2336,12 +2336,12 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB"
           }
         },
         "resolves": {
-          "kikename": "BOB"
+          "riconame": "BOB"
         },
         "logLines": 10
       }
@@ -2357,7 +2357,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -2370,7 +2370,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|156250000|62362080"
+            "text": "NNS1Ariconame|156250000|62362080"
           },
           "verdict": {
             "kind": "OK"
@@ -2383,7 +2383,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156250000",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "OK",
@@ -2406,13 +2406,13 @@
             "label": "armed",
             "logLines": 3,
             "auctions": {
-              "kikename": {
+              "riconame": {
                 "bidder": "BOB",
                 "endHeight": 62362080
               }
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE"
               }
             }
@@ -2430,10 +2430,10 @@
             ],
             "logLines": 3,
             "auctions": {
-              "kikename": null
+              "riconame": null
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "BOB"
               }
             }
@@ -2442,7 +2442,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB"
           }
         },
@@ -2460,7 +2460,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -2473,7 +2473,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|156250000|62362080"
+            "text": "NNS1Ariconame|156250000|62362080"
           },
           "verdict": {
             "kind": "OK"
@@ -2486,7 +2486,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156249999",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "REFUND",
@@ -2507,10 +2507,10 @@
         {
           "check": {
             "auctions": {
-              "kikename": null
+              "riconame": null
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE"
               }
             },
@@ -2533,7 +2533,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|156250000|62448480"
+            "text": "NNS1Ariconame|156250000|62448480"
           },
           "verdict": {
             "kind": "OK"
@@ -2546,7 +2546,7 @@
             "sender": "CAROL",
             "recipient": "MARKETPLACE",
             "value": "156250000",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "OK",
@@ -2556,7 +2556,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE"
           }
         },
@@ -2565,7 +2565,7 @@
     },
     {
       "id": "nothing_stacks_on_a_name",
-      "note": "§7.3 (r30): a name holds one pending thing — a transfer, a sale or an auction — and a message of a different kind refuses while one stands, with the token naming what does (the same kind replaces it — see `the_same_kind_replaces_what_is_pending`). `kikename` goes in with a pending transfer, `othername` with a listing; the `A` over each forfeits and changes nothing, and the transfer still matures on its own clock. A `K` clears the transfer and the listing at once (no delay on either — `OFFER_IRREVOCABLE` left with this fold), after which the auctions open. While an auction is open `O`, `X` and a second `A` forfeit AUCTION_OPEN and `K` finds nothing to cancel (bids are commitments); `S` still works. A `B` is a bid exactly because an auction is open — exclusivity is what makes the same payload mean one thing.",
+      "note": "§7.3 (r30): a name holds one pending thing — a transfer, a sale or an auction — and a message of a different kind refuses while one stands, with the token naming what does (the same kind replaces it — see `the_same_kind_replaces_what_is_pending`). `riconame` goes in with a pending transfer, `othername` with a listing; the `A` over each forfeits and changes nothing, and the transfer still matures on its own clock. A `K` clears the transfer and the listing at once (no delay on either — `OFFER_IRREVOCABLE` left with this fold), after which the auctions open. While an auction is open `O`, `X` and a second `A` forfeit AUCTION_OPEN and `K` finds nothing to cancel (bids are commitments); `S` still works. A `B` is a bid exactly because an auction is open — exclusivity is what makes the same payload mean one thing.",
       "steps": [
         {
           "tx": {
@@ -2574,7 +2574,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -2600,7 +2600,7 @@
             "sender": "ALICE",
             "recipient": "CAROL",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -2623,7 +2623,7 @@
           "check": {
             "label": "pending",
             "transfers": {
-              "kikename": {
+              "riconame": {
                 "newOwner": "CAROL",
                 "effectiveHeight": 62318881
               }
@@ -2642,7 +2642,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|156250000|62362160"
+            "text": "NNS1Ariconame|156250000|62362160"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -2668,7 +2668,7 @@
             "since": "pending",
             "changed": [],
             "transfers": {
-              "kikename": {
+              "riconame": {
                 "newOwner": "CAROL"
               }
             },
@@ -2678,7 +2678,7 @@
               }
             },
             "auctions": {
-              "kikename": null,
+              "riconame": null,
               "othername": null
             }
           }
@@ -2690,7 +2690,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Kkikename"
+            "text": "NNS1Kriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -2712,7 +2712,7 @@
         {
           "check": {
             "transfers": {
-              "kikename": null
+              "riconame": null
             },
             "offers": {
               "othername": null
@@ -2726,7 +2726,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|156250000|62362160"
+            "text": "NNS1Ariconame|156250000|62362160"
           },
           "verdict": {
             "kind": "OK"
@@ -2748,7 +2748,7 @@
         {
           "check": {
             "auctions": {
-              "kikename": {
+              "riconame": {
                 "seller": "ALICE"
               },
               "othername": {
@@ -2764,7 +2764,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|156250000"
+            "text": "NNS1Oriconame|156250000"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -2778,7 +2778,7 @@
             "sender": "ALICE",
             "recipient": "CAROL",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -2792,7 +2792,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|312500000|62362160"
+            "text": "NNS1Ariconame|312500000|62362160"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -2806,7 +2806,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Kkikename"
+            "text": "NNS1Kriconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -2820,7 +2820,7 @@
             "sender": "ALICE",
             "recipient": "CAROL",
             "value": "1",
-            "text": "NNS1Skikename"
+            "text": "NNS1Sriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -2832,12 +2832,12 @@
         {
           "check": {
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE"
               }
             },
             "auctions": {
-              "kikename": {
+              "riconame": {
                 "seller": "ALICE",
                 "endHeight": 62362160
               }
@@ -2847,12 +2847,12 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE"
           }
         },
         "resolves": {
-          "kikename": "CAROL"
+          "riconame": "CAROL"
         },
         "logLines": 15
       }
@@ -2868,7 +2868,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -2881,7 +2881,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|156250000"
+            "text": "NNS1Oriconame|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -2894,7 +2894,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|312500000"
+            "text": "NNS1Oriconame|312500000"
           },
           "verdict": {
             "kind": "OK"
@@ -2903,7 +2903,7 @@
         {
           "check": {
             "offers": {
-              "kikename": {
+              "riconame": {
                 "seller": "ALICE",
                 "price": "312500000",
                 "openedHeight": 62275682
@@ -2918,7 +2918,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156250000",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "REFUND",
@@ -2932,7 +2932,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Kkikename"
+            "text": "NNS1Kriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -2945,7 +2945,7 @@
             "sender": "ALICE",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -2958,7 +2958,7 @@
             "sender": "ALICE",
             "recipient": "CAROL",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -2967,13 +2967,13 @@
         {
           "check": {
             "transfers": {
-              "kikename": {
+              "riconame": {
                 "newOwner": "CAROL",
                 "effectiveHeight": 62318886
               }
             },
             "offers": {
-              "kikename": null
+              "riconame": null
             }
           }
         },
@@ -2983,7 +2983,7 @@
         {
           "check": {
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE"
               }
             }
@@ -2995,13 +2995,13 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "CAROL",
             "target": "CAROL"
           }
         },
         "resolves": {
-          "kikename": "CAROL"
+          "riconame": "CAROL"
         },
         "logLines": 7
       }
@@ -3136,7 +3136,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -3149,7 +3149,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|156250000|93811679"
+            "text": "NNS1Ariconame|156250000|93811679"
           },
           "verdict": {
             "kind": "OK"
@@ -3162,7 +3162,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156250000",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           },
           "verdict": {
             "kind": "OK",
@@ -3175,12 +3175,12 @@
         {
           "check": {
             "auctions": {
-              "kikename": {
+              "riconame": {
                 "bidder": "BOB"
               }
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE",
                 "status": "REGISTERED"
               }
@@ -3193,10 +3193,10 @@
         {
           "check": {
             "auctions": {
-              "kikename": null
+              "riconame": null
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE",
                 "status": "GRACE"
               }
@@ -3216,12 +3216,12 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE"
           }
         },
         "resolves": {
-          "kikename": null
+          "riconame": null
         },
         "logLines": 3
       }
@@ -3662,7 +3662,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -3675,7 +3675,7 @@
             "sender": "ALICE",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -3687,7 +3687,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB",
             "status": "GRACE"
           }
@@ -3705,7 +3705,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -3718,7 +3718,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|156250000"
+            "text": "NNS1Oriconame|156250000"
           },
           "verdict": {
             "kind": "OK"
@@ -3730,7 +3730,7 @@
             "logLines": 2,
             "height": 62275680,
             "offers": {
-              "kikename": {
+              "riconame": {
                 "seller": "ALICE",
                 "price": "156250000",
                 "openedHeight": 62275680,
@@ -3750,7 +3750,7 @@
             "logLines": 2,
             "height": 63571679,
             "offers": {
-              "kikename": {
+              "riconame": {
                 "expiryHeight": 63571680
               }
             }
@@ -3769,10 +3769,10 @@
             "logLines": 2,
             "height": 63571680,
             "offers": {
-              "kikename": null
+              "riconame": null
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE",
                 "status": "REGISTERED"
               }
@@ -3795,7 +3795,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -3808,7 +3808,7 @@
             "sender": "ALICE",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -3819,13 +3819,13 @@
             "label": "pending",
             "logLines": 2,
             "transfers": {
-              "kikename": {
+              "riconame": {
                 "newOwner": "BOB",
                 "effectiveHeight": 62318881
               }
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE",
                 "target": "ALICE"
               }
@@ -3843,18 +3843,18 @@
             "logLines": 2,
             "height": 62318880,
             "transfers": {
-              "kikename": {
+              "riconame": {
                 "effectiveHeight": 62318881
               }
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE",
                 "target": "ALICE"
               }
             },
             "resolves": {
-              "kikename": "ALICE"
+              "riconame": "ALICE"
             }
           }
         },
@@ -3872,17 +3872,17 @@
             "logLines": 2,
             "height": 62318881,
             "transfers": {
-              "kikename": null
+              "riconame": null
             },
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "BOB",
                 "target": "BOB",
                 "host": ""
               }
             },
             "resolves": {
-              "kikename": "BOB"
+              "riconame": "BOB"
             }
           }
         }
@@ -4104,7 +4104,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "3125000000",
-            "text": "NNS1Gkikename||L"
+            "text": "NNS1Griconame||L"
           },
           "verdict": {
             "kind": "OK"
@@ -4117,7 +4117,7 @@
             "sender": "BOB",
             "recipient": "TREASURY",
             "value": "3125000000",
-            "text": "NNS1Gothername|kikename|L"
+            "text": "NNS1Gothername|riconame|L"
           },
           "verdict": {
             "kind": "OK"
@@ -4126,7 +4126,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE",
             "target": "ALICE",
             "status": "REGISTERED",
@@ -4140,7 +4140,7 @@
           }
         },
         "resolves": {
-          "kikename": "ALICE",
+          "riconame": "ALICE",
           "othername": "BOB"
         },
         "logLines": 2
@@ -4157,7 +4157,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "3124999999",
-            "text": "NNS1Gkikename||L"
+            "text": "NNS1Griconame||L"
           },
           "verdict": {
             "kind": "REFUND",
@@ -4179,7 +4179,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename||L"
+            "text": "NNS1Griconame||L"
           },
           "verdict": {
             "kind": "REFUND",
@@ -4211,7 +4211,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -4224,7 +4224,7 @@
             "sender": "BOB",
             "recipient": "TREASURY",
             "value": "3281250000",
-            "text": "NNS1Nkikename|L"
+            "text": "NNS1Nriconame|L"
           },
           "verdict": {
             "kind": "OK",
@@ -4241,7 +4241,7 @@
         {
           "check": {
             "names": {
-              "kikename": {
+              "riconame": {
                 "expiry": 3247411680,
                 "status": "REGISTERED"
               }
@@ -4255,7 +4255,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Nkikename"
+            "text": "NNS1Nriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -4264,7 +4264,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE",
             "expiry": 3278947680,
             "status": "REGISTERED"
@@ -4284,7 +4284,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "3125000000",
-            "text": "NNS1Gkikename||L"
+            "text": "NNS1Griconame||L"
           },
           "verdict": {
             "kind": "OK"
@@ -4296,12 +4296,12 @@
         {
           "check": {
             "names": {
-              "kikename": {
+              "riconame": {
                 "status": "REGISTERED"
               }
             },
             "resolves": {
-              "kikename": "ALICE"
+              "riconame": "ALICE"
             },
             "logLines": 1
           }
@@ -4312,12 +4312,12 @@
         {
           "check": {
             "names": {
-              "kikename": {
+              "riconame": {
                 "status": "GRACE"
               }
             },
             "resolves": {
-              "kikename": null
+              "riconame": null
             },
             "logLines": 1
           }
@@ -4328,7 +4328,7 @@
         {
           "check": {
             "absent": [
-              "kikename"
+              "riconame"
             ],
             "logLines": 1
           }
@@ -4588,7 +4588,7 @@
     },
     {
       "id": "unreserve_awards_an_available_name_that_was_never_reserved",
-      "note": "§6 U since 2026-09-11: an award reaches any name nobody owns, reserved or not — a giveaway, a beta tester, the re-award of a repriced registration. `kikename` is on no list and short of no floor, so nothing enters the unreserved set (tag 0x0A records governance acts on RESERVED_NAMES, and there was none) and the name is simply REGISTERED to the recipient for a full term. Nothing owed and nothing earned: the U is dust and creates no obligation.",
+      "note": "§6 U since 2026-09-11: an award reaches any name nobody owns, reserved or not — a giveaway, a beta tester, the re-award of a repriced registration. `riconame` is on no list and short of no floor, so nothing enters the unreserved set (tag 0x0A records governance acts on RESERVED_NAMES, and there was none) and the name is simply REGISTERED to the recipient for a full term. Nothing owed and nothing earned: the U is dust and creates no obligation.",
       "steps": [
         {
           "tx": {
@@ -4597,7 +4597,7 @@
             "sender": "ADMIN",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Ukikename"
+            "text": "NNS1Uriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -4606,7 +4606,7 @@
         {
           "check": {
             "unreserved": {
-              "kikename": false
+              "riconame": false
             },
             "outstanding": {
               "62275680:0": null
@@ -4617,7 +4617,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB",
             "target": "BOB",
             "status": "REGISTERED",
@@ -4626,7 +4626,7 @@
           }
         },
         "resolves": {
-          "kikename": "BOB"
+          "riconame": "BOB"
         },
         "logLines": 1
       }
@@ -4642,7 +4642,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -4661,7 +4661,7 @@
             "sender": "ADMIN",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Ukikename"
+            "text": "NNS1Uriconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -4674,7 +4674,7 @@
             "changed": [],
             "logLines": 2,
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE"
               }
             }
@@ -4686,7 +4686,7 @@
         {
           "check": {
             "names": {
-              "kikename": {
+              "riconame": {
                 "status": "GRACE"
               }
             }
@@ -4699,7 +4699,7 @@
             "sender": "ADMIN",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Ukikename"
+            "text": "NNS1Uriconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -4712,7 +4712,7 @@
         {
           "check": {
             "absent": [
-              "kikename"
+              "riconame"
             ]
           }
         },
@@ -4723,7 +4723,7 @@
             "sender": "ADMIN",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Ukikename"
+            "text": "NNS1Uriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -4736,7 +4736,7 @@
             "sender": "ADMIN",
             "recipient": "CAROL",
             "value": "1",
-            "text": "NNS1Ukikename"
+            "text": "NNS1Uriconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -4746,7 +4746,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB",
             "expiry": 127939680,
             "status": "REGISTERED"
@@ -4901,7 +4901,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -4914,7 +4914,7 @@
             "sender": "ADMIN",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Ukikename"
+            "text": "NNS1Uriconame"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -4924,7 +4924,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE"
           }
         },
@@ -4942,7 +4942,7 @@
             "sender": "ADMIN",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Ukikename"
+            "text": "NNS1Uriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -4955,7 +4955,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "REFUND",
@@ -4973,7 +4973,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB"
           }
         },
@@ -5066,7 +5066,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "50000000000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -5114,7 +5114,7 @@
           "commissionBp": "250"
         },
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE"
           },
           "abcdefghijkl": {
@@ -5135,7 +5135,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -5148,7 +5148,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Dkikename|a.com"
+            "text": "NNS1Driconame|a.com"
           },
           "verdict": {
             "kind": "OK"
@@ -5159,7 +5159,7 @@
             "label": "registered",
             "logLines": 2,
             "names": {
-              "kikename": {
+              "riconame": {
                 "status": "REGISTERED",
                 "expiry": 93811680,
                 "host": "a.com"
@@ -5178,14 +5178,14 @@
             "logLines": 2,
             "height": 93811679,
             "names": {
-              "kikename": {
+              "riconame": {
                 "status": "REGISTERED",
                 "expiry": 93811680,
                 "host": "a.com"
               }
             },
             "resolves": {
-              "kikename": "ALICE"
+              "riconame": "ALICE"
             }
           }
         },
@@ -5202,14 +5202,14 @@
             "logLines": 2,
             "height": 93811680,
             "names": {
-              "kikename": {
+              "riconame": {
                 "status": "GRACE",
                 "expiry": 93811680,
                 "host": ""
               }
             },
             "resolves": {
-              "kikename": null
+              "riconame": null
             }
           }
         },
@@ -5229,13 +5229,13 @@
             "logLines": 2,
             "height": 96403679,
             "names": {
-              "kikename": {
+              "riconame": {
                 "status": "GRACE",
                 "expiry": 93811680
               }
             },
             "resolves": {
-              "kikename": null
+              "riconame": null
             }
           }
         },
@@ -5252,10 +5252,10 @@
             "logLines": 2,
             "height": 96403680,
             "absent": [
-              "kikename"
+              "riconame"
             ],
             "resolves": {
-              "kikename": null
+              "riconame": null
             }
           }
         }
@@ -5263,14 +5263,14 @@
       "expect": {
         "names": {},
         "resolves": {
-          "kikename": null
+          "riconame": null
         },
         "logLines": 2
       }
     },
     {
       "id": "boundary_renewal_window_closes_with_the_grace_period",
-      "note": "The user-visible consequence of the boundary above, and the one place a single block decides whether a name is recoverable. `kikename` is renewed on the last block of grace and survives; `othername`, identical in every way, is renewed one block later and takes NAME_NOT_FOUND — the release fired before that block's transactions (§7.3), so by the time the `N` is read there is no record to extend. §6 `N` extends from the current expiry, not from the renewal height, which is why the survivor's new expiry is expiry + TERM_LENGTH and not renewal + TERM_LENGTH.",
+      "note": "The user-visible consequence of the boundary above, and the one place a single block decides whether a name is recoverable. `riconame` is renewed on the last block of grace and survives; `othername`, identical in every way, is renewed one block later and takes NAME_NOT_FOUND — the release fired before that block's transactions (§7.3), so by the time the `N` is read there is no record to extend. §6 `N` extends from the current expiry, not from the renewal height, which is why the survivor's new expiry is expiry + TERM_LENGTH and not renewal + TERM_LENGTH.",
       "steps": [
         {
           "tx": {
@@ -5279,7 +5279,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -5306,7 +5306,7 @@
             "label": "two_in_grace",
             "logLines": 2,
             "names": {
-              "kikename": {
+              "riconame": {
                 "status": "GRACE"
               },
               "othername": {
@@ -5326,7 +5326,7 @@
             "logLines": 2,
             "height": 96403679,
             "names": {
-              "kikename": {
+              "riconame": {
                 "status": "GRACE"
               },
               "othername": {
@@ -5342,7 +5342,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Nkikename"
+            "text": "NNS1Nriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -5353,7 +5353,7 @@
             "label": "renewed",
             "logLines": 3,
             "names": {
-              "kikename": {
+              "riconame": {
                 "status": "REGISTERED",
                 "expiry": 125347680
               }
@@ -5386,7 +5386,7 @@
               "othername"
             ],
             "names": {
-              "kikename": {
+              "riconame": {
                 "status": "REGISTERED",
                 "expiry": 125347680
               }
@@ -5396,14 +5396,14 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE",
             "status": "REGISTERED",
             "expiry": 125347680
           }
         },
         "resolves": {
-          "kikename": "ALICE",
+          "riconame": "ALICE",
           "othername": null
         },
         "logLines": 4
@@ -5589,7 +5589,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -5602,7 +5602,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks"
+            "text": "NNS1Ericoname|Gz9qCeLEDVXIobLD1OX2BxgpOks"
           },
           "verdict": {
             "kind": "OK"
@@ -5611,7 +5611,7 @@
         {
           "check": {
             "names": {
-              "kikename": {
+              "riconame": {
                 "owner": "ALICE",
                 "target": "ALICE",
                 "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b"
@@ -5626,7 +5626,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Ekikename|"
+            "text": "NNS1Ericoname|"
           },
           "verdict": {
             "kind": "OK"
@@ -5635,13 +5635,13 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE",
             "evm": ""
           }
         },
         "resolves": {
-          "kikename": "ALICE"
+          "riconame": "ALICE"
         }
       }
     },
@@ -5656,7 +5656,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -5669,7 +5669,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks"
+            "text": "NNS1Ericoname|Gz9qCeLEDVXIobLD1OX2BxgpOks"
           },
           "verdict": {
             "kind": "OK"
@@ -5682,7 +5682,7 @@
             "sender": "ALICE",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -5694,7 +5694,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "BOB",
             "target": "BOB",
             "evm": "",
@@ -5714,7 +5714,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -5727,7 +5727,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks"
+            "text": "NNS1Ericoname|Gz9qCeLEDVXIobLD1OX2BxgpOks"
           },
           "verdict": {
             "kind": "OK"
@@ -5739,12 +5739,12 @@
         {
           "check": {
             "names": {
-              "kikename": {
+              "riconame": {
                 "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b"
               }
             },
             "resolves": {
-              "kikename": null
+              "riconame": null
             }
           }
         },
@@ -5755,7 +5755,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Ekikename|"
+            "text": "NNS1Ericoname|"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -5769,7 +5769,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Nkikename"
+            "text": "NNS1Nriconame"
           },
           "verdict": {
             "kind": "OK"
@@ -5778,14 +5778,14 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "owner": "ALICE",
             "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b",
             "status": "REGISTERED"
           }
         },
         "resolves": {
-          "kikename": "ALICE"
+          "riconame": "ALICE"
         }
       }
     },
@@ -5800,7 +5800,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           },
           "verdict": {
             "kind": "OK"
@@ -5813,7 +5813,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOkt"
+            "text": "NNS1Ericoname|Gz9qCeLEDVXIobLD1OX2BxgpOkt"
           },
           "verdict": {
             "kind": "FORFEIT",
@@ -5823,7 +5823,7 @@
       ],
       "expect": {
         "names": {
-          "kikename": {
+          "riconame": {
             "evm": ""
           }
         }
@@ -5834,7 +5834,7 @@
     "description": "Check precedence. Each case is a message that satisfies **two** rejection conditions at once; `verdict` is the token the earlier check produces and `insteadOf` is the same probe rebuilt to trip only the later one, which MUST earn the other token. Both run against the state left by `setup`, named from `setups`. The pair is the assertion: swap the two checks in a reducer and the first expectation fails, delete the later check and the second does. `pinnedBy` names the clause that fixes the order, or is `null` where the order is an implementation choice with nothing behind it — read those before reordering anything. `insteadOfUnreachable` replaces `insteadOf` where the later token cannot be produced at all.",
     "setups": {
       "empty": [],
-      "kikename_to_alice": [
+      "riconame_to_alice": [
         {
           "tx": {
             "blockNumber": 62275680,
@@ -5842,7 +5842,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           }
         }
       ],
@@ -5854,7 +5854,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           }
         },
         {
@@ -5864,7 +5864,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|156250000"
+            "text": "NNS1Oriconame|156250000"
           }
         }
       ],
@@ -5876,7 +5876,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           }
         },
         {
@@ -5911,7 +5911,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           }
         },
         {
@@ -5921,7 +5921,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|156250000|62362080"
+            "text": "NNS1Ariconame|156250000|62362080"
           }
         }
       ],
@@ -5933,7 +5933,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           }
         },
         {
@@ -5943,7 +5943,7 @@
             "sender": "ALICE",
             "recipient": "CAROL",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           }
         }
       ]
@@ -5960,7 +5960,7 @@
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "312500000",
-          "text": "NNS1Gkikename",
+          "text": "NNS1Griconame",
           "executionResult": false
         },
         "verdict": {
@@ -5978,7 +5978,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           }
         }
       },
@@ -5993,7 +5993,7 @@
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1G0kikename",
+          "text": "NNS1G0riconame",
           "networkId": 5
         },
         "verdict": {
@@ -6011,7 +6011,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1G0kikename"
+            "text": "NNS1G0riconame"
           }
         }
       },
@@ -6123,7 +6123,7 @@
           "sender": "ALICE",
           "recipient": "TREASURY",
           "value": "1",
-          "text": "NNS1Dkikename"
+          "text": "NNS1Driconame"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6140,7 +6140,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Dkikename|a.com"
+            "text": "NNS1Driconame|a.com"
           }
         }
       },
@@ -6155,7 +6155,7 @@
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "312500000",
-          "text": "NNS1G0kikename"
+          "text": "NNS1G0riconame"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6172,7 +6172,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1G0kikename"
+            "text": "NNS1G0riconame"
           }
         }
       },
@@ -6187,7 +6187,7 @@
           "sender": "ALICE",
           "recipient": "TREASURY",
           "value": "1",
-          "text": "NNS1G0kikename"
+          "text": "NNS1G0riconame"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6204,7 +6204,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "156250",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           }
         }
       },
@@ -6236,13 +6236,13 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "156250",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           }
         }
       },
       {
         "id": "G_insufficient_value_beats_lost_registration_race",
-        "setup": "kikename_to_alice",
+        "setup": "riconame_to_alice",
         "pinnedBy": "§7.4 — \"recipient, name syntax, reservation, value, then availability\"",
         "note": "Fourth and fifth. Since r29 both readings are refunds owed by the treasury, so the order decides only the token the log carries — and §7.4 fixes it: the underpayment is named, not the race.",
         "tx": {
@@ -6251,7 +6251,7 @@
           "sender": "BOB",
           "recipient": "TREASURY",
           "value": "156250",
-          "text": "NNS1Gkikename"
+          "text": "NNS1Griconame"
         },
         "verdict": {
           "kind": "REFUND",
@@ -6268,7 +6268,7 @@
             "sender": "BOB",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           }
         }
       },
@@ -6283,7 +6283,7 @@
           "sender": "BOB",
           "recipient": "TREASURY",
           "value": "156250",
-          "text": "NNS1Gkikename"
+          "text": "NNS1Griconame"
         },
         "verdict": {
           "kind": "REFUND",
@@ -6300,7 +6300,7 @@
             "sender": "BOB",
             "recipient": "TREASURY",
             "value": "312500000",
-            "text": "NNS1Gkikename"
+            "text": "NNS1Griconame"
           }
         }
       },
@@ -6315,7 +6315,7 @@
           "sender": "BOB",
           "recipient": "CAROL",
           "value": "1",
-          "text": "NNS1Skikename"
+          "text": "NNS1Sriconame"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6347,7 +6347,7 @@
           "sender": "BOB",
           "recipient": "CAROL",
           "value": "1",
-          "text": "NNS1Xkikename"
+          "text": "NNS1Xriconame"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6411,7 +6411,7 @@
           "sender": "BOB",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Dkikename|a.com"
+          "text": "NNS1Driconame|a.com"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6434,7 +6434,7 @@
       },
       {
         "id": "D_not_owner_beats_invalid_host",
-        "setup": "kikename_to_alice",
+        "setup": "riconame_to_alice",
         "pinnedBy": null,
         "note": "This is the whole of what carries `INVALID_HOST`: the host is validated **last**, after ownership. A reducer that checked the host first would give a stranger's malformed `D` the host token instead, and §7.4 says nothing either way — the two are separate bullets.",
         "tx": {
@@ -6443,7 +6443,7 @@
           "sender": "BOB",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Dkikename|http://a.com"
+          "text": "NNS1Driconame|http://a.com"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6460,7 +6460,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Dkikename|http://a.com"
+            "text": "NNS1Driconame|http://a.com"
           }
         }
       },
@@ -6498,7 +6498,7 @@
       },
       {
         "id": "K_name_not_found_beats_not_owner",
-        "setup": "kikename_to_alice",
+        "setup": "riconame_to_alice",
         "pinnedBy": null,
         "note": "Existence before ownership: a stranger's `K` for a name nobody holds reports the name, not the sender.",
         "tx": {
@@ -6524,22 +6524,22 @@
             "sender": "BOB",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Kkikename"
+            "text": "NNS1Kriconame"
           }
         }
       },
       {
         "id": "K_not_owner_beats_nothing_to_cancel",
-        "setup": "kikename_to_alice",
+        "setup": "riconame_to_alice",
         "pinnedBy": null,
-        "note": "Ownership before the thing being cancelled. Nothing is pending on `kikename` in either message; only the sender differs.",
+        "note": "Ownership before the thing being cancelled. Nothing is pending on `riconame` in either message; only the sender differs.",
         "tx": {
           "blockNumber": 62275681,
           "txIndex": 0,
           "sender": "BOB",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Kkikename"
+          "text": "NNS1Kriconame"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6556,7 +6556,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Kkikename"
+            "text": "NNS1Kriconame"
           }
         }
       },
@@ -6594,7 +6594,7 @@
       },
       {
         "id": "N_name_not_found_beats_insufficient_value",
-        "setup": "kikename_to_alice",
+        "setup": "riconame_to_alice",
         "pinnedBy": null,
         "note": "`N` puts existence ahead of value. §7.4 fixes that order for `G` and says nothing about `N`, so the consistency is a choice — but a reducer that reversed it would answer an underfunded renewal of a nonexistent name with the value token.",
         "tx": {
@@ -6620,13 +6620,13 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "156250",
-            "text": "NNS1Nkikename"
+            "text": "NNS1Nriconame"
           }
         }
       },
       {
         "id": "O_wrong_recipient_beats_not_owner",
-        "setup": "kikename_to_alice",
+        "setup": "riconame_to_alice",
         "pinnedBy": null,
         "note": "Routing before ownership. §5.3 sends an `O` to the treasury, since it is a fee-bearing message even at a `LISTING_FEE` of zero.",
         "tx": {
@@ -6635,7 +6635,7 @@
           "sender": "BOB",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Okikename|156250000"
+          "text": "NNS1Oriconame|156250000"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6652,13 +6652,13 @@
             "sender": "BOB",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|156250000"
+            "text": "NNS1Oriconame|156250000"
           }
         }
       },
       {
         "id": "O_not_owner_beats_below_min_price",
-        "setup": "kikename_to_alice",
+        "setup": "riconame_to_alice",
         "pinnedBy": null,
         "note": "This is what carries `BELOW_MIN_PRICE`: the floor is checked after ownership. §7.4 pins the floor against the *value carried* — \"The payload is checked before the value carried\" — and says nothing about the sender. That value ordering is unobservable today, since `LISTING_FEE` is 0 and no `O` can underpay, so this pair is the only live precedence the token has.",
         "tx": {
@@ -6667,7 +6667,7 @@
           "sender": "BOB",
           "recipient": "TREASURY",
           "value": "1",
-          "text": "NNS1Okikename|1"
+          "text": "NNS1Oriconame|1"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6684,7 +6684,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|1"
+            "text": "NNS1Oriconame|1"
           }
         }
       },
@@ -6699,7 +6699,7 @@
           "sender": "BOB",
           "recipient": "TREASURY",
           "value": "156250000",
-          "text": "NNS1Bkikename"
+          "text": "NNS1Briconame"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6716,7 +6716,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156250000",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           }
         }
       },
@@ -6731,7 +6731,7 @@
           "sender": "BOB",
           "recipient": "MARKETPLACE",
           "value": "7813",
-          "text": "NNS1Bkikename"
+          "text": "NNS1Briconame"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6748,7 +6748,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156250000",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           }
         }
       },
@@ -6763,7 +6763,7 @@
           "sender": "BOB",
           "recipient": "MARKETPLACE",
           "value": "7813",
-          "text": "NNS1Bkikename"
+          "text": "NNS1Briconame"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6780,7 +6780,7 @@
             "sender": "BOB",
             "recipient": "MARKETPLACE",
             "value": "156249999",
-            "text": "NNS1Bkikename"
+            "text": "NNS1Briconame"
           }
         }
       },
@@ -6795,7 +6795,7 @@
           "sender": "ALICE",
           "recipient": "TREASURY",
           "value": "1",
-          "text": "NNS1Akikename|62500000|62432960"
+          "text": "NNS1Ariconame|62500000|62432960"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6812,13 +6812,13 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|62500000|62432960"
+            "text": "NNS1Ariconame|62500000|62432960"
           }
         }
       },
       {
         "id": "A_insufficient_notice_beats_beyond_term",
-        "setup": "kikename_to_alice",
+        "setup": "riconame_to_alice",
         "pinnedBy": "§7.4 check-order table (r28, 2026-09-03) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_BEYOND_TERM`",
         "note": "Payload rows run floor, window length, then the window's end against the term. Ten blocks before the name expires, an `A` ending at the expiry is both too short and past the term; it is told the window is too short. The same `A` sent with a full-length window from that height reaches the term row.",
         "tx": {
@@ -6827,7 +6827,7 @@
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|62500000|93811680"
+          "text": "NNS1Ariconame|62500000|93811680"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6844,13 +6844,13 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|62500000|93898070"
+            "text": "NNS1Ariconame|62500000|93898070"
           }
         }
       },
       {
         "id": "A_too_long_beats_beyond_term",
-        "setup": "kikename_to_alice",
+        "setup": "riconame_to_alice",
         "pinnedBy": "§7.4 check-order table (r31 fold, 2026-09-22) — `A`: name state, sender, `AUCTION_OPEN`, `OFFER_OPEN`, `TRANSFER_PENDING`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`, `AUCTION_TOO_LONG`, `AUCTION_BEYOND_TERM`",
         "note": "The window's length is judged before its end against the term, at both ends: floor, cap, then expiry. Inside the last AUCTION_MAX_DURATION of the term, an `A` ending one block past the cap is also past the expiry; it is told the window is too long. The same `A` ending exactly at the expiry is within the cap and reaches the term row.",
         "tx": {
@@ -6859,7 +6859,7 @@
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|62500000|93811781"
+          "text": "NNS1Ariconame|62500000|93811781"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6876,7 +6876,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|62500000|93811680"
+            "text": "NNS1Ariconame|62500000|93811680"
           }
         }
       },
@@ -6891,7 +6891,7 @@
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|62500000|62432960"
+          "text": "NNS1Ariconame|62500000|62432960"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6923,7 +6923,7 @@
           "sender": "BOB",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|62500000|62432960"
+          "text": "NNS1Ariconame|62500000|62432960"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6940,7 +6940,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|62500000|62432960"
+            "text": "NNS1Ariconame|62500000|62432960"
           }
         }
       },
@@ -6955,7 +6955,7 @@
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|1|62432960"
+          "text": "NNS1Ariconame|1|62432960"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6965,7 +6965,7 @@
       },
       {
         "id": "A_below_min_price_beats_insufficient_notice",
-        "setup": "kikename_to_alice",
+        "setup": "riconame_to_alice",
         "pinnedBy": "§7.4 check-order table (r28) — `A`: name state, sender, `AUCTION_OPEN`, `BELOW_MIN_PRICE`, `INSUFFICIENT_NOTICE`",
         "note": "Payload rows run floor first: the floor is what keeps `floor(bid × AUCTION_MIN_INCREMENT)` from rounding to zero (§6 `O`), and the window is measured from the landing block like `P`'s notice. An `A` a block short on both counts reports the floor.",
         "tx": {
@@ -6974,7 +6974,7 @@
           "sender": "ALICE",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|1|62362080"
+          "text": "NNS1Ariconame|1|62362080"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -6991,7 +6991,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|62500000|62362080"
+            "text": "NNS1Ariconame|62500000|62362080"
           }
         }
       },
@@ -7006,7 +7006,7 @@
           "sender": "BOB",
           "recipient": "TREASURY",
           "value": "1",
-          "text": "NNS1Okikename|62500000"
+          "text": "NNS1Oriconame|62500000"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7023,7 +7023,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|62500000"
+            "text": "NNS1Oriconame|62500000"
           }
         }
       },
@@ -7038,7 +7038,7 @@
           "sender": "BOB",
           "recipient": "CAROL",
           "value": "1",
-          "text": "NNS1Xkikename"
+          "text": "NNS1Xriconame"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7055,7 +7055,7 @@
             "sender": "ALICE",
             "recipient": "CAROL",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           }
         }
       },
@@ -7070,7 +7070,7 @@
           "sender": "BOB",
           "recipient": "CAROL",
           "value": "1",
-          "text": "NNS1Xkikename"
+          "text": "NNS1Xriconame"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7087,7 +7087,7 @@
             "sender": "ALICE",
             "recipient": "CAROL",
             "value": "1",
-            "text": "NNS1Xkikename"
+            "text": "NNS1Xriconame"
           }
         }
       },
@@ -7102,7 +7102,7 @@
           "sender": "BOB",
           "recipient": "TREASURY",
           "value": "1",
-          "text": "NNS1Okikename|62500000"
+          "text": "NNS1Oriconame|62500000"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7119,7 +7119,7 @@
             "sender": "ALICE",
             "recipient": "TREASURY",
             "value": "1",
-            "text": "NNS1Okikename|62500000"
+            "text": "NNS1Oriconame|62500000"
           }
         }
       },
@@ -7134,7 +7134,7 @@
           "sender": "BOB",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|62500000|62432960"
+          "text": "NNS1Ariconame|62500000|62432960"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7151,7 +7151,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|62500000|62432960"
+            "text": "NNS1Ariconame|62500000|62432960"
           }
         }
       },
@@ -7166,7 +7166,7 @@
           "sender": "BOB",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Akikename|62500000|62432960"
+          "text": "NNS1Ariconame|62500000|62432960"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7183,7 +7183,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Akikename|62500000|62432960"
+            "text": "NNS1Ariconame|62500000|62432960"
           }
         }
       },
@@ -7351,7 +7351,7 @@
         "id": "U_invalid_name_beats_name_not_reserved",
         "setup": "empty",
         "pinnedBy": "§7.4 — \"sender, recipient, name syntax, reservation\" (r22)",
-        "note": "Third and fourth, matching the order §7.4 fixes for `G`. Neither `ab-` nor `kikename` is reserved, so the first would earn `NAME_NOT_RESERVED` too under the other reading.",
+        "note": "Third and fourth, matching the order §7.4 fixes for `G`. Neither `ab-` nor `riconame` is reserved, so the first would earn `NAME_NOT_RESERVED` too under the other reading.",
         "tx": {
           "blockNumber": 62275680,
           "txIndex": 0,
@@ -7375,15 +7375,15 @@
             "sender": "ADMIN",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Ukikename"
+            "text": "NNS1Uriconame"
           }
         }
       },
       {
         "id": "U_invalid_name_beats_name_not_available",
-        "setup": "kikename_to_alice",
+        "setup": "riconame_to_alice",
         "pinnedBy": "§7.4 check-order table (2026-09-11) — `U`: `NOT_ADMIN`, `INVALID_RECIPIENT`, `INVALID_NAME`, then `NAME_NOT_RESERVED` (release) or `NAME_NOT_AVAILABLE` (award)",
-        "note": "The award's last row, the twin of the release pair above it. `ab-` fails rule 4 and is on neither membership route; `kikename` is well-formed and held by ALICE. Under the other reading the first probe would report a name it cannot award for a reason it does not have.",
+        "note": "The award's last row, the twin of the release pair above it. `ab-` fails rule 4 and is on neither membership route; `riconame` is well-formed and held by ALICE. Under the other reading the first probe would report a name it cannot award for a reason it does not have.",
         "tx": {
           "blockNumber": 62275680,
           "txIndex": 0,
@@ -7407,7 +7407,7 @@
             "sender": "ADMIN",
             "recipient": "BOB",
             "value": "1",
-            "text": "NNS1Ukikename"
+            "text": "NNS1Uriconame"
           }
         }
       },
@@ -7454,7 +7454,7 @@
           "sender": "ALICE",
           "recipient": "CAROL",
           "value": "1",
-          "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks"
+          "text": "NNS1Ericoname|Gz9qCeLEDVXIobLD1OX2BxgpOks"
         },
         "verdict": {
           "kind": "FORFEIT",
@@ -7471,7 +7471,7 @@
             "sender": "ALICE",
             "recipient": "PROTOCOL",
             "value": "1",
-            "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks"
+            "text": "NNS1Ericoname|Gz9qCeLEDVXIobLD1OX2BxgpOks"
           }
         }
       },
@@ -7486,7 +7486,7 @@
           "sender": "BOB",
           "recipient": "PROTOCOL",
           "value": "1",
-          "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks"
+          "text": "NNS1Ericoname|Gz9qCeLEDVXIobLD1OX2BxgpOks"
         },
         "verdict": {
           "kind": "FORFEIT",

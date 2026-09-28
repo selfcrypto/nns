@@ -38,11 +38,11 @@
       },
       {
         "id": "G_with_ref",
-        "text": "NNS1Gkikename|coinbase",
-        "data": "4e4e5331476b696b656e616d657c636f696e62617365",
+        "text": "NNS1Griconame|coinbase",
+        "data": "4e4e5331477269636f6e616d657c636f696e62617365",
         "message": {
           "type": "G",
-          "name": "kikename",
+          "name": "riconame",
           "ref": "coinbase",
           "lifetime": false
         },
@@ -57,10 +57,10 @@
       {
         "id": "G_lifetime_with_ref",
         "note": "The third field is exactly `L` (§6 G, §10.4). The value is ten yearly fees of the 7–11 band.",
-        "text": "NNS1Gkikename|coinbase|L",
+        "text": "NNS1Griconame|coinbase|L",
         "message": {
           "type": "G",
-          "name": "kikename",
+          "name": "riconame",
           "ref": "coinbase",
           "lifetime": true
         },
@@ -72,15 +72,15 @@
         },
         "recipient": "TREASURY",
         "value": "2000000000",
-        "data": "4e4e5331476b696b656e616d657c636f696e626173657c4c"
+        "data": "4e4e5331477269636f6e616d657c636f696e626173657c4c"
       },
       {
         "id": "G_lifetime_without_ref",
         "note": "An empty second field is an absent ref, which is what lets `L` ride without a referrer (§6 G).",
-        "text": "NNS1Gkikename||L",
+        "text": "NNS1Griconame||L",
         "message": {
           "type": "G",
-          "name": "kikename",
+          "name": "riconame",
           "ref": null,
           "lifetime": true
         },
@@ -91,7 +91,7 @@
         },
         "recipient": "TREASURY",
         "value": "2000000000",
-        "data": "4e4e5331476b696b656e616d657c7c4c"
+        "data": "4e4e5331477269636f6e616d657c7c4c"
       },
       {
         "id": "G_maximal_56_bytes",
@@ -116,11 +116,11 @@
       },
       {
         "id": "S_to_counterparty",
-        "text": "NNS1Skikename",
-        "data": "4e4e5331536b696b656e616d65",
+        "text": "NNS1Sriconame",
+        "data": "4e4e5331537269636f6e616d65",
         "message": {
           "type": "S",
-          "name": "kikename"
+          "name": "riconame"
         },
         "build": {
           "builder": "setTarget",
@@ -131,11 +131,11 @@
       },
       {
         "id": "S_reset_via_sentinel",
-        "text": "NNS1Skikename",
-        "data": "4e4e5331536b696b656e616d65",
+        "text": "NNS1Sriconame",
+        "data": "4e4e5331537269636f6e616d65",
         "message": {
           "type": "S",
-          "name": "kikename"
+          "name": "riconame"
         },
         "build": {
           "builder": "setTarget",
@@ -147,11 +147,11 @@
       },
       {
         "id": "X_transfer",
-        "text": "NNS1Xkikename",
-        "data": "4e4e5331586b696b656e616d65",
+        "text": "NNS1Xriconame",
+        "data": "4e4e5331587269636f6e616d65",
         "message": {
           "type": "X",
-          "name": "kikename"
+          "name": "riconame"
         },
         "build": {
           "builder": "transfer",
@@ -214,11 +214,11 @@
       },
       {
         "id": "K_cancel",
-        "text": "NNS1Kkikename",
-        "data": "4e4e53314b6b696b656e616d65",
+        "text": "NNS1Kriconame",
+        "data": "4e4e53314b7269636f6e616d65",
         "message": {
           "type": "K",
-          "name": "kikename"
+          "name": "riconame"
         },
         "build": {
           "builder": "cancel"
@@ -228,11 +228,11 @@
       },
       {
         "id": "N_renew",
-        "text": "NNS1Nkikename",
-        "data": "4e4e53314e6b696b656e616d65",
+        "text": "NNS1Nriconame",
+        "data": "4e4e53314e7269636f6e616d65",
         "message": {
           "type": "N",
-          "name": "kikename",
+          "name": "riconame",
           "lifetime": false
         },
         "build": {
@@ -245,10 +245,10 @@
       {
         "id": "N_lifetime",
         "note": "The upgrade of a yearly name, or a lifetime renewal from anyone: ten yearly fees for a hundred terms from the current expiry (§6 N, §10.4).",
-        "text": "NNS1Nkikename|L",
+        "text": "NNS1Nriconame|L",
         "message": {
           "type": "N",
-          "name": "kikename",
+          "name": "riconame",
           "lifetime": true
         },
         "build": {
@@ -258,15 +258,15 @@
         },
         "recipient": "TREASURY",
         "value": "2000000000",
-        "data": "4e4e53314e6b696b656e616d657c4c"
+        "data": "4e4e53314e7269636f6e616d657c4c"
       },
       {
         "id": "O_offer",
-        "text": "NNS1Okikename|123456789",
-        "data": "4e4e53314f6b696b656e616d657c313233343536373839",
+        "text": "NNS1Oriconame|123456789",
+        "data": "4e4e53314f7269636f6e616d657c313233343536373839",
         "message": {
           "type": "O",
-          "name": "kikename",
+          "name": "riconame",
           "price": "123456789"
         },
         "build": {
@@ -279,11 +279,11 @@
       },
       {
         "id": "O_price_beyond_a_double",
-        "text": "NNS1Okikename|9007199254740993",
-        "data": "4e4e53314f6b696b656e616d657c39303037313939323534373430393933",
+        "text": "NNS1Oriconame|9007199254740993",
+        "data": "4e4e53314f7269636f6e616d657c39303037313939323534373430393933",
         "message": {
           "type": "O",
-          "name": "kikename",
+          "name": "riconame",
           "price": "9007199254740993"
         },
         "build": {
@@ -296,11 +296,11 @@
       },
       {
         "id": "B_buy",
-        "text": "NNS1Bkikename",
-        "data": "4e4e5331426b696b656e616d65",
+        "text": "NNS1Briconame",
+        "data": "4e4e5331427269636f6e616d65",
         "message": {
           "type": "B",
-          "name": "kikename"
+          "name": "riconame"
         },
         "build": {
           "builder": "buy",
@@ -328,11 +328,11 @@
       },
       {
         "id": "A_auction",
-        "text": "NNS1Akikename|62500000|62475680",
-        "data": "4e4e5331416b696b656e616d657c36323530303030307c3632343735363830",
+        "text": "NNS1Ariconame|62500000|62475680",
+        "data": "4e4e5331417269636f6e616d657c36323530303030307c3632343735363830",
         "message": {
           "type": "A",
-          "name": "kikename",
+          "name": "riconame",
           "startingPrice": "62500000",
           "endHeight": 62475680
         },
@@ -433,11 +433,11 @@
       },
       {
         "id": "E_sets_the_evm_address",
-        "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOks",
-        "data": "4e4e5331456b696b656e616d657c477a397143654c45445658496f624c44314f5832427867704f6b73",
+        "text": "NNS1Ericoname|Gz9qCeLEDVXIobLD1OX2BxgpOks",
+        "data": "4e4e5331457269636f6e616d657c477a397143654c45445658496f624c44314f5832427867704f6b73",
         "message": {
           "type": "E",
-          "name": "kikename",
+          "name": "riconame",
           "evm": "0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b"
         },
         "build": {
@@ -450,11 +450,11 @@
       },
       {
         "id": "E_empty_field_clears",
-        "text": "NNS1Ekikename|",
-        "data": "4e4e5331456b696b656e616d657c",
+        "text": "NNS1Ericoname|",
+        "data": "4e4e5331457269636f6e616d657c",
         "message": {
           "type": "E",
-          "name": "kikename",
+          "name": "riconame",
           "evm": ""
         },
         "build": {
@@ -490,8 +490,8 @@
       },
       {
         "id": "unknown_type",
-        "text": "NNS1Zkikename",
-        "data": "4e4e53315a6b696b656e616d65",
+        "text": "NNS1Zriconame",
+        "data": "4e4e53315a7269636f6e616d65",
         "result": {
           "ok": false,
           "reason": "UNKNOWN_TYPE"
@@ -499,8 +499,8 @@
       },
       {
         "id": "lowercase_type_is_unknown",
-        "text": "NNS1gkikename",
-        "data": "4e4e5331676b696b656e616d65",
+        "text": "NNS1griconame",
+        "data": "4e4e5331677269636f6e616d65",
         "result": {
           "ok": false,
           "reason": "UNKNOWN_TYPE"
@@ -509,8 +509,8 @@
       {
         "id": "retired_R_is_unknown",
         "note": "`R` carried the recovery address through r19. r20 removed it and did NOT startingPrice the letter: an `R` built by a pre-r20 client parses as an unknown type and forfeits (§6, §7.4).",
-        "text": "NNS1Rkikename",
-        "data": "4e4e5331526b696b656e616d65",
+        "text": "NNS1Rriconame",
+        "data": "4e4e5331527269636f6e616d65",
         "result": {
           "ok": false,
           "reason": "UNKNOWN_TYPE"
@@ -573,13 +573,13 @@
       },
       {
         "id": "bad_ref_recorded_as_absent",
-        "text": "NNS1Gkikename|Coinbase",
-        "data": "4e4e5331476b696b656e616d657c436f696e62617365",
+        "text": "NNS1Griconame|Coinbase",
+        "data": "4e4e5331477269636f6e616d657c436f696e62617365",
         "result": {
           "ok": true,
           "message": {
             "type": "G",
-            "name": "kikename",
+            "name": "riconame",
             "ref": null,
             "lifetime": false
           }
@@ -588,13 +588,13 @@
       },
       {
         "id": "empty_ref_recorded_as_absent",
-        "text": "NNS1Gkikename|",
-        "data": "4e4e5331476b696b656e616d657c",
+        "text": "NNS1Griconame|",
+        "data": "4e4e5331477269636f6e616d657c",
         "result": {
           "ok": true,
           "message": {
             "type": "G",
-            "name": "kikename",
+            "name": "riconame",
             "ref": null,
             "lifetime": false
           }
@@ -602,13 +602,13 @@
       },
       {
         "id": "over_length_ref_recorded_as_absent",
-        "text": "NNS1Gkikename|aaaaaaaaaaaaaaaaaaaaaaaaa",
-        "data": "4e4e5331476b696b656e616d657c61616161616161616161616161616161616161616161616161",
+        "text": "NNS1Griconame|aaaaaaaaaaaaaaaaaaaaaaaaa",
+        "data": "4e4e5331477269636f6e616d657c61616161616161616161616161616161616161616161616161",
         "result": {
           "ok": true,
           "message": {
             "type": "G",
-            "name": "kikename",
+            "name": "riconame",
             "ref": null,
             "lifetime": false
           }
@@ -616,8 +616,8 @@
       },
       {
         "id": "G_third_field_that_is_not_L_is_malformed",
-        "text": "NNS1Gkikename|a|b",
-        "data": "4e4e5331476b696b656e616d657c617c62",
+        "text": "NNS1Griconame|a|b",
+        "data": "4e4e5331477269636f6e616d657c617c62",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -626,49 +626,49 @@
       },
       {
         "id": "G_empty_third_field_is_malformed",
-        "text": "NNS1Gkikename|coinbase|",
+        "text": "NNS1Griconame|coinbase|",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
         },
-        "data": "4e4e5331476b696b656e616d657c636f696e626173657c"
+        "data": "4e4e5331477269636f6e616d657c636f696e626173657c"
       },
       {
         "id": "G_lowercase_l_is_malformed",
-        "text": "NNS1Gkikename||l",
+        "text": "NNS1Griconame||l",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
         },
         "note": "Exactly `L`. A lowercase `l` in the second field would be a one-letter ref; in the third it is nothing.",
-        "data": "4e4e5331476b696b656e616d657c7c6c"
+        "data": "4e4e5331477269636f6e616d657c7c6c"
       },
       {
         "id": "G_four_fields_is_malformed",
-        "text": "NNS1Gkikename|coinbase|L|",
+        "text": "NNS1Griconame|coinbase|L|",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
         },
-        "data": "4e4e5331476b696b656e616d657c636f696e626173657c4c7c"
+        "data": "4e4e5331477269636f6e616d657c636f696e626173657c4c7c"
       },
       {
         "id": "N_trailing_pipe_is_malformed",
-        "text": "NNS1Nkikename|",
+        "text": "NNS1Nriconame|",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
         },
-        "data": "4e4e53314e6b696b656e616d657c"
+        "data": "4e4e53314e7269636f6e616d657c"
       },
       {
         "id": "N_second_field_that_is_not_L_is_malformed",
-        "text": "NNS1Nkikename|LL",
+        "text": "NNS1Nriconame|LL",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
         },
-        "data": "4e4e53314e6b696b656e616d657c4c4c"
+        "data": "4e4e53314e7269636f6e616d657c4c4c"
       },
       {
         "id": "empty_name_G",
@@ -708,8 +708,8 @@
       },
       {
         "id": "O_without_price",
-        "text": "NNS1Okikename",
-        "data": "4e4e53314f6b696b656e616d65",
+        "text": "NNS1Oriconame",
+        "data": "4e4e53314f7269636f6e616d65",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -791,8 +791,8 @@
       },
       {
         "id": "leading_zeros_rejected",
-        "text": "NNS1Okikename|0123",
-        "data": "4e4e53314f6b696b656e616d657c30313233",
+        "text": "NNS1Oriconame|0123",
+        "data": "4e4e53314f7269636f6e616d657c30313233",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -801,8 +801,8 @@
       },
       {
         "id": "negative_rejected",
-        "text": "NNS1Okikename|-5",
-        "data": "4e4e53314f6b696b656e616d657c2d35",
+        "text": "NNS1Oriconame|-5",
+        "data": "4e4e53314f7269636f6e616d657c2d35",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -810,8 +810,8 @@
       },
       {
         "id": "space_rejected",
-        "text": "NNS1Okikename| 5",
-        "data": "4e4e53314f6b696b656e616d657c2035",
+        "text": "NNS1Oriconame| 5",
+        "data": "4e4e53314f7269636f6e616d657c2035",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -828,13 +828,13 @@
       },
       {
         "id": "bare_zero_is_canonical",
-        "text": "NNS1Okikename|0",
-        "data": "4e4e53314f6b696b656e616d657c30",
+        "text": "NNS1Oriconame|0",
+        "data": "4e4e53314f7269636f6e616d657c30",
         "result": {
           "ok": true,
           "message": {
             "type": "O",
-            "name": "kikename",
+            "name": "riconame",
             "price": "0"
           }
         },
@@ -842,8 +842,8 @@
       },
       {
         "id": "E_no_pipe_is_malformed",
-        "text": "NNS1Ekikename",
-        "data": "4e4e5331456b696b656e616d65",
+        "text": "NNS1Ericoname",
+        "data": "4e4e5331457269636f6e616d65",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -852,8 +852,8 @@
       },
       {
         "id": "E_wrong_length_is_malformed",
-        "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOk",
-        "data": "4e4e5331456b696b656e616d657c477a397143654c45445658496f624c44314f5832427867704f6b",
+        "text": "NNS1Ericoname|Gz9qCeLEDVXIobLD1OX2BxgpOk",
+        "data": "4e4e5331457269636f6e616d657c477a397143654c45445658496f624c44314f5832427867704f6b",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -862,8 +862,8 @@
       },
       {
         "id": "E_bad_alphabet_is_malformed",
-        "text": "NNS1Ekikename|Gz9qCeLEDVXIo+LD1OX2BxgpOks",
-        "data": "4e4e5331456b696b656e616d657c477a397143654c45445658496f2b4c44314f5832427867704f6b73",
+        "text": "NNS1Ericoname|Gz9qCeLEDVXIo+LD1OX2BxgpOks",
+        "data": "4e4e5331457269636f6e616d657c477a397143654c45445658496f2b4c44314f5832427867704f6b73",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -872,8 +872,8 @@
       },
       {
         "id": "E_nonzero_pad_bits_are_malformed",
-        "text": "NNS1Ekikename|Gz9qCeLEDVXIobLD1OX2BxgpOkt",
-        "data": "4e4e5331456b696b656e616d657c477a397143654c45445658496f624c44314f5832427867704f6b74",
+        "text": "NNS1Ericoname|Gz9qCeLEDVXIobLD1OX2BxgpOkt",
+        "data": "4e4e5331457269636f6e616d657c477a397143654c45445658496f624c44314f5832427867704f6b74",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -882,8 +882,8 @@
       },
       {
         "id": "E_all_zero_address_is_malformed",
-        "text": "NNS1Ekikename|AAAAAAAAAAAAAAAAAAAAAAAAAAA",
-        "data": "4e4e5331456b696b656e616d657c414141414141414141414141414141414141414141414141414141",
+        "text": "NNS1Ericoname|AAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "data": "4e4e5331457269636f6e616d657c414141414141414141414141414141414141414141414141414141",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
@@ -927,13 +927,13 @@
       {
         "id": "zero_value",
         "builder": "register",
-        "name": "kikename",
+        "name": "riconame",
         "fee": "0"
       },
       {
         "id": "self_transaction",
         "builder": "transfer",
-        "name": "kikename",
+        "name": "riconame",
         "newOwner": "ALICE",
         "sender": "ALICE"
       },
@@ -946,34 +946,34 @@
       {
         "id": "uppercase_ref",
         "builder": "register",
-        "name": "kikename",
+        "name": "riconame",
         "ref": "Coinbase",
         "fee": "200000000"
       },
       {
         "id": "negative_price",
         "builder": "offer",
-        "name": "kikename",
+        "name": "riconame",
         "price": "-1"
       },
       {
         "id": "O_price_below_MIN_PRICE",
         "builder": "offer",
-        "name": "kikename",
+        "name": "riconame",
         "price": "62499999",
         "note": "One luna under FEE_BASE. Below the floor the message would forfeit (§6 O), which §7.4 classes as client-preventable — so the builder prevents it."
       },
       {
         "id": "A_reserve_below_MIN_PRICE",
         "builder": "auction",
-        "name": "kikename",
+        "name": "riconame",
         "startingPrice": "62499999",
         "endHeight": 62475680
       },
       {
         "id": "O_price_below_a_MIN_PRICE_a_P_has_raised",
         "builder": "offer",
-        "name": "kikename",
+        "name": "riconame",
         "price": "62500000",
         "minPrice": "125000000",
         "note": "The launch floor, refused because a P has doubled FEE_BASE. MIN_PRICE is the value in effect at the message's height, never the constant."
@@ -981,13 +981,13 @@
       {
         "id": "E_all_zero_address",
         "builder": "setEvm",
-        "name": "kikename",
+        "name": "riconame",
         "evm": "0x0000000000000000000000000000000000000000"
       },
       {
         "id": "E_not_display_form",
         "builder": "setEvm",
-        "name": "kikename",
+        "name": "riconame",
         "evm": "1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b"
       },
       {

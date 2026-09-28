@@ -4,7 +4,7 @@
  *
  * Written rather than depended on for the workspace's usual reason: a mail
  * library is a large surface for one message shape, and this service's
- * whole job is to be boring. The sending server is Kike's own, with DKIM
+ * whole job is to be boring. The sending server is Rico's own, with DKIM
  * and DMARC in place there (tasks/26), so this client signs nothing and
  * only has to speak the protocol correctly.
  *

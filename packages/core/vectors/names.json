@@ -6,7 +6,7 @@
   "cases": [
     { "id": "spec_table_layer", "name": "layer", "valid": true, "note": "§4.2 valid column" },
     { "id": "spec_table_bitcoin7", "name": "bitcoin7", "valid": true, "note": "§4.2 valid column" },
-    { "id": "spec_table_21kike", "name": "21kike", "valid": true, "note": "§4.2 valid column" },
+    { "id": "spec_table_21rico", "name": "21rico", "valid": true, "note": "§4.2 valid column" },
 
     {
       "id": "spec_table_web3_is_reserved",
@@ -56,16 +56,16 @@
     { "id": "double_hyphen", "name": "ab--cde", "valid": false, "reason": "DOUBLE_HYPHEN" },
     { "id": "single_hyphen_is_fine", "name": "my-name", "valid": true },
 
-    { "id": "digit_run_leading", "name": "23kike", "valid": true },
-    { "id": "digit_run_trailing", "name": "kike23", "valid": true },
-    { "id": "digit_run_both_ends", "name": "23kike99", "valid": true },
+    { "id": "digit_run_leading", "name": "23rico", "valid": true },
+    { "id": "digit_run_trailing", "name": "rico23", "valid": true },
+    { "id": "digit_run_both_ends", "name": "23rico99", "valid": true },
     { "id": "interior_single_digit", "name": "nim1q", "valid": false, "reason": "INTERIOR_DIGIT" },
     { "id": "interior_digit_with_runs_at_both_ends", "name": "2nim1q9", "valid": false, "reason": "INTERIOR_DIGIT" },
 
     { "id": "boundary_zero_last", "name": "nimiq0", "valid": false, "reason": "BOUNDARY_DIGIT" },
     { "id": "boundary_one_last", "name": "nimiq1", "valid": false, "reason": "BOUNDARY_DIGIT" },
     { "id": "boundary_zero_first", "name": "0nimiq", "valid": false, "reason": "BOUNDARY_DIGIT" },
-    { "id": "boundary_one_first", "name": "1kike", "valid": false, "reason": "BOUNDARY_DIGIT" },
+    { "id": "boundary_one_first", "name": "1rico", "valid": false, "reason": "BOUNDARY_DIGIT" },
     { "id": "boundary_other_digits_are_fine", "name": "99nimiq", "valid": true },
     {
       "id": "interior_wins_over_boundary",
@@ -78,7 +78,7 @@
     { "id": "reserved_exact_match", "name": "binance", "valid": false, "reason": "RESERVED", "note": "RESERVED_NAMES is a §3 constant since the launch freeze — no list is passed in, and `binance` is on the published half." },
     { "id": "reserved_released_by_a_fired_u", "name": "binance", "unreserved": ["binance"], "valid": true },
     { "id": "reserved_is_not_a_prefix_match", "name": "binanced", "valid": true },
-    { "id": "not_on_the_published_list", "name": "kikename", "valid": true }
+    { "id": "not_on_the_published_list", "name": "riconame", "valid": true }
   ],
   "labels": {
     "description": "§4.4 subdomain labels. The positional digit rule deliberately does not apply, and no letter is required.",
@@ -131,8 +131,8 @@
   "queries": {
     "description": "§4.4 dotted queries. A dot is resolution syntax; more than one is invalid in v1.",
     "cases": [
-      { "id": "bare_name", "query": "kikename", "kind": "name", "name": "kikename" },
-      { "id": "dotted", "query": "alice.kikename", "kind": "dotted", "label": "alice", "parent": "kikename" },
+      { "id": "bare_name", "query": "riconame", "kind": "name", "name": "riconame" },
+      { "id": "dotted", "query": "alice.riconame", "kind": "dotted", "label": "alice", "parent": "riconame" },
       { "id": "two_dots", "query": "a.b.binance", "kind": "invalid", "reason": "TOO_MANY_DOTS" },
       { "id": "empty_label", "query": ".binance", "kind": "invalid", "reason": "BAD_LABEL" },
       { "id": "invalid_parent", "query": "alice.b1nance", "kind": "invalid", "reason": "BAD_NAME" }

@@ -8,7 +8,7 @@
  * private chat anything else gets the help text; in a group or a channel
  * anything else gets silence, and only `/resolve` and `/help` answer at all.
  * A bare name was a lookup until 2026-09-23 — a bot that examines every
- * word said in front of it and replies is noise, not a feature (Kike) — and
+ * word said in front of it and replies is noise, not a feature (Rico) — and
  * `/start` outside a private chat would bind the group to someone's address.
  */
 

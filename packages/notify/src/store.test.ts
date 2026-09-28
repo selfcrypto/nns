@@ -57,19 +57,19 @@ describe.skipIf(DB === undefined)('Store', () => {
   })
 
   it('takes an email through confirmation and out again through unsubscribe', async () => {
-    const contact = await store.addEmail(ALICE, 'kike@example.com', 'c1', LATER, 'u1')
+    const contact = await store.addEmail(ALICE, 'rico@example.com', 'c1', LATER, 'u1')
     expect(contact.confirmed).toBe(false)
     expect(await store.subscribedAddresses()).toEqual(new Set())
     // Re-adding before confirmation re-issues the token.
-    await store.addEmail(ALICE, 'kike@example.com', 'c2', LATER, 'u-ignored')
+    await store.addEmail(ALICE, 'rico@example.com', 'c2', LATER, 'u-ignored')
     expect(await store.confirmEmail('c1', NOW)).toBeNull()
     const confirmed = await store.confirmEmail('c2', NOW)
     expect(confirmed?.confirmed).toBe(true)
     expect(confirmed?.unsubscribeToken).toBe('u1')
     expect(await store.subscribedAddresses()).toEqual(new Set([ALICE]))
-    expect((await store.confirmedContacts(ALICE)).map((c) => c.target)).toEqual(['kike@example.com'])
+    expect((await store.confirmedContacts(ALICE)).map((c) => c.target)).toEqual(['rico@example.com'])
     // Re-adding a confirmed one changes nothing.
-    expect((await store.addEmail(ALICE, 'kike@example.com', 'c3', LATER, 'u2')).confirmed).toBe(true)
+    expect((await store.addEmail(ALICE, 'rico@example.com', 'c3', LATER, 'u2')).confirmed).toBe(true)
     expect(await store.confirmEmail('c3', NOW)).toBeNull()
     expect((await store.unsubscribe('u1'))?.address).toBe(ALICE)
     expect(await store.contacts(ALICE)).toEqual([])
