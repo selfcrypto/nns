@@ -29,7 +29,8 @@ npm access ls-packages          # nothing yet, on the first run
 ```
 
 Done on 2026-09-14: the organisation exists, `selfcrypto` owns it, and all
-three packages went out at `0.1.0`.
+three packages went out at `0.1.0`. `0.2.0` followed on 2026-09-28, the first
+built on the launch constants; `0.1.0` is deprecated.
 
 **The scope is `@nimiqnames`, not `@nns`** (2026-09-14). `nns` is not
 available as an organisation — an unrelated package of that name has held it
@@ -43,6 +44,23 @@ ever types.
 Nothing in this repository holds an npm credential, and nothing should: the
 token lives in the operator's `~/.npmrc`, or in a CI secret if publishing ever
 moves there.
+
+## When a release is owed
+
+**Whenever `packages/core/src/constants.ts` changes on `main`, and at every
+spec revision.** A rollout to the boxes does not touch npm, and nothing
+fails when the two drift: resolution and proof verification never read the
+constants that move. `0.1.0` sat on npm from 2026-09-14 to 2026-09-28 with
+the pre-launch addresses, base fee and launch height, through the freeze and
+two revisions, and a registration built with it would have paid an address
+the registry does not read.
+
+```sh
+pnpm --filter @nimiqnames/core build && node scripts/check-npm-release.mjs
+```
+
+Exit 1 names the constants that differ. Run it at the end of every rollout
+that touched `core`.
 
 ## Every release
 
@@ -160,6 +178,19 @@ else changed with it (`deploy.md`).
   move releases to trusted publishing from a GitHub Actions workflow. Trusted
   publishing could not have done the first release: npm wants the package to
   exist before you can name its publisher.
+- **A login session cannot publish: it takes the token.** The account is at
+  `auth-and-writes` with no factor registered (first bullet), so `npm login`
+  followed by `npm publish` answers 403. `0.2.0` went out on a granular token
+  with **Bypass 2FA**, handed to npm through a throwaway config file
+  (`npm publish <tarball> --userconfig <file>`), so `~/.npmrc` kept the login.
+- **The registry says "staged" while it replicates.** Publishing `0.2.0`
+  again seconds after it succeeded answered *409, "Cannot publish over
+  previously staged version"*, while the read path still listed `0.1.0`
+  alone. The three packages were listed after two, two and thirteen
+  minutes, and a version's tarball answered 404 for three minutes more
+  after it was listed, so an install of `resolver` failed until `anchor`
+  was downloadable. `npm stage list` was empty throughout: nothing was
+  waiting for approval. Step 7 waits for the tarball, not the listing.
 - **A new package reads as 404 for a few minutes after it publishes.** The
   write path is ahead of the read path — `npm install` and even an
   authenticated `GET` answer 404 while the publish has plainly succeeded. The
