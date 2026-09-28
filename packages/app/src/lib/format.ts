@@ -228,3 +228,6 @@ function joins(line: string, index: number, direction: 1 | -1): boolean {
   const next = line[index + direction]
   return next !== undefined && /[A-Za-z0-9]/.test(next)
 }
+
+/** An EVM address for a label: `0x1b3f…3a4b`. Never for a field or a review, which take it whole. */
+export const shortEvmAddress = (evm: string): string => (evm.length <= 12 ? evm : `${evm.slice(0, 6)}…${evm.slice(-4)}`)

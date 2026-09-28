@@ -7,7 +7,7 @@ The card shows where the name points, its expiry, anything pending, and the owne
 ## Routing & Records
 
 - **Target Address.** Where the name pays. Changing it does not change ownership, so this is the action for moving to a new wallet. The field takes an address or a name, and **Point back at my address** is a checkbox.
-- **EVM Resolution.** Link one `0x…` address. One address covers every EVM chain. The app can fill it from a connected EVM wallet, or you paste it. **Remove the linked address** is a checkbox.
+- **EVM Resolution.** Link one `0x…` address. One address covers every EVM chain. The app can fill it from an EVM wallet, in Nimiq Pay or from a browser extension such as MetaMask, or you paste it. **Remove the linked address** is a checkbox.
 - **Subdomain Host.** The hostname of a server you run that answers for `anything.yourname`. Name and host together are limited to 52 characters, and the host must already answer over HTTPS. **Remove the current host** switches subdomains off ([Subdomains](subdomains)).
 
 ## Ownership & Renewal

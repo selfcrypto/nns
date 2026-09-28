@@ -1,15 +1,16 @@
 import { CONSTANTS } from '@nimiqnames/core'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { prepareAction, ActionInputError, type ActionInputs } from '../lib/actions'
 import { getNameInfo, getParams, type NameInfo } from '../lib/api'
 import { clearReferral, isSelfReferral, storedReferral } from '../lib/referral'
 import { defaultTransport, fetchNimBalance } from '../lib/history'
 import { apiBase } from '../lib/nns'
-import { approxDate, blocksApprox, ellipsizeAddress, formatApproxWhen, lunaToNim, lunaToNimInput, splitAroundName } from '../lib/format'
-import { discoverEvmProvider, probeHostEvmAddress, requestHostEvmAddress } from '../lib/sdk'
+import { approxDate, blocksApprox, ellipsizeAddress, formatApproxWhen, lunaToNim, lunaToNimInput, shortEvmAddress, splitAroundName } from '../lib/format'
+import { isHostedWebView } from '../lib/chrome'
+import { listEvmWallets, requestEvmAddress, silentEvmAddress } from '../lib/evmWallets'
 import { performSend, type SendResult } from '../lib/send'
 import { useAsync } from '../lib/useAsync'
-import { cancellable, registrationFee, shortfallFor, type AppAction } from '../lib/states'
+import { EVM_ASK_SLOW_MS, cancellable, evmWalletPanel, registrationFee, shortfallFor, type AppAction, type EvmAsk, type EvmWalletLine, type EvmWalletRow } from '../lib/states'
 import type { Wallet } from '../lib/wallet'
 import { AddressInput } from './AddressInput'
 import { Hint } from './Hint'
@@ -24,8 +25,14 @@ import {
   bidCustodialHint,
   bidCustodialWarning,
   buyAcknowledgeLabel,
+  connectEvmBusyLine,
+  connectEvmCaption,
+  connectEvmDeclinedLine,
+  connectEvmErrorLine,
   connectEvmFailedLine,
   connectEvmLabel,
+  connectEvmSlowLine,
+  connectEvmWalletLabel,
   currentEvmLine,
   currentExpiryLine,
   currentHostLine,
@@ -39,6 +46,8 @@ import {
   noHostLine,
   standingBidLine,
   suggestedEvmLabel,
+  suggestedEvmWalletLabel,
+  sendSubmittingLine,
   sendConfirmedLine,
   sendDeclinedLine,
   sendNoRpcLine,
@@ -84,6 +93,71 @@ function ReviewLine({ line, name }: { line: string; name: string }) {
       )}
     </>
   )
+}
+
+/** A wallet that announced a name is asked by name; Pay's provider has none. */
+function evmWalletLabel(row: EvmWalletRow): string {
+  if (row.address !== null) {
+    return row.name === null ? suggestedEvmLabel(row.address) : suggestedEvmWalletLabel(row.name, row.address)
+  }
+  return row.name === null ? connectEvmLabel() : connectEvmWalletLabel(row.name)
+}
+
+/**
+ * The wallets that can fill the field. Named wallets are one row of chips
+ * under a caption, each chip the wallet's own name and, once it has answered
+ * silently, the address it would fill. Pay's provider has no name and keeps
+ * the one sentence it always had.
+ */
+function EvmWalletButtons({ rows, onPick }: { rows: readonly EvmWalletRow[]; onPick: (row: EvmWalletRow) => void }) {
+  if (rows.length === 0) return null
+  if (rows.some((row) => row.name === null)) {
+    return (
+      <>
+        {rows.map((row) => (
+          <button key={row.id} type="button" className="sheet-suggest" disabled={row.disabled} onClick={() => onPick(row)}>
+            {row.pending && <ButtonSpinner />}
+            {row.pending ? sendSubmittingLine() : evmWalletLabel(row)}
+          </button>
+        ))}
+      </>
+    )
+  }
+  return (
+    <div className="sheet-wallets">
+      <span className="sheet-wallets-caption">{connectEvmCaption()}</span>
+      <div className="sheet-wallets-row">
+        {rows.map((row) => (
+          <button
+            key={row.id}
+            type="button"
+            className="sheet-wallet"
+            disabled={row.disabled}
+            aria-busy={row.pending}
+            aria-label={row.pending ? sendSubmittingLine() : evmWalletLabel(row)}
+            title={row.address ?? undefined}
+            onClick={() => onPick(row)}
+          >
+            {row.pending && <ButtonSpinner />}
+            <span className="sheet-wallet-name">{row.name}</span>
+            {row.address !== null && <span className="sheet-wallet-address nns-name">{shortEvmAddress(row.address)}</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * What the wallet said, under its buttons. Waiting and a decline are notes:
+ * nothing is wrong with the sheet. An empty or broken answer is an error.
+ */
+function EvmWalletNote({ line }: { line: EvmWalletLine }) {
+  if (line === null) return null
+  if (line.kind === 'failed') return <p className="field-error">{connectEvmErrorLine(line.detail)}</p>
+  if (line.kind === 'empty') return <p className="field-error">{connectEvmFailedLine()}</p>
+  const text = { slow: connectEvmSlowLine, busy: connectEvmBusyLine, declined: connectEvmDeclinedLine }[line.kind]()
+  return <p className="sheet-note">{text}</p>
 }
 
 /**
@@ -138,15 +212,61 @@ export function ActionSheet({
   const [resetTarget, setResetTarget] = useState(false)
   const [evmInput, setEvmInput] = useState('')
   const [clearEvm, setClearEvm] = useState(false)
-  // Best-effort pre-fill from the host wallet (window.ethereum, if Pay's
-  // WebView injects one) — a suggestion the user still reviews, never an
-  // authority. Empty answer, no probe result yet, no injection: paste field.
-  const hostEvm = useAsync(() => (action === 'setEvm' ? probeHostEvmAddress() : Promise.resolve(null)), [action])
-  const suggestedEvm = hostEvm.status === 'done' ? hostEvm.value : null
-  // Whether a "use my wallet's address" button can exist at all. The provider
-  // is discovered per open — it is injected asynchronously in some hosts.
-  const canRequestEvm = useMemo(() => action === 'setEvm' && discoverEvmProvider() !== null, [action])
-  const [evmRequestFailed, setEvmRequestFailed] = useState(false)
+  // Best-effort pre-fill from an EVM wallet: Pay's injected provider, or
+  // every extension a browser has. A suggestion the user still reviews,
+  // never an authority. No wallet, no buttons: the paste field is the sheet.
+  // Discovered per open, since some hosts inject after the first paint.
+  const evmWallets = useMemo(() => (action === 'setEvm' ? listEvmWallets() : []), [action])
+  // Already-connected wallets only upgrade their label. The buttons draw
+  // from the list, so a wallet that never answers this costs nothing else.
+  const evmSilent = useAsync(() => Promise.all(evmWallets.map((wallet) => silentEvmAddress(wallet.provider))), [evmWallets])
+  const [evmAsk, setEvmAsk] = useState<EvmAsk>({ kind: 'idle' })
+  // Which ask is the current one: an answer to an abandoned ask is dropped.
+  const evmAskToken = useRef(0)
+  const evmPanel = evmWalletPanel(
+    evmWallets.map(({ id, name, source }, index) => ({
+      id,
+      name,
+      source,
+      connected: evmSilent.status === 'done' ? (evmSilent.value[index] ?? null) : null,
+    })),
+    evmAsk,
+    isHostedWebView(),
+  )
+  const evmPending = evmAsk.kind === 'pending' && !evmAsk.slow ? evmAsk.wallet : null
+  useEffect(() => {
+    if (evmPending === null) return
+    const timer = setTimeout(
+      () => setEvmAsk((now) => (now.kind === 'pending' && now.wallet === evmPending ? { ...now, slow: true } : now)),
+      EVM_ASK_SLOW_MS,
+    )
+    return () => clearTimeout(timer)
+  }, [evmPending])
+  const fillFromWallet = async (row: EvmWalletRow) => {
+    if (row.address !== null) {
+      setEvmInput(row.address)
+      setEvmAsk({ kind: 'idle' })
+      return
+    }
+    const wallet = evmWallets.find((candidate) => candidate.id === row.id)
+    if (wallet === undefined) return
+    const token = ++evmAskToken.current
+    const typed = evmInput
+    setEvmAsk({ kind: 'pending', wallet: row.id, slow: false })
+    const outcome = await requestEvmAddress(wallet.provider)
+    if (outcome.ok) {
+      // A late approval never overwrites what was typed while it was open.
+      setEvmInput((now) => (now === typed ? outcome.address : now))
+      // An approval answers whatever line an earlier refusal left, even when
+      // it is the first prompt answering after a second tap was refused.
+      const current = token === evmAskToken.current
+      setEvmAsk((now) => (current || now.kind !== 'pending' ? { kind: 'idle' } : now))
+      return
+    }
+    if (token !== evmAskToken.current) return
+    if (outcome.reason === 'failed') setEvmAsk({ kind: 'failed', wallet: row.id, detail: outcome.detail })
+    else setEvmAsk({ kind: 'refused', wallet: row.id, reason: outcome.reason })
+  }
   // Prefilled with what a second message would replace (§7.3): the pending
   // recipient, the listed price. The input form, never the grouped one.
   const [newOwner, setNewOwner] = useState(() => info?.pending.transfer?.newOwner ?? '')
@@ -375,11 +495,10 @@ export function ActionSheet({
           {!clearEvm && (
             <>
               {/* The field is always the field — typing any address works.
-                  The button only fills it: instantly when the silent probe
+                  A button only fills it: instantly when the silent probe
                   already knows the address, else through the wallet's own
                   connect sheet (eth_requestAccounts — the flow every EVM
-                  dApp gets in Pay's browser), which needs the user gesture
-                  this tap is. */}
+                  dApp gets), which needs the user gesture this tap is. */}
               <input
                 className="sheet-input nns-name"
                 // Never the current address: a placeholder that repeats it
@@ -388,24 +507,8 @@ export function ActionSheet({
                 value={evmInput}
                 onChange={(event) => setEvmInput(event.target.value)}
               />
-              {(suggestedEvm !== null || canRequestEvm) && (
-                <button
-                  type="button"
-                  className="sheet-suggest"
-                  onClick={async () => {
-                    const address = suggestedEvm ?? (await requestHostEvmAddress())
-                    if (address !== null) {
-                      setEvmInput(address)
-                      setEvmRequestFailed(false)
-                    } else {
-                      setEvmRequestFailed(true)
-                    }
-                  }}
-                >
-                  {suggestedEvm !== null ? suggestedEvmLabel(suggestedEvm) : connectEvmLabel()}
-                </button>
-              )}
-              {evmRequestFailed && <p className="field-error">{connectEvmFailedLine()}</p>}
+              <EvmWalletButtons rows={evmPanel.rows} onPick={(row) => void fillFromWallet(row)} />
+              <EvmWalletNote line={evmPanel.line} />
             </>
           )}
         </>

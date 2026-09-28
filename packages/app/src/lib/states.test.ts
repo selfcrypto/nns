@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { CONSTANTS } from '@nimiqnames/core'
 import type { NameInfo } from './api'
 import type { Identity } from './identity'
+import type { EvmAsk, EvmWalletFact } from './states'
 import { parseAddress } from '@nimiqnames/core'
 import type { ResolveResult } from '@nimiqnames/resolver'
 import type { SearchOutcome } from './search'
@@ -10,6 +11,8 @@ import {
   cancelTileGroup,
   cancellable,
   connectInstead,
+  evmWalletPanel,
+  EVM_WALLET_ROWS_MAX,
   identityRow,
   nameView,
   feeRowFor,
@@ -610,5 +613,94 @@ describe('mostHeld', () => {
   it('is unknown on an empty or incomplete reading', () => {
     expect(mostHeld([])).toBeNull()
     expect(mostHeld([1n, null])).toBeNull()
+  })
+})
+
+// ── The `E` sheet's wallet buttons (docs/app-ux.md §5) ──────────────────────
+
+describe('evmWalletPanel', () => {
+  const IDLE: EvmAsk = { kind: 'idle' }
+  const EVM = '0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b'
+  const announced = (id: string, name: string, connected: string | null = null): EvmWalletFact => ({
+    id,
+    name,
+    source: 'announced',
+    connected,
+  })
+  const INJECTED: EvmWalletFact = { id: 'injected', name: null, source: 'injected', connected: null }
+  const row = (id: string, name: string | null, over: object = {}) => ({
+    id,
+    name,
+    address: null,
+    pending: false,
+    disabled: false,
+    ...over,
+  })
+
+  it('draws nothing with no wallet: the paste field is the sheet', () => {
+    expect(evmWalletPanel([], IDLE, false)).toEqual({ rows: [], line: null })
+    expect(evmWalletPanel([], IDLE, true)).toEqual({ rows: [], line: null })
+  })
+
+  it('draws the unnamed injected wallet with the generic label', () => {
+    expect(evmWalletPanel([INJECTED], IDLE, false).rows).toEqual([row('injected', null)])
+  })
+
+  it('names a wallet that announced itself, and carries an address it already shares', () => {
+    expect(evmWalletPanel([announced('a', 'MetaMask')], IDLE, false).rows).toEqual([row('a', 'MetaMask')])
+    expect(evmWalletPanel([announced('a', 'MetaMask', EVM)], IDLE, false).rows).toEqual([
+      row('a', 'MetaMask', { address: EVM }),
+    ])
+  })
+
+  it('draws one button per wallet in announce order, and drops window.ethereum beside them', () => {
+    // The global is whichever extension claimed it last: a second button for
+    // a wallet that already has one, under a label naming nobody.
+    const { rows } = evmWalletPanel([announced('a', 'MetaMask'), announced('b', 'Rabby'), INJECTED], IDLE, false)
+    expect(rows.map((each) => each.id)).toEqual(['a', 'b'])
+  })
+
+  it('caps the buttons', () => {
+    const many = Array.from({ length: EVM_WALLET_ROWS_MAX + 3 }, (_, index) => announced(`w${index}`, `Wallet ${index}`))
+    expect(evmWalletPanel(many, IDLE, false).rows).toHaveLength(EVM_WALLET_ROWS_MAX)
+  })
+
+  it('inside Pay is one generic button on the injected provider, whatever announced', () => {
+    const { rows } = evmWalletPanel([announced('a', 'Nimiq Pay', EVM), INJECTED], IDLE, true)
+    expect(rows).toEqual([row('injected', null)])
+    expect(evmWalletPanel([announced('a', 'Nimiq Pay', EVM)], IDLE, true).rows).toEqual([
+      row('a', null, { address: EVM }),
+    ])
+  })
+
+  it('locks every button while one wallet is being asked', () => {
+    const asking: EvmAsk = { kind: 'pending', wallet: 'a', slow: false }
+    expect(evmWalletPanel([announced('a', 'MetaMask'), announced('b', 'Rabby')], asking, false)).toEqual({
+      rows: [row('a', 'MetaMask', { pending: true, disabled: true }), row('b', 'Rabby', { disabled: true })],
+      line: null,
+    })
+  })
+
+  it('unlocks once the ask is slow, and says where to look', () => {
+    // A request that never settles must not lock the sheet.
+    const slow: EvmAsk = { kind: 'pending', wallet: 'a', slow: true }
+    expect(evmWalletPanel([announced('a', 'MetaMask'), announced('b', 'Rabby')], slow, false)).toEqual({
+      rows: [row('a', 'MetaMask', { pending: true }), row('b', 'Rabby')],
+      line: { kind: 'slow' },
+    })
+  })
+
+  it('never points at a browser toolbar inside Pay', () => {
+    expect(evmWalletPanel([INJECTED], { kind: 'pending', wallet: 'injected', slow: true }, true).line).toBeNull()
+  })
+
+  it('reports each refusal as its own line, with the buttons usable again', () => {
+    for (const reason of ['declined', 'busy', 'empty'] as const) {
+      const panel = evmWalletPanel([announced('a', 'MetaMask')], { kind: 'refused', wallet: 'a', reason }, false)
+      expect(panel).toEqual({ rows: [row('a', 'MetaMask')], line: { kind: reason } })
+    }
+    expect(
+      evmWalletPanel([announced('a', 'MetaMask')], { kind: 'failed', wallet: 'a', detail: 'Internal error' }, false).line,
+    ).toEqual({ kind: 'failed', detail: 'Internal error' })
   })
 })

@@ -33,7 +33,7 @@ import {
   silentEvmAccount,
   type EvmSendOutcome,
 } from '../lib/evm'
-import { requestHostEvmAddress } from '../lib/sdk'
+import { requestHostEvmAddress } from '../lib/evmWallets'
 import { CONSTANTS } from '@nimiqnames/core'
 import { bytesToHex } from '../lib/hex'
 import { payMessageBytes, payMessageFault, payRequestFromHash, payRequestFromLink } from '../lib/payRequest'

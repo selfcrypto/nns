@@ -15,14 +15,14 @@
  * Polygonscan, and never the word "sent" as a fact about the chain.
  */
 
-import { discoverEvmProvider } from './sdk'
+import { discoverEvmProvider, evmErrorMessage, looksDeclined, type Eip1193Provider } from './evmWallets'
 import { group, looksGrouped } from './format'
 import { noThousandsSeparatorLine, notAUsdtAmountLine } from './wording'
 
-/** The provider shape `discoverEvmProvider` answers with — re-declared here for the injectable parameter. */
-interface Eip1193Like {
-  request(args: { method: string; params?: readonly unknown[] }): Promise<unknown>
-}
+/** `evm.test.ts` and the Pay screen read it from here, where the send's refusals are reported. */
+export { evmErrorMessage }
+
+type Eip1193Like = Eip1193Provider
 
 /** Polygon PoS, the chain the record's convention names first (§6 `E`). */
 export const POLYGON_CHAIN_HEX = '0x89'
@@ -96,7 +96,7 @@ export function erc20BalanceOfData(account: string): string {
  * The already-authorized account, silently — `eth_accounts` never prompts,
  * and answers `[]` until the user has connected this site once (per
  * session on some wallets, which is why a fresh page often knows nothing).
- * The prompting counterpart is `requestHostEvmAddress` in `sdk.ts`.
+ * The prompting counterpart is `requestHostEvmAddress` in `evmWallets.ts`.
  */
 export async function silentEvmAccount(providerOverride?: Eip1193Like | null): Promise<string | null> {
   const provider = providerOverride ?? discoverEvmProvider()
@@ -219,34 +219,6 @@ export type EvmSendOutcome =
        */
       readonly cause?: { readonly kind: 'no-usdt'; readonly held: bigint } | { readonly kind: 'no-pol' }
     }
-
-/**
- * A provider rejection is usually a plain `{code, message}` object, not an
- * `Error` — `String()` on one is the literal `[object Object]` that reached
- * a screen on 2026-08-23. Dig the human text out, wherever this wallet put
- * it, and cap the JSON fallback so a screen never renders a novel.
- */
-export function evmErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message !== '') return error.message
-  if (typeof error === 'object' && error !== null) {
-    const { message, data } = error as { message?: unknown; data?: unknown }
-    if (typeof message === 'string' && message !== '') return message
-    const nested = (data as { message?: unknown } | null)?.message
-    if (typeof nested === 'string' && nested !== '') return nested
-    try {
-      return JSON.stringify(error).slice(0, 200)
-    } catch {
-      return 'the wallet refused without a message'
-    }
-  }
-  return String(error)
-}
-
-const looksDeclined = (error: unknown): boolean => {
-  const code = (error as { code?: unknown })?.code
-  if (code === 4001) return true // EIP-1193 userRejectedRequest
-  return /reject|declin|cancel|denied/i.test(evmErrorMessage(error))
-}
 
 /**
  * When `eth_estimateGas` itself fails — a node refusing, or a transfer that

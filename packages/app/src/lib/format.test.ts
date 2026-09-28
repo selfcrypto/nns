@@ -6,14 +6,15 @@ import {
   ellipsizeAddress,
   formatApproxDate,
   formatApproxIn,
-  isTxHash,
   formatApproxWhen,
   group,
+  isTxHash,
   looksGrouped,
   lunaToNim,
   lunaToNimInput,
-  splitAroundName,
   lunaToNimShort,
+  shortEvmAddress,
+  splitAroundName,
 } from './format'
 import { parseNimAmount } from './actions'
 
@@ -223,5 +224,12 @@ describe('lunaToNimShort', () => {
     expect(lunaToNimShort(99_999n)).toBe('0.99')
     expect(lunaToNimShort(5_000n)).toBe('0.05')
     expect(lunaToNimShort(0n)).toBe('0.00')
+  })
+})
+
+describe('shortEvmAddress', () => {
+  it('keeps the prefix and the last four, and leaves a short string alone', () => {
+    expect(shortEvmAddress('0x1b3f6a09e2c40d55c8a1b2c3d4e5f60718293a4b')).toBe('0x1b3f…3a4b')
+    expect(shortEvmAddress('0x1234')).toBe('0x1234')
   })
 })

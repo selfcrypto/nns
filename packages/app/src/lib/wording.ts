@@ -735,6 +735,31 @@ export const connectEvmLabel = (): string => 'Use my wallet’s USDC / USDT addr
 
 export const connectEvmFailedLine = (): string => 'The wallet offered no address. Paste one instead.'
 
+/**
+ * The same two labels for a wallet that announced a name (EIP-6963), which
+ * is every extension in a desktop browser. With two installed, "my wallet"
+ * does not say which one the button is about to open.
+ */
+export const connectEvmWalletLabel = (wallet: string): string => `Use my ${wallet} address…`
+
+/**
+ * Above the wallets' own names, which are the buttons: two full sentences
+ * stacked read as two offers, and the only word that differs is the name.
+ */
+export const connectEvmCaption = (): string => 'Use the address from'
+
+export const suggestedEvmWalletLabel = (wallet: string, evm: string): string => `Use ${wallet}’s address: ${evm}`
+
+export const connectEvmDeclinedLine = (): string => 'Declined in the wallet. Paste an address instead.'
+
+/** The wallet keeps its first request open and refuses a second one (`-32002`). */
+export const connectEvmBusyLine = (): string => 'The wallet already has a request open. Open the wallet to answer it.'
+
+/** An extension may raise no window at all, only a badge on its toolbar icon. */
+export const connectEvmSlowLine = (): string => 'No window opened? Open the wallet from the browser’s toolbar.'
+
+export const connectEvmErrorLine = (detail: string): string => `The wallet answered with an error: ${detail}`
+
 export const ACTION_LABEL: Record<AppAction, string> = {
   register: 'Register',
   setTarget: 'Change where it points',

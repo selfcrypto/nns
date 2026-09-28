@@ -524,3 +524,84 @@ export function connectInstead(
   const { kind } = identityRow(wallet)
   return kind === 'checking' || (kind === 'connect' && canConnect)
 }
+
+// ── The `E` sheet's wallet buttons (docs/app-ux.md §5) ──────────────────────
+
+/** How long a wallet may stay silent before the sheet says where to look for it. */
+export const EVM_ASK_SLOW_MS = 4_000
+
+/** A browser with more EVM wallets than this still gets a sheet that fits a phone. */
+export const EVM_WALLET_ROWS_MAX = 4
+
+/** One discovered wallet, as `evmWallets.ts` lists it, without its provider. */
+export interface EvmWalletFact {
+  readonly id: string
+  readonly name: string | null
+  readonly source: 'announced' | 'injected'
+  /** The silent `eth_accounts` answer: `null` for none, a failure, or not yet. */
+  readonly connected: string | null
+}
+
+export type EvmAsk =
+  | { readonly kind: 'idle' }
+  | { readonly kind: 'pending'; readonly wallet: string; readonly slow: boolean }
+  | { readonly kind: 'refused'; readonly wallet: string; readonly reason: 'declined' | 'busy' | 'empty' }
+  | { readonly kind: 'failed'; readonly wallet: string; readonly detail: string }
+
+export interface EvmWalletRow {
+  readonly id: string
+  /** `null` draws the generic label. */
+  readonly name: string | null
+  /** Non-null: the label shows it and a tap fills the field without asking. */
+  readonly address: string | null
+  readonly pending: boolean
+  readonly disabled: boolean
+}
+
+export type EvmWalletLine =
+  | null
+  | { readonly kind: 'slow' | 'declined' | 'busy' | 'empty' }
+  | { readonly kind: 'failed'; readonly detail: string }
+
+/**
+ * The buttons under the `E` sheet's address field, and the one line beneath
+ * them. Pure for `identityRow`'s reason.
+ *
+ * Inside Pay it is one button with the generic label, asking the provider
+ * the WebView injects, exactly as before the list existed: what Pay
+ * announces over EIP-6963 has never been measured, and nothing here is
+ * reasoned about from a desktop. Everywhere else an announced wallet has a
+ * name and `window.ethereum` is whichever extension claimed the global last,
+ * so the injected entry is dropped the moment anything announced.
+ *
+ * One prompt at a time: every button is disabled while a wallet is being
+ * asked. A wallet that never answers must not lock the sheet, so they come
+ * back once the ask is slow, with the line that says where to look.
+ */
+export function evmWalletPanel(
+  wallets: readonly EvmWalletFact[],
+  ask: EvmAsk,
+  hosted: boolean,
+): { readonly rows: readonly EvmWalletRow[]; readonly line: EvmWalletLine } {
+  const announced = wallets.filter((wallet) => wallet.source === 'announced')
+  const injected = wallets.find((wallet) => wallet.source === 'injected')
+  const host = injected ?? wallets[0]
+  const shown = hosted
+    ? host === undefined ? [] : [{ ...host, name: null }]
+    : (announced.length > 0 ? announced : wallets).slice(0, EVM_WALLET_ROWS_MAX)
+  if (shown.length === 0) return { rows: [], line: null }
+
+  const locked = ask.kind === 'pending' && !ask.slow
+  const rows = shown.map((wallet) => ({
+    id: wallet.id,
+    name: wallet.name,
+    address: wallet.connected,
+    pending: ask.kind === 'pending' && ask.wallet === wallet.id,
+    disabled: locked,
+  }))
+
+  if (ask.kind === 'idle') return { rows, line: null }
+  if (ask.kind === 'pending') return { rows, line: ask.slow && !hosted ? { kind: 'slow' } : null }
+  if (ask.kind === 'failed') return { rows, line: { kind: 'failed', detail: ask.detail } }
+  return { rows, line: { kind: ask.reason } }
+}

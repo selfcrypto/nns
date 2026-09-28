@@ -144,6 +144,13 @@
     <string id="suggestedEvmLabel" params="evm">Use this wallet’s address: {evm}</string>
     <string id="connectEvmLabel">Use my wallet’s USDC / USDT address…</string>
     <string id="connectEvmFailedLine">The wallet offered no address. Paste one instead.</string>
+    <string id="connectEvmWalletLabel" params="wallet">Use my {wallet} address…</string>
+    <string id="connectEvmCaption">Use the address from</string>
+    <string id="suggestedEvmWalletLabel" params="wallet evm">Use {wallet}’s address: {evm}</string>
+    <string id="connectEvmDeclinedLine">Declined in the wallet. Paste an address instead.</string>
+    <string id="connectEvmBusyLine">The wallet already has a request open. Open the wallet to answer it.</string>
+    <string id="connectEvmSlowLine">No window opened? Open the wallet from the browser’s toolbar.</string>
+    <string id="connectEvmErrorLine" params="detail">The wallet answered with an error: {detail}</string>
     <string id="ACTION_LABEL.auction">Put up for auction</string>
     <string id="ACTION_LABEL.bid">Bid</string>
     <string id="ACTION_LABEL.buy">Buy</string>

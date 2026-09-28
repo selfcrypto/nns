@@ -2670,7 +2670,6 @@ li.note {
   outline-offset: 2px;
 }
 
-/* The wallet-address suggestion under the EVM field: an offer, not the action. */
 /* The term choice on Register and Renew: two segments in one track, each a
    label over its price, read off /params.fees. */
 .term-choice {
@@ -2720,6 +2719,7 @@ li.note {
   font-variant-numeric: tabular-nums;
 }
 
+/* The wallet-address suggestion under the EVM field: an offer, not the action. */
 .sheet-suggest {
   appearance: none;
   align-self: flex-start;
@@ -2733,6 +2733,75 @@ li.note {
   padding: 7px 14px;
   overflow-wrap: anywhere;
   text-align: left;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet-suggest:disabled {
+  color: var(--ink-soft);
+  border-color: var(--line);
+}
+
+/* Named wallets: a caption and one row of chips, so two wallets are two
+   words and not two sentences. */
+.sheet-wallets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sheet-wallets-caption {
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.sheet-wallets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sheet-wallet {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+
+.sheet-wallet:hover:not(:disabled) {
+  border-color: var(--nimiq-blue);
+}
+
+.sheet-wallet:disabled {
+  color: var(--ink-soft);
+  border-color: var(--line);
+  cursor: default;
+}
+
+.sheet-wallet-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-wallet-address {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  white-space: nowrap;
 }
 
 
