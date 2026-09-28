@@ -1413,13 +1413,9 @@ export const burnTitle = (): string => 'Fee burn'
 
 export const burnBurnedLabel = (): string => 'Burned so far'
 
-export const burnOwedLabel = (): string => 'Owed so far'
-
-export const burnShortfallLine = (nim: string): string => `Behind by ${nim} NIM, owed but not yet burned.`
+export const burnLeftLabel = (): string => 'Left to burn'
 
 export const burnSurplusLine = (nim: string): string => `Ahead by ${nim} NIM, more burned than owed.`
-
-export const burnEvenLine = (): string => 'Burned exactly what is owed.'
 
 /**
  * Both halves or nothing: burned alone says nothing about whether the
@@ -1580,7 +1576,7 @@ export const LANDING = {
     sub: `${Number(CONSTANTS.BURN_SHARE_BP) / 100}% of every fee is burned. The figures come from the public log.`,
     revenue: { label: 'Fees collected', sub: 'Paid to the treasury' },
     burned: { label: burnBurnedLabel(), sub: 'Removed from supply' },
-    owed: { label: burnOwedLabel(), sub: 'Committed, not yet burned' },
+    left: { label: burnLeftLabel(), sub: 'Owed, not yet burned' },
   },
   cta: {
     badge: 'Names on Nimiq',

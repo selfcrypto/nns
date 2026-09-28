@@ -141,6 +141,9 @@ export interface BurnRecord {
   readonly height: number
 }
 
+/** What is owed and not yet burned. Zero when the burn is ahead, never negative. */
+export const leftToBurn = (b: BurnRecord): bigint => (b.owed > b.burned ? b.owed - b.burned : 0n)
+
 export interface ApiParams {
   readonly prices: FeePrices
   /** Seven rows in ascending length; the first two are reserved by rule. */

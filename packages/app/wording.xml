@@ -334,10 +334,8 @@
   <group name="The burn record (§10.2 — burned, owed, and the gap between them)">
     <string id="burnTitle">Fee burn</string>
     <string id="burnBurnedLabel">Burned so far</string>
-    <string id="burnOwedLabel">Owed so far</string>
-    <string id="burnShortfallLine" params="nim">Behind by {nim} NIM, owed but not yet burned.</string>
+    <string id="burnLeftLabel">Left to burn</string>
     <string id="burnSurplusLine" params="nim">Ahead by {nim} NIM, more burned than owed.</string>
-    <string id="burnEvenLine">Burned exactly what is owed.</string>
     <string id="burnExplainer">20% of registry revenue is committed to be burned. The figures come from the public log, so anyone can check.</string>
   </group>
   <group name="The era notice (a compressed-tempo era)">
