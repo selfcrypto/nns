@@ -538,7 +538,9 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     // fee); and the refund M *leaving* the treasury (excluded — an outflow).
     // The balance sees all five, which is exactly why r24 defines the base
     // over the log and not the balance.
-    // Base 250,000,000 → owed 20% = 50,000,000.
+    // Base 250,000,000 → commitment 20% = 50,000,000. Since 89a226b `owed` is
+    // what is still owed — the commitment less OK F value, floored at zero —
+    // and the shared fixture's attestation already burned 100,000.
     await pool.query(
       `INSERT INTO log (block_height, tx_index, tx_hash, sender, recipient, value, data, verdict)
        VALUES (58199240, 0, $1, $2, $3, '200000000', '4e4e5331476e616d65746573746161', 'OK'),
@@ -550,7 +552,7 @@ describe.skipIf(URL === undefined)('PgQueries — checkpoint reads', () => {
     )
     const body = (await handle('GET', '/burn')).body as { revenue: string; owed: string; burned: string }
     expect(body.revenue).toBe('250000000')
-    expect(body.owed).toBe('50000000')
+    expect(body.owed).toBe('49900000')
     // The attestation sum is untouched by revenue rows.
     expect(body.burned).toBe('100000')
   })
