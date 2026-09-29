@@ -48,6 +48,7 @@ interface RecordedCall {
 
 function fakeRpc(balance = BALANCE): { rpc: AdminRpc; calls: RecordedCall[] } {
   const calls: RecordedCall[] = []
+  let unlocked = false
   const rpc: AdminRpc = {
     call<T>(method: string, callParams: readonly unknown[] = []): Promise<T> {
       calls.push({ method, params: callParams })
@@ -57,7 +58,13 @@ function fakeRpc(balance = BALANCE): { rpc: AdminRpc; calls: RecordedCall[] } {
         case 'getAccountByAddress':
           return Promise.resolve({ address: ADMIN, balance, type: 'basic' } as T)
         case 'unlockAccount':
+          unlocked = true
           return Promise.resolve(true as T)
+        case 'isAccountUnlocked':
+          return Promise.resolve(unlocked as T)
+        case 'lockAccount':
+          unlocked = false
+          return Promise.resolve(null as T)
         case 'sendBasicTransactionWithData':
           return Promise.resolve(HASH as T)
         default:
@@ -283,12 +290,16 @@ describe('broadcast', () => {
       'getBlockNumber',
       'getAccountByAddress',
       'unlockAccount',
+      'isAccountUnlocked',
       'sendBasicTransactionWithData',
+      'lockAccount',
+      'isAccountUnlocked',
     ])
     expect(calls[2]?.params).toEqual([ADMIN, null, null])
     // [wallet, recipient, dataHex, value, fee, validityStartHeight] — value as
     // a number, fee 0.
-    expect(calls[3]?.params).toEqual([ADMIN, PROTOCOL, built.data, 1, 0, HEAD])
+    expect(calls[4]?.params).toEqual([ADMIN, PROTOCOL, built.data, 1, 0, HEAD])
+    expect(calls[5]?.params).toEqual([ADMIN])
   })
 
   it('refuses a plan carrying a refusal, without unlocking anything', async () => {

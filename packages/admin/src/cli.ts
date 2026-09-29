@@ -93,7 +93,8 @@ export interface Broadcast {
  *
  * A plan carrying any refusal cannot be broadcast: the message would be
  * forfeited or would never be mined. Then unlock by address (the key lives
- * in the node's wallet, docs/rpc-reference.md §5) and send with the probed
+ * in the node's wallet, docs/rpc-reference.md §5), send, and lock again
+ * ({@link withUnlocked}) — the send uses the probed
  * parameter order — `[wallet, recipient, dataHex, value, fee,
  * validityStartHeight]`. The fee is 0 for every message here (§5.4 accepts
  * it), and `validityStartHeight` is the head the plan was built against.
@@ -111,16 +112,72 @@ export async function broadcast(rpc: AdminRpc, plan: SendablePlan): Promise<Broa
         blocking.map((check) => check.message).join('; '),
     )
   }
-  await rpc.call('unlockAccount', [plan.sender, null, null])
-  const hash = await rpc.call<string>('sendBasicTransactionWithData', [
-    plan.sender,
-    plan.recipient,
-    plan.data,
-    Number(plan.value),
-    0,
-    plan.head,
-  ])
+  const hash = await withUnlocked(rpc, plan.sender, () =>
+    rpc.call<string>('sendBasicTransactionWithData', [
+      plan.sender,
+      plan.recipient,
+      plan.data,
+      Number(plan.value),
+      0,
+      plan.head,
+    ]),
+  )
   return { validityStartHeight: plan.head, hash }
+}
+
+/**
+ * Unlock `sender` in the node's wallet, run `body`, and lock it again —
+ * whatever `body` does, and whatever the operator does meanwhile.
+ *
+ * Until 2026-09-30 `broadcast` unlocked and never locked: every `p`/`u`/`a`
+ * left `ADMIN_ADDRESS` open and every `f` left `TREASURY_ADDRESS` open, and
+ * both were found unlocked on the live node that day (80,275 NIM in the
+ * treasury). An unlocked account is spendable by anyone who can reach the
+ * RPC, and the node ignores `unlockAccount`'s duration
+ * (`docs/rpc-reference.md` §5.4), so the lock below is the only one.
+ *
+ * - **Ask, never infer** (§5.4): the unlock is confirmed with
+ *   `isAccountUnlocked` before anything is signed, and the lock after.
+ * - **Ctrl-C does not skip the lock.** A signal's default action exits
+ *   without running `finally`, and an interrupted send is exactly when a CLI
+ *   gets one. SIGINT/SIGTERM are held while the key is open and re-raised
+ *   once it is locked, so the process still stops — a second after it would
+ *   have.
+ * - **A failed lock is loud, never fatal.** The send already happened; failing
+ *   the command would make the operator think it did not. It prints what to
+ *   lock by hand instead.
+ */
+export async function withUnlocked<T>(rpc: AdminRpc, sender: Address, body: () => Promise<T>): Promise<T> {
+  await rpc.call('unlockAccount', [sender, null, null])
+  let held: NodeJS.Signals | null = null
+  const hold = (signal: NodeJS.Signals) => () => {
+    held = signal
+  }
+  const onInt = hold('SIGINT')
+  const onTerm = hold('SIGTERM')
+  process.once('SIGINT', onInt)
+  process.once('SIGTERM', onTerm)
+  try {
+    if ((await rpc.call<boolean>('isAccountUnlocked', [sender])) !== true) {
+      throw new AdminRefusal(`${formatAddress(sender)} is still locked after unlockAccount — refusing to sign`)
+    }
+    return await body()
+  } finally {
+    try {
+      await rpc.call('lockAccount', [sender])
+      if ((await rpc.call<boolean>('isAccountUnlocked', [sender])) === true) {
+        console.error(`WARNING: ${formatAddress(sender)} is still UNLOCKED on the node after lockAccount — lock it by hand.`)
+      }
+    } catch (cause) {
+      console.error(
+        `WARNING: could not lock ${formatAddress(sender)} (${cause instanceof Error ? cause.message : String(cause)}) — ` +
+          'it is UNLOCKED on the node; lock it by hand.',
+      )
+    }
+    process.removeListener('SIGINT', onInt)
+    process.removeListener('SIGTERM', onTerm)
+    if (held !== null) process.kill(process.pid, held)
+  }
 }
 
 /**

@@ -24,12 +24,19 @@ interface RecordedCall {
 /** 10 NIM — well above ADMIN_MIN_BALANCE, so a healthy plan carries no warning. */
 function fakeRpc(balance = 1_000_000): { rpc: AdminRpc; calls: RecordedCall[] } {
   const calls: RecordedCall[] = []
+  let unlocked = false
   const rpc: AdminRpc = {
     call<T>(method: string, params: readonly unknown[] = []): Promise<T> {
       calls.push({ method, params })
       switch (method) {
         case 'unlockAccount':
+          unlocked = true
           return Promise.resolve(true as T)
+        case 'isAccountUnlocked':
+          return Promise.resolve(unlocked as T)
+        case 'lockAccount':
+          unlocked = false
+          return Promise.resolve(null as T)
         case 'getBlockNumber':
           return Promise.resolve(HEAD as T)
         case 'getAccountByAddress':
@@ -335,14 +342,17 @@ describe('describeAuctionPlan', () => {
 })
 
 describe('broadcast', () => {
-  it('unlocks by address, then sends the plan with dust and the plan head', async () => {
+  it('unlocks by address, confirms, sends the plan with dust and the plan head, then locks and confirms', async () => {
     const { rpc, calls } = fakeRpc()
     const built = await planAuction(rpc, fakeSources(), open)
     const sent = await broadcast(rpc, built)
     expect(sent).toEqual({ validityStartHeight: HEAD, hash: HASH })
     expect(calls.slice(2)).toEqual([
       { method: 'unlockAccount', params: [ADMIN, null, null] },
+      { method: 'isAccountUnlocked', params: [ADMIN] },
       { method: 'sendBasicTransactionWithData', params: [ADMIN, PROTOCOL, built.data, 1, 0, HEAD] },
+      { method: 'lockAccount', params: [ADMIN] },
+      { method: 'isAccountUnlocked', params: [ADMIN] },
     ])
   })
 })

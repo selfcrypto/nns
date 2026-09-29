@@ -21,13 +21,20 @@ interface RecordedCall {
 
 function fakeRpc(balance = 2_000_000): { rpc: AdminRpc; calls: RecordedCall[] } {
   const calls: RecordedCall[] = []
+  let unlocked = false
   let sent = 0
   const rpc: AdminRpc = {
     call<T>(method: string, params: readonly unknown[] = []): Promise<T> {
       calls.push({ method, params })
       switch (method) {
         case 'unlockAccount':
+          unlocked = true
           return Promise.resolve(true as T)
+        case 'isAccountUnlocked':
+          return Promise.resolve(unlocked as T)
+        case 'lockAccount':
+          unlocked = false
+          return Promise.resolve(null as T)
         case 'getBlockNumber':
           return Promise.resolve(HEAD as T)
         case 'getAccountByAddress':

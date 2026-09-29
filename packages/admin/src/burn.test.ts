@@ -56,6 +56,7 @@ function fakeRpc(options: { balance?: number; history?: readonly HistoryEntry[] 
   calls: RecordedCall[]
 } {
   const calls: RecordedCall[] = []
+  let unlocked = false
   const rpc: AdminRpc = {
     call<T>(method: string, params: readonly unknown[] = []): Promise<T> {
       calls.push({ method, params })
@@ -67,7 +68,13 @@ function fakeRpc(options: { balance?: number; history?: readonly HistoryEntry[] 
         case 'getTransactionsByAddress':
           return Promise.resolve((options.history ?? []) as T)
         case 'unlockAccount':
+          unlocked = true
           return Promise.resolve(true as T)
+        case 'isAccountUnlocked':
+          return Promise.resolve(unlocked as T)
+        case 'lockAccount':
+          unlocked = false
+          return Promise.resolve(null as T)
         case 'sendBasicTransactionWithData':
           return Promise.resolve(HASH as T)
         default:
@@ -269,6 +276,8 @@ describe('broadcast', () => {
     expect(sent[0]?.params).toEqual([TREASURY, null, null])
     // [wallet, recipient, dataHex, value, fee, validityStartHeight].
     expect(sent[1]?.params).toEqual([TREASURY, BURN, plan.data, Number(OUTSTANDING), 0, HEAD])
+    // The treasury must not stay open after a burn: it did, until 2026-09-30.
+    expect(calls.filter((c) => c.method === 'lockAccount').map((c) => c.params)).toEqual([[TREASURY]])
   })
 })
 

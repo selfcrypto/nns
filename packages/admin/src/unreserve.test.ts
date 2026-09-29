@@ -28,12 +28,19 @@ interface RecordedCall {
 /** 10 NIM — well above ADMIN_MIN_BALANCE, so a healthy plan carries no warning. */
 function fakeRpc(balance = 1_000_000): { rpc: AdminRpc; calls: RecordedCall[] } {
   const calls: RecordedCall[] = []
+  let unlocked = false
   const rpc: AdminRpc = {
     call<T>(method: string, params: readonly unknown[] = []): Promise<T> {
       calls.push({ method, params })
       switch (method) {
         case 'unlockAccount':
+          unlocked = true
           return Promise.resolve(true as T)
+        case 'isAccountUnlocked':
+          return Promise.resolve(unlocked as T)
+        case 'lockAccount':
+          unlocked = false
+          return Promise.resolve(null as T)
         case 'getBlockNumber':
           return Promise.resolve(HEAD as T)
         case 'getAccountByAddress':
@@ -401,12 +408,16 @@ describe('broadcast', () => {
       'getBlockNumber',
       'getAccountByAddress',
       'unlockAccount',
+      'isAccountUnlocked',
       'sendBasicTransactionWithData',
+      'lockAccount',
+      'isAccountUnlocked',
     ])
     expect(calls[2]?.params).toEqual([ADMIN, null, null])
     // [wallet, recipient, dataHex, value, fee, validityStartHeight] — value
     // as a number, fee 0.
-    expect(calls[3]?.params).toEqual([ADMIN, PROTOCOL, plan.data, 1, 0, HEAD])
+    expect(calls[4]?.params).toEqual([ADMIN, PROTOCOL, plan.data, 1, 0, HEAD])
+    expect(calls[5]?.params).toEqual([ADMIN])
   })
 })
 
