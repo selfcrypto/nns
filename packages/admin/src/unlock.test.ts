@@ -80,4 +80,59 @@ describe('withUnlocked', () => {
     expect(lockedWhenKilled).toBe(true)
     expect(process.listenerCount('SIGINT')).toBe(0)
   })
+
+  it('holds a second Ctrl-C too, and one that lands while the unlock is being asked for', async () => {
+    const kill = vi.spyOn(process, 'kill').mockImplementation(() => true)
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const w = wallet()
+    const call = w.rpc.call.bind(w.rpc)
+    let heldDuringUnlock = 0
+    w.rpc.call = <T>(method: string, params?: readonly unknown[]): Promise<T> => {
+      if (method === 'unlockAccount') heldDuringUnlock = process.listenerCount('SIGINT')
+      return call<T>(method, params)
+    }
+    await withUnlocked(w.rpc, SENDER, async () => {
+      process.emit('SIGINT', 'SIGINT')
+      expect(process.listenerCount('SIGINT')).toBe(1)
+      process.emit('SIGINT', 'SIGINT')
+      return 'hash'
+    })
+    expect(heldDuringUnlock).toBe(1)
+    expect(kill).toHaveBeenCalledTimes(1)
+    expect(w.isUnlocked()).toBe(false)
+    expect(process.listenerCount('SIGINT')).toBe(0)
+  })
+
+  it('an interrupted send prints what it sent before the signal ends the process', async () => {
+    const order: string[] = []
+    vi.spyOn(process, 'kill').mockImplementation(() => {
+      order.push('kill')
+      return true
+    })
+    vi.spyOn(console, 'error').mockImplementation((line: string) => {
+      order.push(line)
+    })
+    const w = wallet()
+    await withUnlocked(w.rpc, SENDER, async () => {
+      process.emit('SIGINT', 'SIGINT')
+      return 'c0ffee'
+    })
+    expect(order).toHaveLength(2)
+    expect(order[0]).toMatch(/already returned: c0ffee/)
+    expect(order[1]).toBe('kill')
+  })
+
+  it('an interrupted send that threw prints no hash', async () => {
+    vi.spyOn(process, 'kill').mockImplementation(() => true)
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const w = wallet()
+    await expect(
+      withUnlocked(w.rpc, SENDER, async () => {
+        process.emit('SIGINT', 'SIGINT')
+        throw new Error('send failed')
+      }),
+    ).rejects.toThrow('send failed')
+    expect(error).not.toHaveBeenCalled()
+    expect(w.isUnlocked()).toBe(false)
+  })
 })

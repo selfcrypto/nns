@@ -142,26 +142,32 @@ export async function broadcast(rpc: AdminRpc, plan: SendablePlan): Promise<Broa
  *   without running `finally`, and an interrupted send is exactly when a CLI
  *   gets one. SIGINT/SIGTERM are held while the key is open and re-raised
  *   once it is locked, so the process still stops — a second after it would
- *   have.
+ *   have. Held from before the unlock is asked for, and however many times
+ *   the key is pressed: the second Ctrl-C is the impatient one.
+ * - **An interrupted send still says what it sent.** The re-raise ends the
+ *   process inside the `finally`, before any caller prints, so a body that
+ *   returned is printed here first.
  * - **A failed lock is loud, never fatal.** The send already happened; failing
  *   the command would make the operator think it did not. It prints what to
  *   lock by hand instead.
  */
 export async function withUnlocked<T>(rpc: AdminRpc, sender: Address, body: () => Promise<T>): Promise<T> {
-  await rpc.call('unlockAccount', [sender, null, null])
   let held: NodeJS.Signals | null = null
   const hold = (signal: NodeJS.Signals) => () => {
     held = signal
   }
   const onInt = hold('SIGINT')
   const onTerm = hold('SIGTERM')
-  process.once('SIGINT', onInt)
-  process.once('SIGTERM', onTerm)
+  process.on('SIGINT', onInt)
+  process.on('SIGTERM', onTerm)
+  let returned: { readonly value: T } | null = null
   try {
+    await rpc.call('unlockAccount', [sender, null, null])
     if ((await rpc.call<boolean>('isAccountUnlocked', [sender])) !== true) {
       throw new AdminRefusal(`${formatAddress(sender)} is still locked after unlockAccount — refusing to sign`)
     }
-    return await body()
+    returned = { value: await body() }
+    return returned.value
   } finally {
     try {
       await rpc.call('lockAccount', [sender])
@@ -176,7 +182,12 @@ export async function withUnlocked<T>(rpc: AdminRpc, sender: Address, body: () =
     }
     process.removeListener('SIGINT', onInt)
     process.removeListener('SIGTERM', onTerm)
-    if (held !== null) process.kill(process.pid, held)
+    if (held !== null) {
+      if (returned !== null) {
+        console.error(`${String(held)} held until the lock. The send had already returned: ${String(returned.value)}`)
+      }
+      process.kill(process.pid, held)
+    }
   }
 }
 
