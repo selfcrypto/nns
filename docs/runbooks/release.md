@@ -30,7 +30,9 @@ npm access ls-packages          # nothing yet, on the first run
 
 Done on 2026-09-14: the organisation exists, `selfcrypto` owns it, and all
 three packages went out at `0.1.0`. `0.2.0` followed on 2026-09-28, the first
-built on the launch constants; `0.1.0` is deprecated.
+built on the launch constants; `0.1.0` is deprecated. `0.3.0` on 2026-09-30
+carries the resolver that answers on one silent resolver (`QUORUM_SHORT`);
+`core` and `anchor` moved with it, unchanged, because the three share a number.
 
 **The scope is `@nimiqnames`, not `@nns`** (2026-09-14). `nns` is not
 available as an organisation — an unrelated package of that name has held it
