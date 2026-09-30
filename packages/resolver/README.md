@@ -88,11 +88,20 @@ decoration: when two operators disagree the error has to say *which parties*
 said different things, and a URL is not a party. That name is what you show the
 user.
 
-`quorum` is how many of them must return the same answer. The default is 2,
-which is what the spec asks for, and the reason is simple: one party's proofs
-are internally consistent whether or not that party is honest. A resolver that
+`quorum` is how many of them are asked and compared. The default is 2, which
+is what the spec asks for, and the reason is simple: one party's proofs are
+internally consistent whether or not that party is honest. A resolver that
 invents a whole state can serve you a perfectly valid proof of its invention.
 Only a second, independent party can catch that.
+
+Every resolver is asked, every answer that arrives is verified on its own,
+and then they are compared. **A resolver that does not answer is not a
+disagreement.** When fewer than `quorum` answer, the result stands on the
+ones that did, `quorum.agreed` says how many that was, `quorum.silent` names
+the others with why, and `QUORUM_SHORT` rides on the result for as long as it
+holds. When none answers, `QUORUM_UNMET` throws. When two answers differ, the
+call halts whatever the count. So one box off the network costs a line on the
+card and never the lookup, and nothing is ever preferred over anything.
 
 **Setting `quorum` below 2 is supported and it is loud.** The constructor logs
 a warning once, and — more importantly — every single result carries a
@@ -343,6 +352,7 @@ if you also want them pushed to you as they happen.
 | Code | What it means | Tone |
 |---|---|---|
 | `QUORUM_BELOW_SPEC` | Fewer than 2 resolvers are configured to agree | Informational, and permanent while true. Disclose it — see the wording section |
+| `QUORUM_SHORT` | Fewer than `quorum` resolvers answered; the answer stands on those that did, each verified | "Couldn't check" the rest. `quorum.silent` names them. Never "unverified": every check that could run, ran |
 | `PROOF_PENDING` | No checkpoint commits to this answer yet | Pending depth. Neutral |
 | `TARGET_CHANGED_SINCE_CHECKPOINT` | A proof verified, but for the previous address — this one is newer | Pending depth. Neutral. Do **not** call it verified |
 | `DELEGATE_HOST_UNPROVEN` | The delegate host came from the live record, not a proven one | Informational |
@@ -368,7 +378,7 @@ Everything below is a subclass of `ResolverError` and carries a `code`.
 |---|---|---|
 | `NameError` | `NAME_INVALID` | Not a valid name or dotted query. Never hit the network |
 | `LookupError` | `NOT_FOUND`, `IN_GRACE` | The name resolves to nothing. `IN_GRACE` means it expired and is in its 30-day grace period, where resolution is off but the name is not yet free |
-| `QuorumError` | `QUORUM_UNMET`, `QUORUM_LAGGING`, `QUORUM_DISAGREEMENT`, `QUORUM_ROOT_MISMATCH` | Too few answered, or they said different things. Carries `.replies`, so you can show which party said what. **Two of these are not alarms**: `QUORUM_UNMET` is "couldn't reach enough of them", and `QUORUM_LAGGING` is "they answered as of different heights and differ" — the seconds after a change lands, when one resolver has the block and another does not. Ask again in a few seconds; say the change is still propagating, never that the resolvers disagree. A disagreement is measured **at one height**, exactly as a root mismatch is |
+| `QuorumError` | `QUORUM_UNMET`, `QUORUM_LAGGING`, `QUORUM_DISAGREEMENT`, `QUORUM_ROOT_MISMATCH` | None answered, or they said different things. Carries `.replies`, so you can show which party said what. **Two of these are not alarms**: `QUORUM_UNMET` is "none of them answered", and `QUORUM_LAGGING` is "they answered as of different heights and differ" — the seconds after a change lands, when one resolver has the block and another does not. Ask again in a few seconds; say the change is still propagating, never that the resolvers disagree. A disagreement is measured **at one height**, exactly as a root mismatch is |
 | `ProofError` | `PROOF_INVALID` | A served proof does not hold. Always fatal |
 | `AnchorError` | `CHECKPOINT_BINDING_INVALID`, `ANCHOR_MISMATCH`, `ANCHOR_DIVERGENCE` | See above. Carries `.check` |
 | `DocumentError` | `DOCUMENT_MALFORMED` | A reply is not the shape it must be. `.path` points at the field |
@@ -392,6 +402,11 @@ that agreed listed under it:
 `N` is `result.quorum.agreed`. Singular at 1. There is no variant of this line
 that is hidden, greyed, or apologetic — hiding the count while it is 1 hides the
 one number worth knowing, and showing nothing reads as "fine".
+
+When `quorum.silent` is not empty, name each silent party under the count in
+the "couldn't check" tone: *nns.other.example did not answer.* The count then
+says how many stood behind the answer and the line says who was missing, and
+the user has both without a tap.
 
 **Reach every resolver that agreed.** The count says how many parties an answer
 rests on and nothing about which, so at `N` = 2 a user who wants to check one

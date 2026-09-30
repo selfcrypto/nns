@@ -22,6 +22,15 @@ export type WarningCode =
    */
   | 'QUORUM_BELOW_SPEC'
   /**
+   * Fewer than `required` resolvers answered, and the answer stands on the
+   * ones that did, each verified on its own. A party that does not answer is
+   * not a disagreement: the comparison §8.5 #2 asks for ran over every
+   * answer that arrived, and nothing was preferred over anything. Not an
+   * alarm. Rides on every result while it holds, and names the silent
+   * parties, so a client can say who was asked and did not answer.
+   */
+  | 'QUORUM_SHORT'
+  /**
    * The configured list held one URL more than once, and the repeats were
    * dropped. Rides on **every** result for the same reason
    * `QUORUM_BELOW_SPEC` does: the list a client actually queried is not the

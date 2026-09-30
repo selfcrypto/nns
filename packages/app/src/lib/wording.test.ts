@@ -61,6 +61,8 @@ import {
   eraNoticeLine,
   eraNoticeHint,
   verifiedByLine,
+  verifiedHint,
+  resolverSilentLine,
   CHAT_ENCODE_TEXT,
   PAY_MESSAGE_FAULT_TEXT,
   offerHint,
@@ -74,16 +76,30 @@ const OURS = { name: 'Ours', url: 'https://nns.ours.example', ms: 88 }
 
 describe('"Verified by N resolvers" (resolver README decision, 2026-08-14)', () => {
   it('is the count, singular at 1', () => {
-    expect(verifiedByLine({ required: 1, queried: 1, agreed: 1, resolvers: [LABS] })).toBe('Verified by 1 resolver')
+    expect(verifiedByLine({ required: 1, queried: 1, agreed: 1, resolvers: [LABS], silent: [] })).toBe('Verified by 1 resolver')
   })
 
   it('never says "unverified" about a healthy answer', () => {
-    const line = verifiedByLine({ required: 1, queried: 1, agreed: 1, resolvers: [LABS] })
+    const line = verifiedByLine({ required: 1, queried: 1, agreed: 1, resolvers: [LABS], silent: [] })
     expect(line.toLowerCase()).not.toContain('unverified')
   })
 
   it('is plural above 1', () => {
-    expect(verifiedByLine({ required: 2, queried: 2, agreed: 2, resolvers: [LABS, OURS] })).toBe('Verified by 2 resolvers')
+    expect(verifiedByLine({ required: 2, queried: 2, agreed: 2, resolvers: [LABS, OURS], silent: [] })).toBe('Verified by 2 resolvers')
+  })
+
+  // A resolver that did not answer is not a disagreement (2026-09-30): the
+  // count stays the count of parties behind the answer, the silent one is
+  // named under it in one sentence, and the hint says the figures.
+  it('names a silent resolver under the count, never as an alarm', () => {
+    const short = { required: 2, queried: 2, agreed: 1, resolvers: [LABS], silent: [{ resolver: 'Ours', answer: 'unreachable: timed out' }] }
+    expect(verifiedByLine(short)).toBe('Verified by 1 resolver')
+    const line = resolverSilentLine(short.silent[0]!)
+    expect(line).toBe('Ours did not answer.')
+    expect(line.split(/[.!?] /)).toHaveLength(1)
+    expect(line).not.toContain('—')
+    expect(verifiedHint(short)).toContain('1 of 2 resolvers answered.')
+    expect(verifiedHint({ ...short, agreed: 2, resolvers: [LABS, OURS], silent: [] })).not.toContain('resolvers answered')
   })
 
   // The count names nobody, which is the whole complaint at N = 2 (Rico,

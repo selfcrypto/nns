@@ -20,6 +20,7 @@ import {
   proofPendingLine,
   resolverLatency,
   resolverParty,
+  resolverSilentLine,
   standingBidLine,
   verifiedByLine,
   verifiedHint,
@@ -77,7 +78,7 @@ function ProvenVerification({ result }: { result: ResolveResult }) {
             <ChevronIcon />
           </button>
         )}
-        <Hint>{verifiedHint()}</Hint>
+        <Hint>{verifiedHint(result.quorum)}</Hint>
       </p>
       {open && (
         <ul className="verify-parties" id={listId}>
@@ -152,8 +153,36 @@ export function AnswerBlock({ result }: { result: ResolveResult }) {
   )
 }
 
+/**
+ * The resolvers that were asked and did not answer, one line each, under
+ * whatever the verification line says. The answer above stands on the parties
+ * that answered; this names the missing ones, in the "couldn't check" tone
+ * and never the alarm one: nothing disagreed, somebody was silent.
+ */
+function SilentResolvers({ quorum }: { quorum: ResolveResult['quorum'] }) {
+  if (quorum.silent.length === 0) return null
+  return (
+    <ul className="notes verify-silent">
+      {quorum.silent.map((reply) => (
+        <li key={reply.resolver} className="note note-couldnt-check">
+          {resolverSilentLine(reply)}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 /** The one line §8.5 #6 and the resolver README fix the wording of. */
 export function VerificationLine({ result }: { result: ResolveResult }) {
+  return (
+    <>
+      <VerificationHead result={result} />
+      <SilentResolvers quorum={result.quorum} />
+    </>
+  )
+}
+
+function VerificationHead({ result }: { result: ResolveResult }) {
   switch (result.verification) {
     case 'PROVEN':
       return <ProvenVerification result={result} />

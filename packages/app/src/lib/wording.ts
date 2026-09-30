@@ -11,7 +11,7 @@
  * - Depth (proof pending, anchor pending) is neutral, never a warning.
  */
 
-import type { QuorumReport, WarningCode } from '@nimiqnames/resolver'
+import type { QuorumReport, ResolverReply, WarningCode } from '@nimiqnames/resolver'
 import type { AppAction, Cancellable, GateReason } from './states'
 import type { QueryFault } from './search'
 import type { PayMessageFault } from './payRequest'
@@ -175,8 +175,19 @@ export const hintLabel = (): string => 'More about this'
  * and the resolver list stay on the card (states doc §5 #1); this is the
  * mechanism, one tap away.
  */
-export const verifiedHint = (): string =>
-  'Each resolver answered with a Merkle proof, and this app checked it against the resolver’s published checkpoint before showing the address.'
+export const verifiedHint = (quorum: QuorumReport): string =>
+  'Each resolver answered with a Merkle proof, and this app checked it against the resolver’s published checkpoint before showing the address.' +
+  (quorum.agreed < quorum.required
+    ? ` ${quorum.agreed} of ${quorum.queried} resolvers answered. Every proof that arrived was checked the same way.`
+    : '')
+
+/**
+ * A party that was asked and did not answer, named under the count. The
+ * count says how many stood behind the address; this says who was missing.
+ * Its own line rather than a warning note so Pay's recipient card, which
+ * draws the verification line and no notes, says it too.
+ */
+export const resolverSilentLine = (reply: ResolverReply): string => `${reply.resolver} did not answer.`
 
 /** The interval is `CHECKPOINT_INTERVAL` rendered, never typed — it has moved once already (720 → 60, 2026-09-23). */
 export const proofPendingLine = (): string =>
@@ -231,6 +242,7 @@ export type Tone = 'depth' | 'info' | 'couldnt-check' | 'alarm'
 
 export const WARNING_TONE: Record<WarningCode, Tone> = {
   QUORUM_BELOW_SPEC: 'info',
+  QUORUM_SHORT: 'couldnt-check',
   // A misconfiguration of this deployment, not a finding about a name: the
   // count the "Verified by N" line shows is already the deduplicated one, so
   // the user is not being told something false. It is the operator who needs
@@ -256,6 +268,7 @@ export const WARNING_TONE: Record<WarningCode, Tone> = {
  */
 export const RENDERED_ELSEWHERE: ReadonlySet<WarningCode> = new Set([
   'QUORUM_BELOW_SPEC',
+  'QUORUM_SHORT',
   'DELEGATED_ANSWER',
   'PROOF_PENDING',
   'TARGET_CHANGED_SINCE_CHECKPOINT',
@@ -264,6 +277,7 @@ export const RENDERED_ELSEWHERE: ReadonlySet<WarningCode> = new Set([
 
 export const WARNING_TEXT: Record<WarningCode, string> = {
   QUORUM_BELOW_SPEC: 'One resolver is configured to answer.',
+  QUORUM_SHORT: 'Not every resolver answered.',
   DUPLICATE_RESOLVER: 'One resolver was listed twice and counted once.',
   PROOF_PENDING: proofPendingLine(),
   TARGET_CHANGED_SINCE_CHECKPOINT: targetChangedLine(),

@@ -39,7 +39,7 @@ import {
   type DelegateResponse,
   type ResolveResponse,
 } from './documents.js'
-import { ConfigurationError, DelegateError, LookupError, NameError, ResolverError } from './errors.js'
+import { ConfigurationError, DelegateError, LookupError, NameError, ResolverError, type ResolverReply } from './errors.js'
 import {
   agree,
   answered,
@@ -62,7 +62,10 @@ import { warn, type ResolveWarning } from './warnings.js'
  * distinguishable.
  *
  * - `PROVEN` — an inclusion proof for this exact answer recombined to a root
- *   at least `quorum.required` resolvers stand behind. Verified on-chain.
+ *   every resolver that answered stands behind, and every one of them
+ *   verified on its own. Verified on-chain. `quorum.agreed` says how many
+ *   that was, and `QUORUM_SHORT` rides along when it is fewer than
+ *   `quorum.required`.
  * - `PROOF_PENDING` — the answer is good and the name works; no checkpoint
  *   commits to it yet (§8.7), or the checkpoint commits to an older value.
  *   A depth indicator. Not a warning.
@@ -87,6 +90,13 @@ export interface QuorumReport {
    * is here so a client listing the parties can also say how each performed.
    */
   readonly resolvers: readonly AgreeingResolver[]
+  /**
+   * The resolvers that were asked and did not answer, each with why, in the
+   * package's own words. Empty when every one answered. A client that names
+   * the agreeing parties should name these beside them: the count says how
+   * many stood behind the answer, this says who was missing.
+   */
+  readonly silent: readonly ResolverReply[]
 }
 
 /** One agreeing party, as a client shows it: who, where, and how long it took. */
@@ -295,6 +305,7 @@ export class NnsResolver {
       queried: agreement.queried,
       agreed: agreement.witnesses.length,
       resolvers: agreement.witnesses.map(({ endpoint, ms }) => ({ name: endpoint.name, url: endpoint.url, ms })),
+      silent: agreement.silent,
     }
   }
 
@@ -421,6 +432,7 @@ export class NnsResolver {
 
     const agreement = await agree(this.#policy, `available/${encodeURIComponent(name)}`, (fetched) => {
       if (fetched.status === 503) return unavailable<AvailableObservation>('not synced')
+      if (fetched.status >= 500) return unavailable<AvailableObservation>(`HTTP ${fetched.status}`)
       if (fetched.status !== 200) {
         throw new ResolverError('NAME_INVALID', `resolver rejected "${name}": ${readErrorCode(fetched.body) ?? fetched.status}`)
       }
@@ -479,7 +491,11 @@ export class NnsResolver {
 
   async #resolveName(query: string, name: string): Promise<ResolveResult> {
     const agreement = await agree(this.#policy, `resolve/${encodeURIComponent(name)}`, (fetched) => {
+      // A 503 is a resolver still syncing; any other 5xx is a box whose API
+      // is failing behind an edge that still speaks JSON. Both are downtime
+      // wearing an HTTP status, and neither is a statement about the name.
       if (fetched.status === 503) return unavailable<ResolveObservation>('not synced')
+      if (fetched.status >= 500) return unavailable<ResolveObservation>(`HTTP ${fetched.status}`)
 
       if (fetched.status === 404) {
         const code = readErrorCode(fetched.body)

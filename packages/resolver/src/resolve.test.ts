@@ -268,13 +268,52 @@ describe('resolve', () => {
     expect(result.warnings.map((w) => w.code)).toContain('TARGET_CHANGED_SINCE_CHECKPOINT')
   })
 
-  it('fails when too few resolvers answer', async () => {
+  it('answers from the resolver that is up, and says who did not answer', async () => {
+    // A party that does not answer is not a disagreement. The proof from the
+    // one that did is verified as always; the result says the count is short
+    // and names the silent party, so a client can show both (2026-09-30: a
+    // replica off the network for six minutes stopped every lookup).
     const body = resolveJson(RECORDS, 'ricoee')
-    const error = await resolverOver({ 'a.example': () => 'unreachable', 'b.example': serves(body) })
+    const result = await resolverOver({ 'a.example': () => 'unreachable', 'b.example': serves(body) }).resolve('ricoee')
+
+    expect(result.verification).toBe('PROVEN')
+    expect(result.address).toBe(address(5))
+    expect(result.quorum).toMatchObject({ required: 2, queried: 2, agreed: 1 })
+    expect(result.quorum.resolvers.map((r) => r.name)).toEqual(['community'])
+    expect(result.quorum.silent).toEqual([{ resolver: 'reference', answer: expect.stringMatching(/^unreachable: /) }])
+    const short = result.warnings.find((w) => w.code === 'QUORUM_SHORT')
+    expect(short?.detail).toMatch(/1 of 2 resolvers answered, 2 required; silent: reference: unreachable/)
+  })
+
+  it('fails only when no resolver answers', async () => {
+    const error = await resolverOver({ 'a.example': () => 'unreachable', 'b.example': () => 'unreachable' })
       .resolve('ricoee')
       .catch((e: unknown) => e)
 
     expect((error as QuorumError).code).toBe('QUORUM_UNMET')
+    expect((error as QuorumError).message).toMatch(/^0 of 2 resolvers answered/)
+    expect((error as QuorumError).replies.map((r) => r.resolver)).toEqual(['reference', 'community'])
+  })
+
+  it('still halts when the resolvers that did answer disagree', async () => {
+    const a = resolveJson(RECORDS, 'ricoee')
+    const b = resolveJson(RECORDS, 'ricoee', { live: { target: address(6) } })
+    const error = await resolverOver({ 'a.example': serves(a), 'b.example': serves(b), 'c.example': () => 'unreachable' }, [A, B, C])
+      .resolve('ricoee')
+      .catch((e: unknown) => e)
+
+    expect((error as QuorumError).code).toBe('QUORUM_DISAGREEMENT')
+  })
+
+  it('counts a resolver answering a JSON 5xx as silent, like one that is not synced', async () => {
+    const body = resolveJson(RECORDS, 'ricoee')
+    const result = await resolverOver({
+      'a.example': serves({ error: 'INTERNAL' }, 500),
+      'b.example': serves(body),
+    }).resolve('ricoee')
+
+    expect(result.quorum.agreed).toBe(1)
+    expect(result.quorum.silent).toEqual([{ resolver: 'reference', answer: 'HTTP 500' }])
   })
 
   it('meets quorum from the resolvers that are up', async () => {
@@ -285,6 +324,8 @@ describe('resolve', () => {
     ).resolve('ricoee')
 
     expect(result.quorum).toMatchObject({ queried: 3, agreed: 2 })
+    expect(result.quorum.silent.map((s) => s.resolver)).toEqual(['reference'])
+    expect(result.warnings.map((w) => w.code)).not.toContain('QUORUM_SHORT')
   })
 
   it('treats a syncing resolver as absent, not as a disagreement', async () => {
@@ -598,6 +639,18 @@ describe('available', () => {
       .catch((e: unknown) => e)
 
     expect((error as QuorumError).code).toBe('QUORUM_DISAGREEMENT')
+  })
+
+  it('answers availability from the resolver that is up, and says who did not answer', async () => {
+    const result = await resolverOver({
+      'a.example': () => 'unreachable',
+      'b.example': serves(availableJson(RECORDS, 'freeee')),
+    }).available('freeee')
+
+    expect(result).toMatchObject({ available: true })
+    expect(result.quorum).toMatchObject({ agreed: 1, queried: 2 })
+    expect(result.quorum.silent.map((s) => s.resolver)).toEqual(['reference'])
+    expect(result.warnings.map((w) => w.code)).toContain('QUORUM_SHORT')
   })
 
   it('reports lag when the availability answers differ at different heights', async () => {

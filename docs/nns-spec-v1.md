@@ -315,7 +315,7 @@ NIM figures assume ~$0.00032/NIM, the rate at the launch freeze (2026-09-22).
 | `GRACE_PERIOD` | 2,592,000 blocks (~30 d) | Resolution off, renewal still allowed. Also a length: `[expiry, expiry + GRACE_PERIOD)`, `AVAILABLE` at the end (§7.3) |
 | `OFFER_MAX_LIFETIME` | 1,296,000 blocks (~15 d) | Then auto-expires |
 | `CHECKPOINT_INTERVAL` | 60 blocks (~1 min, one batch) | Root recomputed and published. One batch is the finest grain an indexer has (§7.2 step 3), so a checkpoint per batch makes "final" and "provable" the same moment. Was 720 (~12 min) until the r31 fold of 2026-09-23 |
-| `RESOLVER_QUORUM` | 2 | Independent resolvers a client must agree before acting (§8.5) |
+| `RESOLVER_QUORUM` | 2 | Independent resolvers a client queries and compares before acting; it says so when fewer answer (§8.5) |
 | `ANCHOR_QUORUM` | 2 | Independent publishers whose roots must match (§9) |
 | `DUST_VALUE` | 1 luna | Value for non-fee-bearing messages (§5.4) |
 | `FINALITY_RULE` | last finalised macro block | State never advances past it |
@@ -2373,7 +2373,12 @@ The mini app MUST:
    lag, not conflict: for the seconds after a message lands, one resolver
    has the block and another has not, and their answers must differ. The
    client says the change is still propagating and asks again; the alarm is
-   for different answers **as of the same height**
+   for different answers **as of the same height**. **A resolver that does
+   not answer is not a disagreement.** With at least one verified answer the
+   client MAY act on it and MUST say that fewer than `RESOLVER_QUORUM`
+   answered, naming the silent parties; with none, it stops. The comparison
+   runs over every answer that arrived, and a disagreement among them halts
+   whatever the count
 3. Verify the inclusion proof locally against the agreed root. **"Root"
    means two different digests in this list and the client must not conflate
    them.** What §9 anchors is the §8.1 **checkpoint commitment** — the

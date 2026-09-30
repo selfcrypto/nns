@@ -11,8 +11,12 @@
  *
  * Three outcomes, and the difference between them is deliberate:
  *
- * - **Unreachable** removes a party from the count. Too few left, and quorum
- *   is unmet — `QUORUM_UNMET`.
+ * - **Unreachable** removes a party from the count. None left is
+ *   `QUORUM_UNMET`. Fewer than `required` left is `QUORUM_SHORT` on the
+ *   result, and the answer stands on the parties that did answer, each
+ *   verified on its own: a party that does not answer is not a disagreement,
+ *   and a registry that stops because one box is off the network is a
+ *   registry with one box (2026-09-30).
  * - **A bad document or a bad proof halts everything**, even if the other
  *   resolvers agree with each other. Dropping the liar and proceeding on the
  *   honest majority sounds robust and is the exact opposite: it lets whoever
@@ -63,9 +67,11 @@ export interface Witness<O extends Observation> {
 }
 
 export interface Agreement<O extends Observation> {
-  /** The resolvers that answered, all of them agreeing. Never fewer than `required`. */
+  /** The resolvers that answered, all of them agreeing. Never empty. */
   readonly witnesses: readonly Witness<O>[]
   readonly queried: number
+  /** The resolvers that did not answer, and why. Empty when every one did. */
+  readonly silent: readonly ResolverReply[]
   /** The deepest checkpoint any witness proved against, `null` when none served a proof. */
   readonly checkpoint: CheckpointRef | null
   /**
@@ -145,12 +151,8 @@ export async function agree<O extends Observation>(
     ...silent,
   ]
 
-  if (witnesses.length < policy.required) {
-    throw new QuorumError(
-      'QUORUM_UNMET',
-      `${witnesses.length} of ${policy.endpoints.length} resolvers answered, ${policy.required} required`,
-      replies(),
-    )
+  if (witnesses.length === 0) {
+    throw new QuorumError('QUORUM_UNMET', `0 of ${policy.endpoints.length} resolvers answered`, replies())
   }
 
   const first = witnesses[0] as Witness<O>
@@ -179,15 +181,27 @@ export async function agree<O extends Observation>(
   }
 
   const deepest = reconcileRoots(witnesses)
+  const warnings: ResolveWarning[] = []
+  if (witnesses.length < policy.required) {
+    warnings.push(
+      warn(
+        'QUORUM_SHORT',
+        `${witnesses.length} of ${policy.endpoints.length} resolvers answered, ${policy.required} required; ` +
+          `silent: ${silent.map((s) => `${s.resolver}: ${s.answer}`).join('; ')}`,
+      ),
+    )
+  }
+  // A second round-trip, and only when the heights actually differ: the
+  // ahead resolvers are asked what they had at the behind one's boundary.
+  // This used to be a warning that named the gap; it now closes it.
+  warnings.push(...(await reconcileAcrossHeights(policy, witnesses)))
   return {
     witnesses,
     queried: policy.endpoints.length,
+    silent,
     checkpoint: deepest === null ? null : (deepest.observation.checkpoint as CheckpointRef),
     provenBy: deepest === null ? null : deepest.endpoint,
-    // A second round-trip, and only when the heights actually differ: the
-    // ahead resolvers are asked what they had at the behind one's boundary.
-    // This used to be a warning that named the gap; it now closes it.
-    warnings: await reconcileAcrossHeights(policy, witnesses),
+    warnings,
   }
 }
 
