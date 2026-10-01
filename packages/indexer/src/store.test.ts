@@ -21,6 +21,7 @@
  */
 
 import {
+  RULES_VERSION,
   checkpoint,
   CONSTANTS,
   RESERVED_NAMES,
@@ -239,6 +240,86 @@ describe.skipIf(URL === undefined)('Store', () => {
       await pool.query('DELETE FROM checkpoints WHERE height = 58176720')
     }
     expect(await store.loadCursor()).not.toBeNull()
+  })
+
+  // ── The rules version (migration 014) ─────────────────────────────────────
+  //
+  // `configFingerprint` covers configuration and the layout column covers
+  // §8.1's shape. This is what refuses a resume across a reducer change.
+
+  describe('the rules version', () => {
+    const stage = (version: number | null) =>
+      pool.query('UPDATE "cursor" SET rules_version = $1, rules_accepted_from = NULL, rules_accepted_at = NULL WHERE id', [version])
+    const row = async () =>
+      (
+        await pool.query<{ rules_version: number | null; rules_accepted_from: number | null; rules_accepted_at: Date | null }>(
+          'SELECT rules_version, rules_accepted_from, rules_accepted_at FROM "cursor" WHERE id',
+        )
+      ).rows[0]
+    afterAll(() => stage(RULES_VERSION))
+
+    it('is stamped on the cursor by the first batch, and a matching version resumes as before', async () => {
+      const fresh = collectingLogger()
+      const cursor = await new Store(pool, CONFIG, fresh.logger).loadCursor()
+      expect(cursor).toMatchObject({ nextBatch: 912_019, rulesVersion: RULES_VERSION })
+      expect(await row()).toEqual({ rules_version: RULES_VERSION, rules_accepted_from: null, rules_accepted_at: null })
+      expect(fresh.lines).toEqual([])
+    })
+
+    it('refuses a database derived under another version, naming both and both ways on', async () => {
+      await stage(RULES_VERSION + 1)
+      const refusal = store.loadCursor()
+      await expect(refusal).rejects.toThrow(
+        new RegExp(`derived under rules version ${RULES_VERSION + 1}; this build applies rules version ${RULES_VERSION}\\.`),
+      )
+      await expect(refusal).rejects.toThrow(/nns-vps rebuild <role> --from-log/)
+      await expect(refusal).rejects.toThrow(new RegExp(`NNS_ACCEPT_RULES_VERSION=${RULES_VERSION} `))
+      // Nothing was written by refusing.
+      expect((await row())?.rules_version).toBe(RULES_VERSION + 1)
+    })
+
+    it('an override naming another version accepts nothing, and the refusal says so', async () => {
+      await stage(RULES_VERSION + 1)
+      await expect(store.loadCursor({ acceptRulesVersion: RULES_VERSION + 1 })).rejects.toThrow(
+        /is not this build's version, so it accepts nothing/,
+      )
+      expect((await row())?.rules_version).toBe(RULES_VERSION + 1)
+    })
+
+    it('the override resumes, and records the version it overrode', async () => {
+      await stage(RULES_VERSION + 1)
+      const fresh = collectingLogger()
+      const cursor = await new Store(pool, CONFIG, fresh.logger).loadCursor({ acceptRulesVersion: RULES_VERSION })
+      expect(cursor).toMatchObject({ nextBatch: 912_019, rulesVersion: RULES_VERSION })
+      const stored = await row()
+      expect(stored).toMatchObject({ rules_version: RULES_VERSION, rules_accepted_from: RULES_VERSION + 1 })
+      expect(stored?.rules_accepted_at).toBeInstanceOf(Date)
+      expect(fresh.lines.map((line) => line['msg'] ?? line['event'])).toContain('store.rules_version.accepted')
+
+      // Left in `.env`, it is inert: the versions agree and nothing is rewritten.
+      await new Store(pool, CONFIG, logger).loadCursor({ acceptRulesVersion: RULES_VERSION })
+      expect((await row())?.rules_accepted_at).toEqual(stored?.rules_accepted_at)
+    })
+
+    it('a database from before migration 014 adopts this build’s version, once, and says so', async () => {
+      await stage(null)
+      const fresh = collectingLogger()
+      const cursor = await new Store(pool, CONFIG, fresh.logger).loadCursor()
+      expect(cursor?.rulesVersion).toBe(RULES_VERSION)
+      expect(await row()).toEqual({ rules_version: RULES_VERSION, rules_accepted_from: null, rules_accepted_at: null })
+      expect(fresh.lines.map((line) => line['msg'] ?? line['event'])).toEqual(['store.rules_version.adopted'])
+
+      const again = collectingLogger()
+      await new Store(pool, CONFIG, again.logger).loadCursor()
+      expect(again.lines).toEqual([])
+    })
+
+    it('a batch committed on top of the cursor does not restamp it', async () => {
+      await stage(RULES_VERSION + 1)
+      const state = await store.loadState()
+      await store.commitBatch({ before: state, after: state, logRows: [], nextBatch: 912_019, scannedThrough: 58_177_080 })
+      expect((await row())?.rules_version).toBe(RULES_VERSION + 1)
+    })
   })
 
   // ── Checkpoints (§8.1) ────────────────────────────────────────────────────

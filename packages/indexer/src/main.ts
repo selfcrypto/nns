@@ -75,8 +75,10 @@ async function main(): Promise<void> {
       logger,
     })
 
-    // Throws if the database was built under different §3 values.
-    let cursor = await store.loadCursor()
+    // Throws if the database was built under different §3 values, another
+    // §8.1 layout, or another `RULES_VERSION`.
+    const resume = { acceptRulesVersion: settings.acceptRulesVersion }
+    let cursor = await store.loadCursor(resume)
     if (settings.startMode !== 'scratch' && settings.snapshotUrl !== undefined) {
       if (cursor === null) {
         // `hybrid` re-derives from LAUNCH_HEIGHT, so it needs a node that still
@@ -99,7 +101,7 @@ async function main(): Promise<void> {
           launchHeight: CONSTANTS.LAUNCH_HEIGHT,
           source: await logSource(settings, logger),
         })
-        cursor = await store.loadCursor()
+        cursor = await store.loadCursor(resume)
       } else {
         // The mode says how an empty database is seeded, and this one is not
         // empty. Said out loud rather than ignored: an operator who set it

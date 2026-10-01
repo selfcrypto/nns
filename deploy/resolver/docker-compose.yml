@@ -70,6 +70,10 @@ services:
       NNS_LOG_LEVEL: ${NNS_LOG_LEVEL:-info}
       # How an EMPTY database is seeded: scratch (default) | snapshot | hybrid.
       # Ignored once the database has a cursor. See packages/indexer/.env.example.
+      # Accept a RULES_VERSION bump without a rebuild, for a change known not to
+      # move this database's history. Names the version being accepted; inert
+      # otherwise (docs/runbooks/deploy.md).
+      NNS_ACCEPT_RULES_VERSION: ${NNS_ACCEPT_RULES_VERSION:-}
       NNS_START_MODE: ${NNS_START_MODE:-scratch}
       NNS_SNAPSHOT_URL: ${NNS_SNAPSHOT_URL:-}
       NNS_SNAPSHOT_SOURCE: ${NNS_SNAPSHOT_SOURCE:-peer}

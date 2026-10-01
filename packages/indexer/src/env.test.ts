@@ -130,6 +130,19 @@ describe('NNS_START_MODE', () => {
   })
 })
 
+describe('NNS_ACCEPT_RULES_VERSION', () => {
+  it('is absent by default — the override is a deliberate act, never a default', () => {
+    expect(loadSettings(MINIMAL).acceptRulesVersion).toBeNull()
+  })
+
+  it('names the rules version being accepted', () => {
+    expect(loadSettings({ ...MINIMAL, NNS_ACCEPT_RULES_VERSION: '3' }).acceptRulesVersion).toBe(3)
+    for (const bad of ['yes', '0', '-1', '1.5']) {
+      expect(() => loadSettings({ ...MINIMAL, NNS_ACCEPT_RULES_VERSION: bad })).toThrow(/NNS_ACCEPT_RULES_VERSION must be a rules version/)
+    }
+  })
+})
+
 describe('NNS_SNAPSHOT_SOURCE', () => {
   const ANCHOR = {
     ...MINIMAL,

@@ -9,7 +9,7 @@
 
 import { createHash } from 'node:crypto'
 
-import { CONSTANTS, RESERVED_NAMES, initialState, type Checkpoint, type NnsConfig, type NnsState } from '@nimiqnames/core'
+import { CONSTANTS, RESERVED_NAMES, RULES_VERSION, initialState, type Checkpoint, type NnsConfig, type NnsState } from '@nimiqnames/core'
 import type { Pool, PoolClient } from 'pg'
 
 import { checkpointRow, COMMITMENT_LAYOUT, hex, type CheckpointRow } from './checkpoint.js'
@@ -33,6 +33,26 @@ export interface Cursor {
   nextBatch: number
   scannedThrough: number
   configFingerprint: string
+  /** `core`'s `RULES_VERSION` the state below the cursor was derived under (migration `014`). */
+  rulesVersion: number
+}
+
+/** What {@link Store.loadCursor} is being asked on behalf of. */
+export interface LoadCursorOptions {
+  /**
+   * The caller is {@link Store.rebuildFromLog}, about to replace every derived
+   * row. Skips the §8.1 layout refusal and the rules-version refusal: a
+   * rebuild is the documented way out of both, and stamps the new version
+   * itself.
+   */
+  rebuilding?: boolean
+  /**
+   * `NNS_ACCEPT_RULES_VERSION`: the operator's declaration that the rule
+   * change did not move the history this database holds. Honoured only when it
+   * names the running build's `RULES_VERSION`, so a value left in `.env` does
+   * not accept the bump after this one.
+   */
+  acceptRulesVersion?: number | null
 }
 
 /**
@@ -290,22 +310,24 @@ export class Store {
   /**
    * The stored cursor, or `null` for a database that has never run.
    *
-   * @param options `acrossLayouts` skips the §8.1 layout refusal — for
-   *   {@link rebuildFromLog}, which is about to replace every checkpoint in
-   *   the table and is the documented way out of the state that refusal
-   *   describes. The **config fingerprint** check is not optional even there:
-   *   a moved `LAUNCH_HEIGHT` or a new reserved name changes which messages
-   *   belong in the log, and a rebuild replaying the log it already holds
-   *   cannot discover that.
+   * @param options `rebuilding` skips the §8.1 layout refusal and the
+   *   rules-version refusal — for {@link rebuildFromLog}, which is about to
+   *   replace every derived row and is the documented way out of the state
+   *   those refusals describe. The **config fingerprint** check is not
+   *   optional even there: a moved `LAUNCH_HEIGHT` or a new reserved name
+   *   changes which messages belong in the log, and a rebuild replaying the
+   *   log it already holds cannot discover that.
    * @throws {StoreError} if the stored config fingerprint disagrees with ours,
-   *   or if a stored checkpoint was written at another §8.1 layout.
+   *   if a stored checkpoint was written at another §8.1 layout, or if the
+   *   state was derived under another `RULES_VERSION`.
    */
-  async loadCursor(options: { acrossLayouts?: boolean } = {}): Promise<Cursor | null> {
+  async loadCursor(options: LoadCursorOptions = {}): Promise<Cursor | null> {
     const result = await this.pool.query<{
       next_batch: number
       scanned_through: number
       config_fingerprint: string
-    }>('SELECT next_batch, scanned_through, config_fingerprint FROM "cursor" WHERE id')
+      rules_version: number | null
+    }>('SELECT next_batch, scanned_through, config_fingerprint, rules_version FROM "cursor" WHERE id')
     const row = result.rows[0]
     if (row === undefined) return null
     // The layout column labelled rows through four bumps and refused nothing:
@@ -314,7 +336,7 @@ export class Store {
     // Since 2026-09-11 it refuses here, where the fingerprint does — a
     // database at another layout is the output of a different function, and
     // the only correct continuation is none (migration 012).
-    const stale = options.acrossLayouts === true ? undefined : await this.foreignLayout()
+    const stale = options.rebuilding === true ? undefined : await this.foreignLayout()
     if (stale !== undefined) {
       throw new StoreError(
         `this database holds checkpoints at §8.1 layout ${stale.layout} (latest at height ${stale.height}); ` +
@@ -337,7 +359,65 @@ export class Store {
       nextBatch: row.next_batch,
       scannedThrough: row.scanned_through,
       configFingerprint: row.config_fingerprint,
+      rulesVersion: await this.rulesVersion(row.rules_version, options),
     }
+  }
+
+  /**
+   * Hold the stored `rules_version` against this build's, and return the one
+   * the state now stands under.
+   *
+   * The third refusal, beside the layout's and the fingerprint's, and the one
+   * that covers what neither does: a reducer change. Below the cursor the
+   * state was derived under the stored version, above it this build would
+   * apply its own, and the mix is the output of neither.
+   *
+   * Two cases write instead of refusing, and both say so in the log:
+   *
+   * - **No version recorded** — a database from before migration `014`. It
+   *   adopts this build's. `014` ships with no rule change, so that is as true
+   *   as the database was the day before; a later build finds a number here.
+   * - **The override** names this build's version. The operator is saying the
+   *   change did not move this database's history, and the row keeps the
+   *   version it was built under as the record that they did.
+   */
+  private async rulesVersion(stored: number | null, options: LoadCursorOptions): Promise<number> {
+    if (stored === RULES_VERSION) return stored
+    // A rebuild replaces every derived row and stamps the version in the same
+    // transaction, so there is nothing here for it to be refused over.
+    if (options.rebuilding === true) return stored ?? RULES_VERSION
+    if (stored === null) {
+      await this.pool.query('UPDATE "cursor" SET rules_version = $1 WHERE id AND rules_version IS NULL', [RULES_VERSION])
+      this.logger.warn('store.rules_version.adopted', {
+        rulesVersion: RULES_VERSION,
+        reason: 'this database predates migration 014 and recorded none; it is taken to be this build\'s',
+      })
+      return RULES_VERSION
+    }
+    if (options.acceptRulesVersion === RULES_VERSION) {
+      await this.pool.query(
+        `UPDATE "cursor" SET rules_version = $1, rules_accepted_from = $2, rules_accepted_at = now() WHERE id`,
+        [RULES_VERSION, stored],
+      )
+      this.logger.warn('store.rules_version.accepted', {
+        from: stored,
+        to: RULES_VERSION,
+        reason: 'NNS_ACCEPT_RULES_VERSION: the operator declared that this change does not move the history held here',
+      })
+      return RULES_VERSION
+    }
+    throw new StoreError(
+      `this database was derived under rules version ${stored}; this build applies rules version ${RULES_VERSION}. ` +
+        'Resuming would leave a state computed under the old rules below the cursor and the new ones above it, ' +
+        'which matches neither and which no fresh replay reproduces. ' +
+        'Replay: `nns-vps rebuild <role> --from-log <revision>` if the revision is log-preserving, ' +
+        '`nns-vps rebuild <role>` to resync from the chain otherwise (docs/runbooks/deploy.md). ' +
+        `Or, only for a change you know does not move the history this database holds, set NNS_ACCEPT_RULES_VERSION=${RULES_VERSION} ` +
+        "in this role's .env and start again; the override is recorded." +
+        (options.acceptRulesVersion == null
+          ? ''
+          : ` (NNS_ACCEPT_RULES_VERSION is ${options.acceptRulesVersion}, which is not this build's version, so it accepts nothing.)`),
+    )
   }
 
   /**
@@ -517,13 +597,15 @@ export class Store {
       if (input.snapshot !== undefined) await this.writeSnapshot(client, input.snapshot)
       if (input.verification !== undefined) await writeVerification(client, input.verification)
       await client.query(
-        `INSERT INTO "cursor" (id, next_batch, scanned_through, config_fingerprint, updated_at)
-         VALUES (TRUE, $1, $2, $3, now())
+        `INSERT INTO "cursor" (id, next_batch, scanned_through, config_fingerprint, rules_version, updated_at)
+         VALUES (TRUE, $1, $2, $3, $4, now())
          ON CONFLICT (id) DO UPDATE
            SET next_batch = EXCLUDED.next_batch,
                scanned_through = EXCLUDED.scanned_through,
                updated_at = now()`,
-        [input.nextBatch, input.scannedThrough, this.fingerprint],
+        // `rules_version` is written by the insert only: a batch committed on
+        // top of an existing cursor was let through by `loadCursor`.
+        [input.nextBatch, input.scannedThrough, this.fingerprint, RULES_VERSION],
       )
     })
   }
@@ -565,7 +647,7 @@ export class Store {
       const previousRoots = await readCheckpointRoots(client)
 
       // Derived tables only. `log` is rewritten in place below and `cursor`
-      // is left exactly as it was.
+      // keeps its position (its `rules_version` is stamped at the end).
       for (const table of DERIVED_TABLES) await client.query(`DELETE FROM ${table}`)
 
       let rewritten = 0
@@ -606,6 +688,12 @@ export class Store {
         rebuiltRevision: input.revision,
         rebuiltThrough: input.through,
       })
+      // Every derived row is now this build's, so the cursor says so — its
+      // one column a rebuild moves — and any earlier override is spent.
+      await client.query(
+        'UPDATE "cursor" SET rules_version = $1, rules_accepted_from = NULL, rules_accepted_at = NULL WHERE id',
+        [RULES_VERSION],
+      )
       return {
         lines: produced,
         verdictsRewritten: rewritten,

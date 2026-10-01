@@ -67,6 +67,13 @@ export interface IndexerSettings {
    * with `snapshot` can switch to `hybrid` later and have it run.
    */
   readonly startMode: StartMode
+  /**
+   * `NNS_ACCEPT_RULES_VERSION`, or `null`. The operator's declaration that a
+   * rule change did not move the history this database holds, naming the
+   * `RULES_VERSION` being accepted (`Store.loadCursor`). Inert unless the
+   * database stands at another version and this names the running build's.
+   */
+  readonly acceptRulesVersion: number | null
   /** Where a bootstrap's expected commitment comes from. */
   readonly snapshotSource: SnapshotSource
   /**
@@ -233,6 +240,11 @@ export function loadSettings(env: EnvSource = process.env): IndexerSettings {
       `NNS_START_MODE must be one of ${START_MODES.join('|')}, got ${JSON.stringify(startMode)}`,
     )
   }
+  const acceptRaw = read(env, 'NNS_ACCEPT_RULES_VERSION')
+  if (acceptRaw !== undefined && !/^[1-9]\d*$/.test(acceptRaw)) {
+    throw new EnvError(`NNS_ACCEPT_RULES_VERSION must be a rules version (a whole number >= 1), got ${JSON.stringify(acceptRaw)}`)
+  }
+  const acceptRulesVersion = acceptRaw === undefined ? null : Number(acceptRaw)
   const snapshotSource = read(env, 'NNS_SNAPSHOT_SOURCE') ?? 'peer'
   if (!isSnapshotSource(snapshotSource)) {
     throw new EnvError(
@@ -309,6 +321,7 @@ export function loadSettings(env: EnvSource = process.env): IndexerSettings {
     databaseUrl: required(env, 'NNS_DATABASE_URL'),
     config: nnsConfig(networkId),
     startMode,
+    acceptRulesVersion,
     snapshotSource,
     snapshotUrl,
     anchorRpcUrls,

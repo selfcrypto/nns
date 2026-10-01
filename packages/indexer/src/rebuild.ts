@@ -110,10 +110,10 @@ export async function rebuildFromLog(options: RebuildOptions): Promise<RebuildRe
     )
   }
 
-  // Refuses on a moved §3 value, allows a moved §8.1 layout: this is what
-  // replaces every checkpoint in the table, and a layout bump is one of the
-  // things it exists for.
-  const cursor = await store.loadCursor({ acrossLayouts: true })
+  // Refuses on a moved §3 value, allows a moved §8.1 layout and a moved rules
+  // version: this is what replaces every derived row in the database, and
+  // both are among the things it exists for.
+  const cursor = await store.loadCursor({ rebuilding: true })
   if (cursor === null) {
     throw new RebuildError(
       'this database has no cursor, so it has no log to replay and nothing derived to rebuild. ' +

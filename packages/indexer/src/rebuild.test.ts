@@ -288,6 +288,23 @@ describe.skipIf(URL_ === undefined)('rebuildFromLog', () => {
     expect(layouts.rows).toEqual([{ layout: (await import('./checkpoint.js')).COMMITMENT_LAYOUT }])
   })
 
+  it('rebuilds a database derived under another rules version, and stamps this build’s', async () => {
+    // The refusal migration 014 added, and the same way out as the layout's:
+    // a resume is refused, a rebuild replaces what the refusal was about.
+    const { RULES_VERSION } = await import('@nimiqnames/core')
+    await seed()
+    await pool.query('UPDATE "cursor" SET rules_version = $1, rules_accepted_from = 7, rules_accepted_at = now() WHERE id', [
+      RULES_VERSION + 1,
+    ])
+
+    await expect(store.loadCursor()).rejects.toThrow(/rules version/)
+    await expect(rebuild()).resolves.toMatchObject({ lines: 3 })
+
+    const stamped = await pool.query('SELECT rules_version, rules_accepted_from, rules_accepted_at FROM "cursor" WHERE id')
+    expect(stamped.rows[0]).toEqual({ rules_version: RULES_VERSION, rules_accepted_from: null, rules_accepted_at: null })
+    expect(await store.loadCursor()).toMatchObject({ rulesVersion: RULES_VERSION })
+  })
+
   it('refuses a declaration that is not this build, before reading a row', async () => {
     await seed()
     await expect(rebuild(REVISION - 1)).rejects.toThrow(RebuildError)
@@ -307,6 +324,7 @@ describe('geometryFromCursor', () => {
       nextBatch: 920_861,
       scannedThrough: 3_456_000 + 920_860 * BLOCKS_PER_BATCH,
       configFingerprint: 'x',
+      rulesVersion: 1,
     }
     const geometry = geometryFromCursor(cursor)
     expect(geometry.genesisBlock).toBe(3_456_000)
@@ -318,7 +336,7 @@ describe('geometryFromCursor', () => {
 
   it('refuses a pair that puts the genesis below zero', () => {
     expect(() =>
-      geometryFromCursor({ nextBatch: 900_000, scannedThrough: 10, configFingerprint: 'x' }),
+      geometryFromCursor({ nextBatch: 900_000, scannedThrough: 10, configFingerprint: 'x', rulesVersion: 1 }),
     ).toThrow(RebuildError)
   })
 })
