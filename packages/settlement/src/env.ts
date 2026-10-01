@@ -112,6 +112,13 @@ export interface IssuerSettings extends LedgerSettings {
    * routine. Refused at zero, because alerting at zero alerts after the failure.
    */
   readonly minBalance: bigint
+  /**
+   * The most the issuer may pay in 24 hours, both senders together
+   * (`guards.ts`). A backstop behind the deposit guard, so sized for a busy
+   * honest day, not a typical one. Required: an issuer with no cap set does
+   * not start.
+   */
+  readonly dailyCap: bigint
 }
 
 export type EnvSource = Readonly<Record<string, string | undefined>>
@@ -258,5 +265,6 @@ export function loadIssuerSettings(env: EnvSource = process.env): IssuerSettings
       'NNS_SETTLEMENT_MIN_BALANCE',
       '§11.5 asks for a threshold well above zero, because alerting at zero alerts after the failure',
     ),
+    dailyCap: requiredLuna(env, 'NNS_SETTLEMENT_MAX_PER_DAY', 'a cap of zero is an issuer that pays nothing'),
   })
 }

@@ -49,7 +49,15 @@
  * fact about the log rather than about the service.
  */
 
-import { formatAddress, refKey, type Address, type Obligation, type ObligationKind } from '@nimiqnames/core'
+import {
+  formatAddress,
+  parseAddress,
+  parseLogLine,
+  refKey,
+  type Address,
+  type Obligation,
+  type ObligationKind,
+} from '@nimiqnames/core'
 
 import { ADDRESS_COLUMN, nim } from './format.js'
 
@@ -101,6 +109,21 @@ export const obligationKey = (obligation: Obligation): string =>
  */
 export type LedgerKind = ObligationKind | ReferralKind
 
+/**
+ * The transaction a debt names, as the log records it: the money that came in.
+ *
+ * Every debt this service pays is some part of a payment somebody made to the
+ * address that now owes it — a refund returns it, a sale or a close forwards
+ * it, a referral payout is a fraction of it. The issuer's deposit guard
+ * (`guards.ts`) rests on that: it pays nothing a deposit does not back, and
+ * asks the node whether the deposit is real.
+ */
+export interface Deposit {
+  readonly txHash: string
+  readonly recipient: Address
+  readonly value: bigint
+}
+
 export interface DueObligation {
   readonly key: string
   readonly kind: LedgerKind
@@ -113,6 +136,14 @@ export interface DueObligation {
   readonly amount: bigint
   /** Blocks between the debt's own height and the checkpoint this was observed at. */
   readonly ageBlocks: number
+  /** The log line at `ref`, or `null` when the log holds none — a debt naming no payment. */
+  readonly deposit: Deposit | null
+  /**
+   * Every luna the log has ever charged `owedBy` under `ref`: each leg created
+   * there, protocol and §10.7 alike, paid or not. Against `deposit.value` it
+   * says whether one payment is being paid out more than once over.
+   */
+  readonly refCreated: bigint
 }
 
 /**
@@ -128,6 +159,13 @@ export interface WatchSnapshot {
   readonly lineCount: number
   readonly due: readonly DueObligation[]
   readonly totalDue: bigint
+  /**
+   * The standing bids of every open auction (§6 `A`): money
+   * `MARKETPLACE_ADDRESS` holds that is in no leg yet. It becomes a refund when
+   * the bid is beaten and two legs when the auction closes, so the address
+   * must hold it meanwhile.
+   */
+  readonly standingBids: bigint
   /**
    * `M`s already broadcast that discharged nothing (§6 `M`). Not a reason to
    * stop watching — the debts they missed are in `due`, still owed — but an
@@ -211,6 +249,28 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult, shares: Sha
     created.set(key, (created.get(key) ?? 0n) + leg.obligation.amount)
   }
 
+  // What each transaction brought in, and what the log has charged against it.
+  const deposits = new Map<string, Deposit>()
+  for (const line of log.lines) {
+    const fields = parseLogLine(line)
+    deposits.set(refKey({ height: fields.blockHeight, txIndex: fields.txIndex }), {
+      txHash: fields.txHash,
+      recipient: parseAddress(fields.recipient),
+      value: fields.value,
+    })
+  }
+  const charged = new Map<string, bigint>()
+  const charge = (ref: Obligation['ref'], owedBy: Address, amount: bigint): void => {
+    const key = `${refKey(ref)}:${owedBy}`
+    charged.set(key, (charged.get(key) ?? 0n) + amount)
+  }
+  for (const leg of replay.created) charge(leg.obligation.ref, leg.obligation.owedBy, leg.obligation.amount)
+  for (const leg of shares.created) charge(leg.ref, leg.owedBy, leg.amount)
+  const backing = (ref: Obligation['ref'], owedBy: Address): Pick<DueObligation, 'deposit' | 'refCreated'> => ({
+    deposit: deposits.get(refKey(ref)) ?? null,
+    refCreated: charged.get(`${refKey(ref)}:${owedBy}`) ?? 0n,
+  })
+
   const due: DueObligation[] = []
   /** Every key on `due`, with its amount — the balance check below reads it, and a repeat is the refusal. */
   const seen = new Map<string, bigint>()
@@ -232,6 +292,7 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult, shares: Sha
       owedTo: leg.obligation.owedTo,
       amount: leg.obligation.amount,
       ageBlocks: Math.max(0, log.checkpointHeight - leg.obligation.ref.height),
+      ...backing(leg.obligation.ref, leg.obligation.owedBy),
     })
     totalDue += leg.obligation.amount
   }
@@ -269,6 +330,7 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult, shares: Sha
       owedTo: leg.payee,
       amount: leg.amount,
       ageBlocks: Math.max(0, log.checkpointHeight - leg.ref.height),
+      ...backing(leg.ref, leg.owedBy),
     })
     totalDue += leg.amount
   }
@@ -281,12 +343,16 @@ export function takeSnapshot(log: LogSnapshot, replay: ReplayResult, shares: Sha
   const explained = explainedSettlements(shares)
   const unmatched = replay.unmatched.filter((item) => !explained.has(refKey(item.at)))
 
+  let standingBids = 0n
+  for (const auction of replay.state.auctions.values()) standingBids += auction.bid
+
   return Object.freeze({
     checkpointHeight: log.checkpointHeight,
     logHash: log.logHash,
     lineCount: replay.lineCount,
     due: Object.freeze(due),
     totalDue,
+    standingBids,
     unmatched: Object.freeze(unmatched),
     mispaidShares: shares.mispaid,
     unpricedShares: shares.unpriced,

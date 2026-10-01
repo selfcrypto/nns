@@ -32,13 +32,18 @@ import { createNodeWallet, loadHotKeys, type NodeWallet } from './keys.js'
 import { createLedger, describeLedger } from './ledger.js'
 import { pollThroughOutage, sleep, stopOnSignals } from './loop.js'
 import { httpFetcher } from './source.js'
-import { createWatcher } from './watch.js'
+import { createWatcher, type WatchSnapshot } from './watch.js'
 
 const USAGE = `usage: issue [--send] [--once] [--interval=<seconds>] [--limit=<n>] [--quiet]
 
 Polls NNS_API_URL for new checkpoints, records what the §8.2 log says is owed
 in the settlement ledger, and issues the M transactions that discharge it:
 dueForIssue -> build -> pin -> sign -> send -> markSent, in that order.
+
+Before it signs, every leg must be backed by a deposit the node confirms, the
+marketplace address must be solvent, and the last 24 h must be under
+NNS_SETTLEMENT_MAX_PER_DAY. A guard that does not hold pauses the issuer:
+it prints PAUSED every cycle and signs nothing until \`release\` is run.
 
 Dry run by default. It reads the chain head and the sender balances (§11.5)
 and prints every transaction it would broadcast, but pins nothing.
@@ -138,6 +143,11 @@ async function run(argv: readonly string[]): Promise<number> {
           : `(NNS_SETTLEMENT_EXPIRY_BLOCKS${expiry.nodeWindow === null ? ', this node has no getPolicyConstants' : `, above the node's ${expiry.nodeWindow}`})`) +
         `, and the §11.5 alert threshold is ${settings.minBalance} luna.`,
     )
+    console.log(`at most ${settings.dailyCap} luna leaves in 24 h (NNS_SETTLEMENT_MAX_PER_DAY).`)
+    const pause = await ledger.openPause()
+    if (pause !== null) {
+      console.log(`this issuer is PAUSED (${pause.reason}) since ${pause.pausedAt.toISOString()} and signs nothing until released.`)
+    }
 
     const stop = stopOnSignals()
     if (wallet !== undefined) {
@@ -149,6 +159,10 @@ async function run(argv: readonly string[]): Promise<number> {
       )
     }
 
+    // What the guards read. Held here and not refetched: it is the snapshot
+    // the ledger last applied, so the two cannot disagree about what is owed.
+    let snapshot: WatchSnapshot | null = null
+
     for (;;) {
       if (stop.aborted) return 0
       const result = await pollThroughOutage(() => watcher.poll(), { once, pollSeconds, signal: stop })
@@ -159,6 +173,7 @@ async function run(argv: readonly string[]): Promise<number> {
         console.log(`checkpoint ${result.checkpointHeight} unchanged.`)
       } else {
         const update = await ledger.applySnapshot(result.snapshot)
+        snapshot = result.snapshot
         console.log(
           `applied checkpoint ${update.checkpointHeight}: ${update.inserted.length} new, ` +
             `${update.confirmed.length} confirmed, ${update.expired.length} expired, ${update.standing} standing.`,
@@ -179,6 +194,8 @@ async function run(argv: readonly string[]): Promise<number> {
         minBalance: settings.minBalance,
         limit,
         logger,
+        snapshot,
+        dailyCap: settings.dailyCap,
       })
       console.log('')
       for (const line of describeIssue(report)) console.log(line)

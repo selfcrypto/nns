@@ -17,7 +17,8 @@
     "reconcile": "node --env-file=.env dist/reconcile-main.js",
     "watch": "node --env-file=.env dist/watch-main.js",
     "ledger": "node --env-file=.env dist/ledger-main.js",
-    "issue": "node --env-file=.env dist/issue-main.js"
+    "issue": "node --env-file=.env dist/issue-main.js",
+    "release": "node --env-file=.env dist/release-main.js"
   },
   "dependencies": {
     "@nimiqnames/core": "workspace:*",

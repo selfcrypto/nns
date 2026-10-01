@@ -17,6 +17,7 @@ const MONITORED: ReadonlyArray<readonly [file: string, line: string, role: strin
   ['issue.ts', '  FAILED ', 'a leg failed'],
   ['issue.ts', '  UNFUNDED ', 'a sender cannot cover a leg'],
   ['issue.ts', 'ALERT (§11.5)', 'a sender is below its minimum balance'],
+  ['issue.ts', 'PAUSED (', 'a guard fired and the issuer signs nothing'],
 ]
 
 describe('the log lines the monitor reads', () => {

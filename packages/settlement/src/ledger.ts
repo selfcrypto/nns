@@ -68,6 +68,7 @@
 import { formatAddress, parseAddress, refKey, type Address, type NnsConfig, type TxRef } from '@nimiqnames/core'
 import { configFingerprint, toLuna, type Logger } from '@nns/indexer'
 
+import { CAP_WINDOW_HOURS, type Breach, type PauseReason } from './guards.js'
 import { obligationKey, type DueObligation, type LedgerKind, type WatchSnapshot } from './watch.js'
 import { migrateLedger, withTransaction, type Pool } from './db.js'
 import type { PoolClient } from 'pg'
@@ -170,6 +171,28 @@ export interface TransactionPlan {
   readonly data: string
   readonly validityStartHeight: number
   readonly expiresAfter: number
+}
+
+/** A guard that fired and stopped the issuer (`guards.ts`, migration `004`). */
+export interface Pause {
+  readonly id: number
+  readonly reason: PauseReason
+  /** The leg the guard stopped on, where one did. */
+  readonly legKey: string | null
+  readonly detail: string
+  readonly pausedAt: Date
+  /** `null` while the issuer is still paused. */
+  readonly releasedAt: Date | null
+  readonly releaseNote: string | null
+  readonly approved: boolean
+}
+
+/** What the guards need from the ledger's memory, read once per pass. */
+export interface GuardFacts {
+  /** Legs an operator released with `--approve`: exempt from the deposit guards. */
+  readonly approved: ReadonlySet<string>
+  /** Luna pinned inside the daily cap's window, by attempts that are not proven dead. */
+  readonly spentInWindow: bigint
 }
 
 /** Counts for one glance at the ledger. */
@@ -377,6 +400,19 @@ export interface Ledger {
   markSent(ref: TxRef, kind: LedgerKind, attemptNo: number, txHash: string): Promise<void>
   summary(): Promise<LedgerSummary>
   readSource(): Promise<StoredSource | null>
+  /** The pause the issuer is under, or `null`. Read before every pass. */
+  openPause(): Promise<Pause | null>
+  /** Record a breach. **Returns only after the pause is durable.** Under an open pause it returns that one. */
+  pause(breach: Breach): Promise<Pause>
+  /**
+   * Close the open pause — the operator's act, and the only way out of one.
+   * `approve` also exempts the leg it names from the deposit guards.
+   * Returns `null` when the issuer is not paused.
+   */
+  release(note: string, approve: boolean): Promise<Pause | null>
+  guardFacts(): Promise<GuardFacts>
+  /** The newest pauses, open or released, newest first. */
+  pauses(limit: number): Promise<readonly Pause[]>
 }
 
 export interface LedgerOptions {
@@ -455,6 +491,21 @@ function toEntry(row: Record<string, unknown>): LedgerEntry {
     confirmedHeight: row['confirmed_height'] === null ? null : Number(row['confirmed_height']),
     attemptCount: Number(row['attempt_count']),
     live,
+  }
+}
+
+const PAUSE_COLUMNS = 'id, reason, leg_key, detail, paused_at, released_at, release_note, approved'
+
+function toPause(row: Record<string, unknown>): Pause {
+  return {
+    id: Number(row['id']),
+    reason: String(row['reason']) as PauseReason,
+    legKey: row['leg_key'] === null ? null : String(row['leg_key']),
+    detail: String(row['detail']),
+    pausedAt: row['paused_at'] as Date,
+    releasedAt: (row['released_at'] as Date | null) ?? null,
+    releaseNote: row['release_note'] === null ? null : String(row['release_note']),
+    approved: row['approved'] === true,
   }
 }
 
@@ -673,6 +724,77 @@ export function createLedger(options: LedgerOptions): Ledger {
         )
         logger?.info('ledger.sent', { key: `${refKey(ref)}:${kind}`, attemptNo, txHash })
       })
+    },
+
+    async openPause() {
+      const { rows } = await pool.query<Record<string, unknown>>(
+        `SELECT ${PAUSE_COLUMNS} FROM pauses WHERE released_at IS NULL`,
+      )
+      return rows[0] === undefined ? null : toPause(rows[0])
+    },
+
+    async pause(breach) {
+      return withTransaction(pool, async (client) => {
+        await lock(client)
+        const open = await client.query<Record<string, unknown>>(
+          `SELECT ${PAUSE_COLUMNS} FROM pauses WHERE released_at IS NULL`,
+        )
+        if (open.rows[0] !== undefined) return toPause(open.rows[0])
+        const { rows } = await client.query<Record<string, unknown>>(
+          `INSERT INTO pauses (reason, leg_key, detail) VALUES ($1, $2, $3) RETURNING ${PAUSE_COLUMNS}`,
+          [breach.reason, breach.key, breach.detail],
+        )
+        logger?.warn('ledger.paused', { reason: breach.reason, key: breach.key, detail: breach.detail })
+        return toPause(rows[0] as Record<string, unknown>)
+      })
+    },
+
+    async release(note, approve) {
+      return withTransaction(pool, async (client) => {
+        await lock(client)
+        const open = await client.query<Record<string, unknown>>(
+          `SELECT ${PAUSE_COLUMNS} FROM pauses WHERE released_at IS NULL`,
+        )
+        if (open.rows[0] === undefined) return null
+        const pause = toPause(open.rows[0])
+        if (approve && pause.legKey === null) {
+          throw new LedgerError(`the ${pause.reason} pause names no leg, so there is nothing for --approve to approve`)
+        }
+        const { rows } = await client.query<Record<string, unknown>>(
+          `UPDATE pauses SET released_at = now(), release_note = $2, approved = $3
+            WHERE id = $1 RETURNING ${PAUSE_COLUMNS}`,
+          [pause.id, note, approve],
+        )
+        logger?.warn('ledger.released', { id: pause.id, reason: pause.reason, key: pause.legKey, approve, note })
+        return toPause(rows[0] as Record<string, unknown>)
+      })
+    },
+
+    async guardFacts() {
+      const approved = await pool.query<{ leg_key: string }>('SELECT leg_key FROM pauses WHERE approved')
+      // Releasing a `DAILY_CAP` pause is the operator accepting everything
+      // paid so far, so the window restarts there. An `EXPIRED` attempt is
+      // proven never to have landed and counts for nothing.
+      const spent = await pool.query<{ luna: string }>(
+        `SELECT COALESCE(SUM(value), 0)::TEXT AS luna FROM attempts
+          WHERE state <> 'EXPIRED'
+            AND pinned_at > GREATEST(
+              now() - make_interval(hours => $1),
+              COALESCE((SELECT MAX(released_at) FROM pauses WHERE reason = 'DAILY_CAP'), '-infinity'))`,
+        [CAP_WINDOW_HOURS],
+      )
+      return {
+        approved: new Set(approved.rows.map((row) => row.leg_key)),
+        spentInWindow: toLuna(spent.rows[0]?.luna ?? '0', 'spent in window'),
+      }
+    },
+
+    async pauses(limit) {
+      const { rows } = await pool.query<Record<string, unknown>>(
+        `SELECT ${PAUSE_COLUMNS} FROM pauses ORDER BY id DESC LIMIT $1`,
+        [limit],
+      )
+      return rows.map(toPause)
     },
 
     async summary() {

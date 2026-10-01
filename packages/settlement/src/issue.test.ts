@@ -36,7 +36,8 @@ import {
   type LegOutcome,
   type Wallet,
 } from './issue.js'
-import { createLedger, type LedgerEntry, type LiveAttempt, type TransactionPlan } from './ledger.js'
+import type { Breach } from './guards.js'
+import { createLedger, type LedgerEntry, type LiveAttempt, type Pause, type TransactionPlan } from './ledger.js'
 import { MARKETPLACE, SELLER, TREASURY, WINNER, testConfig } from './test-fixtures.js'
 import type { DueObligation, WatchSnapshot } from './watch.js'
 
@@ -79,10 +80,43 @@ interface Recorder {
   readonly calls: string[]
 }
 
-function fakeLedger(entries: readonly LedgerEntry[], recorder: Recorder): IssuerLedger & { pins: TransactionPlan[] } {
+/** What a fake ledger starts out remembering about the guards. */
+interface GuardMemory {
+  readonly pause?: Breach
+  readonly approved?: readonly string[]
+  readonly spentInWindow?: bigint
+}
+
+const pauseOf = (breach: Breach): Pause => ({
+  id: 1,
+  reason: breach.reason,
+  legKey: breach.key,
+  detail: breach.detail,
+  pausedAt: new Date(0),
+  releasedAt: null,
+  releaseNote: null,
+  approved: false,
+})
+
+function fakeLedger(
+  entries: readonly LedgerEntry[],
+  recorder: Recorder,
+  memory: GuardMemory = {},
+): IssuerLedger & { pins: TransactionPlan[]; breaches: Breach[] } {
   const pins: TransactionPlan[] = []
+  const breaches: Breach[] = []
+  let open: Pause | null = memory.pause === undefined ? null : pauseOf(memory.pause)
   return {
     pins,
+    breaches,
+    openPause: async () => open,
+    pause: async (breach) => {
+      recorder.calls.push(`pause ${breach.reason}`)
+      breaches.push(breach)
+      open ??= pauseOf(breach)
+      return open
+    },
+    guardFacts: async () => ({ approved: new Set(memory.approved ?? []), spentInWindow: memory.spentInWindow ?? 0n }),
     entries: async () => {
       recorder.calls.push('entries')
       return entries
@@ -102,7 +136,66 @@ function fakeLedger(entries: readonly LedgerEntry[], recorder: Recorder): Issuer
   }
 }
 
-function fakeRpc(recorder: Recorder, balances: Record<string, number>, onSend?: () => never): IssuerRpc {
+/** The node's view of one deposit, or an error to throw for it. */
+type NodeTx = { blockNumber: number; to: string; value: number; executionResult: boolean } | Error
+
+/** The verified snapshot a ledger holding `entries` would have applied: every live leg, backed by its own deposit. */
+function snapshotFor(entries: readonly LedgerEntry[], overrides: Partial<WatchSnapshot> = {}): WatchSnapshot {
+  const charged = new Map<string, bigint>()
+  const live = entries.filter((item) => item.state !== 'CONFIRMED')
+  for (const item of live) {
+    const ref = `${item.ref.height}:${item.ref.txIndex}:${item.owedBy}`
+    charged.set(ref, (charged.get(ref) ?? 0n) + item.amount)
+  }
+  const due = live.map((item): DueObligation => {
+    const refCreated = charged.get(`${item.ref.height}:${item.ref.txIndex}:${item.owedBy}`) ?? 0n
+    return {
+      key: item.key,
+      kind: item.kind,
+      ref: item.ref,
+      owedBy: item.owedBy,
+      owedTo: item.owedTo,
+      amount: item.amount,
+      ageBlocks: 0,
+      deposit: { txHash: `deposit-${item.ref.height}-${item.ref.txIndex}`, recipient: item.owedBy, value: refCreated },
+      refCreated,
+    }
+  })
+  return {
+    checkpointHeight: HEAD - 60,
+    logHash: 'ab'.repeat(32),
+    lineCount: due.length,
+    due,
+    totalDue: due.reduce((sum, item) => sum + item.amount, 0n),
+    standingBids: 0n,
+    unmatched: [],
+    mispaidShares: [],
+    unpricedShares: [],
+    ...overrides,
+  }
+}
+
+/** What an honest node holds for a snapshot: each deposit, as the log describes it. */
+function nodeFor(snapshot: WatchSnapshot | null): Record<string, NodeTx> {
+  const txs: Record<string, NodeTx> = {}
+  for (const leg of snapshot?.due ?? []) {
+    if (leg.deposit === null) continue
+    txs[leg.deposit.txHash] = {
+      blockNumber: leg.ref.height,
+      to: formatAddress(leg.deposit.recipient),
+      value: Number(leg.deposit.value),
+      executionResult: true,
+    }
+  }
+  return txs
+}
+
+function fakeRpc(
+  recorder: Recorder,
+  balances: Record<string, number>,
+  onSend?: () => never,
+  txs: Record<string, NodeTx> = {},
+): IssuerRpc {
   let nonce = 0
   return {
     async call<T>(method: string, params: readonly unknown[] = []): Promise<T> {
@@ -111,6 +204,16 @@ function fakeRpc(recorder: Recorder, balances: Record<string, number>, onSend?: 
       if (method === 'getAccountByAddress') {
         const address = String(params[0])
         return { address, balance: balances[address] ?? 0 } as T
+      }
+      if (method === 'getTransactionByHash') {
+        const tx = txs[String(params[0])]
+        if (tx === undefined) {
+          throw Object.assign(new Error('getTransactionByHash: Internal error (code -32603)'), {
+            data: `Transaction not found: ${String(params[0])}`,
+          })
+        }
+        if (tx instanceof Error) throw tx
+        return tx as T
       }
       if (method === 'sendBasicTransactionWithData') {
         if (onSend !== undefined) onSend()
@@ -136,16 +239,31 @@ const fakeWallet = (recorder: Recorder, senders: readonly Address[] = [MARKETPLA
 
 const pass = (
   entries: readonly LedgerEntry[],
-  options: { send?: boolean; balances?: Record<string, number>; limit?: number; senders?: readonly Address[]; onSend?: () => never } = {},
+  options: {
+    send?: boolean
+    balances?: Record<string, number>
+    limit?: number
+    senders?: readonly Address[]
+    onSend?: () => never
+    /** Defaults to {@link snapshotFor} the entries. `null` is an issuer that has verified nothing yet. */
+    snapshot?: WatchSnapshot | null
+    /** Overrides on what the node holds for the snapshot's deposits. */
+    txs?: Record<string, NodeTx>
+    dailyCap?: bigint
+    memory?: GuardMemory
+  } = {},
 ) => {
   const recorder: Recorder = { calls: [] }
-  const ledger = fakeLedger(entries, recorder)
+  const ledger = fakeLedger(entries, recorder, options.memory)
   const balances = options.balances ?? { [MARKETPLACE]: 1_000_00000, [TREASURY]: 1_000_00000 }
+  const snapshot = options.snapshot === undefined ? snapshotFor(entries) : options.snapshot
   return {
     recorder,
     ledger,
     report: issuePass({
-      rpc: fakeRpc(recorder, balances, options.onSend),
+      snapshot,
+      dailyCap: options.dailyCap ?? 1_000_000_00000n,
+      rpc: fakeRpc(recorder, balances, options.onSend, { ...nodeFor(snapshot), ...options.txs }),
       ledger,
       config,
       wallet: options.send === true ? fakeWallet(recorder, options.senders) : undefined,
@@ -343,6 +461,8 @@ describe('issuePass — the order', () => {
     const ordered = run.recorder.calls.filter((call) => !['entries', 'dueForIssue', 'getAccountByAddress'].includes(call))
     expect(ordered).toEqual([
       'getBlockNumber',
+      // The deposit is confirmed on the node before the plan is pinned.
+      'getTransactionByHash',
       'pin 1010:0:SALE_PROCEEDS',
       `unlock ${formatAddress(MARKETPLACE)}`,
       'sendBasicTransactionWithData',
@@ -373,13 +493,15 @@ describe('issuePass — the order', () => {
 })
 
 describe('issuePass — §11.5', () => {
-  const big = entry({ ref: { height: 1_010, txIndex: 0 }, kind: 'SALE_PROCEEDS', amount: 900_00000n })
-  const small = entry({ ref: { height: 1_020, txIndex: 0 }, kind: 'SALE_PROCEEDS', amount: 10_00000n })
+  // The treasury's legs: it is swept by design, so a shortfall there is
+  // UNFUNDED. The marketplace's is a pause, and has its own tests below.
+  const big = entry({ ref: { height: 1_010, txIndex: 0 }, kind: 'REFUND', amount: 900_00000n, owedBy: TREASURY })
+  const small = entry({ ref: { height: 1_020, txIndex: 0 }, kind: 'REFUND', amount: 10_00000n, owedBy: TREASURY })
 
   it('refuses to sign what the sender cannot cover, and pins nothing for it', async () => {
-    const run = pass([big], { send: true, balances: { [MARKETPLACE]: 100_00000 } })
+    const run = pass([big], { send: true, balances: { [TREASURY]: 100_00000 } })
     const report = await run.report
-    expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS underfunded'])
+    expect(kinds(report.outcomes)).toEqual(['1010:0:REFUND underfunded'])
     expect(run.ledger.pins).toEqual([])
     expect(run.recorder.calls).not.toContain('sendBasicTransactionWithData')
   })
@@ -387,30 +509,30 @@ describe('issuePass — §11.5', () => {
   it('draws the balance down across a pass rather than re-checking the opening one', async () => {
     // Two legs of 900 NIM against 1,000 NIM. Checked individually both pass;
     // the second transaction would be accepted by the RPC and dropped (§5.3).
-    const second = entry({ ref: { height: 1_030, txIndex: 0 }, kind: 'SALE_PROCEEDS', amount: 900_00000n })
-    const report = await pass([big, second], { send: true, balances: { [MARKETPLACE]: 1_000_00000 } }).report
-    expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS sent', '1030:0:SALE_PROCEEDS underfunded'])
+    const second = entry({ ref: { height: 1_030, txIndex: 0 }, kind: 'REFUND', amount: 900_00000n, owedBy: TREASURY })
+    const report = await pass([big, second], { send: true, balances: { [TREASURY]: 1_000_00000 } }).report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:REFUND sent', '1030:0:REFUND underfunded'])
   })
 
   it('stops a sender rather than skipping to a leg it can still afford', async () => {
     // Paying `small` here would let a later creditor jump an earlier one purely
     // on arithmetic. Debts are settled oldest first or not at all.
-    const report = await pass([big, small], { send: true, balances: { [MARKETPLACE]: 100_00000 } }).report
-    expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS underfunded', '1020:0:SALE_PROCEEDS underfunded'])
+    const report = await pass([big, small], { send: true, balances: { [TREASURY]: 100_00000 } }).report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:REFUND underfunded', '1020:0:REFUND underfunded'])
   })
 
   it('budgets each §6 M sender separately', async () => {
-    const refund = entry({ ref: { height: 1_040, txIndex: 0 }, kind: 'REFUND', amount: 300_00000n, owedBy: TREASURY, owedTo: WINNER })
-    const report = await pass([big, refund], {
+    const sale = entry({ ref: { height: 1_040, txIndex: 0 }, kind: 'SALE_PROCEEDS', amount: 300_00000n, owedTo: WINNER })
+    const report = await pass([big, sale], {
       send: true,
-      balances: { [MARKETPLACE]: 100_00000, [TREASURY]: 1_000_00000 },
+      balances: { [MARKETPLACE]: 1_000_00000, [TREASURY]: 100_00000 },
     }).report
-    expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS underfunded', '1040:0:REFUND sent'])
+    expect(kinds(report.outcomes)).toEqual(['1010:0:REFUND underfunded', '1040:0:SALE_PROCEEDS sent'])
   })
 
   it('alerts below the threshold while still paying — rule 2 is not a refusal', async () => {
-    const report = await pass([small], { send: true, balances: { [MARKETPLACE]: 50_00000 } }).report
-    expect(kinds(report.outcomes)).toEqual(['1020:0:SALE_PROCEEDS sent'])
+    const report = await pass([small], { send: true, balances: { [TREASURY]: 50_00000 } }).report
+    expect(kinds(report.outcomes)).toEqual(['1020:0:REFUND sent'])
     expect(report.balances[0]?.belowThreshold).toBe(true)
     expect(describeIssue(report).join('\n')).toContain('ALERT (§11.5)')
   })
@@ -424,8 +546,187 @@ describe('issuePass — §11.5', () => {
       },
     }
     await expect(
-      issuePass({ rpc, ledger: fakeLedger([small], recorder), config, feeLuna: 0n, expiryBlocks: EXPIRY, minBalance: 1n }),
+      issuePass({
+        rpc,
+        ledger: fakeLedger([small], recorder),
+        config,
+        feeLuna: 0n,
+        expiryBlocks: EXPIRY,
+        minBalance: 1n,
+        snapshot: snapshotFor([small]),
+        dailyCap: 1_000_000_00000n,
+      }),
     ).rejects.toThrow(/expected a whole number of luna/)
+  })
+})
+
+describe('issuePass — the guards', () => {
+  const sale = entry({ ref: { height: 1_010, txIndex: 0 }, kind: 'SALE_PROCEEDS', amount: 900_00000n })
+  const refund = entry({ ref: { height: 1_040, txIndex: 0 }, kind: 'REFUND', amount: 300_00000n, owedBy: TREASURY, owedTo: WINNER })
+  const DEPOSIT = 'deposit-1010-0'
+  const signed = (calls: readonly string[]): boolean => calls.includes('sendBasicTransactionWithData')
+
+  it('a solvent, backed, under-cap run pays as it always did and records no pause', async () => {
+    const run = pass([sale, refund], { send: true })
+    const report = await run.report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS sent', '1040:0:REFUND sent'])
+    expect(report.paused).toBeNull()
+    expect(report.waiting).toBeNull()
+    expect(run.ledger.breaches).toEqual([])
+  })
+
+  it('an insolvent marketplace signs nothing, for either sender, and pauses', async () => {
+    const run = pass([sale, refund], { send: true, balances: { [MARKETPLACE]: 100_00000, [TREASURY]: 1_000_00000 } })
+    const report = await run.report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS held', '1040:0:REFUND held'])
+    expect(run.ledger.pins).toEqual([])
+    expect(signed(run.recorder.calls)).toBe(false)
+    expect(run.ledger.breaches.map((breach) => breach.reason)).toEqual(['INSOLVENT'])
+    expect(report.paused).toMatchObject({ reason: 'INSOLVENT', id: 1 })
+    expect(describeIssue(report).join('\n')).toContain('PAUSED (INSOLVENT)')
+    expect(issueFailed(report)).toBe(true)
+  })
+
+  it('counts the standing bids of open auctions as money the marketplace must hold', async () => {
+    // 1,000 NIM covers the 900 NIM debt and not the 200 NIM bid beside it:
+    // paying the debt would be paying it out of the bidder's money.
+    const snapshot = snapshotFor([sale], { standingBids: 200_00000n })
+    const run = pass([sale], { send: true, snapshot })
+    const report = await run.report
+    expect(report.paused?.reason).toBe('INSOLVENT')
+    expect(report.paused?.detail).toContain('200.00000 NIM in standing bids')
+    expect(run.ledger.pins).toEqual([])
+  })
+
+  it('does not pause on its own payment: an M in flight has left the balance and is still in the log', async () => {
+    const paid = entry({
+      ref: { height: 1_000, txIndex: 0 },
+      kind: 'SALE_PROCEEDS',
+      amount: 900_00000n,
+      state: 'BROADCAST',
+      attemptCount: 1,
+      live: attempt({ state: 'SENT', value: 900_00000n, txHash: 'earlier' }),
+    })
+    const next = entry({ ref: { height: 1_020, txIndex: 0 }, kind: 'SALE_PROCEEDS', amount: 50_00000n })
+    // 100 NIM left after the 900 landed; the log at the checkpoint still owes both.
+    const report = await pass([paid, next], { send: true, balances: { [MARKETPLACE]: 100_00000 } }).report
+    expect(report.paused).toBeNull()
+    expect(kinds(report.outcomes)).toEqual(['1020:0:SALE_PROCEEDS sent'])
+  })
+
+  it('pauses on a debt larger than the payment it names', async () => {
+    const snapshot = snapshotFor([sale])
+    const inflated = { ...snapshot, due: snapshot.due.map((leg) => ({ ...leg, deposit: { ...leg.deposit!, value: 500_00000n } })) }
+    const run = pass([sale], { send: true, snapshot: inflated })
+    const report = await run.report
+    expect(report.paused).toMatchObject({ reason: 'UNBACKED', key: '1010:0:SALE_PROCEEDS' })
+    expect(run.ledger.pins).toEqual([])
+    expect(signed(run.recorder.calls)).toBe(false)
+  })
+
+  it('pauses on a debt whose payment went to another address', async () => {
+    const snapshot = snapshotFor([sale])
+    const elsewhere = { ...snapshot, due: snapshot.due.map((leg) => ({ ...leg, deposit: { ...leg.deposit!, recipient: TREASURY } })) }
+    expect((await pass([sale], { send: true, snapshot: elsewhere }).report).paused?.reason).toBe('UNBACKED')
+  })
+
+  it.each([
+    ['a smaller value', { blockNumber: 1_010, to: formatAddress(MARKETPLACE), value: 1, executionResult: true }],
+    ['another recipient', { blockNumber: 1_010, to: formatAddress(TREASURY), value: 900_00000, executionResult: true }],
+    ['another block', { blockNumber: 1_011, to: formatAddress(MARKETPLACE), value: 900_00000, executionResult: true }],
+    ['a failed transaction', { blockNumber: 1_010, to: formatAddress(MARKETPLACE), value: 900_00000, executionResult: false }],
+    ['no such transaction', Object.assign(new Error('Internal error'), { data: `Transaction not found: ${DEPOSIT}` })],
+  ] as const)('pauses when the node holds %s for the deposit the log names', async (_what, tx) => {
+    const run = pass([sale], { send: true, txs: { [DEPOSIT]: tx } })
+    const report = await run.report
+    expect(report.paused).toMatchObject({ reason: 'DEPOSIT_MISMATCH', key: '1010:0:SALE_PROCEEDS' })
+    expect(run.ledger.pins).toEqual([])
+    expect(signed(run.recorder.calls)).toBe(false)
+  })
+
+  it('a node that cannot be asked is not a breach: the leg is not paid, nothing pauses, the rest goes on', async () => {
+    const run = pass([sale, refund], { send: true, txs: { [DEPOSIT]: new Error('connect ECONNREFUSED') } })
+    const report = await run.report
+    expect(report.outcomes[0]).toMatchObject({ kind: 'failed', stage: 'guard' })
+    expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS failed', '1040:0:REFUND sent'])
+    expect(report.paused).toBeNull()
+    expect(run.ledger.pins.map((plan) => plan.kind)).toEqual(['REFUND'])
+  })
+
+  it('pays a leg an operator approved without asking the deposit guards again', async () => {
+    const run = pass([sale], {
+      send: true,
+      txs: { [DEPOSIT]: { blockNumber: 1_010, to: formatAddress(MARKETPLACE), value: 1, executionResult: true } },
+      memory: { approved: ['1010:0:SALE_PROCEEDS'] },
+    })
+    const report = await run.report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS sent'])
+    expect(run.recorder.calls).not.toContain('getTransactionByHash')
+  })
+
+  it('holds the payout that would take the day over its cap, and pauses', async () => {
+    const first = entry({ ref: { height: 1_010, txIndex: 0 }, kind: 'REFUND', amount: 60_00000n, owedBy: TREASURY })
+    const second = entry({ ref: { height: 1_020, txIndex: 0 }, kind: 'REFUND', amount: 60_00000n, owedBy: TREASURY })
+    const run = pass([first, second], { send: true, dailyCap: 100_00000n })
+    const report = await run.report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:REFUND sent', '1020:0:REFUND held'])
+    expect(report.paused).toMatchObject({ reason: 'DAILY_CAP', key: '1020:0:REFUND' })
+    expect(run.ledger.pins).toHaveLength(1)
+  })
+
+  it('counts what the window already holds against the cap', async () => {
+    const leg = entry({ ref: { height: 1_010, txIndex: 0 }, kind: 'REFUND', amount: 50_00000n, owedBy: TREASURY })
+    const over = await pass([leg], { send: true, dailyCap: 100_00000n, memory: { spentInWindow: 60_00000n } }).report
+    expect(over.paused?.reason).toBe('DAILY_CAP')
+    const under = await pass([leg], { send: true, dailyCap: 100_00000n, memory: { spentInWindow: 50_00000n } }).report
+    expect(kinds(under.outcomes)).toEqual(['1010:0:REFUND sent'])
+  })
+
+  it('under a pause signs nothing — not a new leg, not a plan already pinned', async () => {
+    const pinned = entry({
+      ref: { height: 1_000, txIndex: 0 },
+      kind: 'SALE_PROCEEDS',
+      amount: 500_00000n,
+      state: 'CLAIMED',
+      attemptCount: 1,
+      live: attempt(),
+    })
+    const run = pass([pinned, sale], {
+      send: true,
+      balances: { [MARKETPLACE]: 5_000_00000 },
+      memory: { pause: { reason: 'INSOLVENT', key: null, detail: 'from an earlier process' } },
+    })
+    const report = await run.report
+    expect(kinds(report.outcomes)).toEqual(['1000:0:SALE_PROCEEDS held', '1010:0:SALE_PROCEEDS held'])
+    expect(run.ledger.pins).toEqual([])
+    expect(signed(run.recorder.calls)).toBe(false)
+    // It does not pause a second time, and it keeps saying why it is stopped.
+    expect(run.ledger.breaches).toEqual([])
+    expect(describeIssue(report).join('\n')).toContain('PAUSED (INSOLVENT): from an earlier process')
+  })
+
+  it('a dry run reports the breach and writes no pause', async () => {
+    const run = pass([sale], { balances: { [MARKETPLACE]: 100_00000 } })
+    const report = await run.report
+    expect(report.paused).toMatchObject({ reason: 'INSOLVENT', id: null })
+    expect(run.ledger.breaches).toEqual([])
+    expect(describeIssue(report).join('\n')).toContain('A dry run records nothing')
+  })
+
+  it('pays nothing against a checkpoint far behind the head, and does not pause for it', async () => {
+    const run = pass([sale], { send: true, snapshot: snapshotFor([sale], { checkpointHeight: HEAD - 601 }) })
+    const report = await run.report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS held'])
+    expect(report.paused).toBeNull()
+    expect(report.waiting).toContain('601 blocks behind the head')
+    expect(run.ledger.breaches).toEqual([])
+    expect(issueFailed(report)).toBe(false)
+  })
+
+  it('pays nothing before the first verified snapshot', async () => {
+    const report = await pass([sale], { send: true, snapshot: null }).report
+    expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS held'])
+    expect(report.waiting).toBe('no verified snapshot yet')
   })
 })
 
@@ -678,6 +979,8 @@ describe.skipIf(URL === undefined)('issuePass over a real ledger', () => {
     owedTo,
     amount,
     ageBlocks: 430,
+    deposit: { txHash: 'deposit-1010-0', recipient: owedBy, value: 500_00001n },
+    refCreated: 500_00001n,
   })
 
   const snapshotOf = (height: number, due: readonly DueObligation[]): WatchSnapshot =>
@@ -687,6 +990,7 @@ describe.skipIf(URL === undefined)('issuePass over a real ledger', () => {
       lineCount: due.length,
       due: Object.freeze(due),
       totalDue: due.reduce((sum, item) => sum + item.amount, 0n),
+      standingBids: 0n,
       unmatched: Object.freeze([]),
       mispaidShares: Object.freeze([]),
       unpricedShares: Object.freeze([]),
@@ -710,10 +1014,17 @@ describe.skipIf(URL === undefined)('issuePass over a real ledger', () => {
   const run = (
     ledger: IssuerLedger,
     recorder: Recorder,
-    options: { send?: boolean; onSend?: () => never } = {},
+    options: { send?: boolean; onSend?: () => never; snapshot: WatchSnapshot; balance?: number; dailyCap?: bigint },
   ) =>
     issuePass({
-      rpc: fakeRpc(recorder, { [MARKETPLACE]: 1_000_00000, [TREASURY]: 1_000_00000 }, options.onSend),
+      snapshot: options.snapshot,
+      dailyCap: options.dailyCap ?? 1_000_000_00000n,
+      rpc: fakeRpc(
+        recorder,
+        { [MARKETPLACE]: options.balance ?? 1_000_00000, [TREASURY]: 1_000_00000 },
+        options.onSend,
+        nodeFor(options.snapshot),
+      ),
       ledger,
       config,
       wallet: options.send === true ? fakeWallet(recorder) : undefined,
@@ -725,12 +1036,11 @@ describe.skipIf(URL === undefined)('issuePass over a real ledger', () => {
   it('settles both legs of a winning B and confirms them from the log', async () => {
     const ledger = ledgerOf()
     await ledger.initialise()
-    await ledger.applySnapshot(
-      snapshotOf(1_440, [leg('SALE_PROCEEDS', 487_50001n, SELLER), leg('COMMISSION', 12_50000n, TREASURY)]),
-    )
+    const snapshot = snapshotOf(1_440, [leg('SALE_PROCEEDS', 487_50001n, SELLER), leg('COMMISSION', 12_50000n, TREASURY)])
+    await ledger.applySnapshot(snapshot)
 
     const recorder: Recorder = { calls: [] }
-    const report = await run(ledger, recorder, { send: true })
+    const report = await run(ledger, recorder, { send: true, snapshot })
     expect(kinds(report.outcomes)).toEqual(['1010:0:COMMISSION sent', '1010:0:SALE_PROCEEDS sent'])
 
     const entries = await ledger.entries()
@@ -745,11 +1055,13 @@ describe.skipIf(URL === undefined)('issuePass over a real ledger', () => {
   it('a crash between the pin and the send costs one stall and no money', async () => {
     const first = ledgerOf()
     await first.initialise()
-    await first.applySnapshot(snapshotOf(1_440, [leg('SALE_PROCEEDS', 487_50001n, SELLER)]))
+    const snapshot = snapshotOf(1_440, [leg('SALE_PROCEEDS', 487_50001n, SELLER)])
+    await first.applySnapshot(snapshot)
 
     const crashed: Recorder = { calls: [] }
     const failedReport = await run(first, crashed, {
       send: true,
+      snapshot,
       onSend: () => {
         throw new Error('the process died here')
       },
@@ -760,7 +1072,7 @@ describe.skipIf(URL === undefined)('issuePass over a real ledger', () => {
     const restarted = ledgerOf()
     await restarted.initialise()
     const recorder: Recorder = { calls: [] }
-    const report = await run(restarted, recorder, { send: true })
+    const report = await run(restarted, recorder, { send: true, snapshot })
 
     // Re-sent, not re-planned: same attempt number, and the validityStartHeight
     // the first process pinned rather than the head this one read.
@@ -774,13 +1086,119 @@ describe.skipIf(URL === undefined)('issuePass over a real ledger', () => {
   it('a dry run against a real ledger writes nothing at all', async () => {
     const ledger = ledgerOf()
     await ledger.initialise()
-    await ledger.applySnapshot(snapshotOf(1_440, [leg('SALE_PROCEEDS', 487_50001n, SELLER)]))
+    const snapshot = snapshotOf(1_440, [leg('SALE_PROCEEDS', 487_50001n, SELLER)])
+    await ledger.applySnapshot(snapshot)
 
-    const report = await run(ledger, { calls: [] })
+    const report = await run(ledger, { calls: [] }, { snapshot })
     expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS planned'])
     const [only] = await ledger.entries()
     expect(only?.state).toBe('DUE')
     expect(only?.attemptCount).toBe(0)
     expect(only?.live).toBeNull()
+  })
+
+  // ── The pause, over a real ledger ──
+
+  const saleSnapshot = () => snapshotOf(1_440, [leg('SALE_PROCEEDS', 487_50001n, SELLER)])
+
+  it('a pause survives a restart, and a release pays the same debt once', async () => {
+    const snapshot = saleSnapshot()
+    const first = ledgerOf()
+    await first.initialise()
+    await first.applySnapshot(snapshot)
+
+    // The marketplace holds 100 NIM against a 487 NIM debt.
+    const breach = await run(first, { calls: [] }, { send: true, snapshot, balance: 100_00000 })
+    expect(breach.paused?.reason).toBe('INSOLVENT')
+
+    // A new process, and the address funded meanwhile: still paused.
+    const restarted = ledgerOf()
+    await restarted.initialise()
+    expect((await restarted.openPause())?.reason).toBe('INSOLVENT')
+    const recorder: Recorder = { calls: [] }
+    const stillPaused = await run(restarted, recorder, { send: true, snapshot })
+    expect(kinds(stillPaused.outcomes)).toEqual(['1010:0:SALE_PROCEEDS held'])
+    expect(recorder.calls).not.toContain('sendBasicTransactionWithData')
+    expect((await restarted.entries())[0]?.state).toBe('DUE')
+
+    // The operator's act, and nothing else, ends it.
+    const released = await restarted.release('funded the address', false)
+    expect(released?.releaseNote).toBe('funded the address')
+    expect(await restarted.openPause()).toBeNull()
+
+    const paid = await run(restarted, { calls: [] }, { send: true, snapshot })
+    expect(kinds(paid.outcomes)).toEqual(['1010:0:SALE_PROCEEDS sent'])
+    // And once: the next pass finds the leg BROADCAST and has nothing to do.
+    const again = await run(restarted, { calls: [] }, { send: true, snapshot })
+    expect(again.outcomes).toEqual([])
+    const [only] = await restarted.entries()
+    expect(only?.attemptCount).toBe(1)
+  })
+
+  it('a plan pinned before the pause is re-sent after the release, never re-planned', async () => {
+    const snapshot = saleSnapshot()
+    const ledger = ledgerOf()
+    await ledger.initialise()
+    await ledger.applySnapshot(snapshot)
+    await run(ledger, { calls: [] }, {
+      send: true,
+      snapshot,
+      onSend: () => {
+        throw new Error('the process died here')
+      },
+    })
+    await ledger.pause({ reason: 'DAILY_CAP', key: '1010:0:SALE_PROCEEDS', detail: 'staged' })
+
+    const held = await run(ledger, { calls: [] }, { send: true, snapshot })
+    expect(kinds(held.outcomes)).toEqual(['1010:0:SALE_PROCEEDS held'])
+
+    await ledger.release('looked at it', false)
+    const report = await run(ledger, { calls: [] }, { send: true, snapshot })
+    expect(report.outcomes[0]).toMatchObject({ kind: 'resent', attemptNo: 1 })
+    expect((await ledger.entries())[0]?.attemptCount).toBe(1)
+  })
+
+  it('an unbacked leg pauses again after a plain release, and is paid after an approved one', async () => {
+    const unbacked = { ...leg('SALE_PROCEEDS', 487_50001n, SELLER), refCreated: 900_00000n }
+    const snapshot = snapshotOf(1_440, [unbacked])
+    const ledger = ledgerOf()
+    await ledger.initialise()
+    await ledger.applySnapshot(snapshot)
+
+    expect((await run(ledger, { calls: [] }, { send: true, snapshot })).paused?.reason).toBe('UNBACKED')
+    await ledger.release('try again', false)
+    expect((await run(ledger, { calls: [] }, { send: true, snapshot })).paused?.reason).toBe('UNBACKED')
+
+    const released = await ledger.release('checked the G by hand', true)
+    expect(released).toMatchObject({ approved: true, legKey: '1010:0:SALE_PROCEEDS' })
+    const report = await run(ledger, { calls: [] }, { send: true, snapshot })
+    expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS sent'])
+    expect((await ledger.pauses(10)).map((pause) => pause.releaseNote)).toEqual(['checked the G by hand', 'try again'])
+  })
+
+  it('the daily cap counts what is pinned, and its release restarts the window', async () => {
+    const snapshot = snapshotOf(1_440, [leg('SALE_PROCEEDS', 487_50001n, SELLER), leg('COMMISSION', 12_50000n, TREASURY)])
+    const ledger = ledgerOf()
+    await ledger.initialise()
+    await ledger.applySnapshot(snapshot)
+
+    // 12.5 NIM goes out under a 100 NIM cap; the 487 NIM leg would cross it.
+    const report = await run(ledger, { calls: [] }, { send: true, snapshot, dailyCap: 100_00000n })
+    expect(kinds(report.outcomes)).toEqual(['1010:0:COMMISSION sent', '1010:0:SALE_PROCEEDS held'])
+    expect(report.paused?.reason).toBe('DAILY_CAP')
+    expect((await ledger.guardFacts()).spentInWindow).toBe(12_50000n)
+
+    await ledger.release('accepted', false)
+    expect((await ledger.guardFacts()).spentInWindow).toBe(0n)
+  })
+
+  it('refuses to approve a pause that names no leg, and to release with nothing open', async () => {
+    const ledger = ledgerOf()
+    await ledger.initialise()
+    expect(await ledger.release('nothing to do', false)).toBeNull()
+    await ledger.pause({ reason: 'INSOLVENT', key: null, detail: 'staged' })
+    await expect(ledger.release('pay it', true)).rejects.toThrow(/names no leg/)
+    // One open pause at a time: a second breach returns the first.
+    expect((await ledger.pause({ reason: 'DAILY_CAP', key: null, detail: 'second' })).reason).toBe('INSOLVENT')
   })
 })

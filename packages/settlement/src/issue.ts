@@ -54,14 +54,29 @@
  * leg it can still afford. Debts are settled oldest first; queue-jumping on
  * affordability would make which creditor gets paid depend on arithmetic nobody
  * agreed to.
+ *
+ * ## The guards, and what a pause is
+ *
+ * `guards.ts` says what must hold before a key signs: every leg is backed by
+ * a deposit the node confirms, `MARKETPLACE_ADDRESS` is solvent, and the day's
+ * total is under its cap. A guard that does not hold is a **pause** — a row in
+ * the ledger, written before the pass does anything else, that every later
+ * pass and every later process reads first. Under one this file signs
+ * nothing, a pinned plan included, and only `release` ends it.
+ *
+ * A guard that cannot be *computed* — the node did not answer, the checkpoint
+ * is far behind the head, no snapshot has been verified yet — is not a pause.
+ * The leg is not paid, and the next cycle asks again.
  */
 
 import { CodecError, encodeSettlement, formatAddress, type Address, type NnsConfig } from '@nimiqnames/core'
 import { METHOD_NOT_FOUND } from '@nns/indexer'
 
 import type { Logger } from '@nns/indexer'
-import type { Ledger, LedgerEntry, TransactionPlan } from './ledger.js'
+import { insolvent, MAX_CHECKPOINT_LAG, overCap, unbacked, verifyDeposit, type Breach } from './guards.js'
+import type { Ledger, LedgerEntry, Pause, TransactionPlan } from './ledger.js'
 import { REFERRAL_KINDS } from './share.js'
+import type { DueObligation, WatchSnapshot } from './watch.js'
 
 export class IssueError extends Error {
   override readonly name = 'IssueError'
@@ -86,7 +101,10 @@ export interface Wallet {
 }
 
 /** The ledger, as much of it as the issuer is allowed to touch. */
-export type IssuerLedger = Pick<Ledger, 'entries' | 'dueForIssue' | 'pin' | 'markSent'>
+export type IssuerLedger = Pick<
+  Ledger,
+  'entries' | 'dueForIssue' | 'pin' | 'markSent' | 'openPause' | 'pause' | 'guardFacts'
+>
 
 /** One sender's §11.5 reading, taken once per pass. */
 export interface SenderBalance {
@@ -116,8 +134,10 @@ export type LegOutcome =
   | { readonly kind: 'deferred'; readonly key: string }
   /** Another leg in this pass is the same transaction, byte for byte. Next pass, at a new head. */
   | { readonly kind: 'collided'; readonly key: string; readonly withKey: string }
-  /** The send, or the write after it, threw. See the class docs for what each costs. */
-  | { readonly kind: 'failed'; readonly key: string; readonly stage: 'key' | 'pin' | 'send' | 'record'; readonly message: string }
+  /** Not signed: the issuer is paused, or the checkpoint is too old to pay against. Nothing was pinned. */
+  | { readonly kind: 'held'; readonly key: string }
+  /** The send, or the write after it, threw. See the class docs for what each costs. `guard` is a guard that could not be computed. */
+  | { readonly kind: 'failed'; readonly key: string; readonly stage: 'key' | 'guard' | 'pin' | 'send' | 'record'; readonly message: string }
 
 export interface IssueReport {
   /** Chain head at planning time, and every new plan's `validityStartHeight`. */
@@ -126,6 +146,13 @@ export interface IssueReport {
   readonly send: boolean
   readonly balances: readonly SenderBalance[]
   readonly outcomes: readonly LegOutcome[]
+  /**
+   * The pause this pass ran under or ran into, or `null`. `id` is `null` for a
+   * dry run's: the guard fired and nothing was written.
+   */
+  readonly paused: (Breach & { readonly id: number | null }) | null
+  /** Why nothing was paid although the issuer is not paused, or `null`. */
+  readonly waiting: string | null
 }
 
 export interface IssueOptions {
@@ -140,6 +167,14 @@ export interface IssueOptions {
   readonly minBalance: bigint
   /** Maximum transactions this pass may broadcast. Unlimited when absent. */
   readonly limit?: number | undefined
+  /**
+   * The newest verified snapshot — the one the ledger last applied. The guards
+   * read the deposits and the standing bids off it. `null` before the first,
+   * and then nothing is paid.
+   */
+  readonly snapshot: WatchSnapshot | null
+  /** `NNS_SETTLEMENT_MAX_PER_DAY`, in luna. */
+  readonly dailyCap: bigint
   readonly logger?: Logger | undefined
 }
 
@@ -409,7 +444,7 @@ async function readBalances(rpc: IssuerRpc, senders: readonly Address[]): Promis
  * caller can exit non-zero on any of them.
  */
 export async function issuePass(options: IssueOptions): Promise<IssueReport> {
-  const { rpc, ledger, config, wallet, feeLuna, expiryBlocks, minBalance, limit, logger } = options
+  const { rpc, ledger, config, wallet, feeLuna, expiryBlocks, minBalance, limit, logger, snapshot, dailyCap } = options
   const send = wallet !== undefined
 
   const head = await rpc.call<number>('getBlockNumber')
@@ -423,7 +458,8 @@ export async function issuePass(options: IssueOptions): Promise<IssueReport> {
   // Resumes first. They are already committed, they are the cheapest thing in
   // the pass (no pin), and paying them before pinning anything new keeps the
   // sender's balance behind the promises it has already made.
-  for (const entry of await ledger.entries()) {
+  const entries = await ledger.entries()
+  for (const entry of entries) {
     const live = entry.live
     if (entry.state !== 'CLAIMED' || live === null || live.state !== 'PINNED') continue
     if (live.expiresAfter < head) {
@@ -454,6 +490,37 @@ export async function issuePass(options: IssueOptions): Promise<IssueReport> {
   const senders = [...new Set(work.map((item) => item.plan.sender))]
   const balances = await readBalances(rpc, senders)
 
+  // ── The guards that hold for the whole pass ──
+  const open = await ledger.openPause()
+  let paused: IssueReport['paused'] = open === null ? null : pausedBy(open)
+  let waiting: string | null = null
+  if (snapshot === null) {
+    waiting = 'no verified snapshot yet'
+  } else if (head - snapshot.checkpointHeight > MAX_CHECKPOINT_LAG) {
+    waiting = `checkpoint ${snapshot.checkpointHeight} is ${head - snapshot.checkpointHeight} blocks behind the head (max ${MAX_CHECKPOINT_LAG})`
+  }
+  /** Record a breach. Durable before anything else is signed; a dry run writes nothing. */
+  const breached = async (breach: Breach): Promise<void> => {
+    paused = send ? pausedBy(await ledger.pause(breach)) : { ...breach, id: null }
+  }
+  const backing = new Map<string, DueObligation>(snapshot?.due.map((leg) => [leg.key, leg]))
+  const facts = await ledger.guardFacts()
+  if (paused === null && waiting === null && snapshot !== null && work.length > 0) {
+    for (const sender of senders) {
+      let fees = 0n
+      for (const item of work) if (item.source === 'new' && item.plan.sender === sender) fees += item.plan.fee
+      const breach = insolvent({ sender, balance: balances.get(sender) ?? 0n, snapshot, entries, fees })
+      if (breach !== null) {
+        await breached(breach)
+        break
+      }
+    }
+  }
+  /** Luna inside the daily cap's window: what the ledger holds, plus this pass. */
+  let spent = facts.spentInWindow
+  /** One node read per deposit per pass: two legs of one ref share it. */
+  const verified = new Set<string>()
+
   const left = new Map(balances)
   const wanted = new Map<Address, bigint>()
   const exhausted = new Set<Address>()
@@ -465,6 +532,11 @@ export async function issuePass(options: IssueOptions): Promise<IssueReport> {
     const { plan, entry } = item
     const need = plan.value + plan.fee
     wanted.set(plan.sender, (wanted.get(plan.sender) ?? 0n) + need)
+
+    if (paused !== null || waiting !== null) {
+      outcomes.push({ kind: 'held', key: entry.key })
+      continue
+    }
 
     if (limit !== undefined && broadcast >= limit) {
       outcomes.push({ kind: 'deferred', key: entry.key })
@@ -511,6 +583,37 @@ export async function issuePass(options: IssueOptions): Promise<IssueReport> {
       continue
     }
     left.set(plan.sender, remaining - need)
+
+    // The per-leg guards, last before the pin: the deposit behind the debt,
+    // then the day's total. A resume passes through them too — it was checked
+    // when it was pinned, and the log it was checked against can have been
+    // replaced since.
+    const leg = backing.get(entry.key)
+    if (leg === undefined) {
+      outcomes.push({ kind: 'failed', key: entry.key, stage: 'guard', message: 'the verified snapshot does not list this leg' })
+      continue
+    }
+    let breach: Breach | null = null
+    if (!facts.approved.has(entry.key)) {
+      breach = unbacked(leg)
+      if (breach === null && leg.deposit !== null && !verified.has(leg.deposit.txHash)) {
+        try {
+          breach = await verifyDeposit(rpc, leg)
+        } catch (cause) {
+          outcomes.push({ kind: 'failed', key: entry.key, stage: 'guard', message: `the deposit could not be read from the node — ${messageOf(cause)}` })
+          continue
+        }
+        if (breach === null) verified.add(leg.deposit.txHash)
+      }
+    }
+    // A resume's value is already in the window: it was counted when pinned.
+    if (breach === null && item.source === 'new') breach = overCap(entry.key, plan.value, spent, dailyCap)
+    if (breach !== null) {
+      await breached(breach)
+      outcomes.push({ kind: 'held', key: entry.key })
+      continue
+    }
+    if (item.source === 'new') spent += plan.value
 
     if (!send) {
       outcomes.push({ kind: 'planned', key: entry.key, plan })
@@ -581,15 +684,24 @@ export async function issuePass(options: IssueOptions): Promise<IssueReport> {
       }),
     ),
     outcomes: Object.freeze(outcomes),
+    paused,
+    waiting,
   })
   return report
 }
+
+const pausedBy = (pause: Pause): NonNullable<IssueReport['paused']> => ({
+  id: pause.id,
+  reason: pause.reason,
+  key: pause.legKey,
+  detail: pause.detail,
+})
 
 const messageOf = (cause: unknown): string => (cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause))
 
 /** True when the pass hit something an operator has to act on. Drives the exit code. */
 export function issueFailed(report: IssueReport): boolean {
-  return report.outcomes.some((outcome) => outcome.kind === 'failed')
+  return report.paused !== null || report.outcomes.some((outcome) => outcome.kind === 'failed')
 }
 
 // ── Rendering ───────────────────────────────────────────────────────────────
@@ -622,6 +734,19 @@ export function describeIssue(report: IssueReport): readonly string[] {
         )
       }
     }
+  }
+
+  if (report.paused !== null) {
+    out.push('')
+    out.push(
+      `PAUSED (${report.paused.reason}): ${report.paused.detail}. ` +
+        (report.paused.id === null
+          ? 'A dry run records nothing; with --send this would stop the issuer.'
+          : 'Nothing is signed until an operator runs release (docs/runbooks/deploy.md).'),
+    )
+  } else if (report.waiting !== null) {
+    out.push('')
+    out.push(`WAITING: ${report.waiting}. Nothing is paid this cycle.`)
   }
 
   out.push('')
@@ -657,6 +782,9 @@ export function describeIssue(report: IssueReport): readonly string[] {
         out.push(
           `  ${outcome.key}  STALLED   attempt ${outcome.attemptNo} expired at ${outcome.expiresAfter} and cannot land; awaiting a checkpoint above it`,
         )
+        break
+      case 'held':
+        out.push(`  ${outcome.key}  HELD      not signed`)
         break
       case 'deferred':
         out.push(`  ${outcome.key}  DEFERRED  --limit reached`)

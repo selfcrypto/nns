@@ -30,6 +30,7 @@ import {
 } from './test-fixtures.js'
 import { replayLog } from './replay.js'
 import type { Fetcher, LogSnapshot } from './source.js'
+import { unbacked } from './guards.js'
 import { createWatcher, obligationKey, takeSnapshot, WatchError } from './watch.js'
 import { parseRateTable } from './rates.js'
 import { createShareCollector, REBATE_KIND, SHARE_KIND } from './share.js'
@@ -144,6 +145,27 @@ describe('takeSnapshot', () => {
     expect(snapshot.totalDue).toBe(PROCEEDS + COMMISSION + PRICE)
   })
 
+  // What the issuer's deposit guard reads (guards.ts): the payment behind
+  // each debt, and everything the log has charged against it.
+  it('backs every leg with the payment it names, and charges no payment more than it brought in', () => {
+    const lines = stageLog(saleScenario(config), config).lines
+    const snapshot = takeSnapshot(snapshotOf(lines, CP1), replayOf(lines))
+    for (const leg of snapshot.due) {
+      expect(leg.deposit).toMatchObject({ recipient: MARKETPLACE, value: PRICE })
+      expect(leg.refCreated).toBe(PRICE)
+      expect(unbacked(leg)).toBeNull()
+    }
+    expect(snapshot.standingBids).toBe(0n)
+  })
+
+  it('still counts a leg already paid against the payment it came from', () => {
+    const lines = stageLog(partlySettled(config), config).lines
+    const snapshot = takeSnapshot(snapshotOf(lines, CP1), replayOf(lines))
+    const commission = snapshot.due.find((leg) => leg.kind === 'COMMISSION')
+    // The seller's leg is settled and gone from `due`; the winning B is still charged for both.
+    expect(commission?.refCreated).toBe(PRICE)
+  })
+
   it('carries the sender each M must use — core decides it, not this package (§6 M)', () => {
     const lines = stageLog(saleScenario(config), config).lines
     const snapshot = takeSnapshot(snapshotOf(lines, CP1), replayOf(lines))
@@ -253,6 +275,14 @@ describe('takeSnapshot — auctions (r28)', () => {
     expect(closed.due[1]).toMatchObject({ owedBy: MARKETPLACE, owedTo: TREASURY, amount: commission })
     expect(closed.due[2]).toMatchObject({ owedBy: MARKETPLACE, owedTo: SELLER, amount: WINNING - commission })
     expect(closed.totalDue).toBe(STARTING_PRICE + WINNING)
+
+    // The standing bid is the marketplace's to hold and is in no leg while the
+    // auction is open; the close turns it into two.
+    expect(open.standingBids).toBe(WINNING)
+    expect(closed.standingBids).toBe(0n)
+    expect(open.due[0]).toMatchObject({ refCreated: STARTING_PRICE, deposit: { recipient: MARKETPLACE, value: STARTING_PRICE } })
+    for (const leg of closed.due) expect(unbacked(leg)).toBeNull()
+    expect(closed.due[2]).toMatchObject({ refCreated: WINNING, deposit: { value: WINNING } })
   })
 
   // The seller of a still-reserved name is the treasury (§6 `A`), so both
@@ -375,6 +405,13 @@ describe('takeSnapshot — the §10.7 share (policy, beside the reducer’s legs
       const replay = replayLog(staged.lines, initialState(), config, CP1, collector.observe)
       return takeSnapshot(snapshotOf(staged.lines, CP1), replay, collector.result())
     }
+
+    it('both payouts are charged to the G that earned them, which paid the treasury more', () => {
+      for (const leg of split(referred).due) {
+        expect(leg).toMatchObject({ refCreated: 2n * NET, deposit: { recipient: TREASURY, value: newcomerFee } })
+        expect(unbacked(leg)).toBeNull()
+      }
+    })
 
     it('both payouts are due, under two keys, to two payees', () => {
       const snapshot = split(referred)

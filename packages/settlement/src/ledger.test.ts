@@ -70,6 +70,8 @@ const leg = (
   owedTo,
   amount,
   ageBlocks: 0,
+  deposit: { txHash: `deposit-${height}-${txIndex}`, recipient: owedBy, value: amount },
+  refCreated: amount,
 })
 
 const snapshotOf = (checkpointHeight: number, due: readonly DueObligation[], logHash = 'ab'.repeat(32)): WatchSnapshot =>
@@ -79,6 +81,7 @@ const snapshotOf = (checkpointHeight: number, due: readonly DueObligation[], log
     lineCount: due.length,
     due: Object.freeze([...due]),
     totalDue: due.reduce((sum, item) => sum + item.amount, 0n),
+    standingBids: 0n,
     unmatched: [],
     mispaidShares: [],
     unpricedShares: [],
@@ -338,7 +341,7 @@ describe.skipIf(URL === undefined)('Ledger over Postgres', () => {
     )
     // `names`, `log` and `checkpoints` here would mean the indexer's migrations
     // had been run against the ledger's database.
-    expect(rows.map((row) => row.table_name)).toEqual(['attempts', 'obligations', 'schema_migrations', 'source'])
+    expect(rows.map((row) => row.table_name)).toEqual(['attempts', 'obligations', 'pauses', 'schema_migrations', 'source'])
   })
 
   it('records a §10.7 share under its own kind — migration 002 widened the check', async () => {
