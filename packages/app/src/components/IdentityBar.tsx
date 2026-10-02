@@ -189,7 +189,7 @@ export function IdentityBar({
             </button>
           )}
           {top && disconnect !== null && (
-            <button type="button" className="connect connect-quiet identity-add" onClick={disconnect}>
+            <button type="button" className="connect connect-quiet identity-add identity-disconnect" onClick={disconnect}>
               {disconnectLabel()}
             </button>
           )}

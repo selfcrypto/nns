@@ -3022,6 +3022,7 @@ li.note {
   padding: 9px 12px;
   /* The buttons carry a transparent 1px border, and the text follows it. */
   border: 1px solid transparent;
+  text-align: right;
   border-radius: 10px;
   background: var(--paper);
 }
@@ -3178,8 +3179,10 @@ li.note {
   z-index: 30;
   top: calc(100% + 8px);
   right: 0;
-  width: 260px;
-  min-width: 220px;
+  /* As wide as its longest row and no wider: half the old 260px for a balance
+     and Disconnect, and the address list still gets the room it needs. */
+  width: max-content;
+  min-width: 130px;
   max-width: calc(100vw - 24px);
   margin-top: 0;
   padding: 10px;
@@ -3206,14 +3209,15 @@ li.note {
 }
 
 /* Menu rows, not floating pills: the panel is a list of things you can do to
-   the identity above it, and a left edge they share is what makes it read as
-   one. */
+   the identity above it, and an edge they share is what makes it read as
+   one. The right edge, the one the panel hangs from under the chip. */
 .identity-top .identity-add {
   align-self: stretch;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
-  text-align: left;
+  text-align: right;
   border: 1px solid transparent;
   border-radius: 10px;
   padding: 9px 12px;
@@ -3226,6 +3230,13 @@ li.note {
 
 .identity-top .identity-add:hover {
   background: var(--depth-bg);
+}
+
+/* Red means one thing here: this row ends the session. */
+.identity-top .identity-disconnect,
+.identity-top .identity-disconnect:hover {
+  background: var(--alarm-bg);
+  color: var(--alarm);
 }
 
 .identity-btn-icon {
