@@ -152,16 +152,26 @@ export function chromeInsets(input: {
     //
     // Fullscreen takes Pay's bar away, and with it the reason for the zero:
     // nothing is left above the page to have done the insetting, so the safe
-    // area is the reserve again. Unmeasured on a phone as of 2026-10-02.
+    // area is the reserve again. Measured from a screenshot on 2026-10-02
+    // (360 CSS px wide): the masthead row lands level with Pay's native exit
+    // button, which app.css leaves room for at the row's right end.
     top: input.fullscreen === true ? input.safeArea.top : 0,
     // The bottom reserve, largest claim wins: the honest `env()`, the live
     // measured shortfall (clamped), the Android nav floor no instrument can
     // see, and PAY_NAV_MIN only when there was nothing to measure at all.
-    bottom: Math.max(
-      input.safeArea.bottom,
-      input.slack ?? PAY_NAV_MIN,
-      input.android === true ? PAY_ANDROID_NAV_FLOOR : 0,
-    ),
+    //
+    // Fullscreen has neither blind hazard. The same screenshot shows no
+    // navigation buttons and the tab bar pinned 116 px above the screen's
+    // edge under a 120 px reserve, so the layout viewport ends where the
+    // screen does. What is left is what the instruments do see.
+    bottom:
+      input.fullscreen === true
+        ? Math.max(input.safeArea.bottom, input.slack ?? 0)
+        : Math.max(
+            input.safeArea.bottom,
+            input.slack ?? PAY_NAV_MIN,
+            input.android === true ? PAY_ANDROID_NAV_FLOOR : 0,
+          ),
   }
 }
 

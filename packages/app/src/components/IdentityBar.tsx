@@ -40,7 +40,6 @@ import {
   moreAddressesLabel,
   nimAmountLine,
   payConnectLabel,
-  walletHoldsLine,
   walletCheckingLine,
   showEveryAddressLabel
 } from '../lib/wording'
@@ -74,7 +73,7 @@ export function IdentityBar({
   // The corner panel says what each address holds, asked once per opening:
   // whether the wallet can pay for a name should be one glance, on any screen
   // (Rico, 2026-09-22). A list gets a figure per row; a lone address gets one
-  // line, read the way the sheets read it (`Wallet.balanceAddresses`,
+  // bubble, the amount alone, read the way the sheets read it (`Wallet.balanceAddresses`,
   // `mostHeld`). Display-only, and a miss hides the figure rather than
   // showing a zero.
   const listed = addresses.length > 1
@@ -156,7 +155,7 @@ export function IdentityBar({
       </div>
       {expanded && hasPanel && (
         <div className="identity-expanded">
-          {held !== null && <p className="identity-balance-line">{walletHoldsLine(lunaToNimShort(held))}</p>}
+          {held !== null && <p className="identity-balance-line">{nimAmountLine(lunaToNimShort(held))}</p>}
           {row.more > 0 && (
             <ul className="identity-list">
               {addresses.map((address) => {

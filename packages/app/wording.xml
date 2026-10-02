@@ -17,7 +17,7 @@
     <string id="contactSoonLabel">soon</string>
     <string id="menuLabel">Menu</string>
     <string id="themeToggleLabel" params="dark">Switch to night mode</string>
-    <string id="fullscreenToggleLabel" params="on">Exit full screen</string>
+    <string id="fullscreenLabel">Go full screen</string>
   </group>
   <group name="Verification lines">
     <string id="resolverUrlShown" params="url base">{url}</string>
@@ -180,7 +180,6 @@
     <string id="nimAmountLine" params="nim">{nim} NIM</string>
     <string id="walletBalanceLabel">Wallet balance</string>
     <string id="notEnoughForYearLine">Not enough for a year</string>
-    <string id="walletHoldsLine" params="nim">Your wallet holds {nim} NIM</string>
     <string id="referredByLine" params="ref rebate netOfBurn">Referred by {ref}. Your price is unchanged.</string>
     <string id="BURN_WORD">minus the registry’s burn</string>
     <string id="PRICE_UNCHANGED">Your price is unchanged</string>

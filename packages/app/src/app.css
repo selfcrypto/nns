@@ -321,6 +321,14 @@ select:focus-visible {
   position: relative;
 }
 
+/* Pay's fullscreen draws its own exit button over this row's right end: 33px
+   wide, 7px in from the edge, measured from a screenshot at 360 CSS px. The
+   row stops short of it, or it sits on the wallet chip. The extra class
+   outranks the narrow-screen padding further down. */
+:root[data-fullscreen] .masthead .masthead-row {
+  padding-right: 48px;
+}
+
 /*
  * The mark and the site's name, which is **Nimiq Names** — the tagline that
  * used to sit beside "nns." said the same thing twice and is gone with it.
@@ -3001,11 +3009,21 @@ li.note {
 }
 
 .identity-balance-line {
-  margin: 0 0 4px;
-  padding: 2px 4px;
-  font-size: 13px;
-  color: var(--ink-soft);
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
+}
+
+/* In the corner panel it takes the box of the buttons under it, so the figure
+   and Disconnect share one left edge. */
+.identity-top .identity-balance-line {
+  padding: 9px 12px;
+  /* The buttons carry a transparent 1px border, and the text follows it. */
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: var(--paper);
 }
 
 .identity-pick-mark {

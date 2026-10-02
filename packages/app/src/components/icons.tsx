@@ -181,18 +181,6 @@ export function ExpandIcon() {
   )
 }
 
-/** The same four corners pulled in: leave it. */
-export function CollapseIcon() {
-  return (
-    <Glyph size={18}>
-      <path d="M9 4v5H4" />
-      <path d="M15 4v5h5" />
-      <path d="M9 20v-5H4" />
-      <path d="M15 20v-5h5" />
-    </Glyph>
-  )
-}
-
 /** The notifications bell: the masthead corner's fourth control (tasks/26). */
 export function BellIcon() {
   return (

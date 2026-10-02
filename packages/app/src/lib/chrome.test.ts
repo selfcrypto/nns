@@ -56,6 +56,14 @@ describe('chromeInsets', () => {
     expect(chromeInsets({ pay: true, safeArea, override: { top: 5, bottom: 5 }, fullscreen: true }).top).toBe(5)
   })
 
+  it('drops the floor and the fallback at the bottom in fullscreen, where no bar is drawn over the page', () => {
+    const none = { top: 47, bottom: 0 }
+    expect(chromeInsets({ pay: true, safeArea: none, override: null, slack: 0, android: true, fullscreen: true }).bottom).toBe(0)
+    expect(chromeInsets({ pay: true, safeArea: none, override: null, slack: null, android: true, fullscreen: true }).bottom).toBe(0)
+    expect(chromeInsets({ pay: true, safeArea: none, override: null, slack: 30, fullscreen: true }).bottom).toBe(30)
+    expect(chromeInsets({ pay: true, safeArea, override: null, slack: 0, fullscreen: true }).bottom).toBe(34)
+  })
+
   it('floors the bottom when the host consumed the window insets', () => {
     // Android edge-to-edge: env() reads 0 and the navigation buttons are drawn
     // straight over the tab bar's labels.

@@ -11,13 +11,17 @@
  * through Pay's own button or Android Back, and backgrounding the app leaves
  * too, so the button listens for the change and asks again when the page
  * becomes visible. No timer.
+ *
+ * While fullscreen is on the button is gone. Pay draws its own exit button
+ * over the masthead row's right end (app.css keeps that spot clear), and a
+ * second exit beside it is one control twice.
  */
 
 import { useEffect, useState } from 'react'
 import { applyFullscreen } from '../lib/chrome'
 import { hostFullscreen } from '../lib/sdk'
-import { fullscreenToggleLabel } from '../lib/wording'
-import { CollapseIcon, ExpandIcon } from './icons'
+import { fullscreenLabel } from '../lib/wording'
+import { ExpandIcon } from './icons'
 
 export function FullscreenToggle() {
   const [host] = useState(() => hostFullscreen())
@@ -56,8 +60,8 @@ export function FullscreenToggle() {
     }
   }, [host])
 
-  if (host === null) return null
-  const label = fullscreenToggleLabel(on)
+  if (host === null || on) return null
+  const label = fullscreenLabel()
   return (
     <button
       type="button"
@@ -67,10 +71,10 @@ export function FullscreenToggle() {
       onClick={() => {
         // A refusal changes nothing on screen, and the host reports the
         // outcome through `onFullscreenChange` either way.
-        void (on ? host.exitFullscreen() : host.requestFullscreen()).catch(() => {})
+        void host.requestFullscreen().catch(() => {})
       }}
     >
-      {on ? <CollapseIcon /> : <ExpandIcon />}
+      <ExpandIcon />
     </button>
   )
 }

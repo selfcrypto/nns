@@ -109,9 +109,8 @@ export const menuLabel = (): string => 'Menu'
 export const themeToggleLabel = (dark: boolean): string =>
   dark ? 'Switch to day mode' : 'Switch to night mode'
 
-/** The fullscreen button inside Nimiq Pay. The action, like the night switch. */
-export const fullscreenToggleLabel = (on: boolean): string =>
-  on ? 'Exit full screen' : 'Go full screen'
+/** The fullscreen button inside Nimiq Pay. The way out is Pay's own button. */
+export const fullscreenLabel = (): string => 'Go full screen'
 
 // ── Verification lines ──────────────────────────────────────────────────────
 
@@ -864,8 +863,6 @@ export const nimAmountLine = (nim: string): string => `${nim} NIM`
  */
 export const walletBalanceLabel = (): string => 'Wallet balance'
 export const notEnoughForYearLine = (): string => 'Not enough for a year'
-/** At the top of the address panel for a lone address: what it holds, at a glance. */
-export const walletHoldsLine = (nim: string): string => `Your wallet holds ${nim} NIM`
 
 /**
  * §10.1's table in one sentence, behind the "?" beside the choice. The rows
