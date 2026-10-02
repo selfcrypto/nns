@@ -53,6 +53,7 @@ function fakeRpc(balance = 2_000_000): { rpc: AdminRpc; calls: RecordedCall[] } 
 /** `/available/{name}` per name: everything is AVAILABLE unless the map says otherwise. */
 function fakeReservation(byName: Record<string, Partial<NameAvailability>> = {}): ReservationSource {
   return {
+    fetchOwner: () => Promise.resolve(null),
     fetchAvailability(name: string): Promise<NameAvailability> {
       return Promise.resolve(
         Object.freeze({
@@ -96,14 +97,23 @@ describe('parseBatchRows', () => {
   })
 
   it('refuses a malformed row, naming the line', () => {
-    expect(() => parseBatchRows('alice\n', 'awards.txt')).toThrow(/awards.txt:1: expected `name recipient \[L\]`/)
+    expect(() => parseBatchRows('alice\n', 'awards.txt')).toThrow(/awards.txt:1: expected `name recipient \[1-99\|L\|M\]`/)
     expect(() => parseBatchRows('alice NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK X\n', 'awards.txt')).toThrow(UsageError)
     expect(() => parseBatchRows('alice not-an-address\n', 'awards.txt')).toThrow(/awards.txt:1:/)
   })
 
-  it('refuses a name listed twice — the second award forfeits on the first', () => {
+  it('reads a count and M as the row spells them (r32)', () => {
+    const rows = parseBatchRows(
+      'alice NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK 3\nbobby NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK M\n',
+      'awards.txt',
+    )
+    expect(rows[0]).toMatchObject({ name: 'alice', lifetime: false, terms: 3 })
+    expect(rows[1]).toMatchObject({ name: 'bobby', lifetime: false, max: true })
+  })
+
+  it('refuses a name listed twice', () => {
     const twice = 'alice NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK\nalice NQ87 2400 0000 0000 0000 0000 0000 0000 0012\n'
-    expect(() => parseBatchRows(twice, 'awards.txt')).toThrow(/awards.txt:2: "alice" is already awarded on line 1/)
+    expect(() => parseBatchRows(twice, 'awards.txt')).toThrow(/awards.txt:2: "alice" is already on line 1/)
   })
 
   it('refuses an empty file — a batch of nothing is a wrong file, not a no-op', () => {

@@ -61,7 +61,6 @@ import {
   isReservedName,
   parse,
   parseAddress,
-  termFor,
   type Address,
 } from '@nimiqnames/core'
 
@@ -88,6 +87,10 @@ export interface UnreserveParams {
   readonly recipient: Address | null
   /** An award for `LIFETIME_TERMS` terms (§10.4); the builder refuses it on a release. */
   readonly lifetime: boolean
+  /** 1…99 terms (r32). Absent is one. */
+  readonly terms?: number
+  /** `M` (r32): one term from the landing block, as a floor. */
+  readonly max?: boolean
 }
 
 export interface UnreserveCommand {
@@ -99,7 +102,8 @@ export interface UnreserveCommand {
 /** What one `U` would do, against the current head. */
 export interface UnreservePlan {
   readonly params: UnreserveParams
-  readonly kind: 'release' | 'award'
+  /** `extend` is an award sent to the name's own owner: it adds time and changes nothing else (r32). */
+  readonly kind: 'release' | 'award' | 'extend'
   /** Where the transaction goes: `PROTOCOL_ADDRESS` or the awardee. */
   readonly sender: Address
   readonly recipient: Address
@@ -114,12 +118,18 @@ export interface UnreservePlan {
   readonly checks: readonly AdminCheck[]
 }
 
-/** `u <name> [recipient] [--lifetime] [--send]` — omit the recipient to release. */
+/** `u <name> [recipient] [--years=<n> | --lifetime | --max] [--send]` — omit the recipient to release. */
 export function parseUnreserveArgs(argv: readonly string[]): UnreserveCommand {
   const flags = argv.filter((arg) => arg.startsWith('-'))
+  let terms: number | undefined
   for (const flag of flags) {
-    if (flag !== '--send' && flag !== '--lifetime') {
-      throw new UsageError(`unknown flag ${JSON.stringify(flag)} — the flags are --lifetime and --send (a list of awards is --batch <file>)`)
+    const years = /^--years=([1-9][0-9]?)$/.exec(flag)
+    if (years !== null) {
+      terms = Number(years[1])
+    } else if (flag !== '--send' && flag !== '--lifetime' && flag !== '--max') {
+      throw new UsageError(
+        `unknown flag ${JSON.stringify(flag)} — the flags are --years=<1-99>, --lifetime, --max and --send (a list of awards is --batch <file>)`,
+      )
     }
   }
   const [name, recipient, ...rest] = argv.filter((arg) => !arg.startsWith('-'))
@@ -140,6 +150,8 @@ export function parseUnreserveArgs(argv: readonly string[]): UnreserveCommand {
       name,
       recipient: recipient === undefined ? null : parseAddress(recipient),
       lifetime: flags.includes('--lifetime'),
+      ...(terms === undefined ? {} : { terms }),
+      ...(flags.includes('--max') ? { max: true } : {}),
     },
     send: flags.includes('--send'),
   }
@@ -168,7 +180,7 @@ export async function planUnreserve(
   // From the built recipient, not from argv: the reducer decides release
   // versus award by the recipient alone (§6 `U`), so an awardee spelled as
   // `PROTOCOL_ADDRESS` is a release on the wire and must be checked as one.
-  const kind = addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS) ? 'release' : 'award'
+  let kind: UnreservePlan['kind'] = addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS) ? 'release' : 'award'
 
   // The reducer's last row, which the message cannot answer about itself, and
   // which the recipient chose (§6 `U`, 2026-09-11). Every branch is a refusal
@@ -196,16 +208,28 @@ export async function planUnreserve(
       })
     }
   } else if (isHeldNow(availability)) {
-    // An award needs only that nobody owns the name: `state.names.has(name)`
-    // is the whole row, and `/available`'s TAKEN is its spelling — REGISTERED
-    // or in GRACE. Reserved-and-unreleased and plain AVAILABLE both land.
-    checks.push({
-      severity: 'refuse',
-      message:
-        `${JSON.stringify(params.name)} is held: ${availability.url} reads it as ${describeAvailability(availability)} ` +
-        `at height ${availability.height}. An award reaches any name nobody owns, and this one has an owner, so this U ` +
-        'forfeits NAME_NOT_AVAILABLE (§6 U, 2026-09-11).',
-    })
+    // A held name — `/available`'s TAKEN, REGISTERED or in GRACE — takes a `U`
+    // from nobody but its own owner, and then only time (r32). Anyone else is
+    // the reducer's NAME_NOT_AVAILABLE row.
+    const owner = await source.fetchOwner(params.name)
+    if (owner !== null && addressEquals(owner, tx.recipient)) {
+      kind = 'extend'
+      if (params.max && availability.expiry !== null && availability.expiry >= head + CONSTANTS.TERM_LENGTH) {
+        checks.push({
+          severity: 'warn',
+          message:
+            `${JSON.stringify(params.name)} already runs to ${availability.expiry}, past one term from head — this M changes nothing (§6 U, r32)`,
+        })
+      }
+    } else {
+      checks.push({
+        severity: 'refuse',
+        message:
+          `${JSON.stringify(params.name)} is held by ${owner === null ? 'somebody' : formatAddress(owner)}: ${availability.url} reads it as ` +
+          `${describeAvailability(availability)} at height ${availability.height}. A U adds time to a held name only when sent to ` +
+          'its owner, so this one forfeits NAME_NOT_AVAILABLE (§6 U, r32).',
+      })
+    }
   } else if (!availability.available && !isReservedNow(availability)) {
     // Neither available nor reserved nor taken: a §4.1 reason the builder did
     // not catch. Nothing awards a name that cannot be registered.
@@ -274,10 +298,20 @@ export function describePlan(plan: UnreservePlan): string[] {
     throw new Error(`built a U that does not parse back as one: ${plan.data}`)
   }
   const { kind, recipient, head, availability } = plan
-  const { name, lifetime } = decoded.message
-  const term = termFor(lifetime)
+  const { name, terms, max } = decoded.message
+  const lifetime = terms === CONSTANTS.LIFETIME_TERMS
+  const span = terms * CONSTANTS.TERM_LENGTH
+  const termText = max
+    ? 'one term from landing, as a floor (M)'
+    : lifetime
+      ? `a lifetime — ${CONSTANTS.LIFETIME_TERMS} terms`
+      : terms === 1
+        ? 'one full term'
+        : `${terms} terms`
+  const field = max ? 'floor flag M' : lifetime ? 'lifetime flag L' : terms === 1 ? 'no other field' : `${terms} terms`
+  const held = availability.expiry
   return [
-    `U ${kind}: ${name}${kind === 'award' && lifetime ? ' (lifetime)' : ''}`,
+    `U ${kind}: ${name}${kind !== 'release' && terms > 1 ? ` (${lifetime ? 'lifetime' : `${terms} terms`})` : ''}${kind !== 'release' && max ? ' (M)' : ''}`,
     // First line after the verb, because it is the row that decides whether
     // this message lands at all — and the one a plan built from the message
     // alone could not show (2026-08-21).
@@ -285,14 +319,23 @@ export function describePlan(plan: UnreservePlan): string[] {
       `${availability.height} (${head - availability.height} blocks behind head)`,
     kind === 'release'
       ? `  to        ${formatAddress(recipient)} (PROTOCOL_ADDRESS — the name becomes AVAILABLE)`
-      : `  to        ${formatAddress(recipient)} (awarded the name, ${lifetime ? `a lifetime — ${CONSTANTS.LIFETIME_TERMS} terms` : 'one full term'}, no fee)`,
-    `  payload   ${plan.data} — decoded: name ${JSON.stringify(name)}, ${lifetime ? 'lifetime flag L' : 'no other field'}`,
+      : kind === 'extend'
+        ? `  to        ${formatAddress(recipient)} (ALREADY ITS OWNER — the name gains time: ${termText}, no fee)`
+        : `  to        ${formatAddress(recipient)} (awarded the name, ${termText}, no fee)`,
+    `  payload   ${plan.data} — decoded: name ${JSON.stringify(name)}, ${field}`,
     `  effective on landing: head is ${head}, so this binds in the next block that carries it — ` +
       'there is no notice window and nothing to cancel (§6 U, r22)',
     ...(kind === 'award'
       ? [
-          `  award term ends <landing height> + ${term}${lifetime ? ` (${CONSTANTS.LIFETIME_TERMS} × TERM_LENGTH ${CONSTANTS.TERM_LENGTH})` : ''}, ` +
-            `so at head that is ${head + term} — the term is half-open, and GRACE begins at the end height (§7.3)`,
+          `  award term ends <landing height> + ${span}${terms > 1 ? ` (${terms} × TERM_LENGTH ${CONSTANTS.TERM_LENGTH})` : ''}, ` +
+            `so at head that is ${head + span} — the term is half-open, and GRACE begins at the end height (§7.3)`,
+        ]
+      : []),
+    ...(kind === 'extend' && held !== null
+      ? [
+          max
+            ? `  expiry    ${held} → ${Math.max(held, head + span)} at head: the later of what it has and <landing height> + ${span}. Sending it again changes nothing`
+            : `  expiry    ${held} → ${held + span}: ${terms} × TERM_LENGTH ${CONSTANTS.TERM_LENGTH} ADDED to what it has. Sending it again ADDS AGAIN`,
         ]
       : []),
     `  from      ${formatAddress(plan.sender)} (ADMIN_ADDRESS), balance ${formatLuna(plan.balance)}`,

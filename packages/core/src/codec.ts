@@ -66,8 +66,13 @@ export type Message =
   | { readonly type: 'M'; readonly height: number; readonly txIndex: number }
   | { readonly type: 'A'; readonly name: string; readonly startingPrice: bigint; readonly endHeight: number }
   | { readonly type: 'P'; readonly feeBase: bigint; readonly commissionBp: bigint; readonly effectiveHeight: number }
-  /** `lifetime` applies to an award; a release has no term and ignores it (§6 `U`). */
-  | { readonly type: 'U'; readonly name: string; readonly lifetime: boolean }
+  /**
+   * `terms` is how many `TERM_LENGTH`s the `U` carries — 1 when the field is
+   * absent, `LIFETIME_TERMS` for `L`. `max` is the `M` field: one term from the
+   * landing block, and never a shorter expiry than the name has. A release has
+   * no term and ignores both (§6 `U`).
+   */
+  | { readonly type: 'U'; readonly name: string; readonly terms: number; readonly max: boolean }
   | { readonly type: 'F' }
 
 export type ParseFailure =
@@ -238,6 +243,22 @@ function lifetimeField(field: string | undefined): boolean | null {
   return field === LIFETIME_FLAG ? true : null
 }
 
+/**
+ * `U`'s term field (§6 `U`, r32): absent is one term, `1`…`99` that many, `L`
+ * a lifetime, `M` one term taken as a floor rather than added. `null` —
+ * malformed — for anything else: an empty field, a leading zero, and three
+ * digits or more, which is what keeps the r21-format
+ * `NNS1U<name>|<effective_height>` failing loudly.
+ */
+const MAX_FLAG = 'M'
+
+function unreserveTerm(field: string | undefined): { terms: number; max: boolean } | null {
+  if (field === undefined) return { terms: 1, max: false }
+  if (field === LIFETIME_FLAG) return { terms: CONSTANTS.LIFETIME_TERMS, max: false }
+  if (field === MAX_FLAG) return { terms: 1, max: true }
+  return /^[1-9][0-9]?$/.test(field) ? { terms: Number(field), max: false } : null
+}
+
 // ── parse ───────────────────────────────────────────────────────────────────
 
 /**
@@ -291,14 +312,10 @@ export function parse(recipientDataHex: string): ParseResult {
       return good({ type, name: payload })
     }
 
-    case 'N':
-    case 'U': {
+    case 'N': {
       // One field, or two with the lifetime flag — on `G`'s terms: the second
-      // field is exactly `L` or absent, so an empty trailing field and the
-      // r21-format `NNS1U<name>|<effective_height>` are both malformed. The
-      // latter deliberately: a `U` executes in the block it lands in and
-      // carries no height, and an old client's message must fail loudly
-      // rather than release a name on a number nothing reads.
+      // field is exactly `L` or absent, so an empty trailing field is
+      // malformed.
       const fields = payload.split('|')
       if (fields.length > 2) return bad('MALFORMED_PAYLOAD')
       const name = fields[0] as string
@@ -306,6 +323,21 @@ export function parse(recipientDataHex: string): ParseResult {
       const lifetime = lifetimeField(fields[1])
       if (lifetime === null) return bad('MALFORMED_PAYLOAD')
       return good({ type, name, lifetime })
+    }
+
+    case 'U': {
+      // One field, or two with a term (r32). The r21-format
+      // `NNS1U<name>|<effective_height>` stays malformed, deliberately: a `U`
+      // executes in the block it lands in and carries no height, and an old
+      // client's message must fail loudly rather than act on a number nothing
+      // reads. A term is two digits at most, a height never is.
+      const fields = payload.split('|')
+      if (fields.length > 2) return bad('MALFORMED_PAYLOAD')
+      const name = fields[0] as string
+      if (name.length === 0) return bad('MALFORMED_PAYLOAD')
+      const term = unreserveTerm(fields[1])
+      if (term === null) return bad('MALFORMED_PAYLOAD')
+      return good({ type, name, ...term })
     }
 
     case 'E': {
@@ -674,15 +706,29 @@ export function encodeGovernance(
  * reserved by rule (§4.1), and releasing or awarding them is a designed use.
  */
 export function encodeUnreserve(
-  params: { name: string; recipient?: Address | null; lifetime?: boolean | undefined } & SenderOption,
+  params: {
+    name: string
+    recipient?: Address | null
+    lifetime?: boolean | undefined
+    /** 1…99 terms. Sent to the name's owner they are added to its expiry (r32). */
+    terms?: number | undefined
+    /** `M`: one term from the landing block, as a floor. Sending it twice changes nothing. */
+    max?: boolean | undefined
+  } & SenderOption,
 ): BuiltTransaction {
   const name = requireName(params.name)
   const awardee = params.recipient ?? null
   if (awardee !== null && addressEquals(awardee, BURN_ADDRESS)) {
     fail('a name may not be awarded to BURN_ADDRESS — the message would forfeit INVALID_RECIPIENT (§6 U)')
   }
-  if (awardee === null && params.lifetime) fail('a release has no term — lifetime applies to an award only (§6 U)')
-  const payload = params.lifetime ? `${name}|${LIFETIME_FLAG}` : name
+  const terms = params.terms ?? 1
+  if (!Number.isInteger(terms) || terms < 1 || terms > 99) fail('a U carries 1 to 99 terms, or a lifetime (§6 U)')
+  const field = params.max ? MAX_FLAG : params.lifetime ? LIFETIME_FLAG : terms > 1 ? String(terms) : null
+  if ([params.max, params.lifetime, terms > 1].filter(Boolean).length > 1) {
+    fail('a U carries one term field: a number of terms, a lifetime or M (§6 U)')
+  }
+  if (awardee === null && field !== null) fail('a release has no term — a term applies to an award only (§6 U)')
+  const payload = field === null ? name : `${name}|${field}`
   return build('U', payload, awardee ?? CONSTANTS.PROTOCOL_ADDRESS, CONSTANTS.DUST_VALUE, params.sender)
 }
 

@@ -1,7 +1,7 @@
 {
   "vectors": "nns/reduce",
   "version": 1,
-  "spec": "nns-spec-v1 draft r29, §7.3, §7.4 and §7.5",
+  "spec": "nns-spec-v1 draft r32, §7.3, §7.4 and §7.5",
   "description": "Replay scenarios. Each runs its `steps` in order against a fresh state and then checks `expect`. A step is either a transaction (`tx`), a bare height advance (`advanceTo`), or a `check` against the state at that point. A `check` may also carry `label`, which snapshots the four §8.1 component digests (`nameRoot`, `pricesRoot`, `pendingRoot`, `unreservedRoot` — the commitment minus the height and the log hash), and `since` + `changed`, which compares them against an earlier label: every component **not** listed in `changed` MUST be byte-identical. `logLines` is the number of §8.2 lines emitted so far, and a height advance MUST never add one.",
   "addresses": {
     "TREASURY": "NQ39 M3TJ 2NC1 G4PJ 07JF BFKG Q3X6 AK7K J7YT",
@@ -4633,7 +4633,7 @@
     },
     {
       "id": "unreserve_award_of_a_held_name_forfeits_NAME_NOT_AVAILABLE",
-      "note": "§10.6: no U touches a name somebody holds. An award of a REGISTERED name forfeits NAME_NOT_AVAILABLE and moves no component; so does one during GRACE, when the former owner can still renew; and the same U succeeds the block the name falls to AVAILABLE. The 28th token, added 2026-09-11 when awards widened past the reserved set — a second award of the same name earns it too.",
+      "note": "§10.6: no U takes or redirects a name somebody holds. An award of a REGISTERED name to anyone but its owner forfeits NAME_NOT_AVAILABLE and moves no component; so does one during GRACE, when the former owner can still renew; and the same U succeeds the block the name falls to AVAILABLE. The 28th token, added 2026-09-11 when awards widened past the reserved set. Since r32 a U sent to the owner adds time instead (unreserve_to_the_owner_adds_terms).",
       "steps": [
         {
           "tx": {
@@ -4804,6 +4804,218 @@
             "target": "BOB",
             "status": "REGISTERED",
             "expiry": 3215875680
+          }
+        },
+        "logLines": 2
+      }
+    },
+    {
+      "id": "unreserve_to_the_owner_adds_terms",
+      "note": "§6 U, r32: a U sent to the address that already owns the name adds its terms to the name's expiry, as an N adds a paid one, and changes nothing else in the record. A count on an award of an unowned name runs from the landing block. To anyone but the owner a held name is still NAME_NOT_AVAILABLE: a U can add time to a held name, never take or redirect it.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 62275680,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Uriconame"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 62275700,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Uriconame|3"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 62275700,
+            "txIndex": 1,
+            "sender": "ADMIN",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Uriconame|3"
+          },
+          "verdict": {
+            "kind": "FORFEIT",
+            "reason": "NAME_NOT_AVAILABLE"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 62275700,
+            "txIndex": 2,
+            "sender": "ADMIN",
+            "recipient": "CAROL",
+            "value": "1",
+            "text": "NNS1Ubinance|2"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "riconame": {
+            "owner": "BOB",
+            "target": "BOB",
+            "status": "REGISTERED",
+            "expiry": 188419680
+          },
+          "binance": {
+            "owner": "CAROL",
+            "target": "CAROL",
+            "status": "REGISTERED",
+            "expiry": 125347700
+          }
+        },
+        "logLines": 4
+      }
+    },
+    {
+      "id": "unreserve_M_is_a_floor_and_a_second_one_changes_nothing",
+      "note": "§6 U, r32: `M` sets the expiry to the later of what the name has and landing + TERM_LENGTH. On an unowned name it is a one-term award. Sent again it changes nothing, and on a name with more than a term left it changes nothing either. A count is added on top, where a second count would be added again.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 62275680,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Uriconame|M"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 62276680,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Uriconame|M"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 62276680,
+            "txIndex": 1,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Uriconame|M"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "check": {
+            "names": {
+              "riconame": {
+                "owner": "BOB",
+                "status": "REGISTERED",
+                "expiry": 93812680
+              }
+            }
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 62277680,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Uriconame|2"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 62278680,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Uriconame|M"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "riconame": {
+            "owner": "BOB",
+            "target": "BOB",
+            "status": "REGISTERED",
+            "expiry": 156884680
+          }
+        },
+        "logLines": 5
+      }
+    },
+    {
+      "id": "unreserve_to_the_owner_in_GRACE_restores_the_name",
+      "note": "§6 U, r32: a name in GRACE still has its owner, so a U sent to them reaches it. `M` there is one term from the landing block and the name is REGISTERED again.",
+      "steps": [
+        {
+          "tx": {
+            "blockNumber": 62275680,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Uriconame"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        },
+        {
+          "tx": {
+            "blockNumber": 93811780,
+            "txIndex": 0,
+            "sender": "ADMIN",
+            "recipient": "BOB",
+            "value": "1",
+            "text": "NNS1Uriconame|M"
+          },
+          "verdict": {
+            "kind": "OK"
+          }
+        }
+      ],
+      "expect": {
+        "names": {
+          "riconame": {
+            "owner": "BOB",
+            "target": "BOB",
+            "status": "REGISTERED",
+            "expiry": 125347780
           }
         },
         "logLines": 2

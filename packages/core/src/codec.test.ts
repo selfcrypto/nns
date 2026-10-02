@@ -108,12 +108,14 @@ describe('every message type round-trips encode → parse', () => {
       encodeGovernance({ feeBase: CONSTANTS.FEE_BASE, commissionBp: 250n, effectiveHeight: 58_100_000 }),
       { type: 'P', feeBase: CONSTANTS.FEE_BASE, commissionBp: 250n, effectiveHeight: 58_100_000 },
     ],
-    ['U', encodeUnreserve({ name: 'binance' }), { type: 'U', name: 'binance', lifetime: false }],
+    ['U', encodeUnreserve({ name: 'binance' }), { type: 'U', name: 'binance', terms: 1, max: false }],
     [
       'U lifetime award',
       encodeUnreserve({ name: 'nq', recipient: BOB, lifetime: true }),
-      { type: 'U', name: 'nq', lifetime: true },
+      { type: 'U', name: 'nq', terms: CONSTANTS.LIFETIME_TERMS, max: false },
     ],
+    ['U for three terms', encodeUnreserve({ name: 'nq', recipient: BOB, terms: 3 }), { type: 'U', name: 'nq', terms: 3, max: false }],
+    ['U as a floor', encodeUnreserve({ name: 'nq', recipient: BOB, max: true }), { type: 'U', name: 'nq', terms: 1, max: true }],
     ['F', encodeBurn({ amount: 1_000n }), { type: 'F' }],
   ]
 
@@ -393,12 +395,25 @@ describe('parse tolerance — §5.2, §7.5', () => {
   })
 
   it('rejects an r21-format U, which carried an effective height (r22)', () => {
-    // A `U` is one field since r22: it executes in the block it lands in, so
-    // there is no height to carry. An old client's message must fail loudly
-    // rather than release a name on a number nothing reads.
+    // A `U` executes in the block it lands in, so there is no height to
+    // carry. An old client's message must fail loudly rather than act on a
+    // number nothing reads: the r32 term field is two digits at most.
     expect(parse(hex('NNS1Ubinance|58900000'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
     expect(parse(hex('NNS1Ubinance|'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
-    expect(parsed('NNS1Ubinance')).toEqual({ type: 'U', name: 'binance', lifetime: false })
+    expect(parsed('NNS1Ubinance')).toEqual({ type: 'U', name: 'binance', terms: 1, max: false })
+  })
+
+  it('reads the term field of a U: a count, L or M (r32)', () => {
+    expect(parsed('NNS1Ubinance|1')).toEqual({ type: 'U', name: 'binance', terms: 1, max: false })
+    expect(parsed('NNS1Ubinance|42')).toEqual({ type: 'U', name: 'binance', terms: 42, max: false })
+    expect(parsed('NNS1Ubinance|L')).toEqual({ type: 'U', name: 'binance', terms: CONSTANTS.LIFETIME_TERMS, max: false })
+    expect(parsed('NNS1Ubinance|M')).toEqual({ type: 'U', name: 'binance', terms: 1, max: true })
+    for (const field of ['0', '03', '100', 'm', 'l', '3|M', 'M|3', ' 3']) {
+      expect(parse(hex(`NNS1Ubinance|${field}`)), field).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
+    }
+    // The count is `U`'s alone: an `N` is paid by the term and takes `L` or nothing.
+    expect(parse(hex('NNS1Nbinance|3'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
+    expect(parse(hex('NNS1Nbinance|M'))).toEqual({ ok: false, reason: 'MALFORMED_PAYLOAD' })
   })
 
   it('reports MALFORMED_PAYLOAD on an empty name', () => {

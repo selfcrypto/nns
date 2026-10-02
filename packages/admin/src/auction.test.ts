@@ -102,6 +102,7 @@ function fakeSources(overrides: Overrides = {}): AuctionSources & { fetched: str
     },
   }
   const reservation: ReservationSource = {
+    fetchOwner: () => Promise.resolve(null),
     fetchAvailability(name: string): Promise<NameAvailability> {
       fetched.push('available')
       return Promise.resolve(Object.freeze({ ...RESERVED, name, ...overrides.availability }))

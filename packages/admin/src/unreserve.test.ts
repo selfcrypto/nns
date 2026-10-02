@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AddressError, BURN_ADDRESS, CodecError, CONSTANTS, encodeUnreserve, parseAddress } from '@nimiqnames/core'
+import { AddressError, BURN_ADDRESS, CodecError, CONSTANTS, encodeUnreserve, parseAddress, type Address } from '@nimiqnames/core'
 
 import { AdminRefusal, blockingChecks, broadcast, UsageError, type AdminRpc } from './cli.js'
 import type { NameAvailability, ReservationSource } from './reservation.js'
@@ -15,6 +15,7 @@ import {
 const PROTOCOL = CONSTANTS.PROTOCOL_ADDRESS
 const ADMIN = CONSTANTS.ADMIN_ADDRESS
 const BOB = parseAddress('NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK')
+const BOB_TEXT = 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK'
 
 
 const HEAD = 58_099_950
@@ -61,8 +62,9 @@ const API = 'https://api.example/available/binance'
  * `/available/{name}` as a `U` needs it. The default is the one state in
  * which a `U` lands: on the list, not yet released by a fired `U`.
  */
-function fakeReservation(overrides: Partial<NameAvailability> = {}): ReservationSource {
+function fakeReservation(overrides: Partial<NameAvailability> = {}, owner: Address | null = null): ReservationSource {
   return {
+    fetchOwner: () => Promise.resolve(owner),
     fetchAvailability(name: string): Promise<NameAvailability> {
       return Promise.resolve(
         Object.freeze({
@@ -282,6 +284,30 @@ describe('planUnreserve', () => {
     expect(blockingChecks(grace.checks)[0]?.message).toContain('GRACE')
   })
 
+  it('an award to the name’s own owner is an extension, and the plan says from and to (r32)', async () => {
+    const { rpc } = fakeRpc()
+    const held = HEAD + 1_000
+    const taken = { ...TAKEN, expiry: held }
+
+    const add = await planUnreserve(rpc, fakeReservation(taken, BOB), { ...award, terms: 3 })
+    expect(add.kind).toBe('extend')
+    expect(add.checks).toEqual([])
+    expect(describePlan(add).join('\n')).toContain(`expiry    ${held} → ${held + 3 * CONSTANTS.TERM_LENGTH}`)
+    expect(describePlan(add).join('\n')).toContain('ADDS AGAIN')
+
+    const floor = await planUnreserve(rpc, fakeReservation(taken, BOB), { ...award, max: true })
+    expect(floor.kind).toBe('extend')
+    expect(describePlan(floor).join('\n')).toContain(`expiry    ${held} → ${HEAD + CONSTANTS.TERM_LENGTH}`)
+  })
+
+  it('warns that an M on a name already past one term changes nothing (r32)', async () => {
+    const { rpc } = fakeRpc()
+    const taken = { ...TAKEN, expiry: HEAD + 2 * CONSTANTS.TERM_LENGTH }
+    const plan = await planUnreserve(rpc, fakeReservation(taken, BOB), { ...award, max: true })
+    expect(plan.checks.map((check) => check.severity)).toEqual(['warn'])
+    expect(plan.checks[0]?.message).toContain('changes nothing')
+  })
+
   it('refuses an award of a name the API calls not registrable — INVALID_NAME whatever the recipient', async () => {
     const { rpc } = fakeRpc()
     const plan = await planUnreserve(rpc, fakeReservation({ available: false, reason: 'TOO_LONG' }), award)
@@ -447,6 +473,13 @@ describe('parseUnreserveArgs', () => {
     const both = parseUnreserveArgs(['binance', 'NQ85 FJ4R D8VG PP5D FR7H YQ5H G99J 7V65 JRKK', '--send', '--lifetime'])
     expect(both.params.lifetime).toBe(true)
     expect(both.send).toBe(true)
+  })
+
+  it('--years=<n> and --max are the r32 term flags', () => {
+    expect(parseUnreserveArgs(['binance', BOB_TEXT, '--years=3']).params).toMatchObject({ terms: 3, lifetime: false })
+    expect(parseUnreserveArgs(['binance', BOB_TEXT, '--max']).params).toMatchObject({ max: true })
+    expect(() => parseUnreserveArgs(['binance', BOB_TEXT, '--years=100'])).toThrow(UsageError)
+    expect(() => parseUnreserveArgs(['binance', BOB_TEXT, '--years=0'])).toThrow(UsageError)
   })
 
   it('names the r21 habit rather than reading a height as an address', () => {

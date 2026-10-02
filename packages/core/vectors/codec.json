@@ -1,7 +1,7 @@
 {
   "vectors": "nns/codec",
   "version": 1,
-  "spec": "nns-spec-v1 draft r29, §5 and §6",
+  "spec": "nns-spec-v1 draft r32, §5 and §6",
   "description": "Wire format. `text` is the message as ASCII; `data` is the same bytes as lowercase hex, which is what the RPC carries in both directions (§5.1). Recipients are role names resolved through `addresses`; `value` is luna as a decimal string.",
   "addresses": {
     "TREASURY": "NQ39 M3TJ 2NC1 G4PJ 07JF BFKG Q3X6 AK7K J7YT",
@@ -367,13 +367,14 @@
       },
       {
         "id": "U_unreserve",
-        "note": "One field since r22: a U executes in the block it lands in, so it carries no effective height. NNS1Ubinance|62375680 — the r21 form — is MALFORMED_PAYLOAD, pinned below.",
+        "note": "One field, or two with a term (r32). A U executes in the block it lands in, so it carries no effective height: NNS1Ubinance|62375680 — the r21 form — is MALFORMED_PAYLOAD, pinned below.",
         "text": "NNS1Ubinance",
         "data": "4e4e53315562696e616e6365",
         "message": {
           "type": "U",
           "name": "binance",
-          "lifetime": false
+          "terms": 1,
+          "max": false
         },
         "build": {
           "builder": "unreserve"
@@ -389,7 +390,8 @@
         "message": {
           "type": "U",
           "name": "nq",
-          "lifetime": false
+          "terms": 1,
+          "max": false
         },
         "build": {
           "builder": "unreserve",
@@ -400,12 +402,13 @@
       },
       {
         "id": "U_lifetime_award",
-        "note": "A lifetime award (§6 U, §10.4): the second field is exactly `L`, on G's terms. A release has no term, and the builder refuses to put the flag on one (builderErrors).",
+        "note": "A lifetime award (§6 U, §10.4): `L` is LIFETIME_TERMS terms. A release has no term, and the builder refuses to put one on it (builderErrors).",
         "text": "NNS1Unq|L",
         "message": {
           "type": "U",
           "name": "nq",
-          "lifetime": true
+          "terms": 100,
+          "max": false
         },
         "build": {
           "builder": "unreserve",
@@ -415,6 +418,64 @@
         "recipient": "BOB",
         "value": "1",
         "data": "4e4e5331556e717c4c"
+      },
+      {
+        "id": "U_three_terms",
+        "note": "r32: the second field is a number of terms, 1 to 99. An award runs that many terms from the landing block; sent to the name's own owner they are added to its expiry (reduce.json).",
+        "text": "NNS1Unq|3",
+        "message": {
+          "type": "U",
+          "name": "nq",
+          "terms": 3,
+          "max": false
+        },
+        "build": {
+          "builder": "unreserve",
+          "recipient": "BOB",
+          "terms": 3
+        },
+        "recipient": "BOB",
+        "value": "1",
+        "data": "4e4e5331556e717c33"
+      },
+      {
+        "id": "U_ninety_nine_terms_is_the_longest_U",
+        "note": "r32: 99 is the largest count, and 5 + MAX_NAME_LEN + 3 = 32 bytes the largest U.",
+        "text": "NNS1Uabcdefghijklmnopqrstuvwx|99",
+        "message": {
+          "type": "U",
+          "name": "abcdefghijklmnopqrstuvwx",
+          "terms": 99,
+          "max": false
+        },
+        "build": {
+          "builder": "unreserve",
+          "recipient": "BOB",
+          "terms": 99
+        },
+        "recipient": "BOB",
+        "value": "1",
+        "byteLength": 32,
+        "data": "4e4e5331556162636465666768696a6b6c6d6e6f7071727374757677787c3939"
+      },
+      {
+        "id": "U_floor",
+        "note": "r32: `M` is one term from the landing block taken as a floor — the expiry becomes the later of what the name has and landing + TERM_LENGTH, so a second M changes nothing (reduce.json).",
+        "text": "NNS1Unq|M",
+        "message": {
+          "type": "U",
+          "name": "nq",
+          "terms": 1,
+          "max": true
+        },
+        "build": {
+          "builder": "unreserve",
+          "recipient": "BOB",
+          "max": true
+        },
+        "recipient": "BOB",
+        "value": "1",
+        "data": "4e4e5331556e717c4d"
       },
       {
         "id": "F_burn_attestation_5_bytes",
@@ -745,7 +806,7 @@
       },
       {
         "id": "U_with_a_height_is_the_retired_r21_form",
-        "note": "Through r21 a U carried `|<effective_height>`. r22 made it execute on landing and removed the field; since 2026-09-11 the second field exists again and is exactly `L` (a lifetime award), so a number there is still one field too many in meaning and MALFORMED_PAYLOAD in fact. Rejecting it is deliberate: a pre-r22 client's message must fail loudly rather than release a name on a number nothing reads.",
+        "note": "Through r21 a U carried `|<effective_height>`. r22 made it execute on landing and removed the field. Since r32 the second field is a term — 1 to 99, `L` or `M` — and two digits at most, so a height there is still MALFORMED_PAYLOAD. Rejecting it is deliberate: a pre-r22 client's message must fail loudly rather than act on a number nothing reads.",
         "text": "NNS1Ubinance|62375680",
         "data": "4e4e53315562696e616e63657c3632333735363830",
         "result": {
@@ -754,13 +815,78 @@
         }
       },
       {
-        "id": "U_second_field_that_is_not_L_is_malformed",
+        "id": "U_second_field_that_is_not_a_term_is_malformed",
         "text": "NNS1Ubinance|x",
         "result": {
           "ok": false,
           "reason": "MALFORMED_PAYLOAD"
         },
         "data": "4e4e53315562696e616e63657c78"
+      },
+      {
+        "id": "U_one_term_spelled_out",
+        "text": "NNS1Ubinance|1",
+        "result": {
+          "ok": true,
+          "message": {
+            "type": "U",
+            "name": "binance",
+            "terms": 1,
+            "max": false
+          }
+        },
+        "note": "r32: `|1` says what an absent field says. The builder writes the bare form, so this parses and does not round-trip.",
+        "data": "4e4e53315562696e616e63657c31"
+      },
+      {
+        "id": "U_zero_terms",
+        "text": "NNS1Ubinance|0",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "r32: a term count starts at 1.",
+        "data": "4e4e53315562696e616e63657c30"
+      },
+      {
+        "id": "U_term_with_a_leading_zero",
+        "text": "NNS1Ubinance|03",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "r32: one spelling per count, so no leading zero.",
+        "data": "4e4e53315562696e616e63657c3033"
+      },
+      {
+        "id": "U_hundred_terms_is_spelled_L",
+        "text": "NNS1Ubinance|100",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "r32: three digits are never a term. A hundred terms is `L`.",
+        "data": "4e4e53315562696e616e63657c313030"
+      },
+      {
+        "id": "U_lowercase_m",
+        "text": "NNS1Ubinance|m",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "r32: the floor flag is exactly `M`.",
+        "data": "4e4e53315562696e616e63657c6d"
+      },
+      {
+        "id": "U_two_term_fields",
+        "text": "NNS1Ubinance|3|M",
+        "result": {
+          "ok": false,
+          "reason": "MALFORMED_PAYLOAD"
+        },
+        "note": "r32: one term field. A count and a flag together are one field too many.",
+        "data": "4e4e53315562696e616e63657c337c4d"
       },
       {
         "id": "U_with_a_trailing_pipe",
@@ -996,6 +1122,37 @@
         "name": "binance",
         "lifetime": true,
         "note": "A release has no term (§6 U): the reducer would ignore the flag, and a client asking for it did not mean a release. Refused before broadcast."
+      },
+      {
+        "id": "U_release_with_terms",
+        "builder": "unreserve",
+        "name": "binance",
+        "terms": 3,
+        "note": "A release has no term (§6 U), whichever way it is spelled."
+      },
+      {
+        "id": "U_release_with_floor",
+        "builder": "unreserve",
+        "name": "binance",
+        "max": true,
+        "note": "A release has no term (§6 U), whichever way it is spelled."
+      },
+      {
+        "id": "U_terms_and_lifetime",
+        "builder": "unreserve",
+        "name": "nq",
+        "recipient": "BOB",
+        "terms": 3,
+        "lifetime": true,
+        "note": "r32: one term field — a count, `L` or `M`."
+      },
+      {
+        "id": "U_hundred_terms",
+        "builder": "unreserve",
+        "name": "nq",
+        "recipient": "BOB",
+        "terms": 100,
+        "note": "r32: a count is 1 to 99. A hundred terms is the lifetime flag."
       }
     ]
   }

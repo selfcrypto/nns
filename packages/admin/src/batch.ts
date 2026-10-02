@@ -19,10 +19,12 @@
  * forfeits. The balance is checked once against the whole cost, since the
  * per-row check would pass thirty times on a balance that covers one.
  *
- * File format: one award per line, `name recipient [L]` — the recipient as
- * an address is printed, spaces and all; `#` starts a comment and blank lines
- * are skipped. `L` is the lifetime flag, spelled as the payload spells it. A name twice in one file is a usage
- * error: the second award forfeits `NAME_NOT_AVAILABLE` on the first.
+ * File format: one award per line, `name recipient [1-99|L|M]` — the
+ * recipient as an address is printed, spaces and all; `#` starts a comment and
+ * blank lines are skipped. The term is spelled as the payload spells it (§6
+ * `U`, r32): a number of terms, `L` for a lifetime, `M` for one term as a
+ * floor. A row whose recipient already owns the name adds time to it. A name
+ * twice in one file is a usage error.
  */
 
 import { readFileSync } from 'node:fs'
@@ -75,7 +77,7 @@ export function parseBatchArgs(argv: readonly string[]): BatchCommand {
   const positional = argv.filter((arg) => !arg.startsWith('-'))
   const file = argv[argv.indexOf('--batch') + 1]
   if (file === undefined || file.startsWith('-') || positional.length !== 1) {
-    throw new UsageError('u --batch takes one file of `name recipient [L]` rows and nothing else')
+    throw new UsageError('u --batch takes one file of `name recipient [1-99|L|M]` rows and nothing else')
   }
   let text: string
   try {
@@ -97,16 +99,21 @@ export function parseBatchRows(text: string, file: string): readonly UnreservePa
     // An address is printed with spaces (`NQ85 FJ4R …`), so the row is the
     // name, then the address as it was pasted, then an optional trailing L.
     const fields = line.split(/\s+/)
-    const lifetime = fields.at(-1) === 'L'
-    const [name, ...addressFields] = lifetime ? fields.slice(0, -1) : fields
+    // The term is spelled as the payload spells it (§6 `U`): `L`, `M`, or
+    // 1…99. An address group is four characters, so a short last field is
+    // never part of one.
+    const last = fields.at(-1) ?? ''
+    const hasTerm = /^(L|M|[1-9][0-9]?)$/.test(last)
+    const lifetime = last === 'L'
+    const [name, ...addressFields] = hasTerm ? fields.slice(0, -1) : fields
     const recipient = addressFields.join(' ')
     if (name === undefined || recipient === '') {
-      throw new UsageError(`${at}: expected \`name recipient [L]\`, got ${JSON.stringify(raw.trim())}`)
+      throw new UsageError(`${at}: expected \`name recipient [1-99|L|M]\`, got ${JSON.stringify(raw.trim())}`)
     }
     const first = seen.get(name)
     if (first !== undefined) {
       throw new UsageError(
-        `${at}: ${JSON.stringify(name)} is already awarded on line ${first} — the second U forfeits NAME_NOT_AVAILABLE on the first`,
+        `${at}: ${JSON.stringify(name)} is already on line ${first} — one U per name in a batch`,
       )
     }
     seen.set(name, index + 1)
@@ -116,7 +123,13 @@ export function parseBatchRows(text: string, file: string): readonly UnreservePa
     } catch (cause) {
       throw new UsageError(`${at}: ${cause instanceof Error ? cause.message : String(cause)}`)
     }
-    rows.push({ name, recipient: awardee, lifetime })
+    rows.push({
+      name,
+      recipient: awardee,
+      lifetime,
+      ...(last === 'M' ? { max: true } : {}),
+      ...(hasTerm && /^\d+$/.test(last) && last !== '1' ? { terms: Number(last) } : {}),
+    })
   })
   if (rows.length === 0) throw new UsageError(`${file} holds no award rows`)
   return rows

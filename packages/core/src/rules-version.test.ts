@@ -33,8 +33,8 @@ const digest = (): string => {
  *   and leave the version.
  */
 const PINNED = {
-  version: 1,
-  digest: 'e8bda5b25192057faad8f1071f91a4c42e001aee65f3a3b178d62dba21308fc7',
+  version: 2,
+  digest: 'f2d8cd7bd0e01883c22ca66530d2d4f47c4c98c07854619e6f405cef44defab7',
 } as const
 
 describe('RULES_VERSION', () => {

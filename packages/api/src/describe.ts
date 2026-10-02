@@ -75,7 +75,9 @@ function sentence(message: Message, recipient: string, value: bigint): string {
     case 'U':
       return isProtocol(recipient)
         ? `releases ${name} from the reserved list`
-        : `awards ${name} to ${address(recipient)}${message.lifetime ? ` for ${term(true)}` : ''}`
+        : `awards ${name} to ${address(recipient)}${
+            message.max ? ', or tops it up to 1 year' : message.terms > 1 ? ` for ${message.terms} years` : ''
+          }`
     case 'F':
       return `burns ${nim(value)}`
   }

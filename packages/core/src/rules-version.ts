@@ -20,4 +20,4 @@
  * so a rule change that moved a vector cannot land without this being looked
  * at.
  */
-export const RULES_VERSION = 1
+export const RULES_VERSION = 2

@@ -25,6 +25,8 @@
  * response and stamps it with the height it was read at.
  */
 
+import { parseAddress, type Address } from '@nimiqnames/core'
+
 import { apiBase, getJson, heightField } from './api.js'
 import { AdminError } from './cli.js'
 
@@ -58,6 +60,8 @@ export interface NameAvailability {
 
 export interface ReservationSource {
   fetchAvailability(name: string): Promise<NameAvailability>
+  /** Who holds the name, from `GET /name/{name}`; `null` when nobody does. Read only for a held name (r32). */
+  fetchOwner(name: string): Promise<Address | null>
 }
 
 /**
@@ -138,6 +142,14 @@ export function createReservationSource(baseUrl: string): ReservationSource {
     async fetchAvailability(name: string): Promise<NameAvailability> {
       const url = `${base}/${encodeURIComponent(name)}`
       return parseAvailability(await getJson(url), url)
+    },
+    async fetchOwner(name: string): Promise<Address | null> {
+      const url = `${apiBase(baseUrl)}/name/${encodeURIComponent(name)}`
+      const body = (await getJson(url)) as { record?: { owner?: unknown } | null } | null
+      const owner = body?.record?.owner
+      if (owner === undefined || owner === null) return null
+      if (typeof owner !== 'string') throw new AdminError(`${url} answered owner = ${JSON.stringify(owner)} — expected an address`)
+      return parseAddress(owner)
     },
   }
 }

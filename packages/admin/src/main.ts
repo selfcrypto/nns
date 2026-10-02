@@ -2,7 +2,7 @@
  * Admin CLI entry point. Four commands:
  *
  *   p <fee_base> <commission_bp> <effective-height> [--send]
- *   u <name> [recipient] [--lifetime] [--send]
+ *   u <name> [recipient] [--years=<n> | --lifetime | --max] [--send]
  *   u --batch <file> [--send]
  *   f <amount_luna> [--send]
  *   a <name> <starting_price_luna> <end-height> [--send]
@@ -25,7 +25,7 @@ import { createReservationSource } from './reservation.js'
 import { describePlan, parseUnreserveArgs, planUnreserve } from './unreserve.js'
 
 const USAGE = `usage: p <fee_base> <commission_bp> <effective-height> [--send]
-       u <name> [recipient] [--lifetime] [--send]
+       u <name> [recipient] [--years=<1-99> | --lifetime | --max] [--send]
        u --batch <file> [--send]
        f <amount_luna> [--send]
        a <name> <starting_price_luna> <end-height> [--send]
@@ -40,12 +40,16 @@ would be forfeited on-chain.
 
 u builds a U (§6) and prints what it would do: release the reserved name — the
 transaction goes to PROTOCOL_ADDRESS — or, if a recipient address is given,
-award it to that address for one term, or with --lifetime for LIFETIME_TERMS
-terms. An award reaches any name nobody owns (2026-09-11): reserved or plain
-AVAILABLE; a REGISTERED name or one in GRACE forfeits NAME_NOT_AVAILABLE and is
-refused here. BURN_ADDRESS is refused.
+award it to that address for one term, --years=<n> terms, or with --lifetime
+LIFETIME_TERMS terms. An award reaches any name nobody owns (2026-09-11):
+reserved or plain AVAILABLE. Sent to the address that already owns the name it
+adds that time to the name's expiry instead (r32), and the plan prints the
+expiry from and to. --max is M: one term from the landing block unless the
+name already has more, so sending it twice changes nothing. A name held by
+anyone else forfeits NAME_NOT_AVAILABLE and is refused here. BURN_ADDRESS is
+refused.
 
-u --batch <file> awards a list — one \`name recipient [L]\` per line, # for a
+u --batch <file> awards a list — one \`name recipient [1-99|L|M]\` per line, # for a
 comment — as one plan: every row's decoded plan is printed, a refusing row
 refuses the whole batch, and --send broadcasts them in file order. It is the
 re-award after a rebuild, and a giveaway; a release is one name, by hand.

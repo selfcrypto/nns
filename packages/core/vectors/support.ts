@@ -125,6 +125,9 @@ export interface BuildSpec {
   recipient?: string | null
   /** `G`, `N`, `U`: the trailing `L` — a lifetime term (§10.4). */
   lifetime?: boolean
+  /** `U`: 1…99 terms, and `M`, one term as a floor (§6 `U`, r32). */
+  terms?: number
+  max?: boolean
 }
 
 /**
@@ -204,6 +207,8 @@ export function build(config: NnsConfig, spec: BuildSpec, name: string, book: Ad
         name,
         recipient: optionalAddress(book, spec.recipient),
         ...(spec.lifetime === undefined ? {} : { lifetime: spec.lifetime }),
+        ...(spec.terms === undefined ? {} : { terms: spec.terms }),
+        ...(spec.max === undefined ? {} : { max: spec.max }),
         ...sender,
       })
     case 'burn':

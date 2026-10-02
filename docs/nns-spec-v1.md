@@ -1,6 +1,6 @@
 # NNS — Nimiq Name Service
 
-**Protocol specification, v1 draft — revision 31**
+**Protocol specification, v1 draft — revision 32**
 
 > **Working draft, circulated for review.** Nothing here is frozen — the
 > wire format in §5 and §6 in particular is still open pending the encoding
@@ -1273,10 +1273,12 @@ stronger sense that it has already happened.
 
 ```
 NNS1U<name>
+NNS1U<name>|<terms>
 NNS1U<name>|L
+NNS1U<name>|M
 ```
 
-- **Size:** 5 + `MAX_NAME_LEN` + 2 = **31 bytes** max
+- **Size:** 5 + `MAX_NAME_LEN` + 3 = **32 bytes** max
 - **To:** `PROTOCOL_ADDRESS` to *release* the name, any other address to
   *award* it to that address. Value `DUST_VALUE` either way (§5.4)
 - Sender MUST be `ADMIN_ADDRESS`
@@ -1284,13 +1286,17 @@ NNS1U<name>|L
   binds a `U` — every well-formed short name is reserved by rule, §4.1).
   For a **release** it MUST be in `RESERVED_NAMES` (rule 6 inverted) and
   MUST NOT already have been released. For an **award** it MUST have no
-  owner: reserved and unreleased, or plain `AVAILABLE` — never `REGISTERED`
-  or in `GRACE` (`NAME_NOT_AVAILABLE`, §7.4)
-- `L`: optional lifetime term for an award (§10.4), on `G`'s terms — the
-  second field is exactly `L` or absent, anything else is
-  `MALFORMED_PAYLOAD`. A release has no term to set and ignores it. Through
-  2026-09-10 any `|` was malformed; an r21-format `U` carrying a height
-  still is
+  owner — reserved and unreleased, or plain `AVAILABLE` — or be held,
+  `REGISTERED` or in `GRACE`, by the recipient itself, which makes the `U`
+  an **extension** (r32). Held by anyone else it is `NAME_NOT_AVAILABLE`
+  (§7.4)
+- **The second field is the term** (r32), and it is optional:
+  `1`…`99` is that many `TERM_LENGTH`s, with no leading zero; `L` is
+  `LIFETIME_TERMS` of them (§10.4); `M` is one, taken as a floor rather
+  than added (below); absent is one. Anything else is `MALFORMED_PAYLOAD`:
+  an empty field, a second term field, and three digits or more, so an
+  r21-format `U` carrying a height still is. A release has no term to set
+  and ignores the field
 
 **A `U` takes effect in the block it lands in**, at its own position in that
 block, like `G`, `S`, `X` and every other message. It carries no height, it is
@@ -1303,14 +1309,33 @@ cases; the transaction recipient decides which act it is:
 | Recipient | Effect, on landing |
 |---|---|
 | `PROTOCOL_ADDRESS` | **Release.** `name` leaves `RESERVED_NAMES` and is `AVAILABLE` under the normal rules |
-| Any other address | **Award.** `name` becomes `REGISTERED` to that address: `owner` and `target` both set to it, `expiry = <landing height> + TERM_LENGTH` — or `+ LIFETIME_TERMS × TERM_LENGTH` with `L` — no delegate host, nothing pending. A reserved name leaves `RESERVED_NAMES` on the way |
+| Any other address, name unowned | **Award.** `name` becomes `REGISTERED` to that address: `owner` and `target` both set to it, `expiry = <landing height> + terms × TERM_LENGTH`, no delegate host, nothing pending. A reserved name leaves `RESERVED_NAMES` on the way |
+| The name's own owner | **Extension** (r32). Only `expiry` moves, and a name in `GRACE` whose new expiry is past the landing block is `REGISTERED` again. A count or `L`: `expiry += terms × TERM_LENGTH`, from the current expiry as `N` does. `M`: `expiry = max(expiry, <landing height> + TERM_LENGTH)` |
+
+**`M` exists so that a `U` can be repeated safely.** A count is added every
+time it lands, so the same `U` sent twice gives the years twice, and nothing
+in the message can tell a mistake from a second gift. `M` is the form whose
+second landing changes nothing: it guarantees the name one term from the
+block it lands in and never shortens what the name already has. On a name
+nobody owns it is a one-term award, the same as an absent field. A sender
+who means "this name is good for a year from now" sends `M`; one who means
+"these years on top" sends the count.
+
+**An extension is free time and nothing else.** It is `N` without the fee:
+no fee is earned, it is outside §10.2's burn base and §10.7's share, and
+owner, target, host, EVM address and anything pending on the name are
+untouched. It is recipient-checked although an `N` is not, because the
+recipient is how a `U` says whom it is for: a `U` meant as an award of a
+free name, landing behind somebody else's `G`, must forfeit rather than
+quietly extend a stranger.
 
 A name that was reserved joins the unreserved set committed to in every
 checkpoint (§8.1) either way; a name that never was leaves the set untouched.
 This is the wire mechanism for the release power in §10.6, and since
 2026-09-11 for a free registration to a chosen address of any name nobody
 holds — giveaways, beta testers, a partner's name, and the re-award of
-names a rules rebuild has repriced out of the registry. Nothing is owed and
+names a rules rebuild has repriced out of the registry — and since r32 for
+free time on a name its owner already holds. Nothing is owed and
 no fee is earned: an award is outside §10.2's burn base and §10.7's share.
 *Adding* to the list remains impossible without a new spec version — that
 direction takes names away from people.
@@ -1353,8 +1378,9 @@ partner's behalf and then transferring, is the same race with an extra `X` and
 a period where the admin owns a name it was given to pass on.
 
 **What still bounds a stolen admin key**, since it is no longer a day of
-notice: an award reaches only names with no owner, so it can never move,
-revoke or shorten a name somebody holds (§10.6). It cannot award to itself
+notice: an award reaches only names with no owner, and an extension only
+adds time, so neither can move, revoke or shorten a name somebody holds
+(§10.6). It cannot award to itself
 at all — that is a self-transaction, dropped silently by the network (§5.3).
 It spends registrations the treasury would otherwise have sold, one name and
 one public transaction at a time. And the remedy was always a fork rather than a bound
@@ -1407,7 +1433,8 @@ release: a released name must have been reserved, which is the whole point
 of releasing it.
 
 **A second release for the same name is `NAME_NOT_RESERVED`; a second award
-is `NAME_NOT_AVAILABLE`.** Through r21 this was
+to another address is `NAME_NOT_AVAILABLE`, and to the same address it is an
+extension (r32).** Through r21 this was
 `UNRESERVE_PENDING`, a token whose whole job was to stop two `U`s coming due
 against a state only the first of them was validated against. Executing on
 landing removes the gap the token guarded: the first `U` takes the name out of
@@ -1798,7 +1825,7 @@ against a message of a listed type.
 | `NOT_ADMIN` | `P` `U` `A` | Sender is not `ADMIN_ADDRESS` — for `A`, on a name still held in `RESERVED_NAMES` (§6 `A`) |
 | `INSUFFICIENT_NOTICE` | `P` `A` | `effective_height` less than `GOVERNANCE_DELAY` above the height of the block the message landed in; for `A` (r28), `end_height` less than `AUCTION_MIN_DURATION` above it. `U` left this row in r22 — it no longer carries a height |
 | `NAME_NOT_RESERVED` | `U` (release) | Name is absent from `RESERVED_NAMES`, or a `U` for it has already fired. Since r22 this is also what a second release for the same name earns: the first one fired on landing, so there is nothing pending to collide with |
-| `NAME_NOT_AVAILABLE` | `U` (award) | Name is `REGISTERED` or in `GRACE` — somebody holds it, and §10.6 lets no `U` touch a held name. A reserved-and-unreleased name and a plain `AVAILABLE` one both pass (2026-09-11) |
+| `NAME_NOT_AVAILABLE` | `U` (award) | Name is `REGISTERED` or in `GRACE` and the recipient is not its owner — §10.6 lets a `U` add time to a held name, never take or redirect it. A reserved-and-unreleased name, a plain `AVAILABLE` one (2026-09-11) and a name the recipient itself holds (r32) all pass |
 | `GOVERNANCE_BOUND_VIOLATED` | `P` | A §10.6 bound exceeded, measured against the **active** prices |
 | `NOTHING_TO_CANCEL` | `K` | Nothing currently cancellable — no pending `X`, no open `O`. An open auction is pending and not cancellable (§6 `A`), so a `K` beside one lands here |
 | `BELOW_MIN_PRICE` | `O` `A` | Price, or starting price, below `MIN_PRICE`, which is `FEE_BASE` at this message's height |
@@ -3081,9 +3108,9 @@ about the response.
 The `U` award (§6) is the other thing a stolen key reaches, and the same
 argument covers it. It can hand out ownerless names — reserved or merely
 available — one public transaction at a time, each rejected outright by the
-same fork; it cannot award to itself, and it cannot touch a name that has an
-owner. Unsold registrations are an asset the key can start spending in
-public, not a lever on the registry.
+same fork; it cannot award to itself, and to a name that has an owner it can
+only add time (r32). Unsold registrations and unsold years are an asset the
+key can start spending in public, not a lever on the registry.
 
 **A `U` carries no notice, since r22.** The day of warning it used to carry was
 worth nothing against this attacker and something real against the honest use:
@@ -3110,7 +3137,8 @@ versioned edit.
 and *releasing* names from `RESERVED_NAMES` — or *awarding* any ownerless
 name directly to a named address, which is the same `U` under a different
 recipient (§6 `U`), and which since r22 takes effect on landing rather than
-under notice.
+under notice. Since r32 the same `U` sent to a name's owner extends its
+term for free.
 
 **Out of scope — requires a new spec version applying from a stated height:**
 name validity rules (§4), `FEE_MULTIPLIERS`, `LIFETIME_MULTIPLIER`,
@@ -3121,8 +3149,9 @@ touching the ownership of a name that *has* an owner, and *adding* to
 
 The ownership line is worth stating precisely, because the `U` award crosses
 part of it. Governance can give away a name nobody owns — in
-`RESERVED_NAMES`, or simply `AVAILABLE` (since 2026-09-11); it can never
-move, revoke, shorten, or expire a name somebody holds. An award is a
+`RESERVED_NAMES`, or simply `AVAILABLE` (since 2026-09-11) — and can give a
+held name more time (r32); it can never move, revoke, shorten, or expire a
+name somebody holds. An award is a
 registration the treasury chose not to sell, not a registry entry being
 rewritten, and every one of them is public in the block it binds in.
 Changing validity or the multiplier table retroactively would reprice or

@@ -1101,10 +1101,28 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // unreleased, or plain AVAILABLE — never REGISTERED or in GRACE, since
       // §10.6 lets no `U` touch a held name.
       const release = addressEquals(tx.recipient, CONSTANTS.PROTOCOL_ADDRESS)
+      const held = state.names.get(message.name)
       if (release) {
         if (!isReserved(state, message.name)) return keep(forfeit('NAME_NOT_RESERVED'))
-      } else if (state.names.has(message.name)) {
-        return keep(forfeit('NAME_NOT_AVAILABLE'))
+      } else if (held !== undefined) {
+        // r32: a `U` sent to the name's own owner gives it time, REGISTERED
+        // or in GRACE, and touches nothing else in the record. A number of
+        // terms or `L` is added to the expiry, as `N` adds a paid one. `M`
+        // is a floor instead: one term from this block unless the name
+        // already has more, so a second `M` changes nothing. To anyone but
+        // the owner the name is not available: a `U` can add time to a held
+        // name, never take or redirect it (§10.6).
+        if (!addressEquals(held.owner, tx.recipient)) return keep(forfeit('NAME_NOT_AVAILABLE'))
+        const term = message.terms * CONSTANTS.TERM_LENGTH
+        const expiry = message.max ? Math.max(held.expiry, tx.blockNumber + term) : held.expiry + term
+        if (expiry === held.expiry) return keep(ok())
+        const status = expiry > tx.blockNumber ? 'REGISTERED' : held.status
+
+        const draft = draftOf(state)
+        draft.names.set(message.name, { ...held, expiry, status })
+        draft.nextDueHeight = computeNextDue(draft)
+        schedule(draft, expiry)
+        return { state: freeze(draft), verdict: ok() }
       }
 
       const draft = draftOf(state)
@@ -1112,13 +1130,13 @@ function apply(state: NnsState, tx: ChainTransaction, message: Message): ReduceR
       // that never was leaves the set untouched (§6 `U`, §8.1 tag 0x0A).
       if (isReservedName(message.name)) draft.unreserved.add(message.name)
       // §6 `U`: an award additionally creates the REGISTERED record — owner
-      // and target the awardee, a full term from this block (or a lifetime
-      // with `L`), delegate host and EVM address unset, nothing pending.
+      // and target the awardee, the message's terms from this block (one for
+      // `M`, a lifetime with `L`), delegate host and EVM address unset, nothing pending.
       // Nothing is owed and no fee is earned. A release stops at the line
       // above — it has no term and ignores `L` — and the name is AVAILABLE
       // under the normal rules.
       if (!release) {
-        const expiry = tx.blockNumber + termFor(message.lifetime)
+        const expiry = tx.blockNumber + message.terms * CONSTANTS.TERM_LENGTH
         draft.names.set(message.name, {
           name: message.name,
           owner: tx.recipient,

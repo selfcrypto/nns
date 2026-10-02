@@ -10,7 +10,7 @@
  * §7.3's one pending thing per name) and a `B` with nothing open forfeits.
  */
 
-import { parse, type Address } from '@nimiqnames/core'
+import { CONSTANTS, parse, type Address } from '@nimiqnames/core'
 
 /** One `OK` log line, as `queries.ts` reads it. */
 export interface AcceptedLine {
@@ -97,7 +97,7 @@ export function tallyAccepted(lines: readonly AcceptedLine[]): AcceptedTally {
         break
       case 'U':
         // An award names a lifetime with `|L`; a release ignores the flag.
-        if (message.lifetime) lifetimeTerms++
+        if (message.terms === CONSTANTS.LIFETIME_TERMS) lifetimeTerms++
         break
       case 'O':
         listings++

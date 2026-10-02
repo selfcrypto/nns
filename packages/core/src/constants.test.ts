@@ -92,7 +92,8 @@ describe('CONSTANTS — §3', () => {
     // §6 prints. The *relation* they feed is the test below, kept separate so a
     // profile that moved one of these still reaches the budget check.
     expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + CONSTANTS.MAX_REF_LEN + 2).toBe(56) // G with |L
-    expect(prefix + CONSTANTS.MAX_NAME_LEN + 2).toBe(31) // N and U with |L
+    expect(prefix + CONSTANTS.MAX_NAME_LEN + 2).toBe(31) // N with |L
+    expect(prefix + CONSTANTS.MAX_NAME_LEN + 3).toBe(32) // U with |99 (r32)
     expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + 15).toBe(45) // O
     expect(prefix + CONSTANTS.MAX_NAME_LEN + 1 + 15 + 1 + 10).toBe(56) // A
     expect(prefix + 15 + 1 + 5 + 1 + 10).toBe(37) // P
@@ -178,7 +179,7 @@ describe('CONSTANTS — §3', () => {
     expect(values).toStrictEqual({
       // Not a §3 value: the revision these rules claim to be, pinned here so
       // a fold that moves a rule and forgets the number fails on the way out.
-      SPEC_REVISION: 31,
+      SPEC_REVISION: 32,
       PROTOCOL_ID: 'NNS1',
       MAX_DATA_BYTES: 64,
       MAX_DELEGATE_MESSAGE_BYTES: 58,
