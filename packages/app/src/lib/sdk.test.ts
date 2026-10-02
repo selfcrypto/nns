@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { encodeRegister, encodeSetTarget, parseAddress } from '@nimiqnames/core'
 import { hexToText } from './hex'
-import { paySendTransaction, type PaySendOutcome } from './sdk'
+import { hostFullscreen, paySendTransaction, type PaySendOutcome } from './sdk'
 import type { NimiqProvider } from '@nimiq/mini-app-sdk'
 
 /**
@@ -99,6 +99,22 @@ describe('paySendTransaction', () => {
     expect(outcome).toMatchObject({ declined: true })
   })
 
+  it('reads the same two failures when the wallet throws them (SDK 0.2)', async () => {
+    const data = encodeSetTarget({ name: 'example', target: parseAddress(TREASURY) }).data
+    const throwing = (type: string, message: string) =>
+      ({
+        sendBasicTransactionWithData: async () => {
+          throw Object.assign(new Error(message), { type })
+        },
+      }) as unknown as NimiqProvider
+    expect(
+      await paySendTransaction(throwing('USER_REJECTED', 'The user rejected the request'), { recipient: TREASURY, valueLuna: 1n, dataHex: data }),
+    ).toMatchObject({ ok: false, declined: true })
+    expect(
+      await paySendTransaction(throwing('REQUEST_FAILED', 'node unreachable'), { recipient: TREASURY, valueLuna: 1n, dataHex: data }),
+    ).toEqual({ ok: false, declined: false, detail: 'node unreachable' })
+  })
+
   it('refuses a payload that is not valid UTF-8 rather than letting the wallet mangle it', async () => {
     const { provider, sent } = providerThat(HASH)
     const outcome = await paySendTransaction(provider, {
@@ -150,5 +166,26 @@ describe('hexToText', () => {
     expect(hexToText('c3')).toBeNull()
     expect(hexToText('zz')).toBeNull()
     expect(hexToText('abc')).toBeNull()
+  })
+})
+
+describe('hostFullscreen', () => {
+  const calls = {
+    requestFullscreen: async () => {},
+    exitFullscreen: async () => {},
+    getFullscreen: async () => false,
+    onFullscreenChange: () => () => {},
+  }
+
+  it('is the host context when all four calls are there', () => {
+    const nimiqPay = { language: 'en', ...calls }
+    expect(hostFullscreen({ nimiqPay })).toBe(nimiqPay)
+  })
+
+  it('is null in a browser and on a Pay that predates fullscreen', () => {
+    expect(hostFullscreen({})).toBeNull()
+    expect(hostFullscreen(undefined)).toBeNull()
+    expect(hostFullscreen({ nimiqPay: { language: 'en' } })).toBeNull()
+    expect(hostFullscreen({ nimiqPay: { ...calls, onFullscreenChange: undefined } })).toBeNull()
   })
 })

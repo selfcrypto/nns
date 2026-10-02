@@ -33,13 +33,38 @@ export interface WalletSession {
   readonly provider: NimiqProvider
 }
 
-/** A wallet method answers `T | ErrorResponse` — a failure is a value, not a throw. */
-function walletError(result: unknown): { type: string; message: string } | null {
+interface WalletFailure {
+  readonly type: string
+  readonly message: string
+}
+
+/**
+ * A wallet failure that arrived as a **value**: `{ error: { type, message } }`.
+ * That is how SDK 0.1 answered and how the raw `window.nimiq` still does.
+ */
+function walletError(result: unknown): WalletFailure | null {
   if (typeof result !== 'object' || result === null || !('error' in result)) return null
   const { error } = result as { error?: unknown }
   if (typeof error !== 'object' || error === null) return { type: 'unknown', message: '' }
   const { type, message } = error as Record<string, unknown>
   return { type: typeof type === 'string' ? type : 'unknown', message: typeof message === 'string' ? message : '' }
+}
+
+/**
+ * The same failure as a **throw**: since SDK 0.2 the provider `init()` returns
+ * rejects with a `NimiqProviderError` carrying the `type` the value used to.
+ * Read structurally, so a plain `Error` from anywhere else is still a failure
+ * with a message and no type.
+ */
+function thrownError(error: unknown): WalletFailure {
+  const type = typeof error === 'object' && error !== null ? (error as { type?: unknown }).type : undefined
+  return { type: typeof type === 'string' ? type : '', message: error instanceof Error ? error.message : String(error) }
+}
+
+/** A closed confirmation sheet is a decline, however the wallet delivered it. */
+function failed(failure: WalletFailure): { ok: false; declined: boolean; detail: string } {
+  const declined = /reject|declin|cancel|denied|abort/i.test(`${failure.type} ${failure.message}`)
+  return { ok: false, declined, detail: failure.message === '' ? failure.type : failure.message }
 }
 
 export async function connectWallet(timeoutMs = 3000): Promise<WalletSession | null> {
@@ -101,15 +126,10 @@ export async function paySendTransaction(
       data,
     })
   } catch (error) {
-    return { ok: false, declined: false, detail: error instanceof Error ? error.message : String(error) }
+    return failed(thrownError(error))
   }
   const failure = walletError(result)
-  if (failure !== null) {
-    // The user closing the confirmation sheet arrives here as a resolved
-    // value, like every other wallet failure.
-    const declined = /reject|declin|cancel|denied|abort/i.test(`${failure.type} ${failure.message}`)
-    return { ok: false, declined, detail: failure.message === '' ? failure.type : failure.message }
-  }
+  if (failure !== null) return failed(failure)
   if (typeof result !== 'string' || result === '') {
     return { ok: false, declined: false, detail: 'the wallet returned neither an error nor a transaction' }
   }
@@ -151,13 +171,10 @@ export async function paySign(provider: NimiqProvider, text: string): Promise<Pa
   try {
     result = await provider.sign(text)
   } catch (error) {
-    return { ok: false, declined: false, detail: error instanceof Error ? error.message : String(error) }
+    return failed(thrownError(error))
   }
   const failure = walletError(result)
-  if (failure !== null) {
-    const declined = /reject|declin|cancel|denied|abort/i.test(`${failure.type} ${failure.message}`)
-    return { ok: false, declined, detail: failure.message === '' ? failure.type : failure.message }
-  }
+  if (failure !== null) return failed(failure)
   const { publicKey, signature } = (typeof result === 'object' && result !== null ? result : {}) as Record<string, unknown>
   const pk = keyHex(publicKey, 32)
   const sig = keyHex(signature, 64)
@@ -171,6 +188,31 @@ export async function paySign(provider: NimiqProvider, text: string): Promise<Pa
 export function hostLanguage(): string | undefined {
   if (typeof window === 'undefined') return undefined
   return window.nimiqPay?.language
+}
+
+/** Pay's native fullscreen: the four calls the host seeds on `window.nimiqPay`. */
+export interface HostFullscreen {
+  requestFullscreen(): Promise<void>
+  exitFullscreen(): Promise<void>
+  getFullscreen(): Promise<boolean>
+  onFullscreenChange(listener: (enabled: boolean) => void): () => void
+}
+
+/**
+ * The host's fullscreen calls, or `null` anywhere they are missing: a browser,
+ * Pay's in-app browser, and a Pay that predates them. The typings declare all
+ * four as present, which is only true of a current host, so each is checked.
+ *
+ * Pay shows no prompt of its own and asks the mini app to ask first. Here the
+ * ask is the button: nothing calls `requestFullscreen` but a press on it.
+ */
+export function hostFullscreen(win: { readonly nimiqPay?: unknown } | undefined = globalThis.window): HostFullscreen | null {
+  const host = win?.nimiqPay as Partial<HostFullscreen> | null | undefined
+  if (host == null) return null
+  for (const call of ['requestFullscreen', 'exitFullscreen', 'getFullscreen', 'onFullscreenChange'] as const) {
+    if (typeof host[call] !== 'function') return null
+  }
+  return host as HostFullscreen
 }
 
 /**

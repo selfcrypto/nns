@@ -18,7 +18,7 @@ catalog:
   # this address"). No router, no data-fetching library, no state manager.
   '@nimiq/hub-api': ^1.14.0
   '@nimiq/identicons': ^1.6.2
-  '@nimiq/mini-app-sdk': ^0.1.0
+  '@nimiq/mini-app-sdk': ^0.2.4
   '@noble/curves': ^2.3.0
   '@noble/hashes': ^2.3.0
   '@types/node': ^26.2.0

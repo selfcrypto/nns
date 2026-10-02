@@ -109,6 +109,10 @@ export const menuLabel = (): string => 'Menu'
 export const themeToggleLabel = (dark: boolean): string =>
   dark ? 'Switch to day mode' : 'Switch to night mode'
 
+/** The fullscreen button inside Nimiq Pay. The action, like the night switch. */
+export const fullscreenToggleLabel = (on: boolean): string =>
+  on ? 'Exit full screen' : 'Go full screen'
+
 // ── Verification lines ──────────────────────────────────────────────────────
 
 /**

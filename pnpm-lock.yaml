@@ -13,8 +13,8 @@ catalogs:
       specifier: ^1.6.2
       version: 1.6.2
     '@nimiq/mini-app-sdk':
-      specifier: ^0.1.0
-      version: 0.1.0
+      specifier: ^0.2.4
+      version: 0.2.4
     '@noble/curves':
       specifier: ^2.3.0
       version: 2.3.0
@@ -160,7 +160,7 @@ importers:
         version: 1.6.2
       '@nimiq/mini-app-sdk':
         specifier: 'catalog:'
-        version: 0.1.0
+        version: 0.2.4
       '@nimiqnames/core':
         specifier: workspace:*
         version: link:../core
@@ -431,8 +431,8 @@ packages:
   '@nimiq/identicons@1.6.2':
     resolution: {integrity: sha512-O8XaSRoOwDjnQjOaWIi4wnELoYSu48WXfApYtz2dzMlFpY+pzekTmQaqS2kYR9uj+6KUiUfBSIVPJUhpWkp88w==}
 
-  '@nimiq/mini-app-sdk@0.1.0':
-    resolution: {integrity: sha512-QR5GGrL25U5xRkWdDhDMqY6npRXMtIu07Fe0cTXon5dLLlAuPhIaJU2egwASYITwFH1RXpYCE0JnufO88SleKA==}
+  '@nimiq/mini-app-sdk@0.2.4':
+    resolution: {integrity: sha512-gDumiC+5OiN5rIaWXS2moNmDKTav8evrAvs2qLMfcSyTVgIKtX7Prmcgj7k9PXrMyGk0JMmIKaG1lbPkSg8/Ew==}
 
   '@nimiq/rpc@0.4.1':
     resolution: {integrity: sha512-aQigD21o7S1+J9kfWBA9sDPjtQ+K1keL02eahc6UjSL/+9SVMY+zetSDdjq6d4zNBLRnVayjw0G2hc/yKUMZ0Q==}
@@ -1376,7 +1376,7 @@ snapshots:
     dependencies:
       dom-parser: 0.1.6
 
-  '@nimiq/mini-app-sdk@0.1.0': {}
+  '@nimiq/mini-app-sdk@0.2.4': {}
 
   '@nimiq/rpc@0.4.1': {}
 

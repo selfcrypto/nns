@@ -138,6 +138,8 @@ export function chromeInsets(input: {
   readonly slack?: number | null
   /** Android inside Pay carries the unmeasurable nav floor — see {@link PAY_ANDROID_NAV_FLOOR}. */
   readonly android?: boolean
+  /** Pay's native fullscreen is on: its bar is gone and the page owns the top edge. */
+  readonly fullscreen?: boolean
 }): Insets {
   if (input.override !== null) return input.override
   if (!input.pay) return input.safeArea
@@ -147,7 +149,11 @@ export function chromeInsets(input: {
     // page starting clear of both — yet `env(safe-area-inset-top)` still
     // reports the status bar there. Honouring it reserved a strip of nothing
     // twice over, once as a 48 px guess and then again as the inset itself.
-    top: 0,
+    //
+    // Fullscreen takes Pay's bar away, and with it the reason for the zero:
+    // nothing is left above the page to have done the insetting, so the safe
+    // area is the reserve again. Unmeasured on a phone as of 2026-10-02.
+    top: input.fullscreen === true ? input.safeArea.top : 0,
     // The bottom reserve, largest claim wins: the honest `env()`, the live
     // measured shortfall (clamped), the Android nav floor no instrument can
     // see, and PAY_NAV_MIN only when there was nothing to measure at all.
@@ -173,8 +179,8 @@ export function describeChrome(
   const safeArea = measureSafeArea(win.document)
   const override = parseChromeOverride(win.location.search)
   const pay = isHostedWebView(win)
-  const insets = chromeInsets({ pay, safeArea, override })
   const root = win.document.documentElement
+  const insets = chromeInsets({ pay, safeArea, override, fullscreen: root.dataset['fullscreen'] === '1' })
   const globals = win as HostWindow
   return {
     hosted: pay ? 'yes' : 'no',
@@ -189,6 +195,8 @@ export function describeChrome(
     lang: String((win as { nimiqPay?: { language?: unknown } }).nimiqPay?.language ?? '—'),
     'env top/bottom': `${safeArea.top} / ${safeArea.bottom}`,
     'reserved top/bottom': `${insets.top} / ${insets.bottom}`,
+    // Whether the host offers fullscreen at all, and whether it is on.
+    fullscreen: `${typeof (globals.nimiqPay as { requestFullscreen?: unknown } | null | undefined)?.requestFullscreen === 'function' ? 'offered' : 'not offered'} · ${root.dataset['fullscreen'] === '1' ? 'on' : 'off'}`,
     override: override === null ? 'none' : `${override.top} / ${override.bottom}`,
     'inner w×h': `${win.innerWidth}×${win.innerHeight}`,
     // The three heights that disagree when a WebView is taller than what it
@@ -354,6 +362,7 @@ export function watchViewport(win: Window = window): void {
  */
 export function applyHostChrome(win: Window = window, hosted = false): Insets {
   const pay = hosted || isHostedWebView(win)
+  const root = win.document.documentElement
   const insets = chromeInsets({
     pay,
     safeArea: measureSafeArea(win.document),
@@ -364,10 +373,22 @@ export function applyHostChrome(win: Window = window, hosted = false): Insets {
       svhHeight: measureSmallViewport(win.document),
     }),
     android: isAndroid(win),
+    fullscreen: root.dataset['fullscreen'] === '1',
   })
-  const root = win.document.documentElement
   root.style.setProperty('--chrome-top', `${insets.top}px`)
   root.style.setProperty('--chrome-bottom', `${insets.bottom}px`)
   if (pay) root.dataset['host'] = 'pay'
   return insets
+}
+
+/**
+ * Record Pay's fullscreen state on the root element and re-publish the insets
+ * for it. `data-fullscreen` is where {@link applyHostChrome} reads it back, so
+ * the viewport watcher's own re-measures keep the fullscreen reserve.
+ */
+export function applyFullscreen(enabled: boolean, win: Window = window): void {
+  const root = win.document.documentElement
+  if (enabled) root.dataset['fullscreen'] = '1'
+  else delete root.dataset['fullscreen']
+  applyHostChrome(win, root.dataset['host'] === 'pay')
 }

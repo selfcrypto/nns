@@ -50,6 +50,12 @@ describe('chromeInsets', () => {
     expect(chromeInsets({ pay: true, safeArea, override: null })).toEqual({ top: 0, bottom: PAY_NAV_MIN })
   })
 
+  it('takes the safe area back at the top in fullscreen, where Pay has no bar left', () => {
+    expect(chromeInsets({ pay: true, safeArea, override: null, fullscreen: true }).top).toBe(47)
+    expect(chromeInsets({ pay: true, safeArea, override: null, fullscreen: false }).top).toBe(0)
+    expect(chromeInsets({ pay: true, safeArea, override: { top: 5, bottom: 5 }, fullscreen: true }).top).toBe(5)
+  })
+
   it('floors the bottom when the host consumed the window insets', () => {
     // Android edge-to-edge: env() reads 0 and the navigation buttons are drawn
     // straight over the tab bar's labels.

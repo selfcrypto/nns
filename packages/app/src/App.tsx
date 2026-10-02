@@ -13,6 +13,7 @@ import { EraNotice } from './components/EraNotice'
 import { useBlocksToLaunch } from './lib/launch'
 import { MastheadLinks, MastheadMenu } from './components/MastheadNav'
 import { ThemeToggle } from './components/ThemeToggle'
+import { FullscreenToggle } from './components/FullscreenToggle'
 import { BellIcon, TabIcon, type TabIconName } from './components/icons'
 import { HomeScreen } from './screens/Home'
 import { BuyScreen } from './screens/Buy'
@@ -302,6 +303,8 @@ export function App() {
               a bug you only ever see on a phone. The switch hangs nothing,
               which is why it can sit outermost without joining that dance. */}
           <div className="masthead-corner">
+            {/* Draws only inside a Nimiq Pay that offers fullscreen. */}
+            <FullscreenToggle />
             {/* Left of both, and absent on the landing page: see
                 `ThemeToggle`. */}
             {tab !== 'home' && (

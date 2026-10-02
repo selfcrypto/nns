@@ -169,6 +169,30 @@ export function MoonIcon() {
   )
 }
 
+/** Four corners pushed out: enter Pay's fullscreen. */
+export function ExpandIcon() {
+  return (
+    <Glyph size={18}>
+      <path d="M4 9V4h5" />
+      <path d="M20 9V4h-5" />
+      <path d="M4 15v5h5" />
+      <path d="M20 15v5h-5" />
+    </Glyph>
+  )
+}
+
+/** The same four corners pulled in: leave it. */
+export function CollapseIcon() {
+  return (
+    <Glyph size={18}>
+      <path d="M9 4v5H4" />
+      <path d="M15 4v5h5" />
+      <path d="M9 20v-5H4" />
+      <path d="M15 20v-5h5" />
+    </Glyph>
+  )
+}
+
 /** The notifications bell: the masthead corner's fourth control (tasks/26). */
 export function BellIcon() {
   return (

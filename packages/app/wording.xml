@@ -17,6 +17,7 @@
     <string id="contactSoonLabel">soon</string>
     <string id="menuLabel">Menu</string>
     <string id="themeToggleLabel" params="dark">Switch to night mode</string>
+    <string id="fullscreenToggleLabel" params="on">Exit full screen</string>
   </group>
   <group name="Verification lines">
     <string id="resolverUrlShown" params="url base">{url}</string>
