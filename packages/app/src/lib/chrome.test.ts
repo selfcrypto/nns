@@ -64,6 +64,12 @@ describe('chromeInsets', () => {
     expect(chromeInsets({ pay: true, safeArea, override: null, slack: 0, fullscreen: true }).bottom).toBe(34)
   })
 
+  it('takes an Android host at its word when it reports the navigation bar', () => {
+    const reported = { top: 68, bottom: 48 }
+    expect(chromeInsets({ pay: true, safeArea: reported, override: null, slack: 0, android: true }).bottom).toBe(48)
+    expect(chromeInsets({ pay: true, safeArea: { top: 68, bottom: 0 }, override: null, slack: 0, android: true }).bottom).toBe(120)
+  })
+
   it('floors the bottom when the host consumed the window insets', () => {
     // Android edge-to-edge: env() reads 0 and the navigation buttons are drawn
     // straight over the tab bar's labels.

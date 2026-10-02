@@ -3022,7 +3022,7 @@ li.note {
   padding: 9px 12px;
   /* The buttons carry a transparent 1px border, and the text follows it. */
   border: 1px solid transparent;
-  text-align: right;
+  text-align: center;
   border-radius: 10px;
   background: var(--paper);
 }
@@ -3209,15 +3209,15 @@ li.note {
 }
 
 /* Menu rows, not floating pills: the panel is a list of things you can do to
-   the identity above it, and an edge they share is what makes it read as
-   one. The right edge, the one the panel hangs from under the chip. */
+   the identity above it. Centred: the panel has a minimum width, and a short
+   row pushed to either edge of a wider bubble reads as misplaced. */
 .identity-top .identity-add {
   align-self: stretch;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 8px;
-  text-align: right;
+  text-align: center;
   border: 1px solid transparent;
   border-radius: 10px;
   padding: 9px 12px;

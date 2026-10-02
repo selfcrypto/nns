@@ -170,7 +170,12 @@ export function chromeInsets(input: {
         : Math.max(
             input.safeArea.bottom,
             input.slack ?? PAY_NAV_MIN,
-            input.android === true ? PAY_ANDROID_NAV_FLOOR : 0,
+            // The floor is for a host that hides the bar from `env()`. One
+            // that reports it reports all of it: `?diag=1` on a Pixel 9 Pro,
+            // 2026-10-02, read env bottom 48 with the page running under the
+            // navigation buttons and no slack, and the floor on top of that
+            // held the tab bar 72 px above them.
+            input.android === true && input.safeArea.bottom === 0 ? PAY_ANDROID_NAV_FLOOR : 0,
           ),
   }
 }
