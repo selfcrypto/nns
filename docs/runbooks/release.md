@@ -33,6 +33,8 @@ three packages went out at `0.1.0`. `0.2.0` followed on 2026-09-28, the first
 built on the launch constants; `0.1.0` is deprecated. `0.3.0` on 2026-09-30
 carries the resolver that answers on one silent resolver (`QUORUM_SHORT`);
 `core` and `anchor` moved with it, unchanged, because the three share a number.
+`0.4.0` on 2026-10-06 is the first at r32: the `U` term field. `resolver` and
+`anchor` moved with it unchanged.
 
 **The scope is `@nimiqnames`, not `@nns`** (2026-09-14). `nns` is not
 available as an organisation — an unrelated package of that name has held it
@@ -146,7 +148,7 @@ cd "$(mktemp -d)" && npm init -y >/dev/null && npm install @nimiqnames/resolver
 node --input-type=module -e "
   import { createResolver, DEFAULT_RESOLVERS } from '@nimiqnames/resolver'
   console.log(DEFAULT_RESOLVERS)
-  const r = await createResolver({}).resolve('ricochet')
+  const r = await createResolver({}).resolve('subimpact')
   console.log(r.address, r.verification, r.quorum)
 "
 ```
@@ -180,6 +182,10 @@ else changed with it (`deploy.md`).
   move releases to trusted publishing from a GitHub Actions workflow. Trusted
   publishing could not have done the first release: npm wants the package to
   exist before you can name its publisher.
+- **A refused token answers 404 on the PUT, not 401.** `0.4.0`: the GET of the
+  packument succeeded and the PUT answered *404, "could not be found or you do
+  not have permission"* because the first token tried was a stale one. Try
+  `npm whoami --userconfig <file>` first; it names the account or fails fast.
 - **A login session cannot publish: it takes the token.** The account is at
   `auth-and-writes` with no factor registered (first bullet), so `npm login`
   followed by `npm publish` answers 403. `0.2.0` went out on a granular token
