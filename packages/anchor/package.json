@@ -1,6 +1,6 @@
 {
   "name": "@nimiqnames/anchor",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "NNS anchor contract (§9): a permissionless, append-only event emitter, and the committed record of its compilation.",
   "license": "MIT",

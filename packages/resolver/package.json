@@ -1,6 +1,6 @@
 {
   "name": "@nimiqnames/resolver",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "Client-side NNS resolution: resolver quorum, §8.3 proof verification, §8.6 delegation. Browser and Node.",
   "license": "MIT",
