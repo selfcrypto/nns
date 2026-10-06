@@ -73,7 +73,7 @@ import { CodecError, encodeSettlement, formatAddress, type Address, type NnsConf
 import { METHOD_NOT_FOUND } from '@nns/indexer'
 
 import type { Logger } from '@nns/indexer'
-import { insolvent, MAX_CHECKPOINT_LAG, overCap, unbacked, verifyDeposit, type Breach } from './guards.js'
+import { insolvent, MAX_CHECKPOINT_LAG, unbacked, verifyDeposit, type Breach } from './guards.js'
 import type { Ledger, LedgerEntry, Pause, TransactionPlan } from './ledger.js'
 import { REFERRAL_KINDS } from './share.js'
 import type { DueObligation, WatchSnapshot } from './watch.js'
@@ -173,8 +173,6 @@ export interface IssueOptions {
    * and then nothing is paid.
    */
   readonly snapshot: WatchSnapshot | null
-  /** `NNS_SETTLEMENT_MAX_PER_DAY`, in luna. */
-  readonly dailyCap: bigint
   readonly logger?: Logger | undefined
 }
 
@@ -444,7 +442,7 @@ async function readBalances(rpc: IssuerRpc, senders: readonly Address[]): Promis
  * caller can exit non-zero on any of them.
  */
 export async function issuePass(options: IssueOptions): Promise<IssueReport> {
-  const { rpc, ledger, config, wallet, feeLuna, expiryBlocks, minBalance, limit, logger, snapshot, dailyCap } = options
+  const { rpc, ledger, config, wallet, feeLuna, expiryBlocks, minBalance, limit, logger, snapshot } = options
   const send = wallet !== undefined
 
   const head = await rpc.call<number>('getBlockNumber')
@@ -516,8 +514,6 @@ export async function issuePass(options: IssueOptions): Promise<IssueReport> {
       }
     }
   }
-  /** Luna inside the daily cap's window: what the ledger holds, plus this pass. */
-  let spent = facts.spentInWindow
   /** One node read per deposit per pass: two legs of one ref share it. */
   const verified = new Set<string>()
 
@@ -606,14 +602,11 @@ export async function issuePass(options: IssueOptions): Promise<IssueReport> {
         if (breach === null) verified.add(leg.deposit.txHash)
       }
     }
-    // A resume's value is already in the window: it was counted when pinned.
-    if (breach === null && item.source === 'new') breach = overCap(entry.key, plan.value, spent, dailyCap)
     if (breach !== null) {
       await breached(breach)
       outcomes.push({ kind: 'held', key: entry.key })
       continue
     }
-    if (item.source === 'new') spent += plan.value
 
     if (!send) {
       outcomes.push({ kind: 'planned', key: entry.key, plan })

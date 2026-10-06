@@ -124,7 +124,6 @@ describe('loadIssuerSettings', () => {
     NNS_RPC_URL: 'http://127.0.0.1:6488',
     NNS_SETTLEMENT_EXPIRY_BLOCKS: '120',
     NNS_SETTLEMENT_MIN_BALANCE: '10000000',
-    NNS_SETTLEMENT_MAX_PER_DAY: '5000000000',
   } as const
 
   it('adds a node and the §11.5 thresholds to the ledger’s settings', () => {
@@ -164,14 +163,6 @@ describe('loadIssuerSettings', () => {
       /NNS_SETTLEMENT_MIN_BALANCE is required/,
     )
     expect(() => loadIssuerSettings({ ...ISSUER, NNS_SETTLEMENT_MIN_BALANCE: '0' })).toThrow(/well above zero/)
-  })
-
-  it('requires the daily cap — an issuer with none set does not start', () => {
-    expect(loadIssuerSettings(ISSUER).dailyCap).toBe(5_000_000_000n)
-    expect(() => loadIssuerSettings({ ...ISSUER, NNS_SETTLEMENT_MAX_PER_DAY: undefined })).toThrow(
-      /NNS_SETTLEMENT_MAX_PER_DAY is required/,
-    )
-    expect(() => loadIssuerSettings({ ...ISSUER, NNS_SETTLEMENT_MAX_PER_DAY: '0' })).toThrow(/pays nothing/)
   })
 
   it('defaults the fee to zero, which the network accepts', () => {

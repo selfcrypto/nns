@@ -15,7 +15,6 @@
  * | Deposit (`unbacked`) | the legs the log charges under one ref never exceed what that transaction paid in, to the address that owes them | `UNBACKED` |
  * | Deposit (`verifyDeposit`) | the node holds that transaction, at that height, to that address, for that value | `DEPOSIT_MISMATCH` |
  * | Solvency (`insolvent`) | `MARKETPLACE_ADDRESS` holds every debt it owes and every standing bid | `INSOLVENT` |
- * | Daily cap (`overCap`) | no more than `NNS_SETTLEMENT_MAX_PER_DAY` leaves in 24 hours | `DAILY_CAP` |
  *
  * A breach pauses the issuer (`pauses` in the ledger, migration `004`) until
  * an operator releases it. Being unable to *compute* a guard is not a breach
@@ -25,6 +24,10 @@
  * table — a lost race for a five-character name refunds 15,625 NIM — so a
  * number either holds honest refunds or stops nothing. The deposit bound is
  * the per-payout limit: a payout can be as large as the payment behind it.
+ *
+ * There is no daily cap either, for the same reason: a few lost races for long
+ * names add up to more than any number that is not also a thief's budget, and
+ * every leg is already bound to a deposit the node confirms.
  *
  * The treasury has no solvency guard. It holds fee income and is swept by
  * design (§10.6), so its balance says nothing about whether a debt is right;
@@ -37,7 +40,7 @@ import type { IssuerRpc } from './issue.js'
 import type { LedgerEntry } from './ledger.js'
 import type { DueObligation, WatchSnapshot } from './watch.js'
 
-export type PauseReason = 'UNBACKED' | 'DEPOSIT_MISMATCH' | 'INSOLVENT' | 'DAILY_CAP'
+export type PauseReason = 'UNBACKED' | 'DEPOSIT_MISMATCH' | 'INSOLVENT'
 
 /** A guard that did not hold. `key` names the leg, for the two deposit guards. */
 export interface Breach {
@@ -56,9 +59,6 @@ export interface Breach {
  * late checkpoint catches up without anyone acting.
  */
 export const MAX_CHECKPOINT_LAG = CONSTANTS.CHECKPOINT_INTERVAL * 10
-
-/** The window `NNS_SETTLEMENT_MAX_PER_DAY` is counted over. */
-export const CAP_WINDOW_HOURS = 24
 
 const nim = (luna: bigint): string => `${luna / 100_000n}.${(luna % 100_000n).toString().padStart(5, '0')}`
 
@@ -167,15 +167,5 @@ export function insolvent(input: {
     detail:
       `${formatAddress(sender)} holds ${nim(balance)} NIM with ${nim(inFlight)} NIM in flight, and at checkpoint ${snapshot.checkpointHeight} ` +
       `the log has it owing ${nim(due)} NIM in debts and ${nim(snapshot.standingBids)} NIM in standing bids`,
-  }
-}
-
-/** The daily cap: `spent` is what the window already holds, this pass included. */
-export function overCap(key: string, value: bigint, spent: bigint, cap: bigint): Breach | null {
-  if (spent + value <= cap) return null
-  return {
-    reason: 'DAILY_CAP',
-    key,
-    detail: `${key} pays ${nim(value)} NIM, which takes the last ${CAP_WINDOW_HOURS} h to ${nim(spent + value)} NIM, above NNS_SETTLEMENT_MAX_PER_DAY (${nim(cap)} NIM)`,
   }
 }

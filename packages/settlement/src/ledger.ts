@@ -68,7 +68,7 @@
 import { formatAddress, parseAddress, refKey, type Address, type NnsConfig, type TxRef } from '@nimiqnames/core'
 import { configFingerprint, toLuna, type Logger } from '@nns/indexer'
 
-import { CAP_WINDOW_HOURS, type Breach, type PauseReason } from './guards.js'
+import { type Breach, type PauseReason } from './guards.js'
 import { obligationKey, type DueObligation, type LedgerKind, type WatchSnapshot } from './watch.js'
 import { migrateLedger, withTransaction, type Pool } from './db.js'
 import type { PoolClient } from 'pg'
@@ -191,8 +191,6 @@ export interface Pause {
 export interface GuardFacts {
   /** Legs an operator released with `--approve`: exempt from the deposit guards. */
   readonly approved: ReadonlySet<string>
-  /** Luna pinned inside the daily cap's window, by attempts that are not proven dead. */
-  readonly spentInWindow: bigint
 }
 
 /** Counts for one glance at the ledger. */
@@ -772,20 +770,8 @@ export function createLedger(options: LedgerOptions): Ledger {
 
     async guardFacts() {
       const approved = await pool.query<{ leg_key: string }>('SELECT leg_key FROM pauses WHERE approved')
-      // Releasing a `DAILY_CAP` pause is the operator accepting everything
-      // paid so far, so the window restarts there. An `EXPIRED` attempt is
-      // proven never to have landed and counts for nothing.
-      const spent = await pool.query<{ luna: string }>(
-        `SELECT COALESCE(SUM(value), 0)::TEXT AS luna FROM attempts
-          WHERE state <> 'EXPIRED'
-            AND pinned_at > GREATEST(
-              now() - make_interval(hours => $1),
-              COALESCE((SELECT MAX(released_at) FROM pauses WHERE reason = 'DAILY_CAP'), '-infinity'))`,
-        [CAP_WINDOW_HOURS],
-      )
       return {
         approved: new Set(approved.rows.map((row) => row.leg_key)),
-        spentInWindow: toLuna(spent.rows[0]?.luna ?? '0', 'spent in window'),
       }
     },
 

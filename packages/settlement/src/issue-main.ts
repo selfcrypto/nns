@@ -41,8 +41,7 @@ in the settlement ledger, and issues the M transactions that discharge it:
 dueForIssue -> build -> pin -> sign -> send -> markSent, in that order.
 
 Before it signs, every leg must be backed by a deposit the node confirms, the
-marketplace address must be solvent, and the last 24 h must be under
-NNS_SETTLEMENT_MAX_PER_DAY. A guard that does not hold pauses the issuer:
+marketplace address must be solvent. A guard that does not hold pauses the issuer:
 it prints PAUSED every cycle and signs nothing until \`release\` is run.
 
 Dry run by default. It reads the chain head and the sender balances (§11.5)
@@ -143,7 +142,6 @@ async function run(argv: readonly string[]): Promise<number> {
           : `(NNS_SETTLEMENT_EXPIRY_BLOCKS${expiry.nodeWindow === null ? ', this node has no getPolicyConstants' : `, above the node's ${expiry.nodeWindow}`})`) +
         `, and the §11.5 alert threshold is ${settings.minBalance} luna.`,
     )
-    console.log(`at most ${settings.dailyCap} luna leaves in 24 h (NNS_SETTLEMENT_MAX_PER_DAY).`)
     const pause = await ledger.openPause()
     if (pause !== null) {
       console.log(`this issuer is PAUSED (${pause.reason}) since ${pause.pausedAt.toISOString()} and signs nothing until released.`)
@@ -195,7 +193,6 @@ async function run(argv: readonly string[]): Promise<number> {
         limit,
         logger,
         snapshot,
-        dailyCap: settings.dailyCap,
       })
       console.log('')
       for (const line of describeIssue(report)) console.log(line)

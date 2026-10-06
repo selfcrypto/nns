@@ -37,7 +37,6 @@ With no argument: prints whether the issuer is paused, and the last pauses.
 What a release does next, by reason:
   UNBACKED, DEPOSIT_MISMATCH   checked again; pauses again unless --approve.
   INSOLVENT                    checked again; fund the address first.
-  DAILY_CAP                    the 24 h window restarts at the release.
 
 Settings come from the environment; see packages/settlement/.env.example.`
 

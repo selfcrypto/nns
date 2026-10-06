@@ -84,7 +84,6 @@ interface Recorder {
 interface GuardMemory {
   readonly pause?: Breach
   readonly approved?: readonly string[]
-  readonly spentInWindow?: bigint
 }
 
 const pauseOf = (breach: Breach): Pause => ({
@@ -116,7 +115,7 @@ function fakeLedger(
       open ??= pauseOf(breach)
       return open
     },
-    guardFacts: async () => ({ approved: new Set(memory.approved ?? []), spentInWindow: memory.spentInWindow ?? 0n }),
+    guardFacts: async () => ({ approved: new Set(memory.approved ?? []) }),
     entries: async () => {
       recorder.calls.push('entries')
       return entries
@@ -249,7 +248,6 @@ const pass = (
     snapshot?: WatchSnapshot | null
     /** Overrides on what the node holds for the snapshot's deposits. */
     txs?: Record<string, NodeTx>
-    dailyCap?: bigint
     memory?: GuardMemory
   } = {},
 ) => {
@@ -262,7 +260,6 @@ const pass = (
     ledger,
     report: issuePass({
       snapshot,
-      dailyCap: options.dailyCap ?? 1_000_000_00000n,
       rpc: fakeRpc(recorder, balances, options.onSend, { ...nodeFor(snapshot), ...options.txs }),
       ledger,
       config,
@@ -554,7 +551,6 @@ describe('issuePass — §11.5', () => {
         expiryBlocks: EXPIRY,
         minBalance: 1n,
         snapshot: snapshotFor([small]),
-        dailyCap: 1_000_000_00000n,
       }),
     ).rejects.toThrow(/expected a whole number of luna/)
   })
@@ -662,24 +658,6 @@ describe('issuePass — the guards', () => {
     const report = await run.report
     expect(kinds(report.outcomes)).toEqual(['1010:0:SALE_PROCEEDS sent'])
     expect(run.recorder.calls).not.toContain('getTransactionByHash')
-  })
-
-  it('holds the payout that would take the day over its cap, and pauses', async () => {
-    const first = entry({ ref: { height: 1_010, txIndex: 0 }, kind: 'REFUND', amount: 60_00000n, owedBy: TREASURY })
-    const second = entry({ ref: { height: 1_020, txIndex: 0 }, kind: 'REFUND', amount: 60_00000n, owedBy: TREASURY })
-    const run = pass([first, second], { send: true, dailyCap: 100_00000n })
-    const report = await run.report
-    expect(kinds(report.outcomes)).toEqual(['1010:0:REFUND sent', '1020:0:REFUND held'])
-    expect(report.paused).toMatchObject({ reason: 'DAILY_CAP', key: '1020:0:REFUND' })
-    expect(run.ledger.pins).toHaveLength(1)
-  })
-
-  it('counts what the window already holds against the cap', async () => {
-    const leg = entry({ ref: { height: 1_010, txIndex: 0 }, kind: 'REFUND', amount: 50_00000n, owedBy: TREASURY })
-    const over = await pass([leg], { send: true, dailyCap: 100_00000n, memory: { spentInWindow: 60_00000n } }).report
-    expect(over.paused?.reason).toBe('DAILY_CAP')
-    const under = await pass([leg], { send: true, dailyCap: 100_00000n, memory: { spentInWindow: 50_00000n } }).report
-    expect(kinds(under.outcomes)).toEqual(['1010:0:REFUND sent'])
   })
 
   it('under a pause signs nothing — not a new leg, not a plan already pinned', async () => {
@@ -1014,11 +992,10 @@ describe.skipIf(URL === undefined)('issuePass over a real ledger', () => {
   const run = (
     ledger: IssuerLedger,
     recorder: Recorder,
-    options: { send?: boolean; onSend?: () => never; snapshot: WatchSnapshot; balance?: number; dailyCap?: bigint },
+    options: { send?: boolean; onSend?: () => never; snapshot: WatchSnapshot; balance?: number },
   ) =>
     issuePass({
       snapshot: options.snapshot,
-      dailyCap: options.dailyCap ?? 1_000_000_00000n,
       rpc: fakeRpc(
         recorder,
         { [MARKETPLACE]: options.balance ?? 1_000_00000, [TREASURY]: 1_000_00000 },
@@ -1147,7 +1124,7 @@ describe.skipIf(URL === undefined)('issuePass over a real ledger', () => {
         throw new Error('the process died here')
       },
     })
-    await ledger.pause({ reason: 'DAILY_CAP', key: '1010:0:SALE_PROCEEDS', detail: 'staged' })
+    await ledger.pause({ reason: 'UNBACKED', key: '1010:0:SALE_PROCEEDS', detail: 'staged' })
 
     const held = await run(ledger, { calls: [] }, { send: true, snapshot })
     expect(kinds(held.outcomes)).toEqual(['1010:0:SALE_PROCEEDS held'])
@@ -1176,22 +1153,6 @@ describe.skipIf(URL === undefined)('issuePass over a real ledger', () => {
     expect((await ledger.pauses(10)).map((pause) => pause.releaseNote)).toEqual(['checked the G by hand', 'try again'])
   })
 
-  it('the daily cap counts what is pinned, and its release restarts the window', async () => {
-    const snapshot = snapshotOf(1_440, [leg('SALE_PROCEEDS', 487_50001n, SELLER), leg('COMMISSION', 12_50000n, TREASURY)])
-    const ledger = ledgerOf()
-    await ledger.initialise()
-    await ledger.applySnapshot(snapshot)
-
-    // 12.5 NIM goes out under a 100 NIM cap; the 487 NIM leg would cross it.
-    const report = await run(ledger, { calls: [] }, { send: true, snapshot, dailyCap: 100_00000n })
-    expect(kinds(report.outcomes)).toEqual(['1010:0:COMMISSION sent', '1010:0:SALE_PROCEEDS held'])
-    expect(report.paused?.reason).toBe('DAILY_CAP')
-    expect((await ledger.guardFacts()).spentInWindow).toBe(12_50000n)
-
-    await ledger.release('accepted', false)
-    expect((await ledger.guardFacts()).spentInWindow).toBe(0n)
-  })
-
   it('refuses to approve a pause that names no leg, and to release with nothing open', async () => {
     const ledger = ledgerOf()
     await ledger.initialise()
@@ -1199,6 +1160,6 @@ describe.skipIf(URL === undefined)('issuePass over a real ledger', () => {
     await ledger.pause({ reason: 'INSOLVENT', key: null, detail: 'staged' })
     await expect(ledger.release('pay it', true)).rejects.toThrow(/names no leg/)
     // One open pause at a time: a second breach returns the first.
-    expect((await ledger.pause({ reason: 'DAILY_CAP', key: null, detail: 'second' })).reason).toBe('INSOLVENT')
+    expect((await ledger.pause({ reason: 'UNBACKED', key: null, detail: 'second' })).reason).toBe('INSOLVENT')
   })
 })
