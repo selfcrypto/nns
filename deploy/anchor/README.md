@@ -142,7 +142,9 @@ docker compose up -d --build            # after a git pull
   key already anchored, which is the single most important thing the publisher
   can notice. A dedicated endpoint makes it deterministic; short of that, keep
   `NNS_ANCHOR_LOOKBACK_BLOCKS` well under the endpoint's cap (50,000 is the
-  common one) and treat "no prior anchor" as a signal to check by hand.
+  common one, and publicnode has pruned logs older than ~10,000 blocks since
+  2026-10, which failed every run from 2026-10-05 21:21 until the lookback
+  went to 9,000) and treat "no prior anchor" as a signal to check by hand.
 - Fund the publisher address. `NNS_ANCHOR_MIN_BALANCE_WEI` refuses to sign below
   one anchor's cost and warns above it; an anchor is roughly 30k gas, an event
   emission and nothing else.
